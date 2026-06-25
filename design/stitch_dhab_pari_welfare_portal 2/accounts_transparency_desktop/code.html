@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Accounts &amp; Transparency | Dhab Pari</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&amp;family=Source+Sans+3:wght@400;600;700&amp;family=Noto+Nastaliq+Urdu&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-tint": "#2a6959",
+                    "on-primary-fixed": "#002019",
+                    "on-surface-variant": "#404945",
+                    "on-error-container": "#93000a",
+                    "surface-container-low": "#f6f3f2",
+                    "secondary-container": "#83f5c6",
+                    "secondary-fixed": "#86f8c9",
+                    "tertiary-container": "#00513d",
+                    "surface-bright": "#fcf9f8",
+                    "tertiary": "#003829",
+                    "on-surface": "#1c1b1b",
+                    "surface-variant": "#e5e2e1",
+                    "error-container": "#ffdad6",
+                    "outline": "#707975",
+                    "on-tertiary-container": "#5bc8a3",
+                    "on-tertiary-fixed": "#002117",
+                    "primary-fixed": "#b0efdb",
+                    "on-secondary": "#ffffff",
+                    "tertiary-fixed-dim": "#6edab4",
+                    "on-secondary-fixed": "#002115",
+                    "on-tertiary": "#ffffff",
+                    "primary-container": "#085041",
+                    "tertiary-fixed": "#8af7cf",
+                    "on-primary-container": "#83c1ad",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-fixed-variant": "#095041",
+                    "on-tertiary-fixed-variant": "#00513d",
+                    "error": "#ba1a1a",
+                    "background": "#fcf9f8",
+                    "outline-variant": "#bfc9c4",
+                    "surface-dim": "#dcd9d9",
+                    "primary-fixed-dim": "#94d3bf",
+                    "surface-container-high": "#eae7e7",
+                    "on-secondary-fixed-variant": "#00513a",
+                    "on-background": "#1c1b1b",
+                    "inverse-on-surface": "#f3f0ef",
+                    "secondary-fixed-dim": "#68dbae",
+                    "primary": "#00372c",
+                    "surface": "#fcf9f8",
+                    "on-secondary-container": "#007151",
+                    "inverse-surface": "#313030",
+                    "surface-container-highest": "#e5e2e1",
+                    "on-error": "#ffffff",
+                    "inverse-primary": "#94d3bf",
+                    "on-primary": "#ffffff",
+                    "surface-container": "#f0eded",
+                    "secondary": "#006c4e"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "gutter": "24px",
+                    "container-max": "1200px",
+                    "margin-desktop": "40px",
+                    "unit": "4px",
+                    "margin-mobile": "16px"
+            },
+            "fontFamily": {
+                    "body-lg": ["\"Source Sans 3\""],
+                    "body-md": ["\"Source Sans 3\""],
+                    "label-sm": ["\"Source Sans 3\""],
+                    "display-lg": ["Playfair Display"],
+                    "headline-lg": ["Playfair Display"],
+                    "title-md": ["\"Source Sans 3\""],
+                    "headline-lg-mobile": ["Playfair Display"],
+                    "urdu-body": ["Noto Nastaliq Urdu"]
+            },
+            "fontSize": {
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-sm": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "display-lg": ["48px", {"lineHeight": "60px", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "title-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "urdu-body": ["18px", {"lineHeight": "36px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .zebra-table tr:nth-child(even) {
+            background-color: #f0eded; /* surface-container */
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .urdu-font { font-family: 'Noto Nastaliq Urdu', serif; }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen">
+<!-- Top Announcement Bar -->
+<div class="w-full bg-primary-container text-on-primary-container py-1.5 overflow-hidden whitespace-nowrap">
+<div class="inline-block animate-marquee px-4">
+<span class="font-label-sm text-label-sm">
+                📢 LATEST UPDATE: Financial audit for Q3 2024 is now complete. Transparency is our commitment. | مالیاتی رپورٹ برائے تیسری سہ ماہی مکمل ہو چکی ہے۔
+            </span>
+</div>
+</div>
+<!-- Navigation Shell (Desktop Sidebar / Mobile Bottom) -->
+<nav class="hidden md:flex flex-col h-screen fixed left-0 top-0 py-6 bg-primary dark:bg-primary border-r border-outline-variant w-64 z-50">
+<div class="px-6 mb-8">
+<span class="font-display-lg text-title-md text-secondary-fixed">Dhab Pari</span>
+<p class="text-on-primary opacity-60 text-xs mt-1">Village Transparency Portal</p>
+</div>
+<div class="flex-1 space-y-1">
+<a class="flex items-center px-4 py-3 text-on-primary opacity-80 hover:bg-primary-container hover:opacity-100 rounded-lg mx-2 transition-all" href="#">
+<span class="material-symbols-outlined mr-3">dashboard</span>
+<span class="font-label-sm text-body-md">Dashboard</span>
+</a>
+<a class="flex items-center px-4 py-3 bg-secondary-container text-on-secondary-container rounded-lg mx-2 transition-all" href="#">
+<span class="material-symbols-outlined mr-3">payments</span>
+<span class="font-label-sm text-body-md">Accounts</span>
+</a>
+<a class="flex items-center px-4 py-3 text-on-primary opacity-80 hover:bg-primary-container hover:opacity-100 rounded-lg mx-2 transition-all" href="#">
+<span class="material-symbols-outlined mr-3">group</span>
+<span class="font-label-sm text-body-md">Members</span>
+</a>
+<a class="flex items-center px-4 py-3 text-on-primary opacity-80 hover:bg-primary-container hover:opacity-100 rounded-lg mx-2 transition-all" href="#">
+<span class="material-symbols-outlined mr-3">plumbing</span>
+<span class="font-label-sm text-body-md">Infrastructure</span>
+</a>
+<a class="flex items-center px-4 py-3 text-on-primary opacity-80 hover:bg-primary-container hover:opacity-100 rounded-lg mx-2 transition-all" href="#">
+<span class="material-symbols-outlined mr-3">analytics</span>
+<span class="font-label-sm text-body-md">Reports</span>
+</a>
+</div>
+<div class="mt-auto px-4">
+<div class="bg-primary-container p-4 rounded-xl mb-4 border border-outline-variant">
+<p class="text-xs text-on-primary opacity-70 mb-1">Current User</p>
+<div class="flex items-center">
+<div class="w-8 h-8 rounded-full bg-secondary text-on-secondary flex items-center justify-center font-bold mr-2 text-xs">AP</div>
+<span class="text-on-primary text-sm font-semibold">Admin Portal</span>
+</div>
+</div>
+<button class="w-full py-2.5 bg-error text-on-error rounded-lg font-label-sm hover:opacity-90 transition-opacity">
+                Log Out
+            </button>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="md:ml-64 min-h-screen pb-24 md:pb-12">
+<!-- Header -->
+<header class="sticky top-0 z-40 w-full bg-primary dark:bg-primary text-on-primary px-6 py-4 flex justify-between items-center">
+<div class="flex items-center">
+<h1 class="font-display-lg text-headline-lg-mobile md:text-headline-lg">Accounts &amp; Transparency</h1>
+<span class="hidden md:block ml-4 urdu-font text-urdu-body opacity-80">حسابات اور شفافیت</span>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 px-4 py-2 border-2 border-secondary-fixed text-secondary-fixed rounded-lg font-label-sm hover:bg-secondary hover:text-on-secondary transition-all">
+<span class="material-symbols-outlined text-sm">download</span>
+<span class="hidden sm:inline">Export</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2 bg-secondary text-on-secondary rounded-lg font-label-sm hover:bg-on-secondary-container transition-all active:scale-95">
+<span class="material-symbols-outlined text-sm">add</span>
+<span class="hidden sm:inline">Add Entry</span>
+</button>
+</div>
+</header>
+<div class="max-w-container-max mx-auto px-4 md:px-6 py-8">
+<!-- Summary Grid -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+<!-- Total Income -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant flex items-center gap-5">
+<div class="w-14 h-14 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">trending_up</span>
+</div>
+<div>
+<p class="font-label-sm text-on-surface-variant uppercase">Total Income</p>
+<h2 class="font-display-lg text-headline-lg text-secondary">Rs. 248,500</h2>
+<p class="text-xs text-secondary font-semibold mt-1">+12% from last month</p>
+</div>
+</div>
+<!-- Total Expenses -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant flex items-center gap-5">
+<div class="w-14 h-14 rounded-full bg-error-container text-on-error-container flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">trending_down</span>
+</div>
+<div>
+<p class="font-label-sm text-on-surface-variant uppercase">Total Expenses</p>
+<h2 class="font-display-lg text-headline-lg text-error">Rs. 112,340</h2>
+<p class="text-xs text-error font-semibold mt-1">Within budget</p>
+</div>
+</div>
+<!-- Net Balance -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant flex items-center gap-5">
+<div class="w-14 h-14 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">account_balance_wallet</span>
+</div>
+<div>
+<p class="font-label-sm text-on-surface-variant uppercase">Net Balance</p>
+<h2 class="font-display-lg text-headline-lg text-tertiary-container">Rs. 136,160</h2>
+<p class="text-xs text-tertiary-container font-semibold mt-1">Village Fund Reserve</p>
+</div>
+</div>
+</section>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- Main Ledger Table Column -->
+<div class="lg:col-span-8">
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden">
+<div class="px-6 py-5 border-b border-outline-variant flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+<h3 class="font-title-md text-title-md">Recent Transactions</h3>
+<div class="flex gap-2">
+<button class="p-2 bg-surface-container-high rounded-lg hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+<button class="p-2 bg-surface-container-high rounded-lg hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined">search</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left zebra-table">
+<thead class="bg-surface-container text-on-surface-variant font-label-sm">
+<tr>
+<th class="px-6 py-4">Date</th>
+<th class="px-6 py-4">Description</th>
+<th class="px-6 py-4">Category</th>
+<th class="px-6 py-4">Type</th>
+<th class="px-6 py-4 text-right">Amount</th>
+</tr>
+</thead>
+<tbody class="font-body-md">
+<tr class="border-l-4 border-secondary">
+<td class="px-6 py-4 text-on-surface-variant text-sm">Oct 12, 2024</td>
+<td class="px-6 py-4 font-semibold">Monthly Water Bills (Sector A)</td>
+<td class="px-6 py-4"><span class="bg-surface-container-high px-2 py-1 rounded text-xs">Utilities</span></td>
+<td class="px-6 py-4"><span class="bg-secondary text-on-secondary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Income</span></td>
+<td class="px-6 py-4 text-right font-bold text-secondary">Rs. 45,000</td>
+</tr>
+<tr class="border-l-4 border-error">
+<td class="px-6 py-4 text-on-surface-variant text-sm">Oct 10, 2024</td>
+<td class="px-6 py-4 font-semibold">Main Pump Repair &amp; Parts</td>
+<td class="px-6 py-4"><span class="bg-surface-container-high px-2 py-1 rounded text-xs">Maintenance</span></td>
+<td class="px-6 py-4"><span class="bg-error text-on-error px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Expense</span></td>
+<td class="px-6 py-4 text-right font-bold text-error">Rs. 12,500</td>
+</tr>
+<tr class="border-l-4 border-secondary">
+<td class="px-6 py-4 text-on-surface-variant text-sm">Oct 08, 2024</td>
+<td class="px-6 py-4 font-semibold">Overseas Donation (A. Malik)</td>
+<td class="px-6 py-4"><span class="bg-surface-container-high px-2 py-1 rounded text-xs">Donation</span></td>
+<td class="px-6 py-4"><span class="bg-secondary text-on-secondary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Income</span></td>
+<td class="px-6 py-4 text-right font-bold text-secondary">Rs. 25,000</td>
+</tr>
+<tr class="border-l-4 border-error">
+<td class="px-6 py-4 text-on-surface-variant text-sm">Oct 05, 2024</td>
+<td class="px-6 py-4 font-semibold">Street Light Electricity Bill</td>
+<td class="px-6 py-4"><span class="bg-surface-container-high px-2 py-1 rounded text-xs">Power</span></td>
+<td class="px-6 py-4"><span class="bg-error text-on-error px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Expense</span></td>
+<td class="px-6 py-4 text-right font-bold text-error">Rs. 8,200</td>
+</tr>
+<tr class="border-l-4 border-secondary">
+<td class="px-6 py-4 text-on-surface-variant text-sm">Sep 30, 2024</td>
+<td class="px-6 py-4 font-semibold">Zakat Collection - Masjid</td>
+<td class="px-6 py-4"><span class="bg-surface-container-high px-2 py-1 rounded text-xs">Welfare</span></td>
+<td class="px-6 py-4"><span class="bg-secondary text-on-secondary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Income</span></td>
+<td class="px-6 py-4 text-right font-bold text-secondary">Rs. 67,800</td>
+</tr>
+<tr class="border-l-4 border-error">
+<td class="px-6 py-4 text-on-surface-variant text-sm">Sep 28, 2024</td>
+<td class="px-6 py-4 font-semibold">Security Guard Salaries</td>
+<td class="px-6 py-4"><span class="bg-surface-container-high px-2 py-1 rounded text-xs">Salaries</span></td>
+<td class="px-6 py-4"><span class="bg-error text-on-error px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Expense</span></td>
+<td class="px-6 py-4 text-right font-bold text-error">Rs. 35,000</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-6 py-4 border-t border-outline-variant flex justify-between items-center">
+<span class="text-sm text-on-surface-variant">Showing 6 of 124 transactions</span>
+<div class="flex gap-2">
+<button class="px-3 py-1 border border-outline-variant rounded hover:bg-surface-container transition-colors disabled:opacity-30">Prev</button>
+<button class="px-3 py-1 bg-primary text-on-primary rounded hover:opacity-90 transition-opacity">Next</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Sidebar Widgets -->
+<aside class="lg:col-span-4 space-y-6">
+<!-- Cash Position Widget -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant">
+<div class="flex items-center justify-between mb-4">
+<h3 class="font-title-md text-title-md">Cash Position</h3>
+<span class="material-symbols-outlined text-primary">account_balance</span>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-sm mb-1">
+<span class="text-on-surface-variant">Reserve Goal</span>
+<span class="font-semibold text-secondary">85%</span>
+</div>
+<div class="w-full h-3 bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-secondary transition-all duration-1000" style="width: 85%"></div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 pt-2">
+<div class="p-3 bg-surface-container rounded-lg">
+<p class="text-[10px] uppercase text-on-surface-variant tracking-wider">Cash in Hand</p>
+<p class="font-bold text-on-surface">Rs. 12,450</p>
+</div>
+<div class="p-3 bg-surface-container rounded-lg">
+<p class="text-[10px] uppercase text-on-surface-variant tracking-wider">Bank Balance</p>
+<p class="font-bold text-on-surface">Rs. 123,710</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Weekly Trends (Bento Mini) -->
+<div class="bg-primary p-6 rounded-xl text-on-primary relative overflow-hidden h-64">
+<h3 class="font-title-md text-title-md mb-2 relative z-10">Monthly Growth</h3>
+<p class="text-sm opacity-70 mb-6 relative z-10">Contribution trends over the last 6 months.</p>
+<!-- Simple Pure CSS Bar Chart Placeholder -->
+<div class="flex items-end justify-between h-24 gap-2 relative z-10">
+<div class="flex-1 bg-secondary-fixed opacity-30 rounded-t-sm" style="height: 40%"></div>
+<div class="flex-1 bg-secondary-fixed opacity-50 rounded-t-sm" style="height: 60%"></div>
+<div class="flex-1 bg-secondary-fixed opacity-70 rounded-t-sm" style="height: 45%"></div>
+<div class="flex-1 bg-secondary-fixed opacity-80 rounded-t-sm" style="height: 80%"></div>
+<div class="flex-1 bg-secondary-fixed opacity-90 rounded-t-sm" style="height: 65%"></div>
+<div class="flex-1 bg-secondary-fixed rounded-t-sm animate-pulse" style="height: 95%"></div>
+</div>
+<div class="flex justify-between mt-2 text-[10px] opacity-60">
+<span>MAY</span><span>JUN</span><span>JUL</span><span>AUG</span><span>SEP</span><span>OCT</span>
+</div>
+<!-- Atmospheric background effect -->
+<div class="absolute -right-8 -bottom-8 w-32 h-32 bg-secondary opacity-20 rounded-full blur-3xl"></div>
+</div>
+<!-- Information Card -->
+<div class="bg-surface-container-high p-6 rounded-xl border-l-4 border-primary">
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-primary">info</span>
+<div>
+<h4 class="font-bold text-sm">Audit Certificate</h4>
+<p class="text-xs text-on-surface-variant mt-1 leading-relaxed">
+                                    All accounts are audited monthly by the Village Finance Sub-Committee. For detailed ledgers from previous years, please visit the main office.
+                                </p>
+<a class="inline-block mt-3 text-primary font-bold text-xs hover:underline transition-all" href="#">View 2023 Annual Report →</a>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</div>
+<!-- Footer -->
+<footer class="w-full py-12 px-6 md:px-12 max-w-container-max mx-auto border-t border-outline-variant mt-12 bg-surface-container-highest">
+<div class="flex flex-col md:flex-row justify-between items-center gap-8">
+<div>
+<span class="font-display-lg text-title-md text-primary">Dhab Pari</span>
+<p class="font-body-md text-body-md text-on-surface-variant mt-2 max-w-sm">
+                        Building a modern, transparent future for our village through communal effort and digital accountability.
+                    </p>
+</div>
+<div class="flex gap-8">
+<div class="flex flex-col gap-2">
+<span class="font-label-sm text-label-sm text-primary uppercase">Explore</span>
+<a class="text-on-surface-variant hover:text-primary transition-all" href="#">Projects</a>
+<a class="text-on-surface-variant hover:text-primary transition-all" href="#">Committee</a>
+<a class="text-on-surface-variant hover:text-primary transition-all" href="#">Accounts</a>
+</div>
+<div class="flex flex-col gap-2">
+<span class="font-label-sm text-label-sm text-primary uppercase">Support</span>
+<a class="text-on-surface-variant hover:text-primary transition-all" href="#">Donate</a>
+<a class="text-on-surface-variant hover:text-primary transition-all" href="#">Volunteer</a>
+<a class="text-on-surface-variant hover:text-primary transition-all" href="#">Contact</a>
+</div>
+</div>
+</div>
+<div class="mt-12 pt-8 border-t border-outline-variant flex flex-col md:flex-row justify-between items-center text-on-surface-variant text-sm">
+<p>© 2024 Dhab Pari Water &amp; Welfare Committee. All rights reserved.</p>
+<div class="flex gap-6 mt-4 md:mt-0">
+<a class="hover:underline" href="#">Privacy Policy</a>
+<a class="hover:underline" href="#">Terms of Service</a>
+<a class="hover:underline" href="#">Village History</a>
+</div>
+</div>
+</footer>
+</main>
+<!-- Mobile Bottom Navigation -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 md:hidden bg-primary dark:bg-primary shadow-lg border-t border-outline-variant">
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-sm text-label-sm mt-1">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="font-label-sm text-label-sm mt-1">Projects</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70" href="#">
+<span class="material-symbols-outlined">volunteer_activism</span>
+<span class="font-label-sm text-label-sm mt-1">Donate</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 py-1" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">payments</span>
+<span class="font-label-sm text-label-sm mt-1">Accounts</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70" href="#">
+<span class="material-symbols-outlined">menu</span>
+<span class="font-label-sm text-label-sm mt-1">More</span>
+</a>
+</nav>
+<!-- FAB for quick report (Mobile only) -->
+<button class="md:hidden fixed right-6 bottom-24 w-14 h-14 bg-secondary text-on-secondary rounded-full shadow-xl flex items-center justify-center active:scale-90 transition-transform">
+<span class="material-symbols-outlined">download</span>
+</button>
+<script>
+        // Micro-interactions and animations
+        document.addEventListener('DOMContentLoaded', () => {
+            // Count up animation for balances (simplified)
+            const balanceElements = document.querySelectorAll('h2');
+            balanceElements.forEach(el => {
+                const finalValueStr = el.innerText.replace('Rs. ', '').replace(',', '');
+                const finalValue = parseInt(finalValueStr);
+                if (isNaN(finalValue)) return;
+                
+                let current = 0;
+                const increment = finalValue / 40;
+                const updateCounter = () => {
+                    current += increment;
+                    if (current < finalValue) {
+                        el.innerText = 'Rs. ' + Math.ceil(current).toLocaleString();
+                        requestAnimationFrame(updateCounter);
+                    } else {
+                        el.innerText = 'Rs. ' + finalValue.toLocaleString();
+                    }
+                };
+                updateCounter();
+            });
+        });
+    </script>
+</body></html>

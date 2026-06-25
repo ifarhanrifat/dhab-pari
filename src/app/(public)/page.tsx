@@ -1,0 +1,391 @@
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
+import { SITE } from '@/lib/constants'
+import {
+  Wallet,
+  GitBranch,
+  Heart,
+  Users,
+  ArrowRight,
+  Play,
+  Eye,
+  ChevronRight,
+} from 'lucide-react'
+import { HomeHero } from '@/components/home/HomeHero'
+import { HomeMobileQuickActions } from '@/components/home/HomeMobileQuickActions'
+import { HomeMobileUrduCta } from '@/components/home/HomeMobileUrduCta'
+
+export default async function HomePage() {
+  const supabase = await createClient()
+
+  const [projectsRes, newsRes, videosRes, donorsRes] = await Promise.all([
+    supabase
+      .from('projects')
+      .select('id, title, title_ur, status, progress_percent, budget_pkr, spent_pkr, category, location, before_image_url, after_image_url')
+      .eq('status', 'ongoing')
+      .limit(2),
+    supabase
+      .from('news_posts')
+      .select('id, title, category, content, published_at')
+      .eq('is_published', true)
+      .order('published_at', { ascending: false })
+      .limit(4),
+    supabase
+      .from('video_content')
+      .select('id, title, video_url, thumbnail_url, duration_seconds, category')
+      .eq('is_published', true)
+      .limit(4),
+    supabase
+      .from('donors')
+      .select('id, name, amount_pkr, date, is_anonymous')
+      .eq('is_verified', true)
+      .order('date', { ascending: false })
+      .limit(4),
+  ])
+
+  const projects = projectsRes.data ?? []
+  const news = newsRes.data ?? []
+  const videos = videosRes.data ?? []
+  const donors = donorsRes.data ?? []
+
+  const categoryEmojis: Record<string, string> = {
+    sports: '⚽',
+    education: '🎓',
+    health: '🩺',
+    environment: '🌿',
+    social: '🤝',
+    announcement: '📢',
+    event: '🎉',
+  }
+
+  function formatDuration(seconds: number | null) {
+    if (!seconds) return '0:00'
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m}:${s.toString().padStart(2, '0')}`
+  }
+
+  function timeAgo(dateStr: string) {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const hours = Math.floor(diff / 3600000)
+    if (hours < 1) return 'Just now'
+    if (hours < 24) return `${hours} hours ago`
+    const days = Math.floor(hours / 24)
+    if (days === 1) return 'Yesterday'
+    return `${days} days ago`
+  }
+
+  return (
+    <>
+      {/* ========== HERO ========== */}
+      <HomeHero />
+
+      {/* ========== STAT CARDS (overlapping hero) ========== */}
+      <div className="max-w-[1200px] mx-auto px-6 -mt-16 relative z-20">
+        {/* Desktop: 4 cols / Mobile: 2x2 grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+          <div className="bg-white border border-dp-outline-variant p-4 lg:p-6 rounded-lg hover:bg-dp-surface-container-low transition-colors">
+            <div className="flex justify-between items-start mb-2">
+              <span className="p-2 bg-dp-primary-fixed text-dp-primary rounded-lg">
+                <Wallet size={20} />
+              </span>
+              <span className="text-green-600 font-bold text-[14px] font-sans tracking-[0.05em]">+12%</span>
+            </div>
+            <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">PKR 1,24,500</div>
+            <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]">Available Funds</div>
+          </div>
+
+          <div className="bg-white border border-dp-outline-variant p-4 lg:p-6 rounded-lg hover:bg-dp-surface-container-low transition-colors">
+            <div className="flex justify-between items-start mb-2">
+              <span className="p-2 bg-dp-primary-fixed text-dp-primary rounded-lg">
+                <GitBranch size={20} />
+              </span>
+              <span className="bg-dp-secondary-container text-dp-on-secondary-container px-2 py-0.5 rounded text-[10px] font-bold">ACTIVE</span>
+            </div>
+            <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">3 Projects</div>
+            <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]">Active Community Drives</div>
+          </div>
+
+          <div className="bg-white border border-dp-outline-variant p-4 lg:p-6 rounded-lg hover:bg-dp-surface-container-low transition-colors">
+            <div className="flex justify-between items-start mb-2">
+              <span className="p-2 bg-dp-primary-fixed text-dp-primary rounded-lg">
+                <Heart size={20} />
+              </span>
+              <span className="text-dp-primary-container font-bold text-[14px] font-sans tracking-[0.05em]">This Month</span>
+            </div>
+            <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">PKR 55,000</div>
+            <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]">Total Donations</div>
+          </div>
+
+          <div className="bg-white border border-dp-outline-variant p-4 lg:p-6 rounded-lg hover:bg-dp-surface-container-low transition-colors">
+            <div className="flex justify-between items-start mb-2">
+              <span className="p-2 bg-dp-primary-fixed text-dp-primary rounded-lg">
+                <Users size={20} />
+              </span>
+              <span className="text-dp-outline-variant">
+                <Eye size={16} />
+              </span>
+            </div>
+            <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">148 Consumers</div>
+            <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]">Registered Households</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ========== MOBILE: Quick Actions ========== */}
+      <HomeMobileQuickActions />
+
+      {/* ========== MAIN CONTENT + SIDEBAR ========== */}
+      <div className="max-w-[1200px] mx-auto px-6 py-12 flex flex-col lg:flex-row gap-6">
+
+        {/* ===== MAIN COLUMN ===== */}
+        <div className="flex-1 space-y-12">
+
+          {/* --- Ongoing Projects --- */}
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Ongoing Projects</h2>
+              <Link href="/projects" className="text-dp-secondary font-bold hover:underline flex items-center text-[14px] font-sans tracking-[0.05em]">
+                View All <ArrowRight size={16} className="ml-1" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {projects.map((project) => (
+                <Link
+                  key={project.id}
+                  href={`/projects`}
+                  className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden hover:shadow-md transition-shadow group"
+                >
+                  <div className="h-48 bg-dp-surface-container overflow-hidden">
+                    <div className="w-full h-full bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container flex items-center justify-center">
+                      <GitBranch size={48} className="text-dp-on-primary-container/40" />
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <span className="bg-dp-secondary-container text-dp-on-secondary-container text-[10px] font-extrabold px-2 py-1 rounded uppercase tracking-wider">
+                      {project.status}
+                    </span>
+                    <h3 className="text-[20px] font-sans font-semibold leading-[28px] mt-2 text-dp-primary group-hover:text-dp-secondary transition-colors">
+                      {project.title}
+                    </h3>
+                    <div className="mt-4 space-y-2">
+                      <div className="flex justify-between text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-on-surface-variant">
+                        <span>Progress</span>
+                        <span>{project.progress_percent}%</span>
+                      </div>
+                      <div className="w-full bg-dp-surface-container-high h-2 rounded-full overflow-hidden">
+                        <div
+                          className="bg-dp-secondary h-full transition-all duration-1000"
+                          style={{ width: `${project.progress_percent}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-between mt-6 pt-4 border-t border-dp-outline-variant text-[14px] font-sans font-semibold tracking-[0.05em]">
+                      <div>
+                        <p className="text-dp-on-surface-variant">Budget</p>
+                        <p className="font-bold text-dp-primary">
+                          PKR {(project.budget_pkr ?? 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-dp-on-surface-variant">Spent</p>
+                        <p className="font-bold text-dp-primary">
+                          PKR {(project.spent_pkr ?? 0).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+              {projects.length === 0 && (
+                <div className="col-span-2 text-center py-12 text-dp-on-surface-variant">
+                  No ongoing projects at the moment.
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* --- Latest News --- */}
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Latest News</h2>
+              <Link href="/news" className="text-dp-secondary font-bold hover:underline text-[14px] font-sans tracking-[0.05em]">
+                Full Archive
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {news.map((post) => (
+                <Link
+                  key={post.id}
+                  href={`/news`}
+                  className="p-5 bg-white border border-dp-outline-variant rounded-lg flex gap-4 hover:bg-dp-surface-container-low transition-colors cursor-pointer group"
+                >
+                  <div className="text-4xl shrink-0">
+                    {categoryEmojis[post.category ?? ''] ?? '📰'}
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold text-dp-secondary uppercase tracking-widest font-sans">
+                      {post.category}
+                    </span>
+                    <h4 className="font-bold text-dp-primary group-hover:text-dp-secondary transition-colors text-[16px] font-sans leading-[24px] line-clamp-2">
+                      {post.title}
+                    </h4>
+                    <p className="text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-on-surface-variant mt-1 line-clamp-2">
+                      {post.content?.slice(0, 100)}...
+                    </p>
+                  </div>
+                </Link>
+              ))}
+              {news.length === 0 && (
+                <div className="col-span-2 text-center py-12 text-dp-on-surface-variant">
+                  No news posts yet.
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* --- Featured Videos --- */}
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Featured Videos</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {videos.map((video) => (
+                <div
+                  key={video.id}
+                  className="group relative rounded-lg overflow-hidden aspect-video bg-black cursor-pointer"
+                >
+                  <div className="w-full h-full bg-gradient-to-br from-dp-primary to-dp-tertiary-container opacity-60 group-hover:opacity-40 transition-opacity" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Play size={24} className="text-white ml-1" fill="white" />
+                    </div>
+                  </div>
+                  <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded font-sans">
+                    {formatDuration(video.duration_seconds)}
+                  </div>
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <p className="text-white font-bold text-[14px] font-sans tracking-[0.05em] truncate">
+                      {video.title}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {videos.length === 0 && (
+                <div className="col-span-2 text-center py-12 text-dp-on-surface-variant">
+                  No videos yet.
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* ===== RIGHT SIDEBAR (280px) ===== */}
+        <aside className="w-full lg:w-[280px] shrink-0 space-y-6">
+
+          {/* Cash Position */}
+          <div className="bg-dp-primary text-white rounded-lg p-6 border border-dp-primary-container">
+            <h3 className="text-[14px] font-sans font-semibold tracking-[0.05em] uppercase opacity-80 mb-4">
+              Cash Position
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <div className="text-[28px] font-bold font-sans">PKR 124,500</div>
+                <div className="text-[12px] opacity-70 font-sans">Total Liquid Balance</div>
+              </div>
+              <div className="h-px bg-white/20 w-full" />
+              <div className="grid grid-cols-2 gap-2 text-[14px] font-sans font-semibold tracking-[0.05em]">
+                <div>
+                  <p className="opacity-60">Revenue</p>
+                  <p className="font-bold">+75k</p>
+                </div>
+                <div className="text-right">
+                  <p className="opacity-60">Expenses</p>
+                  <p className="font-bold text-red-300">-22k</p>
+                </div>
+              </div>
+              <Link
+                href="/accounts"
+                className="block w-full py-2 bg-white/10 hover:bg-white/20 rounded text-center font-bold text-[14px] font-sans tracking-[0.05em] transition-colors"
+              >
+                Financial Report
+              </Link>
+            </div>
+          </div>
+
+          {/* Donors Transparency */}
+          <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
+            <div className="p-4 bg-dp-surface-container-low border-b border-dp-outline-variant flex items-center justify-between">
+              <h3 className="font-bold text-dp-primary text-[14px] font-sans tracking-[0.05em]">
+                Donors - Transparency
+              </h3>
+              <Eye size={16} className="text-dp-primary" />
+            </div>
+            <div className="divide-y divide-dp-outline-variant max-h-[300px] overflow-y-auto hide-scrollbar">
+              {donors.map((donor) => (
+                <div
+                  key={donor.id}
+                  className="p-4 flex items-center justify-between hover:bg-dp-surface-container-low transition-colors"
+                >
+                  <div className="min-w-0">
+                    <p className="font-bold text-dp-on-surface text-[14px] font-sans tracking-[0.05em] truncate">
+                      {donor.is_anonymous ? 'Anonymous Donor' : donor.name}
+                    </p>
+                    <p className="text-[10px] text-dp-on-surface-variant font-sans">
+                      {timeAgo(donor.date)}
+                    </p>
+                  </div>
+                  <div className="text-dp-secondary font-bold text-[14px] font-sans tracking-[0.05em] shrink-0 ml-2">
+                    PKR {donor.amount_pkr.toLocaleString()}
+                  </div>
+                </div>
+              ))}
+              {donors.length === 0 && (
+                <div className="p-4 text-center text-dp-on-surface-variant text-[14px]">
+                  No donors yet.
+                </div>
+              )}
+            </div>
+            <Link
+              href="/donate"
+              className="block p-3 text-center text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-secondary font-bold bg-dp-surface-container-low border-t border-dp-outline-variant hover:bg-dp-surface-container transition-colors"
+            >
+              View Full List
+            </Link>
+          </div>
+
+          {/* Donate Now Card */}
+          <div className="bg-dp-secondary text-white rounded-lg p-6 relative overflow-hidden">
+            <div className="relative z-10">
+              <h3 className="text-[20px] font-sans font-semibold leading-[28px] mb-2">Donate Now</h3>
+              <p className="text-[14px] font-sans font-semibold tracking-[0.05em] opacity-90 mb-6">
+                Support your village&apos;s growth and clean water initiatives.
+              </p>
+              <div className="space-y-4">
+                <div className="bg-white/10 p-3 rounded border border-white/20">
+                  <p className="text-[10px] uppercase font-bold opacity-60 font-sans">JazzCash / EasyPaisa</p>
+                  <p className="font-mono text-[18px]">{SITE.jazzcash}</p>
+                </div>
+                <div className="bg-white/10 p-3 rounded border border-white/20">
+                  <p className="text-[10px] uppercase font-bold opacity-60 font-sans">Bank Account ({SITE.bankName})</p>
+                  <p className="font-mono text-[14px]">{SITE.bankAccount}</p>
+                  <p className="text-[10px] mt-1 font-sans">Title: {SITE.jazzcashName}</p>
+                </div>
+              </div>
+              <Link
+                href="/donate"
+                className="block w-full mt-6 py-3 bg-white text-dp-secondary rounded-lg text-center font-bold font-sans hover:bg-dp-secondary-container transition-all"
+              >
+                Submit Receipt
+              </Link>
+            </div>
+            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+          </div>
+        </aside>
+      </div>
+
+      {/* ========== MOBILE: Urdu CTA ========== */}
+      <HomeMobileUrduCta />
+    </>
+  )
+}

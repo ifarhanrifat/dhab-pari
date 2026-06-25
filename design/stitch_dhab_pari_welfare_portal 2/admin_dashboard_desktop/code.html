@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Dhab Pari Admin Portal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&amp;family=Source+Sans+3:wght@400;600;700&amp;family=Noto+Nastaliq+Urdu&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .urdu-text { font-family: 'Noto Nastaliq Urdu', serif; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #085041; border-radius: 10px; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px); }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-tint": "#2a6959",
+                      "on-primary-fixed": "#002019",
+                      "on-surface-variant": "#404945",
+                      "on-error-container": "#93000a",
+                      "surface-container-low": "#f6f3f2",
+                      "secondary-container": "#83f5c6",
+                      "secondary-fixed": "#86f8c9",
+                      "tertiary-container": "#00513d",
+                      "surface-bright": "#fcf9f8",
+                      "tertiary": "#003829",
+                      "on-surface": "#1c1b1b",
+                      "surface-variant": "#e5e2e1",
+                      "error-container": "#ffdad6",
+                      "outline": "#707975",
+                      "on-tertiary-container": "#5bc8a3",
+                      "on-tertiary-fixed": "#002117",
+                      "primary-fixed": "#b0efdb",
+                      "on-secondary": "#ffffff",
+                      "tertiary-fixed-dim": "#6edab4",
+                      "on-secondary-fixed": "#002115",
+                      "on-tertiary": "#ffffff",
+                      "primary-container": "#085041",
+                      "tertiary-fixed": "#8af7cf",
+                      "on-primary-container": "#83c1ad",
+                      "surface-container-lowest": "#ffffff",
+                      "on-primary-fixed-variant": "#095041",
+                      "on-tertiary-fixed-variant": "#00513d",
+                      "error": "#ba1a1a",
+                      "background": "#fcf9f8",
+                      "outline-variant": "#bfc9c4",
+                      "surface-dim": "#dcd9d9",
+                      "primary-fixed-dim": "#94d3bf",
+                      "surface-container-high": "#eae7e7",
+                      "on-secondary-fixed-variant": "#00513a",
+                      "on-background": "#1c1b1b",
+                      "inverse-on-surface": "#f3f0ef",
+                      "secondary-fixed-dim": "#68dbae",
+                      "primary": "#00372c",
+                      "surface": "#fcf9f8",
+                      "on-secondary-container": "#007151",
+                      "inverse-surface": "#313030",
+                      "surface-container-highest": "#e5e2e1",
+                      "on-error": "#ffffff",
+                      "inverse-primary": "#94d3bf",
+                      "on-primary": "#ffffff",
+                      "surface-container": "#f0eded",
+                      "secondary": "#006c4e"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "gutter": "24px",
+                      "container-max": "1200px",
+                      "margin-desktop": "40px",
+                      "unit": "4px",
+                      "margin-mobile": "16px"
+              },
+              "fontFamily": {
+                      "body-lg": ["Source Sans 3"],
+                      "body-md": ["Source Sans 3"],
+                      "label-sm": ["Source Sans 3"],
+                      "display-lg": ["Playfair Display"],
+                      "headline-lg": ["Playfair Display"],
+                      "title-md": ["Source Sans 3"],
+                      "headline-lg-mobile": ["Playfair Display"],
+                      "urdu-body": ["Noto Nastaliq Urdu"]
+              },
+              "fontSize": {
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "label-sm": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "display-lg": ["48px", {"lineHeight": "60px", "fontWeight": "700"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "700"}],
+                      "title-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                      "urdu-body": ["18px", {"lineHeight": "36px", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-[#F5F8F6] font-body-md text-on-surface">
+<!-- Mobile Top Bar (Visible only on mobile) -->
+<header class="md:hidden bg-primary p-4 flex items-center justify-between sticky top-0 z-50">
+<h1 class="text-on-primary font-display-lg text-title-md">Dhab Pari Portal</h1>
+<button class="text-on-primary" onclick="document.getElementById('side-nav').classList.toggle('-translate-x-full')">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</header>
+<div class="flex min-h-screen">
+<!-- Sidebar Navigation -->
+<aside class="hidden md:flex flex-col h-screen fixed left-0 top-0 py-6 bg-primary dark:bg-primary text-on-primary border-r border-outline-variant w-64 z-50 transition-transform duration-300 transform -translate-x-full md:translate-x-0" id="side-nav">
+<div class="px-6 mb-8">
+<h2 class="font-display-lg text-title-md text-secondary-fixed">Admin Portal</h2>
+<p class="text-label-sm opacity-70">Dhab Pari Committee</p>
+</div>
+<nav class="flex-1 space-y-1">
+<!-- Dashboard Active -->
+<a class="bg-secondary-container text-on-secondary-container rounded-lg mx-2 flex items-center px-4 py-3 group transition-transform active:translate-x-1" href="#">
+<span class="material-symbols-outlined mr-3">dashboard</span>
+<span class="font-label-sm md:text-body-md">Dashboard</span>
+</a>
+<a class="text-on-primary opacity-80 hover:bg-primary-container hover:opacity-100 rounded-lg mx-2 flex items-center px-4 py-3 group transition-transform active:translate-x-1" href="#">
+<span class="material-symbols-outlined mr-3">payments</span>
+<span class="font-label-sm md:text-body-md">Billing</span>
+</a>
+<a class="text-on-primary opacity-80 hover:bg-primary-container hover:opacity-100 rounded-lg mx-2 flex items-center px-4 py-3 group transition-transform active:translate-x-1" href="#">
+<span class="material-symbols-outlined mr-3">account_tree</span>
+<span class="font-label-sm md:text-body-md">Projects</span>
+</a>
+<a class="text-on-primary opacity-80 hover:bg-primary-container hover:opacity-100 rounded-lg mx-2 flex items-center px-4 py-3 group transition-transform active:translate-x-1" href="#">
+<span class="material-symbols-outlined mr-3">group</span>
+<span class="font-label-sm md:text-body-md">Members</span>
+</a>
+<a class="text-on-primary opacity-80 hover:bg-primary-container hover:opacity-100 rounded-lg mx-2 flex items-center px-4 py-3 group transition-transform active:translate-x-1" href="#">
+<span class="material-symbols-outlined mr-3">analytics</span>
+<span class="font-label-sm md:text-body-md">Reports</span>
+</a>
+<a class="text-on-primary opacity-80 hover:bg-primary-container hover:opacity-100 rounded-lg mx-2 flex items-center px-4 py-3 group transition-transform active:translate-x-1" href="#">
+<span class="material-symbols-outlined mr-3">settings</span>
+<span class="font-label-sm md:text-body-md">Settings</span>
+</a>
+</nav>
+<div class="px-6 pt-6 mt-auto border-t border-outline-variant/20">
+<div class="flex items-center mb-6">
+<div class="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center text-primary font-bold mr-3">A</div>
+<div>
+<p class="text-body-md font-bold leading-none">Admin User</p>
+<p class="text-label-sm opacity-60">Super Admin</p>
+</div>
+</div>
+<button class="w-full bg-primary-container text-on-primary-container py-2 rounded-lg font-label-sm hover:bg-on-primary-container hover:text-primary-container transition-colors">
+                    Log Out
+                </button>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 md:ml-64 p-6 md:p-10 max-w-[1400px]">
+<!-- Welcome Header -->
+<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h1 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary">System Overview</h1>
+<p class="text-on-surface-variant font-body-md">Welcome back, Admin. Village infrastructure is operating normally.</p>
+</div>
+<div class="text-right">
+<span class="text-label-sm text-outline px-3 py-1 border border-outline-variant rounded-full">Last updated: Today, 09:42 AM</span>
+</div>
+</header>
+<!-- Pending Suggestion Alert (Amber) -->
+<div class="mb-8 bg-[#FFF9EB] border-l-4 border-amber-500 p-4 rounded-r-lg flex items-start gap-4 transition-transform hover:scale-[1.005]">
+<span class="material-symbols-outlined text-amber-600 mt-1">lightbulb</span>
+<div class="flex-1">
+<h3 class="font-bold text-amber-900 font-body-md">Pending Village Suggestions (12)</h3>
+<p class="text-amber-800 text-label-sm">Community members have submitted new feedback regarding the South Sector water pressure. Review required.</p>
+</div>
+<button class="bg-amber-600 text-white px-4 py-2 rounded-lg text-label-sm hover:bg-amber-700 transition-colors">View All</button>
+</div>
+<!-- Stats Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter mb-8">
+<!-- Available Funds -->
+<div class="bg-white p-6 rounded-xl border border-outline-variant flex flex-col justify-between">
+<div class="flex justify-between items-start mb-4">
+<span class="p-2 bg-primary-fixed text-primary rounded-lg">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+</span>
+<span class="text-secondary font-bold text-label-sm">+12%</span>
+</div>
+<div>
+<p class="text-outline text-label-sm uppercase tracking-wider">Available Funds</p>
+<h4 class="text-headline-lg font-headline-lg text-primary">Rs. 842,500</h4>
+</div>
+</div>
+<!-- Unpaid Bills (Red) -->
+<div class="bg-white p-6 rounded-xl border border-outline-variant flex flex-col justify-between">
+<div class="flex justify-between items-start mb-4">
+<span class="p-2 bg-error-container text-error rounded-lg">
+<span class="material-symbols-outlined">request_quote</span>
+</span>
+<span class="text-error font-bold text-label-sm">Critical</span>
+</div>
+<div>
+<p class="text-outline text-label-sm uppercase tracking-wider">Unpaid Bills</p>
+<h4 class="text-headline-lg font-headline-lg text-error">142 Items</h4>
+</div>
+</div>
+<!-- Pending Suggestions (Amber) -->
+<div class="bg-white p-6 rounded-xl border border-outline-variant flex flex-col justify-between">
+<div class="flex justify-between items-start mb-4">
+<span class="p-2 bg-[#FFF9EB] text-amber-600 rounded-lg">
+<span class="material-symbols-outlined">forum</span>
+</span>
+<span class="text-amber-600 font-bold text-label-sm">12 New</span>
+</div>
+<div>
+<p class="text-outline text-label-sm uppercase tracking-wider">Pending Suggestions</p>
+<h4 class="text-headline-lg font-headline-lg text-amber-800">28 Active</h4>
+</div>
+</div>
+<!-- Total Donors -->
+<div class="bg-white p-6 rounded-xl border border-outline-variant flex flex-col justify-between">
+<div class="flex justify-between items-start mb-4">
+<span class="p-2 bg-secondary-container text-secondary rounded-lg">
+<span class="material-symbols-outlined">volunteer_activism</span>
+</span>
+<span class="text-secondary font-bold text-label-sm">+4 this month</span>
+</div>
+<div>
+<p class="text-outline text-label-sm uppercase tracking-wider">Total Donors</p>
+<h4 class="text-headline-lg font-headline-lg text-primary">2,105</h4>
+</div>
+</div>
+</div>
+<!-- Quick Actions & Secondary Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter mb-8">
+<!-- Actions Panel -->
+<div class="lg:col-span-1 bg-white p-6 rounded-xl border border-outline-variant">
+<h3 class="font-title-md text-primary mb-6 flex items-center">
+<span class="material-symbols-outlined mr-2">bolt</span> Quick Actions
+                    </h3>
+<div class="space-y-3">
+<button class="w-full flex items-center justify-between p-3 rounded-lg border border-outline-variant hover:bg-primary-container hover:text-on-primary-container transition-all group">
+<div class="flex items-center">
+<span class="material-symbols-outlined mr-3 text-primary group-hover:text-inherit">add_circle</span>
+<span class="font-body-md font-semibold">Add New Bill</span>
+</div>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-3 rounded-lg border border-outline-variant hover:bg-primary-container hover:text-on-primary-container transition-all group">
+<div class="flex items-center">
+<span class="material-symbols-outlined mr-3 text-primary group-hover:text-inherit">newspaper</span>
+<span class="font-body-md font-semibold">Post Village News</span>
+</div>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-3 rounded-lg border border-outline-variant hover:bg-primary-container hover:text-on-primary-container transition-all group">
+<div class="flex items-center">
+<span class="material-symbols-outlined mr-3 text-primary group-hover:text-inherit">video_call</span>
+<span class="font-body-md font-semibold">Upload Progress Video</span>
+</div>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-3 rounded-lg border border-outline-variant hover:bg-primary-container hover:text-on-primary-container transition-all group">
+<div class="flex items-center">
+<span class="material-symbols-outlined mr-3 text-primary group-hover:text-inherit">construction</span>
+<span class="font-body-md font-semibold">Launch Project</span>
+</div>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-3 rounded-lg border border-[#25D366] bg-[#E8FAE9] text-[#075E54] hover:bg-[#25D366] hover:text-white transition-all group">
+<div class="flex items-center">
+<span class="material-symbols-outlined mr-3 group-hover:text-white">campaign</span>
+<span class="font-body-md font-semibold">WhatsApp Alert</span>
+</div>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-opacity">send</span>
+</button>
+</div>
+</div>
+<!-- Village Visual Context Card -->
+<div class="lg:col-span-2 relative rounded-xl overflow-hidden min-h-[300px] border border-outline-variant group">
+<div class="absolute inset-0 z-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="A serene, professional high-angle photograph of a lush green agricultural village in Pakistan, featuring traditional brick houses and modern water tanks under clear blue morning sunlight. The image is clean and vibrant, reflecting communal prosperity and growth, with a focus on stable infrastructure and natural beauty." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDbNCF_vzhRbUt0uCu9LWnKz8CE1eqCHTWiBO8XVlG-52lc7_uFxQ0I_bA_eTLzmDcosP5CRbQN_TQN0JtteDKFJ9ryf2l7F3Pc7QIHJWtLZ94DcGvbwlNRC8aadyazeWmT8H93SfPcH3fyEb_wrRm7MbYArQHIASaCNeL-x7vgaiv03uQ0fk5oRVccJxZHgQMgY3fkY1kfwxQQ_3ju5hpD6jF6z3IOVyYL8sJKaQHdxxZjRwx-4AYuEba3MdBgazHcv8euiEjBqUU')">
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10"></div>
+<div class="absolute bottom-0 left-0 p-8 z-20 text-white w-full">
+<div class="flex justify-between items-end">
+<div>
+<h3 class="font-display-lg text-headline-lg-mobile md:text-headline-lg mb-2">Main Tank Construction</h3>
+<p class="text-body-md opacity-90">Phase 2 completion: 85%. Estimated completion: 14 Oct 2024.</p>
+</div>
+<div class="text-right">
+<div class="w-24 bg-white/20 rounded-full h-2 mb-2 overflow-hidden">
+<div class="bg-secondary-fixed h-full w-[85%]"></div>
+</div>
+<span class="text-label-sm font-bold">85% COMPLETE</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Data Table Section -->
+<section class="bg-white rounded-xl border border-outline-variant overflow-hidden">
+<div class="p-6 border-b border-outline-variant flex flex-col md:flex-row justify-between items-center gap-4">
+<h3 class="font-title-md text-primary">Recent Billing Activity</h3>
+<div class="flex items-center gap-3 w-full md:w-auto">
+<div class="relative flex-1 md:w-64">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full pl-10 pr-4 py-2 border-2 border-outline-variant rounded-lg focus:border-primary focus:ring-0 text-label-sm" placeholder="Search Consumer ID/Name..." type="text"/>
+</div>
+<button class="p-2 border border-outline-variant rounded-lg hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low text-outline text-label-sm">
+<th class="p-4 font-bold border-b border-outline-variant">Consumer ID</th>
+<th class="p-4 font-bold border-b border-outline-variant">Name</th>
+<th class="p-4 font-bold border-b border-outline-variant">House No.</th>
+<th class="p-4 font-bold border-b border-outline-variant">Amount</th>
+<th class="p-4 font-bold border-b border-outline-variant">Status</th>
+<th class="p-4 font-bold border-b border-outline-variant text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="text-body-md">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="p-4 border-b border-outline-variant">DP-1042</td>
+<td class="p-4 border-b border-outline-variant font-semibold">Chaudhry Ahmed Ali</td>
+<td class="p-4 border-b border-outline-variant">Sector B-12</td>
+<td class="p-4 border-b border-outline-variant font-bold">Rs. 1,200</td>
+<td class="p-4 border-b border-outline-variant">
+<span class="bg-error-container text-error text-[10px] uppercase font-black px-2 py-1 rounded">UNPAID</span>
+</td>
+<td class="p-4 border-b border-outline-variant text-right space-x-2">
+<button class="bg-primary text-on-primary px-3 py-1 rounded text-label-sm hover:bg-primary-container hover:text-on-primary-container transition-all">Mark Paid</button>
+<button class="text-primary hover:bg-primary/10 p-1 rounded transition-colors"><span class="material-symbols-outlined align-middle">edit</span></button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="bg-surface-container-low/30 hover:bg-surface-container-lowest transition-colors group">
+<td class="p-4 border-b border-outline-variant">DP-1045</td>
+<td class="p-4 border-b border-outline-variant font-semibold">Malik Sajid</td>
+<td class="p-4 border-b border-outline-variant">Sector C-08</td>
+<td class="p-4 border-b border-outline-variant font-bold">Rs. 850</td>
+<td class="p-4 border-b border-outline-variant">
+<span class="bg-primary-container text-on-primary text-[10px] uppercase font-black px-2 py-1 rounded">PAID</span>
+</td>
+<td class="p-4 border-b border-outline-variant text-right space-x-2">
+<button class="opacity-30 cursor-not-allowed border border-outline px-3 py-1 rounded text-label-sm">Mark Paid</button>
+<button class="text-primary hover:bg-primary/10 p-1 rounded transition-colors"><span class="material-symbols-outlined align-middle">edit</span></button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="p-4 border-b border-outline-variant">DP-1051</td>
+<td class="p-4 border-b border-outline-variant font-semibold">Haji Ibrahim</td>
+<td class="p-4 border-b border-outline-variant">Sector A-44</td>
+<td class="p-4 border-b border-outline-variant font-bold">Rs. 2,100</td>
+<td class="p-4 border-b border-outline-variant">
+<span class="bg-amber-100 text-amber-800 text-[10px] uppercase font-black px-2 py-1 rounded">PENDING</span>
+</td>
+<td class="p-4 border-b border-outline-variant text-right space-x-2">
+<button class="bg-primary text-on-primary px-3 py-1 rounded text-label-sm hover:bg-primary-container hover:text-on-primary-container transition-all">Mark Paid</button>
+<button class="text-primary hover:bg-primary/10 p-1 rounded transition-colors"><span class="material-symbols-outlined align-middle">edit</span></button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="bg-surface-container-low/30 hover:bg-surface-container-lowest transition-colors group">
+<td class="p-4 border-b border-outline-variant">DP-1060</td>
+<td class="p-4 border-b border-outline-variant font-semibold">Gulzar Khan</td>
+<td class="p-4 border-b border-outline-variant">Sector B-02</td>
+<td class="p-4 border-b border-outline-variant font-bold">Rs. 900</td>
+<td class="p-4 border-b border-outline-variant">
+<span class="bg-error-container text-error text-[10px] uppercase font-black px-2 py-1 rounded">UNPAID</span>
+</td>
+<td class="p-4 border-b border-outline-variant text-right space-x-2">
+<button class="bg-primary text-on-primary px-3 py-1 rounded text-label-sm hover:bg-primary-container hover:text-on-primary-container transition-all">Mark Paid</button>
+<button class="text-primary hover:bg-primary/10 p-1 rounded transition-colors"><span class="material-symbols-outlined align-middle">edit</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 flex items-center justify-between bg-surface-container-low">
+<p class="text-label-sm text-outline">Showing 1-10 of 420 consumers</p>
+<div class="flex gap-2">
+<button class="px-4 py-2 border border-outline-variant bg-white rounded-lg text-label-sm hover:bg-surface-container transition-colors disabled:opacity-50" disabled="">Previous</button>
+<button class="px-4 py-2 border border-outline-variant bg-white rounded-lg text-label-sm hover:bg-surface-container transition-colors">Next</button>
+</div>
+</div>
+</section>
+</main>
+</div>
+<!-- Floating Action Button for Mobile -->
+<button class="fixed bottom-24 right-6 md:hidden bg-secondary text-on-secondary w-14 h-14 rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform z-40">
+<span class="material-symbols-outlined">add</span>
+</button>
+<!-- Mobile Bottom Nav -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 md:hidden bg-primary text-on-primary border-t border-outline-variant shadow-lg">
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 py-1 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-label-sm">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="text-label-sm">Projects</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined">volunteer_activism</span>
+<span class="text-label-sm">Donate</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined">videocam</span>
+<span class="text-label-sm">Videos</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined">menu</span>
+<span class="text-label-sm">More</span>
+</a>
+</nav>
+<script>
+        // Simple micro-interaction for cards
+        document.querySelectorAll('.stat-card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-4px)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0px)';
+            });
+        });
+
+        // Search logic simulation
+        const searchInput = document.querySelector('input[type="text"]');
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        });
+    </script>
+</body></html>

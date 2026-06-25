@@ -2,10 +2,23 @@
   "permissions": {
     "allow": [
       "Bash(npx create-next-app@latest . --typescript --tailwind --app --src-dir --eslint --no-import-alias --turbopack)",
-      "Bash(mv design *)"
+      "Bash(mv design *)",
+      "Bash(npm install *)",
+      "Bash(npx shadcn@latest init -d)",
+      "Bash(npx next *)",
+      "Bash(curl -s http://localhost:3456)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} %{redirect_url}\" http://localhost:3000/admin)",
+      "Bash(curl -s http://localhost:3000/water)",
+      "Bash(curl -s http://localhost:3000/projects)",
+      "Bash(curl -s http://localhost:3000/news)",
+      "Bash(curl -s http://localhost:3000/videos)",
+      "Bash(mkdir -p \"/Users/farhan/dhab-pari/src/app/\\(public\\)/news/[id]\")",
+      "Bash(curl -s \"http://localhost:3000/news/test-fake-id\")"
     ],
     "additionalDirectories": [
-      "/tmp"
+      "/tmp",
+      "/Users/farhan/dhab-pari/src/app/(public)/news"
     ]
   }
 }

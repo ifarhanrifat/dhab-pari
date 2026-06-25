@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Village Projects | Dhab Pari</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Source+Sans+3:wght@400;600;700&family=Noto+Nastaliq+Urdu&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@100..900&family=Source+Sans+3:wght@100..900&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#2a6959",
+                        "on-primary-fixed": "#002019",
+                        "on-surface-variant": "#404945",
+                        "on-error-container": "#93000a",
+                        "surface-container-low": "#f6f3f2",
+                        "secondary-container": "#83f5c6",
+                        "secondary-fixed": "#86f8c9",
+                        "tertiary-container": "#00513d",
+                        "surface-bright": "#fcf9f8",
+                        "tertiary": "#003829",
+                        "on-surface": "#1c1b1b",
+                        "surface-variant": "#e5e2e1",
+                        "error-container": "#ffdad6",
+                        "outline": "#707975",
+                        "on-tertiary-container": "#5bc8a3",
+                        "on-tertiary-fixed": "#002117",
+                        "primary-fixed": "#b0efdb",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed-dim": "#6edab4",
+                        "on-secondary-fixed": "#002115",
+                        "on-tertiary": "#ffffff",
+                        "primary-container": "#085041",
+                        "tertiary-fixed": "#8af7cf",
+                        "on-primary-container": "#83c1ad",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-fixed-variant": "#095041",
+                        "on-tertiary-fixed-variant": "#00513d",
+                        "error": "#ba1a1a",
+                        "background": "#fcf9f8",
+                        "outline-variant": "#bfc9c4",
+                        "surface-dim": "#dcd9d9",
+                        "primary-fixed-dim": "#94d3bf",
+                        "surface-container-high": "#eae7e7",
+                        "on-secondary-fixed-variant": "#00513a",
+                        "on-background": "#1c1b1b",
+                        "inverse-on-surface": "#f3f0ef",
+                        "secondary-fixed-dim": "#68dbae",
+                        "primary": "#00372c",
+                        "surface": "#fcf9f8",
+                        "on-on-secondary-container": "#007151",
+                        "inverse-surface": "#313030",
+                        "surface-container-highest": "#e5e2e1",
+                        "on-error": "#ffffff",
+                        "inverse-primary": "#94d3bf",
+                        "on-primary": "#ffffff",
+                        "surface-container": "#f0eded",
+                        "secondary": "#006c4e"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "container-max": "1200px",
+                        "margin-desktop": "40px",
+                        "unit": "4px",
+                        "margin-mobile": "16px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Source Sans 3"],
+                        "body-md": ["Source Sans 3"],
+                        "label-sm": ["Source Sans 3"],
+                        "display-lg": ["Playfair Display"],
+                        "headline-lg": ["Playfair Display"],
+                        "title-md": ["Source Sans 3"],
+                        "headline-lg-mobile": ["Playfair Display"],
+                        "urdu-body": ["Noto Nastaliq Urdu"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-sm": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "display-lg": ["48px", {"lineHeight": "60px", "fontWeight": "700"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "700"}],
+                        "title-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                        "urdu-body": ["18px", {"lineHeight": "36px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #fcf9f8;
+            color: #1c1b1b;
+        }
+        .urdu-text {
+            font-family: 'Noto Nastaliq Urdu', serif;
+        }
+        .project-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .project-card:hover {
+            border-color: #006c4e;
+        }
+        .scrolling-news {
+            animation: scroll-left 25s linear infinite;
+        }
+        @keyframes scroll-left {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md antialiased">
+<!-- Announcement Bar -->
+<div class="w-full bg-primary-container text-on-primary text-label-sm py-2 overflow-hidden whitespace-nowrap z-[60] relative">
+<div class="scrolling-news flex items-center gap-8">
+<span>URGENT: Water Supply Maintenance in West Sector on Sunday, 10 AM - 4 PM.</span>
+<span>New Primary School Project: Community Meeting Tomorrow at Village Hall.</span>
+<span>Dhab Pari Welfare Fund reaches record milestone of 1.2M PKR.</span>
+</div>
+</div>
+<!-- TopAppBar -->
+<header class="flex flex-col w-full z-50 bg-primary dark:bg-primary sticky top-0 shadow-sm">
+<div class="max-w-container-max mx-auto w-full px-6 md:px-12 py-4 flex items-center justify-between">
+<div class="flex items-center gap-6">
+<h1 class="font-display-lg text-headline-lg text-on-primary">Dhab Pari</h1>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-on-primary opacity-80 hover:opacity-100 font-body-md" href="#">Home</a>
+<a class="text-on-primary opacity-80 hover:opacity-100 font-body-md" href="#">Water Bill</a>
+<a class="text-secondary-fixed font-bold border-b-2 border-secondary-fixed pb-1 font-body-md" href="#">Projects</a>
+<a class="text-on-primary opacity-80 hover:opacity-100 font-body-md" href="#">Accounts</a>
+<a class="text-on-primary opacity-80 hover:opacity-100 font-body-md" href="#">Donate</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="bg-secondary-container text-on-secondary-container px-4 py-2 rounded-lg font-label-sm flex items-center gap-2 hover:bg-primary-container hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined text-[18px]">whatshot</span>
+                    WhatsApp
+                </button>
+<button class="text-on-primary opacity-80 font-label-sm">EN/UR</button>
+</div>
+</div>
+</header>
+<main class="max-w-container-max mx-auto px-6 md:px-12 py-10 min-h-screen">
+<!-- Header Section -->
+<div class="mb-12">
+<h2 class="font-headline-lg text-headline-lg mb-2">Village Welfare Projects</h2>
+<p class="text-on-surface-variant font-body-lg max-w-2xl">Tracking the growth of Dhab Pari through community-funded infrastructure, healthcare, and educational initiatives.</p>
+</div>
+<!-- Filter Bar -->
+<div class="flex flex-wrap items-center gap-4 mb-8">
+<button class="bg-primary text-on-primary px-6 py-2 rounded-full font-label-sm shadow-sm hover:scale-95 transition-transform">All</button>
+<button class="bg-white border border-outline-variant text-on-surface-variant px-6 py-2 rounded-full font-label-sm hover:border-primary hover:text-primary transition-all">Ongoing</button>
+<button class="bg-white border border-outline-variant text-on-surface-variant px-6 py-2 rounded-full font-label-sm hover:border-primary hover:text-primary transition-all">Completed</button>
+<button class="bg-white border border-outline-variant text-on-surface-variant px-6 py-2 rounded-full font-label-sm hover:border-primary hover:text-primary transition-all">Upcoming</button>
+<div class="ml-auto hidden md:block">
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined">filter_list</span>
+<span class="font-label-sm uppercase tracking-wider">Sort by Date</span>
+</div>
+</div>
+</div>
+<!-- Project Cards Container -->
+<div class="space-y-8">
+<!-- Project Card: Ongoing -->
+<div class="project-card bg-white border border-outline-variant rounded-xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
+<!-- Left: Visual Comparison -->
+<div class="relative grid grid-cols-2 gap-[2px] bg-outline-variant p-[2px]">
+<div class="relative group cursor-pointer">
+<div class="absolute top-2 left-2 z-10 bg-black/50 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded">Before</div>
+<div class="aspect-[4/3] bg-cover bg-center" data-alt="A gritty, realistic photograph of a dusty village dirt road in Dhab Pari before construction. The scene is sun-scorched with dry earth and sparse, thorny vegetation under a bright, harsh daylight. The mood is one of neglect and rugged rural life, reflecting the community's need for infrastructure development in a traditional agricultural setting." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuASZ-TxhScqBA2qQeNGgDTxlvOWu9QRkgTvtC5M7cDdOyGxNj4myHSXztIO3hi0Cd_Uz52-xsqBVdvYRXyJzxx85RE_pJLRoSMg-fcBGoA0kYwvArIYgfOdjhaRYAPadPYxdNJUZ0E0WIoMKnyHHA0gU1P8lfdseQe8LZKt8p9m7vNXKNtdwccHFjC8Zqcp4XjfAvPxtwfmj8bvfvO5g9BvJlXIgy7frEFvSzTQ3pdAowdPzu71upexzdBkFSWfgYjuzFfPPKszwcs')"></div>
+</div>
+<div class="relative group cursor-pointer">
+<div class="absolute top-2 left-2 z-10 bg-primary text-on-primary text-[10px] uppercase font-bold px-2 py-0.5 rounded">Present</div>
+<div class="aspect-[4/3] bg-cover bg-center" data-alt="A professional architectural photograph of the same village road mid-construction. Modern heavy machinery is visible, and the first layer of gravel and drainage channels are being installed. The lighting is warm golden hour, emphasizing progress and activity. The color palette incorporates earth tones with the vibrant green machinery of the Dhab Pari welfare committee." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDctqfJFCnBqVOso_WqFk-JRjfnrP9aep4ebAafWF2AkEAtaebeQVrOnvY9DbRDT_QMZgHvJJK7e74sWZk4jmU9-s1bZIUaJgajzOQm3nB1RvVtlpjm6PTeJrJ91A1xO3-rgwly17WBhvO2HLZIdmo_WXotH7qn52xdLVjvQK2gmgzdINCf0O72kaSVQXByroAKHzaPbQKJ1WAb3oqHN3wDK3a7u7byKCmHbXNxYhF9Tj2h4OHf2qQfh69Up43QmL0igbGIE4HycLc')"></div>
+</div>
+</div>
+<!-- Right: Content -->
+<div class="p-8 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-4">
+<span class="bg-primary-container text-on-primary-container px-3 py-1 rounded font-label-sm text-[12px] uppercase">Infrastructure</span>
+<span class="bg-amber-100 text-amber-900 px-3 py-1 rounded-full font-label-sm text-[12px] flex items-center gap-1">
+<span class="w-2 h-2 bg-amber-600 rounded-full animate-pulse"></span> Ongoing
+                            </span>
+</div>
+<h3 class="font-title-md text-title-md mb-1">Main Street Paving & Drainage</h3>
+<div class="flex items-center text-on-surface-variant mb-6 gap-1">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+<span class="font-body-md text-body-md">Sector 4, West Dhab Pari</span>
+</div>
+<!-- Progress Bar -->
+<div class="mb-6">
+<div class="flex justify-between font-label-sm mb-2 text-on-surface">
+<span>Project Completion</span>
+<span>65%</span>
+</div>
+<div class="h-3 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-[65%] transition-all duration-1000"></div>
+</div>
+</div>
+<!-- Budget Stats -->
+<div class="grid grid-cols-2 gap-4 mb-6">
+<div class="p-3 bg-surface-container-low rounded-lg">
+<p class="text-on-surface-variant text-[12px] uppercase font-semibold mb-1">Budget</p>
+<p class="text-title-md font-bold text-primary">450k <span class="text-sm font-normal">PKR</span></p>
+</div>
+<div class="p-3 bg-surface-container-low rounded-lg">
+<p class="text-on-surface-variant text-[12px] uppercase font-semibold mb-1">Spent</p>
+<p class="text-title-md font-bold text-secondary">292k <span class="text-sm font-normal">PKR</span></p>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex -space-x-3">
+<div class="w-8 h-8 rounded-full border-2 border-white bg-cover bg-center" data-alt="Portrait of a smiling local village elder wearing a traditional Pakistani turban and waistcoat, soft focus background of a village street. High quality professional portraiture style." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBvo4yzBVpw1veaDYDrEZ9ioD0ibaky_k3veqePG5Cfei2JEX_QZKBDZ0HDHzgpUOntrxfZFI43Tj1FiIKN7oEAlEcA8xCgI2lEX0TCyLfDZZbbvYO3ODra-Xn0WTb1EEc1pN3Iau0hUO57xnar5fC2Po77H5zIQGHup4TPQhXmSzqyNAAc4L34UDQEScWKDochHr1QQTuh8eRXQlB6VoSbmckKHi_nrBec_bLjqQFChU447eeISbVbITjDq53O0_Hjej99-28HeDY')"></div>
+<div class="w-8 h-8 rounded-full border-2 border-white bg-cover bg-center" data-alt="Portrait of a middle-aged female community leader in a green dupatta, smiling warmly. Professional studio lighting with a neutral gray background." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAAFhdFV5EyhtGc16VfXuS7l0DoYqPGqeyASW9ODJuZE-afhQiRt4vA7eI4932bT5uGgMOe8TJ05eBqndhbv5bPBlZ3seIAVTc22vES6tLyoS1noRcXypqegubYkyHbkM8PsYRAawz7pVB27AduXWULb8vOVF-mkedBYIWR0QvyFVYBQ9BpNhN1tPfbTU7v1UJqS_AtRRgn7q30zxb9SxcgDp1E_GjY4MY5yZmlsWqvvpus1v8HEapyuX7xL-1RRW1ekWITIngas8w')"></div>
+<div class="w-8 h-8 rounded-full border-2 border-white bg-cover bg-center" data-alt="Portrait of a young local engineer in a hard hat and reflective vest, standing on a construction site. Daylight, vibrant green and earth tone palette." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDTHaF5lOH0Q9aw9LfWFqOM8siylPSbLa9hLx3jVtU-WiqGjPaZkHOAvcpyUNY5KNWvBU20Tp91in5YDRSI6-jY8G3y5Wq_t9BPh7zXDqY870Y9mIg2WupnYj7OQ6AksD40We3y7T4qJU5_JK1wTuc2j2rjlfVcWXgflMrQDge-TBEuOUV-G_B1nnlW_wjsFBWA_g_NI8V28bQuzOacWb19RTOwbV2Ot7yo-RRdMNOa_zg2E0BQYYgAvlWnrkiujoub-59bAVtsCA0')"></div>
+<div class="w-8 h-8 rounded-full border-2 border-white bg-surface-container-high flex items-center justify-center text-[10px] font-bold">+14</div>
+</div>
+<div class="flex gap-2">
+<button class="px-4 py-2 border-2 border-primary text-primary font-label-sm rounded-lg hover:bg-primary-container hover:text-on-primary transition-all">Details</button>
+<button class="px-4 py-2 bg-primary text-on-primary font-label-sm rounded-lg hover:scale-95 transition-transform">Donate</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Project Card: Completed -->
+<div class="project-card bg-white border border-outline-variant rounded-xl overflow-hidden grid grid-cols-1 md:grid-cols-2 opacity-90 grayscale-[0.3] hover:grayscale-0 transition-all">
+<div class="relative">
+<div class="absolute top-4 left-4 z-10 bg-primary text-on-primary text-[10px] uppercase font-bold px-3 py-1 rounded">Success Story</div>
+<div class="h-full min-h-[300px] bg-cover bg-center" data-alt="A beautiful, vibrant photo of a newly completed solar-powered water filtration plant in a rural village. Clean white tiled walls, modern silver faucets, and village children happily filling their containers with fresh water. The sunset lighting casts long shadows and a warm glow over the scene. Deep greens and pristine whites dominate the color palette." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCEArYHOAK_qUA9-JgLqD8rdj6uf7nkpDFnOkW3R6iUmI8HmLTQ9Kb_LaEQH03W4XIXtcDURJJ_jZ1yxepUMx-jKnX-Cd3OHg0p3V0NdNXryPn3a-232MKt-UDw9J9ikv7Kvdr6XOgH95K7xOZFVUN3P6UdvLI4c8Bhugt1VKpN_3-RH6lv9Vw5VnBeH73cX4SiqZi4XQNqinWX4w3KwXlPcK6Q-PughfLKlU4jmhQL22pQhtLJInuZJ7PfeVKU5fgpQAEAeK4vp0c')"></div>
+</div>
+<div class="p-8 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-4">
+<span class="bg-primary-container text-on-primary-container px-3 py-1 rounded font-label-sm text-[12px] uppercase">Water & Health</span>
+<span class="bg-primary text-on-primary px-3 py-1 rounded-full font-label-sm text-[12px] flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">check_circle</span> Completed
+                            </span>
+</div>
+<h3 class="font-title-md text-title-md mb-1">Solar Water Filtration Unit</h3>
+<div class="flex items-center text-on-surface-variant mb-6 gap-1">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+<span class="font-body-md text-body-md">South Gate Square</span>
+</div>
+<div class="mb-6">
+<div class="flex justify-between font-label-sm mb-2 text-primary font-bold">
+<span>Operational Status</span>
+<span>100% Fully Functional</span>
+</div>
+<div class="h-3 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-full"></div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-6">
+<div class="p-3 border border-outline-variant rounded-lg">
+<p class="text-on-surface-variant text-[12px] uppercase font-semibold mb-1">Total Cost</p>
+<p class="text-title-md font-bold text-on-surface">1.1M <span class="text-sm font-normal">PKR</span></p>
+</div>
+<div class="p-3 border border-outline-variant rounded-lg">
+<p class="text-on-surface-variant text-[12px] uppercase font-semibold mb-1">Beneficiaries</p>
+<p class="text-title-md font-bold text-on-surface">450+ <span class="text-sm font-normal">Homes</span></p>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<p class="text-on-surface-variant font-body-md italic border-l-4 border-secondary-fixed pl-3">"Pure water is life for our children." — Haji Rasheed</p>
+<button class="px-6 py-2 bg-surface-container-highest text-on-surface font-label-sm rounded-lg hover:bg-outline-variant transition-all">View Audit</button>
+</div>
+</div>
+</div>
+<!-- Project Card: Upcoming (Blue Accent) -->
+<div class="project-card bg-surface-bright border-2 border-dashed border-blue-200 rounded-xl overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm">
+<div class="relative bg-blue-50 flex items-center justify-center min-h-[300px]">
+<div class="text-center p-8">
+<span class="material-symbols-outlined text-[64px] text-blue-500 mb-4" style="font-variation-settings: 'FILL' 0;">architecture</span>
+<h4 class="font-headline-lg text-headline-lg-mobile text-blue-900 mb-2">Future Vision</h4>
+<p class="text-blue-700 font-body-md">Community Voting Stage</p>
+</div>
+<div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(#2563eb 1px, transparent 1px); background-size: 20px 20px;"></div>
+</div>
+<div class="p-8 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-4">
+<span class="bg-blue-600 text-white px-3 py-1 rounded font-label-sm text-[12px] uppercase">Education</span>
+<span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-label-sm text-[12px] flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">ballot</span> Upcoming / Voting
+                            </span>
+</div>
+<h3 class="font-title-md text-title-md mb-1">Smart Learning Computer Lab</h3>
+<div class="flex items-center text-on-surface-variant mb-6 gap-1">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+<span class="font-body-md text-body-md">Government Primary School Dhab Pari</span>
+</div>
+<p class="text-on-surface-variant mb-8 line-clamp-3">The committee proposes converting the old storeroom into a modern computer lab with 15 workstations, high-speed internet, and a digital projector to bring 21st-century skills to village youth.</p>
+<div class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center justify-between mb-6">
+<div>
+<p class="text-blue-900 font-bold text-title-md">142 Votes</p>
+<p class="text-blue-700 text-label-sm">Requires 250 to initiate fund</p>
+</div>
+<div class="flex -space-x-2">
+<span class="w-8 h-8 bg-blue-200 border-2 border-white rounded-full"></span>
+<span class="w-8 h-8 bg-blue-300 border-2 border-white rounded-full"></span>
+<span class="w-8 h-8 bg-blue-400 border-2 border-white rounded-full"></span>
+</div>
+</div>
+</div>
+<div class="flex gap-4">
+<button class="flex-1 py-3 bg-blue-600 text-white font-label-sm rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">thumb_up</span> Vote for Project
+                        </button>
+<button class="px-6 py-3 border-2 border-blue-600 text-blue-600 font-label-sm rounded-lg hover:bg-blue-50 transition-colors">Submit Suggestion</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Suggest Project CTA -->
+<div class="mt-20 bg-primary-container text-on-primary p-12 rounded-2xl text-center relative overflow-hidden">
+<div class="relative z-10">
+<h3 class="font-headline-lg text-headline-lg mb-4">Have an idea for the village?</h3>
+<p class="font-body-lg mb-8 max-w-xl mx-auto opacity-90">Every great transformation starts with a simple suggestion. Share your vision for Dhab Pari's future infrastructure or welfare projects.</p>
+<div class="flex flex-col sm:flex-row gap-4 justify-center">
+<button class="bg-secondary-fixed text-on-secondary-fixed px-8 py-3 rounded-lg font-bold hover:scale-105 transition-transform">Submit Proposal</button>
+<button class="bg-transparent border-2 border-on-primary-container text-on-primary px-8 py-3 rounded-lg font-bold hover:bg-on-primary-container/10 transition-colors">Browse Proposals</button>
+</div>
+</div>
+<!-- Decorative Element -->
+<div class="absolute top-[-50px] right-[-50px] w-64 h-64 bg-primary rounded-full opacity-20 blur-3xl"></div>
+<div class="absolute bottom-[-50px] left-[-50px] w-64 h-64 bg-secondary rounded-full opacity-10 blur-3xl"></div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full py-12 px-6 md:px-12 max-w-container-max mx-auto bg-surface-container-highest dark:bg-inverse-surface border-t border-outline-variant">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+<div class="col-span-1 md:col-span-1">
+<h2 class="font-display-lg text-title-md text-primary mb-4">Dhab Pari</h2>
+<p class="text-on-surface-variant font-body-md mb-6 leading-relaxed">Dedicated to the prosperity and welfare of our village community through transparency and collective effort.</p>
+<div class="flex gap-4">
+<a class="w-10 h-10 rounded-full border border-outline-variant flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors" href="#"><span class="material-symbols-outlined">face_nod</span></a>
+<a class="w-10 h-10 rounded-full border border-outline-variant flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors" href="#"><span class="material-symbols-outlined">share</span></a>
+</div>
+</div>
+<div>
+<h4 class="font-label-sm uppercase tracking-widest text-on-surface font-bold mb-6">Quick Links</h4>
+<ul class="space-y-3">
+<li><a class="text-on-surface-variant font-body-md hover:text-primary transition-all" href="#">Village History</a></li>
+<li><a class="text-on-surface-variant font-body-md hover:text-primary transition-all" href="#">Water Project</a></li>
+<li><a class="text-on-surface-variant font-body-md hover:text-primary transition-all" href="#">Committee Members</a></li>
+<li><a class="text-on-surface-variant font-body-md hover:text-primary transition-all" href="#">News & Updates</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-label-sm uppercase tracking-widest text-on-surface font-bold mb-6">Resources</h4>
+<ul class="space-y-3">
+<li><a class="text-on-surface-variant font-body-md hover:text-primary transition-all" href="#">Audit Reports</a></li>
+<li><a class="text-on-surface-variant font-body-md hover:text-primary transition-all" href="#">Bylaws</a></li>
+<li><a class="text-on-surface-variant font-body-md hover:text-primary transition-all" href="#">Privacy Policy</a></li>
+<li><a class="text-on-surface-variant font-body-md hover:text-primary transition-all" href="#">Terms of Service</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-label-sm uppercase tracking-widest text-on-surface font-bold mb-6">Contact Us</h4>
+<p class="text-on-surface-variant font-body-md mb-2">Village Council Office, Main Chowk</p>
+<p class="text-on-surface-variant font-body-md mb-2">Dhab Pari, Dist. Chakwal</p>
+<p class="text-primary font-bold font-body-md">+92 300 1234567</p>
+</div>
+</div>
+<div class="pt-8 border-t border-outline-variant flex flex-col md:flex-row justify-between items-center gap-4">
+<p class="text-on-surface-variant font-label-sm">© 2024 Dhab Pari Water & Welfare Committee. All rights reserved.</p>
+<div class="flex gap-6">
+<span class="text-on-surface-variant font-label-sm flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">public</span> Pakistan</span>
+<span class="text-on-surface-variant font-label-sm">Designed for Growth</span>
+</div>
+</div>
+</footer>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 md:hidden bg-primary dark:bg-primary border-t border-outline-variant shadow-lg">
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-sm text-label-sm">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 py-1" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">account_tree</span>
+<span class="font-label-sm text-label-sm">Projects</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70" href="#">
+<span class="material-symbols-outlined">volunteer_activism</span>
+<span class="font-label-sm text-label-sm">Donate</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70" href="#">
+<span class="material-symbols-outlined">videocam</span>
+<span class="font-label-sm text-label-sm">Videos</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70" href="#">
+<span class="material-symbols-outlined">menu</span>
+<span class="font-label-sm text-label-sm">More</span>
+</a>
+</nav>
+<script>
+        // Simple Interaction logic
+        document.querySelectorAll('button, a').forEach(el => {
+            el.addEventListener('mousedown', () => {
+                el.classList.add('scale-95');
+            });
+            el.addEventListener('mouseup', () => {
+                el.classList.remove('scale-95');
+            });
+            el.addEventListener('mouseleave', () => {
+                el.classList.remove('scale-95');
+            });
+        });
+
+        // Filter button highlighting logic
+        const filterButtons = document.querySelectorAll('.flex.flex-wrap button');
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterButtons.forEach(b => {
+                    b.classList.remove('bg-primary', 'text-on-primary');
+                    b.classList.add('bg-white', 'border', 'border-outline-variant', 'text-on-surface-variant');
+                });
+                btn.classList.add('bg-primary', 'text-on-primary');
+                btn.classList.remove('bg-white', 'border', 'border-outline-variant', 'text-on-surface-variant');
+            });
+        });
+    </script>
+</body></html>

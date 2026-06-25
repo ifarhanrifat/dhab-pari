@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Dhab Pari Village Welfare</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&amp;family=Source+Sans+3:wght@400;600;700&amp;family=Noto+Nastaliq+Urdu&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-tint": "#2a6959",
+                    "on-primary-fixed": "#002019",
+                    "on-surface-variant": "#404945",
+                    "on-error-container": "#93000a",
+                    "surface-container-low": "#f6f3f2",
+                    "secondary-container": "#83f5c6",
+                    "secondary-fixed": "#86f8c9",
+                    "tertiary-container": "#00513d",
+                    "surface-bright": "#fcf9f8",
+                    "tertiary": "#003829",
+                    "on-surface": "#1c1b1b",
+                    "surface-variant": "#e5e2e1",
+                    "error-container": "#ffdad6",
+                    "outline": "#707975",
+                    "on-tertiary-container": "#5bc8a3",
+                    "on-tertiary-fixed": "#002117",
+                    "primary-fixed": "#b0efdb",
+                    "on-secondary": "#ffffff",
+                    "tertiary-fixed-dim": "#6edab4",
+                    "on-secondary-fixed": "#002115",
+                    "on-tertiary": "#ffffff",
+                    "primary-container": "#085041",
+                    "tertiary-fixed": "#8af7cf",
+                    "on-primary-container": "#83c1ad",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-fixed-variant": "#095041",
+                    "on-tertiary-fixed-variant": "#00513d",
+                    "error": "#ba1a1a",
+                    "background": "#fcf9f8",
+                    "outline-variant": "#bfc9c4",
+                    "surface-dim": "#dcd9d9",
+                    "primary-fixed-dim": "#94d3bf",
+                    "surface-container-high": "#eae7e7",
+                    "on-secondary-fixed-variant": "#00513a",
+                    "on-background": "#1c1b1b",
+                    "inverse-on-surface": "#f3f0ef",
+                    "secondary-fixed-dim": "#68dbae",
+                    "primary": "#00372c",
+                    "surface": "#fcf9f8",
+                    "on-secondary-container": "#007151",
+                    "inverse-surface": "#313030",
+                    "surface-container-highest": "#e5e2e1",
+                    "on-error": "#ffffff",
+                    "inverse-primary": "#94d3bf",
+                    "on-primary": "#ffffff",
+                    "surface-container": "#f0eded",
+                    "secondary": "#006c4e"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "gutter": "24px",
+                    "container-max": "1200px",
+                    "margin-desktop": "40px",
+                    "unit": "4px",
+                    "margin-mobile": "16px"
+            },
+            "fontFamily": {
+                    "body-lg": ["\"Source Sans 3\""],
+                    "body-md": ["\"Source Sans 3\""],
+                    "label-sm": ["\"Source Sans 3\""],
+                    "display-lg": ["Playfair Display"],
+                    "headline-lg": ["Playfair Display"],
+                    "title-md": ["\"Source Sans 3\""],
+                    "headline-lg-mobile": ["Playfair Display"],
+                    "urdu-body": ["Noto Nastaliq Urdu"]
+            },
+            "fontSize": {
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-sm": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "display-lg": ["48px", {"lineHeight": "60px", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "title-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "urdu-body": ["18px", {"lineHeight": "36px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        @keyframes scroll-text {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        .scrolling-text {
+            display: inline-block;
+            white-space: nowrap;
+            animation: scroll-text 15s linear infinite;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md selection:bg-secondary-container selection:text-on-secondary-container pb-24">
+<!-- Announcement Bar -->
+<div class="bg-primary-container text-on-primary-container h-8 flex items-center overflow-hidden z-[60]">
+<div class="scrolling-text font-label-sm text-label-sm w-full">
+            Important Notice: Village Water Tank cleaning scheduled for Sunday morning. Please store extra water. | نئے واٹر ٹینک کی صفائی اتوار کی صبح ہوگی۔ برائے مہربانی پانی کا ذخیرہ کر لیں۔
+        </div>
+</div>
+<!-- TopAppBar -->
+<header class="bg-primary dark:bg-primary text-on-primary dark:text-on-primary flex flex-col w-full z-50 sticky top-0 px-4 py-4">
+<div class="flex items-center justify-between">
+<h1 class="font-display-lg text-headline-lg-mobile text-on-primary">Dhab Pari</h1>
+<div class="flex gap-2 items-center">
+<button class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label-sm text-label-sm scale-95 active:scale-90 transition-transform">WhatsApp</button>
+<button class="font-label-sm text-label-sm opacity-80">EN/UR</button>
+</div>
+</div>
+</header>
+<main class="flex flex-col gap-6 px-4 pt-6">
+<!-- Hero Section -->
+<section class="relative h-64 rounded-xl overflow-hidden flex flex-col justify-end p-6 border border-outline-variant">
+<div class="absolute inset-0 z-0">
+<div class="w-full h-full bg-cover bg-center" data-alt="A lush green aerial landscape of a traditional Pakistani village with fertile agricultural fields and modern brick houses under a bright morning sun. The lighting is soft and natural, emphasizing the deep green scale of the vegetation and the corporate stability of the community infrastructure. The scene feels peaceful, established, and communal, reflecting the brand's focus on nature and growth." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAsALRtLCLM990veQX5XCcTMMQ0iGmi71u3g56hCPuOM1DTZYHeoyH8X-ZzLSr3vevv4mlIXacMvLXeGYvdaeNggROEGaMegGWnnGdfWZrEYz5tXUbLZcBSpnxHCYlQQWu1432zoqdz5myIy9r0NqSV05dFBLsisY_h8rBAdz-FCMmizt9hI3mMFBFNeVQlS1KQwwa15aPyk4sc1E17ZLfVGArOdxBdE4I8Y9S-pwH3STdJ329bzg9oNMNVF_GioayhlUjeiQmDmzg')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+</div>
+<div class="relative z-10 text-white">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile leading-tight mb-2">Building a Sustainable Village Together</h2>
+<p class="font-body-md text-body-md text-white/90">Official portal for the Water &amp; Welfare Committee of Dhab Pari village.</p>
+</div>
+</section>
+<!-- Stats 2x2 Grid -->
+<section class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container-lowest border border-outline-variant p-4 rounded-lg flex flex-col items-center justify-center text-center">
+<span class="material-symbols-outlined text-primary mb-1" data-icon="water_drop">water_drop</span>
+<span class="font-display-lg text-title-md text-primary">1,240</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Active Meters</span>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-4 rounded-lg flex flex-col items-center justify-center text-center">
+<span class="material-symbols-outlined text-primary mb-1" data-icon="account_balance">account_balance</span>
+<span class="font-display-lg text-title-md text-primary">PKR 4.2M</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Fund Balance</span>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-4 rounded-lg flex flex-col items-center justify-center text-center">
+<span class="material-symbols-outlined text-primary mb-1" data-icon="handyman">handyman</span>
+<span class="font-display-lg text-title-md text-primary">12</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Open Projects</span>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-4 rounded-lg flex flex-col items-center justify-center text-center">
+<span class="material-symbols-outlined text-primary mb-1" data-icon="groups">groups</span>
+<span class="font-display-lg text-title-md text-primary">3,500+</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Beneficiaries</span>
+</div>
+</section>
+<!-- Urgent Actions Section -->
+<section class="bg-secondary-container/30 border border-secondary p-6 rounded-xl">
+<h3 class="font-headline-lg-mobile text-title-md text-primary mb-4">Quick Actions</h3>
+<div class="flex flex-col gap-3">
+<button class="w-full bg-primary text-on-primary py-4 px-6 rounded-lg font-title-md flex items-center justify-between active:scale-[0.98] transition-transform">
+<span>Pay Water Bill</span>
+<span class="material-symbols-outlined">payments</span>
+</button>
+<button class="w-full bg-surface-container-lowest border-2 border-primary text-primary py-4 px-6 rounded-lg font-title-md flex items-center justify-between active:scale-[0.98] transition-transform">
+<span>Village News</span>
+<span class="material-symbols-outlined">newspaper</span>
+</button>
+</div>
+</section>
+<!-- Ongoing Projects List -->
+<section>
+<div class="flex justify-between items-center mb-4">
+<h3 class="font-headline-lg-mobile text-headline-lg-mobile text-primary">Current Projects</h3>
+<button class="text-primary font-label-sm text-label-sm underline">View All</button>
+</div>
+<div class="flex flex-col gap-4">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden flex shadow-sm">
+<div class="w-24 h-24 bg-cover bg-center shrink-0" data-alt="A detailed wide shot of a large concrete water filtration tank construction site in a rural environment, featuring workers in safety gear and modern construction equipment. The lighting is crisp afternoon sun, creating a professional and institutional atmosphere that emphasizes stability and progress. The color palette centers around clean greys and vibrant greens of the surrounding landscape." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB5QQD7C0VZnFa9V-AWGZN6A-X8nvOQypwq_adCwiPEsx3LGvwg-y4liZkav8OmTeCjIVzpGQtyF5MqrEBIpBSmOle4ckpZzpfERuQ_QDtbvekxjC4zt82kQEKFQ_Q3D3_3Nrnv-f6vrp3Qas7Zz3kx2hN_q2hoMUV7FOkhYHCQcJOa8njiguJ-dec5gRc_k1OeCwzynhsWjoXEap3Q7AVBEiMI7EZC8aW2s6XiolWdwiMEwz3JKZN57GXBHCugRWjC2j9zLJCYiDY')"></div>
+<div class="p-3 flex flex-col justify-between">
+<div>
+<h4 class="font-title-md text-body-md font-bold text-on-surface">Main Well Filtration</h4>
+<p class="text-label-sm text-on-surface-variant">Improving water quality for Sector A &amp; B.</p>
+</div>
+<span class="bg-[#FFC107] text-[#452700] text-[10px] px-2 py-0.5 rounded-full w-fit font-bold">Ongoing</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden flex shadow-sm">
+<div class="w-24 h-24 bg-cover bg-center shrink-0" data-alt="A clean, newly paved asphalt road winding through a modern village residential area with brick houses and small garden walls. The morning light casts long shadows, suggesting a peaceful and developing neighborhood. The scene is framed by green trees, conveying communal growth and infrastructure modernization." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDv5HKpGLlFRXhIQ9xR6mJGjLbtTQFiaEMnYChvuRGg4l8fY0uAN8fcrQpOvrt9888KcrjIakp3s-EOXppzLGuW7cSFn9f-gYdm2dSwbd3xbtooA9pw6d5cpzaZM9w4r-KoKvzjEHCFiinaKMXjXNb9i5yDfmrkRgMxxNm0oTJZ0A4wMcui5STQIo8fx_ww93krwrWf6a60tKH0-V9w2SUtktUnQmR3dyBsmbjWcM19fg2c1pshYYX3mk9HTIYVVQyrJax-5jwIiqo')"></div>
+<div class="p-3 flex flex-col justify-between">
+<div>
+<h4 class="font-title-md text-body-md font-bold text-on-surface">Street Paving Phase 3</h4>
+<p class="text-label-sm text-on-surface-variant">Connecting West Dhab to Main Road.</p>
+</div>
+<span class="bg-[#085041] text-white text-[10px] px-2 py-0.5 rounded-full w-fit font-bold uppercase">PAID</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Urdu Section Component -->
+<section class="bg-primary p-6 rounded-xl text-center">
+<h3 class="font-urdu-body text-urdu-body text-white mb-4">کمیٹی سے رابطہ کریں۔</h3>
+<p class="font-urdu-body text-[16px] text-white/80 leading-loose mb-6">
+                ڈھاب پڑی واٹر اینڈ ویلفیئر کمیٹی گاؤں کی ترقی اور خوشحالی کے لیے ہمہ وقت کوشاں ہے۔ کسی بھی شکایت یا تجویز کے لیے بٹن دبائیں۔
+            </p>
+<button class="bg-secondary-fixed text-on-secondary-fixed px-8 py-2 rounded-full font-label-sm">Suggest</button>
+</section>
+<!-- Footer Area -->
+<footer class="w-full py-12 px-4 border-t border-outline-variant text-center mb-12">
+<h5 class="font-display-lg text-title-md text-primary mb-4">Dhab Pari</h5>
+<div class="flex flex-wrap justify-center gap-x-4 gap-y-2 mb-6">
+<a class="text-on-surface-variant text-label-sm hover:text-primary underline" href="#">Privacy Policy</a>
+<a class="text-on-surface-variant text-label-sm hover:text-primary underline" href="#">Terms of Service</a>
+<a class="text-on-surface-variant text-label-sm hover:text-primary underline" href="#">Contact Us</a>
+<a class="text-on-surface-variant text-label-sm hover:text-primary underline" href="#">Village History</a>
+</div>
+<p class="text-label-sm text-on-surface-variant opacity-70">
+                © 2024 Dhab Pari Water &amp; Welfare Committee. All rights reserved.
+            </p>
+</footer>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 md:hidden bg-primary dark:bg-primary text-on-primary dark:text-on-primary shadow-lg border-t border-outline-variant">
+<!-- Home Active -->
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 py-1 tap-highlight-transparent active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="home" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-label-sm text-label-sm">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70 tap-highlight-transparent active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="font-label-sm text-label-sm">Projects</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70 tap-highlight-transparent active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="volunteer_activism">volunteer_activism</span>
+<span class="font-label-sm text-label-sm">Donate</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70 tap-highlight-transparent active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="videocam">videocam</span>
+<span class="font-label-sm text-label-sm">Videos</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70 tap-highlight-transparent active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+<span class="font-label-sm text-label-sm">More</span>
+</a>
+</nav>
+<script>
+        // Simple Interaction logic
+        document.querySelectorAll('button, a').forEach(el => {
+            el.addEventListener('click', () => {
+                // Future interaction logic here
+            });
+        });
+    </script>
+</body></html>

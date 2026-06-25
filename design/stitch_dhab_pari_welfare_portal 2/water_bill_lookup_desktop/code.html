@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Water Bill Lookup · Dhab Pari</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Source+Sans+3:wght@400;600;700&family=Noto+Nastaliq+Urdu&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@100..900&family=Source+Sans+3:wght@100..900&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-tint": "#2a6959",
+                    "on-primary-fixed": "#002019",
+                    "on-surface-variant": "#404945",
+                    "on-error-container": "#93000a",
+                    "surface-container-low": "#f6f3f2",
+                    "secondary-container": "#83f5c6",
+                    "secondary-fixed": "#86f8c9",
+                    "tertiary-container": "#00513d",
+                    "surface-bright": "#fcf9f8",
+                    "tertiary": "#003829",
+                    "on-surface": "#1c1b1b",
+                    "surface-variant": "#e5e2e1",
+                    "error-container": "#ffdad6",
+                    "outline": "#707975",
+                    "on-tertiary-container": "#5bc8a3",
+                    "on-tertiary-fixed": "#002117",
+                    "primary-fixed": "#b0efdb",
+                    "on-secondary": "#ffffff",
+                    "tertiary-fixed-dim": "#6edab4",
+                    "on-secondary-fixed": "#002115",
+                    "on-tertiary": "#ffffff",
+                    "primary-container": "#085041",
+                    "tertiary-fixed": "#8af7cf",
+                    "on-primary-container": "#83c1ad",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-fixed-variant": "#095041",
+                    "on-tertiary-fixed-variant": "#00513d",
+                    "error": "#ba1a1a",
+                    "background": "#fcf9f8",
+                    "outline-variant": "#bfc9c4",
+                    "surface-dim": "#dcd9d9",
+                    "primary-fixed-dim": "#94d3bf",
+                    "surface-container-high": "#eae7e7",
+                    "on-secondary-fixed-variant": "#00513a",
+                    "on-background": "#1c1b1b",
+                    "inverse-on-surface": "#f3f0ef",
+                    "secondary-fixed-dim": "#68dbae",
+                    "primary": "#00372c",
+                    "surface": "#fcf9f8",
+                    "on-secondary-container": "#007151",
+                    "inverse-surface": "#313030",
+                    "surface-container-highest": "#e5e2e1",
+                    "on-error": "#ffffff",
+                    "inverse-primary": "#94d3bf",
+                    "on-primary": "#ffffff",
+                    "surface-container": "#f0eded",
+                    "secondary": "#006c4e"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "gutter": "24px",
+                    "container-max": "1200px",
+                    "margin-desktop": "40px",
+                    "unit": "4px",
+                    "margin-mobile": "16px"
+            },
+            "fontFamily": {
+                    "body-lg": ["\"Source Sans 3\""],
+                    "body-md": ["\"Source Sans 3\""],
+                    "label-sm": ["\"Source Sans 3\""],
+                    "display-lg": ["Playfair Display"],
+                    "headline-lg": ["Playfair Display"],
+                    "title-md": ["\"Source Sans 3\""],
+                    "headline-lg-mobile": ["Playfair Display"],
+                    "urdu-body": ["Noto Nastaliq Urdu"]
+            },
+            "fontSize": {
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-sm": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "display-lg": ["48px", {"lineHeight": "60px", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "title-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "urdu-body": ["18px", {"lineHeight": "36px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .urdu-text { font-family: 'Noto Nastaliq Urdu', serif; line-height: 2.5; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md text-body-md overflow-x-hidden">
+<!-- Announcement Bar -->
+<div class="w-full bg-primary-container text-on-primary-container py-2 overflow-hidden whitespace-nowrap z-[60]">
+<div class="inline-block animate-marquee hover:pause px-4 font-label-sm text-label-sm">
+            IMPORTANT: Last date for Water Bill payment is 10th of every month. Please clear your dues to avoid service interruption. | اہم اعلان: پانی کے بل کی ادائیگی کی آخری تاریخ ہر ماہ کی 10 تاریخ ہے۔
+        </div>
+</div>
+<style>
+        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+        .animate-marquee { animation: marquee 30s linear infinite; }
+    </style>
+<!-- TopAppBar -->
+<header class="flex flex-col w-full z-50 bg-primary dark:bg-primary text-on-primary sticky top-0">
+<div class="max-w-container-max mx-auto w-full px-4 md:px-gutter py-4 flex items-center justify-between">
+<div class="font-display-lg text-headline-lg text-on-primary tracking-tight">Dhab Pari</div>
+<nav class="hidden md:flex items-center space-x-6">
+<a class="text-on-primary opacity-80 hover:opacity-100 font-label-sm text-label-sm" href="#">Home</a>
+<a class="text-secondary-fixed font-bold border-b-2 border-secondary-fixed pb-1 font-label-sm text-label-sm" href="#">Water Bill</a>
+<a class="text-on-primary opacity-80 hover:opacity-100 font-label-sm text-label-sm" href="#">Projects</a>
+<a class="text-on-primary opacity-80 hover:opacity-100 font-label-sm text-label-sm" href="#">Accounts</a>
+<a class="text-on-primary opacity-80 hover:opacity-100 font-label-sm text-label-sm" href="#">Donate</a>
+</nav>
+<div class="flex items-center space-x-4">
+<button class="bg-secondary text-on-secondary px-4 py-2 rounded-lg font-label-sm text-label-sm active:scale-95 transition-transform flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">whatshot</span> WhatsApp
+                </button>
+<button class="text-on-primary border border-outline-variant px-3 py-1 rounded hover:bg-primary-container transition-colors">EN/UR</button>
+</div>
+</div>
+</header>
+<main class="max-w-container-max mx-auto px-4 md:px-gutter py-8 md:py-12 flex flex-col md:flex-row gap-8">
+<!-- Left Side: Main Content -->
+<div class="flex-1 space-y-8">
+<!-- Header Section -->
+<div class="space-y-2">
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary">Water Bill Lookup · <span class="urdu-text text-[24px]">پانی کا بل چیک کریں</span></h1>
+<p class="text-on-surface-variant font-body-md">Enter your Consumer ID to view your current status and payment history.</p>
+</div>
+<!-- Search Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 md:p-8 shadow-sm">
+<form class="space-y-6" id="billSearchForm">
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface-variant mb-2" for="consumer_id">CONSUMER ID / کنزیومر آئی ڈی</label>
+<div class="relative">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline">search</span>
+<input class="w-full pl-12 pr-4 py-4 bg-background border-2 border-outline-variant rounded-lg focus:border-secondary focus:ring-0 transition-all font-body-lg text-body-lg" id="consumer_id" placeholder="e.g. DP-10452" type="text"/>
+</div>
+</div>
+<button class="w-full bg-secondary text-on-secondary py-4 rounded-lg font-title-md text-title-md hover:bg-primary transition-all active:scale-[0.98] flex justify-center items-center gap-3" type="submit">
+                        Check Bill Status / بل چیک کریں
+                    </button>
+</form>
+</div>
+<!-- Conditional Content: Bill Result (Initially Hidden for Demo) -->
+<div class="space-y-8" id="billResults">
+<!-- Status Badge Area -->
+<div class="flex flex-col md:flex-row items-start md:items-center justify-between bg-surface-container-low border border-outline-variant rounded-xl p-6">
+<div class="space-y-1">
+<h2 class="font-title-md text-title-md text-on-surface">Consumer: Muhammad Ahmed</h2>
+<p class="text-on-surface-variant font-body-md">House #42, Street 3, Main Ward</p>
+<p class="text-on-surface-variant font-body-md">Billing Month: <span class="font-bold">October 2023</span></p>
+</div>
+<div class="mt-4 md:mt-0">
+<!-- PAID STATE -->
+<div class="hidden flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-full font-bold" id="paidState">
+                            PAID ✓ <span class="urdu-text ml-2">ادا شدہ</span>
+</div>
+<!-- UNPAID STATE (Default for visibility) -->
+<div class="flex items-center gap-2 bg-error text-on-error px-6 py-3 rounded-full font-bold" id="unpaidState">
+                            UNPAID <span class="urdu-text ml-2">غیر ادا شدہ</span>
+</div>
+</div>
+</div>
+<!-- Unpaid Warning and Payment Options -->
+<div class="bg-amber-50 border-l-4 border-amber-500 p-6 rounded-r-xl flex flex-col md:flex-row gap-6" id="unpaidAlert">
+<div class="flex-shrink-0 text-amber-600">
+<span class="material-symbols-outlined text-[48px]">warning</span>
+</div>
+<div class="space-y-4">
+<div>
+<h3 class="font-title-md text-title-md text-amber-900">Immediate Payment Required</h3>
+<p class="text-amber-800 font-body-md">Total Outstanding: <span class="font-bold text-lg">Rs. 450.00</span>. Please clear your bill through the following methods to avoid reconnection charges.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="bg-white p-4 rounded border border-amber-200 flex items-center gap-4">
+<div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center font-bold text-xs text-center">Jazz<br/>Cash</div>
+<div>
+<p class="font-label-sm text-label-sm">JazzCash Till ID</p>
+<p class="font-bold text-primary">665431</p>
+</div>
+</div>
+<div class="bg-white p-4 rounded border border-amber-200 flex items-center gap-4">
+<div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center font-bold text-xs text-center">Easy<br/>Paisa</div>
+<div>
+<p class="font-label-sm text-label-sm">Easypaisa ID</p>
+<p class="font-bold text-primary">99887766</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- History Table -->
+<div class="space-y-4">
+<h3 class="font-title-md text-title-md text-primary">Billing History / بل کی تاریخ</h3>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container text-on-surface font-label-sm text-label-sm uppercase tracking-wider">
+<th class="px-6 py-4 border-b border-outline-variant">Month/Year</th>
+<th class="px-6 py-4 border-b border-outline-variant">Amount</th>
+<th class="px-6 py-4 border-b border-outline-variant">Status</th>
+<th class="px-6 py-4 border-b border-outline-variant text-right">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-4 font-body-md">September 2023</td>
+<td class="px-6 py-4 font-body-md">Rs. 450.00</td>
+<td class="px-6 py-4">
+<span class="bg-primary text-on-primary text-[12px] px-3 py-1 rounded-full font-bold">PAID</span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="text-secondary font-label-sm text-label-sm hover:underline">Download PDF</button>
+</td>
+</tr>
+<tr class="bg-surface-container-low hover:bg-surface-container transition-colors">
+<td class="px-6 py-4 font-body-md">August 2023</td>
+<td class="px-6 py-4 font-body-md">Rs. 450.00</td>
+<td class="px-6 py-4">
+<span class="bg-primary text-on-primary text-[12px] px-3 py-1 rounded-full font-bold">PAID</span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="text-secondary font-label-sm text-label-sm hover:underline">Download PDF</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-4 font-body-md">July 2023</td>
+<td class="px-6 py-4 font-body-md">Rs. 450.00</td>
+<td class="px-6 py-4">
+<span class="bg-primary text-on-primary text-[12px] px-3 py-1 rounded-full font-bold">PAID</span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="text-secondary font-label-sm text-label-sm hover:underline">Download PDF</button>
+</td>
+</tr>
+<tr class="bg-surface-container-low hover:bg-surface-container transition-colors">
+<td class="px-6 py-4 font-body-md">June 2023</td>
+<td class="px-6 py-4 font-body-md">Rs. 450.00</td>
+<td class="px-6 py-4">
+<span class="bg-primary text-on-primary text-[12px] px-3 py-1 rounded-full font-bold">PAID</span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="text-secondary font-label-sm text-label-sm hover:underline">Download PDF</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-4 font-body-md">May 2023</td>
+<td class="px-6 py-4 font-body-md">Rs. 450.00</td>
+<td class="px-6 py-4">
+<span class="bg-primary text-on-primary text-[12px] px-3 py-1 rounded-full font-bold">PAID</span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="text-secondary font-label-sm text-label-sm hover:underline">Download PDF</button>
+</td>
+</tr>
+<tr class="bg-surface-container-low hover:bg-surface-container transition-colors">
+<td class="px-6 py-4 font-body-md">April 2023</td>
+<td class="px-6 py-4 font-body-md">Rs. 450.00</td>
+<td class="px-6 py-4">
+<span class="bg-error text-on-error text-[12px] px-3 py-1 rounded-full font-bold">LATE</span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="text-secondary font-label-sm text-label-sm hover:underline">Download PDF</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Side: Sidebar -->
+<aside class="w-full md:w-80 space-y-6">
+<!-- Payment Methods Card -->
+<div class="bg-white border border-outline-variant rounded-xl p-6 shadow-sm">
+<h4 class="font-title-md text-title-md text-primary mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined">payments</span> How to Pay?
+                </h4>
+<div class="space-y-4 font-body-md text-on-surface-variant">
+<div class="flex gap-3">
+<span class="material-symbols-outlined text-secondary shrink-0">account_balance</span>
+<p><span class="font-bold">Bank Transfer:</span> HBL Dhab Pari Branch, Acc: 001122334455</p>
+</div>
+<div class="flex gap-3">
+<span class="material-symbols-outlined text-secondary shrink-0">storefront</span>
+<p><span class="font-bold">Walk-in:</span> Visit Welfare Office near Central Mosque from 9 AM to 2 PM.</p>
+</div>
+</div>
+</div>
+<!-- Apply Card -->
+<div class="bg-primary-container text-on-primary-container rounded-xl p-6 shadow-sm overflow-hidden relative">
+<!-- Background pattern via CSS -->
+<div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: radial-gradient(#83c1ad 2px, transparent 2px); background-size: 20px 20px;"></div>
+<h4 class="font-title-md text-title-md mb-2 relative z-10">New Connection?</h4>
+<p class="font-body-md mb-6 opacity-90 relative z-10">Apply online for a new water connection for your home or shop.</p>
+<button class="w-full bg-secondary-container text-on-secondary-container py-3 rounded-lg font-bold hover:bg-secondary-fixed transition-colors active:scale-95 relative z-10">
+                    Submit Application
+                </button>
+</div>
+<!-- Help Contact -->
+<div class="bg-surface-container-high rounded-xl p-6">
+<h4 class="font-label-sm text-label-sm text-on-surface mb-3 uppercase tracking-wider">Need Help?</h4>
+<div class="space-y-3">
+<a class="flex items-center gap-3 text-secondary hover:underline" href="tel:+92300000000">
+<span class="material-symbols-outlined">call</span> 0300-1234567
+                    </a>
+<a class="flex items-center gap-3 text-secondary hover:underline" href="mailto:support@dhabpari.pk">
+<span class="material-symbols-outlined">mail</span> support@dhabpari.pk
+                    </a>
+</div>
+</div>
+</aside>
+</main>
+<!-- Footer -->
+<footer class="w-full py-12 px-6 md:px-12 max-w-container-max mx-auto bg-surface-container-highest dark:bg-inverse-surface mt-20">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+<div class="col-span-1 md:col-span-2">
+<div class="font-display-lg text-title-md text-primary mb-4">Dhab Pari Water & Welfare Committee</div>
+<p class="text-on-surface-variant font-body-md max-w-md">Dedicated to the growth and prosperity of Dhab Pari village through sustainable water management and community welfare projects.</p>
+</div>
+<div>
+<h5 class="font-bold text-on-surface mb-4">Quick Links</h5>
+<ul class="space-y-2 text-on-surface-variant">
+<li><a class="hover:text-primary transition-all font-label-sm text-label-sm" href="#">Privacy Policy</a></li>
+<li><a class="hover:text-primary transition-all font-label-sm text-label-sm" href="#">Terms of Service</a></li>
+<li><a class="hover:text-primary transition-all font-label-sm text-label-sm" href="#">Contact Us</a></li>
+<li><a class="hover:text-primary transition-all font-label-sm text-label-sm" href="#">Village History</a></li>
+</ul>
+</div>
+<div>
+<h5 class="font-bold text-on-surface mb-4">Office Hours</h5>
+<p class="text-on-surface-variant font-body-md text-sm">Mon - Sat: 09:00 AM - 02:00 PM<br/>Friday: 09:00 AM - 12:00 PM<br/>Sunday: Closed</p>
+</div>
+</div>
+<div class="border-t border-outline-variant pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+<p class="text-on-surface-variant font-label-sm text-label-sm text-center md:text-left">© 2024 Dhab Pari Water & Welfare Committee. All rights reserved.</p>
+<div class="flex gap-4">
+<a class="text-on-surface-variant hover:text-primary transition-transform active:scale-90" href="#"><span class="material-symbols-outlined">face_nod</span></a>
+<a class="text-on-surface-variant hover:text-primary transition-transform active:scale-90" href="#"><span class="material-symbols-outlined">camera</span></a>
+</div>
+</div>
+</footer>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 md:hidden bg-primary dark:bg-primary shadow-lg border-t border-outline-variant">
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70 tap-highlight-transparent active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-sm text-label-sm">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 py-1 tap-highlight-transparent active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined">water_drop</span>
+<span class="font-label-sm text-label-sm">Bill</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70 tap-highlight-transparent active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined">volunteer_activism</span>
+<span class="font-label-sm text-label-sm">Donate</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70 tap-highlight-transparent active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined">videocam</span>
+<span class="font-label-sm text-label-sm">Videos</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-primary opacity-70 tap-highlight-transparent active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined">menu</span>
+<span class="font-label-sm text-label-sm">More</span>
+</a>
+</nav>
+<script>
+        // Simple interactive demo logic
+        document.getElementById('billSearchForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const id = document.getElementById('consumer_id').value;
+            const results = document.getElementById('billResults');
+            
+            // Show loading or just reveal results for demo
+            results.classList.remove('hidden');
+            
+            // Toggle state randomly or based on input for demo
+            const paidState = document.getElementById('paidState');
+            const unpaidState = document.getElementById('unpaidState');
+            const unpaidAlert = document.getElementById('unpaidAlert');
+
+            if (id.includes('PAID')) {
+                paidState.classList.remove('hidden');
+                unpaidState.classList.add('hidden');
+                unpaidAlert.classList.add('hidden');
+            } else {
+                paidState.classList.add('hidden');
+                unpaidState.classList.remove('hidden');
+                unpaidAlert.classList.remove('hidden');
+            }
+            
+            // Smooth scroll to results
+            results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    </script>
+</body></html>
