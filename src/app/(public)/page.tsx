@@ -251,9 +251,10 @@ export default async function HomePage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               {videos.map((video) => (
-                <div
+                <Link
                   key={video.id}
-                  className="group relative rounded-lg overflow-hidden aspect-video bg-black cursor-pointer"
+                  href={`/videos/${video.id}`}
+                  className="group relative rounded-lg overflow-hidden aspect-video bg-black cursor-pointer block"
                 >
                   <div className="w-full h-full bg-gradient-to-br from-dp-primary to-dp-tertiary-container opacity-60 group-hover:opacity-40 transition-opacity" />
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -269,7 +270,7 @@ export default async function HomePage() {
                       {video.title}
                     </p>
                   </div>
-                </div>
+                </Link>
               ))}
               {videos.length === 0 && (
                 <div className="col-span-2 text-center py-12 text-dp-on-surface-variant">

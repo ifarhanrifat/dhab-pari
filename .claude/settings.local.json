@@ -14,11 +14,13 @@
       "Bash(curl -s http://localhost:3000/news)",
       "Bash(curl -s http://localhost:3000/videos)",
       "Bash(mkdir -p \"/Users/farhan/dhab-pari/src/app/\\(public\\)/news/[id]\")",
-      "Bash(curl -s \"http://localhost:3000/news/test-fake-id\")"
+      "Bash(curl -s \"http://localhost:3000/news/test-fake-id\")",
+      "Bash(mkdir -p \"/Users/farhan/dhab-pari/src/app/\\(public\\)/videos/[id]\")"
     ],
     "additionalDirectories": [
       "/tmp",
-      "/Users/farhan/dhab-pari/src/app/(public)/news"
+      "/Users/farhan/dhab-pari/src/app/(public)/news",
+      "/Users/farhan/dhab-pari/src/app/(public)/videos"
     ]
   }
 }

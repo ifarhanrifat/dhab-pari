@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 import { Play, Eye } from 'lucide-react'
 
 interface Video {
@@ -145,11 +146,9 @@ export default function VideosPage() {
               </h2>
               <div className="space-y-4">
                 {interviews.map((video) => (
-                  <a
+                  <Link
                     key={video.id}
-                    href={video.video_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href={`/videos/${video.id}`}
                     className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden flex hover:border-dp-secondary transition-all group cursor-pointer"
                   >
                     {/* Thumbnail left */}
@@ -182,7 +181,7 @@ export default function VideosPage() {
                         <span>{video.views.toLocaleString()} views</span>
                       </div>
                     </div>
-                  </a>
+                  </Link>
                 ))}
               </div>
             </section>
@@ -211,10 +210,8 @@ export default function VideosPage() {
 
 function VideoCard({ video, large }: { video: Video; large?: boolean }) {
   return (
-    <a
-      href={video.video_url}
-      target="_blank"
-      rel="noopener noreferrer"
+    <Link
+      href={`/videos/${video.id}`}
       className="group relative rounded-lg overflow-hidden aspect-video bg-black cursor-pointer block"
     >
       {/* Thumbnail bg */}
@@ -249,6 +246,6 @@ function VideoCard({ video, large }: { video: Video; large?: boolean }) {
           <span>{video.views.toLocaleString()} views</span>
         </div>
       </div>
-    </a>
+    </Link>
   )
 }

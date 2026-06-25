@@ -142,13 +142,13 @@ export default function ProjectsPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/suggestions"
-              className="bg-dp-secondary-fixed text-dp-on-secondary-fixed px-8 py-3 rounded-lg font-bold font-sans hover:scale-105 transition-transform"
+              className="inline-flex items-center justify-center gap-2 font-sans text-[14px] font-semibold tracking-[0.05em] rounded transition-all active:scale-[0.98] cursor-pointer px-8 py-3 bg-dp-secondary text-white hover:bg-dp-primary"
             >
               Submit Proposal
             </Link>
             <Link
               href="/suggestions"
-              className="bg-transparent border-2 border-white/60 text-white px-8 py-3 rounded-lg font-bold font-sans hover:bg-white/10 transition-colors"
+              className="inline-flex items-center justify-center gap-2 font-sans text-[14px] font-semibold tracking-[0.05em] rounded transition-all active:scale-[0.98] cursor-pointer px-8 py-3 bg-transparent border-2 border-white text-white hover:bg-white/10"
             >
               Browse Proposals
             </Link>

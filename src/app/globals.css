@@ -199,6 +199,16 @@
   background-color: #f0eded;
 }
 
+/* --- Admin shared input style --- */
+.input-field {
+  @apply w-full px-4 py-3 bg-[#fcf9f8] border-2 border-[#bfc9c4] rounded-lg transition-all font-sans text-[16px] text-[#1c1b1b];
+}
+.input-field:focus {
+  border-color: #006c4e;
+  outline: none;
+  box-shadow: none;
+}
+
 /* --- Custom scrollbar for admin --- */
 .admin-scrollbar::-webkit-scrollbar { width: 6px; }
 .admin-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
