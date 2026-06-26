@@ -1,5 +1,11 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { SITE } from '@/lib/constants'
+
+export const metadata: Metadata = {
+  title: 'Donate',
+  description: 'Support Dhab Pari village growth — donate via JazzCash, Easypaisa, or bank transfer.',
+}
 import Link from 'next/link'
 import {
   Heart,

@@ -1,4 +1,10 @@
+import type { Metadata } from 'next'
 import { GraduationCap, BookOpen, Award, Users } from 'lucide-react'
+
+export const metadata: Metadata = {
+  title: 'Education Corner',
+  description: 'Scholarship programs, student achievements, and educational initiatives in Dhab Pari.',
+}
 import Link from 'next/link'
 
 export default function EducationPage() {

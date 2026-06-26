@@ -1,4 +1,10 @@
+import type { Metadata } from 'next'
 import { BookOpen, Trophy, Smile } from 'lucide-react'
+
+export const metadata: Metadata = {
+  title: 'Community Corner',
+  description: 'Poetry, sports updates, and kids activities from Dhab Pari village.',
+}
 import Link from 'next/link'
 
 export default function EntertainmentPage() {

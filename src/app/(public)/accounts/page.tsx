@@ -1,4 +1,10 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
+
+export const metadata: Metadata = {
+  title: 'Accounts & Transparency',
+  description: 'Full financial transparency for Dhab Pari village — income, expenses, and community fund status.',
+}
 import {
   TrendingUp,
   TrendingDown,

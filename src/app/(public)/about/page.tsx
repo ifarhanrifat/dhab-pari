@@ -1,5 +1,11 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { SITE } from '@/lib/constants'
+
+export const metadata: Metadata = {
+  title: 'About & Committee',
+  description: 'Meet the Dhab Pari Water & Welfare Committee — village history, vision, mission, and team members.',
+}
 import { Phone, Eye, Target } from 'lucide-react'
 
 const initialsColors = [

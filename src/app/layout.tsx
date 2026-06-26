@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Source_Sans_3, Playfair_Display, Noto_Nastaliq_Urdu } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const sourceSans = Source_Sans_3({
@@ -27,8 +28,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dhab Pari Water & Welfare Committee",
+  title: {
+    default: "Dhab Pari Water & Welfare Committee",
+    template: "%s | Dhab Pari",
+  },
   description: "Official portal for the Water & Welfare Committee of Dhab Pari village, Dist. Chakwal, Punjab, Pakistan.",
+  metadataBase: new URL("https://dhabpari.com"),
+  openGraph: {
+    siteName: "Dhab Pari Water & Welfare Committee",
+    locale: "en_US",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -41,7 +51,10 @@ export default function RootLayout({
       lang="en"
       className={`${sourceSans.variable} ${playfair.variable} ${notoNastaliq.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <Toaster position="top-right" richColors />
+      </body>
     </html>
   );
 }
