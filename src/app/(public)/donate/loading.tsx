@@ -2,8 +2,8 @@ import { Skeleton } from '@/components/ui/Skeleton'
 
 export default function DonateLoading() {
   return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-10 py-12">
-      <div className="text-center mb-16">
+    <div className="max-w-[1200px] mx-auto px-4 md:px-10 py-8">
+      <div className="text-center mb-8">
         <Skeleton className="h-12 w-12 rounded-full mx-auto mb-4" />
         <Skeleton className="h-8 w-64 mx-auto mb-6" />
         <Skeleton className="h-16 w-96 mx-auto" />

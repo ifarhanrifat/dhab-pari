@@ -97,7 +97,7 @@ export default async function AboutPage() {
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-4">
               <Target size={24} className="text-dp-secondary" />
-              <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary">
+              <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary section-title">
                 Our Mission
               </h2>
             </div>

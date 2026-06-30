@@ -348,7 +348,7 @@ function CompletedCard({ project }: { project: Project }) {
 /* ========== UPCOMING CARD ========== */
 function UpcomingCard({ project }: { project: Project }) {
   return (
-    <div className="bg-[#fcf9f8] border-2 border-dashed border-blue-200 rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm">
+    <div className="bg-white border-2 border-dashed border-blue-200 rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm">
       {/* Left: Illustration */}
       <div className="relative bg-blue-50 flex items-center justify-center min-h-[300px]">
         <div className="text-center p-8">

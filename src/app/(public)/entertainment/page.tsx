@@ -24,7 +24,7 @@ export default function EntertainmentPage() {
       <section className="mb-16">
         <div className="flex items-center gap-3 mb-6">
           <BookOpen size={24} className="text-dp-secondary" />
-          <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary">
+          <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary section-title">
             Poetry / شاعری
           </h2>
         </div>
@@ -72,7 +72,7 @@ export default function EntertainmentPage() {
       <section className="mb-16">
         <div className="flex items-center gap-3 mb-6">
           <Trophy size={24} className="text-amber-600" />
-          <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary">
+          <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary section-title">
             Sports Updates
           </h2>
         </div>
@@ -108,7 +108,7 @@ export default function EntertainmentPage() {
       <section className="mb-16">
         <div className="flex items-center gap-3 mb-6">
           <Smile size={24} className="text-pink-500" />
-          <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary">
+          <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary section-title">
             Kids Corner
           </h2>
         </div>

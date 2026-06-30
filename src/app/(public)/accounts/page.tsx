@@ -51,7 +51,7 @@ export default async function AccountsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">
+          <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title">
             Accounts & Transparency
           </h1>
           <p

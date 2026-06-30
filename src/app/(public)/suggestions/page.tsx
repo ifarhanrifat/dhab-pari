@@ -131,7 +131,7 @@ export default function SuggestionsPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your name"
-                  className="w-full px-4 py-3 bg-[#fcf9f8] border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px] text-dp-on-surface"
+                  className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px] text-dp-on-surface"
                 />
               </div>
 
@@ -144,7 +144,7 @@ export default function SuggestionsPage() {
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
                   placeholder="0300-1234567"
-                  className="w-full px-4 py-3 bg-[#fcf9f8] border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px] text-dp-on-surface"
+                  className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px] text-dp-on-surface"
                 />
               </div>
 
@@ -164,7 +164,7 @@ export default function SuggestionsPage() {
                         ? 'Describe your concern in detail...'
                         : 'Share your thoughts with the committee...'
                   }
-                  className="w-full px-4 py-3 bg-[#fcf9f8] border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px] text-dp-on-surface resize-none"
+                  className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px] text-dp-on-surface resize-none"
                 />
               </div>
 

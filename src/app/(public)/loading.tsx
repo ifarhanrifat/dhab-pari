@@ -11,8 +11,8 @@ export default function HomeLoading() {
           ))}
         </div>
       </div>
-      <div className="max-w-[1200px] mx-auto px-6 py-12 flex flex-col lg:flex-row gap-6">
-        <div className="flex-1 space-y-12">
+      <div className="max-w-[1200px] mx-auto px-6 py-8 flex flex-col lg:flex-row gap-6">
+        <div className="flex-1 space-y-8">
           <div>
             <Skeleton className="h-8 w-48 mb-6" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

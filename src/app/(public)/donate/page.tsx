@@ -43,14 +43,14 @@ export default async function DonatePage() {
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-10 py-12">
+    <div className="max-w-[1200px] mx-auto px-4 md:px-10 py-8">
       {/* Hero Quote */}
       <section className="mb-16">
         <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
           <div className="mb-4 inline-flex items-center justify-center p-3 bg-dp-secondary-container rounded-full text-dp-on-secondary-container">
             <Heart size={32} />
           </div>
-          <h1 className="font-heading text-[24px] md:text-[32px] font-bold leading-[32px] md:leading-[40px] mb-6 text-dp-primary">
+          <h1 className="font-heading text-[24px] md:text-[32px] font-bold leading-[32px] md:leading-[40px] mb-6 text-dp-primary section-title">
             Support Village Growth
           </h1>
           <div className="relative px-8 py-4 border-l-4 border-dp-secondary">
@@ -64,7 +64,7 @@ export default async function DonatePage() {
       </section>
 
       {/* Payment Channels */}
-      <section className="mb-20">
+      <section className="mb-10">
         <h2 className="font-heading text-[20px] font-bold leading-[28px] mb-8 text-dp-primary border-b border-dp-outline-variant pb-4">
           Secure Payment Channels
         </h2>
@@ -134,7 +134,7 @@ export default async function DonatePage() {
       </section>
 
       {/* How to Contribute */}
-      <section className="mb-20 grid grid-cols-1 md:grid-cols-2 gap-12 items-center bg-dp-surface-container-low p-8 md:p-12 rounded-lg">
+      <section className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-12 items-center bg-dp-surface-container-low p-8 md:p-12 rounded-lg">
         <div>
           <h2 className="font-heading text-[20px] font-bold leading-[28px] mb-6 text-dp-primary">
             How to Contribute?
@@ -172,7 +172,7 @@ export default async function DonatePage() {
       </section>
 
       {/* Donors Honor Wall */}
-      <section className="mb-20">
+      <section className="mb-10">
         <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
           <div>
             <h2 className="font-heading text-[20px] font-bold leading-[28px] text-dp-primary">

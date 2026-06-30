@@ -22,6 +22,7 @@ interface Consumer {
   house_no: string | null
   sector: string | null
   mobile: string
+  lookup_token: string | null
   monthly_rate: number
 }
 
@@ -42,7 +43,7 @@ export default function BillingPage() {
   const loadData = async () => {
     const [billsRes, consumersRes] = await Promise.all([
       supabase.from('bills').select('*').order('year', { ascending: false }).order('month', { ascending: false }).limit(50),
-      supabase.from('consumers').select('consumer_id, name, house_no, sector, mobile, monthly_rate').order('consumer_id'),
+      supabase.from('consumers').select('consumer_id, name, house_no, sector, mobile, monthly_rate, lookup_token').order('consumer_id'),
     ])
     setBills(billsRes.data ?? [])
     setConsumers(consumersRes.data ?? [])
@@ -114,6 +115,7 @@ export default function BillingPage() {
             <thead>
               <tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]">
                 <th className="p-4">Consumer ID</th>
+                <th className="p-4">Lookup Code</th>
                 <th className="p-4">Name</th>
                 <th className="p-4">Period</th>
                 <th className="p-4">Amount</th>
@@ -128,6 +130,7 @@ export default function BillingPage() {
                 return (
                   <tr key={bill.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''}`}>
                     <td className="p-4 border-b border-dp-outline-variant">{bill.consumer_id}</td>
+                    <td className="p-4 border-b border-dp-outline-variant font-mono text-[12px] text-dp-secondary">{c?.lookup_token ?? '—'}</td>
                     <td className="p-4 border-b border-dp-outline-variant font-semibold">{c?.name ?? '—'}</td>
                     <td className="p-4 border-b border-dp-outline-variant">{months[bill.month]} {bill.year}</td>
                     <td className="p-4 border-b border-dp-outline-variant font-bold">Rs. {bill.amount_pkr.toLocaleString()}</td>

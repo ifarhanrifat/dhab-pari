@@ -11,6 +11,13 @@ import {
   FileText,
   Settings,
   LogOut,
+  MessageSquare,
+  Newspaper,
+  Video,
+  Heart,
+  Image,
+  TicketSlash,
+  Bell,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -20,6 +27,13 @@ const menuItems = [
   { href: '/admin/projects', label: 'Projects', icon: FolderKanban },
   { href: '/admin/members', label: 'Members', icon: Users },
   { href: '/admin/finance', label: 'Accounts', icon: BarChart3 },
+  { href: '/admin/news', label: 'News', icon: Newspaper },
+  { href: '/admin/videos', label: 'Videos', icon: Video },
+  { href: '/admin/donors', label: 'Donors', icon: Heart },
+  { href: '/admin/gallery', label: 'Gallery', icon: Image },
+  { href: '/admin/suggestions', label: 'Suggestions', icon: MessageSquare },
+  { href: '/admin/ticker', label: 'Ticker', icon: TicketSlash },
+  { href: '/admin/notifications', label: 'Alerts', icon: Bell },
   { href: '/admin/reports', label: 'Reports', icon: FileText },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ]
@@ -36,7 +50,7 @@ export function AdminSidebar() {
   }
 
   return (
-    <aside className="hidden md:flex flex-col h-screen fixed left-0 top-0 py-6 bg-dp-primary border-r border-dp-outline-variant w-[192px] z-50">
+    <aside className="hidden md:flex flex-col h-screen fixed left-0 top-0 py-6 bg-dp-primary border-r border-dp-outline-variant w-[210px] z-50">
       {/* Brand */}
       <div className="px-4 mb-8">
         <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">

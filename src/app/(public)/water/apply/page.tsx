@@ -135,7 +135,7 @@ export default function WaterApplyPage() {
                     value={form.name}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 bg-[#fcf9f8] border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px]"
+                    className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px]"
                   />
                 </div>
                 <div>
@@ -147,7 +147,7 @@ export default function WaterApplyPage() {
                     name="fatherName"
                     value={form.fatherName}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-[#fcf9f8] border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px]"
+                    className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px]"
                   />
                 </div>
               </div>
@@ -164,7 +164,7 @@ export default function WaterApplyPage() {
                     onChange={handleChange}
                     required
                     placeholder="0300-1234567"
-                    className="w-full px-4 py-3 bg-[#fcf9f8] border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px]"
+                    className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px]"
                   />
                 </div>
                 <div>
@@ -177,7 +177,7 @@ export default function WaterApplyPage() {
                     value={form.cnic}
                     onChange={handleChange}
                     placeholder="xxxxx-xxxxxxx-x"
-                    className="w-full px-4 py-3 bg-[#fcf9f8] border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px]"
+                    className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px]"
                   />
                 </div>
               </div>
@@ -193,7 +193,7 @@ export default function WaterApplyPage() {
                   required
                   rows={3}
                   placeholder="House #, Street, Area"
-                  className="w-full px-4 py-3 bg-[#fcf9f8] border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px] resize-none"
+                  className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px] resize-none"
                 />
               </div>
 
@@ -206,7 +206,7 @@ export default function WaterApplyPage() {
                     name="sector"
                     value={form.sector}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-[#fcf9f8] border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px]"
+                    className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px]"
                   >
                     <option value="">Select Sector</option>
                     <option value="Sector A">Sector A</option>
@@ -222,7 +222,7 @@ export default function WaterApplyPage() {
                     name="connectionType"
                     value={form.connectionType}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-[#fcf9f8] border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px]"
+                    className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px]"
                   >
                     <option value="residential">Residential / رہائشی</option>
                     <option value="commercial">Commercial / تجارتی</option>

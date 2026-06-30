@@ -142,15 +142,15 @@ export default async function HomePage() {
       <HomeMobileQuickActions />
 
       {/* ========== MAIN CONTENT + SIDEBAR ========== */}
-      <div className="max-w-[1200px] mx-auto px-6 py-12 flex flex-col lg:flex-row gap-6">
+      <div className="max-w-[1200px] mx-auto px-6 py-8 flex flex-col lg:flex-row gap-6">
 
         {/* ===== MAIN COLUMN ===== */}
-        <div className="flex-1 space-y-12">
+        <div className="flex-1 space-y-8">
 
           {/* --- Ongoing Projects --- */}
           <section>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Ongoing Projects</h2>
+              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title">Ongoing Projects</h2>
               <Link href="/projects" className="text-dp-secondary font-bold hover:underline flex items-center text-[14px] font-sans tracking-[0.05em]">
                 View All <ArrowRight size={16} className="ml-1" />
               </Link>
@@ -214,7 +214,7 @@ export default async function HomePage() {
           {/* --- Latest News --- */}
           <section>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Latest News</h2>
+              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title">Latest News</h2>
               <Link href="/news" className="text-dp-secondary font-bold hover:underline text-[14px] font-sans tracking-[0.05em]">
                 Full Archive
               </Link>
@@ -253,14 +253,14 @@ export default async function HomePage() {
           {/* --- Featured Videos --- */}
           <section>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Featured Videos</h2>
+              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title">Featured Videos</h2>
             </div>
             <div className="grid grid-cols-2 gap-4">
               {videos.map((video) => (
                 <Link
                   key={video.id}
                   href={`/videos/${video.id}`}
-                  className="group relative rounded-lg overflow-hidden aspect-video bg-black cursor-pointer block"
+                  className="group relative rounded-lg overflow-hidden bg-black cursor-pointer block" style={{ aspectRatio: '16/10' }}
                 >
                   <div className="w-full h-full bg-gradient-to-br from-dp-primary to-dp-tertiary-container opacity-60 group-hover:opacity-40 transition-opacity" />
                   <div className="absolute inset-0 flex items-center justify-center">

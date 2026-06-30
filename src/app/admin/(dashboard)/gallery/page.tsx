@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { PlusCircle, X, Trash2, Image as ImageIcon, ArrowLeft } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
 import { ImageUpload } from '@/components/admin/ImageUpload'
+import { MultiImageUpload } from '@/components/admin/MultiImageUpload'
 
 interface Album { id: string; title: string; title_ur: string | null; category: string | null; display_order: number }
 interface Item { id: string; album_id: string; url: string; caption: string | null; display_order: number }
@@ -17,7 +18,7 @@ export default function AdminGalleryPage() {
   const [showAlbumForm, setShowAlbumForm] = useState(false)
   const [showItemForm, setShowItemForm] = useState(false)
   const [albumForm, setAlbumForm] = useState({ title: '', title_ur: '', category: 'events' })
-  const [itemForm, setItemForm] = useState({ url: '', caption: '' })
+  const [itemForm, setItemForm] = useState<{ url: string; caption: string; _multiUrls?: string[] }>({ url: '', caption: '' })
   const supabase = createClient()
 
   const loadAlbums = async () => { const { data } = await supabase.from('gallery_albums').select('*').order('display_order'); setAlbums(data ?? []); setLoading(false) }
@@ -40,6 +41,15 @@ export default function AdminGalleryPage() {
     const { error } = await supabase.from('gallery_items').insert({ album_id: selectedAlbum, url: itemForm.url, caption: itemForm.caption || null, display_order: items.length })
     if (error) { toast.error(error.message); return }
     toast.success('Item added'); setShowItemForm(false); setItemForm({ url: '', caption: '' }); loadItems(selectedAlbum)
+  }
+
+  const addMultiItems = async () => {
+    const urls = itemForm._multiUrls ?? (itemForm.url ? [itemForm.url] : [])
+    if (urls.length === 0 || !selectedAlbum) { toast.error('Upload at least one image'); return }
+    const inserts = urls.map((url, i) => ({ album_id: selectedAlbum, url, caption: itemForm.caption || null, display_order: items.length + i }))
+    const { error } = await supabase.from('gallery_items').insert(inserts)
+    if (error) { toast.error(error.message); return }
+    toast.success(`${urls.length} photo(s) added`); setShowItemForm(false); setItemForm({ url: '', caption: '' }); loadItems(selectedAlbum)
   }
 
   const deleteItem = async (id: string) => { if (!selectedAlbum) return; await supabase.from('gallery_items').delete().eq('id', id); toast.success('Removed'); loadItems(selectedAlbum) }
@@ -112,9 +122,9 @@ export default function AdminGalleryPage() {
           <div className="bg-white rounded-lg p-6 w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">Add Photo</h2><button onClick={() => setShowItemForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
-              <ImageUpload bucket="images" currentUrl={itemForm.url} onUpload={(url) => setItemForm({ ...itemForm, url })} label="Photo" />
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Caption</label><input value={itemForm.caption} onChange={(e) => setItemForm({ ...itemForm, caption: e.target.value })} className="input-field" /></div>
-              <button onClick={addItem} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">Add Photo</button>
+              <MultiImageUpload bucket="images" currentUrls={[]} onUpload={(urls) => setItemForm({ ...itemForm, url: urls[urls.length - 1] ?? '', _multiUrls: urls })} label="Photos (select multiple)" max={20} />
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Caption (applied to all)</label><input value={itemForm.caption} onChange={(e) => setItemForm({ ...itemForm, caption: e.target.value })} className="input-field" /></div>
+              <button onClick={addMultiItems} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">Add Photos</button>
             </div>
           </div>
         </div>

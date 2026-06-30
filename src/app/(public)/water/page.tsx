@@ -58,14 +58,30 @@ export default function WaterBillPage() {
     setConsumer(null)
     setBills([])
 
-    const { data: consumerData, error: consumerErr } = await supabase
+    // Search by lookup_token (secure random code) or consumer_id
+    let consumerData = null
+    let consumerErr = null
+
+    const { data: byToken, error: errToken } = await supabase
       .from('consumers')
       .select('consumer_id, name, name_ur, address, house_no, sector, area')
-      .eq('consumer_id', trimmed)
+      .eq('lookup_token', trimmed)
       .single()
 
-    if (consumerErr || !consumerData) {
-      setError('Consumer not found. Please check your Consumer ID and try again.')
+    if (byToken) {
+      consumerData = byToken
+    } else {
+      const { data: byId, error: errId } = await supabase
+        .from('consumers')
+        .select('consumer_id, name, name_ur, address, house_no, sector, area')
+        .eq('consumer_id', trimmed)
+        .single()
+      consumerData = byId
+      consumerErr = errId
+    }
+
+    if (!consumerData) {
+      setError('Consumer not found. Please check your code and try again.')
       setSearched(true)
       setLoading(false)
       return
@@ -76,7 +92,7 @@ export default function WaterBillPage() {
     const { data: billsData } = await supabase
       .from('bills')
       .select('id, month, year, amount_pkr, status, paid_date')
-      .eq('consumer_id', trimmed)
+      .eq('consumer_id', consumerData.consumer_id)
       .order('year', { ascending: false })
       .order('month', { ascending: false })
       .limit(6)
@@ -93,14 +109,14 @@ export default function WaterBillPage() {
   const hasUnpaidBills = totalOutstanding > 0
 
   return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-8 md:py-12 flex flex-col md:flex-row gap-8">
+    <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-8 flex flex-col md:flex-row gap-8">
 
       {/* ===== LEFT: Main Content ===== */}
       <div className="flex-1 space-y-8">
 
         {/* Page Title */}
         <div className="space-y-2">
-          <h1 className="font-heading text-[24px] md:text-[32px] font-bold leading-[32px] md:leading-[40px] text-dp-primary">
+          <h1 className="font-heading text-[24px] md:text-[32px] font-bold leading-[32px] md:leading-[40px] text-dp-primary section-title">
             Water Bill Lookup ·{' '}
             <span
               className="text-[24px]"
@@ -134,8 +150,8 @@ export default function WaterBillPage() {
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="e.g. DP-10452"
-                  className="w-full pl-12 pr-4 py-4 bg-[#fcf9f8] border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[18px] leading-[28px] text-dp-on-surface"
+                  placeholder="e.g. A3F8BC12 or DP-1001"
+                  className="w-full pl-12 pr-4 py-4 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[18px] leading-[28px] text-dp-on-surface"
                 />
               </div>
             </div>

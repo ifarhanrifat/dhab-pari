@@ -51,7 +51,7 @@
   --color-dp-tertiary-container: #00513d;
   --color-dp-on-tertiary: #ffffff;
   --color-dp-on-tertiary-container: #5bc8a3;
-  --color-dp-surface: #fcf9f8;
+  --color-dp-surface: #E1F5EE;
   --color-dp-surface-dim: #dcd9d9;
   --color-dp-surface-bright: #fcf9f8;
   --color-dp-surface-container-lowest: #ffffff;
@@ -122,7 +122,7 @@
 
 :root {
   --radius: 0.5rem;
-  --background: #fcf9f8;
+  --background: #E1F5EE;
   --foreground: #1c1b1b;
   --card: #ffffff;
   --card-foreground: #1c1b1b;
@@ -199,9 +199,24 @@
   background-color: #f0eded;
 }
 
+/* --- Section header with green left accent --- */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.section-title::before {
+  content: '';
+  width: 3px;
+  height: 1.25em;
+  background: #1D9E75;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
 /* --- Admin shared input style --- */
 .input-field {
-  @apply w-full px-4 py-3 bg-[#fcf9f8] border-2 border-[#bfc9c4] rounded-lg transition-all font-sans text-[16px] text-[#1c1b1b];
+  @apply w-full px-4 py-3 bg-white border-2 border-[#bfc9c4] rounded-lg transition-all font-sans text-[16px] text-[#1c1b1b];
 }
 .input-field:focus {
   border-color: #006c4e;
