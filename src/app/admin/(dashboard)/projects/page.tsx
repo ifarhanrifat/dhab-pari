@@ -6,12 +6,12 @@ import { PlusCircle, X, Pencil, Trash2 } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 
-interface Project { id: string; title: string; title_ur: string | null; description: string | null; status: string; progress_percent: number; budget_pkr: number | null; spent_pkr: number | null; category: string | null; location: string | null; is_featured: boolean; before_image_url: string | null; after_image_url: string | null }
+interface Project { id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null; status: string; progress_percent: number; budget_pkr: number | null; spent_pkr: number | null; category: string | null; location: string | null; sector: string | null; is_featured: boolean; before_image_url: string | null; after_image_url: string | null; start_date: string | null; end_date: string | null; beneficiaries_count: number | null }
 
 const statuses = ['ongoing', 'completed', 'upcoming']
 const categories = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'other']
 
-const empty = { title: '', title_ur: '', description: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', is_featured: false, before_image_url: '', after_image_url: '' }
+const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0 }
 
 export default function AdminProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
@@ -29,7 +29,7 @@ export default function AdminProjectsPage() {
 
   const save = async () => {
     if (!form.title.trim()) { toast.error('Title is required'); return }
-    const payload = { ...form, budget_pkr: form.budget_pkr || null, spent_pkr: form.spent_pkr || null }
+    const payload = { ...form, budget_pkr: form.budget_pkr || null, spent_pkr: form.spent_pkr || null, start_date: form.start_date || null, end_date: form.end_date || null, beneficiaries_count: form.beneficiaries_count || null, sector: form.sector || null, description_ur: form.description_ur || null }
     if (editing) {
       const { error } = await supabase.from('projects').update(payload).eq('id', editing)
       if (error) { toast.error(error.message); return }
@@ -42,7 +42,7 @@ export default function AdminProjectsPage() {
     setShowForm(false); setEditing(null); setForm(empty); load()
   }
 
-  const edit = (p: Project) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '' }); setEditing(p.id); setShowForm(true) }
+  const edit = (p: Project) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0 }); setEditing(p.id); setShowForm(true) }
 
   const remove = async (id: string) => { if (!confirm('Delete this project?')) return; await supabase.from('projects').delete().eq('id', id); toast.success('Deleted'); load() }
 
@@ -89,6 +89,7 @@ export default function AdminProjectsPage() {
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Title (EN)</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Title (UR)</label><input value={form.title_ur} onChange={(e) => setForm({ ...form, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Description</label><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="input-field resize-none" /></div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Description (UR)</label><textarea value={form.description_ur} onChange={(e) => setForm({ ...form, description_ur: e.target.value })} rows={3} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Status</label><select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="input-field">{statuses.map((s) => <option key={s} value={s}>{s}</option>)}</select></div>
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Category</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">{categories.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
@@ -98,7 +99,15 @@ export default function AdminProjectsPage() {
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Budget (PKR)</label><input type="number" value={form.budget_pkr} onChange={(e) => setForm({ ...form, budget_pkr: +e.target.value })} className="input-field" /></div>
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Spent (PKR)</label><input type="number" value={form.spent_pkr} onChange={(e) => setForm({ ...form, spent_pkr: +e.target.value })} className="input-field" /></div>
               </div>
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Location</label><input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="input-field" /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Start Date</label><input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="input-field" /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">End Date</label><input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="input-field" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Location</label><input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="input-field" /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Sector</label><input value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} placeholder="Sector A" className="input-field" /></div>
+              </div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Beneficiaries Count</label><input type="number" value={form.beneficiaries_count} onChange={(e) => setForm({ ...form, beneficiaries_count: +e.target.value })} className="input-field" /></div>
               <div className="grid grid-cols-2 gap-4">
                 <ImageUpload bucket="images" currentUrl={form.before_image_url} onUpload={(url) => setForm({ ...form, before_image_url: url })} label="Before Photo" />
                 <ImageUpload bucket="images" currentUrl={form.after_image_url} onUpload={(url) => setForm({ ...form, after_image_url: url })} label="After Photo" />

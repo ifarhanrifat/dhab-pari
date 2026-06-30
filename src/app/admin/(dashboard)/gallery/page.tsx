@@ -5,6 +5,8 @@ import { PlusCircle, X, Trash2, Image as ImageIcon, ArrowLeft } from 'lucide-rea
 import { toast, Toaster } from 'sonner'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { MultiImageUpload } from '@/components/admin/MultiImageUpload'
+import { BulkActionsBar } from '@/components/admin/BulkActionsBar'
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 
 interface Album { id: string; title: string; title_ur: string | null; category: string | null; display_order: number }
 interface Item { id: string; album_id: string; url: string; caption: string | null; display_order: number }
@@ -19,13 +21,40 @@ export default function AdminGalleryPage() {
   const [showItemForm, setShowItemForm] = useState(false)
   const [albumForm, setAlbumForm] = useState({ title: '', title_ur: '', category: 'events' })
   const [itemForm, setItemForm] = useState<{ url: string; caption: string; _multiUrls?: string[] }>({ url: '', caption: '' })
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
+  const [confirmDeleteItems, setConfirmDeleteItems] = useState(false)
   const supabase = createClient()
 
   const loadAlbums = async () => { const { data } = await supabase.from('gallery_albums').select('*').order('display_order'); setAlbums(data ?? []); setLoading(false) }
   const loadItems = async (albumId: string) => { const { data } = await supabase.from('gallery_items').select('*').eq('album_id', albumId).order('display_order'); setItems(data ?? []) }
   useEffect(() => { loadAlbums() }, [])
 
-  const openAlbum = (id: string) => { setSelectedAlbum(id); loadItems(id) }
+  const openAlbum = (id: string) => { setSelectedAlbum(id); setSelectedItems(new Set()); loadItems(id) }
+
+  const toggleSelectItem = (id: string) => {
+    setSelectedItems((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAllItems = () => {
+    if (selectedItems.size === items.length) setSelectedItems(new Set())
+    else setSelectedItems(new Set(items.map((i) => i.id)))
+  }
+
+  const bulkDeleteItems = async () => {
+    if (!selectedAlbum) return
+    const ids = Array.from(selectedItems)
+    const { error } = await supabase.from('gallery_items').delete().in('id', ids)
+    if (error) { toast.error('Failed to delete items'); return }
+    toast.success(`${ids.length} item(s) deleted`)
+    setSelectedItems(new Set())
+    setConfirmDeleteItems(false)
+    loadItems(selectedAlbum)
+  }
 
   const saveAlbum = async () => {
     if (!albumForm.title.trim()) { toast.error('Title required'); return }
@@ -90,9 +119,30 @@ export default function AdminGalleryPage() {
             <h1 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary">{selectedAlbumData?.title}</h1>
             <button onClick={() => setShowItemForm(true)} className="ml-auto flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> Add Photo</button>
           </div>
+          <BulkActionsBar
+            count={selectedItems.size}
+            onClear={() => setSelectedItems(new Set())}
+            actions={[
+              { label: 'Delete Selected', onClick: () => setConfirmDeleteItems(true), variant: 'danger' },
+            ]}
+          />
+
+          {items.length > 0 && (
+            <label className="flex items-center gap-2 mb-3 cursor-pointer w-fit">
+              <input type="checkbox" checked={selectedItems.size === items.length} onChange={toggleSelectAllItems} className="accent-dp-secondary cursor-pointer" />
+              <span className="font-sans text-[14px] text-dp-on-surface-variant">Select all</span>
+            </label>
+          )}
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {items.map((item) => (
-              <div key={item.id} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden group relative">
+              <div key={item.id} className={`bg-white border rounded-lg overflow-hidden group relative ${selectedItems.has(item.id) ? 'border-dp-secondary ring-2 ring-dp-secondary/20' : 'border-dp-outline-variant'}`}>
+                <input
+                  type="checkbox"
+                  checked={selectedItems.has(item.id)}
+                  onChange={() => toggleSelectItem(item.id)}
+                  className="absolute top-2 left-2 z-10 accent-dp-secondary cursor-pointer w-4 h-4"
+                />
                 <div className="aspect-square bg-gradient-to-br from-dp-surface-container-high to-dp-surface-container flex items-center justify-center"><ImageIcon size={24} className="text-dp-on-surface-variant/30" /></div>
                 {item.caption && <p className="p-2 text-[12px] font-sans text-dp-on-surface-variant">{item.caption}</p>}
                 <button onClick={() => deleteItem(item.id)} className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"><Trash2 size={14} /></button>
@@ -100,6 +150,14 @@ export default function AdminGalleryPage() {
             ))}
             {items.length === 0 && <div className="col-span-4 text-center py-12 text-dp-on-surface-variant font-sans">No items yet. Add photos above.</div>}
           </div>
+
+          <ConfirmDialog
+            open={confirmDeleteItems}
+            title="Delete Photos"
+            message={`Are you sure you want to delete ${selectedItems.size} photo(s)? This cannot be undone.`}
+            onConfirm={bulkDeleteItems}
+            onCancel={() => setConfirmDeleteItems(false)}
+          />
         </>
       )}
 

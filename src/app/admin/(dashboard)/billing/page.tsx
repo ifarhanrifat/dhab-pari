@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Search, Filter, PlusCircle, CheckCheck, X, Pencil } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
+import { BulkActionsBar } from '@/components/admin/BulkActionsBar'
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 
 interface Bill {
   id: string
@@ -37,6 +39,8 @@ export default function BillingPage() {
   const [showAddConsumer, setShowAddConsumer] = useState(false)
   const [newBill, setNewBill] = useState({ consumer_id: '', month: new Date().getMonth() + 1, year: new Date().getFullYear(), amount_pkr: 200 })
   const [newConsumer, setNewConsumer] = useState({ consumer_id: '', name: '', mobile: '', house_no: '', sector: '', monthly_rate: 200 })
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const supabase = createClient()
 
@@ -87,6 +91,39 @@ export default function BillingPage() {
     loadData()
   }
 
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selected.size === filtered.length) setSelected(new Set())
+    else setSelected(new Set(filtered.map((b) => b.id)))
+  }
+
+  const bulkMarkPaid = async () => {
+    const ids = Array.from(selected)
+    const { error } = await supabase.from('bills').update({ status: 'paid', paid_date: new Date().toISOString().split('T')[0], payment_method: 'cash' }).in('id', ids)
+    if (error) { toast.error('Failed to mark bills as paid'); return }
+    toast.success(`${ids.length} bill(s) marked as paid`)
+    setSelected(new Set())
+    loadData()
+  }
+
+  const bulkDelete = async () => {
+    const ids = Array.from(selected)
+    const { error } = await supabase.from('bills').delete().in('id', ids)
+    if (error) { toast.error('Failed to delete bills'); return }
+    toast.success(`${ids.length} bill(s) deleted`)
+    setSelected(new Set())
+    setConfirmDelete(false)
+    loadData()
+  }
+
   return (
     <>
       <Toaster position="top-right" />
@@ -108,12 +145,23 @@ export default function BillingPage() {
         <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by Consumer ID or Name..." className="w-full pl-10 pr-4 py-2 border-2 border-dp-outline-variant rounded-lg focus:border-dp-primary focus:ring-0 text-[14px] font-sans" />
       </div>
 
+      {/* Bulk actions */}
+      <BulkActionsBar
+        count={selected.size}
+        onClear={() => setSelected(new Set())}
+        actions={[
+          { label: 'Mark Selected as Paid', onClick: bulkMarkPaid, variant: 'primary' },
+          { label: 'Delete Selected', onClick: () => setConfirmDelete(true), variant: 'danger' },
+        ]}
+      />
+
       {/* Table */}
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]">
+                <th className="p-4 w-10"><input type="checkbox" checked={filtered.length > 0 && selected.size === filtered.length} onChange={toggleSelectAll} className="accent-dp-secondary cursor-pointer" /></th>
                 <th className="p-4">Consumer ID</th>
                 <th className="p-4">Lookup Code</th>
                 <th className="p-4">Name</th>
@@ -124,11 +172,12 @@ export default function BillingPage() {
               </tr>
             </thead>
             <tbody className="font-sans text-[16px]">
-              {loading && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">Loading...</td></tr>}
+              {loading && <tr><td colSpan={8} className="p-8 text-center text-dp-on-surface-variant">Loading...</td></tr>}
               {!loading && filtered.map((bill, i) => {
                 const c = consumerMap[bill.consumer_id]
                 return (
-                  <tr key={bill.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''}`}>
+                  <tr key={bill.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''} ${selected.has(bill.id) ? 'bg-dp-secondary-container/20' : ''}`}>
+                    <td className="p-4 border-b border-dp-outline-variant"><input type="checkbox" checked={selected.has(bill.id)} onChange={() => toggleSelect(bill.id)} className="accent-dp-secondary cursor-pointer" /></td>
                     <td className="p-4 border-b border-dp-outline-variant">{bill.consumer_id}</td>
                     <td className="p-4 border-b border-dp-outline-variant font-mono text-[12px] text-dp-secondary">{c?.lookup_token ?? '—'}</td>
                     <td className="p-4 border-b border-dp-outline-variant font-semibold">{c?.name ?? '—'}</td>
@@ -149,11 +198,19 @@ export default function BillingPage() {
                   </tr>
                 )
               })}
-              {!loading && filtered.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">No bills found.</td></tr>}
+              {!loading && filtered.length === 0 && <tr><td colSpan={8} className="p-8 text-center text-dp-on-surface-variant">No bills found.</td></tr>}
             </tbody>
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete Bills"
+        message={`Are you sure you want to delete ${selected.size} bill(s)? This cannot be undone.`}
+        onConfirm={bulkDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
 
       {/* Add Bill Modal */}
       {showAddBill && (

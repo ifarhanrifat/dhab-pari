@@ -4,8 +4,8 @@ import { createClient } from '@/lib/supabase/client'
 import { PlusCircle, X, Pencil, Trash2 } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
 
-interface Member { id: string; name: string; name_ur: string | null; position: string; position_ur: string | null; phone: string | null; bio: string | null; display_order: number; is_active: boolean }
-const empty = { name: '', name_ur: '', position: '', position_ur: '', phone: '', bio: '', display_order: 0, is_active: true }
+interface Member { id: string; name: string; name_ur: string | null; position: string; position_ur: string | null; phone: string | null; bio: string | null; bio_ur: string | null; display_order: number; is_active: boolean }
+const empty = { name: '', name_ur: '', position: '', position_ur: '', phone: '', bio: '', bio_ur: '', display_order: 0, is_active: true }
 
 export default function AdminMembersPage() {
   const [members, setMembers] = useState<Member[]>([])
@@ -20,12 +20,12 @@ export default function AdminMembersPage() {
 
   const save = async () => {
     if (!form.name.trim() || !form.position.trim()) { toast.error('Name and position required'); return }
-    const payload = { ...form, phone: form.phone || null, bio: form.bio || null, name_ur: form.name_ur || null, position_ur: form.position_ur || null }
+    const payload = { ...form, phone: form.phone || null, bio: form.bio || null, bio_ur: form.bio_ur || null, name_ur: form.name_ur || null, position_ur: form.position_ur || null }
     if (editing) { const { error } = await supabase.from('committee_members').update(payload).eq('id', editing); if (error) { toast.error(error.message); return }; toast.success('Updated') }
     else { const { error } = await supabase.from('committee_members').insert(payload); if (error) { toast.error(error.message); return }; toast.success('Added') }
     setShowForm(false); setEditing(null); setForm(empty); load()
   }
-  const edit = (m: Member) => { setForm({ name: m.name, name_ur: m.name_ur ?? '', position: m.position, position_ur: m.position_ur ?? '', phone: m.phone ?? '', bio: m.bio ?? '', display_order: m.display_order, is_active: m.is_active }); setEditing(m.id); setShowForm(true) }
+  const edit = (m: Member) => { setForm({ name: m.name, name_ur: m.name_ur ?? '', position: m.position, position_ur: m.position_ur ?? '', phone: m.phone ?? '', bio: m.bio ?? '', bio_ur: m.bio_ur ?? '', display_order: m.display_order, is_active: m.is_active }); setEditing(m.id); setShowForm(true) }
   const remove = async (id: string) => { if (!confirm('Remove member?')) return; await supabase.from('committee_members').delete().eq('id', id); toast.success('Removed'); load() }
 
   return (
@@ -73,6 +73,7 @@ export default function AdminMembersPage() {
               </div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Phone</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input-field" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Bio</label><textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} rows={3} className="input-field resize-none" /></div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Bio (UR)</label><textarea value={form.bio_ur} onChange={(e) => setForm({ ...form, bio_ur: e.target.value })} rows={3} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Display Order</label><input type="number" value={form.display_order} onChange={(e) => setForm({ ...form, display_order: +e.target.value })} className="input-field" /></div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">Active Member</span></label>
               <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{editing ? 'Update' : 'Add'} Member</button>
