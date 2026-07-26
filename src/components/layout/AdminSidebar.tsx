@@ -19,6 +19,8 @@ import {
   TicketSlash,
   Bell,
   X,
+  BookOpen,
+  UserCog,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -27,7 +29,8 @@ const menuItems = [
   { href: '/admin/billing', label: 'Billing', icon: Receipt },
   { href: '/admin/projects', label: 'Projects', icon: FolderKanban },
   { href: '/admin/members', label: 'Members', icon: Users },
-  { href: '/admin/finance', label: 'Accounts', icon: BarChart3 },
+  { href: '/admin/accounts', label: 'Accounts', icon: BookOpen },
+  { href: '/admin/finance', label: 'Transactions', icon: BarChart3 },
   { href: '/admin/news', label: 'News', icon: Newspaper },
   { href: '/admin/videos', label: 'Videos', icon: Video },
   { href: '/admin/donors', label: 'Donors', icon: Heart },
@@ -36,6 +39,7 @@ const menuItems = [
   { href: '/admin/ticker', label: 'Ticker', icon: TicketSlash },
   { href: '/admin/notifications', label: 'Alerts', icon: Bell },
   { href: '/admin/reports', label: 'Reports', icon: FileText },
+  { href: '/admin/users', label: 'Users', icon: UserCog },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ]
 

@@ -58,30 +58,14 @@ export default function WaterBillPage() {
     setConsumer(null)
     setBills([])
 
-    // Search by lookup_token (secure random code) or consumer_id
-    let consumerData = null
-    let consumerErr = null
-
-    const { data: byToken, error: errToken } = await supabase
+    const { data: consumerData } = await supabase
       .from('consumers')
       .select('consumer_id, name, name_ur, address, house_no, sector, area')
-      .eq('lookup_token', trimmed)
+      .eq('consumer_id', trimmed)
       .single()
 
-    if (byToken) {
-      consumerData = byToken
-    } else {
-      const { data: byId, error: errId } = await supabase
-        .from('consumers')
-        .select('consumer_id, name, name_ur, address, house_no, sector, area')
-        .eq('consumer_id', trimmed)
-        .single()
-      consumerData = byId
-      consumerErr = errId
-    }
-
     if (!consumerData) {
-      setError('Consumer not found. Please check your code and try again.')
+      setError('Consumer not found. Please check your Consumer No. and try again.')
       setSearched(true)
       setLoading(false)
       return
@@ -138,7 +122,7 @@ export default function WaterBillPage() {
                 htmlFor="consumer_id"
                 className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2"
               >
-                CONSUMER ID / کنزیومر آئی ڈی
+                CONSUMER NO. / کنزیومر نمبر
               </label>
               <div className="relative">
                 <Search
@@ -150,7 +134,7 @@ export default function WaterBillPage() {
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="e.g. A3F8BC12 or DP-1001"
+                  placeholder="e.g. DP-1001"
                   className="w-full pl-12 pr-4 py-4 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[18px] leading-[28px] text-dp-on-surface"
                 />
               </div>
