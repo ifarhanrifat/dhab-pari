@@ -1218,68 +1218,112 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                       Discount: {discountMode === 'per_item' ? 'Per Item' : 'On Total'}
                     </button>
                   </div>
-                  <div className="border border-dp-outline-variant rounded-lg overflow-hidden">
+                  <div className="border border-dp-outline-variant rounded-xl overflow-hidden bg-white">
                     {billLines.length === 0 ? (
-                      <p className="px-3 py-4 text-center font-sans text-[13px] text-dp-on-surface-variant">No items yet — choose a consumer or add one below.</p>
+                      <p className="px-4 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No items yet — choose a consumer or add one below.</p>
                     ) : (
-                      <table className="w-full text-[13.5px]" style={{ tableLayout: 'fixed' }}>
-                        <colgroup>
-                          <col />
-                          <col style={{ width: '64px' }} />
-                          <col style={{ width: '88px' }} />
-                          {discountMode === 'per_item' && <col style={{ width: '68px' }} />}
-                          <col style={{ width: '96px' }} />
-                          <col style={{ width: '72px' }} />
-                          <col style={{ width: '32px' }} />
-                        </colgroup>
-                        <thead>
-                          <tr className="bg-dp-surface-container-low/60 text-left text-dp-on-surface-variant text-[11.5px] font-semibold">
-                            <th className="px-3 py-2">Description</th>
-                            <th className="px-3 py-2 text-right">Qty</th>
-                            <th className="px-3 py-2 text-right">Rate</th>
-                            {discountMode === 'per_item' && <th className="px-3 py-2 text-right">Disc %</th>}
-                            <th className="px-3 py-2 text-right">Amount</th>
-                            <th className="px-3 py-2 text-center" title="Recharged automatically on each recurring bill">Recurring</th>
-                            <th className="px-3 py-2"></th>
-                          </tr>
-                        </thead>
-                        <tbody>
+                      <>
+                        {/* Desktop: table */}
+                        <table className="w-full hidden md:table" style={{ tableLayout: 'fixed' }}>
+                          <colgroup>
+                            <col />
+                            <col style={{ width: '76px' }} />
+                            <col style={{ width: '96px' }} />
+                            {discountMode === 'per_item' && <col style={{ width: '76px' }} />}
+                            <col style={{ width: '104px' }} />
+                            <col style={{ width: '76px' }} />
+                            <col style={{ width: '36px' }} />
+                          </colgroup>
+                          <thead>
+                            <tr className="text-left text-dp-on-surface-variant text-[11px] font-bold uppercase tracking-[0.06em] border-b border-dp-outline-variant">
+                              <th className="px-4 py-3">Description</th>
+                              <th className="px-2 py-3 text-right">Qty</th>
+                              <th className="px-2 py-3 text-right">Rate</th>
+                              {discountMode === 'per_item' && <th className="px-2 py-3 text-right">Disc %</th>}
+                              <th className="px-4 py-3 text-right">Amount</th>
+                              <th className="px-2 py-3 text-center" title="Recharged automatically on each recurring bill">Recurring</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {billLines.map((l, i) => {
+                              const lineGross = l.quantity * l.unit_price
+                              const lineDiscount = discountMode === 'per_item' ? (lineGross * (l.discount_pct || 0)) / 100 : 0
+                              return (
+                                <tr key={i} className="group border-b border-dp-outline-variant last:border-b-0 hover:bg-dp-surface-container-low/40 transition-colors">
+                                  <td className="px-4 py-2.5 font-sans text-[14px] font-medium text-dp-on-surface truncate">{l.description}</td>
+                                  <td className="px-1 py-2">
+                                    <input type="number" min={0.01} step="0.01" value={l.quantity} onChange={(e) => updateLine(i, { quantity: +e.target.value })} className="w-full text-right bg-transparent rounded-md px-2 py-2 font-sans text-[14px] focus:bg-dp-surface-container-low focus:ring-2 focus:ring-dp-secondary/30 focus:outline-none transition-all" />
+                                  </td>
+                                  <td className="px-1 py-2">
+                                    <input type="number" min={0} step="0.01" value={l.unit_price} onChange={(e) => updateLine(i, { unit_price: +e.target.value })} className="w-full text-right bg-transparent rounded-md px-2 py-2 font-sans text-[14px] focus:bg-dp-surface-container-low focus:ring-2 focus:ring-dp-secondary/30 focus:outline-none transition-all" />
+                                  </td>
+                                  {discountMode === 'per_item' && (
+                                    <td className="px-1 py-2">
+                                      <input type="number" min={0} max={100} step="0.01" value={l.discount_pct || ''} onChange={(e) => updateLine(i, { discount_pct: +e.target.value })} className="w-full text-right bg-transparent rounded-md px-2 py-2 font-sans text-[14px] focus:bg-dp-surface-container-low focus:ring-2 focus:ring-dp-secondary/30 focus:outline-none transition-all" />
+                                    </td>
+                                  )}
+                                  <td className="px-4 py-2.5 text-right font-sans text-[14px] font-bold text-dp-on-surface whitespace-nowrap">
+                                    {fmtAmount(lineGross - lineDiscount)}
+                                    {lineDiscount > 0 && <span className="block text-[11px] font-normal text-emerald-700">− {fmtAmount(lineDiscount)}</span>}
+                                  </td>
+                                  <td className="px-2 py-2 text-center">
+                                    <input type="checkbox" checked={l.is_recurring} onChange={(e) => updateLine(i, { is_recurring: e.target.checked })} className="accent-dp-secondary w-4 h-4 cursor-pointer" />
+                                  </td>
+                                  <td className="px-2">
+                                    <button onClick={() => removeLine(i)} className="opacity-0 group-hover:opacity-100 transition-opacity text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={13} /></button>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+
+                        {/* Mobile: cards */}
+                        <div className="md:hidden divide-y divide-dp-outline-variant">
                           {billLines.map((l, i) => {
                             const lineGross = l.quantity * l.unit_price
                             const lineDiscount = discountMode === 'per_item' ? (lineGross * (l.discount_pct || 0)) / 100 : 0
                             return (
-                              <tr key={i} className="border-t border-dp-outline-variant">
-                                <td className="px-3 py-2 truncate">{l.description}</td>
-                                <td className="px-3 py-2">
-                                  <input type="number" min={0.01} step="0.01" value={l.quantity} onChange={(e) => updateLine(i, { quantity: +e.target.value })} className="w-full text-right bg-white border-2 border-[#bfc9c4] rounded-md px-3 py-2.5 font-sans text-[15px] focus:border-dp-secondary focus:outline-none" />
-                                </td>
-                                <td className="px-3 py-2">
-                                  <input type="number" min={0} step="0.01" value={l.unit_price} onChange={(e) => updateLine(i, { unit_price: +e.target.value })} className="w-full text-right bg-white border-2 border-[#bfc9c4] rounded-md px-3 py-2.5 font-sans text-[15px] focus:border-dp-secondary focus:outline-none" />
-                                </td>
-                                {discountMode === 'per_item' && (
-                                  <td className="px-3 py-2">
-                                    <input type="number" min={0} max={100} step="0.01" value={l.discount_pct || ''} onChange={(e) => updateLine(i, { discount_pct: +e.target.value })} className="w-full text-right bg-white border-2 border-[#bfc9c4] rounded-md px-3 py-2.5 font-sans text-[15px] focus:border-dp-secondary focus:outline-none" />
-                                  </td>
-                                )}
-                                <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">
-                                  {fmtAmount(lineGross - lineDiscount)}
-                                  {lineDiscount > 0 && <span className="block text-[11px] font-normal text-emerald-700">− {fmtAmount(lineDiscount)}</span>}
-                                </td>
-                                <td className="px-3 py-2 text-center">
-                                  <input type="checkbox" checked={l.is_recurring} onChange={(e) => updateLine(i, { is_recurring: e.target.checked })} className="accent-dp-secondary w-4 h-4 cursor-pointer" />
-                                </td>
-                                <td className="px-3 py-2 text-right">
-                                  <button onClick={() => removeLine(i)} className="text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={13} /></button>
-                                </td>
-                              </tr>
+                              <div key={i} className="p-3.5">
+                                <div className="flex items-start justify-between gap-2 mb-2.5">
+                                  <p className="font-sans text-[14px] font-bold text-dp-on-surface leading-snug">{l.description}</p>
+                                  <button onClick={() => removeLine(i)} className="shrink-0 text-dp-on-surface-variant hover:text-dp-error cursor-pointer p-1 -m-1"><Trash2 size={15} /></button>
+                                </div>
+                                <div className="flex items-end gap-2 mb-2.5">
+                                  <div className="flex-1">
+                                    <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Qty</label>
+                                    <input type="number" min={0.01} step="0.01" value={l.quantity} onChange={(e) => updateLine(i, { quantity: +e.target.value })} className="input-field !py-2 text-[14px]" />
+                                  </div>
+                                  <div className="flex-1">
+                                    <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Rate</label>
+                                    <input type="number" min={0} step="0.01" value={l.unit_price} onChange={(e) => updateLine(i, { unit_price: +e.target.value })} className="input-field !py-2 text-[14px]" />
+                                  </div>
+                                  {discountMode === 'per_item' && (
+                                    <div className="flex-1">
+                                      <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Disc %</label>
+                                      <input type="number" min={0} max={100} step="0.01" value={l.discount_pct || ''} onChange={(e) => updateLine(i, { discount_pct: +e.target.value })} className="input-field !py-2 text-[14px]" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <label className="flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-dp-on-surface-variant cursor-pointer">
+                                    <input type="checkbox" checked={l.is_recurring} onChange={(e) => updateLine(i, { is_recurring: e.target.checked })} className="accent-dp-secondary w-4 h-4 cursor-pointer" /> Recurring
+                                  </label>
+                                  <div className="text-right">
+                                    <span className="block font-sans text-[15px] font-bold text-dp-on-surface">{fmtAmount(lineGross - lineDiscount)}</span>
+                                    {lineDiscount > 0 && <span className="block text-[11px] font-normal text-emerald-700">− {fmtAmount(lineDiscount)}</span>}
+                                  </div>
+                                </div>
+                              </div>
                             )
                           })}
-                        </tbody>
-                      </table>
+                        </div>
+                      </>
                     )}
-                    <div className="flex flex-wrap items-end gap-2 p-3 bg-dp-surface-container-low/40 border-t border-dp-outline-variant">
+                    <div className="flex flex-wrap items-end gap-2 p-4 bg-dp-surface-container-low/50 border-t border-dp-outline-variant">
                       <div className="w-full sm:w-36 sm:shrink-0">
-                        <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">Type</label>
+                        <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Type</label>
                         <select value={newLine.kind} onChange={(e) => setNewLine({ ...emptyNewLine, kind: e.target.value as typeof newLine.kind })} className="input-field !py-3 text-[15px]">
                           <option value="custom">Custom Charge</option>
                           <option value="inventory">Inventory Item</option>
@@ -1289,17 +1333,17 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                       {newLine.kind === 'custom' ? (
                         <>
                           <div className="w-full sm:flex-1 min-w-0">
-                            <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">Description</label>
+                            <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Description</label>
                             <input value={newLine.description} onChange={(e) => setNewLine({ ...newLine, description: e.target.value })} placeholder="e.g. New Connection Charge" className="input-field !py-3 text-[15px]" />
                           </div>
                           <div className="flex-1 sm:flex-none sm:w-28 min-w-0">
-                            <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">Amount</label>
+                            <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Amount</label>
                             <input type="number" min={0} step="0.01" value={newLine.unit_price || ''} onChange={(e) => setNewLine({ ...newLine, unit_price: +e.target.value })} placeholder="0" className="input-field !py-3 text-[15px]" />
                           </div>
                         </>
                       ) : (
                         <div className="w-full sm:flex-1 min-w-0">
-                          <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">Item</label>
+                          <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Item</label>
                           <select value={newLine.itemId} onChange={(e) => setNewLine({ ...newLine, itemId: e.target.value })} className="input-field !py-3 text-[15px]">
                             <option value="">Select {newLine.kind}...</option>
                             {(newLine.kind === 'inventory' ? inventoryItems : serviceItems).map((it) => (
@@ -1309,10 +1353,10 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         </div>
                       )}
                       <div className="flex-1 sm:flex-none sm:w-20 min-w-0">
-                        <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">Qty</label>
+                        <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Qty</label>
                         <input type="number" min={0.01} step="0.01" value={newLine.quantity} onChange={(e) => setNewLine({ ...newLine, quantity: +e.target.value })} className="input-field !py-3 text-[15px]" />
                       </div>
-                      <button onClick={addCatalogLine} className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"><Plus size={14} /> Add</button>
+                      <button onClick={addCatalogLine} className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"><Plus size={14} /> Add Item</button>
                     </div>
                   </div>
                 </div>
@@ -1407,11 +1451,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   onUpload={(url) => setBillForm({ ...billForm, attachment_url: url })}
                 />
 
-                <div className="bg-dp-surface-container-low/60 rounded-lg p-4 space-y-1 text-[13.5px] font-sans">
-                  <div className="flex justify-between"><span className="text-dp-on-surface-variant">Subtotal</span><span>Rs. {fmtAmount(billTotal)}</span></div>
-                  {billForm.discount_amount > 0 && <div className="flex justify-between text-emerald-700"><span>Discount</span><span>− Rs. {fmtAmount(billForm.discount_amount)}</span></div>}
-                  <div className="flex justify-between font-bold border-t border-dp-outline-variant pt-1 mt-1"><span>Net Payable</span><span>Rs. {fmtAmount(billNet)}</span></div>
-                  {billForm.security_deposit_amount > 0 && <div className="flex justify-between text-dp-on-surface-variant"><span>+ Security Deposit (refundable, separate)</span><span>Rs. {fmtAmount(billForm.security_deposit_amount)}</span></div>}
+                <div className="bg-white border border-dp-outline-variant rounded-xl p-5 space-y-2 text-[14px] font-sans">
+                  <div className="flex justify-between"><span className="text-dp-on-surface-variant">Subtotal</span><span className="font-semibold">Rs. {fmtAmount(billTotal)}</span></div>
+                  {billForm.discount_amount > 0 && <div className="flex justify-between text-emerald-700"><span>Discount</span><span className="font-semibold">− Rs. {fmtAmount(billForm.discount_amount)}</span></div>}
+                  <div className="flex justify-between items-center border-t border-dp-outline-variant pt-3 mt-1">
+                    <span className="font-bold text-[13px] uppercase tracking-[0.06em] text-dp-on-surface-variant">Net Payable</span>
+                    <span className="font-heading text-[24px] font-bold text-dp-primary">Rs. {fmtAmount(billNet)}</span>
+                  </div>
+                  {billForm.security_deposit_amount > 0 && <div className="flex justify-between text-dp-on-surface-variant text-[13px] pt-1 border-t border-dp-outline-variant/60"><span>+ Security Deposit (refundable, separate)</span><span className="font-semibold">Rs. {fmtAmount(billForm.security_deposit_amount)}</span></div>}
                 </div>
 
                 {!editingBill && billForm.consumer_id && existingRecurring && (
@@ -1477,7 +1524,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   )}
                 </div>
 
-                <button disabled={saving} onClick={editingBill ? updateBill : saveBill} className="flex items-center gap-2 px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+                <button disabled={saving} onClick={editingBill ? updateBill : saveBill} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
                   <Save size={16} /> {editingBill ? 'Update Bill' : 'Generate Bill'}
                 </button>
               </div>
@@ -1500,49 +1547,71 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
                 <div>
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Items Purchased</label>
-                  <div className="border border-dp-outline-variant rounded-lg overflow-hidden">
+                  <div className="border border-dp-outline-variant rounded-xl overflow-hidden bg-white">
                     {purchaseLines.length === 0 ? (
-                      <p className="px-3 py-4 text-center font-sans text-[13px] text-dp-on-surface-variant">No items yet — add one below.</p>
+                      <p className="px-4 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No items yet — add one below.</p>
                     ) : (
-                      <table className="w-full text-[15px]" style={{ tableLayout: 'fixed' }}>
-                        <colgroup>
-                          <col />
-                          <col style={{ width: '72px' }} />
-                          <col style={{ width: '104px' }} />
-                          <col style={{ width: '104px' }} />
-                          <col style={{ width: '32px' }} />
-                        </colgroup>
-                        <thead>
-                          <tr className="bg-dp-surface-container-low/60 text-left text-dp-on-surface-variant text-[11.5px] font-semibold">
-                            <th className="px-3 py-2">Item</th>
-                            <th className="px-3 py-2 text-right">Qty</th>
-                            <th className="px-3 py-2 text-right">Unit Cost</th>
-                            <th className="px-3 py-2 text-right">Amount</th>
-                            <th className="px-3 py-2"></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {purchaseLines.map((l, i) => (
-                            <tr key={i} className="border-t border-dp-outline-variant">
-                              <td className="px-3 py-2 truncate">{l.description}</td>
-                              <td className="px-3 py-2">
-                                <input type="number" min={0.01} step="0.01" value={l.quantity} onChange={(e) => updatePurchaseLine(i, { quantity: +e.target.value })} className="w-full text-right bg-white border-2 border-[#bfc9c4] rounded-md px-3 py-2.5 font-sans text-[15px] focus:border-dp-secondary focus:outline-none" />
-                              </td>
-                              <td className="px-3 py-2">
-                                <input type="number" min={0} step="0.01" value={l.unit_cost} onChange={(e) => updatePurchaseLine(i, { unit_cost: +e.target.value })} className="w-full text-right bg-white border-2 border-[#bfc9c4] rounded-md px-3 py-2.5 font-sans text-[15px] focus:border-dp-secondary focus:outline-none" />
-                              </td>
-                              <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">{fmtAmount(l.quantity * l.unit_cost)}</td>
-                              <td className="px-3 py-2 text-right">
-                                <button onClick={() => removePurchaseLine(i)} className="text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={14} /></button>
-                              </td>
+                      <>
+                        {/* Desktop: table */}
+                        <table className="w-full hidden md:table">
+                          <thead>
+                            <tr className="text-left text-dp-on-surface-variant text-[11px] font-bold uppercase tracking-[0.06em] border-b border-dp-outline-variant">
+                              <th className="px-4 py-3">Item</th>
+                              <th className="px-3 py-3 text-right w-24">Qty</th>
+                              <th className="px-3 py-3 text-right w-32">Unit Cost</th>
+                              <th className="px-4 py-3 text-right w-32">Amount</th>
+                              <th className="w-10"></th>
                             </tr>
+                          </thead>
+                          <tbody>
+                            {purchaseLines.map((l, i) => (
+                              <tr key={i} className="group border-b border-dp-outline-variant last:border-b-0 hover:bg-dp-surface-container-low/40 transition-colors">
+                                <td className="px-4 py-2.5 font-sans text-[14.5px] font-medium text-dp-on-surface truncate">{l.description}</td>
+                                <td className="px-2 py-2">
+                                  <input type="number" min={0.01} step="0.01" value={l.quantity} onChange={(e) => updatePurchaseLine(i, { quantity: +e.target.value })} className="w-full text-right bg-transparent rounded-md px-2 py-2 font-sans text-[14.5px] focus:bg-dp-surface-container-low focus:ring-2 focus:ring-dp-secondary/30 focus:outline-none transition-all" />
+                                </td>
+                                <td className="px-2 py-2">
+                                  <input type="number" min={0} step="0.01" value={l.unit_cost} onChange={(e) => updatePurchaseLine(i, { unit_cost: +e.target.value })} className="w-full text-right bg-transparent rounded-md px-2 py-2 font-sans text-[14.5px] focus:bg-dp-surface-container-low focus:ring-2 focus:ring-dp-secondary/30 focus:outline-none transition-all" />
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-sans text-[14.5px] font-bold text-dp-on-surface whitespace-nowrap">{fmtAmount(l.quantity * l.unit_cost)}</td>
+                                <td className="px-2">
+                                  <button onClick={() => removePurchaseLine(i)} className="opacity-0 group-hover:opacity-100 transition-opacity text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={14} /></button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+
+                        {/* Mobile: cards */}
+                        <div className="md:hidden divide-y divide-dp-outline-variant">
+                          {purchaseLines.map((l, i) => (
+                            <div key={i} className="p-3.5">
+                              <div className="flex items-start justify-between gap-2 mb-2.5">
+                                <p className="font-sans text-[14.5px] font-bold text-dp-on-surface leading-snug">{l.description}</p>
+                                <button onClick={() => removePurchaseLine(i)} className="shrink-0 text-dp-on-surface-variant hover:text-dp-error cursor-pointer p-1 -m-1"><Trash2 size={15} /></button>
+                              </div>
+                              <div className="flex items-end gap-2">
+                                <div className="flex-1">
+                                  <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Qty</label>
+                                  <input type="number" min={0.01} step="0.01" value={l.quantity} onChange={(e) => updatePurchaseLine(i, { quantity: +e.target.value })} className="input-field !py-2 text-[14.5px]" />
+                                </div>
+                                <div className="flex-1">
+                                  <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Unit Cost</label>
+                                  <input type="number" min={0} step="0.01" value={l.unit_cost} onChange={(e) => updatePurchaseLine(i, { unit_cost: +e.target.value })} className="input-field !py-2 text-[14.5px]" />
+                                </div>
+                                <div className="shrink-0 text-right pb-1.5">
+                                  <span className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Amount</span>
+                                  <span className="block font-sans text-[15px] font-bold text-dp-on-surface">{fmtAmount(l.quantity * l.unit_cost)}</span>
+                                </div>
+                              </div>
+                            </div>
                           ))}
-                        </tbody>
-                      </table>
+                        </div>
+                      </>
                     )}
-                    <div className="flex flex-wrap items-end gap-2 p-3 bg-dp-surface-container-low/40 border-t border-dp-outline-variant">
+                    <div className="flex flex-wrap items-end gap-3 p-4 bg-dp-surface-container-low/50 border-t border-dp-outline-variant">
                       <div className="w-full sm:flex-1 min-w-0">
-                        <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">Item</label>
+                        <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Item</label>
                         <SearchableField
                           value={newPurchaseLine.itemId} placeholder="Select item..." pickerTitle="Select Inventory Item"
                           items={inventoryItems.map((it) => ({ id: it.id, label: it.name, sublabel: it.unit }))}
@@ -1550,14 +1619,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         />
                       </div>
                       <div className="flex-1 sm:flex-none sm:w-24 min-w-0 shrink-0">
-                        <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">Qty</label>
+                        <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Qty</label>
                         <input type="number" min={0.01} step="0.01" value={newPurchaseLine.quantity} onChange={(e) => setNewPurchaseLine({ ...newPurchaseLine, quantity: +e.target.value })} className="input-field !py-2.5 text-[15px]" />
                       </div>
                       <div className="flex-1 sm:flex-none sm:w-32 min-w-0 shrink-0">
-                        <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">Unit Cost</label>
+                        <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Unit Cost</label>
                         <input type="number" min={0} step="0.01" value={newPurchaseLine.unit_cost || ''} onChange={(e) => setNewPurchaseLine({ ...newPurchaseLine, unit_cost: +e.target.value })} className="input-field !py-2.5 text-[15px]" />
                       </div>
-                      <button onClick={addPurchaseLine} className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"><Plus size={14} /> Add</button>
+                      <button onClick={addPurchaseLine} className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"><Plus size={14} /> Add Item</button>
                     </div>
                   </div>
                 </div>
@@ -1580,11 +1649,12 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   onUpload={(url) => setPurchaseForm({ ...purchaseForm, attachment_url: url })}
                 />
 
-                <div className="bg-dp-surface-container-low/60 rounded-lg p-4 flex justify-between font-sans text-[14px] font-bold">
-                  <span>Total</span><span>Rs. {fmtAmount(purchaseTotal)}</span>
+                <div className="bg-white border border-dp-outline-variant rounded-xl p-5 flex items-center justify-between">
+                  <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.06em]">Total</span>
+                  <span className="font-heading text-[26px] font-bold text-dp-primary">Rs. {fmtAmount(purchaseTotal)}</span>
                 </div>
 
-                <button disabled={saving} onClick={savePurchaseBill} className="flex items-center gap-2 px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+                <button disabled={saving} onClick={savePurchaseBill} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
                   <Save size={16} /> Save Purchase Bill
                 </button>
               </div>
