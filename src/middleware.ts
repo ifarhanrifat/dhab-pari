@@ -102,12 +102,18 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith('/admin')) {
-    // accept-invite must always render regardless of session state — an invite
-    // link's token can arrive as a URL hash fragment (invisible to this server-side
-    // middleware entirely) rather than a ?code= query param, so the only place that
-    // can ever detect and establish that session is the page's own client-side JS.
-    // The page itself already shows "invalid or expired" when no session shows up.
-    if (!pathname.startsWith('/admin/accept-invite')) {
+    // accept-invite/forgot-password/reset-password must always render regardless
+    // of session state. accept-invite and reset-password's token can arrive as a
+    // URL hash fragment (invisible to this server-side middleware) rather than a
+    // ?code= query param, so the only place that can ever detect and establish
+    // that session is the page's own client-side JS — the pages themselves
+    // already show "invalid or expired" when no session shows up. forgot-password
+    // is requested BY DEFINITION by someone with no session at all, so it must
+    // never be gated behind having one.
+    const isPublicAuthPage = pathname.startsWith('/admin/accept-invite')
+      || pathname.startsWith('/admin/forgot-password')
+      || pathname.startsWith('/admin/reset-password')
+    if (!isPublicAuthPage) {
       if (!user) {
         const url = request.nextUrl.clone()
         url.pathname = '/admin/login'

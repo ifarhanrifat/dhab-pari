@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, Save, ShieldCheck, UserCircle2, Clock, CheckCircle2, Truck, Pencil } from 'lucide-react'
+import { PlusCircle, X, Save, ShieldCheck, UserCircle2, Clock, CheckCircle2, Truck, Pencil, Trash2, Power, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 
@@ -147,6 +147,7 @@ export default function AdminUsersPage() {
   const [currentRole, setCurrentRole] = useState<string | null>(null)
   const [sectorOptions, setSectorOptions] = useState<{ id: string; name: string }[]>([])
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null)
+  const [showRoleDetails, setShowRoleDetails] = useState(false)
   const [collectorForm, setCollectorForm] = useState(emptyCollectorForm)
   const [savingCollector, setSavingCollector] = useState(false)
   const supabase = createClient()
@@ -266,12 +267,6 @@ export default function AdminUsersPage() {
     load()
   }
 
-  const handleRowAction = (u: AdminUser, value: string) => {
-    if (value === '__toggle_active__') { toggleActive(u.id, u.is_active); return }
-    if (value === '__delete__') { setConfirmRemove(u.id); return }
-    changeRole(u, value)
-  }
-
   return (
     <>
       <Toaster position="top-right" />
@@ -285,26 +280,47 @@ export default function AdminUsersPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-        {Object.entries(roleLabels).map(([key, label]) => (
-          <div key={key} className="bg-white rounded-lg border border-dp-outline-variant p-3.5">
-            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans ${roleColors[key]}`}>{label}</span>
-            <ul className="mt-2 space-y-1">
-              {(rolePermissions[key] ?? []).map((line, i) => (
-                <li key={i} className="font-sans text-[11px] text-dp-on-surface-variant leading-[1.4] pl-3 relative before:content-['•'] before:absolute before:left-0 before:text-dp-outline">
-                  {line}
-                </li>
-              ))}
-            </ul>
+      <div className="bg-white rounded-lg border border-dp-outline-variant mb-6 overflow-hidden">
+        <button
+          onClick={() => setShowRoleDetails(!showRoleDetails)}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 cursor-pointer hover:bg-dp-surface-container-low/50 transition-all"
+        >
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant">Roles &amp; Permissions</span>
+            {Object.entries(roleLabels).map(([key, label]) => (
+              <span key={key} className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans ${roleColors[key]}`}>{label}</span>
+            ))}
           </div>
-        ))}
-      </div>
+          <span className="flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-secondary shrink-0">
+            {showRoleDetails ? <>Hide details <ChevronUp size={14} /></> : <>Show details <ChevronDown size={14} /></>}
+          </span>
+        </button>
 
-      <div className="bg-dp-primary-container/40 border border-dp-primary/20 rounded-lg p-4 mb-6">
-        <p className="font-sans text-[13px] font-bold text-dp-primary mb-1">Setting up "Management" (view everything, reply, verify complaints)</p>
-        <p className="font-sans text-[12px] text-dp-on-surface-variant leading-[1.5]">
-          There&apos;s no separate "Management" role — it&apos;s a recipe: give them <strong>Viewer</strong> (full read access to both systems already, plus the ability to comment on complaints and reply to Suggestions with no extra grant), then check <strong>Complaint Verifier</strong> for them in the pencil-icon menu so they can give final sign-off on resolved complaints. If they also need to actually post transactions or approve things themselves, give them a <strong>secondary role</strong> below instead of switching their primary role away from Viewer.
-        </p>
+        {showRoleDetails && (
+          <div className="border-t border-dp-outline-variant p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+              {Object.entries(roleLabels).map(([key, label]) => (
+                <div key={key} className="bg-dp-surface-container-low/40 rounded-lg border border-dp-outline-variant p-3.5">
+                  <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans ${roleColors[key]}`}>{label}</span>
+                  <ul className="mt-2 space-y-1">
+                    {(rolePermissions[key] ?? []).map((line, i) => (
+                      <li key={i} className="font-sans text-[11px] text-dp-on-surface-variant leading-[1.4] pl-3 relative before:content-['•'] before:absolute before:left-0 before:text-dp-outline">
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-dp-primary-container/40 border border-dp-primary/20 rounded-lg p-4">
+              <p className="font-sans text-[13px] font-bold text-dp-primary mb-1">Setting up &quot;Management&quot; (view everything, reply, verify complaints)</p>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant leading-[1.5]">
+                There&apos;s no separate &quot;Management&quot; role — it&apos;s a recipe: give them <strong>Viewer</strong> (full read access to both systems already, plus the ability to comment on complaints and reply to Suggestions with no extra grant), then check <strong>Complaint Verifier</strong> for them in the pencil-icon menu so they can give final sign-off on resolved complaints. If they also need to actually post transactions or approve things themselves, give them a <strong>secondary role</strong> below instead of switching their primary role away from Viewer.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
@@ -372,28 +388,29 @@ export default function AdminUsersPage() {
                     {u.auth_user_id === currentAuthUserId ? (
                       <span className="text-[11px] text-dp-on-surface-variant italic">This is you</span>
                     ) : (
-                      <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => openEditCollector(u)} title="Edit mobile number / field collector settings" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
-                          <Pencil size={15} />
-                        </button>
+                      <div className="flex items-center justify-end gap-1.5">
                         <select
                           value={u.role}
-                          onChange={(e) => handleRowAction(u, e.target.value)}
+                          onChange={(e) => changeRole(u, e.target.value)}
+                          title="Change role"
                           className="text-[12px] font-sans border border-dp-outline-variant rounded px-1.5 py-1 cursor-pointer bg-white"
                         >
-                          <optgroup label="Change Role">
-                            {(currentRole === 'super_admin' ? availableRoles : availableRoles.filter((r) => r !== 'super_admin')).map((r) => (
-                              <option key={r} value={r}>{roleLabels[r]}</option>
-                            ))}
-                            {u.role === 'super_admin' && !availableRoles.includes('super_admin') && (
-                              <option value="super_admin">{roleLabels.super_admin}</option>
-                            )}
-                          </optgroup>
-                          <optgroup label="Actions">
-                            <option value="__toggle_active__">{u.is_active ? 'Deactivate' : 'Activate'}</option>
-                            <option value="__delete__">Delete User</option>
-                          </optgroup>
+                          {(currentRole === 'super_admin' ? availableRoles : availableRoles.filter((r) => r !== 'super_admin')).map((r) => (
+                            <option key={r} value={r}>{roleLabels[r]}</option>
+                          ))}
+                          {u.role === 'super_admin' && !availableRoles.includes('super_admin') && (
+                            <option value="super_admin">{roleLabels.super_admin}</option>
+                          )}
                         </select>
+                        <button onClick={() => openEditCollector(u)} title="Edit mobile number / field collector / secondary role settings" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
+                          <Pencil size={15} />
+                        </button>
+                        <button onClick={() => toggleActive(u.id, u.is_active)} title={u.is_active ? 'Deactivate' : 'Activate'} className="p-1.5 text-dp-on-surface-variant hover:text-amber-600 cursor-pointer">
+                          <Power size={15} />
+                        </button>
+                        <button onClick={() => setConfirmRemove(u.id)} title="Delete user permanently" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer">
+                          <Trash2 size={15} />
+                        </button>
                       </div>
                     )}
                   </td>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Eye, EyeOff, ShieldAlert, Lock, AlertTriangle } from 'lucide-react'
 
 const MIN_DELAY_MS = 1000   // 1 s after first failure, doubles each time
@@ -175,12 +176,17 @@ export default function AdminLoginPage() {
 
             {/* Password */}
             <div>
-              <label
-                htmlFor="password"
-                className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans"
-              >
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label
+                  htmlFor="password"
+                  className="block text-[13px] font-bold text-dp-on-surface-variant tracking-[0.06em] uppercase font-sans"
+                >
+                  Password
+                </label>
+                <Link href="/admin/forgot-password" className="font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <input
                   id="password"
