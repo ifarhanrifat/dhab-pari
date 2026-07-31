@@ -39,6 +39,12 @@ yarn-error.log*
 # vercel
 .vercel
 
+# supabase CLI local state (connection metadata, machine-specific)
+/supabase/.temp
+
+# personal reference images, not part of the app
+/references
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

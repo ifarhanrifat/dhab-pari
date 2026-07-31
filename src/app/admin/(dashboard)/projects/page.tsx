@@ -96,8 +96,8 @@ export default function AdminProjectsPage() {
               </div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Progress: {form.progress_percent}%</label><input type="range" min={0} max={100} value={form.progress_percent} onChange={(e) => setForm({ ...form, progress_percent: +e.target.value })} className="w-full accent-dp-secondary" /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Budget (PKR)</label><input type="number" value={form.budget_pkr} onChange={(e) => setForm({ ...form, budget_pkr: +e.target.value })} className="input-field" /></div>
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Spent (PKR)</label><input type="number" value={form.spent_pkr} onChange={(e) => setForm({ ...form, spent_pkr: +e.target.value })} className="input-field" /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Budget (PKR)</label><input type="number" value={form.budget_pkr || ''} onChange={(e) => setForm({ ...form, budget_pkr: +e.target.value })} className="input-field" /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Spent (PKR)</label><input type="number" value={form.spent_pkr || ''} onChange={(e) => setForm({ ...form, spent_pkr: +e.target.value })} className="input-field" /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Start Date</label><input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="input-field" /></div>
@@ -107,7 +107,7 @@ export default function AdminProjectsPage() {
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Location</label><input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="input-field" /></div>
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Sector</label><input value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} placeholder="Sector A" className="input-field" /></div>
               </div>
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Beneficiaries Count</label><input type="number" value={form.beneficiaries_count} onChange={(e) => setForm({ ...form, beneficiaries_count: +e.target.value })} className="input-field" /></div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Beneficiaries Count</label><input type="number" value={form.beneficiaries_count || ''} onChange={(e) => setForm({ ...form, beneficiaries_count: +e.target.value })} className="input-field" /></div>
               <div className="grid grid-cols-2 gap-4">
                 <ImageUpload bucket="images" currentUrl={form.before_image_url} onUpload={(url) => setForm({ ...form, before_image_url: url })} label="Before Photo" />
                 <ImageUpload bucket="images" currentUrl={form.after_image_url} onUpload={(url) => setForm({ ...form, after_image_url: url })} label="After Photo" />

@@ -71,11 +71,26 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  const { pathname } = request.nextUrl
+
+  // Invite / magic-link / password-reset emails redirect back here with a PKCE
+  // ?code= param — exchange it for a real session (setting the auth cookies)
+  // before any auth gate below runs. Without this, the very first request for
+  // the redirect target would look unauthenticated, get bounced to /admin/login,
+  // and the one-time code would be discarded before ever being used.
+  const code = request.nextUrl.searchParams.get('code')
+  if (code) {
+    await supabase.auth.exchangeCodeForSession(code)
+    const url = request.nextUrl.clone()
+    url.searchParams.delete('code')
+    const redirectResponse = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c))
+    return redirectResponse
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
-  const { pathname } = request.nextUrl
 
   if (pathname.startsWith('/admin/login')) {
     if (user) {
@@ -87,10 +102,50 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith('/admin')) {
-    if (!user) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/admin/login'
-      return NextResponse.redirect(url)
+    // accept-invite must always render regardless of session state — an invite
+    // link's token can arrive as a URL hash fragment (invisible to this server-side
+    // middleware entirely) rather than a ?code= query param, so the only place that
+    // can ever detect and establish that session is the page's own client-side JS.
+    // The page itself already shows "invalid or expired" when no session shows up.
+    if (!pathname.startsWith('/admin/accept-invite')) {
+      if (!user) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/admin/login'
+        return NextResponse.redirect(url)
+      }
+
+      // Defense-in-depth route confinement for the two accounting roles — RLS is
+      // the real data-access boundary, this just avoids serving an obviously-
+      // wrong-system page (e.g. a water accountant landing on /admin/donors)
+      // instead of leaving it to render empty.
+      const { data: profile } = await supabase
+        .from('admin_users')
+        .select('role')
+        .eq('auth_user_id', user.id)
+        .eq('is_active', true)
+        .single()
+
+      const role = profile?.role
+      if (role === 'water_accountant' && (pathname.startsWith('/admin/donors') || pathname.startsWith('/admin/finance/donors_projects'))) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/admin'
+        return NextResponse.redirect(url)
+      }
+      if (role === 'donor_accountant' && (pathname.startsWith('/admin/billing') || pathname.startsWith('/admin/finance/water_supply'))) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/admin'
+        return NextResponse.redirect(url)
+      }
+      if (role !== 'super_admin' && role !== 'admin' && (pathname.startsWith('/admin/users') || pathname.startsWith('/admin/audit-log'))) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/admin'
+        return NextResponse.redirect(url)
+      }
+      if (role !== 'super_admin' && pathname.startsWith('/admin/settings')) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/admin'
+        return NextResponse.redirect(url)
+      }
     }
   }
 

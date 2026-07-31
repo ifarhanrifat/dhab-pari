@@ -69,7 +69,7 @@ export default function AdminVideosPage() {
               <ImageUpload bucket="thumbnails" currentUrl={form.thumbnail_url} onUpload={(url) => setForm({ ...form, thumbnail_url: url })} label="Thumbnail Image" />
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Category</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">{categories.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Duration (sec)</label><input type="number" value={form.duration_seconds} onChange={(e) => setForm({ ...form, duration_seconds: +e.target.value })} className="input-field" /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Duration (sec)</label><input type="number" value={form.duration_seconds || ''} onChange={(e) => setForm({ ...form, duration_seconds: +e.target.value })} className="input-field" /></div>
               </div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Description</label><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="input-field resize-none" /></div>
               <div className="flex gap-6">

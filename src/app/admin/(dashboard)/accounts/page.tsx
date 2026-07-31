@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, Pencil, Save, Droplets, Heart } from 'lucide-react'
+import { PlusCircle, X, Pencil, Save, Droplets, Heart, Search, MoreVertical, ChevronDown, ChevronUp, SlidersHorizontal, Eye, Power } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
-import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 
 interface Account {
   id: string
@@ -16,124 +16,333 @@ interface Account {
   description: string | null
   opening_balance: number
   is_active: boolean
+  consumer_id: string | null
+  donor_key: string | null
+}
+
+interface AccountHeader {
+  id: string
+  system: string
+  code: string
+  label: string
+  label_ur: string | null
+  code_prefix: string
+  display_order: number
+  is_system: boolean
+}
+
+interface ConsumerInfo {
+  consumer_id: string
+  mobile: string
+  address: string | null
+  connections: number
+  monthly_rate: number
+  status: string
 }
 
 type SystemTab = 'water_supply' | 'donors_projects'
-
-const typeColors: Record<string, string> = {
-  cash: 'bg-emerald-100 text-emerald-800',
-  bank: 'bg-blue-100 text-blue-800',
-  income: 'bg-violet-100 text-violet-800',
-  expense: 'bg-red-100 text-red-700',
-  asset: 'bg-amber-100 text-amber-800',
-  liability: 'bg-slate-100 text-slate-700',
-}
-
-const typeOrder = ['cash', 'bank', 'income', 'expense', 'asset', 'liability']
+type Lang = 'en' | 'ur'
 
 const emptyAccount = {
-  code: '',
   name: '',
   name_ur: '',
-  type: 'expense',
+  headerId: '',
   system: 'water_supply' as SystemTab,
   description: '',
   opening_balance: 0,
   is_active: true,
 }
 
+const emptyHeaderForm = { label: '', label_ur: '', code: '', code_prefix: '' }
+const emptyConsumerEdit = { name: '', name_ur: '', mobile: '', address: '', connections: 1, monthly_rate: 200, status: 'active' }
+
+function fmtAmount(n: number) {
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 export default function AccountsPage() {
+  const router = useRouter()
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [headers, setHeaders] = useState<AccountHeader[]>([])
+  const [consumers, setConsumers] = useState<Record<string, ConsumerInfo>>({})
+  const [balances, setBalances] = useState<Record<string, number>>({})
+  const [receiptsByConsumer, setReceiptsByConsumer] = useState<Record<string, string[]>>({})
+  const [lang, setLang] = useState<Lang>('en')
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<SystemTab>('water_supply')
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState({ ...emptyAccount, system: 'water_supply' as SystemTab })
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [showHeaderForm, setShowHeaderForm] = useState(false)
+  const [headerForm, setHeaderForm] = useState(emptyHeaderForm)
+  const [consumerEditAccount, setConsumerEditAccount] = useState<Account | null>(null)
+  const [consumerForm, setConsumerForm] = useState(emptyConsumerEdit)
+  const [search, setSearch] = useState('')
+  const [sortByBalance, setSortByBalance] = useState(false)
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [menuId, setMenuId] = useState<string | null>(null)
   const supabase = createClient()
 
   const load = async () => {
-    const { data } = await supabase.from('accounts').select('*').order('code')
-    setAccounts(data ?? [])
+    const [accountsRes, headersRes, consumersRes, ledgerRes, paymentsRes, settingRes] = await Promise.all([
+      supabase.from('accounts').select('*').order('code'),
+      supabase.from('account_headers').select('*').order('display_order'),
+      supabase.from('consumers').select('consumer_id, mobile, address, connections, monthly_rate, status'),
+      supabase.from('ledger_entries').select('account_id, debit, credit'),
+      supabase.from('payments').select('consumer_id, receipt_no'),
+      supabase.from('site_settings').select('value').eq('key', 'display_language').single(),
+    ])
+    setAccounts(accountsRes.data ?? [])
+    setHeaders(headersRes.data ?? [])
+    const cMap: Record<string, ConsumerInfo> = {}
+    ;(consumersRes.data ?? []).forEach((c) => { cMap[c.consumer_id] = c })
+    setConsumers(cMap)
+    const bMap: Record<string, number> = {}
+    ;(ledgerRes.data ?? []).forEach((l: { account_id: string; debit: number; credit: number }) => {
+      bMap[l.account_id] = (bMap[l.account_id] ?? 0) + Number(l.debit) - Number(l.credit)
+    })
+    setBalances(bMap)
+    const rMap: Record<string, string[]> = {}
+    ;(paymentsRes.data ?? []).forEach((p: { consumer_id: string; receipt_no: string | null }) => {
+      if (!p.receipt_no) return
+      ;(rMap[p.consumer_id] ??= []).push(p.receipt_no)
+    })
+    setReceiptsByConsumer(rMap)
+    if (settingRes.data?.value === 'ur') setLang('ur')
     setLoading(false)
   }
   useEffect(() => { load() }, [])
 
-  const bySystem = useMemo(() => {
-    return accounts.filter((a) => a.system === tab)
-  }, [accounts, tab])
+  const displayName = (name: string, name_ur: string | null) => (lang === 'ur' && name_ur) ? name_ur : name
 
-  const byType = useMemo(() => {
+  // Standard accounting normal-balance rule: cash/bank/asset/expense/consumer accounts
+  // increase with a debit; income/liability/donor accounts increase with a credit
+  // (income and liabilities are only ever credited in this app so far, but vouchers in
+  // Phase 2 start posting real credits to them, so the sign must be correct now).
+  const creditNormal = (type: string) => type === 'donor' || type === 'income' || type === 'liability'
+  const balanceOf = (a: Account) => creditNormal(a.type)
+    ? a.opening_balance - (balances[a.id] ?? 0)
+    : a.opening_balance + (balances[a.id] ?? 0)
+
+  const bySystem = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return accounts.filter((a) => {
+      if (a.system !== tab) return false
+      if (!q) return true
+      const receipts = a.consumer_id ? receiptsByConsumer[a.consumer_id] ?? [] : []
+      return a.name.toLowerCase().includes(q)
+        || (a.name_ur ?? '').toLowerCase().includes(q)
+        || a.code.toLowerCase().includes(q)
+        || receipts.some((r) => r.toLowerCase().includes(q))
+    })
+  }, [accounts, tab, search, receiptsByConsumer])
+
+  const partyType = tab === 'water_supply' ? 'consumer' : 'donor'
+  const partyLabel = tab === 'water_supply' ? 'Consumers' : 'Donors'
+
+  const partyAccounts = useMemo(() => {
+    return [...bySystem.filter((a) => a.type === partyType)].sort((a, b) =>
+      sortByBalance ? balanceOf(b) - balanceOf(a) : a.name.localeCompare(b.name)
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bySystem, partyType, sortByBalance, balances])
+
+  const headersForTab = useMemo(() => {
+    return headers
+      .filter((h) => h.system === tab && h.code !== partyType)
+      .sort((a, b) => a.display_order - b.display_order)
+  }, [headers, tab, partyType])
+
+  const byHeader = useMemo(() => {
     const grouped: Record<string, Account[]> = {}
-    typeOrder.forEach((t) => { grouped[t] = [] })
+    headersForTab.forEach((h) => { grouped[h.code] = [] })
     bySystem.forEach((a) => {
+      if (a.type === partyType) return
       if (!grouped[a.type]) grouped[a.type] = []
       grouped[a.type].push(a)
     })
+    Object.keys(grouped).forEach((code) => {
+      grouped[code] = [...grouped[code]].sort((a, b) => sortByBalance ? balanceOf(b) - balanceOf(a) : a.name.localeCompare(b.name))
+    })
     return grouped
-  }, [bySystem])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bySystem, sortByBalance, balances, headersForTab, partyType])
+
+  const toggleGroup = (code: string) => setCollapsed((prev) => ({ ...prev, [code]: !prev[code] }))
 
   const openAdd = () => {
     setEditId(null)
-    setForm({ ...emptyAccount, system: tab })
+    const firstHeader = headers.find((h) => h.system === tab && h.code !== partyType)
+    setForm({ ...emptyAccount, system: tab, headerId: firstHeader?.id ?? '' })
     setShowForm(true)
   }
 
   const openEdit = (a: Account) => {
+    setMenuId(null)
+    if (a.type === 'consumer' && a.consumer_id) {
+      const c = consumers[a.consumer_id]
+      setConsumerEditAccount(a)
+      setConsumerForm({
+        name: a.name, name_ur: a.name_ur ?? '',
+        mobile: c?.mobile ?? '', address: c?.address ?? '',
+        connections: c?.connections ?? 1, monthly_rate: c?.monthly_rate ?? 200,
+        status: c?.status ?? 'active',
+      })
+      return
+    }
+    const header = headers.find((h) => h.system === a.system && h.code === a.type)
     setEditId(a.id)
-    setForm({ code: a.code, name: a.name, name_ur: a.name_ur ?? '', type: a.type, system: a.system as SystemTab, description: a.description ?? '', opening_balance: a.opening_balance, is_active: a.is_active })
+    setForm({ name: a.name, name_ur: a.name_ur ?? '', headerId: header?.id ?? '', system: a.system as SystemTab, description: a.description ?? '', opening_balance: a.opening_balance, is_active: a.is_active })
     setShowForm(true)
   }
 
+  const viewAccount = (a: Account) => {
+    setMenuId(null)
+    router.push(`/admin/accounts/${a.id}`)
+  }
+
   const save = async () => {
-    if (!form.code.trim() || !form.name.trim()) { toast.error('Code and name required'); return }
-    const payload = { ...form, name_ur: form.name_ur || null, description: form.description || null }
+    if (!form.name.trim()) { toast.error('Name is required'); return }
+    if (!form.headerId) { toast.error('Choose an account header'); return }
+    const header = headers.find((h) => h.id === form.headerId)
+    if (!header) { toast.error('Invalid header'); return }
+
     if (editId) {
-      const { error } = await supabase.from('accounts').update(payload).eq('id', editId)
+      const { error } = await supabase.from('accounts').update({
+        name: form.name, name_ur: form.name_ur || null, type: header.code, system: form.system,
+        description: form.description || null, opening_balance: form.opening_balance, is_active: form.is_active,
+      }).eq('id', editId)
       if (error) { toast.error(error.message); return }
       toast.success('Account updated')
     } else {
-      const { error } = await supabase.from('accounts').insert(payload)
+      const { data: code, error: codeError } = await supabase.rpc('next_account_code', { p_header_id: header.id })
+      if (codeError) { toast.error(codeError.message); return }
+      const { error } = await supabase.from('accounts').insert({
+        code, name: form.name, name_ur: form.name_ur || null, type: header.code, system: form.system,
+        description: form.description || null, opening_balance: form.opening_balance, is_active: form.is_active,
+      })
       if (error) { toast.error(error.message); return }
-      toast.success('Account created')
+      toast.success(`Account created (${code})`)
     }
     setShowForm(false)
     setEditId(null)
     load()
   }
 
-  const deleteAccount = async () => {
-    if (!confirmDelete) return
-    const { error } = await supabase.from('accounts').delete().eq('id', confirmDelete)
+  const saveHeader = async () => {
+    if (!headerForm.label.trim() || !headerForm.code.trim() || !headerForm.code_prefix.trim()) {
+      toast.error('Label, code and code prefix are required'); return
+    }
+    const code = headerForm.code.trim().toLowerCase().replace(/\s+/g, '_')
+    const { data, error } = await supabase.from('account_headers').insert({
+      system: form.system, code, label: headerForm.label, label_ur: headerForm.label_ur || null,
+      code_prefix: headerForm.code_prefix.trim().toUpperCase(), display_order: headers.length + 1,
+    }).select().single()
     if (error) { toast.error(error.message); return }
-    toast.success('Account deleted')
-    setConfirmDelete(null)
+    toast.success('Header created')
+    setShowHeaderForm(false)
+    setHeaderForm(emptyHeaderForm)
+    await load()
+    if (data) setForm((f) => ({ ...f, headerId: data.id }))
+  }
+
+  const saveConsumerEdit = async () => {
+    if (!consumerEditAccount?.consumer_id) return
+    if (!consumerForm.name.trim() || !consumerForm.mobile.trim()) { toast.error('Name and mobile required'); return }
+    const { error: e1 } = await supabase.from('consumers').update({
+      name: consumerForm.name, name_ur: consumerForm.name_ur || null,
+      mobile: consumerForm.mobile, address: consumerForm.address || null,
+      connections: consumerForm.connections, monthly_rate: consumerForm.monthly_rate,
+      status: consumerForm.status,
+    }).eq('consumer_id', consumerEditAccount.consumer_id)
+    if (e1) { toast.error(e1.message); return }
+    const { error: e2 } = await supabase.from('accounts').update({
+      name: consumerForm.name, name_ur: consumerForm.name_ur || null,
+      is_active: consumerForm.status === 'active',
+    }).eq('id', consumerEditAccount.id)
+    if (e2) { toast.error(e2.message); return }
+    toast.success('Consumer updated')
+    setConsumerEditAccount(null)
     load()
   }
 
-  const toggleActive = async (id: string, current: boolean) => {
-    await supabase.from('accounts').update({ is_active: !current }).eq('id', id)
-    toast.success(current ? 'Account deactivated' : 'Account activated')
+  const toggleActive = async (a: Account) => {
+    setMenuId(null)
+    await supabase.from('accounts').update({ is_active: !a.is_active }).eq('id', a.id)
+    if (a.type === 'consumer' && a.consumer_id) {
+      await supabase.from('consumers').update({ status: a.is_active ? 'inactive' : 'active' }).eq('consumer_id', a.consumer_id)
+    }
+    toast.success(a.is_active ? 'Account disabled' : 'Account enabled')
     load()
   }
 
   const waterCount = accounts.filter((a) => a.system === 'water_supply').length
   const donorCount = accounts.filter((a) => a.system === 'donors_projects').length
 
+  const renderRow = (a: Account) => {
+    const bal = balanceOf(a)
+    const primary = displayName(a.name, a.name_ur)
+    const secondary = lang === 'ur' && a.name_ur ? a.name : a.name_ur
+    return (
+      <div
+        key={a.id}
+        onClick={() => viewAccount(a)}
+        className={`flex items-center justify-between gap-3 px-4 py-3.5 border-t border-dp-outline-variant hover:bg-dp-surface-container-low/50 cursor-pointer transition-colors ${!a.is_active ? 'opacity-50' : ''}`}
+      >
+        <div className="min-w-0 flex-1">
+          <p className={`font-sans text-[14.5px] font-semibold text-dp-on-surface truncate ${lang === 'ur' && a.name_ur ? 'text-right' : ''}`} style={lang === 'ur' && a.name_ur ? { fontFamily: 'var(--font-urdu), serif', direction: 'rtl' } : undefined}>{primary}</p>
+          {lang === 'ur' && secondary && (
+            <p className="text-[13px] text-dp-on-surface-variant truncate">{secondary}</p>
+          )}
+          {a.type === 'consumer' && a.consumer_id && consumers[a.consumer_id] && (
+            <p className="text-[12px] text-dp-on-surface-variant">{consumers[a.consumer_id].mobile}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {a.type === 'consumer' && bal < 0 ? (
+            <span className="font-sans text-[14.5px] font-bold text-emerald-600">Advance: {fmtAmount(-bal)}</span>
+          ) : (
+            <span className={`font-sans text-[14.5px] font-bold ${a.type === 'consumer' && bal > 0 ? 'text-dp-error' : 'text-dp-on-surface'}`}>
+              {fmtAmount(bal)}
+            </span>
+          )}
+          <div className="relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setMenuId(menuId === a.id ? null : a.id) }}
+              className="p-1 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"
+            >
+              <MoreVertical size={18} />
+            </button>
+            {menuId === a.id && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute right-0 top-7 z-20 w-44 bg-white rounded-lg shadow-lg border border-dp-outline-variant py-1"
+              >
+                <button onClick={() => viewAccount(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
+                  <Eye size={14} /> View Account
+                </button>
+                <button onClick={() => openEdit(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
+                  <Pencil size={14} /> Edit Account
+                </button>
+                <button onClick={() => toggleActive(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
+                  <Power size={14} /> {a.is_active ? 'Disable Account' : 'Enable Account'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       <Toaster position="top-right" />
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-        <div>
-          <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Chart of Accounts</h1>
-          <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Manage expense accounts, cash accounts, and income accounts for each system.</p>
-        </div>
-        <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-          <PlusCircle size={16} /> New Account
-        </button>
+      <div className="mb-6">
+        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Chart of Accounts</h1>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Manage expense accounts, cash accounts, and income accounts for each system.</p>
       </div>
 
-      {/* System tabs */}
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setTab('water_supply')}
@@ -153,77 +362,99 @@ export default function AccountsPage() {
         </button>
       </div>
 
+      <div className="bg-white rounded-lg border border-dp-outline-variant p-3 mb-4 flex items-center gap-3">
+        <button
+          onClick={() => router.push(tab === 'donors_projects' ? '/admin/donors' : '/admin/billing')}
+          className="shrink-0 px-4 py-2 rounded-lg bg-dp-surface-container-low text-dp-on-surface font-sans text-[13.5px] font-bold hover:bg-dp-surface-container transition-all cursor-pointer"
+        >
+          {tab === 'donors_projects' ? 'Donor' : 'Consumer'}
+        </button>
+        <div className="flex-1 relative">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by account name, code, or bill/receipt no..."
+            className="w-full pl-9 pr-3 py-2 rounded-lg border border-dp-outline-variant text-[13.5px] font-sans focus:outline-none focus:border-dp-primary"
+          />
+        </div>
+        <button
+          onClick={() => setSortByBalance((s) => !s)}
+          title={sortByBalance ? 'Sorted by balance' : 'Sorted by name'}
+          className={`shrink-0 p-2.5 rounded-lg border border-dp-outline-variant cursor-pointer transition-all ${sortByBalance ? 'bg-dp-secondary text-white border-dp-secondary' : 'text-dp-secondary hover:bg-dp-surface-container-low'}`}
+        >
+          <SlidersHorizontal size={16} />
+        </button>
+      </div>
+
       {loading ? (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">Loading accounts...</div>
       ) : (
-        <div className="space-y-6">
-          {typeOrder.map((type) => {
-            const typeAccounts = byType[type] ?? []
+        <div className="space-y-4 pb-24">
+          {partyAccounts.length > 0 && (
+            <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 bg-dp-surface-container-low/60">
+                <button
+                  onClick={() => toggleGroup(partyType)}
+                  className="flex-1 flex items-center gap-2 cursor-pointer"
+                >
+                  <span className="font-sans text-[14px] font-bold text-dp-on-surface">{partyLabel}</span>
+                  {collapsed[partyType] ? <ChevronDown size={16} className="text-dp-on-surface-variant" /> : <ChevronUp size={16} className="text-dp-on-surface-variant" />}
+                </button>
+                {partyType === 'consumer' && (
+                  <button
+                    onClick={() => router.push('/admin/reports?report=consumer_outstanding&system=water_supply')}
+                    className="shrink-0 text-[12.5px] font-sans font-semibold text-dp-secondary hover:text-dp-primary cursor-pointer"
+                  >
+                    View Receivable Ledger
+                  </button>
+                )}
+              </div>
+              {!collapsed[partyType] && <div>{partyAccounts.map(renderRow)}</div>}
+            </div>
+          )}
+
+          {headersForTab.map((h) => {
+            const typeAccounts = byHeader[h.code] ?? []
             if (typeAccounts.length === 0) return null
+            const isCollapsed = !!collapsed[h.code]
             return (
-              <div key={type} className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-                <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low flex items-center gap-2">
-                  <span className={`text-[11px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans ${typeColors[type]}`}>{type}</span>
-                  <span className="font-sans text-[13px] text-dp-on-surface-variant font-semibold capitalize">Accounts ({typeAccounts.length})</span>
-                </div>
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant">
-                      <th className="px-5 py-2.5">Code</th>
-                      <th className="px-5 py-2.5">Account Name</th>
-                      <th className="px-5 py-2.5 hidden md:table-cell">Urdu Name</th>
-                      <th className="px-5 py-2.5 hidden lg:table-cell">Description</th>
-                      <th className="px-5 py-2.5 text-right">Opening Balance</th>
-                      <th className="px-5 py-2.5 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {typeAccounts.map((a, i) => (
-                      <tr key={a.id} className={`font-sans text-[14px] ${i % 2 === 1 ? 'bg-dp-surface-container/20' : ''} ${!a.is_active ? 'opacity-50' : ''}`}>
-                        <td className="px-5 py-3 font-mono text-[13px] font-bold text-dp-secondary">{a.code}</td>
-                        <td className="px-5 py-3 font-semibold text-dp-on-surface">{a.name}</td>
-                        <td className="px-5 py-3 hidden md:table-cell text-dp-on-surface-variant" style={{ fontFamily: 'var(--font-urdu), serif', lineHeight: '1.8' }}>{a.name_ur ?? '—'}</td>
-                        <td className="px-5 py-3 hidden lg:table-cell text-dp-on-surface-variant text-[13px]">{a.description ?? '—'}</td>
-                        <td className="px-5 py-3 text-right font-semibold">
-                          {a.opening_balance > 0 ? <span className="text-dp-secondary">Rs. {Number(a.opening_balance).toLocaleString()}</span> : <span className="text-dp-on-surface-variant">—</span>}
-                        </td>
-                        <td className="px-5 py-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => openEdit(a)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer" title="Edit"><Pencil size={15} /></button>
-                            <button onClick={() => toggleActive(a.id, a.is_active)} className={`text-[11px] px-2 py-0.5 rounded font-sans font-semibold cursor-pointer transition-all ${a.is_active ? 'text-dp-on-surface-variant border border-dp-outline-variant hover:bg-dp-surface-container' : 'bg-dp-secondary text-white hover:bg-dp-primary'}`}>
-                              {a.is_active ? 'Disable' : 'Enable'}
-                            </button>
-                            <button onClick={() => setConfirmDelete(a.id)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer" title="Delete"><X size={15} /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div key={h.code} className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
+                <button
+                  onClick={() => toggleGroup(h.code)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-dp-surface-container-low/60 hover:bg-dp-surface-container-low cursor-pointer transition-colors"
+                >
+                  <span className="font-sans text-[14px] font-bold text-dp-on-surface">{displayName(h.label, h.label_ur)}</span>
+                  {isCollapsed ? <ChevronDown size={16} className="text-dp-on-surface-variant" /> : <ChevronUp size={16} className="text-dp-on-surface-variant" />}
+                </button>
+                {!isCollapsed && <div>{typeAccounts.map(renderRow)}</div>}
               </div>
             )
           })}
 
           {bySystem.length === 0 && (
             <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center">
-              <p className="font-sans text-[16px] text-dp-on-surface-variant mb-4">No accounts yet for this system.</p>
-              <button onClick={openAdd} className="flex items-center gap-2 px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer mx-auto">
-                <PlusCircle size={16} /> Create First Account
-              </button>
+              <p className="font-sans text-[16px] text-dp-on-surface-variant mb-4">{search ? 'No accounts or bills match your search.' : 'No accounts yet for this system.'}</p>
+              {!search && (
+                <button onClick={openAdd} className="flex items-center gap-2 px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer mx-auto">
+                  <PlusCircle size={16} /> Create First Account
+                </button>
+              )}
             </div>
           )}
         </div>
       )}
 
-      <ConfirmDialog
-        open={!!confirmDelete}
-        title="Delete Account"
-        message="Are you sure you want to delete this account? This cannot be undone."
-        onConfirm={deleteAccount}
-        onCancel={() => setConfirmDelete(null)}
-      />
+      {menuId && <div className="fixed inset-0 z-10" onClick={() => setMenuId(null)} />}
 
-      {/* Add/Edit Modal */}
+      <button
+        onClick={openAdd}
+        className="fixed bottom-8 right-8 z-30 flex items-center gap-2 px-5 py-3.5 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold shadow-lg hover:bg-dp-primary transition-all cursor-pointer"
+      >
+        <PlusCircle size={18} /> Add New Account
+      </button>
+
+      {/* Add/Edit generic account Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -232,22 +463,38 @@ export default function AccountsPage() {
               <button onClick={() => setShowForm(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Account Code *</label>
-                  <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. WS-3005" className="input-field" />
+              {!editId && (
+                <p className="text-[12.5px] font-sans text-dp-on-surface-variant bg-dp-surface-container-low rounded-lg px-3 py-2">
+                  The account code is generated automatically from the header&apos;s serial number.
+                </p>
+              )}
+              <div>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">System</label>
+                <select
+                  value={form.system}
+                  onChange={(e) => {
+                    const system = e.target.value as SystemTab
+                    const firstHeader = headers.find((h) => h.system === system && h.code !== (system === 'water_supply' ? 'consumer' : 'donor'))
+                    setForm({ ...form, system, headerId: firstHeader?.id ?? '' })
+                  }}
+                  className="input-field"
+                  disabled={!!editId}
+                >
+                  <option value="water_supply">Water Supply System</option>
+                  <option value="donors_projects">Donors &amp; Projects System</option>
+                </select>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant">Account Header *</label>
+                  <button onClick={() => setShowHeaderForm(true)} className="text-[12.5px] font-sans font-semibold text-dp-secondary hover:text-dp-primary cursor-pointer">+ New Header</button>
                 </div>
-                <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Account Type *</label>
-                  <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="input-field">
-                    <option value="cash">Cash</option>
-                    <option value="bank">Bank</option>
-                    <option value="income">Income</option>
-                    <option value="expense">Expense</option>
-                    <option value="asset">Asset</option>
-                    <option value="liability">Liability</option>
-                  </select>
-                </div>
+                <select value={form.headerId} onChange={(e) => setForm({ ...form, headerId: e.target.value })} className="input-field">
+                  <option value="" disabled>Select a header...</option>
+                  {headers.filter((h) => h.system === form.system && h.code !== (form.system === 'water_supply' ? 'consumer' : 'donor')).sort((a, b) => a.display_order - b.display_order).map((h) => (
+                    <option key={h.id} value={h.id}>{h.label} ({h.code_prefix})</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Account Name (English) *</label>
@@ -258,15 +505,8 @@ export default function AccountsPage() {
                 <input value={form.name_ur ?? ''} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder="اردو میں نام" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
               </div>
               <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">System</label>
-                <select value={form.system} onChange={(e) => setForm({ ...form, system: e.target.value as SystemTab })} className="input-field">
-                  <option value="water_supply">Water Supply System</option>
-                  <option value="donors_projects">Donors &amp; Projects System</option>
-                </select>
-              </div>
-              <div>
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Opening Balance (PKR)</label>
-                <input type="number" value={form.opening_balance} onChange={(e) => setForm({ ...form, opening_balance: +e.target.value })} className="input-field" />
+                <input type="number" value={form.opening_balance || ''} onChange={(e) => setForm({ ...form, opening_balance: +e.target.value })} className="input-field" />
               </div>
               <div>
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Description</label>
@@ -274,6 +514,91 @@ export default function AccountsPage() {
               </div>
               <button onClick={save} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">
                 <Save size={16} /> {editId ? 'Save Changes' : 'Create Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Account Header Modal */}
+      {showHeaderForm && (
+        <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4" onClick={() => setShowHeaderForm(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">New Account Header</h2>
+              <button onClick={() => setShowHeaderForm(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Label (English) *</label>
+                <input value={headerForm.label} onChange={(e) => setHeaderForm({ ...headerForm, label: e.target.value })} placeholder="e.g. Inventory" className="input-field" />
+              </div>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Label (Urdu)</label>
+                <input value={headerForm.label_ur} onChange={(e) => setHeaderForm({ ...headerForm, label_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+              </div>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Short Code *</label>
+                <input value={headerForm.code} onChange={(e) => setHeaderForm({ ...headerForm, code: e.target.value })} placeholder="e.g. inventory" className="input-field" />
+              </div>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Code Prefix (for auto serial numbers) *</label>
+                <input value={headerForm.code_prefix} onChange={(e) => setHeaderForm({ ...headerForm, code_prefix: e.target.value.toUpperCase() })} placeholder={`e.g. ${form.system === 'water_supply' ? 'WS' : 'DP'}-INV`} className="input-field" />
+              </div>
+              <button onClick={saveHeader} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                <Save size={16} /> Create Header
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Consumer Modal */}
+      {consumerEditAccount && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setConsumerEditAccount(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading text-[24px] font-bold text-dp-primary">Edit Consumer</h2>
+              <button onClick={() => setConsumerEditAccount(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Name *</label>
+                <input value={consumerForm.name} onChange={(e) => setConsumerForm({ ...consumerForm, name: e.target.value })} className="input-field" />
+              </div>
+              <div>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Name (Urdu)</label>
+                <input value={consumerForm.name_ur} onChange={(e) => setConsumerForm({ ...consumerForm, name_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Mobile *</label>
+                  <input value={consumerForm.mobile} onChange={(e) => setConsumerForm({ ...consumerForm, mobile: e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Connections</label>
+                  <input type="number" min={1} value={consumerForm.connections || ''} onChange={(e) => setConsumerForm({ ...consumerForm, connections: +e.target.value })} className="input-field" />
+                </div>
+              </div>
+              <div>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Address</label>
+                <input value={consumerForm.address} onChange={(e) => setConsumerForm({ ...consumerForm, address: e.target.value })} className="input-field" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Monthly Rate (PKR)</label>
+                  <input type="number" value={consumerForm.monthly_rate || ''} onChange={(e) => setConsumerForm({ ...consumerForm, monthly_rate: +e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Status</label>
+                  <select value={consumerForm.status} onChange={(e) => setConsumerForm({ ...consumerForm, status: e.target.value })} className="input-field">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+              <button onClick={saveConsumerEdit} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                <Save size={16} /> Save Changes
               </button>
             </div>
           </div>
