@@ -103,13 +103,13 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith('/admin')) {
     // accept-invite/forgot-password/reset-password must always render regardless
-    // of session state. accept-invite and reset-password's token can arrive as a
-    // URL hash fragment (invisible to this server-side middleware) rather than a
-    // ?code= query param, so the only place that can ever detect and establish
-    // that session is the page's own client-side JS — the pages themselves
-    // already show "invalid or expired" when no session shows up. forgot-password
-    // is requested BY DEFINITION by someone with no session at all, so it must
-    // never be gated behind having one.
+    // of session state. accept-invite and reset-password arrive with a raw
+    // ?token_hash= that the page itself only redeems (via verifyOtp) at the
+    // moment the user submits the form — there is deliberately no session yet
+    // when the page is first requested, so gating these on having one would
+    // make them permanently unreachable. forgot-password is requested BY
+    // DEFINITION by someone with no session at all, so it must never be gated
+    // behind having one either.
     const isPublicAuthPage = pathname.startsWith('/admin/accept-invite')
       || pathname.startsWith('/admin/forgot-password')
       || pathname.startsWith('/admin/reset-password')

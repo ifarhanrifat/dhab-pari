@@ -1,13 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, ShieldCheck, Lock, AlertTriangle } from 'lucide-react'
 
 export default function ResetPasswordPage() {
-  const [checking, setChecking] = useState(true)
-  const [validSession, setValidSession] = useState(false)
+  // Same deferred-verification pattern as accept-invite: the emailed link only
+  // carries a raw token, verified (and consumed) at submit time, not on page
+  // load — so opening it more than once doesn't kill it before the real reset.
+  const [tokenHash] = useState(() => (
+    typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('token_hash') ?? ''
+  ))
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
@@ -15,13 +19,6 @@ export default function ResetPasswordPage() {
   const [saving, setSaving] = useState(false)
   const router = useRouter()
   const supabase = createClient()
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setValidSession(!!session)
-      setChecking(false)
-    })
-  }, [supabase])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,6 +28,14 @@ export default function ResetPasswordPage() {
     if (password !== confirmPassword) { setError('Passwords do not match.'); return }
 
     setSaving(true)
+
+    const { error: verifyError } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' })
+    if (verifyError) {
+      setError('This reset link is invalid or has expired. Request a new one from the sign-in page.')
+      setSaving(false)
+      return
+    }
+
     const { error: updateError } = await supabase.auth.updateUser({ password })
     if (updateError) {
       setError(updateError.message)
@@ -58,12 +63,10 @@ export default function ResetPasswordPage() {
 
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-[420px] bg-white border border-dp-outline-variant rounded-lg p-6 md:p-8 shadow-sm">
-          {checking ? (
-            <p className="text-center font-sans text-dp-on-surface-variant py-8">Checking your reset link...</p>
-          ) : !validSession ? (
+          {!tokenHash ? (
             <div className="text-center py-8">
               <AlertTriangle size={40} className="text-dp-error mx-auto mb-3" />
-              <p className="font-sans font-semibold text-dp-on-surface mb-2">This reset link is invalid or has expired.</p>
+              <p className="font-sans font-semibold text-dp-on-surface mb-2">This reset link is invalid.</p>
               <p className="font-sans text-[13px] text-dp-on-surface-variant">Request a new one from the sign-in page.</p>
             </div>
           ) : (
