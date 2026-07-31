@@ -5,6 +5,16 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 const VALID_ROLES = ['super_admin', 'admin', 'accountant', 'water_accountant', 'donor_accountant', 'publisher', 'viewer']
 
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: 'Super Admin',
+  admin: 'Admin',
+  accountant: 'Accountant',
+  water_accountant: 'Water Accountant',
+  donor_accountant: 'Donor Accountant',
+  publisher: 'Publisher',
+  viewer: 'Viewer',
+}
+
 export async function POST(req: NextRequest) {
   // Verify the caller is an authenticated super_admin, or an admin with the
   // invite_users grant, before doing anything privileged.
@@ -17,8 +27,10 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 })
 
-  const { data: caller } = await supabase.from('admin_users').select('role, can_invite_users').eq('auth_user_id', user.id).single()
-  const callerCanInvite = caller?.role === 'super_admin' || (caller?.role === 'admin' && caller.can_invite_users)
+  const { data: caller } = await supabase.from('admin_users').select('role, secondary_role, can_invite_users').eq('auth_user_id', user.id).single()
+  const callerIsSuperAdmin = caller?.role === 'super_admin' || caller?.secondary_role === 'super_admin'
+  const callerIsAdmin = caller?.role === 'admin' || caller?.secondary_role === 'admin'
+  const callerCanInvite = callerIsSuperAdmin || (callerIsAdmin && caller?.can_invite_users)
   if (!callerCanInvite) {
     return NextResponse.json({ error: 'You do not have permission to invite users.' }, { status: 403 })
   }
@@ -52,7 +64,6 @@ export async function POST(req: NextRequest) {
   // Only a super admin may grant the super_admin role — an admin (even one with
   // invite_users) can never create another super admin, including promoting itself,
   // through either the primary or secondary slot.
-  const callerIsSuperAdmin = caller?.role === 'super_admin'
   if ((role === 'super_admin' || secondaryRole === 'super_admin') && !callerIsSuperAdmin) {
     return NextResponse.json({ error: 'Only a Super Admin can grant the Super Admin role.' }, { status: 403 })
   }
@@ -60,8 +71,15 @@ export async function POST(req: NextRequest) {
   const admin = createAdminClient()
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin
 
+  const roleLabel = ROLE_LABELS[role] ?? role
+  const secondaryRoleLabel = secondaryRole ? (ROLE_LABELS[secondaryRole] ?? secondaryRole) : null
+
   const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: { full_name: fullName },
+    data: {
+      full_name: fullName,
+      role: roleLabel,
+      secondary_role: secondaryRoleLabel,
+    },
     redirectTo: `${siteUrl}/admin/accept-invite`,
   })
 
