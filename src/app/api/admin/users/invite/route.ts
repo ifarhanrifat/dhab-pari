@@ -69,6 +69,15 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
+
+  const { data: existing } = await admin.from('admin_users').select('role, is_active').eq('email', email).maybeSingle()
+  if (existing) {
+    const status = existing.is_active ? 'active' : 'deactivated'
+    return NextResponse.json({
+      error: `${email} already has an account (${ROLE_LABELS[existing.role] ?? existing.role}, ${status}). Edit their existing account instead of inviting them again.`,
+    }, { status: 409 })
+  }
+
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin
 
   const roleLabel = ROLE_LABELS[role] ?? role
