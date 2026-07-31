@@ -167,6 +167,25 @@
   }
 }
 
+/* --- Admin panel: bigger, more readable text on phones ---
+   The admin UI is built almost entirely on fixed arbitrary text-size
+   utilities (text-[13px], text-[14px], etc.) with no responsive variants,
+   which reads fine on a laptop but is genuinely too small on a phone.
+   Scoped to .admin-shell only — the public marketing site is untouched —
+   and to <768px to match the existing mobile-drawer breakpoint the sidebar
+   already uses, so "mobile mode" is one consistent threshold app-wide. */
+@media (max-width: 767px) {
+  .admin-shell .text-\[10px\],
+  .admin-shell .text-\[10\.5px\] { font-size: 12px !important; }
+  .admin-shell .text-\[11px\],
+  .admin-shell .text-\[11\.5px\] { font-size: 13px !important; }
+  .admin-shell .text-\[12px\],
+  .admin-shell .text-\[12\.5px\] { font-size: 14px !important; }
+  .admin-shell .text-\[13px\],
+  .admin-shell .text-\[13\.5px\] { font-size: 15.5px !important; }
+  .admin-shell .text-\[14px\] { font-size: 16.5px !important; }
+}
+
 /* --- Urdu text utility --- */
 .urdu-text {
   font-family: var(--font-urdu), serif;
@@ -240,3 +259,46 @@
 .admin-scrollbar::-webkit-scrollbar { width: 6px; }
 .admin-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
 .admin-scrollbar::-webkit-scrollbar-thumb { background: #085041; border-radius: 10px; }
+
+/* --- Notifications (save/delete/error toasts): big, bold, dead-center of the
+   screen, not a small corner popup — every toast in the app goes through this
+   one root Toaster (per-page duplicates were removed), so this is the only
+   place this needs to be styled. */
+.dp-toaster-center {
+  top: 50% !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: auto !important;
+}
+.dp-toaster-center [data-sonner-toast] {
+  /* Sonner positions each toast with its own inline `transform`, set via JS
+     with `!important` priority for its stacking/swipe animation — no
+     stylesheet rule can ever win against that, important or not, so
+     centering can't be done with `transform` here. The toaster's anchor
+     point above is a zero-size point already centered in the viewport; the
+     toast item sits flush against that point's top-left corner by default,
+     so it's centered with negative margins instead (unclaimed by Sonner). */
+  position: absolute !important;
+  margin-left: calc(min(92vw, 420px) / -2) !important;
+  margin-top: -42px !important;
+  width: min(92vw, 420px) !important;
+  padding: 20px 24px !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  text-align: center;
+  justify-content: center;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25) !important;
+  border-radius: 14px !important;
+}
+.dp-toaster-center [data-sonner-toast] [data-icon] {
+  width: 22px !important;
+  height: 22px !important;
+}
+.dp-toaster-center [data-sonner-toast] [data-content] {
+  align-items: center;
+}
+.dp-toaster-center .dp-toast-title {
+  font-size: 17px !important;
+  font-weight: 700 !important;
+}

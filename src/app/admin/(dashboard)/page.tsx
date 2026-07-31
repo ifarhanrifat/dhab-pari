@@ -147,7 +147,7 @@ export default async function AdminDashboardPage() {
           icon={<Droplets size={22} />}
           accentClass="text-blue-700"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
             <StatCard href="/admin/accounts/by-type?system=water_supply&type=cash" icon={<Wallet size={19} />} color="teal" label="Cash in Hand" value={`Rs. ${fmt(waterStats.cash)}`} />
             <StatCard href="/admin/accounts/by-type?system=water_supply&type=bank" icon={<Landmark size={19} />} color="blue" label="Cash in Bank" value={`Rs. ${fmt(waterStats.bank)}`} />
             <StatCard href="/admin/reports?report=consumer_outstanding&system=water_supply" icon={<HandCoins size={19} />} color="amber" label="Total Receivable" value={`Rs. ${fmt(waterStats.receivable)}`} />
@@ -180,7 +180,7 @@ export default async function AdminDashboardPage() {
           icon={<HeartHandshake size={22} />}
           accentClass="text-violet-700"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
             <StatCard href="/admin/accounts/by-type?system=donors_projects&type=cash" icon={<Wallet size={19} />} color="teal" label="Cash in Hand" value={`Rs. ${fmt(donorStats.cash)}`} />
             <StatCard href="/admin/accounts/by-type?system=donors_projects&type=bank" icon={<Landmark size={19} />} color="blue" label="Cash in Bank" value={`Rs. ${fmt(donorStats.bank)}`} />
             <StatCard href="/admin/donors" icon={<Heart size={19} />} color="pink" label="Total Donors" value={donorPartyCount.toLocaleString()} />
@@ -222,13 +222,13 @@ function StatCard({ href, icon, color, label, value }: {
   href: string; icon: React.ReactNode; color: string; label: string; value: string
 }) {
   return (
-    <Link href={href} title={value} className="bg-white p-5 rounded-lg border border-dp-outline-variant flex flex-col justify-between hover:shadow-md hover:border-dp-primary/30 transition-all group">
-      <div className="flex justify-between items-start mb-3">
+    <Link href={href} title={value} className="bg-white p-3 sm:p-5 rounded-lg border border-dp-outline-variant flex flex-col justify-between hover:shadow-md hover:border-dp-primary/30 transition-all group">
+      <div className="flex justify-between items-start mb-2 sm:mb-3">
         <span className={`p-2 rounded-lg ${colorStyles[color]}`}>{icon}</span>
       </div>
       <div>
-        <p className="text-dp-on-surface-variant text-[12px] font-sans font-semibold tracking-[0.05em] uppercase">{label}</p>
-        <h4 className="font-heading text-[22px] font-bold leading-[30px] text-dp-on-surface group-hover:text-dp-primary transition-colors truncate">{value}</h4>
+        <p className="text-dp-on-surface-variant text-[11px] sm:text-[12px] font-sans font-semibold tracking-[0.05em] uppercase leading-tight">{label}</p>
+        <h4 className="font-heading text-[18px] sm:text-[22px] font-bold leading-[24px] sm:leading-[30px] text-dp-on-surface group-hover:text-dp-primary transition-colors truncate">{value}</h4>
       </div>
     </Link>
   )

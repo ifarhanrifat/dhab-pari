@@ -9,7 +9,7 @@ import {
   Home, MapPin, MessageCircle, AlertCircle, CheckCircle2,
   Clock, CreditCard, Banknote, Pencil, Receipt, Users, UserCheck, UserX, Tag, UserPlus, Repeat, Trash2, FileText,
 } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { billBadge, billBadgeClass } from '@/lib/billStatus'
 
@@ -326,7 +326,6 @@ function BillingPageInner() {
 
   return (
     <>
-      <Toaster position="top-right" />
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">

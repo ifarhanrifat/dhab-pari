@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { MessageSquareWarning, PlusCircle, X, Clock } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 
 type SystemTab = 'water_supply' | 'donors_projects'
@@ -90,7 +90,6 @@ export default function ComplaintsPage() {
 
   return (
     <>
-      <Toaster position="top-right" />
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">

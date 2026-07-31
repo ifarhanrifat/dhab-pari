@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Save, PlusCircle, Trash2, Pencil, X, Check, Bell, MessageCircle, ShieldCheck, MessageSquareWarning } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import type { ManagementContact } from '@/lib/branding'
@@ -253,7 +253,6 @@ export default function AdminSettingsPage() {
 
   return (
     <>
-      <Toaster position="top-right" />
       <div className="flex items-center justify-between mb-8">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Site Settings</h1>
         <button onClick={saveAll} disabled={saving} className="flex items-center gap-2 px-6 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">

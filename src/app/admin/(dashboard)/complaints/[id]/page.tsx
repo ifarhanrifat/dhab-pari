@@ -7,7 +7,7 @@ import {
   ArrowLeft, Clock, MapPin, Phone, User, CheckCircle2, RotateCcw, CalendarPlus,
   MessageCircle, Send, Image as ImageIcon, Mic as MicIcon, UserPlus,
 } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 import { FileAttachment } from '@/components/admin/FileAttachment'
 import { VoiceRecorder } from '@/components/admin/VoiceRecorder'
 import { normalizePakPhone } from '@/lib/receiptExport'
@@ -164,7 +164,6 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <>
-      <Toaster position="top-right" />
       <Link href="/admin/complaints" className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[13px] font-semibold hover:underline mb-4">
         <ArrowLeft size={14} /> Back to Complaints
       </Link>

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Printer, Download, Share2, Mail, Pencil, Trash2, ChevronDown, ChevronUp, BookOpen } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 import { ReceiptDocument, type ReceiptData, type InvoiceTemplate } from '@/components/admin/ReceiptDocument'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { fetchBrandingSettings, type BrandingSettings } from '@/lib/branding'
@@ -204,7 +204,6 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <Toaster position="top-right" />
       <div className="mb-6 flex items-center justify-between gap-4 print:hidden">
         <Link href="/admin/billing" className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold">
           <ArrowLeft size={16} /> Back to Billing

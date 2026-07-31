@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, use as usePromise } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, PlusCircle, X, Save, Pause, Play, Trash2, Repeat, Share2, History } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
@@ -254,13 +254,12 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
 
   return (
     <>
-      <Toaster position="top-right" />
-      <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link href={`/admin/finance/${system}`} className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold mb-3">
             <ArrowLeft size={16} /> Back to Transactions
           </Link>
-          <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary">{systemLabels[system]} — Recurring</h1>
+          <h1 className="font-heading text-[22px] sm:text-[28px] font-bold leading-[28px] sm:leading-[36px] text-dp-primary">{systemLabels[system]} — Recurring</h1>
         </div>
         <button onClick={() => { setForm(emptyForm); setShowForm(true) }} className="shrink-0 flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
           <PlusCircle size={15} /> New Recurring Schedule

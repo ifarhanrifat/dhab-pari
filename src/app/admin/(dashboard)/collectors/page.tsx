@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Coins, HandCoins, History } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 
@@ -105,7 +105,6 @@ export default function CollectorsPage() {
 
   return (
     <>
-      <Toaster position="top-right" />
       <div className="mb-6">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
           <Coins size={26} /> Field Collectors

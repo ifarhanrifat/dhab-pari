@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PlusCircle, X, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 
 interface Ticker { id: string; message: string; message_ur: string | null; is_active: boolean; display_order: number }
 
@@ -28,7 +28,6 @@ export default function AdminTickerPage() {
 
   return (
     <>
-      <Toaster position="top-right" />
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Ticker Messages</h1>
         <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> Add Message</button>

@@ -53,7 +53,18 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         {children}
-        <Toaster position="top-right" richColors />
+        <Toaster
+          position="top-center"
+          richColors
+          className="dp-toaster-center"
+          toastOptions={{
+            duration: 3500,
+            classNames: {
+              toast: 'dp-toast',
+              title: 'dp-toast-title',
+            },
+          }}
+        />
       </body>
     </html>
   );

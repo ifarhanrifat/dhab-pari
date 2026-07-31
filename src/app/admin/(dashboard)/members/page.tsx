@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PlusCircle, X, Pencil, Trash2 } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 
 interface Member { id: string; name: string; name_ur: string | null; position: string; position_ur: string | null; phone: string | null; bio: string | null; bio_ur: string | null; display_order: number; is_active: boolean }
 const empty = { name: '', name_ur: '', position: '', position_ur: '', phone: '', bio: '', bio_ur: '', display_order: 0, is_active: true }
@@ -30,7 +30,6 @@ export default function AdminMembersPage() {
 
   return (
     <>
-      <Toaster position="top-right" />
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Committee Members</h1>
         <button onClick={() => { setForm(empty); setEditing(null); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> Add Member</button>

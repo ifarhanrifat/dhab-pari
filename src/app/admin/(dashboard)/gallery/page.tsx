@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PlusCircle, X, Trash2, Image as ImageIcon, ArrowLeft } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { MultiImageUpload } from '@/components/admin/MultiImageUpload'
 import { BulkActionsBar } from '@/components/admin/BulkActionsBar'
@@ -87,7 +87,6 @@ export default function AdminGalleryPage() {
 
   return (
     <>
-      <Toaster position="top-right" />
       {!selectedAlbum ? (
         <>
           <div className="flex items-center justify-between mb-6">

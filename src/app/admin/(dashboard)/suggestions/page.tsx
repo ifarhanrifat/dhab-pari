@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { MessageSquare, X, Send, CheckCircle, Clock, Eye } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 
 interface Suggestion {
   id: string
@@ -83,9 +83,8 @@ export default function AdminSuggestionsPage() {
 
   return (
     <>
-      <Toaster position="top-right" />
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h1 className="font-heading text-[24px] sm:text-[32px] font-bold leading-[32px] sm:leading-[40px] text-dp-primary">
           Suggestions & Complaints
         </h1>
         <span className="text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-on-surface-variant">
@@ -94,7 +93,7 @@ export default function AdminSuggestionsPage() {
       </div>
 
       {/* Filter */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-wrap gap-3 mb-6">
         {['all', 'new', 'reviewed', 'actioned'].map((f) => (
           <button
             key={f}

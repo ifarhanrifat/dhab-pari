@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PlusCircle, X, Pencil, Trash2, Eye, EyeOff } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { BulkActionsBar } from '@/components/admin/BulkActionsBar'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
@@ -85,7 +85,6 @@ export default function AdminNewsPage() {
 
   return (
     <>
-      <Toaster position="top-right" />
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">News Management</h1>
         <button onClick={() => { setForm(empty); setEditing(null); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> New Post</button>

@@ -6,9 +6,9 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, Save, Wallet, ArrowDownCircle, ArrowLeftRight, ArrowUpFromLine,
-  ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck,
+  ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck, ChevronDown,
 } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import { FileAttachment } from '@/components/admin/FileAttachment'
@@ -143,6 +143,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [quickPaySaving, setQuickPaySaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [activeType, setActiveType] = useState<ActiveType>('expense')
+  const [mobileTypeMenuOpen, setMobileTypeMenuOpen] = useState(false)
   const [voucherForm, setVoucherForm] = useState(emptyVoucherForm)
   const [billForm, setBillForm] = useState(emptyBillForm)
   const [editingBill, setEditingBill] = useState<{ id: string; bill_number: string | null; paid_amount: number; security_deposit_voucher_id: string | null; recurring_schedule_id: string | null } | null>(null)
@@ -1016,13 +1017,12 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
   return (
     <>
-      <Toaster position="top-right" />
-      <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link href="/admin/finance" className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold mb-3">
             <ArrowLeft size={16} /> Back
           </Link>
-          <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary">{systemLabels[system]} — Transactions</h1>
+          <h1 className="font-heading text-[22px] sm:text-[28px] font-bold leading-[28px] sm:leading-[36px] text-dp-primary">{systemLabels[system]} — Transactions</h1>
         </div>
         <div className="shrink-0 flex items-center gap-2">
           <Link href={`/admin/finance/${system}/recurring`} className="flex items-center gap-2 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all">
@@ -1034,9 +1034,45 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         </div>
       </div>
 
+      {/* Transaction type — mobile menu button (opens a dropdown of the same options
+          shown as a sidebar on desktop; a full-width stacked button list here read
+          as an ugly wall of buttons pushed above the form on a phone) */}
+      <div className="md:hidden relative mb-4">
+        <button
+          onClick={() => setMobileTypeMenuOpen((v) => !v)}
+          className="w-full flex items-center justify-between gap-2.5 px-4 py-3.5 bg-white rounded-lg border-2 border-dp-primary font-sans text-[15px] font-bold text-dp-primary cursor-pointer"
+        >
+          <span className="flex items-center gap-2.5">
+            {(() => { const ActiveIcon = types.find((t) => t.key === activeType)?.icon ?? Wallet; return <ActiveIcon size={18} /> })()}
+            {activeTypeLabel}
+          </span>
+          <ChevronDown size={18} className={`transition-transform ${mobileTypeMenuOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {mobileTypeMenuOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMobileTypeMenuOpen(false)} />
+            <div className="absolute z-50 top-full left-0 right-0 mt-1.5 bg-white rounded-lg border border-dp-outline-variant shadow-lg overflow-hidden max-h-[60vh] overflow-y-auto">
+              {types.map((t) => {
+                const Icon = t.icon
+                const isActive = activeType === t.key
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => { selectType(t.key); setMobileTypeMenuOpen(false) }}
+                    className={`w-full flex items-center gap-2.5 px-4 py-3.5 text-left font-sans text-[15px] font-bold border-b border-dp-outline-variant last:border-b-0 cursor-pointer transition-colors ${isActive ? 'bg-dp-primary text-white' : 'text-dp-on-surface hover:bg-dp-surface-container-low'}`}
+                  >
+                    <Icon size={18} className="shrink-0" /> {t.label}
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        )}
+      </div>
+
       <div className="flex flex-col md:flex-row gap-5">
-        {/* Transaction type sidebar */}
-        <div className="md:w-56 shrink-0">
+        {/* Transaction type sidebar (desktop only — see mobile menu button above) */}
+        <div className="hidden md:block md:w-56 shrink-0">
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
             {types.map((t) => {
               const Icon = t.icon
@@ -1241,8 +1277,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         </tbody>
                       </table>
                     )}
-                    <div className="flex items-end gap-2 p-3 bg-dp-surface-container-low/40 border-t border-dp-outline-variant">
-                      <div className="w-36 shrink-0">
+                    <div className="flex flex-wrap items-end gap-2 p-3 bg-dp-surface-container-low/40 border-t border-dp-outline-variant">
+                      <div className="w-full sm:w-36 sm:shrink-0">
                         <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">Type</label>
                         <select value={newLine.kind} onChange={(e) => setNewLine({ ...emptyNewLine, kind: e.target.value as typeof newLine.kind })} className="input-field !py-3 text-[15px]">
                           <option value="custom">Custom Charge</option>
@@ -1252,17 +1288,17 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                       </div>
                       {newLine.kind === 'custom' ? (
                         <>
-                          <div className="flex-1 min-w-0">
+                          <div className="w-full sm:flex-1 min-w-0">
                             <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">Description</label>
                             <input value={newLine.description} onChange={(e) => setNewLine({ ...newLine, description: e.target.value })} placeholder="e.g. New Connection Charge" className="input-field !py-3 text-[15px]" />
                           </div>
-                          <div className="w-28 shrink-0">
+                          <div className="flex-1 sm:flex-none sm:w-28 min-w-0">
                             <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">Amount</label>
                             <input type="number" min={0} step="0.01" value={newLine.unit_price || ''} onChange={(e) => setNewLine({ ...newLine, unit_price: +e.target.value })} placeholder="0" className="input-field !py-3 text-[15px]" />
                           </div>
                         </>
                       ) : (
-                        <div className="flex-1 min-w-0">
+                        <div className="w-full sm:flex-1 min-w-0">
                           <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">Item</label>
                           <select value={newLine.itemId} onChange={(e) => setNewLine({ ...newLine, itemId: e.target.value })} className="input-field !py-3 text-[15px]">
                             <option value="">Select {newLine.kind}...</option>
@@ -1272,11 +1308,11 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                           </select>
                         </div>
                       )}
-                      <div className="w-20 shrink-0">
+                      <div className="flex-1 sm:flex-none sm:w-20 min-w-0">
                         <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">Qty</label>
                         <input type="number" min={0.01} step="0.01" value={newLine.quantity} onChange={(e) => setNewLine({ ...newLine, quantity: +e.target.value })} className="input-field !py-3 text-[15px]" />
                       </div>
-                      <button onClick={addCatalogLine} className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"><Plus size={14} /> Add</button>
+                      <button onClick={addCatalogLine} className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"><Plus size={14} /> Add</button>
                     </div>
                   </div>
                 </div>
@@ -1504,8 +1540,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         </tbody>
                       </table>
                     )}
-                    <div className="flex items-end gap-2 p-3 bg-dp-surface-container-low/40 border-t border-dp-outline-variant">
-                      <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-end gap-2 p-3 bg-dp-surface-container-low/40 border-t border-dp-outline-variant">
+                      <div className="w-full sm:flex-1 min-w-0">
                         <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">Item</label>
                         <SearchableField
                           value={newPurchaseLine.itemId} placeholder="Select item..." pickerTitle="Select Inventory Item"
@@ -1513,15 +1549,15 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                           onChange={(id) => { const item = inventoryItems.find((i) => i.id === id); setNewPurchaseLine({ ...newPurchaseLine, itemId: id, unit_cost: item?.unit_cost ?? 0 }) }}
                         />
                       </div>
-                      <div className="w-24 shrink-0">
+                      <div className="flex-1 sm:flex-none sm:w-24 min-w-0 shrink-0">
                         <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">Qty</label>
                         <input type="number" min={0.01} step="0.01" value={newPurchaseLine.quantity} onChange={(e) => setNewPurchaseLine({ ...newPurchaseLine, quantity: +e.target.value })} className="input-field !py-2.5 text-[15px]" />
                       </div>
-                      <div className="w-32 shrink-0">
+                      <div className="flex-1 sm:flex-none sm:w-32 min-w-0 shrink-0">
                         <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">Unit Cost</label>
                         <input type="number" min={0} step="0.01" value={newPurchaseLine.unit_cost || ''} onChange={(e) => setNewPurchaseLine({ ...newPurchaseLine, unit_cost: +e.target.value })} className="input-field !py-2.5 text-[15px]" />
                       </div>
-                      <button onClick={addPurchaseLine} className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"><Plus size={14} /> Add</button>
+                      <button onClick={addPurchaseLine} className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"><Plus size={14} /> Add</button>
                     </div>
                   </div>
                 </div>

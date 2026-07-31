@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Send, MessageCircle } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 
 interface LogEntry { id: string; type: string; recipient: string | null; message: string | null; status: string; sent_at: string | null; created_at: string }
 
@@ -30,7 +30,6 @@ export default function AdminNotificationsPage() {
 
   return (
     <>
-      <Toaster position="top-right" />
       <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary mb-8">Notifications</h1>
 
       {/* Compose */}

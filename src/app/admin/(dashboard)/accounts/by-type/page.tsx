@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Eye, Power } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 
 interface Account {
   id: string; code: string; name: string; name_ur: string | null
@@ -74,7 +74,6 @@ function AccountsByTypePageInner() {
 
   return (
     <>
-      <Toaster position="top-right" />
       <div className="mb-6">
         <Link href="/admin" className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold mb-3">
           <ArrowLeft size={16} /> Back to Dashboard

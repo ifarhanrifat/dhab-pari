@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PlusCircle, X, Save, Boxes, Wrench, Layers, ShoppingCart, Trash2, Star, History, LineChart as LineChartIcon, AlertTriangle, Trophy } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { StockValueTrendChart } from '@/components/admin/DashboardCharts'
@@ -287,7 +287,6 @@ export default function InventoryPage() {
 
   return (
     <>
-      <Toaster position="top-right" />
       <div className="mb-6">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
           <Boxes size={26} /> Inventory &amp; Services
@@ -295,12 +294,12 @@ export default function InventoryPage() {
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">Stock items, chargeable services, and connection bundles used when billing consumers.</p>
       </div>
 
-      <div className="flex items-center gap-2 mb-5 border-b border-dp-outline-variant">
+      <div className="flex items-center gap-2 mb-5 border-b border-dp-outline-variant overflow-x-auto admin-scrollbar">
         {(['items', 'services', 'templates', 'movements', 'analytics'] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2.5 font-sans text-[14px] font-semibold border-b-2 -mb-px transition-all cursor-pointer flex items-center gap-1.5 ${tab === t ? 'border-dp-secondary text-dp-primary' : 'border-transparent text-dp-on-surface-variant hover:text-dp-on-surface'}`}
+            className={`px-4 py-2.5 font-sans text-[14px] font-semibold border-b-2 -mb-px transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${tab === t ? 'border-dp-secondary text-dp-primary' : 'border-transparent text-dp-on-surface-variant hover:text-dp-on-surface'}`}
           >
             {t === 'items' && <Boxes size={15} />}
             {t === 'services' && <Wrench size={15} />}

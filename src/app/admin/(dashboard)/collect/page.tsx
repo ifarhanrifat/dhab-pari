@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Truck, Banknote, MessageCircle, MapPin, Phone, Save, MessageSquareWarning } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
@@ -211,7 +211,6 @@ export default function CollectPaymentPage() {
 
   return (
     <>
-      <Toaster position="top-right" />
       <div className="mb-6">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
           <Truck size={26} /> Collect Payment

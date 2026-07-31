@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef, use as usePromise } from 'rea
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Eye, Pencil, Trash2, Printer, PlusCircle, X, Save, Banknote } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
@@ -279,7 +279,6 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <Toaster position="top-right" />
 
       <div className="flex items-center justify-between mb-6 print:hidden">
         <Link href="/admin/accounts" className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold">
