@@ -1,19 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, ShieldCheck, Lock, AlertTriangle } from 'lucide-react'
 
 export default function AcceptInvitePage() {
-  // The emailed link points here with just a raw token — it is NOT verified
-  // (and therefore not consumed) just by opening this page. That only happens
-  // in submit() below, so the same link can be opened/previewed any number of
-  // times without dying, and only actually retires once someone truly
-  // completes the form.
-  const [tokenHash] = useState(() => (
-    typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('token_hash') ?? ''
-  ))
+  const [checking, setChecking] = useState(true)
+  const [validSession, setValidSession] = useState(false)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
@@ -21,6 +15,26 @@ export default function AcceptInvitePage() {
   const [saving, setSaving] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+  // Captured on first render, before Supabase's client can consume/clear it.
+  // This is what actually tells "this navigation just carried a fresh invite
+  // token" apart from "this browser tab already had an unrelated session
+  // sitting around" (e.g. an admin testing a dead link while still logged
+  // into their own account) — a plain getSession() can't make that
+  // distinction, since a failed/expired token exchange never touches a
+  // session that was already there before the link was opened.
+  const [initialHash] = useState(() => (typeof window !== 'undefined' ? window.location.hash : ''))
+
+  useEffect(() => {
+    if (initialHash.includes('error=') || !initialHash.includes('access_token=')) {
+      setValidSession(false)
+      setChecking(false)
+      return
+    }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setValidSession(!!session)
+      setChecking(false)
+    })
+  }, [supabase, initialHash])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,14 +44,6 @@ export default function AcceptInvitePage() {
     if (password !== confirmPassword) { setError('Passwords do not match.'); return }
 
     setSaving(true)
-
-    const { error: verifyError } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'invite' })
-    if (verifyError) {
-      setError('This invitation link is invalid or has expired. Ask your administrator to send a new one.')
-      setSaving(false)
-      return
-    }
-
     const { error: updateError } = await supabase.auth.updateUser({ password })
     if (updateError) {
       setError(updateError.message)
@@ -70,10 +76,12 @@ export default function AcceptInvitePage() {
 
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-[420px] bg-white border border-dp-outline-variant rounded-lg p-6 md:p-8 shadow-sm">
-          {!tokenHash ? (
+          {checking ? (
+            <p className="text-center font-sans text-dp-on-surface-variant py-8">Checking your invitation...</p>
+          ) : !validSession ? (
             <div className="text-center py-8">
               <AlertTriangle size={40} className="text-dp-error mx-auto mb-3" />
-              <p className="font-sans font-semibold text-dp-on-surface mb-2">This invitation link is invalid.</p>
+              <p className="font-sans font-semibold text-dp-on-surface mb-2">This invitation link is invalid or has expired.</p>
               <p className="font-sans text-[13px] text-dp-on-surface-variant">Ask your administrator to send a new invitation.</p>
             </div>
           ) : (
