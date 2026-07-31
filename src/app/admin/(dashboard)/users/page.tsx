@@ -11,6 +11,7 @@ interface AdminUser {
   email: string
   full_name: string
   role: string
+  secondary_role: string | null
   is_active: boolean
   auth_user_id: string | null
   can_post_transactions: boolean
@@ -65,6 +66,48 @@ const roleDescriptions: Record<string, string> = {
   viewer: 'Read-only access across everything. Can view and drill into data but can never make changes.',
 }
 
+// The exact, concrete capability list per role — not just a one-line summary.
+// "System access" here means the RLS boundary (the real security guarantee);
+// the individual can_* flags below it are opt-in on top of that, checked
+// per-person in the Permissions section (or, for viewers, in the pencil-icon
+// modal), not implied automatically by picking the role.
+const rolePermissions: Record<string, string[]> = {
+  super_admin: [
+    'Full read + write access to both Water Supply and Donors & Projects',
+    'The only role that can grant Super Admin to anyone, including via a secondary role',
+    'Configures Approvers, Complaint Handlers, and Notification Preferences (Settings)',
+    'Can approve an outgoing transaction on behalf of a stuck/unresponsive approver',
+    'Can verify & close complaints (implicitly — no separate flag needed)',
+  ],
+  admin: [
+    'Same day-to-day system access as Super Admin, but can never hold or grant Super Admin',
+    'Individual grants (checked below): post/edit/delete transactions, approve transactions, restore deleted records, invite/remove users (never Super Admins)',
+    'With the invite_users grant: can configure Approvers, Complaint Handlers, Notification Preferences',
+  ],
+  accountant: [
+    'System access (Water Supply and/or Donors & Projects) is set explicitly per-person below — not implied by the role',
+    'Individual grants (checked below): post/edit/delete transactions, view reports, manage consumers/donors, manage chart of accounts',
+  ],
+  water_accountant: [
+    'Confined to the Water Supply book only — consumers, billing, inventory, collectors, approvals, complaints, reports',
+    'Individual grants (checked below): post/edit/delete transactions, view reports, manage parties/accounts',
+  ],
+  donor_accountant: [
+    'Confined to the Donors & Projects book only — donations, projects, approvals, complaints, reports',
+    'Individual grants (checked below): post/edit/delete transactions, view reports, manage parties/accounts',
+  ],
+  publisher: [
+    'Can create News posts and Videos',
+    'Everything they publish is held as a draft until a Super Admin approves it',
+  ],
+  viewer: [
+    'Read-only across both systems by default — can view and drill into everything, but never post/edit/delete a transaction',
+    'Already included for every role, no extra grant needed: view + reply to Suggestions, view + post comments/status updates on any Complaint',
+    'Opt-in add-on — Field Collector: collect a payment on the spot for consumers in assigned sector(s) (grant + pick sectors in the pencil-icon modal)',
+    'Opt-in add-on — Complaint Verifier: final sign-off closing a resolved complaint (grant in the pencil-icon modal, not tied to role — assignable to anyone)',
+  ],
+}
+
 const permissionFields: { key: keyof AdminUser; label: string }[] = [
   { key: 'can_post_transactions', label: 'Can post transactions (bills, payments, donations, vouchers)' },
   { key: 'can_edit_transactions', label: 'Can edit existing transactions' },
@@ -83,7 +126,7 @@ const adminPermissionFields: { key: keyof AdminUser; label: string }[] = [
 ]
 
 const emptyInvite = {
-  email: '', full_name: '', role: 'water_accountant',
+  email: '', full_name: '', role: 'water_accountant', secondary_role: '',
   can_post_transactions: false, can_edit_transactions: false, can_delete_transactions: false,
   can_view_reports: false, can_approve_transactions: false,
   can_manage_parties: false, can_manage_accounts: false, can_edit_accounts: false, can_delete_accounts: false,
@@ -91,7 +134,7 @@ const emptyInvite = {
   access_water_supply: false, access_donors_projects: false,
 }
 
-const emptyCollectorForm = { mobile: '', can_collect_payments: false, assigned_sectors: [] as string[], can_verify_complaints: false }
+const emptyCollectorForm = { mobile: '', can_collect_payments: false, assigned_sectors: [] as string[], can_verify_complaints: false, secondary_role: '' }
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([])
@@ -127,7 +170,10 @@ export default function AdminUsersPage() {
 
   const openEditCollector = (u: AdminUser) => {
     setEditingUser(u)
-    setCollectorForm({ mobile: u.mobile ?? '', can_collect_payments: u.can_collect_payments, assigned_sectors: u.assigned_sectors ?? [], can_verify_complaints: u.can_verify_complaints })
+    setCollectorForm({
+      mobile: u.mobile ?? '', can_collect_payments: u.can_collect_payments, assigned_sectors: u.assigned_sectors ?? [],
+      can_verify_complaints: u.can_verify_complaints, secondary_role: u.secondary_role ?? '',
+    })
   }
 
   const toggleSector = (name: string) => {
@@ -139,12 +185,15 @@ export default function AdminUsersPage() {
 
   const saveCollectorSettings = async () => {
     if (!editingUser) return
+    if (collectorForm.secondary_role === editingUser.role) { toast.error('Secondary role must be different from the primary role'); return }
+    if (collectorForm.secondary_role === 'super_admin' && currentRole !== 'super_admin') { toast.error('Only a Super Admin can grant Super Admin as a secondary role'); return }
     setSavingCollector(true)
     const { error } = await supabase.from('admin_users').update({
       mobile: collectorForm.mobile.trim() || null,
       can_collect_payments: collectorForm.can_collect_payments,
       assigned_sectors: collectorForm.can_collect_payments && collectorForm.assigned_sectors.length > 0 ? collectorForm.assigned_sectors : null,
       can_verify_complaints: collectorForm.can_verify_complaints,
+      secondary_role: collectorForm.secondary_role || null,
     }).eq('id', editingUser.id)
     setSavingCollector(false)
     if (error) { toast.error(error.message); return }
@@ -153,7 +202,8 @@ export default function AdminUsersPage() {
     load()
   }
 
-  const showPermissions = ['admin', 'accountant', 'water_accountant', 'donor_accountant'].includes(form.role)
+  const permissionEligibleRoles = ['admin', 'accountant', 'water_accountant', 'donor_accountant']
+  const showPermissions = permissionEligibleRoles.includes(form.role) || permissionEligibleRoles.includes(form.secondary_role)
   const availableRoles = currentRole === 'super_admin'
     ? ['water_accountant', 'donor_accountant', 'accountant', 'viewer', 'publisher', 'admin', 'super_admin']
     : ['water_accountant', 'donor_accountant', 'accountant', 'viewer', 'publisher', 'admin']
@@ -205,7 +255,12 @@ export default function AdminUsersPage() {
 
   const changeRole = async (u: AdminUser, newRole: string) => {
     if (newRole === u.role) return
-    const { error } = await supabase.from('admin_users').update({ role: newRole }).eq('id', u.id)
+    // If their secondary role would now match the new primary role, clear it —
+    // same role in both slots is redundant and just confusing to display.
+    const clearingSecondary = u.secondary_role === newRole
+    const { error } = await supabase.from('admin_users').update({
+      role: newRole, ...(clearingSecondary ? { secondary_role: null } : {}),
+    }).eq('id', u.id)
     if (error) { toast.error(error.message); load(); return }
     toast.success(`${u.full_name}'s role changed to ${roleLabels[newRole] ?? newRole}`)
     load()
@@ -230,13 +285,26 @@ export default function AdminUsersPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
         {Object.entries(roleLabels).map(([key, label]) => (
-          <div key={key} className="bg-white rounded-lg border border-dp-outline-variant p-3">
+          <div key={key} className="bg-white rounded-lg border border-dp-outline-variant p-3.5">
             <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans ${roleColors[key]}`}>{label}</span>
-            <p className="font-sans text-[11px] text-dp-on-surface-variant mt-2 leading-[1.4]">{roleDescriptions[key]}</p>
+            <ul className="mt-2 space-y-1">
+              {(rolePermissions[key] ?? []).map((line, i) => (
+                <li key={i} className="font-sans text-[11px] text-dp-on-surface-variant leading-[1.4] pl-3 relative before:content-['•'] before:absolute before:left-0 before:text-dp-outline">
+                  {line}
+                </li>
+              ))}
+            </ul>
           </div>
         ))}
+      </div>
+
+      <div className="bg-dp-primary-container/40 border border-dp-primary/20 rounded-lg p-4 mb-6">
+        <p className="font-sans text-[13px] font-bold text-dp-primary mb-1">Setting up "Management" (view everything, reply, verify complaints)</p>
+        <p className="font-sans text-[12px] text-dp-on-surface-variant leading-[1.5]">
+          There&apos;s no separate "Management" role — it&apos;s a recipe: give them <strong>Viewer</strong> (full read access to both systems already, plus the ability to comment on complaints and reply to Suggestions with no extra grant), then check <strong>Complaint Verifier</strong> for them in the pencil-icon menu so they can give final sign-off on resolved complaints. If they also need to actually post transactions or approve things themselves, give them a <strong>secondary role</strong> below instead of switching their primary role away from Viewer.
+        </p>
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
@@ -275,6 +343,11 @@ export default function AdminUsersPage() {
                     <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans ${roleColors[u.role] ?? 'bg-gray-100 text-gray-600'}`}>
                       {roleLabels[u.role] ?? u.role}
                     </span>
+                    {u.secondary_role && (
+                      <span className={`ml-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans border ${roleColors[u.secondary_role] ?? 'bg-gray-100 text-gray-600'}`} title="Secondary role">
+                        + {roleLabels[u.secondary_role] ?? u.secondary_role}
+                      </span>
+                    )}
                     {u.can_collect_payments && (
                       <span className="ml-1.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-teal-700 bg-teal-100 px-1.5 py-0.5 rounded-full" title={`Field collector — ${(u.assigned_sectors ?? []).join(', ') || 'no sectors assigned'}`}>
                         <Truck size={10} /> Collector
@@ -362,6 +435,14 @@ export default function AdminUsersPage() {
                 </select>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">{roleDescriptions[form.role]}</p>
               </div>
+              <div>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Secondary Role (optional)</label>
+                <select value={form.secondary_role} onChange={(e) => setForm({ ...form, secondary_role: e.target.value })} className="input-field">
+                  <option value="">None</option>
+                  {availableRoles.filter((r) => r !== form.role).map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
+                </select>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">Grants this role&apos;s access <em>in addition to</em> the primary role above — e.g. a Water Accountant with Donor Accountant as secondary can access both books.</p>
+              </div>
               {form.role === 'accountant' && (
                 <div className="bg-dp-surface-container-low rounded-lg p-4 space-y-2.5">
                   <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">System Access</p>
@@ -438,6 +519,16 @@ export default function AdminUsersPage() {
                   className="input-field"
                 />
                 <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Used for WhatsApp notifications (e.g. a field collector's payment alert).</p>
+              </div>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Secondary Role</label>
+                <select value={collectorForm.secondary_role} onChange={(e) => setCollectorForm({ ...collectorForm, secondary_role: e.target.value })} className="input-field">
+                  <option value="">None</option>
+                  {(currentRole === 'super_admin' ? availableRoles : availableRoles.filter((r) => r !== 'super_admin'))
+                    .filter((r) => r !== editingUser.role)
+                    .map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
+                </select>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Grants this role&apos;s access in addition to their primary role ({roleLabels[editingUser.role]}).</p>
               </div>
               {editingUser.role === 'viewer' && (
                 <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 space-y-3">

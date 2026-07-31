@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Truck, Banknote, MessageCircle, MapPin } from 'lucide-react'
+import { Truck, Banknote, MessageCircle, MapPin, Phone, Save, MessageSquareWarning } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
@@ -26,6 +26,14 @@ function outstanding(b: Bill) {
   return Math.max(b.amount_pkr - (b.discount_amount ?? 0), 0) - (b.paid_amount ?? 0)
 }
 
+const complaintCategories = [
+  { value: 'low_pressure', label: 'Low Water Pressure' },
+  { value: 'no_supply', label: 'No Water Supply' },
+  { value: 'water_quality', label: 'Water Quality Issue' },
+  { value: 'billing_dispute', label: 'Billing Dispute' },
+  { value: 'other', label: 'Other' },
+]
+
 export default function CollectPaymentPage() {
   const supabase = createClient()
   const [me, setMe] = useState<Me | null | 'loading'>('loading')
@@ -41,6 +49,17 @@ export default function CollectPaymentPage() {
   const [receiptPhone, setReceiptPhone] = useState<string | null>(null)
   const [notifyTargets, setNotifyTargets] = useState<NotifyTarget[]>([])
   const [whatsappEnabled, setWhatsappEnabled] = useState(false)
+  const [lastCollectedAmount, setLastCollectedAmount] = useState(0)
+  const [lastOutstanding, setLastOutstanding] = useState(0)
+  const [lastConsumerMobile, setLastConsumerMobile] = useState<string | null>(null)
+
+  const [phoneInput, setPhoneInput] = useState('')
+  const [savingPhone, setSavingPhone] = useState(false)
+
+  const [complaintCategory, setComplaintCategory] = useState('')
+  const [complaintText, setComplaintText] = useState('')
+  const [savingComplaint, setSavingComplaint] = useState(false)
+  const [showComplaintForm, setShowComplaintForm] = useState(false)
 
   useEffect(() => {
     (async () => {
@@ -84,6 +103,35 @@ export default function CollectPaymentPage() {
     if (b) setAmount(outstanding(b))
   }
 
+  const savePhone = async () => {
+    if (!selectedConsumer || !phoneInput.trim()) { toast.error('Enter a phone number'); return }
+    setSavingPhone(true)
+    const { error } = await supabase.rpc('set_consumer_contact_number', { p_consumer_id: selectedConsumer.consumer_id, p_mobile: phoneInput.trim() })
+    setSavingPhone(false)
+    if (error) { toast.error(error.message); return }
+    setConsumers((cur) => cur.map((c) => (c.consumer_id === selectedConsumer.consumer_id ? { ...c, mobile: phoneInput.trim() } : c)))
+    setPhoneInput('')
+    toast.success('Phone number saved')
+  }
+
+  const logComplaint = async () => {
+    if (!me || me === 'loading' || !selectedConsumer) return
+    if (!complaintCategory) { toast.error('Select the type of issue'); return }
+    setSavingComplaint(true)
+    const categoryLabel = complaintCategories.find((c) => c.value === complaintCategory)?.label ?? complaintCategory
+    const { data, error } = await supabase.from('complaints').insert({
+      system: 'water_supply', category: complaintCategory,
+      complainant_name: selectedConsumer.name, phone: selectedConsumer.mobile || null, sector: selectedConsumer.sector || null,
+      complaint_text: complaintText.trim() || categoryLabel, source: 'manual',
+    }).select('complaint_number').single()
+    setSavingComplaint(false)
+    if (error) { toast.error(error.message); return }
+    toast.success(`Complaint ${data.complaint_number} logged`)
+    setComplaintCategory('')
+    setComplaintText('')
+    setShowComplaintForm(false)
+  }
+
   const submit = async () => {
     if (!me || me === 'loading' || !selectedConsumer || !selectedBill) { toast.error('Select a consumer and bill'); return }
     if (amount <= 0) { toast.error('Enter a valid amount'); return }
@@ -107,6 +155,9 @@ export default function CollectPaymentPage() {
       collectedByName: me.full_name,
     })
     setReceiptPhone(selectedConsumer.mobile)
+    setLastCollectedAmount(amount)
+    setLastOutstanding(newOutstanding)
+    setLastConsumerMobile(selectedConsumer.mobile)
     toast.success(`Collected Rs. ${fmt(amount)} from ${selectedConsumer.name}`)
 
     const { data: pref } = await supabase.from('notification_preferences').select('whatsapp_enabled').eq('event_type', 'collector_payment_collected').single()
@@ -125,12 +176,28 @@ export default function CollectPaymentPage() {
     load()
   }
 
+  // Deliberately reads from `receipt`/the last-collected snapshot rather than
+  // `selectedConsumer`/`amount` — submit() clears those right after posting
+  // (to reset the form for the next collection), so gating this on
+  // selectedConsumer meant the button silently did nothing the moment it
+  // became visible.
   const notifyViaWhatsApp = (target: NotifyTarget) => {
-    if (!target.mobile || !selectedConsumer) return
+    if (!target.mobile || !receipt) return
     const msg = encodeURIComponent(
-      `Dhab Pari — Payment Collected\n\nCollected Rs. ${fmt(amount)} from ${receipt?.accountName ?? ''} by ${me !== 'loading' && me ? me.full_name : ''}.\n\nPlease check /admin/collectors for the current holding balance.`
+      `Dhab Pari — Payment Collected\n\nCollected Rs. ${fmt(lastCollectedAmount)} from ${receipt.accountName} by ${me !== 'loading' && me ? me.full_name : ''}.\n\nPlease check /admin/collectors for the current holding balance.`
     )
     window.open(`https://wa.me/${normalizePakPhone(target.mobile)}?text=${msg}`, '_blank')
+  }
+
+  const notifyConsumerViaWhatsApp = () => {
+    if (!lastConsumerMobile || !receipt) return
+    const intl = normalizePakPhone(lastConsumerMobile)
+    if (!intl) { toast.error('No usable phone number for this consumer'); return }
+    const msg = encodeURIComponent(
+      `Dhab Pari — Payment Received\n\nThank you, ${receipt.accountName}. We received Rs. ${fmt(lastCollectedAmount)} against ${receipt.particular}.`
+      + (lastOutstanding > 0 ? `\n\nRemaining outstanding on this bill: Rs. ${fmt(lastOutstanding)}.` : '\n\nThis bill is now fully paid.')
+    )
+    window.open(`https://wa.me/${intl}?text=${msg}`, '_blank')
   }
 
   if (me === 'loading') return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
@@ -164,6 +231,20 @@ export default function CollectPaymentPage() {
             items={mySectorConsumers.map((c) => ({ id: c.consumer_id, label: c.name, sublabel: c.consumer_id, group: c.sector ?? undefined }))}
           />
         </div>
+
+        {selectedConsumer && !selectedConsumer.mobile && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <p className="font-sans text-[12.5px] font-semibold text-amber-900 mb-2 flex items-center gap-1.5">
+              <Phone size={13} /> No phone/WhatsApp number on file — ask {selectedConsumer.name} for one
+            </p>
+            <div className="flex gap-2">
+              <input value={phoneInput} onChange={(e) => setPhoneInput(e.target.value)} placeholder="0300-1234567" className="input-field !py-2 flex-1" />
+              <button disabled={savingPhone} onClick={savePhone} className="flex items-center gap-1.5 px-3 py-2 bg-amber-600 text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-amber-700 transition-all cursor-pointer disabled:opacity-50 shrink-0">
+                <Save size={13} /> Save
+              </button>
+            </div>
+          </div>
+        )}
 
         {selectedConsumer && (
           <>
@@ -222,21 +303,64 @@ export default function CollectPaymentPage() {
         )}
       </div>
 
-      {receipt && (
-        <>
-          <ReceiptModal data={receipt} phone={receiptPhone} onClose={() => { setReceipt(null); setNotifyTargets([]) }} />
-          {whatsappEnabled && notifyTargets.length > 0 && (
-            <div className="fixed bottom-4 right-4 bg-white border border-dp-outline-variant rounded-lg shadow-lg p-4 max-w-xs z-[110]">
-              <p className="font-sans text-[12.5px] font-bold text-dp-on-surface mb-2">Notify the accountant via WhatsApp</p>
-              <div className="flex flex-col gap-1.5">
-                {notifyTargets.map((t) => (
-                  <button key={t.id} onClick={() => notifyViaWhatsApp(t)} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#25d366] text-white rounded-lg font-sans text-[12px] font-semibold hover:opacity-90 transition-all cursor-pointer">
-                    <MessageCircle size={13} /> {t.full_name}
-                  </button>
-                ))}
+      {selectedConsumer && (
+        <div className="bg-white rounded-lg border border-dp-outline-variant p-5 max-w-xl mt-4">
+          {!showComplaintForm ? (
+            <button onClick={() => setShowComplaintForm(true)} className="flex items-center gap-2 text-dp-secondary font-sans text-[13.5px] font-semibold hover:underline cursor-pointer">
+              <MessageSquareWarning size={15} /> Log an issue for {selectedConsumer.name}
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <p className="font-sans text-[13.5px] font-bold text-dp-on-surface flex items-center gap-2"><MessageSquareWarning size={15} /> Log an Issue</p>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Issue Type</label>
+                <select value={complaintCategory} onChange={(e) => setComplaintCategory(e.target.value)} className="input-field">
+                  <option value="">Select an issue...</option>
+                  {complaintCategories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Details (optional, editable)</label>
+                <textarea value={complaintText} onChange={(e) => setComplaintText(e.target.value)} rows={3} className="input-field resize-none" placeholder="Add any details the consumer mentioned..." />
+              </div>
+              <div className="flex gap-2">
+                <button disabled={savingComplaint} onClick={logComplaint} className="flex-1 flex items-center justify-center gap-2 bg-dp-secondary text-white py-2 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+                  <Save size={14} /> {savingComplaint ? 'Saving...' : 'Save Complaint'}
+                </button>
+                <button onClick={() => { setShowComplaintForm(false); setComplaintCategory(''); setComplaintText('') }} className="px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">
+                  Cancel
+                </button>
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {receipt && (
+        <>
+          <ReceiptModal data={receipt} phone={receiptPhone} onClose={() => { setReceipt(null); setNotifyTargets([]) }} />
+          <div className="fixed bottom-4 right-4 bg-white border border-dp-outline-variant rounded-lg shadow-lg p-4 max-w-xs z-[110] space-y-3">
+            {lastConsumerMobile && (
+              <div>
+                <p className="font-sans text-[12.5px] font-bold text-dp-on-surface mb-2">Send receipt to consumer</p>
+                <button onClick={notifyConsumerViaWhatsApp} className="w-full flex items-center gap-1.5 px-2.5 py-1.5 bg-[#25d366] text-white rounded-lg font-sans text-[12px] font-semibold hover:opacity-90 transition-all cursor-pointer">
+                  <MessageCircle size={13} /> Send Receipt via WhatsApp
+                </button>
+              </div>
+            )}
+            {whatsappEnabled && notifyTargets.length > 0 && (
+              <div>
+                <p className="font-sans text-[12.5px] font-bold text-dp-on-surface mb-2">Notify the accountant via WhatsApp</p>
+                <div className="flex flex-col gap-1.5">
+                  {notifyTargets.map((t) => (
+                    <button key={t.id} onClick={() => notifyViaWhatsApp(t)} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#25d366] text-white rounded-lg font-sans text-[12px] font-semibold hover:opacity-90 transition-all cursor-pointer">
+                      <MessageCircle size={13} /> {t.full_name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </>
       )}
     </>

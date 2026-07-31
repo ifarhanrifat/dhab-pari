@@ -20,6 +20,10 @@ interface FlaggedConsumer { consumer: ConsumerRow; bills: FlaggedBill[]; totalOu
 function fmtAmount(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
+function outstanding(bill: BillRow) {
+  const net = Math.max(bill.amount_pkr - (bill.discount_amount ?? 0), 0)
+  return Math.max(net - (bill.paid_amount ?? 0), 0)
+}
 const monthName = (m: number) => new Date(2000, m - 1, 1).toLocaleDateString('en-US', { month: 'long' })
 
 export default function NonPaymentReportPage() {
@@ -59,7 +63,14 @@ export default function NonPaymentReportPage() {
       if (!consecutive) continue
       const bothUnpaid = latestTwo.every((bill) => billBadge(bill).tone !== 'green')
       if (!bothUnpaid) continue
-      const flaggedBills: FlaggedBill[] = latestTwo.map((bill) => {
+      // The 2-consecutive-months check above only decides WHETHER to flag this
+      // consumer — once flagged, show every bill they still owe on, not just
+      // the two that triggered the flag. A consumer who fully paid months 1-2,
+      // partially paid month 3, then missed months 4-5 outright would
+      // otherwise have month 3's partial balance silently dropped from the
+      // total, understating what's actually owed.
+      const allOutstanding = sorted.filter((bill) => outstanding(bill) > 0).sort((x, y) => (x.year * 12 + x.month) - (y.year * 12 + y.month))
+      const flaggedBills: FlaggedBill[] = allOutstanding.map((bill) => {
         const net = Math.max(bill.amount_pkr - (bill.discount_amount ?? 0), 0)
         const paid = bill.paid_amount ?? 0
         return { billId: bill.id, billNumber: bill.bill_number, month: bill.month, year: bill.year, net, paid, outstanding: Math.max(net - paid, 0) }

@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   }
 
   let body: {
-    email?: string; full_name?: string; role?: string
+    email?: string; full_name?: string; role?: string; secondary_role?: string | null
     can_post_transactions?: boolean; can_edit_transactions?: boolean; can_delete_transactions?: boolean
     can_view_reports?: boolean; can_approve_transactions?: boolean
     can_manage_parties?: boolean; can_manage_accounts?: boolean; can_edit_accounts?: boolean; can_delete_accounts?: boolean
@@ -40,14 +40,20 @@ export async function POST(req: NextRequest) {
   const email = body.email?.trim().toLowerCase()
   const fullName = body.full_name?.trim()
   const role = body.role
+  const secondaryRole = body.secondary_role?.trim() || null
 
   if (!email || !fullName || !role || !VALID_ROLES.includes(role)) {
     return NextResponse.json({ error: 'Email, full name, and a valid role are required.' }, { status: 400 })
   }
+  if (secondaryRole && (!VALID_ROLES.includes(secondaryRole) || secondaryRole === role)) {
+    return NextResponse.json({ error: 'Secondary role must be a different valid role.' }, { status: 400 })
+  }
 
   // Only a super admin may grant the super_admin role — an admin (even one with
-  // invite_users) can never create another super admin, including promoting itself.
-  if (role === 'super_admin' && caller?.role !== 'super_admin') {
+  // invite_users) can never create another super admin, including promoting itself,
+  // through either the primary or secondary slot.
+  const callerIsSuperAdmin = caller?.role === 'super_admin'
+  if ((role === 'super_admin' || secondaryRole === 'super_admin') && !callerIsSuperAdmin) {
     return NextResponse.json({ error: 'Only a Super Admin can grant the Super Admin role.' }, { status: 403 })
   }
 
@@ -64,7 +70,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { error: upsertError } = await admin.from('admin_users').upsert({
-    email, full_name: fullName, role, is_active: true,
+    email, full_name: fullName, role, secondary_role: secondaryRole, is_active: true,
     auth_user_id: invited.user.id,
     can_post_transactions: !!body.can_post_transactions,
     can_edit_transactions: !!body.can_edit_transactions,

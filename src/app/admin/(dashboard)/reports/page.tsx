@@ -144,7 +144,12 @@ function ReportsPageInner() {
   // residual (Assets − Liabilities) rather than its own account — the standard
   // simple approach for a non-profit committee instead of a stock-company "equity."
   const balanceSheetData = useMemo(() => {
-    const assetTypes = ['cash', 'bank', 'asset', 'consumer']
+    // 'collector' = cash currently held by a field collector, awaiting
+    // settlement into real Cash-in-Hand/Bank (migration 056) — a genuine
+    // asset in the meantime, and was missing from this list, which would have
+    // silently understated Total Assets (and the Fund Balance residual) by
+    // whatever any collector was currently holding uncleared.
+    const assetTypes = ['cash', 'bank', 'asset', 'consumer', 'collector']
     const assets = accounts.filter((a) => assetTypes.includes(a.type)).map((a) => ({ account: a, balance: balanceOf(a) }))
     const liabilities = accounts.filter((a) => a.type === 'liability').map((a) => ({ account: a, balance: balanceOf(a) }))
     const totalAssets = assets.reduce((s, r) => s + r.balance, 0)
