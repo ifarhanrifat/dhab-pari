@@ -224,6 +224,18 @@
   box-shadow: none;
 }
 
+/* Number input up/down steppers read as an unfinished/unprofessional form
+   control on transaction screens (quantity, rate, discount, amount fields) —
+   hidden everywhere in the admin panel. Users can still type or paste values. */
+.admin-shell input[type='number']::-webkit-outer-spin-button,
+.admin-shell input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.admin-shell input[type='number'] {
+  -moz-appearance: textfield;
+}
+
 /* --- Custom scrollbar for admin --- */
 .admin-scrollbar::-webkit-scrollbar { width: 6px; }
 .admin-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }

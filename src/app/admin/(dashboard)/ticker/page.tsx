@@ -58,7 +58,7 @@ export default function AdminTickerPage() {
             <div className="space-y-4">
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Message (EN)</label><textarea value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} rows={3} className="input-field resize-none" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Message (UR)</label><textarea value={form.message_ur} onChange={(e) => setForm({ ...form, message_ur: e.target.value })} rows={3} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Display Order</label><input type="number" value={form.display_order} onChange={(e) => setForm({ ...form, display_order: +e.target.value })} className="input-field" /></div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Display Order</label><input type="number" value={form.display_order || ''} onChange={(e) => setForm({ ...form, display_order: +e.target.value })} className="input-field" /></div>
               <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">Add Message</button>
             </div>
           </div>

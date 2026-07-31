@@ -6,9 +6,9 @@ import { toast, Toaster } from 'sonner'
 import { BulkActionsBar } from '@/components/admin/BulkActionsBar'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 
-interface Donor { id: string; name: string; phone: string | null; donor_type: string | null; amount_pkr: number; date: string; is_anonymous: boolean; is_verified: boolean; payment_method: string | null; notes: string | null; project_id: string | null }
+interface Donor { id: string; name: string; name_ur: string | null; phone: string | null; donor_type: string | null; amount_pkr: number; date: string; is_anonymous: boolean; is_verified: boolean; payment_method: string | null; notes: string | null; project_id: string | null }
 interface Project { id: string; title: string }
-const empty = { name: '', phone: '', donor_type: 'villager', amount_pkr: 0, date: new Date().toISOString().split('T')[0], is_anonymous: false, payment_method: 'cash', notes: '', project_id: '' }
+const empty = { name: '', name_ur: '', phone: '', donor_type: 'villager', amount_pkr: 0, date: new Date().toISOString().split('T')[0], is_anonymous: false, payment_method: 'cash', notes: '', project_id: '' }
 
 export default function AdminDonorsPage() {
   const [donors, setDonors] = useState<Donor[]>([])
@@ -33,7 +33,7 @@ export default function AdminDonorsPage() {
 
   const save = async () => {
     if (!form.name.trim()) { toast.error('Name required'); return }
-    const payload = { ...form, project_id: form.project_id || null, notes: form.notes || null, phone: form.phone || null }
+    const payload = { ...form, name_ur: form.name_ur || null, project_id: form.project_id || null, notes: form.notes || null, phone: form.phone || null }
     const { error } = await supabase.from('donors').insert({ ...payload, is_verified: true })
     if (error) { toast.error(error.message); return }
     toast.success('Donor added'); setShowForm(false); setForm(empty); load()
@@ -132,12 +132,13 @@ export default function AdminDonorsPage() {
             <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">Add Donor</h2><button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Name</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" /></div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Name (Urdu)</label><input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder="اردو میں نام" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Phone</label><input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0300-1234567" className="input-field" /></div>
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Donor Type</label><select value={form.donor_type} onChange={(e) => setForm({ ...form, donor_type: e.target.value })} className="input-field"><option value="villager">Villager (مقامی)</option><option value="overseas">Overseas (بیرون ملک)</option></select></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Amount (PKR)</label><input type="number" value={form.amount_pkr} onChange={(e) => setForm({ ...form, amount_pkr: +e.target.value })} className="input-field" /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Amount (PKR)</label><input type="number" value={form.amount_pkr || ''} onChange={(e) => setForm({ ...form, amount_pkr: +e.target.value })} className="input-field" /></div>
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Date</label><input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="input-field" /></div>
               </div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Payment Method</label><select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })} className="input-field"><option value="cash">Cash</option><option value="jazzcash">JazzCash</option><option value="easypaisa">Easypaisa</option><option value="bank">Bank</option></select></div>

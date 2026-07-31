@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -21,27 +22,55 @@ import {
   X,
   BookOpen,
   UserCog,
+  History,
+  Boxes,
+  ListFilter,
+  CalendarDays,
+  Repeat,
+  AlertTriangle,
+  Truck,
+  Coins,
+  ShieldCheck,
+  MessageSquareWarning,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const menuItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/billing', label: 'Billing', icon: Receipt },
+  { href: '/admin/billing', label: 'Billing', icon: Receipt, system: 'water_supply' },
   { href: '/admin/projects', label: 'Projects', icon: FolderKanban },
   { href: '/admin/members', label: 'Members', icon: Users },
   { href: '/admin/accounts', label: 'Accounts', icon: BookOpen },
   { href: '/admin/finance', label: 'Transactions', icon: BarChart3 },
+  { href: '/admin/transactions', label: 'All Transactions', icon: ListFilter },
+  { href: '/admin/register', label: 'Daily Register', icon: CalendarDays },
+  { href: '/admin/recurring', label: 'Recurring', icon: Repeat },
+  { href: '/admin/approvals', label: 'Approvals', icon: ShieldCheck },
+  { href: '/admin/inventory', label: 'Inventory & Services', icon: Boxes, system: 'water_supply' },
+  { href: '/admin/reports/non-payment', label: 'Non-Payment Report', icon: AlertTriangle, system: 'water_supply' },
+  { href: '/admin/collect', label: 'Collect Payment', icon: Truck, collectorOnly: true },
+  { href: '/admin/collectors', label: 'Collectors', icon: Coins, system: 'water_supply' },
   { href: '/admin/news', label: 'News', icon: Newspaper },
   { href: '/admin/videos', label: 'Videos', icon: Video },
-  { href: '/admin/donors', label: 'Donors', icon: Heart },
+  { href: '/admin/donors', label: 'Donors', icon: Heart, system: 'donors_projects' },
   { href: '/admin/gallery', label: 'Gallery', icon: Image },
   { href: '/admin/suggestions', label: 'Suggestions', icon: MessageSquare },
+  { href: '/admin/complaints', label: 'Complaints', icon: MessageSquareWarning },
   { href: '/admin/ticker', label: 'Ticker', icon: TicketSlash },
   { href: '/admin/notifications', label: 'Alerts', icon: Bell },
   { href: '/admin/reports', label: 'Reports', icon: FileText },
-  { href: '/admin/users', label: 'Users', icon: UserCog },
-  { href: '/admin/settings', label: 'Settings', icon: Settings },
+  { href: '/admin/users', label: 'Users', icon: UserCog, adminAndAbove: true },
+  { href: '/admin/audit-log', label: 'Audit Log', icon: History, adminAndAbove: true },
+  { href: '/admin/settings', label: 'Settings', icon: Settings, superAdminOnly: true },
 ]
+
+const roleLabels: Record<string, string> = {
+  super_admin: 'Super Admin',
+  water_accountant: 'Water Accountant',
+  donor_accountant: 'Donor Accountant',
+  publisher: 'Publisher',
+  viewer: 'Viewer',
+}
 
 interface AdminSidebarProps {
   mobileOpen?: boolean
@@ -52,6 +81,15 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+  const [profile, setProfile] = useState<{ full_name: string; role: string; can_collect_payments: boolean } | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data } = await supabase.from('admin_users').select('full_name, role, can_collect_payments').eq('auth_user_id', user.id).single()
+      if (data) setProfile(data)
+    })
+  }, [supabase])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -59,11 +97,21 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
     router.refresh()
   }
 
+  const visibleMenuItems = menuItems.filter((item) => {
+    if (!profile) return !item.collectorOnly
+    if (item.collectorOnly && !profile.can_collect_payments) return false
+    if (item.superAdminOnly && profile.role !== 'super_admin') return false
+    if (item.adminAndAbove && profile.role !== 'super_admin' && profile.role !== 'admin') return false
+    if (item.system === 'water_supply' && profile.role === 'donor_accountant') return false
+    if (item.system === 'donors_projects' && profile.role === 'water_accountant') return false
+    return true
+  })
+
   const sidebarContent = (
     <>
       {/* Menu */}
       <nav className="flex-1 space-y-1 overflow-y-auto">
-        {menuItems.map((item) => {
+        {visibleMenuItems.map((item) => {
           const Icon = item.icon
           const isActive =
             item.href === '/admin'
@@ -92,14 +140,14 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
         <div className="bg-dp-primary-container p-3 rounded-lg mb-3">
           <div className="flex items-center">
             <div className="w-8 h-8 rounded-full bg-[#5bc8a3] text-dp-primary flex items-center justify-center font-bold text-[12px] font-sans mr-2 shrink-0">
-              A
+              {(profile?.full_name ?? '?').charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
               <p className="text-white text-[13px] font-sans font-semibold truncate">
-                Admin User
+                {profile?.full_name ?? 'Loading...'}
               </p>
               <p className="text-white/60 text-[11px] font-sans">
-                Super Admin
+                {profile ? (roleLabels[profile.role] ?? profile.role) : ''}
               </p>
             </div>
           </div>
@@ -118,7 +166,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col h-screen fixed left-0 top-0 py-6 bg-dp-primary border-r border-dp-outline-variant w-[210px] z-50">
+      <aside className="hidden md:flex flex-col h-screen fixed left-0 top-0 py-6 bg-dp-primary border-r border-dp-outline-variant w-[210px] z-50 print:hidden">
         <div className="px-4 mb-8">
           <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">
             Admin Portal

@@ -1,0 +1,521 @@
+'use client'
+
+import { useEffect, useState, useCallback, useRef, use as usePromise } from 'react'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
+import { ArrowLeft, Eye, Pencil, Trash2, Printer, PlusCircle, X, Save, Banknote } from 'lucide-react'
+import { toast, Toaster } from 'sonner'
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { ReceiptModal } from '@/components/admin/ReceiptModal'
+import { DocumentHeader } from '@/components/admin/DocumentHeader'
+import type { ReceiptData } from '@/components/admin/ReceiptDocument'
+import { fetchBrandingSettings } from '@/lib/branding'
+import { printNodeInPopup } from '@/lib/receiptExport'
+
+interface Account {
+  id: string; code: string; name: string; name_ur: string | null
+  type: string; system: string; opening_balance: number; is_active: boolean
+  consumer_id: string | null; donor_key: string | null
+}
+interface ConsumerInfo {
+  consumer_id: string; mobile: string; address: string | null; connections: number
+}
+interface LedgerRow {
+  id: string; account_id: string; entry_date: string; particular: string
+  debit: number; credit: number; reference_type: 'bill' | 'payment' | 'donation' | 'manual' | null
+  reference_id: string | null; bill_number: string | null; receipt_no: string | null
+}
+interface BillStatus { status: string; paid_amount: number; amount_pkr: number; discount_amount: number }
+
+const systemLabels: Record<string, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects System' }
+
+function fmtAmount(n: number) {
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+function fmtDate(d: string) {
+  return new Date(d).toLocaleDateString('en-GB')
+}
+
+export default function ViewAccountPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = usePromise(params)
+  const [account, setAccount] = useState<Account | null>(null)
+  const [consumerInfo, setConsumerInfo] = useState<ConsumerInfo | null>(null)
+  const [rows, setRows] = useState<(LedgerRow & { balance: number })[]>([])
+  const [billStatusMap, setBillStatusMap] = useState<Record<string, BillStatus>>({})
+  const [paymentBillMap, setPaymentBillMap] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+  const [confirmDeleteRow, setConfirmDeleteRow] = useState<LedgerRow | null>(null)
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null)
+  const [editBillRow, setEditBillRow] = useState<LedgerRow | null>(null)
+  const [billForm, setBillForm] = useState({ month: 1, year: 2026, amount_pkr: 0 })
+  const [payBillRow, setPayBillRow] = useState<LedgerRow | null>(null)
+  const [payForm, setPayForm] = useState({ amount: 0, method: 'cash', note: '' })
+  const [payOutstanding, setPayOutstanding] = useState(0)
+  const [paying, setPaying] = useState(false)
+  const [showManualForm, setShowManualForm] = useState(false)
+  const [manualForm, setManualForm] = useState({ entry_date: new Date().toISOString().slice(0, 10), particular: '', debit: 0, credit: 0 })
+  const [printing, setPrinting] = useState(false)
+  const [lang, setLang] = useState<'en' | 'ur'>('en')
+  const statementRef = useRef<HTMLDivElement>(null)
+  const supabase = createClient()
+
+  const load = useCallback(async () => {
+    const { data: acc } = await supabase.from('accounts').select('*').eq('id', id).single()
+    setAccount(acc)
+
+    const brandingSettings = await fetchBrandingSettings()
+    if (brandingSettings.language === 'ur') setLang('ur')
+
+    if (acc?.type === 'consumer' && acc.consumer_id) {
+      const { data: c } = await supabase.from('consumers').select('consumer_id, mobile, address, connections').eq('consumer_id', acc.consumer_id).single()
+      setConsumerInfo(c)
+    } else {
+      setConsumerInfo(null)
+    }
+
+    const { data: entries } = await supabase
+      .from('ledger_entries')
+      .select('*')
+      .eq('account_id', id)
+      .order('entry_date', { ascending: true })
+      .order('created_at', { ascending: true })
+
+    // Same normal-balance rule as the Chart of Accounts list: income/liability/donor
+    // accounts increase with a credit, everything else increases with a debit.
+    const creditNormal = acc?.type === 'donor' || acc?.type === 'income' || acc?.type === 'liability'
+    let running = acc?.opening_balance ?? 0
+    const withBalance = (entries ?? []).map((e) => {
+      running += creditNormal ? Number(e.credit) - Number(e.debit) : Number(e.debit) - Number(e.credit)
+      return { ...e, balance: running }
+    })
+    setRows(withBalance)
+
+    // Per-row bill status, so the Receive Payment control can be hidden once a bill
+    // is fully paid instead of showing unconditionally for every bill-referencing row.
+    const billIds = new Set((entries ?? [])
+      .filter((e) => e.reference_type === 'bill' && e.reference_id)
+      .map((e) => e.reference_id as string))
+
+    // A "payment" ledger row's own balance is the account's running total, not the
+    // specific bill's remaining balance — that only lives on payments.bill_id. Resolve
+    // it here so receipts can show a reliable Paid/Partial stamp for that one bill.
+    const paymentIds = Array.from(new Set((entries ?? [])
+      .filter((e) => e.reference_type === 'payment' && e.reference_id)
+      .map((e) => e.reference_id as string)))
+    let paymentBills: Record<string, string> = {}
+    if (paymentIds.length > 0) {
+      const { data: paymentsData } = await supabase.from('payments').select('id, bill_id').in('id', paymentIds)
+      paymentBills = Object.fromEntries((paymentsData ?? []).filter((p) => p.bill_id).map((p) => [p.id, p.bill_id as string]))
+      Object.values(paymentBills).forEach((billId) => billIds.add(billId))
+    }
+    setPaymentBillMap(paymentBills)
+
+    if (billIds.size > 0) {
+      const { data: billsData } = await supabase.from('bills').select('id, status, paid_amount, amount_pkr, discount_amount').in('id', Array.from(billIds))
+      setBillStatusMap(Object.fromEntries((billsData ?? []).map((b) => [b.id, { status: b.status, paid_amount: b.paid_amount ?? 0, amount_pkr: b.amount_pkr, discount_amount: b.discount_amount ?? 0 }])))
+    } else {
+      setBillStatusMap({})
+    }
+    setLoading(false)
+  }, [id, supabase])
+
+  useEffect(() => { load() }, [load])
+
+  const openView = async (row: LedgerRow & { balance: number }) => {
+    let receiptNo = row.id.slice(0, 8).toUpperCase()
+    let phone: string | null = null
+    let billOutstandingAfter: number | null = null
+    if (row.reference_type === 'payment' && row.reference_id) {
+      const { data } = await supabase.from('payments').select('receipt_no').eq('id', row.reference_id).single()
+      if (data?.receipt_no) receiptNo = data.receipt_no
+      const billId = paymentBillMap[row.reference_id]
+      const bill = billId ? billStatusMap[billId] : undefined
+      if (bill) {
+        const net = Math.max(bill.amount_pkr - bill.discount_amount, 0)
+        billOutstandingAfter = Math.max(net - bill.paid_amount, 0)
+      }
+    }
+    if (consumerInfo) phone = consumerInfo.mobile
+
+    setReceipt({
+      kind: row.reference_type ?? 'manual',
+      receiptNo,
+      date: row.entry_date,
+      systemLabel: systemLabels[account?.system ?? ''] ?? '',
+      accountName: account?.name ?? '',
+      accountNameUr: account?.name_ur,
+      accountAddress: consumerInfo?.address,
+      particular: row.particular,
+      amount: row.debit > 0 ? row.debit : row.credit,
+      balanceAfter: row.balance,
+      billOutstandingAfter,
+    })
+    void phone
+  }
+
+  const handlePrintStatement = () => {
+    if (!statementRef.current) return
+    setPrinting(true)
+    // Hide the Actions column before cloning — it has no place on a printed statement.
+    const hidden = Array.from(statementRef.current.querySelectorAll<HTMLElement>('.no-export'))
+    const prevDisplay = hidden.map((el) => el.style.display)
+    hidden.forEach((el) => { el.style.display = 'none' })
+    const scrollers = Array.from(statementRef.current.querySelectorAll<HTMLElement>('.overflow-x-auto'))
+    const prevOverflow = scrollers.map((el) => el.style.overflow)
+    scrollers.forEach((el) => { el.style.overflow = 'visible' })
+    try {
+      // Print via an isolated about:blank popup rather than window.print() on the live page —
+      // printing the actual admin route would leak its internal URL (and account UUID) into
+      // the printed output's browser-injected header/footer.
+      const ok = printNodeInPopup(statementRef.current, `Statement - ${account?.name ?? ''}`)
+      if (!ok) toast.error('Please allow pop-ups to print this statement')
+    } finally {
+      hidden.forEach((el, i) => { el.style.display = prevDisplay[i] })
+      scrollers.forEach((el, i) => { el.style.overflow = prevOverflow[i] })
+      setPrinting(false)
+    }
+  }
+
+  const openEditBill = async (row: LedgerRow) => {
+    if (!row.reference_id) return
+    const { data } = await supabase.from('bills').select('*').eq('id', row.reference_id).single()
+    if (!data) return
+    setBillForm({ month: data.month, year: data.year, amount_pkr: data.amount_pkr })
+    setEditBillRow(row)
+  }
+
+  const saveBillEdit = async () => {
+    if (!editBillRow?.reference_id) return
+    const { error } = await supabase.from('bills').update(billForm).eq('id', editBillRow.reference_id)
+    if (error) { toast.error(error.message); return }
+    toast.success('Bill updated')
+    setEditBillRow(null)
+    load()
+  }
+
+  const openReceivePayment = async (row: LedgerRow) => {
+    if (!row.reference_id) return
+    const { data } = await supabase.from('bills').select('amount_pkr, paid_amount, discount_amount').eq('id', row.reference_id).single()
+    if (!data) return
+    const outstanding = data.amount_pkr - (data.discount_amount ?? 0) - (data.paid_amount ?? 0)
+    if (outstanding <= 0) { toast.info('This bill is already fully paid'); return }
+    setPayOutstanding(outstanding)
+    setPayForm({ amount: outstanding, method: 'cash', note: '' })
+    setPayBillRow(row)
+  }
+
+  const savePayment = async () => {
+    if (!payBillRow?.reference_id || !account?.consumer_id) return
+    // The full entered amount posts even if it exceeds what's outstanding — an
+    // overpayment becomes a tracked advance credit on the consumer's ledger rather
+    // than being silently discarded.
+    const amount = payForm.amount
+    if (amount <= 0) { toast.error('Enter a valid amount'); return }
+    setPaying(true)
+    const { error } = await supabase.from('payments').insert({
+      bill_id: payBillRow.reference_id, consumer_id: account.consumer_id,
+      amount_pkr: amount, method: payForm.method, note: payForm.note || null,
+    })
+    setPaying(false)
+    if (error) { toast.error(error.message); return }
+    if (amount > payOutstanding) {
+      toast.success(`Payment recorded — Rs. ${fmtAmount(amount - payOutstanding)} credited as advance balance`)
+    } else {
+      toast.success(amount >= payOutstanding ? 'Payment recorded — bill paid in full' : `Partial payment of Rs. ${fmtAmount(amount)} recorded`)
+    }
+    setPayBillRow(null)
+    load()
+  }
+
+  const deleteRow = async () => {
+    if (!confirmDeleteRow) return
+    const row = confirmDeleteRow
+    let error = null
+    if (row.reference_type === 'bill' && row.reference_id) {
+      ({ error } = await supabase.from('bills').delete().eq('id', row.reference_id))
+    } else if (row.reference_type === 'payment' && row.reference_id) {
+      ({ error } = await supabase.from('payments').delete().eq('id', row.reference_id))
+    } else if (row.reference_type === 'donation' && row.reference_id) {
+      ({ error } = await supabase.from('donors').delete().eq('id', row.reference_id))
+    } else {
+      ({ error } = await supabase.from('ledger_entries').delete().eq('id', row.id))
+    }
+    if (error) { toast.error(error.message); return }
+    toast.success('Transaction deleted')
+    setConfirmDeleteRow(null)
+    load()
+  }
+
+  const saveManualEntry = async () => {
+    if (!manualForm.particular.trim()) { toast.error('Particular is required'); return }
+    if (!manualForm.debit && !manualForm.credit) { toast.error('Enter a debit or credit amount'); return }
+    const { error } = await supabase.from('ledger_entries').insert({
+      account_id: id, entry_date: manualForm.entry_date, particular: manualForm.particular,
+      debit: manualForm.debit || 0, credit: manualForm.credit || 0, reference_type: 'manual',
+    })
+    if (error) { toast.error(error.message); return }
+    toast.success('Entry added')
+    setShowManualForm(false)
+    setManualForm({ entry_date: new Date().toISOString().slice(0, 10), particular: '', debit: 0, credit: 0 })
+    load()
+  }
+
+  if (loading) {
+    return <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">Loading account...</div>
+  }
+  if (!account) {
+    return (
+      <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center">
+        <p className="font-sans text-dp-on-surface-variant mb-4">Account not found.</p>
+        <Link href="/admin/accounts" className="text-dp-secondary font-sans font-semibold">Back to Chart of Accounts</Link>
+      </div>
+    )
+  }
+
+  const isParty = account.type === 'consumer' || account.type === 'donor'
+  const currentBalance = rows.length > 0 ? rows[rows.length - 1].balance : account.opening_balance
+  const accountPrimaryName = lang === 'ur' && account.name_ur ? account.name_ur : account.name
+  const accountSecondaryName = lang === 'ur' && account.name_ur ? account.name : account.name_ur
+
+  return (
+    <>
+      <Toaster position="top-right" />
+
+      <div className="flex items-center justify-between mb-6 print:hidden">
+        <Link href="/admin/accounts" className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold">
+          <ArrowLeft size={16} /> Back to Chart of Accounts
+        </Link>
+        <div className="flex items-center gap-2">
+          {!isParty && (
+            <button onClick={() => setShowManualForm(true)} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+              <PlusCircle size={15} /> Add Manual Entry
+            </button>
+          )}
+          <button disabled={printing} onClick={handlePrintStatement} className="flex items-center gap-2 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
+            <Printer size={15} /> Print Statement
+          </button>
+        </div>
+      </div>
+
+      <div ref={statementRef}>
+      <div className="bg-white rounded-lg border border-dp-outline-variant p-6 mb-4">
+        <DocumentHeader title={systemLabels[account.system]} />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="font-heading text-[24px] font-bold text-dp-primary">{accountPrimaryName}</h1>
+            {lang === 'ur' && accountSecondaryName && (
+              <p className="text-[15px] text-dp-on-surface-variant">
+                {accountSecondaryName}
+              </p>
+            )}
+            {consumerInfo && (
+              <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">
+                {consumerInfo.mobile}{consumerInfo.address ? ` · ${consumerInfo.address}` : ''} · {consumerInfo.connections} connection{consumerInfo.connections === 1 ? '' : 's'}
+              </p>
+            )}
+            <p className="font-mono text-[12px] text-dp-on-surface-variant mt-1">{account.code}</p>
+          </div>
+          <div className="text-right">
+            <p className="font-sans text-[12px] font-bold tracking-widest uppercase text-dp-on-surface-variant">
+              {account.type === 'donor' ? 'Total Contributed' : account.type === 'consumer' && currentBalance < 0 ? 'Advance Balance' : 'Current Balance'}
+            </p>
+            <p className={`font-heading text-[28px] font-bold ${account.type === 'consumer' && currentBalance > 0 ? 'text-dp-error' : account.type === 'consumer' && currentBalance < 0 ? 'text-emerald-600' : 'text-dp-primary'}`}>
+              Rs. {fmtAmount(account.type === 'consumer' && currentBalance < 0 ? -currentBalance : currentBalance)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[720px]">
+            <thead>
+              <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
+                <th className="px-4 py-2.5">Date</th>
+                <th className="px-4 py-2.5">Particular</th>
+                <th className="px-4 py-2.5">Bill #</th>
+                {consumerInfo && <th className="px-4 py-2.5 text-center">Connections</th>}
+                {account.type === 'donor' ? (
+                  <th className="px-4 py-2.5 text-right">Amount Donated</th>
+                ) : (
+                  <>
+                    <th className="px-4 py-2.5 text-right">Bill Receivable</th>
+                    <th className="px-4 py-2.5 text-right">Paid</th>
+                  </>
+                )}
+                <th className="px-4 py-2.5 text-right">{account.type === 'donor' ? 'Total' : 'Balance'}</th>
+                <th className="no-export px-4 py-2.5 text-right print:hidden">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
+                  <td className="px-4 py-3 whitespace-nowrap">{fmtDate(row.entry_date)}</td>
+                  <td className="px-4 py-3">{row.particular}</td>
+                  <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant whitespace-nowrap">
+                    {row.bill_number ?? '—'}
+                    {row.receipt_no && <span className="block text-dp-secondary">Receipt #{row.receipt_no}</span>}
+                  </td>
+                  {consumerInfo && <td className="px-4 py-3 text-center">{consumerInfo.connections}</td>}
+                  {account.type === 'donor' ? (
+                    <td className="px-4 py-3 text-right">{fmtAmount(row.credit)}</td>
+                  ) : (
+                    <>
+                      <td className="px-4 py-3 text-right">{row.debit > 0 ? fmtAmount(row.debit) : '—'}</td>
+                      <td className="px-4 py-3 text-right">{row.credit > 0 ? fmtAmount(row.credit) : '—'}</td>
+                    </>
+                  )}
+                  <td className="px-4 py-3 text-right font-bold">{fmtAmount(row.balance)}</td>
+                  <td className="no-export px-4 py-3 text-right print:hidden">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button onClick={() => openView(row)} title="View" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Eye size={15} /></button>
+                      {row.reference_type === 'bill' && row.reference_id && (
+                        <>
+                          {billStatusMap[row.reference_id]?.status === 'paid' ? (
+                            <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 whitespace-nowrap">Paid</span>
+                          ) : (
+                            <>
+                              {billStatusMap[row.reference_id]?.status === 'partial' && (
+                                <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-amber-100 text-amber-800 whitespace-nowrap">
+                                  Partial: Rs {fmtAmount(billStatusMap[row.reference_id].amount_pkr - billStatusMap[row.reference_id].discount_amount - billStatusMap[row.reference_id].paid_amount)}
+                                </span>
+                              )}
+                              <button onClick={() => openReceivePayment(row)} title="Receive Now" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Banknote size={15} /></button>
+                            </>
+                          )}
+                          <button onClick={() => openEditBill(row)} title="Edit" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></button>
+                        </>
+                      )}
+                      <button onClick={() => setConfirmDeleteRow(row)} title="Delete" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={4 + (consumerInfo ? 1 : 0) + (account.type === 'donor' ? 2 : 3)} className="px-4 py-12 text-center text-dp-on-surface-variant font-sans">
+                    No transactions yet for this account.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </div>
+
+      <ConfirmDialog
+        open={!!confirmDeleteRow}
+        title="Delete Transaction"
+        message="Are you sure you want to delete this transaction? This cannot be undone."
+        onConfirm={deleteRow}
+        onCancel={() => setConfirmDeleteRow(null)}
+      />
+
+      {receipt && <ReceiptModal data={receipt} phone={consumerInfo?.mobile} onClose={() => setReceipt(null)} />}
+
+      {editBillRow && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setEditBillRow(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">Edit Bill</h2>
+              <button onClick={() => setEditBillRow(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Month</label>
+                  <input type="number" min={1} max={12} value={billForm.month || ''} onChange={(e) => setBillForm({ ...billForm, month: +e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Year</label>
+                  <input type="number" value={billForm.year || ''} onChange={(e) => setBillForm({ ...billForm, year: +e.target.value })} className="input-field" />
+                </div>
+              </div>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Amount (PKR)</label>
+                <input type="number" value={billForm.amount_pkr || ''} onChange={(e) => setBillForm({ ...billForm, amount_pkr: +e.target.value })} className="input-field" />
+              </div>
+              <button onClick={saveBillEdit} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                <Save size={16} /> Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {payBillRow && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPayBillRow(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">Receive Payment</h2>
+              <button onClick={() => setPayBillRow(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{payBillRow.particular} · Outstanding: Rs. {fmtAmount(payOutstanding)}</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Amount (PKR)</label>
+                <input type="number" value={payForm.amount || ''} onChange={(e) => setPayForm({ ...payForm, amount: +e.target.value })} className="input-field" />
+                {payForm.amount > payOutstanding && (
+                  <p className="text-[12px] font-sans text-dp-secondary mt-1.5">
+                    Rs. {fmtAmount(payForm.amount - payOutstanding)} above the bill will be recorded as an advance credit on this consumer&apos;s account.
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Method</label>
+                <select value={payForm.method} onChange={(e) => setPayForm({ ...payForm, method: e.target.value })} className="input-field">
+                  <option value="cash">Cash</option>
+                  <option value="jazzcash">JazzCash</option>
+                  <option value="easypaisa">Easypaisa</option>
+                  <option value="bank">Bank Transfer</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Note (optional)</label>
+                <input value={payForm.note} onChange={(e) => setPayForm({ ...payForm, note: e.target.value })} className="input-field" />
+              </div>
+              <button disabled={paying} onClick={savePayment} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+                <Banknote size={16} /> Record Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showManualForm && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowManualForm(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">Add Manual Entry</h2>
+              <button onClick={() => setShowManualForm(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Date</label>
+                <input type="date" value={manualForm.entry_date} onChange={(e) => setManualForm({ ...manualForm, entry_date: e.target.value })} className="input-field" />
+              </div>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Particular</label>
+                <input value={manualForm.particular} onChange={(e) => setManualForm({ ...manualForm, particular: e.target.value })} className="input-field" placeholder="e.g. Cash deposit" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Debit</label>
+                  <input type="number" value={manualForm.debit || ''} onChange={(e) => setManualForm({ ...manualForm, debit: +e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Credit</label>
+                  <input type="number" value={manualForm.credit || ''} onChange={(e) => setManualForm({ ...manualForm, credit: +e.target.value })} className="input-field" />
+                </div>
+              </div>
+              <button onClick={saveManualEntry} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                <Save size={16} /> Add Entry
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
