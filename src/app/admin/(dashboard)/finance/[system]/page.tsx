@@ -104,7 +104,7 @@ const emptyBillForm = {
 }
 const emptyDonationForm = { name: '', name_ur: '', phone: '', donor_type: 'villager', amount_pkr: 0, date: today(), payment_method: 'cash', project_id: '', is_anonymous: false }
 const frequencyLabels: Record<Frequency, string> = { every_minute: 'Every Minute (Testing)', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', semi_annual: 'Every 6 Months', yearly: 'Yearly' }
-const emptyNewLine = { kind: 'custom' as 'inventory' | 'service' | 'custom', itemId: '', description: '', quantity: 1, unit_price: 0, discount_pct: 0 }
+const emptyNewLine = { kind: 'custom' as 'inventory' | 'service' | 'custom', itemId: '', description: '', quantity: 1, unit_price: 0, discount_pct: 0, is_recurring: false }
 const emptyPurchaseForm = { date: today(), vendor: '', method: 'cash' as 'cash' | 'bank', note: '', attachment_url: '' }
 const emptyNewPurchaseLine = { itemId: '', quantity: 1, unit_cost: 0 }
 
@@ -185,7 +185,9 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [billModalStep, setBillModalStep] = useState<'closed' | 'picker' | 'detail'>('closed')
   const [billPickerTab, setBillPickerTab] = useState<'items' | 'services'>('items')
   const [catalogSearch, setCatalogSearch] = useState('')
+  const [editingLineIndex, setEditingLineIndex] = useState<number | null>(null)
   const [purchaseModalStep, setPurchaseModalStep] = useState<'closed' | 'picker' | 'detail'>('closed')
+  const [editingPurchaseLineIndex, setEditingPurchaseLineIndex] = useState<number | null>(null)
   const supabase = createClient()
 
   const load = useCallback(async () => {
@@ -650,33 +652,48 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setShowDiscountModePicker(false)
   }
 
-  const addCatalogLine = (): boolean => {
-    // Manually added items (a new connection charge, an extra meter, an ad-hoc
-    // service) default to one-off — only the auto-populated monthly service charge
-    // from the connection template defaults to recurring. The checkbox in the table
-    // lets the accountant override either way.
+  // Builds the line object from the in-progress modal form (newLine) — shared
+  // by both "add a new line" and "save changes to an existing line" so the two
+  // paths can never drift out of sync on how a line gets constructed.
+  const buildLineFromNewLine = (): BillLine | null => {
     if (newLine.kind === 'custom') {
-      if (!newLine.description.trim()) { toast.error('Enter a description'); return false }
-      if (billLines.some((l) => l.item_type === 'custom' && l.description.trim().toLowerCase() === newLine.description.trim().toLowerCase())) {
-        toast.error(`"${newLine.description.trim()}" is already on this bill — edit that line's quantity instead of adding it twice`); return false
-      }
-      setBillLines([...billLines, { item_type: 'custom', inventory_item_id: null, service_item_id: null, charge_account_id: null, description: newLine.description, quantity: newLine.quantity || 1, unit_price: newLine.unit_price || 0, is_recurring: false, discount_pct: discountMode === 'per_item' ? (newLine.discount_pct || 0) : 0 }])
+      if (!newLine.description.trim()) { toast.error('Enter a description'); return null }
+      return { item_type: 'custom', inventory_item_id: null, service_item_id: null, charge_account_id: null, description: newLine.description, quantity: newLine.quantity || 1, unit_price: newLine.unit_price || 0, is_recurring: newLine.is_recurring, discount_pct: discountMode === 'per_item' ? (newLine.discount_pct || 0) : 0 }
     } else if (newLine.kind === 'inventory') {
       const item = inventoryItems.find((i) => i.id === newLine.itemId)
-      if (!item) { toast.error('Choose an inventory item'); return false }
-      if (billLines.some((l) => l.item_type === 'inventory' && l.inventory_item_id === item.id)) {
-        toast.error(`${item.name} is already on this bill — edit that line's quantity instead of adding it twice`); return false
-      }
-      setBillLines([...billLines, { item_type: 'inventory', inventory_item_id: item.id, service_item_id: null, charge_account_id: null, description: newLine.description || item.name, quantity: newLine.quantity || 1, unit_price: newLine.unit_price || item.unit_price, is_recurring: false, discount_pct: discountMode === 'per_item' ? (newLine.discount_pct || 0) : 0 }])
+      if (!item) { toast.error('Choose an inventory item'); return null }
+      return { item_type: 'inventory', inventory_item_id: item.id, service_item_id: null, charge_account_id: null, description: newLine.description || item.name, quantity: newLine.quantity || 1, unit_price: newLine.unit_price || item.unit_price, is_recurring: newLine.is_recurring, discount_pct: discountMode === 'per_item' ? (newLine.discount_pct || 0) : 0 }
     } else {
       const item = serviceItems.find((i) => i.id === newLine.itemId)
-      if (!item) { toast.error('Choose a service'); return false }
-      if (billLines.some((l) => l.item_type === 'service' && l.service_item_id === item.id)) {
-        toast.error(`${item.name} is already on this bill — edit that line's quantity instead of adding it twice`); return false
-      }
-      setBillLines([...billLines, { item_type: 'service', inventory_item_id: null, service_item_id: item.id, charge_account_id: null, description: newLine.description || item.name, quantity: newLine.quantity || 1, unit_price: newLine.unit_price || item.charge_amount, is_recurring: false, discount_pct: discountMode === 'per_item' ? (newLine.discount_pct || 0) : 0 }])
+      if (!item) { toast.error('Choose a service'); return null }
+      return { item_type: 'service', inventory_item_id: null, service_item_id: item.id, charge_account_id: null, description: newLine.description || item.name, quantity: newLine.quantity || 1, unit_price: newLine.unit_price || item.charge_amount, is_recurring: newLine.is_recurring, discount_pct: discountMode === 'per_item' ? (newLine.discount_pct || 0) : 0 }
+    }
+  }
+
+  // Manually added items (a new connection charge, an extra meter, an ad-hoc
+  // service) default to one-off unless the Recurring checkbox in the modal is
+  // ticked — only the auto-populated monthly service charge from the
+  // connection template defaults to recurring on its own.
+  const addCatalogLine = (): boolean => {
+    const line = buildLineFromNewLine()
+    if (!line) return false
+    const isDuplicate = billLines.some((l, i) => {
+      if (editingLineIndex !== null && i === editingLineIndex) return false
+      if (line.item_type === 'custom') return l.item_type === 'custom' && l.description.trim().toLowerCase() === line.description.trim().toLowerCase()
+      if (line.item_type === 'inventory') return l.item_type === 'inventory' && l.inventory_item_id === line.inventory_item_id
+      return l.item_type === 'service' && l.service_item_id === line.service_item_id
+    })
+    if (isDuplicate) {
+      toast.error(`"${line.description}" is already on this bill — edit that line instead of adding it twice`)
+      return false
+    }
+    if (editingLineIndex !== null) {
+      setBillLines(billLines.map((l, i) => (i === editingLineIndex ? line : l)))
+    } else {
+      setBillLines([...billLines, line])
     }
     setNewLine(emptyNewLine)
+    setEditingLineIndex(null)
     return true
   }
 
@@ -694,6 +711,21 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setNewLine({ ...emptyNewLine, kind: 'custom' })
     setBillModalStep('detail')
   }
+  const openEditLine = (idx: number) => {
+    const l = billLines[idx]
+    // "Other charge" lines are tied to a charge account picked in the separate
+    // Add Other Charge section, not an item/service — they're not editable
+    // through this modal (the pencil icon is hidden for them in the list).
+    if (l.item_type === 'other_charge') return
+    setNewLine({
+      kind: l.item_type,
+      itemId: (l.inventory_item_id || l.service_item_id) ?? '',
+      description: l.description, quantity: l.quantity, unit_price: l.unit_price,
+      discount_pct: l.discount_pct || 0, is_recurring: l.is_recurring,
+    })
+    setEditingLineIndex(idx)
+    setBillModalStep('detail')
+  }
   const saveDetailAndClose = () => { if (addCatalogLine()) setBillModalStep('closed') }
   const saveDetailAndNew = () => { if (addCatalogLine()) { setCatalogSearch(''); setBillModalStep('picker') } }
 
@@ -703,12 +735,16 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setNewPurchaseLine({ itemId: id, quantity: 1, unit_cost: item.unit_cost })
     setPurchaseModalStep('detail')
   }
+  const openEditPurchaseLine = (idx: number) => {
+    const l = purchaseLines[idx]
+    setNewPurchaseLine({ itemId: l.inventory_item_id, quantity: l.quantity, unit_cost: l.unit_cost })
+    setEditingPurchaseLineIndex(idx)
+    setPurchaseModalStep('detail')
+  }
   const savePurchaseDetailAndClose = () => { if (addPurchaseLine()) setPurchaseModalStep('closed') }
   const savePurchaseDetailAndNew = () => { if (addPurchaseLine()) { setCatalogSearch(''); setPurchaseModalStep('picker') } }
 
   const removeLine = (idx: number) => setBillLines(billLines.filter((_, i) => i !== idx))
-  const updateLine = (idx: number, patch: Partial<BillLine>) =>
-    setBillLines(billLines.map((l, i) => (i === idx ? { ...l, ...patch } : l)))
 
   // Other charges (cartage, a new-connection fee, anything not a stocked/service
   // item) post to their own chosen account instead of the generic Water Bill
@@ -963,16 +999,24 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     const item = inventoryItems.find((i) => i.id === newPurchaseLine.itemId)
     if (!item) { toast.error('Choose an inventory item'); return false }
     if (!newPurchaseLine.quantity || newPurchaseLine.quantity <= 0) { toast.error('Enter a valid quantity'); return false }
-    if (purchaseLines.some((l) => l.inventory_item_id === item.id)) {
-      toast.error(`${item.name} is already on this purchase — edit that line's quantity instead of adding it twice`); return false
+    const isDuplicate = purchaseLines.some((l, i) => {
+      if (editingPurchaseLineIndex !== null && i === editingPurchaseLineIndex) return false
+      return l.inventory_item_id === item.id
+    })
+    if (isDuplicate) {
+      toast.error(`${item.name} is already on this purchase — edit that line instead of adding it twice`); return false
     }
-    setPurchaseLines([...purchaseLines, { inventory_item_id: item.id, description: item.name, quantity: newPurchaseLine.quantity, unit_cost: newPurchaseLine.unit_cost || item.unit_cost }])
+    const line = { inventory_item_id: item.id, description: item.name, quantity: newPurchaseLine.quantity, unit_cost: newPurchaseLine.unit_cost || item.unit_cost }
+    if (editingPurchaseLineIndex !== null) {
+      setPurchaseLines(purchaseLines.map((l, i) => (i === editingPurchaseLineIndex ? line : l)))
+    } else {
+      setPurchaseLines([...purchaseLines, line])
+    }
     setNewPurchaseLine(emptyNewPurchaseLine)
+    setEditingPurchaseLineIndex(null)
     return true
   }
   const removePurchaseLine = (idx: number) => setPurchaseLines(purchaseLines.filter((_, i) => i !== idx))
-  const updatePurchaseLine = (idx: number, patch: Partial<PurchaseLine>) =>
-    setPurchaseLines(purchaseLines.map((l, i) => (i === idx ? { ...l, ...patch } : l)))
 
   const savePurchaseBill = async () => {
     if (purchaseLines.length === 0) { toast.error('Add at least one item to the purchase bill'); return }
@@ -1243,11 +1287,20 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 />
 
                 <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Bill Number</label>
+                  <p className="input-field !py-3 bg-dp-surface-container-low text-dp-on-surface-variant">
+                    {editingBill ? editingBill.bill_number : 'Auto-generated when saved'}
+                  </p>
+                </div>
+
+                <div>
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Billing Period</label>
                   <input
-                    type="month"
-                    value={billForm.month && billForm.year ? `${billForm.year}-${String(billForm.month).padStart(2, '0')}` : ''}
+                    type="date"
+                    required
+                    value={billForm.month && billForm.year ? `${billForm.year}-${String(billForm.month).padStart(2, '0')}-01` : ''}
                     onChange={(e) => {
+                      if (!e.target.value) return
                       const [y, m] = e.target.value.split('-').map(Number)
                       setBillForm({ ...billForm, year: y, month: m })
                     }}
@@ -1255,7 +1308,10 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   />
                 </div>
 
-                {/* Line items — connections/services auto-pulled from the default template, plus anything added manually */}
+                {/* Line items — connections/services auto-pulled from the default template, plus anything added manually.
+                    Kept deliberately read-only here: quantity/rate/discount only ever get set or
+                    changed inside the Add Item/Service modal (pencil icon reopens it pre-filled),
+                    never as raw inputs sitting on the main page. */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant">Billing Items</label>
@@ -1270,108 +1326,36 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     {billLines.length === 0 ? (
                       <p className="px-4 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No items yet — choose a consumer or add one below.</p>
                     ) : (
-                      <>
-                        {/* Desktop: table */}
-                        <table className="w-full hidden md:table" style={{ tableLayout: 'fixed' }}>
-                          <colgroup>
-                            <col />
-                            <col style={{ width: '76px' }} />
-                            <col style={{ width: '96px' }} />
-                            {discountMode === 'per_item' && <col style={{ width: '76px' }} />}
-                            <col style={{ width: '104px' }} />
-                            <col style={{ width: '76px' }} />
-                            <col style={{ width: '36px' }} />
-                          </colgroup>
-                          <thead>
-                            <tr className="text-left text-dp-on-surface-variant text-[11px] font-bold uppercase tracking-[0.06em] border-b border-dp-outline-variant">
-                              <th className="px-4 py-3">Description</th>
-                              <th className="px-2 py-3 text-right">Qty</th>
-                              <th className="px-2 py-3 text-right">Rate</th>
-                              {discountMode === 'per_item' && <th className="px-2 py-3 text-right">Disc %</th>}
-                              <th className="px-4 py-3 text-right">Amount</th>
-                              <th className="px-2 py-3 text-center" title="Recharged automatically on each recurring bill">Recurring</th>
-                              <th></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {billLines.map((l, i) => {
-                              const lineGross = l.quantity * l.unit_price
-                              const lineDiscount = discountMode === 'per_item' ? (lineGross * (l.discount_pct || 0)) / 100 : 0
-                              return (
-                                <tr key={i} className="group border-b border-dp-outline-variant last:border-b-0 hover:bg-dp-surface-container-low/40 transition-colors">
-                                  <td className="px-4 py-2.5 font-sans text-[14px] font-medium text-dp-on-surface truncate">{l.description}</td>
-                                  <td className="px-1 py-2">
-                                    <input type="number" min={0.01} step="0.01" value={l.quantity} onChange={(e) => updateLine(i, { quantity: +e.target.value })} className="w-full text-right bg-transparent rounded-md px-2 py-2 font-sans text-[14px] focus:bg-dp-surface-container-low focus:ring-2 focus:ring-dp-secondary/30 focus:outline-none transition-all" />
-                                  </td>
-                                  <td className="px-1 py-2">
-                                    <input type="number" min={0} step="0.01" value={l.unit_price} onChange={(e) => updateLine(i, { unit_price: +e.target.value })} className="w-full text-right bg-transparent rounded-md px-2 py-2 font-sans text-[14px] focus:bg-dp-surface-container-low focus:ring-2 focus:ring-dp-secondary/30 focus:outline-none transition-all" />
-                                  </td>
-                                  {discountMode === 'per_item' && (
-                                    <td className="px-1 py-2">
-                                      <input type="number" min={0} max={100} step="0.01" value={l.discount_pct || ''} onChange={(e) => updateLine(i, { discount_pct: +e.target.value })} className="w-full text-right bg-transparent rounded-md px-2 py-2 font-sans text-[14px] focus:bg-dp-surface-container-low focus:ring-2 focus:ring-dp-secondary/30 focus:outline-none transition-all" />
-                                    </td>
-                                  )}
-                                  <td className="px-4 py-2.5 text-right font-sans text-[14px] font-bold text-dp-on-surface whitespace-nowrap">
-                                    {fmtAmount(lineGross - lineDiscount)}
-                                    {lineDiscount > 0 && <span className="block text-[11px] font-normal text-emerald-700">− {fmtAmount(lineDiscount)}</span>}
-                                  </td>
-                                  <td className="px-2 py-2 text-center">
-                                    <input type="checkbox" checked={l.is_recurring} onChange={(e) => updateLine(i, { is_recurring: e.target.checked })} className="accent-dp-secondary w-4 h-4 cursor-pointer" />
-                                  </td>
-                                  <td className="px-2">
-                                    <button onClick={() => removeLine(i)} className="opacity-0 group-hover:opacity-100 transition-opacity text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={13} /></button>
-                                  </td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
-
-                        {/* Mobile: cards */}
-                        <div className="md:hidden divide-y divide-dp-outline-variant">
-                          {billLines.map((l, i) => {
-                            const lineGross = l.quantity * l.unit_price
-                            const lineDiscount = discountMode === 'per_item' ? (lineGross * (l.discount_pct || 0)) / 100 : 0
-                            return (
-                              <div key={i} className="p-3.5">
-                                <div className="flex items-start justify-between gap-2 mb-2.5">
-                                  <p className="font-sans text-[14px] font-bold text-dp-on-surface leading-snug">{l.description}</p>
-                                  <button onClick={() => removeLine(i)} className="shrink-0 text-dp-on-surface-variant hover:text-dp-error cursor-pointer p-1 -m-1"><Trash2 size={15} /></button>
-                                </div>
-                                <div className="flex items-end gap-2 mb-2.5">
-                                  <div className="flex-1">
-                                    <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Qty</label>
-                                    <input type="number" min={0.01} step="0.01" value={l.quantity} onChange={(e) => updateLine(i, { quantity: +e.target.value })} className="input-field !py-2 text-[14px]" />
-                                  </div>
-                                  <div className="flex-1">
-                                    <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Rate</label>
-                                    <input type="number" min={0} step="0.01" value={l.unit_price} onChange={(e) => updateLine(i, { unit_price: +e.target.value })} className="input-field !py-2 text-[14px]" />
-                                  </div>
-                                  {discountMode === 'per_item' && (
-                                    <div className="flex-1">
-                                      <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Disc %</label>
-                                      <input type="number" min={0} max={100} step="0.01" value={l.discount_pct || ''} onChange={(e) => updateLine(i, { discount_pct: +e.target.value })} className="input-field !py-2 text-[14px]" />
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <label className="flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-dp-on-surface-variant cursor-pointer">
-                                    <input type="checkbox" checked={l.is_recurring} onChange={(e) => updateLine(i, { is_recurring: e.target.checked })} className="accent-dp-secondary w-4 h-4 cursor-pointer" /> Recurring
-                                  </label>
-                                  <div className="text-right">
-                                    <span className="block font-sans text-[15px] font-bold text-dp-on-surface">{fmtAmount(lineGross - lineDiscount)}</span>
-                                    {lineDiscount > 0 && <span className="block text-[11px] font-normal text-emerald-700">− {fmtAmount(lineDiscount)}</span>}
-                                  </div>
-                                </div>
+                      <div className="divide-y divide-dp-outline-variant">
+                        {billLines.map((l, i) => {
+                          const lineGross = l.quantity * l.unit_price
+                          const lineDiscount = discountMode === 'per_item' ? (lineGross * (l.discount_pct || 0)) / 100 : 0
+                          return (
+                            <div key={i} className="flex items-center gap-3 px-4 py-3 hover:bg-dp-surface-container-low/40 transition-colors">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-sans text-[14.5px] font-bold text-dp-on-surface truncate">{l.description}</p>
+                                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                                  {l.quantity} × Rs. {fmtAmount(l.unit_price)}{l.is_recurring ? ' · Recurring' : ''}
+                                </p>
                               </div>
-                            )
-                          })}
-                        </div>
-                      </>
+                              <div className="text-right shrink-0">
+                                <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">Rs. {fmtAmount(lineGross - lineDiscount)}</p>
+                                {lineDiscount > 0 && <p className="font-sans text-[11px] text-emerald-700">− {fmtAmount(lineDiscount)}</p>}
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {l.item_type !== 'other_charge' && (
+                                  <button onClick={() => openEditLine(i)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Pencil size={14} /></button>
+                                )}
+                                <button onClick={() => removeLine(i)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={14} /></button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
                     )}
                     <div className="p-4 bg-dp-surface-container-low/50 border-t border-dp-outline-variant">
                       <button
-                        onClick={() => { setCatalogSearch(''); setBillPickerTab('items'); refetchCatalog(); setBillModalStep('picker') }}
+                        onClick={() => { setCatalogSearch(''); setBillPickerTab('items'); setEditingLineIndex(null); setNewLine(emptyNewLine); refetchCatalog(); setBillModalStep('picker') }}
                         className="w-full flex items-center justify-center gap-2 py-3.5 bg-dp-secondary text-white rounded-full font-sans text-[15.5px] font-bold hover:bg-dp-primary transition-all cursor-pointer shadow-sm"
                       >
                         <Plus size={19} /> Add Item / Service
@@ -1405,60 +1389,48 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         </div>
                       </div>
                       <button onClick={addOtherChargeLine} className="flex items-center gap-1.5 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"><Plus size={14} /> Add Charge</button>
+
+                      <div className="pt-1">
+                        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Security Deposit / Advance (optional, refundable)</label>
+                        {editingBill?.security_deposit_voucher_id ? (
+                          <p className="input-field !py-3 bg-dp-surface-container-low text-dp-on-surface-variant">Rs. {fmtAmount(billForm.security_deposit_amount)} — already recorded</p>
+                        ) : (
+                          <input type="number" min={0} value={billForm.security_deposit_amount || ''} onChange={(e) => setBillForm({ ...billForm, security_deposit_amount: +e.target.value })} className="input-field" />
+                        )}
+                        {editingBill?.security_deposit_voucher_id && (
+                          <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">To change the security deposit, delete its voucher from Transactions first, then edit this bill again.</p>
+                        )}
+                      </div>
+
+                      {/* Entering an amount above only records what's owed/promised — it never
+                          moves cash on its own. Receiving it is a deliberate, separate action
+                          here (same as "Receive Payment Now" below), exactly like a real cash
+                          receipt is its own transaction distinct from the invoice it settles. */}
+                      {billForm.security_deposit_amount > 0 && !editingBill?.security_deposit_voucher_id && (
+                        <div className="border border-dp-outline-variant rounded-lg p-3.5">
+                          <label className="flex items-center gap-2 cursor-pointer mb-2">
+                            <input type="checkbox" checked={receiveDepositNow} onChange={(e) => setReceiveDepositNow(e.target.checked)} className="accent-dp-secondary" />
+                            <span className="font-sans text-[14px] font-semibold flex items-center gap-1.5"><Banknote size={14} /> Receive Deposit Now</span>
+                          </label>
+                          {receiveDepositNow ? (
+                            <SearchableField
+                              label="Received Into" value={billForm.deposit_account_id} placeholder="Select account..."
+                              items={accountPickerItems((a) => a.type === 'cash' || a.type === 'bank')}
+                              onChange={(id) => setBillForm({ ...billForm, deposit_account_id: id })}
+                            />
+                          ) : (
+                            <p className="font-sans text-[12px] text-dp-on-surface-variant">Leave unchecked to just record the deposit as owed — no cash transaction is created until you actually receive it (here, or later by editing this bill).</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-4">
-                  <div className="flex-1 min-w-[160px]">
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 truncate" title={discountMode === 'per_item' ? 'Discount (from per-item %)' : undefined}>
-                      {discountMode === 'per_item' ? 'Discount (Per Item)' : 'Discount (optional)'}
-                    </label>
-                    {discountMode === 'per_item' ? (
-                      <p className="input-field !py-3 bg-dp-surface-container-low text-dp-on-surface-variant">Rs. {fmtAmount(perItemDiscountTotal)}</p>
-                    ) : (
-                      <input type="number" min={0} value={billForm.discount_amount || ''} onChange={(e) => setBillForm({ ...billForm, discount_amount: +e.target.value })} className="input-field" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-[160px]">
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Due Date</label>
-                    <input type="date" value={billForm.due_date} onChange={(e) => setBillForm({ ...billForm, due_date: e.target.value })} className="input-field" />
-                  </div>
-                </div>
-
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Security Deposit / Advance (optional, refundable)</label>
-                  {editingBill?.security_deposit_voucher_id ? (
-                    <p className="input-field !py-3 bg-dp-surface-container-low text-dp-on-surface-variant">Rs. {fmtAmount(billForm.security_deposit_amount)} — already recorded</p>
-                  ) : (
-                    <input type="number" min={0} value={billForm.security_deposit_amount || ''} onChange={(e) => setBillForm({ ...billForm, security_deposit_amount: +e.target.value })} className="input-field" />
-                  )}
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Due Date</label>
+                  <input type="date" value={billForm.due_date} onChange={(e) => setBillForm({ ...billForm, due_date: e.target.value })} className="input-field" />
                 </div>
-                {editingBill?.security_deposit_voucher_id && (
-                  <p className="font-sans text-[12px] text-dp-on-surface-variant -mt-2">To change the security deposit, delete its voucher from Transactions first, then edit this bill again.</p>
-                )}
-
-                {/* Entering an amount above only records what's owed/promised — it never
-                    moves cash on its own. Receiving it is a deliberate, separate action
-                    here (same as "Receive Payment Now" below), exactly like a real cash
-                    receipt is its own transaction distinct from the invoice it settles. */}
-                {billForm.security_deposit_amount > 0 && !editingBill?.security_deposit_voucher_id && (
-                  <div className="border border-dp-outline-variant rounded-lg p-3.5">
-                    <label className="flex items-center gap-2 cursor-pointer mb-2">
-                      <input type="checkbox" checked={receiveDepositNow} onChange={(e) => setReceiveDepositNow(e.target.checked)} className="accent-dp-secondary" />
-                      <span className="font-sans text-[14px] font-semibold flex items-center gap-1.5"><Banknote size={14} /> Receive Deposit Now</span>
-                    </label>
-                    {receiveDepositNow ? (
-                      <SearchableField
-                        label="Received Into" value={billForm.deposit_account_id} placeholder="Select account..."
-                        items={accountPickerItems((a) => a.type === 'cash' || a.type === 'bank')}
-                        onChange={(id) => setBillForm({ ...billForm, deposit_account_id: id })}
-                      />
-                    ) : (
-                      <p className="font-sans text-[12px] text-dp-on-surface-variant">Leave unchecked to just record the deposit as owed — no cash transaction is created until you actually receive it (here, or later by editing this bill).</p>
-                    )}
-                  </div>
-                )}
 
                 <div>
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Description (optional)</label>
@@ -1570,67 +1542,25 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     {purchaseLines.length === 0 ? (
                       <p className="px-4 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No items yet — add one below.</p>
                     ) : (
-                      <>
-                        {/* Desktop: table */}
-                        <table className="w-full hidden md:table">
-                          <thead>
-                            <tr className="text-left text-dp-on-surface-variant text-[11px] font-bold uppercase tracking-[0.06em] border-b border-dp-outline-variant">
-                              <th className="px-4 py-3">Item</th>
-                              <th className="px-3 py-3 text-right w-24">Qty</th>
-                              <th className="px-3 py-3 text-right w-32">Unit Cost</th>
-                              <th className="px-4 py-3 text-right w-32">Amount</th>
-                              <th className="w-10"></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {purchaseLines.map((l, i) => (
-                              <tr key={i} className="group border-b border-dp-outline-variant last:border-b-0 hover:bg-dp-surface-container-low/40 transition-colors">
-                                <td className="px-4 py-2.5 font-sans text-[14.5px] font-medium text-dp-on-surface truncate">{l.description}</td>
-                                <td className="px-2 py-2">
-                                  <input type="number" min={0.01} step="0.01" value={l.quantity} onChange={(e) => updatePurchaseLine(i, { quantity: +e.target.value })} className="w-full text-right bg-transparent rounded-md px-2 py-2 font-sans text-[14.5px] focus:bg-dp-surface-container-low focus:ring-2 focus:ring-dp-secondary/30 focus:outline-none transition-all" />
-                                </td>
-                                <td className="px-2 py-2">
-                                  <input type="number" min={0} step="0.01" value={l.unit_cost} onChange={(e) => updatePurchaseLine(i, { unit_cost: +e.target.value })} className="w-full text-right bg-transparent rounded-md px-2 py-2 font-sans text-[14.5px] focus:bg-dp-surface-container-low focus:ring-2 focus:ring-dp-secondary/30 focus:outline-none transition-all" />
-                                </td>
-                                <td className="px-4 py-2.5 text-right font-sans text-[14.5px] font-bold text-dp-on-surface whitespace-nowrap">{fmtAmount(l.quantity * l.unit_cost)}</td>
-                                <td className="px-2">
-                                  <button onClick={() => removePurchaseLine(i)} className="opacity-0 group-hover:opacity-100 transition-opacity text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={14} /></button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-
-                        {/* Mobile: cards */}
-                        <div className="md:hidden divide-y divide-dp-outline-variant">
-                          {purchaseLines.map((l, i) => (
-                            <div key={i} className="p-3.5">
-                              <div className="flex items-start justify-between gap-2 mb-2.5">
-                                <p className="font-sans text-[14.5px] font-bold text-dp-on-surface leading-snug">{l.description}</p>
-                                <button onClick={() => removePurchaseLine(i)} className="shrink-0 text-dp-on-surface-variant hover:text-dp-error cursor-pointer p-1 -m-1"><Trash2 size={15} /></button>
-                              </div>
-                              <div className="flex items-end gap-2">
-                                <div className="flex-1">
-                                  <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Qty</label>
-                                  <input type="number" min={0.01} step="0.01" value={l.quantity} onChange={(e) => updatePurchaseLine(i, { quantity: +e.target.value })} className="input-field !py-2 text-[14.5px]" />
-                                </div>
-                                <div className="flex-1">
-                                  <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Unit Cost</label>
-                                  <input type="number" min={0} step="0.01" value={l.unit_cost} onChange={(e) => updatePurchaseLine(i, { unit_cost: +e.target.value })} className="input-field !py-2 text-[14.5px]" />
-                                </div>
-                                <div className="shrink-0 text-right pb-1.5">
-                                  <span className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Amount</span>
-                                  <span className="block font-sans text-[15px] font-bold text-dp-on-surface">{fmtAmount(l.quantity * l.unit_cost)}</span>
-                                </div>
-                              </div>
+                      <div className="divide-y divide-dp-outline-variant">
+                        {purchaseLines.map((l, i) => (
+                          <div key={i} className="flex items-center gap-3 px-4 py-3 hover:bg-dp-surface-container-low/40 transition-colors">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-sans text-[14.5px] font-bold text-dp-on-surface truncate">{l.description}</p>
+                              <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{l.quantity} × Rs. {fmtAmount(l.unit_cost)}</p>
                             </div>
-                          ))}
-                        </div>
-                      </>
+                            <p className="text-right shrink-0 font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">Rs. {fmtAmount(l.quantity * l.unit_cost)}</p>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button onClick={() => openEditPurchaseLine(i)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Pencil size={14} /></button>
+                              <button onClick={() => removePurchaseLine(i)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={14} /></button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     )}
                     <div className="p-4 bg-dp-surface-container-low/50 border-t border-dp-outline-variant">
                       <button
-                        onClick={() => { setCatalogSearch(''); refetchCatalog(); setPurchaseModalStep('picker') }}
+                        onClick={() => { setCatalogSearch(''); setEditingPurchaseLineIndex(null); setNewPurchaseLine(emptyNewPurchaseLine); refetchCatalog(); setPurchaseModalStep('picker') }}
                         className="w-full flex items-center justify-center gap-2 py-3.5 bg-dp-secondary text-white rounded-full font-sans text-[15.5px] font-bold hover:bg-dp-primary transition-all cursor-pointer shadow-sm"
                       >
                         <Plus size={19} /> Add Item
@@ -1895,11 +1825,11 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       )}
 
       {billModalStep === 'picker' && (
-        <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setBillModalStep('closed')}>
+        <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => { setBillModalStep('closed'); setEditingLineIndex(null) }}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant shrink-0">
               <h2 className="font-heading text-[19px] font-bold text-dp-primary">Add Item / Service</h2>
-              <button onClick={() => setBillModalStep('closed')} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
+              <button onClick={() => { setBillModalStep('closed'); setEditingLineIndex(null) }} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
             </div>
 
             <div className="px-5 pt-4 shrink-0">
@@ -1944,12 +1874,13 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         const gross = (newLine.quantity || 0) * (newLine.unit_price || 0)
         const disc = discountMode === 'per_item' ? gross * (newLine.discount_pct || 0) / 100 : 0
         const total = gross - disc
+        const closeModal = () => { setBillModalStep('closed'); setEditingLineIndex(null) }
         return (
-          <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setBillModalStep('closed')}>
+          <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={closeModal}>
             <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center gap-2 px-5 py-4 border-b border-dp-outline-variant">
                 <button onClick={() => setBillModalStep('picker')} className="p-1 -ml-1 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer"><ChevronLeft size={20} /></button>
-                <h2 className="font-heading text-[18px] font-bold text-dp-primary truncate">{newLine.kind === 'custom' ? 'Custom Charge' : (newLine.description || 'Item')}</h2>
+                <h2 className="font-heading text-[18px] font-bold text-dp-primary truncate">{editingLineIndex !== null ? 'Edit Item' : (newLine.kind === 'custom' ? 'Custom Charge' : (newLine.description || 'Item'))}</h2>
               </div>
               <div className="p-5 space-y-4">
                 <div>
@@ -1978,13 +1909,19 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     </div>
                   </div>
                 )}
+                <label className="flex items-center gap-2 cursor-pointer" title="Recharged automatically on each recurring bill">
+                  <input type="checkbox" checked={newLine.is_recurring} onChange={(e) => setNewLine({ ...newLine, is_recurring: e.target.checked })} className="accent-dp-secondary w-4 h-4 cursor-pointer" />
+                  <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">Recurring</span>
+                </label>
                 <div className="flex items-center justify-between pt-2 border-t border-dp-outline-variant">
                   <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Total</span>
                   <span className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmtAmount(total)}</span>
                 </div>
               </div>
               <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
-                <button onClick={saveDetailAndNew} className="flex-1 px-4 py-3 border-2 border-dp-secondary rounded-full font-sans text-[14px] font-bold text-dp-secondary hover:bg-dp-secondary/5 transition-all cursor-pointer">Save & New</button>
+                {editingLineIndex === null && (
+                  <button onClick={saveDetailAndNew} className="flex-1 px-4 py-3 border-2 border-dp-secondary rounded-full font-sans text-[14px] font-bold text-dp-secondary hover:bg-dp-secondary/5 transition-all cursor-pointer">Save & New</button>
+                )}
                 <button onClick={saveDetailAndClose} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer">Save</button>
               </div>
             </div>
@@ -1993,11 +1930,11 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       })()}
 
       {purchaseModalStep === 'picker' && (
-        <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setPurchaseModalStep('closed')}>
+        <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => { setPurchaseModalStep('closed'); setEditingPurchaseLineIndex(null) }}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant shrink-0">
               <h2 className="font-heading text-[19px] font-bold text-dp-primary">Add Item</h2>
-              <button onClick={() => setPurchaseModalStep('closed')} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
+              <button onClick={() => { setPurchaseModalStep('closed'); setEditingPurchaseLineIndex(null) }} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
             </div>
             <div className="px-5 pt-4 shrink-0">
               <div className="relative">
@@ -2026,12 +1963,13 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       {purchaseModalStep === 'detail' && (() => {
         const item = inventoryItems.find((i) => i.id === newPurchaseLine.itemId)
         const total = (newPurchaseLine.quantity || 0) * (newPurchaseLine.unit_cost || 0)
+        const closeModal = () => { setPurchaseModalStep('closed'); setEditingPurchaseLineIndex(null) }
         return (
-          <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setPurchaseModalStep('closed')}>
+          <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={closeModal}>
             <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center gap-2 px-5 py-4 border-b border-dp-outline-variant">
                 <button onClick={() => setPurchaseModalStep('picker')} className="p-1 -ml-1 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer"><ChevronLeft size={20} /></button>
-                <h2 className="font-heading text-[18px] font-bold text-dp-primary truncate">{item?.name ?? 'Item'}</h2>
+                <h2 className="font-heading text-[18px] font-bold text-dp-primary truncate">{editingPurchaseLineIndex !== null ? 'Edit Item' : (item?.name ?? 'Item')}</h2>
               </div>
               <div className="p-5 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -2050,7 +1988,9 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 </div>
               </div>
               <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
-                <button onClick={savePurchaseDetailAndNew} className="flex-1 px-4 py-3 border-2 border-dp-secondary rounded-full font-sans text-[14px] font-bold text-dp-secondary hover:bg-dp-secondary/5 transition-all cursor-pointer">Save & New</button>
+                {editingPurchaseLineIndex === null && (
+                  <button onClick={savePurchaseDetailAndNew} className="flex-1 px-4 py-3 border-2 border-dp-secondary rounded-full font-sans text-[14px] font-bold text-dp-secondary hover:bg-dp-secondary/5 transition-all cursor-pointer">Save & New</button>
+                )}
                 <button onClick={savePurchaseDetailAndClose} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer">Save</button>
               </div>
             </div>
