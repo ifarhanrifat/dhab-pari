@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, Save, Wallet, ArrowDownCircle, ArrowLeftRight, ArrowUpFromLine,
-  ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck, ChevronDown,
+  ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck, ChevronDown, Search, PlusCircle, ChevronLeft,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
@@ -104,7 +104,7 @@ const emptyBillForm = {
 }
 const emptyDonationForm = { name: '', name_ur: '', phone: '', donor_type: 'villager', amount_pkr: 0, date: today(), payment_method: 'cash', project_id: '', is_anonymous: false }
 const frequencyLabels: Record<Frequency, string> = { every_minute: 'Every Minute (Testing)', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', semi_annual: 'Every 6 Months', yearly: 'Yearly' }
-const emptyNewLine = { kind: 'custom' as 'inventory' | 'service' | 'custom', itemId: '', description: '', quantity: 1, unit_price: 0 }
+const emptyNewLine = { kind: 'custom' as 'inventory' | 'service' | 'custom', itemId: '', description: '', quantity: 1, unit_price: 0, discount_pct: 0 }
 const emptyPurchaseForm = { date: today(), vendor: '', method: 'cash' as 'cash' | 'bank', note: '', attachment_url: '' }
 const emptyNewPurchaseLine = { itemId: '', quantity: 1, unit_cost: 0 }
 
@@ -179,6 +179,13 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [purchaseForm, setPurchaseForm] = useState(emptyPurchaseForm)
   const [purchaseLines, setPurchaseLines] = useState<PurchaseLine[]>([])
   const [newPurchaseLine, setNewPurchaseLine] = useState(emptyNewPurchaseLine)
+
+  // Add Item/Service flow: a big button opens a tabbed Items/Services picker,
+  // picking one (or "Custom Charge") opens a detail step for qty/rate/discount.
+  const [billModalStep, setBillModalStep] = useState<'closed' | 'picker' | 'detail'>('closed')
+  const [billPickerTab, setBillPickerTab] = useState<'items' | 'services'>('items')
+  const [catalogSearch, setCatalogSearch] = useState('')
+  const [purchaseModalStep, setPurchaseModalStep] = useState<'closed' | 'picker' | 'detail'>('closed')
   const supabase = createClient()
 
   const load = useCallback(async () => {
@@ -357,6 +364,19 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   }, [system, supabase, logSortDir])
 
   useEffect(() => { load() }, [load])
+
+  // Cheap refresh of just the item/service catalog — called when opening the
+  // Add Item/Service picker, so an item created moments ago in another tab
+  // (via "+ Add New Item") shows up without re-fetching the whole page.
+  const refetchCatalog = useCallback(async () => {
+    if (system !== 'water_supply') return
+    const [invRes, svcRes] = await Promise.all([
+      supabase.from('inventory_items').select('id, name, unit_price, unit_cost, unit').eq('is_active', true).order('name'),
+      supabase.from('service_items').select('id, name, charge_amount').eq('is_active', true).order('name'),
+    ])
+    setInventoryItems(invRes.data ?? [])
+    setServiceItems(svcRes.data ?? [])
+  }, [system, supabase])
 
   // A consumer can only ever have one active recurring bill — checked here so the
   // Set Recurring checkbox can be disabled up front, instead of only failing at
@@ -630,34 +650,61 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setShowDiscountModePicker(false)
   }
 
-  const addCatalogLine = () => {
+  const addCatalogLine = (): boolean => {
     // Manually added items (a new connection charge, an extra meter, an ad-hoc
     // service) default to one-off — only the auto-populated monthly service charge
     // from the connection template defaults to recurring. The checkbox in the table
     // lets the accountant override either way.
     if (newLine.kind === 'custom') {
-      if (!newLine.description.trim()) { toast.error('Enter a description'); return }
+      if (!newLine.description.trim()) { toast.error('Enter a description'); return false }
       if (billLines.some((l) => l.item_type === 'custom' && l.description.trim().toLowerCase() === newLine.description.trim().toLowerCase())) {
-        toast.error(`"${newLine.description.trim()}" is already on this bill — edit that line's quantity instead of adding it twice`); return
+        toast.error(`"${newLine.description.trim()}" is already on this bill — edit that line's quantity instead of adding it twice`); return false
       }
-      setBillLines([...billLines, { item_type: 'custom', inventory_item_id: null, service_item_id: null, charge_account_id: null, description: newLine.description, quantity: newLine.quantity || 1, unit_price: newLine.unit_price || 0, is_recurring: false, discount_pct: 0 }])
+      setBillLines([...billLines, { item_type: 'custom', inventory_item_id: null, service_item_id: null, charge_account_id: null, description: newLine.description, quantity: newLine.quantity || 1, unit_price: newLine.unit_price || 0, is_recurring: false, discount_pct: discountMode === 'per_item' ? (newLine.discount_pct || 0) : 0 }])
     } else if (newLine.kind === 'inventory') {
       const item = inventoryItems.find((i) => i.id === newLine.itemId)
-      if (!item) { toast.error('Choose an inventory item'); return }
+      if (!item) { toast.error('Choose an inventory item'); return false }
       if (billLines.some((l) => l.item_type === 'inventory' && l.inventory_item_id === item.id)) {
-        toast.error(`${item.name} is already on this bill — edit that line's quantity instead of adding it twice`); return
+        toast.error(`${item.name} is already on this bill — edit that line's quantity instead of adding it twice`); return false
       }
-      setBillLines([...billLines, { item_type: 'inventory', inventory_item_id: item.id, service_item_id: null, charge_account_id: null, description: item.name, quantity: newLine.quantity || 1, unit_price: item.unit_price, is_recurring: false, discount_pct: 0 }])
+      setBillLines([...billLines, { item_type: 'inventory', inventory_item_id: item.id, service_item_id: null, charge_account_id: null, description: newLine.description || item.name, quantity: newLine.quantity || 1, unit_price: newLine.unit_price || item.unit_price, is_recurring: false, discount_pct: discountMode === 'per_item' ? (newLine.discount_pct || 0) : 0 }])
     } else {
       const item = serviceItems.find((i) => i.id === newLine.itemId)
-      if (!item) { toast.error('Choose a service'); return }
+      if (!item) { toast.error('Choose a service'); return false }
       if (billLines.some((l) => l.item_type === 'service' && l.service_item_id === item.id)) {
-        toast.error(`${item.name} is already on this bill — edit that line's quantity instead of adding it twice`); return
+        toast.error(`${item.name} is already on this bill — edit that line's quantity instead of adding it twice`); return false
       }
-      setBillLines([...billLines, { item_type: 'service', inventory_item_id: null, service_item_id: item.id, charge_account_id: null, description: item.name, quantity: newLine.quantity || 1, unit_price: item.charge_amount, is_recurring: false, discount_pct: 0 }])
+      setBillLines([...billLines, { item_type: 'service', inventory_item_id: null, service_item_id: item.id, charge_account_id: null, description: newLine.description || item.name, quantity: newLine.quantity || 1, unit_price: newLine.unit_price || item.charge_amount, is_recurring: false, discount_pct: discountMode === 'per_item' ? (newLine.discount_pct || 0) : 0 }])
     }
     setNewLine(emptyNewLine)
+    return true
   }
+
+  // Add Item/Service flow — picker step selects a catalog entry (or "Custom
+  // Charge"), detail step captures qty/rate/discount, Save vs Save & New only
+  // differ in whether the flow loops back to the picker for another item.
+  const selectCatalogItem = (kind: 'inventory' | 'service', id: string) => {
+    const item = kind === 'inventory' ? inventoryItems.find((i) => i.id === id) : serviceItems.find((i) => i.id === id)
+    if (!item) return
+    const price = 'unit_price' in item ? item.unit_price : item.charge_amount
+    setNewLine({ ...emptyNewLine, kind, itemId: id, description: item.name, unit_price: price })
+    setBillModalStep('detail')
+  }
+  const selectCustomCharge = () => {
+    setNewLine({ ...emptyNewLine, kind: 'custom' })
+    setBillModalStep('detail')
+  }
+  const saveDetailAndClose = () => { if (addCatalogLine()) setBillModalStep('closed') }
+  const saveDetailAndNew = () => { if (addCatalogLine()) { setCatalogSearch(''); setBillModalStep('picker') } }
+
+  const selectPurchaseItem = (id: string) => {
+    const item = inventoryItems.find((i) => i.id === id)
+    if (!item) return
+    setNewPurchaseLine({ itemId: id, quantity: 1, unit_cost: item.unit_cost })
+    setPurchaseModalStep('detail')
+  }
+  const savePurchaseDetailAndClose = () => { if (addPurchaseLine()) setPurchaseModalStep('closed') }
+  const savePurchaseDetailAndNew = () => { if (addPurchaseLine()) { setCatalogSearch(''); setPurchaseModalStep('picker') } }
 
   const removeLine = (idx: number) => setBillLines(billLines.filter((_, i) => i !== idx))
   const updateLine = (idx: number, patch: Partial<BillLine>) =>
@@ -912,15 +959,16 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
   const purchaseTotal = useMemo(() => purchaseLines.reduce((s, l) => s + l.quantity * l.unit_cost, 0), [purchaseLines])
 
-  const addPurchaseLine = () => {
+  const addPurchaseLine = (): boolean => {
     const item = inventoryItems.find((i) => i.id === newPurchaseLine.itemId)
-    if (!item) { toast.error('Choose an inventory item'); return }
-    if (!newPurchaseLine.quantity || newPurchaseLine.quantity <= 0) { toast.error('Enter a valid quantity'); return }
+    if (!item) { toast.error('Choose an inventory item'); return false }
+    if (!newPurchaseLine.quantity || newPurchaseLine.quantity <= 0) { toast.error('Enter a valid quantity'); return false }
     if (purchaseLines.some((l) => l.inventory_item_id === item.id)) {
-      toast.error(`${item.name} is already on this purchase — edit that line's quantity instead of adding it twice`); return
+      toast.error(`${item.name} is already on this purchase — edit that line's quantity instead of adding it twice`); return false
     }
     setPurchaseLines([...purchaseLines, { inventory_item_id: item.id, description: item.name, quantity: newPurchaseLine.quantity, unit_cost: newPurchaseLine.unit_cost || item.unit_cost }])
     setNewPurchaseLine(emptyNewPurchaseLine)
+    return true
   }
   const removePurchaseLine = (idx: number) => setPurchaseLines(purchaseLines.filter((_, i) => i !== idx))
   const updatePurchaseLine = (idx: number, patch: Partial<PurchaseLine>) =>
@@ -1321,42 +1369,13 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         </div>
                       </>
                     )}
-                    <div className="flex flex-wrap items-end gap-2 p-4 bg-dp-surface-container-low/50 border-t border-dp-outline-variant">
-                      <div className="w-full sm:w-36 sm:shrink-0">
-                        <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Type</label>
-                        <select value={newLine.kind} onChange={(e) => setNewLine({ ...emptyNewLine, kind: e.target.value as typeof newLine.kind })} className="input-field !py-3 text-[15px]">
-                          <option value="custom">Custom Charge</option>
-                          <option value="inventory">Inventory Item</option>
-                          <option value="service">Service</option>
-                        </select>
-                      </div>
-                      {newLine.kind === 'custom' ? (
-                        <>
-                          <div className="w-full sm:flex-1 min-w-0">
-                            <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Description</label>
-                            <input value={newLine.description} onChange={(e) => setNewLine({ ...newLine, description: e.target.value })} placeholder="e.g. New Connection Charge" className="input-field !py-3 text-[15px]" />
-                          </div>
-                          <div className="flex-1 sm:flex-none sm:w-28 min-w-0">
-                            <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Amount</label>
-                            <input type="number" min={0} step="0.01" value={newLine.unit_price || ''} onChange={(e) => setNewLine({ ...newLine, unit_price: +e.target.value })} placeholder="0" className="input-field !py-3 text-[15px]" />
-                          </div>
-                        </>
-                      ) : (
-                        <div className="w-full sm:flex-1 min-w-0">
-                          <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Item</label>
-                          <select value={newLine.itemId} onChange={(e) => setNewLine({ ...newLine, itemId: e.target.value })} className="input-field !py-3 text-[15px]">
-                            <option value="">Select {newLine.kind}...</option>
-                            {(newLine.kind === 'inventory' ? inventoryItems : serviceItems).map((it) => (
-                              <option key={it.id} value={it.id}>{it.name} — Rs. {fmtAmount('unit_price' in it ? it.unit_price : it.charge_amount)}</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                      <div className="flex-1 sm:flex-none sm:w-20 min-w-0">
-                        <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Qty</label>
-                        <input type="number" min={0.01} step="0.01" value={newLine.quantity} onChange={(e) => setNewLine({ ...newLine, quantity: +e.target.value })} className="input-field !py-3 text-[15px]" />
-                      </div>
-                      <button onClick={addCatalogLine} className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"><Plus size={14} /> Add Item</button>
+                    <div className="p-4 bg-dp-surface-container-low/50 border-t border-dp-outline-variant">
+                      <button
+                        onClick={() => { setCatalogSearch(''); setBillPickerTab('items'); refetchCatalog(); setBillModalStep('picker') }}
+                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-dp-secondary text-white rounded-full font-sans text-[15.5px] font-bold hover:bg-dp-primary transition-all cursor-pointer shadow-sm"
+                      >
+                        <Plus size={19} /> Add Item / Service
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1390,10 +1409,10 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">
-                      {discountMode === 'per_item' ? 'Discount (from per-item %)' : 'Discount (optional)'}
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex-1 min-w-[160px]">
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 truncate" title={discountMode === 'per_item' ? 'Discount (from per-item %)' : undefined}>
+                      {discountMode === 'per_item' ? 'Discount (Per Item)' : 'Discount (optional)'}
                     </label>
                     {discountMode === 'per_item' ? (
                       <p className="input-field !py-3 bg-dp-surface-container-low text-dp-on-surface-variant">Rs. {fmtAmount(perItemDiscountTotal)}</p>
@@ -1401,7 +1420,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                       <input type="number" min={0} value={billForm.discount_amount || ''} onChange={(e) => setBillForm({ ...billForm, discount_amount: +e.target.value })} className="input-field" />
                     )}
                   </div>
-                  <div>
+                  <div className="flex-1 min-w-[160px]">
                     <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Due Date</label>
                     <input type="date" value={billForm.due_date} onChange={(e) => setBillForm({ ...billForm, due_date: e.target.value })} className="input-field" />
                   </div>
@@ -1609,24 +1628,13 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         </div>
                       </>
                     )}
-                    <div className="flex flex-wrap items-end gap-3 p-4 bg-dp-surface-container-low/50 border-t border-dp-outline-variant">
-                      <div className="w-full sm:flex-1 min-w-0">
-                        <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Item</label>
-                        <SearchableField
-                          value={newPurchaseLine.itemId} placeholder="Select item..." pickerTitle="Select Inventory Item"
-                          items={inventoryItems.map((it) => ({ id: it.id, label: it.name, sublabel: it.unit }))}
-                          onChange={(id) => { const item = inventoryItems.find((i) => i.id === id); setNewPurchaseLine({ ...newPurchaseLine, itemId: id, unit_cost: item?.unit_cost ?? 0 }) }}
-                        />
-                      </div>
-                      <div className="flex-1 sm:flex-none sm:w-24 min-w-0 shrink-0">
-                        <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Qty</label>
-                        <input type="number" min={0.01} step="0.01" value={newPurchaseLine.quantity} onChange={(e) => setNewPurchaseLine({ ...newPurchaseLine, quantity: +e.target.value })} className="input-field !py-2.5 text-[15px]" />
-                      </div>
-                      <div className="flex-1 sm:flex-none sm:w-32 min-w-0 shrink-0">
-                        <label className="block font-sans text-[10.5px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Unit Cost</label>
-                        <input type="number" min={0} step="0.01" value={newPurchaseLine.unit_cost || ''} onChange={(e) => setNewPurchaseLine({ ...newPurchaseLine, unit_cost: +e.target.value })} className="input-field !py-2.5 text-[15px]" />
-                      </div>
-                      <button onClick={addPurchaseLine} className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"><Plus size={14} /> Add Item</button>
+                    <div className="p-4 bg-dp-surface-container-low/50 border-t border-dp-outline-variant">
+                      <button
+                        onClick={() => { setCatalogSearch(''); refetchCatalog(); setPurchaseModalStep('picker') }}
+                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-dp-secondary text-white rounded-full font-sans text-[15.5px] font-bold hover:bg-dp-primary transition-all cursor-pointer shadow-sm"
+                      >
+                        <Plus size={19} /> Add Item
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1885,6 +1893,170 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
           </div>
         </div>
       )}
+
+      {billModalStep === 'picker' && (
+        <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setBillModalStep('closed')}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant shrink-0">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">Add Item / Service</h2>
+              <button onClick={() => setBillModalStep('closed')} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
+            </div>
+
+            <div className="px-5 pt-4 shrink-0">
+              <div className="relative mb-3">
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+                <input autoFocus value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} placeholder="Search..." className="input-field !pl-10 text-[15px]" />
+              </div>
+              <div className="flex gap-1.5 bg-dp-surface-container-low rounded-lg p-1">
+                <button onClick={() => setBillPickerTab('items')} className={`flex-1 py-2 rounded-md font-sans text-[13.5px] font-bold transition-all cursor-pointer ${billPickerTab === 'items' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}>Items</button>
+                <button onClick={() => setBillPickerTab('services')} className={`flex-1 py-2 rounded-md font-sans text-[13.5px] font-bold transition-all cursor-pointer ${billPickerTab === 'services' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}>Services</button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-2 py-1 min-h-[200px]">
+              <button onClick={selectCustomCharge} className="w-full flex items-center gap-3 px-3.5 py-3 rounded-lg hover:bg-dp-surface-container-low transition-all cursor-pointer text-left">
+                <span className="w-8 h-8 rounded-full bg-dp-secondary/10 flex items-center justify-center shrink-0"><Plus size={16} className="text-dp-secondary" /></span>
+                <span className="font-sans text-[14.5px] font-bold text-dp-secondary">Custom Charge</span>
+              </button>
+              {(billPickerTab === 'items' ? inventoryItems : serviceItems)
+                .filter((it) => it.name.toLowerCase().includes(catalogSearch.trim().toLowerCase()))
+                .map((it) => (
+                  <button key={it.id} onClick={() => selectCatalogItem(billPickerTab === 'items' ? 'inventory' : 'service', it.id)} className="w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-lg hover:bg-dp-surface-container-low transition-all cursor-pointer text-left">
+                    <span className="font-sans text-[14.5px] font-semibold text-dp-on-surface truncate">{it.name}</span>
+                    <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface-variant shrink-0">Rs. {fmtAmount('unit_price' in it ? it.unit_price : it.charge_amount)}</span>
+                  </button>
+                ))}
+              {(billPickerTab === 'items' ? inventoryItems : serviceItems).length === 0 && (
+                <p className="px-3.5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No {billPickerTab} yet.</p>
+              )}
+            </div>
+
+            <div className="border-t border-dp-outline-variant p-3 shrink-0">
+              <a href="/admin/inventory" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1.5 py-2.5 font-sans text-[13.5px] font-bold text-dp-secondary hover:underline cursor-pointer">
+                <PlusCircle size={15} /> Add New {billPickerTab === 'items' ? 'Item' : 'Service'}
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {billModalStep === 'detail' && (() => {
+        const gross = (newLine.quantity || 0) * (newLine.unit_price || 0)
+        const disc = discountMode === 'per_item' ? gross * (newLine.discount_pct || 0) / 100 : 0
+        const total = gross - disc
+        return (
+          <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setBillModalStep('closed')}>
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2 px-5 py-4 border-b border-dp-outline-variant">
+                <button onClick={() => setBillModalStep('picker')} className="p-1 -ml-1 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer"><ChevronLeft size={20} /></button>
+                <h2 className="font-heading text-[18px] font-bold text-dp-primary truncate">{newLine.kind === 'custom' ? 'Custom Charge' : (newLine.description || 'Item')}</h2>
+              </div>
+              <div className="p-5 space-y-4">
+                <div>
+                  <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Description</label>
+                  <input autoFocus={newLine.kind === 'custom'} value={newLine.description} onChange={(e) => setNewLine({ ...newLine, description: e.target.value })} placeholder="e.g. New Connection Charge" className="input-field text-[15px] font-medium" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Quantity</label>
+                    <input type="number" min={0.01} step="0.01" value={newLine.quantity} onChange={(e) => setNewLine({ ...newLine, quantity: +e.target.value })} className="input-field text-[16px] font-semibold" />
+                  </div>
+                  <div>
+                    <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Rate</label>
+                    <input type="number" min={0} step="0.01" value={newLine.unit_price || ''} onChange={(e) => setNewLine({ ...newLine, unit_price: +e.target.value })} placeholder="0" className="input-field text-[16px] font-semibold" />
+                  </div>
+                </div>
+                {discountMode === 'per_item' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Discount %</label>
+                      <input type="number" min={0} max={100} step="0.01" value={newLine.discount_pct || ''} onChange={(e) => setNewLine({ ...newLine, discount_pct: +e.target.value })} placeholder="0" className="input-field text-[16px] font-semibold" />
+                    </div>
+                    <div>
+                      <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Discount Value</label>
+                      <p className="input-field text-[16px] font-semibold bg-dp-surface-container-low text-dp-on-surface-variant">Rs. {fmtAmount(disc)}</p>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-2 border-t border-dp-outline-variant">
+                  <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Total</span>
+                  <span className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmtAmount(total)}</span>
+                </div>
+              </div>
+              <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
+                <button onClick={saveDetailAndNew} className="flex-1 px-4 py-3 border-2 border-dp-secondary rounded-full font-sans text-[14px] font-bold text-dp-secondary hover:bg-dp-secondary/5 transition-all cursor-pointer">Save & New</button>
+                <button onClick={saveDetailAndClose} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer">Save</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {purchaseModalStep === 'picker' && (
+        <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setPurchaseModalStep('closed')}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant shrink-0">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">Add Item</h2>
+              <button onClick={() => setPurchaseModalStep('closed')} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
+            </div>
+            <div className="px-5 pt-4 shrink-0">
+              <div className="relative">
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+                <input autoFocus value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} placeholder="Search items..." className="input-field !pl-10 text-[15px]" />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto px-2 py-1 mt-2 min-h-[200px]">
+              {inventoryItems.filter((it) => it.name.toLowerCase().includes(catalogSearch.trim().toLowerCase())).map((it) => (
+                <button key={it.id} onClick={() => selectPurchaseItem(it.id)} className="w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-lg hover:bg-dp-surface-container-low transition-all cursor-pointer text-left">
+                  <span className="font-sans text-[14.5px] font-semibold text-dp-on-surface truncate">{it.name}</span>
+                  <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface-variant shrink-0">Rs. {fmtAmount(it.unit_cost)}</span>
+                </button>
+              ))}
+              {inventoryItems.length === 0 && <p className="px-3.5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No inventory items yet.</p>}
+            </div>
+            <div className="border-t border-dp-outline-variant p-3 shrink-0">
+              <a href="/admin/inventory" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1.5 py-2.5 font-sans text-[13.5px] font-bold text-dp-secondary hover:underline cursor-pointer">
+                <PlusCircle size={15} /> Add New Item
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {purchaseModalStep === 'detail' && (() => {
+        const item = inventoryItems.find((i) => i.id === newPurchaseLine.itemId)
+        const total = (newPurchaseLine.quantity || 0) * (newPurchaseLine.unit_cost || 0)
+        return (
+          <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setPurchaseModalStep('closed')}>
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2 px-5 py-4 border-b border-dp-outline-variant">
+                <button onClick={() => setPurchaseModalStep('picker')} className="p-1 -ml-1 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer"><ChevronLeft size={20} /></button>
+                <h2 className="font-heading text-[18px] font-bold text-dp-primary truncate">{item?.name ?? 'Item'}</h2>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Quantity</label>
+                    <input autoFocus type="number" min={0.01} step="0.01" value={newPurchaseLine.quantity} onChange={(e) => setNewPurchaseLine({ ...newPurchaseLine, quantity: +e.target.value })} className="input-field text-[16px] font-semibold" />
+                  </div>
+                  <div>
+                    <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Unit Cost</label>
+                    <input type="number" min={0} step="0.01" value={newPurchaseLine.unit_cost || ''} onChange={(e) => setNewPurchaseLine({ ...newPurchaseLine, unit_cost: +e.target.value })} className="input-field text-[16px] font-semibold" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-dp-outline-variant">
+                  <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Total</span>
+                  <span className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmtAmount(total)}</span>
+                </div>
+              </div>
+              <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
+                <button onClick={savePurchaseDetailAndNew} className="flex-1 px-4 py-3 border-2 border-dp-secondary rounded-full font-sans text-[14px] font-bold text-dp-secondary hover:bg-dp-secondary/5 transition-all cursor-pointer">Save & New</button>
+                <button onClick={savePurchaseDetailAndClose} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer">Save</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {showDiscountModePicker && (
         <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4" onClick={() => setShowDiscountModePicker(false)}>
