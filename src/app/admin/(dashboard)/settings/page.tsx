@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Save, PlusCircle, Trash2, Pencil, X, Check, Bell, MessageCircle, ShieldCheck, MessageSquareWarning } from 'lucide-react'
+import { Save, PlusCircle, Trash2, Pencil, X, Check, Bell, MessageCircle, ShieldCheck, MessageSquareWarning, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
@@ -71,7 +71,22 @@ export default function AdminSettingsPage() {
   const [newContact, setNewContact] = useState<ManagementContact>(emptyContact)
   const [editingContactIdx, setEditingContactIdx] = useState<number | null>(null)
   const [editingContact, setEditingContact] = useState<ManagementContact>(emptyContact)
+  const [resetSystem, setResetSystem] = useState<'water_supply' | 'donors_projects' | null>(null)
+  const [resetConfirmText, setResetConfirmText] = useState('')
+  const [resetting, setResetting] = useState(false)
   const supabase = createClient()
+
+  const resetLabel = (sys: 'water_supply' | 'donors_projects') => (sys === 'water_supply' ? 'WATER SUPPLY' : 'DONORS PROJECTS')
+
+  const handleReset = async (system: 'water_supply' | 'donors_projects') => {
+    setResetting(true)
+    const { error } = await supabase.rpc('reset_accounting_system', { p_system: system })
+    setResetting(false)
+    if (error) { toast.error(error.message); return }
+    toast.success(`${system === 'water_supply' ? 'Water Supply' : 'Donors & Projects'} accounting reset`)
+    setResetSystem(null)
+    setResetConfirmText('')
+  }
 
   const loadSectors = async () => {
     const { data } = await supabase.from('sectors').select('*').order('display_order').order('name')
@@ -580,6 +595,48 @@ export default function AdminSettingsPage() {
             <input placeholder="Designation" value={newContact.designation} onChange={(e) => setNewContact({ ...newContact, designation: e.target.value })} className="input-field flex-1" />
             <input placeholder="WhatsApp number" value={newContact.whatsapp} onChange={(e) => setNewContact({ ...newContact, whatsapp: e.target.value })} className="input-field flex-1" />
             <button onClick={addContact} className="flex items-center justify-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer shrink-0"><PlusCircle size={15} /> Add</button>
+          </div>
+        </div>
+
+        <div className="bg-white border-2 border-dp-error/40 rounded-lg p-6">
+          <h2 className="font-sans text-[20px] font-semibold leading-[28px] text-dp-error mb-1 flex items-center gap-2">
+            <AlertTriangle size={20} /> Danger Zone
+          </h2>
+          <p className="font-sans text-[12px] text-dp-on-surface-variant mb-4 pb-3 border-b border-dp-outline-variant">
+            Resetting a system permanently clears its bills, payments, vouchers, purchases, inventory movement history, and recurring schedules. Consumers, inventory stock levels, and the chart of accounts are kept exactly as they are. This cannot be undone.
+          </p>
+          <div className="space-y-3">
+            {(['water_supply', 'donors_projects'] as const).map((sys) => (
+              <div key={sys} className="border border-dp-outline-variant rounded-lg p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-sans text-[14px] font-semibold text-dp-on-surface">{sys === 'water_supply' ? 'Water Supply' : 'Donors & Projects'}</span>
+                  {resetSystem !== sys && (
+                    <button onClick={() => { setResetSystem(sys); setResetConfirmText('') }} className="px-3 py-1.5 border border-dp-error text-dp-error rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-error/5 transition-all cursor-pointer">Reset...</button>
+                  )}
+                </div>
+                {resetSystem === sys && (
+                  <div className="mt-3 space-y-2 bg-dp-error-container/30 rounded-lg p-3">
+                    <p className="font-sans text-[12.5px] text-dp-on-surface">
+                      Type <span className="font-mono font-bold">{resetLabel(sys)}</span> to confirm.
+                    </p>
+                    <input
+                      autoFocus value={resetConfirmText} onChange={(e) => setResetConfirmText(e.target.value)}
+                      placeholder="Type to confirm" className="input-field !py-2 text-[14px]"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => setResetSystem(null)} className="flex-1 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+                      <button
+                        disabled={resetConfirmText !== resetLabel(sys) || resetting}
+                        onClick={() => handleReset(sys)}
+                        className="flex-1 px-3 py-2 bg-dp-error text-white rounded-lg font-sans text-[13px] font-semibold hover:opacity-90 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {resetting ? 'Resetting...' : 'Confirm Reset'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </div>
