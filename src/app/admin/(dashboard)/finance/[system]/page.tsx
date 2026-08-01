@@ -19,7 +19,6 @@ import { billBadge, billBadgeClass, type BillBadgeTone } from '@/lib/billStatus'
 type SystemTab = 'water_supply' | 'donors_projects'
 type VoucherType = 'expense' | 'income' | 'contra' | 'withdrawal' | 'deposit'
 type ActiveType = VoucherType | 'bill' | 'donation' | 'purchase'
-type Frequency = 'every_minute' | 'daily' | 'weekly' | 'monthly' | 'semi_annual' | 'yearly'
 
 interface Account { id: string; name: string; name_ur: string | null; type: string; code: string; system: string }
 interface Consumer { consumer_id: string; name: string; monthly_rate: number; connections: number }
@@ -103,7 +102,6 @@ const emptyBillForm = {
   attachment_url: '',
 }
 const emptyDonationForm = { name: '', name_ur: '', phone: '', donor_type: 'villager', amount_pkr: 0, date: today(), payment_method: 'cash', project_id: '', is_anonymous: false }
-const frequencyLabels: Record<Frequency, string> = { every_minute: 'Every Minute (Testing)', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', semi_annual: 'Every 6 Months', yearly: 'Yearly' }
 const emptyNewLine = { kind: 'custom' as 'inventory' | 'service' | 'custom', itemId: '', description: '', quantity: 1, unit_price: 0, discount_pct: 0, is_recurring: false }
 const emptyPurchaseForm = { date: today(), vendor: '', method: 'cash' as 'cash' | 'bank', note: '', attachment_url: '' }
 const emptyNewPurchaseLine = { itemId: '', quantity: 1, unit_cost: 0 }
@@ -170,9 +168,6 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [discountPercent, setDiscountPercent] = useState(0)
   const [showAddChargeAccount, setShowAddChargeAccount] = useState(false)
   const [newChargeAccountName, setNewChargeAccountName] = useState('')
-  const [recurringEnabled, setRecurringEnabled] = useState(false)
-  const [recurringFrequency, setRecurringFrequency] = useState<Frequency>('monthly')
-  const [existingRecurring, setExistingRecurring] = useState<{ frequency: Frequency; amount_pkr: number } | null>(null)
   const [receivePaymentNow, setReceivePaymentNow] = useState(false)
   const [receiveDepositNow, setReceiveDepositNow] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState(0)
@@ -382,17 +377,6 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setServiceItems(svcRes.data ?? [])
   }, [system, supabase])
 
-  // A consumer can only ever have one active recurring bill — checked here so the
-  // Set Recurring checkbox can be disabled up front, instead of only failing at
-  // save time (the DB has the same guard as a hard backstop either way).
-  useEffect(() => {
-    if (!billForm.consumer_id) { setExistingRecurring(null); return }
-    supabase.from('recurring_schedules').select('frequency, amount_pkr')
-      .eq('consumer_id', billForm.consumer_id).eq('schedule_type', 'bill').eq('is_active', true)
-      .maybeSingle()
-      .then(({ data }) => setExistingRecurring(data as { frequency: Frequency; amount_pkr: number } | null))
-  }, [billForm.consumer_id, supabase])
-
   const applyDefaultTemplate = useCallback((consumerId: string) => {
     const c = consumers.find((x) => x.consumer_id === consumerId)
     const connections = c?.connections || 1
@@ -402,10 +386,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         return { item_type: 'inventory', inventory_item_id: ti.inventory_item_id, service_item_id: null, charge_account_id: null, description: item?.name ?? 'Inventory item', quantity: ti.quantity * connections, unit_price: item?.unit_price ?? 0, is_recurring: false, discount_pct: 0 }
       }
       const item = serviceItems.find((i) => i.id === ti.service_item_id)
-      // Service items pulled from the default connection template represent the
-      // monthly water/connection charge — recurring by default. A physical item
-      // (a meter, pipe) is a one-off cost even when it comes from the same template.
-      return { item_type: 'service', inventory_item_id: null, service_item_id: ti.service_item_id, charge_account_id: null, description: item?.name ?? 'Service', quantity: ti.quantity * connections, unit_price: item?.charge_amount ?? 0, is_recurring: true, discount_pct: 0 }
+      return { item_type: 'service', inventory_item_id: null, service_item_id: ti.service_item_id, charge_account_id: null, description: item?.name ?? 'Service', quantity: ti.quantity * connections, unit_price: item?.charge_amount ?? 0, is_recurring: false, discount_pct: 0 }
     })
     setBillLines(lines)
   }, [consumers, defaultTemplateItems, inventoryItems, serviceItems])
@@ -608,8 +589,6 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setDonationForm(emptyDonationForm)
     setBillLines([])
     setNewLine(emptyNewLine)
-    setRecurringEnabled(false)
-    setRecurringFrequency('monthly')
     setSavedBill(null)
     setPurchaseForm(emptyPurchaseForm)
     setPurchaseLines([])
@@ -643,11 +622,6 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   )
   const effectiveDiscountAmount = discountMode === 'per_item' ? perItemDiscountTotal : (billForm.discount_amount || 0)
   const billNet = Math.max(billTotal - effectiveDiscountAmount, 0)
-  // What a recurring copy of this bill would actually charge next period — only the
-  // lines marked recurring, never a one-off new-connection charge, meter, or the
-  // security deposit (which isn't a line item at all).
-  const recurringSubtotal = useMemo(() => billLines.filter((l) => l.is_recurring).reduce((s, l) => s + l.quantity * l.unit_price, 0), [billLines])
-  const recurringNet = Math.max(recurringSubtotal - effectiveDiscountAmount, 0)
 
   // The two discount modes are mutually exclusive — switching clears whatever the
   // other mode had set, so a per-item discount and a total discount can never
@@ -825,8 +799,6 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     if (billTotal <= 0) { toast.error('The bill total must be greater than zero'); return }
     if (effectiveDiscountAmount > billTotal) { toast.error('Discount cannot exceed the bill total'); return }
     if (receiveDepositNow && !billForm.deposit_account_id) { toast.error('Choose where the security deposit is received into'); return }
-    if (recurringEnabled && recurringSubtotal <= 0) { toast.error('None of the current items are marked "Recurring" — nothing would be re-billed next period'); return }
-    if (recurringEnabled && existingRecurring) { toast.error('This consumer already has an active recurring bill — manage it from Recurring Schedules instead of creating a second one'); return }
     if (receivePaymentNow && (!paymentAmount || paymentAmount <= 0)) { toast.error('Enter a valid payment amount'); return }
     setSaving(true)
 
@@ -878,32 +850,6 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       else await supabase.from('bills').update({ security_deposit_voucher_id: depositVoucher.id }).eq('id', bill.id)
     }
 
-    if (recurringEnabled) {
-      // The testing frequency counts forward from right now (so it's actually
-      // verifiable within a session) — every other frequency counts forward from
-      // the billed period, same as before.
-      const next = recurringFrequency === 'every_minute' ? new Date() : new Date(billForm.year, billForm.month - 1, 1)
-      if (recurringFrequency === 'every_minute') next.setMinutes(next.getMinutes() + 1)
-      else if (recurringFrequency === 'daily') next.setDate(next.getDate() + 1)
-      else if (recurringFrequency === 'weekly') next.setDate(next.getDate() + 7)
-      else if (recurringFrequency === 'monthly') next.setMonth(next.getMonth() + 1)
-      else if (recurringFrequency === 'semi_annual') next.setMonth(next.getMonth() + 6)
-      else next.setFullYear(next.getFullYear() + 1)
-      const dueOffsetDays = billForm.due_date
-        ? Math.round((new Date(billForm.due_date).getTime() - new Date(billForm.year, billForm.month - 1, 1).getTime()) / 86400000)
-        : null
-      // Only the recurring-flagged lines carry forward — never the security deposit,
-      // and never a one-off charge like a new connection fee or a meter.
-      const recurringAmount = recurringNet > 0 ? recurringNet : recurringSubtotal
-      const { error: recErr } = await supabase.from('recurring_schedules').insert({
-        system, schedule_type: 'bill', frequency: recurringFrequency,
-        next_run_date: next.toISOString(), consumer_id: billForm.consumer_id,
-        amount_pkr: recurringAmount, due_date_offset_days: dueOffsetDays, particular: billForm.description || null,
-      })
-      if (recErr) toast.error(recErr.code === '23505' ? 'This consumer already has an active recurring bill — manage it from Recurring Schedules instead' : `Recurring schedule could not be created: ${recErr.message}`)
-      else toast.success(`Recurring ${frequencyLabels[recurringFrequency].toLowerCase()} bill scheduled — Rs. ${fmtAmount(recurringAmount)}/period`)
-    }
-
     if (receivePaymentNow) {
       const { error: payErr } = await supabase.from('payments').insert({
         bill_id: bill.id, consumer_id: billForm.consumer_id, amount_pkr: paymentAmount, method: paymentMethod,
@@ -917,7 +863,6 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setSavedBill(bill)
     setBillForm(emptyBillForm)
     setBillLines([])
-    setRecurringEnabled(false)
     setReceivePaymentNow(false)
     setPaymentAmount(0)
     setReceiveDepositNow(false)
@@ -1491,35 +1436,6 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   {billForm.security_deposit_amount > 0 && <div className="flex justify-between text-dp-on-surface-variant text-[13px] pt-1 border-t border-dp-outline-variant/60"><span>+ Security Deposit (refundable, separate)</span><span className="font-semibold">Rs. {fmtAmount(billForm.security_deposit_amount)}</span></div>}
                 </div>
 
-                {!editingBill && billForm.consumer_id && existingRecurring && (
-                  <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 flex items-center gap-2">
-                    <Repeat size={14} className="text-dp-secondary shrink-0" />
-                    <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
-                      This consumer already has a recurring bill — {frequencyLabels[existingRecurring.frequency]}, Rs. {fmtAmount(existingRecurring.amount_pkr)}/period.
-                      A consumer can only have one active schedule; manage or change it from{' '}
-                      <Link href={`/admin/finance/${system}/recurring`} className="text-dp-secondary font-semibold hover:underline">Recurring Schedules</Link>.
-                    </p>
-                  </div>
-                )}
-                {!editingBill && !existingRecurring && (
-                <div className="border border-dp-outline-variant rounded-lg p-3.5">
-                  <label className="flex items-center gap-2 cursor-pointer mb-2">
-                    <input type="checkbox" checked={recurringEnabled} onChange={(e) => setRecurringEnabled(e.target.checked)} className="accent-dp-secondary" />
-                    <span className="font-sans text-[14px] font-semibold flex items-center gap-1.5"><Repeat size={14} /> Set Recurring</span>
-                  </label>
-                  {recurringEnabled && (
-                    <div className="space-y-2">
-                      <select value={recurringFrequency} onChange={(e) => setRecurringFrequency(e.target.value as Frequency)} className="input-field !py-2.5 text-[15px]">
-                        {(Object.keys(frequencyLabels) as Frequency[]).map((f) => <option key={f} value={f}>{frequencyLabels[f]}</option>)}
-                      </select>
-                      <p className="font-sans text-[12px] text-dp-on-surface-variant bg-dp-surface-container-low rounded-lg px-3 py-2">
-                        Only items marked <span className="font-semibold">Recurring</span> above are re-billed each period — Rs. {fmtAmount(recurringNet)} {frequencyLabels[recurringFrequency].toLowerCase()}.
-                        The security deposit and any one-off charges (new connection fee, meters, etc.) are billed once, on this invoice only.
-                      </p>
-                    </div>
-                  )}
-                </div>
-                )}
                 {editingBill?.recurring_schedule_id && (
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-surface-container-low rounded-lg px-3 py-2.5">
                     This bill has a recurring schedule attached — manage its frequency or amount from{' '}
@@ -1948,10 +1864,6 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     </div>
                   </div>
                 )}
-                <label className="flex items-center gap-2 cursor-pointer" title="Recharged automatically on each recurring bill">
-                  <input type="checkbox" checked={newLine.is_recurring} onChange={(e) => setNewLine({ ...newLine, is_recurring: e.target.checked })} className="accent-dp-secondary w-4 h-4 cursor-pointer" />
-                  <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">Recurring</span>
-                </label>
                 <div className="flex items-center justify-between pt-2 border-t border-dp-outline-variant">
                   <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Total</span>
                   <span className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmtAmount(total)}</span>
