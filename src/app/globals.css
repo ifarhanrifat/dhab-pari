@@ -302,3 +302,12 @@
   font-size: 17px !important;
   font-weight: 700 !important;
 }
+
+/* --- Transaction forms (Expense/Income/.../Generate Bill/Purchase Bill):
+   no outer card behind the form itself — fields sit straight on the page
+   background — so every input needs a bold, clearly-visible border on its
+   own to stay well-defined, matching the same bold border already used on
+   the mobile transaction-type selector button. */
+.txn-form .input-field {
+  border-color: var(--color-dp-primary);
+}

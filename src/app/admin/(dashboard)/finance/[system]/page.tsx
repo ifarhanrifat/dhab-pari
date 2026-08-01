@@ -166,6 +166,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [otherChargeAccountId, setOtherChargeAccountId] = useState('')
   const [otherChargeDescription, setOtherChargeDescription] = useState('')
   const [otherChargeAmount, setOtherChargeAmount] = useState(0)
+  const [showDiscountOnTotal, setShowDiscountOnTotal] = useState(false)
+  const [discountPercent, setDiscountPercent] = useState(0)
   const [showAddChargeAccount, setShowAddChargeAccount] = useState(false)
   const [newChargeAccountName, setNewChargeAccountName] = useState('')
   const [recurringEnabled, setRecurringEnabled] = useState(false)
@@ -617,6 +619,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setPaymentMethod('cash')
     setReceiveDepositNow(false)
     setDiscountMode('per_item')
+    setShowDiscountOnTotal(false)
+    setDiscountPercent(0)
     setShowOtherCharge(false)
     setOtherChargeAccountId('')
     setOtherChargeDescription('')
@@ -625,6 +629,11 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   }
 
   const billTotal = useMemo(() => billLines.reduce((s, l) => s + l.quantity * l.unit_price, 0), [billLines])
+  // Split out for the summary display only — Subtotal shows items/services, Other
+  // Charges its own line, so they read the same way the reference invoice does.
+  // billTotal itself (used for billNet below) is unaffected — still the true sum of all lines.
+  const itemsSubtotal = useMemo(() => billLines.filter((l) => l.item_type !== 'other_charge').reduce((s, l) => s + l.quantity * l.unit_price, 0), [billLines])
+  const otherChargeLinesTotal = useMemo(() => billLines.filter((l) => l.item_type === 'other_charge').reduce((s, l) => s + l.quantity * l.unit_price, 0), [billLines])
   // Per Item mode: each line's own % discount is summed into the bill's total
   // discount automatically — there's no separate manual field to keep in sync.
   // On Total mode: the one manual discount_amount field, exactly as before.
@@ -646,7 +655,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const switchDiscountMode = (mode: 'per_item' | 'on_total') => {
     if (mode !== discountMode) {
       if (mode === 'on_total') setBillLines(billLines.map((l) => ({ ...l, discount_pct: 0 })))
-      else setBillForm({ ...billForm, discount_amount: 0 })
+      else { setBillForm({ ...billForm, discount_amount: 0 }); setShowDiscountOnTotal(false); setDiscountPercent(0) }
       setDiscountMode(mode)
     }
     setShowDiscountModePicker(false)
@@ -913,6 +922,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setPaymentAmount(0)
     setReceiveDepositNow(false)
     setDiscountMode('per_item')
+    setShowDiscountOnTotal(false)
+    setDiscountPercent(0)
     setShowOtherCharge(false)
     setOtherChargeAccountId('')
     setOtherChargeDescription('')
@@ -1117,9 +1128,6 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
           <h1 className="font-heading text-[22px] sm:text-[28px] font-bold leading-[28px] sm:leading-[36px] text-dp-primary">{systemLabels[system]} — Transactions</h1>
         </div>
         <div className="shrink-0 flex items-center gap-2">
-          <Link href={`/admin/finance/${system}/recurring`} className="flex items-center gap-2 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all">
-            <Repeat size={15} /> Recurring
-          </Link>
           <Link href={`/admin/finance/${system}/register`} className="flex items-center gap-2 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all">
             <BookOpen size={15} /> Daily Register
           </Link>
@@ -1184,7 +1192,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
         {/* Form + log */}
         <div className="flex-1 space-y-5 min-w-0">
-          <div className="bg-white rounded-lg border border-dp-outline-variant p-6">
+          <div className="txn-form">
             {(['expense', 'income', 'contra', 'withdrawal', 'deposit'] as VoucherType[]).includes(activeType as VoucherType) && (() => {
               const cfg = voucherConfig[activeType as VoucherType]
               return (
@@ -1331,7 +1339,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                           const lineGross = l.quantity * l.unit_price
                           const lineDiscount = discountMode === 'per_item' ? (lineGross * (l.discount_pct || 0)) / 100 : 0
                           return (
-                            <div key={i} className="flex items-center gap-3 px-4 py-3 hover:bg-dp-surface-container-low/40 transition-colors">
+                            <div key={i} className="flex items-center gap-3 pl-3 pr-4 py-3 border-l-[3px] border-dp-secondary hover:bg-dp-surface-container-low/40 transition-colors">
                               <div className="min-w-0 flex-1">
                                 <p className="font-sans text-[14.5px] font-bold text-dp-on-surface truncate">{l.description}</p>
                                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
@@ -1427,6 +1435,36 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   )}
                 </div>
 
+                {discountMode === 'on_total' && (
+                  <div className="border border-dp-outline-variant rounded-lg p-3.5">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox" checked={showDiscountOnTotal}
+                        onChange={(e) => { setShowDiscountOnTotal(e.target.checked); if (!e.target.checked) { setDiscountPercent(0); setBillForm({ ...billForm, discount_amount: 0 }) } }}
+                        className="accent-dp-secondary w-4 h-4"
+                      />
+                      <span className="font-sans text-[14px] font-semibold text-dp-on-surface">Add Discount</span>
+                    </label>
+                    {showDiscountOnTotal && (
+                      <div className="mt-3 flex items-end gap-3">
+                        <div className="flex-1">
+                          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Discount %</label>
+                          <input
+                            type="number" min={0} max={100} step="0.01" value={discountPercent || ''}
+                            onChange={(e) => {
+                              const pct = +e.target.value
+                              setDiscountPercent(pct)
+                              setBillForm({ ...billForm, discount_amount: (itemsSubtotal * pct) / 100 })
+                            }}
+                            placeholder="0" className="input-field !py-2.5 text-[15px]"
+                          />
+                        </div>
+                        <p className="shrink-0 pb-2.5 font-sans text-[16px] font-bold text-dp-on-surface whitespace-nowrap">Rs. {fmtAmount(billForm.discount_amount)}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Due Date</label>
                   <input type="date" value={billForm.due_date} onChange={(e) => setBillForm({ ...billForm, due_date: e.target.value })} className="input-field" />
@@ -1442,8 +1480,9 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   onUpload={(url) => setBillForm({ ...billForm, attachment_url: url })}
                 />
 
-                <div className="bg-white border border-dp-outline-variant rounded-xl p-5 space-y-2 text-[14px] font-sans">
-                  <div className="flex justify-between"><span className="text-dp-on-surface-variant">Subtotal</span><span className="font-semibold">Rs. {fmtAmount(billTotal)}</span></div>
+                <div className="w-full sm:w-1/2 bg-white border border-dp-outline-variant rounded-xl p-5 space-y-2 text-[14px] font-sans">
+                  <div className="flex justify-between"><span className="text-dp-on-surface-variant">Subtotal</span><span className="font-semibold">Rs. {fmtAmount(itemsSubtotal)}</span></div>
+                  {otherChargeLinesTotal > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">Other Charges</span><span className="font-semibold">Rs. {fmtAmount(otherChargeLinesTotal)}</span></div>}
                   {billForm.discount_amount > 0 && <div className="flex justify-between text-emerald-700"><span>Discount</span><span className="font-semibold">− Rs. {fmtAmount(billForm.discount_amount)}</span></div>}
                   <div className="flex justify-between items-center border-t border-dp-outline-variant pt-3 mt-1">
                     <span className="font-bold text-[13px] uppercase tracking-[0.06em] text-dp-on-surface-variant">Net Payable</span>
@@ -1544,7 +1583,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     ) : (
                       <div className="divide-y divide-dp-outline-variant">
                         {purchaseLines.map((l, i) => (
-                          <div key={i} className="flex items-center gap-3 px-4 py-3 hover:bg-dp-surface-container-low/40 transition-colors">
+                          <div key={i} className="flex items-center gap-3 pl-3 pr-4 py-3 border-l-[3px] border-dp-secondary hover:bg-dp-surface-container-low/40 transition-colors">
                             <div className="min-w-0 flex-1">
                               <p className="font-sans text-[14.5px] font-bold text-dp-on-surface truncate">{l.description}</p>
                               <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{l.quantity} × Rs. {fmtAmount(l.unit_cost)}</p>
