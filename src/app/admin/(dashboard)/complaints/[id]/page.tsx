@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, Clock, MapPin, Phone, User, CheckCircle2, RotateCcw, CalendarPlus,
-  MessageCircle, Send, Image as ImageIcon, Mic as MicIcon, UserPlus,
+  MessageCircle, Send, Image as ImageIcon, Mic as MicIcon, UserPlus, Link2, Receipt,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { FileAttachment } from '@/components/admin/FileAttachment'
@@ -16,6 +16,12 @@ interface Complaint {
   id: string; complaint_number: string; system: string; complainant_name: string | null
   phone: string | null; sector: string | null; complaint_text: string; status: string
   assigned_to: string | null; deadline_at: string; created_at: string
+  consumer_id: string | null; waiver_active: boolean; waiver_type: string | null; waiver_percent: number | null
+}
+interface ConsumerOption { consumer_id: string; name: string; mobile: string }
+interface WaivedBill {
+  id: string; bill_number: string; month: number; year: number; amount_pkr: number
+  discount_amount: number | null; paid_amount: number | null; waiver_voucher_id: string; waiver_type: string; waiver_percent: number | null
 }
 interface Update {
   id: string; author_id: string | null; kind: string; body: string | null
@@ -65,6 +71,16 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
   const [assignTo, setAssignTo] = useState('')
   const [busy, setBusy] = useState(false)
 
+  const [consumerInfo, setConsumerInfo] = useState<ConsumerOption | null>(null)
+  const [outstanding, setOutstanding] = useState(0)
+  const [waivedBills, setWaivedBills] = useState<WaivedBill[]>([])
+  const [waiverVouchers, setWaiverVouchers] = useState<Record<string, { voucher_no: string | null; status: string }>>({})
+  const [linkConsumers, setLinkConsumers] = useState<ConsumerOption[]>([])
+  const [linkQuery, setLinkQuery] = useState('')
+  const [waiverType, setWaiverType] = useState<'full' | 'percent'>('full')
+  const [waiverPercent, setWaiverPercent] = useState(50)
+  const [waiverBusy, setWaiverBusy] = useState(false)
+
   const load = async () => {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
@@ -84,9 +100,74 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
     setUpdates(updatesData ?? [])
     setNames(Object.fromEntries(((roster ?? []) as { id: string; full_name: string }[]).map((p) => [p.id, p.full_name])))
     setHandlers(handlersData ?? [])
+
+    if (c.system === 'water_supply') {
+      if (c.consumer_id) {
+        const [{ data: consumerRow }, { data: allBills }] = await Promise.all([
+          supabase.from('consumers').select('consumer_id, name, mobile').eq('consumer_id', c.consumer_id).single(),
+          supabase.from('bills').select('id, bill_number, month, year, amount_pkr, discount_amount, paid_amount, status, waiver_voucher_id, waiver_type, waiver_percent').eq('consumer_id', c.consumer_id),
+        ])
+        setConsumerInfo(consumerRow ?? null)
+        const bills = allBills ?? []
+        const owed = bills.reduce((sum, b) => {
+          const net = Math.max(b.amount_pkr - (b.discount_amount ?? 0), 0)
+          return sum + Math.max(net - (b.paid_amount ?? 0), 0)
+        }, 0)
+        setOutstanding(owed)
+        const waived = bills.filter((b) => b.waiver_voucher_id) as WaivedBill[]
+        setWaivedBills(waived)
+        if (waived.length > 0) {
+          const { data: vouchers } = await supabase.from('vouchers').select('id, voucher_no, status').in('id', waived.map((b) => b.waiver_voucher_id))
+          setWaiverVouchers(Object.fromEntries((vouchers ?? []).map((v) => [v.id, { voucher_no: v.voucher_no, status: v.status }])))
+        } else {
+          setWaiverVouchers({})
+        }
+      } else {
+        setConsumerInfo(null); setOutstanding(0); setWaivedBills([]); setWaiverVouchers({})
+        const { data: consumersData } = await supabase.from('consumers').select('consumer_id, name, mobile').order('name')
+        setLinkConsumers(consumersData ?? [])
+      }
+    }
     setLoading(false)
   }
   useEffect(() => { load() }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const matchingLinkConsumers = (() => {
+    const q = linkQuery.trim().toLowerCase()
+    if (!q) return []
+    return linkConsumers.filter((c) => c.name.toLowerCase().includes(q) || c.consumer_id.toLowerCase().includes(q) || c.mobile?.includes(q)).slice(0, 8)
+  })()
+
+  const linkConsumer = async (consumerId: string) => {
+    setBusy(true)
+    const { error } = await supabase.from('complaints').update({ consumer_id: consumerId }).eq('id', id)
+    setBusy(false)
+    if (error) { toast.error(error.message); return }
+    toast.success('Linked to consumer')
+    setLinkQuery('')
+    load()
+  }
+
+  const applyWaiver = async () => {
+    setWaiverBusy(true)
+    const { error } = await supabase.rpc('set_complaint_waiver', {
+      p_complaint_id: id, p_active: true, p_waiver_type: waiverType,
+      p_waiver_percent: waiverType === 'percent' ? waiverPercent : null,
+    })
+    setWaiverBusy(false)
+    if (error) { toast.error(error.message); return }
+    toast.success('Bill waiver applied')
+    load()
+  }
+
+  const clearWaiver = async () => {
+    setWaiverBusy(true)
+    const { error } = await supabase.rpc('set_complaint_waiver', { p_complaint_id: id, p_active: false, p_waiver_type: null, p_waiver_percent: null })
+    setWaiverBusy(false)
+    if (error) { toast.error(error.message); return }
+    toast.success('Bill waiver cleared')
+    load()
+  }
 
   const postComment = async () => {
     if (!commentBody.trim() && !photoUrl && !voiceUrl) { toast.error('Write something or attach a photo/voice message'); return }
@@ -234,6 +315,102 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
           </div>
         </div>
       </div>
+
+      {complaint.system === 'water_supply' && (
+        <div className="bg-white rounded-lg border border-dp-outline-variant p-6 mb-6">
+          <h2 className="font-sans text-[15px] font-bold text-dp-on-surface mb-4 flex items-center gap-2"><Link2 size={16} /> Consumer &amp; Bill Waiver</h2>
+
+          {!consumerInfo ? (
+            <div className="relative">
+              <p className="font-sans text-[13px] text-dp-on-surface-variant mb-2">Not linked to a consumer yet — link one to enable bill waivers.</p>
+              <input
+                value={linkQuery} onChange={(e) => setLinkQuery(e.target.value)} disabled={busy}
+                placeholder="Search by name, consumer no., or mobile..." className="input-field max-w-sm"
+              />
+              {matchingLinkConsumers.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full max-w-sm bg-white border border-dp-outline-variant rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {matchingLinkConsumers.map((c) => (
+                    <button
+                      key={c.consumer_id} type="button" onClick={() => linkConsumer(c.consumer_id)}
+                      className="w-full text-left px-3 py-2 hover:bg-dp-surface-container-low font-sans text-[13px] cursor-pointer"
+                    >
+                      <strong>{c.consumer_id}</strong> — {c.name} {c.mobile && <span className="text-dp-on-surface-variant">· {c.mobile}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
+                <div>
+                  <p className="font-sans text-[14.5px] font-bold text-dp-on-surface">{consumerInfo.consumer_id} — {consumerInfo.name}</p>
+                  {consumerInfo.mobile && <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{consumerInfo.mobile}</p>}
+                </div>
+                <div className="text-right">
+                  <p className="font-sans text-[11px] uppercase tracking-wide text-dp-on-surface-variant">Outstanding</p>
+                  <p className={`font-sans text-[16px] font-bold ${outstanding > 0 ? 'text-dp-error' : 'text-emerald-700'}`}>Rs. {outstanding.toLocaleString()}</p>
+                </div>
+                <Link href={`/admin/billing?consumer=${consumerInfo.consumer_id}`} className="text-dp-secondary font-sans text-[12.5px] font-semibold hover:underline">View Billing →</Link>
+              </div>
+
+              {complaint.status !== 'verified' && canVerify && (
+                <div className="bg-dp-surface-container-low/60 rounded-lg p-4 mb-4">
+                  {complaint.waiver_active ? (
+                    <div className="flex items-center justify-between flex-wrap gap-3">
+                      <p className="font-sans text-[13px] text-dp-on-surface">
+                        Waiver active: <span className="font-bold">{complaint.waiver_type === 'full' ? 'Full' : `${complaint.waiver_percent}%`}</span> — applied automatically to the pending bill and every future bill while this complaint stays open.
+                      </p>
+                      <button disabled={waiverBusy} onClick={clearWaiver} className="px-3 py-1.5 border border-dp-error text-dp-error rounded-lg font-sans text-[12.5px] font-semibold hover:bg-red-50 transition-all cursor-pointer disabled:opacity-50 shrink-0">
+                        Clear Waiver
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-end gap-3 flex-wrap">
+                      <div>
+                        <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Waiver Type</label>
+                        <select value={waiverType} onChange={(e) => setWaiverType(e.target.value as 'full' | 'percent')} className="input-field !py-1.5 !text-[13px]">
+                          <option value="full">Full</option>
+                          <option value="percent">Custom %</option>
+                        </select>
+                      </div>
+                      {waiverType === 'percent' && (
+                        <div>
+                          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Percent</label>
+                          <input type="number" min={1} max={100} value={waiverPercent} onChange={(e) => setWaiverPercent(+e.target.value)} className="input-field !py-1.5 !text-[13px] w-24" />
+                        </div>
+                      )}
+                      <button disabled={waiverBusy} onClick={applyWaiver} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+                        {waiverBusy ? 'Applying...' : 'Apply Waiver'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {waivedBills.length > 0 && (
+                <div>
+                  <p className="font-sans text-[12px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-2">Bills Waived Through This Complaint</p>
+                  <div className="space-y-1.5">
+                    {waivedBills.map((b) => {
+                      const v = waiverVouchers[b.waiver_voucher_id]
+                      return (
+                        <div key={b.id} className="flex items-center justify-between px-3 py-2 bg-dp-surface-container-low/50 rounded-lg font-sans text-[12.5px]">
+                          <span className="flex items-center gap-1.5"><Receipt size={12} className="text-dp-on-surface-variant" /> {b.bill_number} — {b.month}/{b.year}</span>
+                          <span className="text-dp-on-surface-variant">{b.waiver_type === 'full' ? 'Full waiver' : `${b.waiver_percent}% waiver`}</span>
+                          <span className={`font-semibold ${v?.status === 'pending' ? 'text-amber-700' : 'text-emerald-700'}`}>
+                            {v?.voucher_no ?? 'Pending #'}{v?.status === 'pending' ? ' — Awaiting Approval' : ''}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {showResolve && (
         <Modal title="Mark Resolved" onClose={() => setShowResolve(false)}>

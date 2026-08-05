@@ -21,6 +21,7 @@ interface BillRow {
   discount_amount: number | null; security_deposit_amount: number | null; paid_amount: number | null
   due_date: string | null; description: string | null; status: string; paid_date: string | null
   payment_method: string | null; consumer_id: string; security_deposit_voucher_id: string | null
+  waiver_voucher_id: string | null
 }
 interface ConsumerRow {
   name: string; name_ur: string | null; mobile: string; whatsapp_number: string | null
@@ -44,6 +45,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
   const [lineItems, setLineItems] = useState<LineItemRow[]>([])
   const [ledgerRows, setLedgerRows] = useState<LedgerRow[]>([])
   const [depositReceiptNo, setDepositReceiptNo] = useState<string | null>(null)
+  const [waiverVoucherNo, setWaiverVoucherNo] = useState<string | null>(null)
   const [showLedger, setShowLedger] = useState(false)
   const [template, setTemplate] = useState<InvoiceTemplate>('classic')
   const [branding, setBranding] = useState<Partial<BrandingSettings>>({})
@@ -55,10 +57,16 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
 
   const load = useCallback(async () => {
     const { data: billRow } = await supabase.from('bills')
-      .select('id, bill_number, month, year, amount_pkr, discount_amount, security_deposit_amount, paid_amount, due_date, description, status, paid_date, payment_method, consumer_id, security_deposit_voucher_id')
+      .select('id, bill_number, month, year, amount_pkr, discount_amount, security_deposit_amount, paid_amount, due_date, description, status, paid_date, payment_method, consumer_id, security_deposit_voucher_id, waiver_voucher_id')
       .eq('id', id).single()
     if (!billRow) { setNotFound(true); setLoading(false); return }
     setBill(billRow)
+    if (billRow.waiver_voucher_id) {
+      const { data: waiverVoucher } = await supabase.from('vouchers').select('voucher_no').eq('id', billRow.waiver_voucher_id).single()
+      setWaiverVoucherNo(waiverVoucher?.voucher_no ?? null)
+    } else {
+      setWaiverVoucherNo(null)
+    }
 
     const [{ data: consumerRow }, { data: lines }, brandingSettings, { data: billLedger }] = await Promise.all([
       supabase.from('consumers').select('name, name_ur, mobile, whatsapp_number, address, area, house_no, sector').eq('consumer_id', billRow.consumer_id).single(),
@@ -119,7 +127,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
     accountNameUr: consumer?.name_ur,
     accountAddress: address || null,
     accountPhone: consumer?.mobile,
-    particular: bill.description || '',
+    particular: (bill.description || '') + (waiverVoucherNo ? ` — Committee waiver settled via ${waiverVoucherNo}` : ''),
     amount: netAmount,
     balanceAfter: balance,
     paidAmount,

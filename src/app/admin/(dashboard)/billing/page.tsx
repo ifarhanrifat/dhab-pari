@@ -8,22 +8,39 @@ import {
   Search, PlusCircle, X, ChevronRight, Phone,
   Home, MapPin, MessageCircle, AlertCircle, CheckCircle2,
   Clock, CreditCard, Banknote, Pencil, Receipt, Users, UserCheck, UserX, Tag, UserPlus, Repeat, Trash2, FileText,
+  Power, Ban, PauseCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { billBadge, billBadgeClass } from '@/lib/billStatus'
+import { renderTemplate } from '@/lib/messageTemplates'
+import { findDuplicate, type DuplicateCandidate } from '@/lib/duplicateCheck'
 
 interface Consumer {
   consumer_id: string
   name: string
+  father_husband_name: string | null
   mobile: string
+  whatsapp_number: string | null
+  whatsapp_same_as_mobile: boolean
   house_no: string | null
   sector: string | null
   area: string | null
   address: string | null
+  connections: number
   monthly_rate: number
   status: string
   created_at: string
+}
+
+interface RecurringSchedule {
+  id: string
+  amount_pkr: number
+  discount_amount: number
+  frequency: string
+  next_run_date: string
+  is_active: boolean
+  particular: string | null
 }
 
 interface Bill {
@@ -40,7 +57,15 @@ interface Bill {
   payment_method: string | null
   discount_amount: number | null
   due_date: string | null
+  waiver_voucher_id: string | null
+  waiver_type: string | null
+  waiver_percent: number | null
 }
+
+interface LinkedComplaint { id: string; complaint_number: string; status: string; complaint_text: string }
+
+const complaintStatusLabels: Record<string, string> = { open: 'Open', awaiting_verification: 'Awaiting Verification' }
+const complaintStatusColors: Record<string, string> = { open: 'bg-amber-100 text-amber-800', awaiting_verification: 'bg-blue-100 text-blue-800' }
 
 interface PaymentForm {
   billId: string
@@ -51,6 +76,7 @@ interface PaymentForm {
 
 const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const fullMonths = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const frequencyLabels: Record<string, string> = { daily: 'day', weekly: 'week', monthly: 'month', semi_annual: '6 months', yearly: 'year' }
 
 // Net payable is amount_pkr (gross) minus any discount — the ledger posts the
 // discount as its own leg rather than netting it into amount_pkr, so anywhere that
@@ -99,10 +125,22 @@ function BillingPageInner() {
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('none')
   const toggleQuickFilter = (f: QuickFilter) => setQuickFilter((cur) => (cur === f ? 'none' : f))
   const [deactivatedThisMonth, setDeactivatedThisMonth] = useState(0)
-  const [recurringConsumerIds, setRecurringConsumerIds] = useState<Set<string>>(new Set())
+  const [recurringSchedules, setRecurringSchedules] = useState<Record<string, RecurringSchedule>>({})
   const [paymentForm, setPaymentForm] = useState<PaymentForm | null>(null)
   const [showAddConsumer, setShowAddConsumer] = useState(false)
   const [confirmDeleteBill, setConfirmDeleteBill] = useState<string | null>(null)
+  const [editConsumerTarget, setEditConsumerTarget] = useState<Consumer | null>(null)
+  const [editForm, setEditForm] = useState({
+    name: '', father_husband_name: '', mobile: '', whatsapp_number: '', whatsapp_same_as_mobile: true,
+    house_no: '', sector: '', area: '', address: '', connections: 1, monthly_rate: 200,
+  })
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [disconnectTarget, setDisconnectTarget] = useState<Consumer | null>(null)
+  const [disconnectPreview, setDisconnectPreview] = useState<{ deposit_on_hand: number; pending_balance: number; applied: number; refund: number } | null>(null)
+  const [disconnecting, setDisconnecting] = useState(false)
+  const [billingSetupTarget, setBillingSetupTarget] = useState<{ consumer_id: string; name: string; scheduleId: string | null } | null>(null)
+  const [billingSetupForm, setBillingSetupForm] = useState({ discount_amount: 0, description: '', recurring_enabled: true, recurring_frequency: 'monthly', monthly_amount: 0 })
+  const [settingUpBilling, setSettingUpBilling] = useState(false)
   const [newConsumer, setNewConsumer] = useState({
     name: '', father_husband_name: '', mobile: '', whatsapp_number: '', whatsapp_same_as_mobile: true,
     house_no: '', sector: '', area: '', address: '', connections: 1, monthly_rate: 200,
@@ -110,22 +148,55 @@ function BillingPageInner() {
   const supabase = createClient()
 
   const [sectorOptions, setSectorOptions] = useState<{ id: string; name: string }[]>([])
+  const [messageTemplates, setMessageTemplates] = useState<Record<string, string>>({})
+  const [complaintsByConsumer, setComplaintsByConsumer] = useState<Record<string, LinkedComplaint>>({})
+  const [pendingRequestIdentities, setPendingRequestIdentities] = useState<DuplicateCandidate[]>([])
+  const [waiverVoucherStatus, setWaiverVoucherStatus] = useState<Record<string, string>>({})
+  const [inProcessConsumerIds, setInProcessConsumerIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    supabase.from('message_templates').select('key, body').then(({ data }) => {
+      setMessageTemplates(Object.fromEntries((data ?? []).map((t) => [t.key, t.body])))
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const loadData = async () => {
     setLoading(true)
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-    const [cRes, bRes, secRes, auditRes, recurRes] = await Promise.all([
+    const [cRes, bRes, secRes, auditRes, recurRes, complaintsRes, inProcessRes, pendingReqRes] = await Promise.all([
       supabase.from('consumers').select('*').order('consumer_id'),
       supabase.from('bills').select('*').order('year', { ascending: false }).order('month', { ascending: false }),
       supabase.from('sectors').select('id, name').order('display_order').order('name'),
       supabase.from('audit_log').select('old_data, record_data').eq('table_name', 'consumers').eq('action', 'update').gte('performed_at', monthStart),
-      supabase.from('recurring_schedules').select('consumer_id').eq('schedule_type', 'bill').eq('is_active', true),
+      supabase.from('recurring_schedules').select('id, consumer_id, amount_pkr, discount_amount, frequency, next_run_date, is_active, particular').eq('schedule_type', 'bill').eq('is_active', true),
+      supabase.from('complaints').select('id, complaint_number, status, complaint_text, consumer_id').eq('system', 'water_supply').not('consumer_id', 'is', null).neq('status', 'verified'),
+      supabase.from('connection_requests').select('consumer_id').eq('status', 'processing').not('consumer_id', 'is', null),
+      // Not-yet-converted requests too, so a duplicate can be caught before it
+      // ever becomes a real consumer, not just after.
+      supabase.from('connection_requests').select('id, consumer_name, consumer_phone, whatsapp_number, father_husband_name').is('consumer_id', null),
     ])
     setConsumers(cRes.data ?? [])
+    setPendingRequestIdentities((pendingReqRes.data ?? []).map((r) => ({
+      id: r.id, name: r.consumer_name, mobile: r.consumer_phone, whatsapp_number: r.whatsapp_number, father_husband_name: r.father_husband_name,
+    })))
     setBills(bRes.data ?? [])
     setSectorOptions(secRes.data ?? [])
-    setRecurringConsumerIds(new Set((recurRes.data ?? []).map((r) => r.consumer_id).filter(Boolean) as string[]))
+    setRecurringSchedules(Object.fromEntries(
+      (recurRes.data ?? []).filter((r) => r.consumer_id).map((r) => [r.consumer_id as string, r as RecurringSchedule])
+    ))
+    setComplaintsByConsumer(Object.fromEntries(
+      (complaintsRes.data ?? []).map((c) => [c.consumer_id as string, c as LinkedComplaint])
+    ))
+    setInProcessConsumerIds(new Set((inProcessRes.data ?? []).map((r) => r.consumer_id as string)))
+    const waiverVoucherIds = (bRes.data ?? []).map((b) => b.waiver_voucher_id).filter(Boolean) as string[]
+    if (waiverVoucherIds.length > 0) {
+      const { data: waiverVouchers } = await supabase.from('vouchers').select('id, status').in('id', waiverVoucherIds)
+      setWaiverVoucherStatus(Object.fromEntries((waiverVouchers ?? []).map((v) => [v.id, v.status])))
+    } else {
+      setWaiverVoucherStatus({})
+    }
     const deactivations = (auditRes.data ?? []).filter(
       (r) => r.old_data?.status === 'active' && r.record_data?.status === 'inactive'
     ).length
@@ -205,24 +276,42 @@ function BillingPageInner() {
     }
   }, [bills, consumers, currentMonth, currentYear])
 
+  // Priority order for the left list: new-connection-in-process, then has an
+  // open complaint, then no recurring set up, then has a pending (unpaid) bill,
+  // then has a partial-payment bill, then everyone else — first match wins,
+  // so e.g. a consumer with no recurring AND a pending bill lands in tier 2
+  // (no recurring), not tier 3.
+  const consumerTier = (c: Consumer): number => {
+    if (inProcessConsumerIds.has(c.consumer_id)) return 0
+    if (complaintsByConsumer[c.consumer_id]) return 1
+    if (!recurringSchedules[c.consumer_id]) return 2
+    const cb = billsByConsumer[c.consumer_id] ?? []
+    if (cb.some((b) => b.status === 'unpaid' || b.status === 'pending' || b.status === 'late')) return 3
+    if (cb.some((b) => b.status === 'partial')) return 4
+    return 5
+  }
+
   const filteredConsumers = useMemo(() => {
-    return consumers.filter((c) => {
-      if (search) {
-        const q = search.toLowerCase()
-        if (!c.consumer_id.toLowerCase().includes(q) && !c.name.toLowerCase().includes(q) && !c.mobile.includes(q)) return false
-      }
-      if (sectorFilter && c.sector !== sectorFilter) return false
-      if (statusFilter === 'pending' && (consumerStats[c.consumer_id]?.pendingCount ?? 0) === 0) return false
-      if (statusFilter === 'clear' && (consumerStats[c.consumer_id]?.pendingCount ?? 0) > 0) return false
-      if (quickFilter === 'with_discount' && !monthlyStats.discountConsumerIds.has(c.consumer_id)) return false
-      if (quickFilter === 'without_discount' && !monthlyStats.noDiscountConsumerIds.has(c.consumer_id)) return false
-      if (quickFilter === 'active' && c.status !== 'active') return false
-      if (quickFilter === 'inactive' && c.status === 'active') return false
-      if (quickFilter === 'new_this_month' && !monthlyStats.newConsumerIds.has(c.consumer_id)) return false
-      if (quickFilter === 'billed_this_month' && !monthlyStats.billedConsumerIds.has(c.consumer_id)) return false
-      return true
-    })
-  }, [consumers, search, sectorFilter, statusFilter, consumerStats, quickFilter, monthlyStats])
+    return consumers
+      .filter((c) => {
+        if (search) {
+          const q = search.toLowerCase()
+          if (!c.consumer_id.toLowerCase().includes(q) && !c.name.toLowerCase().includes(q) && !c.mobile.includes(q)) return false
+        }
+        if (sectorFilter && c.sector !== sectorFilter) return false
+        if (statusFilter === 'pending' && (consumerStats[c.consumer_id]?.pendingCount ?? 0) === 0) return false
+        if (statusFilter === 'clear' && (consumerStats[c.consumer_id]?.pendingCount ?? 0) > 0) return false
+        if (quickFilter === 'with_discount' && !monthlyStats.discountConsumerIds.has(c.consumer_id)) return false
+        if (quickFilter === 'without_discount' && !monthlyStats.noDiscountConsumerIds.has(c.consumer_id)) return false
+        if (quickFilter === 'active' && c.status !== 'active') return false
+        if (quickFilter === 'inactive' && c.status === 'active') return false
+        if (quickFilter === 'new_this_month' && !monthlyStats.newConsumerIds.has(c.consumer_id)) return false
+        if (quickFilter === 'billed_this_month' && !monthlyStats.billedConsumerIds.has(c.consumer_id)) return false
+        return true
+      })
+      .sort((a, b) => consumerTier(a) - consumerTier(b))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [consumers, search, sectorFilter, statusFilter, consumerStats, quickFilter, monthlyStats, inProcessConsumerIds, complaintsByConsumer, recurringSchedules, billsByConsumer])
 
   const selectedBills = useMemo(() => {
     if (!selectedConsumer) return []
@@ -269,6 +358,13 @@ function BillingPageInner() {
     if (!newConsumer.name.trim()) { toast.error('Name is required'); return }
     if (!newConsumer.sector) { toast.error('Select a sector'); return }
 
+    const whatsapp = newConsumer.whatsapp_same_as_mobile ? newConsumer.mobile : newConsumer.whatsapp_number
+    const duplicate = findDuplicate(
+      { name: newConsumer.name, father_husband_name: newConsumer.father_husband_name, mobile: newConsumer.mobile, whatsapp_number: whatsapp },
+      [...consumers.map((c) => ({ id: c.consumer_id, name: c.name, father_husband_name: c.father_husband_name, mobile: c.mobile, whatsapp_number: c.whatsapp_number })), ...pendingRequestIdentities]
+    )
+    if (duplicate) { toast.error(duplicate); return }
+
     const { data, error: consumerError } = await supabase.from('consumers').insert({
       name: newConsumer.name, father_husband_name: newConsumer.father_husband_name || null,
       mobile: newConsumer.mobile, whatsapp_number: newConsumer.whatsapp_same_as_mobile ? newConsumer.mobile : newConsumer.whatsapp_number,
@@ -278,12 +374,163 @@ function BillingPageInner() {
     }).select('consumer_id').single()
     if (consumerError) { toast.error(consumerError.message); return }
 
-    toast.success(`Consumer ${data.consumer_id} added — generate their first bill from Transactions → Generate Bill`)
+    toast.success(`Consumer ${data.consumer_id} created`)
     setShowAddConsumer(false)
+    setBillingSetupTarget({ consumer_id: data.consumer_id, name: newConsumer.name, scheduleId: null })
+    setBillingSetupForm({ discount_amount: 0, description: '', recurring_enabled: true, recurring_frequency: 'monthly', monthly_amount: newConsumer.monthly_rate })
     setNewConsumer({
       name: '', father_husband_name: '', mobile: '', whatsapp_number: '', whatsapp_same_as_mobile: true,
       house_no: '', sector: '', area: '', address: '', connections: 1, monthly_rate: 200,
     })
+    loadData()
+  }
+
+  // Reuses the exact recurring-schedule mechanism the New Connections page's
+  // Activation step already uses. Handles both cases: no scheduleId ->
+  // create fresh (Add Consumer, or the "Set Up Recurring" button on an
+  // existing consumer with none yet); scheduleId set -> update the existing
+  // schedule's amount/discount/frequency in place, leaving next_run_date
+  // untouched so an edit never skips or duplicates a billing cycle.
+  const saveBillingSetup = async () => {
+    if (!billingSetupTarget) return
+    setSettingUpBilling(true)
+
+    if (billingSetupTarget.scheduleId) {
+      const { error: schedErr } = await supabase.from('recurring_schedules').update({
+        frequency: billingSetupForm.recurring_frequency,
+        amount_pkr: billingSetupForm.monthly_amount, discount_amount: billingSetupForm.discount_amount || 0,
+        particular: billingSetupForm.description || null, is_active: billingSetupForm.recurring_enabled,
+      }).eq('id', billingSetupTarget.scheduleId)
+      if (schedErr) toast.error(`Recurring schedule could not be updated: ${schedErr.message}`)
+      else toast.success(billingSetupForm.recurring_enabled ? 'Recurring billing updated' : 'Recurring billing paused')
+    } else if (billingSetupForm.recurring_enabled && billingSetupForm.monthly_amount > 0) {
+      const next = new Date()
+      if (billingSetupForm.recurring_frequency === 'daily') next.setDate(next.getDate() + 1)
+      else if (billingSetupForm.recurring_frequency === 'weekly') next.setDate(next.getDate() + 7)
+      else if (billingSetupForm.recurring_frequency === 'monthly') next.setMonth(next.getMonth() + 1)
+      else if (billingSetupForm.recurring_frequency === 'semi_annual') next.setMonth(next.getMonth() + 6)
+      else next.setFullYear(next.getFullYear() + 1)
+      // Gross amount + discount_amount kept separate (not pre-netted) so the
+      // generated bill posts the discount as its own ledger leg (migration
+      // 067) and still counts toward the "With Discount" filter below.
+      const { error: schedErr } = await supabase.from('recurring_schedules').insert({
+        system: 'water_supply', schedule_type: 'bill', frequency: billingSetupForm.recurring_frequency,
+        next_run_date: next.toISOString(), consumer_id: billingSetupTarget.consumer_id,
+        amount_pkr: billingSetupForm.monthly_amount, discount_amount: billingSetupForm.discount_amount || 0,
+        particular: billingSetupForm.description || null,
+      })
+      if (schedErr) toast.error(schedErr.code === '23505' ? 'This consumer already has an active recurring bill' : `Recurring schedule could not be created: ${schedErr.message}`)
+      else toast.success('Recurring billing set up')
+    }
+    setSettingUpBilling(false)
+    setBillingSetupTarget(null)
+    loadData()
+  }
+
+  // Manual trigger for an already-existing consumer (Add Consumer auto-opens
+  // this same modal right after creation — this is the same step, just
+  // reachable on demand from the consumer detail panel).
+  const openRecurringSetup = (c: Consumer) => {
+    const existing = recurringSchedules[c.consumer_id]
+    setBillingSetupTarget({ consumer_id: c.consumer_id, name: c.name, scheduleId: existing?.id ?? null })
+    setBillingSetupForm(existing ? {
+      discount_amount: existing.discount_amount, description: existing.particular || '',
+      recurring_enabled: existing.is_active, recurring_frequency: existing.frequency, monthly_amount: existing.amount_pkr,
+    } : {
+      discount_amount: 0, description: '', recurring_enabled: true, recurring_frequency: 'monthly', monthly_amount: c.monthly_rate,
+    })
+  }
+
+  const pauseSchedule = async (scheduleId: string) => {
+    const { error } = await supabase.from('recurring_schedules').update({ is_active: false }).eq('id', scheduleId)
+    if (error) { toast.error(error.message); return }
+    toast.success('Recurring billing paused')
+    loadData()
+  }
+
+  const openEditConsumer = (c: Consumer) => {
+    setEditForm({
+      name: c.name, father_husband_name: c.father_husband_name || '', mobile: c.mobile,
+      whatsapp_number: c.whatsapp_number || '', whatsapp_same_as_mobile: c.whatsapp_same_as_mobile,
+      house_no: c.house_no || '', sector: c.sector || '', area: c.area || '', address: c.address || '',
+      connections: c.connections || 1, monthly_rate: c.monthly_rate,
+    })
+    setEditConsumerTarget(c)
+  }
+
+  const saveEditConsumer = async () => {
+    if (!editConsumerTarget) return
+    if (!editForm.name.trim() || !editForm.mobile.trim()) { toast.error('Name and mobile are required'); return }
+
+    const editWhatsapp = editForm.whatsapp_same_as_mobile ? editForm.mobile : editForm.whatsapp_number
+    const editDuplicate = findDuplicate(
+      { name: editForm.name, father_husband_name: editForm.father_husband_name, mobile: editForm.mobile, whatsapp_number: editWhatsapp },
+      [...consumers.map((c) => ({ id: c.consumer_id, name: c.name, father_husband_name: c.father_husband_name, mobile: c.mobile, whatsapp_number: c.whatsapp_number })), ...pendingRequestIdentities],
+      editConsumerTarget.consumer_id
+    )
+    if (editDuplicate) { toast.error(editDuplicate); return }
+
+    setSavingEdit(true)
+    const { error } = await supabase.from('consumers').update({
+      name: editForm.name, father_husband_name: editForm.father_husband_name || null, mobile: editForm.mobile,
+      whatsapp_number: editForm.whatsapp_same_as_mobile ? editForm.mobile : editForm.whatsapp_number,
+      whatsapp_same_as_mobile: editForm.whatsapp_same_as_mobile,
+      house_no: editForm.house_no || null, sector: editForm.sector || null, area: editForm.area || null,
+      address: editForm.address || null, connections: editForm.connections || 1, monthly_rate: editForm.monthly_rate,
+    }).eq('consumer_id', editConsumerTarget.consumer_id)
+    setSavingEdit(false)
+    if (error) { toast.error(error.message); return }
+    toast.success('Consumer updated')
+    setEditConsumerTarget(null)
+    loadData()
+  }
+
+  // Temporary pause, not permanent — a disconnected consumer can't be flipped
+  // back on through this toggle (they'd need a fresh connection request).
+  const toggleConsumerActive = async (c: Consumer) => {
+    if (c.status === 'disconnected') return
+    const nextStatus = c.status === 'active' ? 'inactive' : 'active'
+    const { error } = await supabase.from('consumers').update({ status: nextStatus }).eq('consumer_id', c.consumer_id)
+    if (error) { toast.error(error.message); return }
+    await supabase.from('accounts').update({ is_active: nextStatus === 'active' }).eq('type', 'consumer').eq('consumer_id', c.consumer_id)
+    // Deactivating without pausing the schedule would keep generating bills
+    // for someone marked inactive — pause it in sync, and resume it in sync
+    // when reactivated, same as disconnect_consumer() already does for a
+    // permanent disconnection.
+    const schedule = recurringSchedules[c.consumer_id]
+    if (schedule) {
+      await supabase.from('recurring_schedules').update({ is_active: nextStatus === 'active' }).eq('id', schedule.id)
+    }
+    toast.success(
+      nextStatus === 'active'
+        ? `Consumer activated${schedule ? ' — recurring billing resumed' : ''}`
+        : `Consumer deactivated${schedule ? ' — recurring billing paused' : ''}`
+    )
+    setSelectedConsumer({ ...c, status: nextStatus })
+    loadData()
+  }
+
+  const openDisconnect = async (c: Consumer) => {
+    setDisconnectTarget(c)
+    setDisconnectPreview(null)
+    const { data, error } = await supabase.rpc('preview_disconnect_consumer', { p_consumer_id: c.consumer_id })
+    if (error) { toast.error(error.message); setDisconnectTarget(null); return }
+    setDisconnectPreview(data)
+  }
+
+  const confirmDisconnect = async () => {
+    if (!disconnectTarget) return
+    setDisconnecting(true)
+    const { data, error } = await supabase.rpc('disconnect_consumer', { p_consumer_id: disconnectTarget.consumer_id })
+    setDisconnecting(false)
+    if (error) { toast.error(error.message); return }
+    const parts: string[] = []
+    if (data.applied > 0) parts.push(`Rs. ${Number(data.applied).toLocaleString()} applied to their pending balance`)
+    if (data.refund > 0) parts.push(`Rs. ${Number(data.refund).toLocaleString()} refunded`)
+    toast.success(`Consumer disconnected${parts.length ? ' — ' + parts.join(', ') : ''}`)
+    setDisconnectTarget(null)
+    setDisconnectPreview(null)
+    setSelectedConsumer(null)
     loadData()
   }
 
@@ -311,9 +558,12 @@ function BillingPageInner() {
   const sendWhatsApp = (consumer: Consumer) => {
     const stats = consumerStats[consumer.consumer_id]
     if (!consumer.mobile) { toast.error('No mobile number for this consumer'); return }
-    const msg = encodeURIComponent(
-      `*Dhab Pari Water Committee*\n\nDear ${consumer.name},\n\nYour outstanding water bill is *Rs. ${stats.outstanding.toLocaleString()}* (${stats.pendingCount} bill${stats.pendingCount > 1 ? 's' : ''} pending).\n\nConsumer No: ${consumer.consumer_id}\n\nPlease pay at your earliest convenience. Thank you.`
-    )
+    const template = messageTemplates.consumer_outstanding_notify
+      ?? '*Dhab Pari Water Committee*\n\nDear %%name%%, your outstanding water bill is Rs. %%outstanding%% (%%pending_count%% bill(s) pending). Consumer No: %%consumer_id%%. Please pay at your earliest convenience. Thank you.'
+    const msg = encodeURIComponent(renderTemplate(template, {
+      name: consumer.name, outstanding: stats.outstanding.toLocaleString(),
+      pending_count: String(stats.pendingCount), consumer_id: consumer.consumer_id,
+    }))
     const phone = consumer.mobile.replace(/\D/g, '')
     const intlPhone = phone.startsWith('0') ? '92' + phone.slice(1) : phone
     window.open(`https://wa.me/${intlPhone}?text=${msg}`, '_blank')
@@ -434,17 +684,17 @@ function BillingPageInner() {
       </div>
 
       {/* Two-column layout */}
-      <div className="flex gap-6 min-h-[600px]">
+      <div className="flex gap-6 h-[calc(100vh-300px)] min-h-[420px]">
 
         {/* Consumer list */}
-        <div className={`${selectedConsumer ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[340px] md:flex-shrink-0`}>
-          <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden flex flex-col flex-1">
+        <div className={`${selectedConsumer ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[340px] md:flex-shrink-0 min-h-0`}>
+          <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden flex flex-col flex-1 min-h-0">
             {loading ? (
               <div className="p-8 text-center text-dp-on-surface-variant font-sans">Loading...</div>
             ) : filteredConsumers.length === 0 ? (
               <div className="p-8 text-center text-dp-on-surface-variant font-sans">No consumers found.</div>
             ) : (
-              <div className="overflow-y-auto">
+              <div className="overflow-y-auto hide-scrollbar flex-1 min-h-0">
                 {filteredConsumers.map((c, i) => {
                   const stats = consumerStats[c.consumer_id]
                   const isSelected = selectedConsumer?.consumer_id === c.consumer_id
@@ -455,10 +705,30 @@ function BillingPageInner() {
                       className={`w-full text-left px-4 py-3 flex items-center justify-between gap-3 transition-colors ${i > 0 ? 'border-t border-dp-outline-variant' : ''} ${isSelected ? 'bg-dp-primary-container/30 border-l-4 border-l-dp-secondary' : 'hover:bg-dp-surface-container-low'}`}
                     >
                       <div className="min-w-0">
+                        {c.status === 'disconnected' && (
+                          <span className="inline-flex items-center gap-1 mb-1 px-1.5 py-0.5 rounded-full text-[9.5px] font-bold uppercase tracking-wide bg-gray-200 text-gray-700">
+                            <Ban size={9} /> Disconnected
+                          </span>
+                        )}
+                        {c.status === 'inactive' && (
+                          <span className="inline-flex items-center gap-1 mb-1 px-1.5 py-0.5 rounded-full text-[9.5px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800">
+                            <Power size={9} /> Inactive
+                          </span>
+                        )}
+                        {inProcessConsumerIds.has(c.consumer_id) && (
+                          <span className="inline-flex items-center gap-1 mb-1 px-1.5 py-0.5 rounded-full text-[9.5px] font-bold uppercase tracking-wide bg-dp-secondary/15 text-dp-secondary">
+                            <UserPlus size={9} /> New Connection In Process
+                          </span>
+                        )}
+                        {complaintsByConsumer[c.consumer_id] && (
+                          <span className={`inline-flex items-center gap-1 mb-1 px-1.5 py-0.5 rounded-full text-[9.5px] font-bold uppercase tracking-wide ${complaintStatusColors[complaintsByConsumer[c.consumer_id].status]}`}>
+                            <AlertCircle size={9} /> {complaintsByConsumer[c.consumer_id].complaint_number}
+                          </span>
+                        )}
                         <div className="flex items-center gap-2">
                           <span className="font-sans text-[11px] font-bold text-dp-secondary">{c.consumer_id}</span>
                           {c.sector && <span className="text-[10px] text-dp-on-surface-variant font-sans">{c.sector}</span>}
-                          {recurringConsumerIds.has(c.consumer_id) ? (
+                          {recurringSchedules[c.consumer_id] ? (
                             <span className="flex items-center gap-0.5 text-[9.5px] font-bold uppercase tracking-wide text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full" title="Has an active recurring bill">
                               <Repeat size={9} /> Recurring
                             </span>
@@ -496,7 +766,7 @@ function BillingPageInner() {
 
         {/* Consumer detail panel */}
         {selectedConsumer ? (
-          <div className="flex-1 bg-white rounded-lg border border-dp-outline-variant overflow-hidden flex flex-col">
+          <div className="flex-1 bg-white rounded-lg border border-dp-outline-variant overflow-hidden flex flex-col min-h-0">
             {/* Consumer header */}
             <div className="bg-dp-surface-container-low px-6 py-4 border-b border-dp-outline-variant">
               <div className="flex items-start justify-between gap-4">
@@ -505,6 +775,12 @@ function BillingPageInner() {
                     <span className="font-sans text-[12px] font-bold text-dp-secondary bg-dp-primary-container px-2 py-0.5 rounded">{selectedConsumer.consumer_id}</span>
                     {selectedConsumer.sector && (
                       <span className="font-sans text-[12px] text-dp-on-surface-variant flex items-center gap-1"><MapPin size={12} />{selectedConsumer.sector}</span>
+                    )}
+                    {selectedConsumer.status === 'disconnected' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wide bg-gray-200 text-gray-700"><Ban size={10} /> Disconnected</span>
+                    )}
+                    {selectedConsumer.status === 'inactive' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800"><Power size={10} /> Inactive</span>
                     )}
                   </div>
                   <h2 className="font-heading text-[22px] font-bold text-dp-primary">{selectedConsumer.name}</h2>
@@ -540,10 +816,81 @@ function BillingPageInner() {
                   <span className="font-sans text-[14px] font-bold text-dp-error">Outstanding: Rs. {selectedOutstanding.toLocaleString()}</span>
                 </div>
               )}
+
+              {/* Linked complaint */}
+              {complaintsByConsumer[selectedConsumer.consumer_id] && (
+                <Link
+                  href={`/admin/complaints/${complaintsByConsumer[selectedConsumer.consumer_id].id}`}
+                  className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 flex items-center justify-between gap-3 hover:bg-amber-100/60 transition-all"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <AlertCircle size={16} className="text-amber-700 shrink-0" />
+                    <span className="font-sans text-[13px] font-bold text-amber-800">{complaintsByConsumer[selectedConsumer.consumer_id].complaint_number}</span>
+                    <span className={`px-2 py-0.5 rounded-full font-sans text-[10px] font-bold uppercase tracking-wide ${complaintStatusColors[complaintsByConsumer[selectedConsumer.consumer_id].status]}`}>
+                      {complaintStatusLabels[complaintsByConsumer[selectedConsumer.consumer_id].status]}
+                    </span>
+                    <span className="font-sans text-[12.5px] text-amber-900 truncate">{complaintsByConsumer[selectedConsumer.consumer_id].complaint_text}</span>
+                  </div>
+                  <ChevronRight size={15} className="text-amber-700 shrink-0" />
+                </Link>
+              )}
+
+              {/* Lifecycle actions */}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button onClick={() => openEditConsumer(selectedConsumer)} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
+                  <Pencil size={13} /> Edit
+                </button>
+                {selectedConsumer.status !== 'disconnected' && (
+                  <button onClick={() => toggleConsumerActive(selectedConsumer)} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
+                    <Power size={13} /> {selectedConsumer.status === 'active' ? 'Deactivate' : 'Activate'}
+                  </button>
+                )}
+                {selectedConsumer.status === 'disconnected' ? (
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-sans text-[12.5px] font-bold bg-gray-100 text-gray-600" title="Reconnects automatically once dues are fully cleared">
+                    <Ban size={13} /> Disconnected — reconnects automatically once dues clear
+                  </span>
+                ) : (
+                  <button onClick={() => openDisconnect(selectedConsumer)} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-error/40 text-dp-error rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-error/5 transition-all cursor-pointer">
+                    <Ban size={13} /> Permanent Disconnection
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Recurring billing — the one place to start or adjust a consumer's
+                recurring water bill, instead of the separate Transactions →
+                Recurring page. */}
+            <div className="px-6 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/40">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Repeat size={14} className="text-dp-secondary" />
+                <span className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Recurring Billing</span>
+              </div>
+              {recurringSchedules[selectedConsumer.consumer_id] ? (
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <p className="font-sans text-[13.5px] text-dp-on-surface">
+                    Rs. {(recurringSchedules[selectedConsumer.consumer_id].amount_pkr - recurringSchedules[selectedConsumer.consumer_id].discount_amount).toLocaleString()} / {frequencyLabels[recurringSchedules[selectedConsumer.consumer_id].frequency] ?? recurringSchedules[selectedConsumer.consumer_id].frequency}
+                    {recurringSchedules[selectedConsumer.consumer_id].discount_amount > 0 && (
+                      <span className="text-emerald-700"> (Rs. {recurringSchedules[selectedConsumer.consumer_id].discount_amount.toLocaleString()} discount)</span>
+                    )}
+                    <span className="text-dp-on-surface-variant"> · Next: {new Date(recurringSchedules[selectedConsumer.consumer_id].next_run_date).toLocaleDateString('en-GB')}</span>
+                  </p>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => openRecurringSetup(selectedConsumer)} title="Edit recurring billing" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Pencil size={14} /></button>
+                    <button onClick={() => pauseSchedule(recurringSchedules[selectedConsumer.consumer_id].id)} title="Pause recurring billing" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><PauseCircle size={15} /></button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <p className="font-sans text-[13px] text-dp-on-surface-variant">No recurring bill set up.</p>
+                  <button onClick={() => openRecurringSetup(selectedConsumer)} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                    <Repeat size={13} /> Set Up Recurring
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Bills list */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-3">
               <div className="flex items-center justify-between mb-1">
                 <h3 className="font-sans text-[14px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Bills History</h3>
                 <Link
@@ -575,6 +922,13 @@ function BillingPageInner() {
                           {(bill.discount_amount ?? 0) > 0 && <span className="ml-2 text-emerald-700">Discount: − Rs. {(bill.discount_amount ?? 0).toLocaleString()}</span>}
                           {(bill.paid_amount ?? 0) > 0 && <span className="ml-2 text-emerald-600">Paid: Rs. {(bill.paid_amount ?? 0).toLocaleString()}</span>}
                           {rem > 0 && <span className="ml-2 text-dp-error">Due: Rs. {rem.toLocaleString()}</span>}
+                          {bill.waiver_voucher_id && (
+                            <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10.5px] font-bold uppercase tracking-wide">
+                              {waiverVoucherStatus[bill.waiver_voucher_id] === 'pending'
+                                ? 'Waiver Pending Approval'
+                                : `Committee Waived ${bill.waiver_type === 'full' ? '(Full)' : `(${bill.waiver_percent}%)`}`}
+                            </span>
+                          )}
                         </div>
                         {bill.description && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5 italic">{bill.description}</p>}
                         {bill.paid_date && (
@@ -740,6 +1094,138 @@ function BillingPageInner() {
               </Field>
             </div>
             <button onClick={addConsumer} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">Add Consumer</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Edit Consumer Modal */}
+      {editConsumerTarget && (
+        <Modal title="Edit Consumer" onClose={() => setEditConsumerTarget(null)}>
+          <div className="space-y-4">
+            <Field label="Full Name">
+              <input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="input-field" />
+            </Field>
+            <Field label="Father / Husband Name (S/O)">
+              <input type="text" value={editForm.father_husband_name} onChange={(e) => setEditForm({ ...editForm, father_husband_name: e.target.value })} className="input-field" />
+            </Field>
+            <Field label="Contact Number">
+              <input type="text" value={editForm.mobile} onChange={(e) => setEditForm({ ...editForm, mobile: e.target.value })} className="input-field" />
+            </Field>
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer mb-2">
+                <input type="checkbox" checked={editForm.whatsapp_same_as_mobile} onChange={(e) => setEditForm({ ...editForm, whatsapp_same_as_mobile: e.target.checked })} className="accent-dp-secondary" />
+                <span className="font-sans text-[13.5px] text-dp-on-surface-variant">WhatsApp number is the same as contact number</span>
+              </label>
+              {!editForm.whatsapp_same_as_mobile && (
+                <input type="text" value={editForm.whatsapp_number} onChange={(e) => setEditForm({ ...editForm, whatsapp_number: e.target.value })} placeholder="0300-1234567" className="input-field" />
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="House No.">
+                <input type="text" value={editForm.house_no} onChange={(e) => setEditForm({ ...editForm, house_no: e.target.value })} className="input-field" />
+              </Field>
+              <Field label="Sector">
+                <select value={editForm.sector} onChange={(e) => setEditForm({ ...editForm, sector: e.target.value })} className="input-field">
+                  <option value="">Select sector...</option>
+                  {sectorOptions.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+                </select>
+              </Field>
+            </div>
+            <Field label="Area / Mohalla">
+              <input type="text" value={editForm.area} onChange={(e) => setEditForm({ ...editForm, area: e.target.value })} className="input-field" />
+            </Field>
+            <Field label="Address">
+              <textarea value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} rows={2} className="input-field resize-none" />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Number of Connections">
+                <input type="number" min={1} value={editForm.connections || ''} onChange={(e) => setEditForm({ ...editForm, connections: +e.target.value })} className="input-field" />
+              </Field>
+              <Field label="Monthly Rate (PKR)">
+                <input type="number" value={editForm.monthly_rate || ''} onChange={(e) => setEditForm({ ...editForm, monthly_rate: +e.target.value })} className="input-field" />
+              </Field>
+            </div>
+            <button disabled={savingEdit} onClick={saveEditConsumer} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              {savingEdit ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Permanent Disconnection */}
+      {disconnectTarget && (
+        <Modal title="Permanent Disconnection" onClose={() => { setDisconnectTarget(null); setDisconnectPreview(null) }}>
+          <div className="space-y-4">
+            <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3">
+              <p className="font-sans text-[14px] font-bold text-dp-on-surface">{disconnectTarget.name}</p>
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{disconnectTarget.consumer_id}</p>
+            </div>
+            {!disconnectPreview ? (
+              <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-4">Calculating settlement...</p>
+            ) : (
+              <div className="space-y-1.5 font-sans text-[13.5px]">
+                <div className="flex justify-between"><span className="text-dp-on-surface-variant">Security deposit held</span><span className="font-semibold">Rs. {disconnectPreview.deposit_on_hand.toLocaleString()}</span></div>
+                <div className="flex justify-between"><span className="text-dp-on-surface-variant">Pending bill balance</span><span className="font-semibold">Rs. {Math.max(disconnectPreview.pending_balance, 0).toLocaleString()}</span></div>
+                {disconnectPreview.applied > 0 && (
+                  <div className="flex justify-between text-dp-on-surface-variant"><span>Applied to pending balance</span><span>− Rs. {disconnectPreview.applied.toLocaleString()}</span></div>
+                )}
+                <div className="flex justify-between border-t border-dp-outline-variant pt-2 mt-1 font-bold text-[14.5px]">
+                  <span>{disconnectPreview.refund > 0 ? 'Refund due to consumer' : 'Still owed by consumer'}</span>
+                  <span className={disconnectPreview.refund > 0 ? 'text-emerald-700' : 'text-dp-error'}>
+                    Rs. {(disconnectPreview.refund > 0 ? disconnectPreview.refund : Math.max(disconnectPreview.pending_balance - disconnectPreview.applied, 0)).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            )}
+            <p className="font-sans text-[12px] text-dp-on-surface-variant bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              This cannot be undone. Any recurring bill for this consumer will stop, and their status becomes Disconnected.
+            </p>
+            <button disabled={disconnecting || !disconnectPreview} onClick={confirmDisconnect} className="w-full bg-dp-error text-white py-3 rounded-lg font-sans font-semibold hover:opacity-90 transition-all cursor-pointer disabled:opacity-50">
+              {disconnecting ? 'Processing...' : 'Confirm Permanent Disconnection'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Setup Billing — appears right after Add Consumer saves, same step
+          New Connections' Activation uses once a connection request is done. */}
+      {billingSetupTarget && (
+        <Modal title={billingSetupTarget.scheduleId ? 'Edit Recurring Billing' : 'Set Up Recurring Billing'} onClose={() => setBillingSetupTarget(null)}>
+          <div className="space-y-4">
+            <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3">
+              <p className="font-sans text-[14px] font-bold text-dp-on-surface">{billingSetupTarget.name}</p>
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{billingSetupTarget.consumer_id}</p>
+            </div>
+            <Field label="Monthly Bill Price">
+              <input type="number" min={0} value={billingSetupForm.monthly_amount || ''} onChange={(e) => setBillingSetupForm({ ...billingSetupForm, monthly_amount: +e.target.value })} className="input-field" />
+            </Field>
+            <Field label="Discount (optional)">
+              <input type="number" min={0} value={billingSetupForm.discount_amount || ''} onChange={(e) => setBillingSetupForm({ ...billingSetupForm, discount_amount: +e.target.value })} placeholder="0" className="input-field" />
+            </Field>
+            {billingSetupForm.discount_amount > 0 && (
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant -mt-2">
+                Net monthly bill: <span className="font-bold text-dp-on-surface">Rs. {Math.max(billingSetupForm.monthly_amount - billingSetupForm.discount_amount, 0).toLocaleString()}</span>
+              </p>
+            )}
+            <Field label="Description (optional)">
+              <input value={billingSetupForm.description} onChange={(e) => setBillingSetupForm({ ...billingSetupForm, description: e.target.value })} className="input-field" />
+            </Field>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={billingSetupForm.recurring_enabled} onChange={(e) => setBillingSetupForm({ ...billingSetupForm, recurring_enabled: e.target.checked })} className="accent-dp-secondary w-4 h-4" />
+              <span className="font-sans text-[14px] font-semibold text-dp-on-surface flex items-center gap-1.5"><Clock size={14} /> Set Recurring Monthly Bill</span>
+            </label>
+            {billingSetupForm.recurring_enabled && (
+              <select value={billingSetupForm.recurring_frequency} onChange={(e) => setBillingSetupForm({ ...billingSetupForm, recurring_frequency: e.target.value })} className="input-field">
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="semi_annual">Every 6 Months</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            )}
+            <button disabled={settingUpBilling} onClick={saveBillingSetup} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              {settingUpBilling ? 'Saving...' : 'Save'}
+            </button>
           </div>
         </Modal>
       )}

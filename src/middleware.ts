@@ -137,7 +137,7 @@ export async function middleware(request: NextRequest) {
         url.pathname = '/admin'
         return NextResponse.redirect(url)
       }
-      if (role === 'donor_accountant' && (pathname.startsWith('/admin/billing') || pathname.startsWith('/admin/finance/water_supply'))) {
+      if (role === 'donor_accountant' && (pathname.startsWith('/admin/billing') || pathname.startsWith('/admin/finance/water_supply') || pathname.startsWith('/admin/connections') || pathname.startsWith('/admin/tasks') || pathname.startsWith('/admin/advances'))) {
         const url = request.nextUrl.clone()
         url.pathname = '/admin'
         return NextResponse.redirect(url)

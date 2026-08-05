@@ -16,6 +16,7 @@ interface Complaint {
   deadline_at: string; created_at: string
 }
 interface Person { id: string; full_name: string }
+interface ConsumerOption { consumer_id: string; name: string; mobile: string }
 
 const statusLabels: Record<string, string> = { open: 'Open', awaiting_verification: 'Awaiting Verification', verified: 'Verified' }
 const statusColors: Record<string, string> = {
@@ -30,7 +31,7 @@ function deadlineText(deadline: string, status: string) {
   return { text: `${Math.round(hrs / 24)}d left`, tone: 'text-dp-on-surface-variant' }
 }
 
-const emptyForm = { complainant_name: '', phone: '', sector: '', complaint_text: '' }
+const emptyForm = { complainant_name: '', phone: '', sector: '', complaint_text: '', consumer_id: '' }
 
 export default function ComplaintsPage() {
   const supabase = createClient()
@@ -51,6 +52,8 @@ export default function ComplaintsPage() {
   const [complaints, setComplaints] = useState<Complaint[]>([])
   const [people, setPeople] = useState<Record<string, string>>({})
   const [sectors, setSectors] = useState<{ id: string; name: string }[]>([])
+  const [consumers, setConsumers] = useState<ConsumerOption[]>([])
+  const [consumerQuery, setConsumerQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -59,17 +62,26 @@ export default function ComplaintsPage() {
 
   const load = async () => {
     setLoading(true)
-    const [{ data: rows }, { data: roster }, { data: sectorsData }] = await Promise.all([
+    const [{ data: rows }, { data: roster }, { data: sectorsData }, { data: consumersData }] = await Promise.all([
       supabase.from('complaints').select('*').eq('system', system).order('created_at', { ascending: false }),
       supabase.rpc('get_approvers_roster', { p_system: system }),
       supabase.from('sectors').select('id, name').order('display_order').order('name'),
+      system === 'water_supply' ? supabase.from('consumers').select('consumer_id, name, mobile').order('name') : Promise.resolve({ data: [] }),
     ])
     setComplaints(rows ?? [])
     setPeople(Object.fromEntries(((roster ?? []) as Person[]).map((p) => [p.id, p.full_name])))
     setSectors(sectorsData ?? [])
+    setConsumers((consumersData ?? []) as ConsumerOption[])
     setLoading(false)
   }
   useEffect(() => { load() }, [system]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const matchingConsumers = useMemo(() => {
+    const q = consumerQuery.trim().toLowerCase()
+    if (!q) return []
+    return consumers.filter((c) => c.name.toLowerCase().includes(q) || c.consumer_id.toLowerCase().includes(q) || c.mobile?.includes(q)).slice(0, 8)
+  }, [consumers, consumerQuery])
+  const selectedConsumerOption = useMemo(() => consumers.find((c) => c.consumer_id === form.consumer_id) ?? null, [consumers, form.consumer_id])
 
   const filtered = useMemo(() => complaints.filter((c) => statusFilter === 'all' || c.status === statusFilter), [complaints, statusFilter])
 
@@ -79,6 +91,7 @@ export default function ComplaintsPage() {
     const { data, error } = await supabase.from('complaints').insert({
       system, complainant_name: form.complainant_name || null, phone: form.phone || null,
       sector: form.sector || null, complaint_text: form.complaint_text, source: 'manual',
+      consumer_id: form.consumer_id || null,
     }).select('complaint_number').single()
     setSaving(false)
     if (error) { toast.error(error.message); return }
@@ -182,6 +195,39 @@ export default function ComplaintsPage() {
                     <option value="">Select sector...</option>
                     {sectors.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
                   </select>
+                </div>
+              )}
+              {system === 'water_supply' && (
+                <div className="relative">
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">
+                    Link to Consumer (optional) <span className="font-normal opacity-70">— required to waive bill dues later</span>
+                  </label>
+                  {selectedConsumerOption ? (
+                    <div className="flex items-center justify-between px-3 py-2 border border-dp-outline-variant rounded-lg bg-dp-surface-container-low">
+                      <span className="font-sans text-[13.5px]"><strong>{selectedConsumerOption.consumer_id}</strong> — {selectedConsumerOption.name}</span>
+                      <button onClick={() => { setForm({ ...form, consumer_id: '' }); setConsumerQuery('') }} className="cursor-pointer text-dp-on-surface-variant"><X size={16} /></button>
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        value={consumerQuery} onChange={(e) => setConsumerQuery(e.target.value)}
+                        placeholder="Search by name, consumer no., or mobile..." className="input-field"
+                      />
+                      {matchingConsumers.length > 0 && (
+                        <div className="absolute z-10 mt-1 w-full bg-white border border-dp-outline-variant rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          {matchingConsumers.map((c) => (
+                            <button
+                              key={c.consumer_id} type="button"
+                              onClick={() => { setForm({ ...form, consumer_id: c.consumer_id }); setConsumerQuery('') }}
+                              className="w-full text-left px-3 py-2 hover:bg-dp-surface-container-low font-sans text-[13px] cursor-pointer"
+                            >
+                              <strong>{c.consumer_id}</strong> — {c.name} {c.mobile && <span className="text-dp-on-surface-variant">· {c.mobile}</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
               <div>

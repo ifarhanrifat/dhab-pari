@@ -7,11 +7,14 @@ import { createClient } from '@/lib/supabase/client'
 import { Printer, ExternalLink } from 'lucide-react'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
+import { fetchBrandingSettings } from '@/lib/branding'
+import { dt, type Lang, type DocStringKey } from '@/lib/docTranslations'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 type ReportType = 'trial_balance' | 'balance_sheet' | 'income_expense' | 'consumer_outstanding' | 'donor_report' | 'account_statement'
 
 const systemLabels: Record<SystemTab, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects' }
+const systemLabelKeys: Record<SystemTab, DocStringKey> = { water_supply: 'waterSupplySystem', donors_projects: 'donorsProjects' }
 const reportTypeLabels: Record<ReportType, string> = {
   trial_balance: 'Trial Balance',
   balance_sheet: 'Balance Sheet',
@@ -19,6 +22,14 @@ const reportTypeLabels: Record<ReportType, string> = {
   consumer_outstanding: 'Consumer Outstanding Report',
   donor_report: 'Donor Report',
   account_statement: 'Account Statement Lookup',
+}
+const reportTypeDocKeys: Record<ReportType, DocStringKey> = {
+  trial_balance: 'reportTrialBalance',
+  balance_sheet: 'reportBalanceSheet',
+  income_expense: 'reportIncomeExpense',
+  consumer_outstanding: 'reportConsumerOutstanding',
+  donor_report: 'reportDonorReport',
+  account_statement: 'reportAccountStatement',
 }
 
 // COGS and Discount Given are both type='expense' in the chart of accounts (so
@@ -75,8 +86,11 @@ function ReportsPageInner() {
   const [statementRows, setStatementRows] = useState<LedgerRow[]>([])
   const [statementOpening, setStatementOpening] = useState(0)
 
+  const [lang, setLang] = useState<Lang>('en')
   const printRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
+
+  useEffect(() => { fetchBrandingSettings().then((b) => setLang(b.language)) }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -316,8 +330,8 @@ function ReportsPageInner() {
       {loading ? (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">Loading...</div>
       ) : (
-        <div ref={printRef}>
-          <DocumentHeader title={`${reportTypeLabels[reportType]} — ${systemLabels[system]}`} className="hidden print:block" />
+        <div ref={printRef} dir={lang === 'ur' ? 'rtl' : 'ltr'} style={lang === 'ur' ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+          <DocumentHeader title={`${dt(lang, reportTypeDocKeys[reportType])} — ${dt(lang, systemLabelKeys[system])}`} className="hidden print:block" />
 
           {reportType === 'trial_balance' && (
             <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
@@ -325,11 +339,11 @@ function ReportsPageInner() {
                 <table className="w-full text-left min-w-[600px]">
                   <thead>
                     <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                      <th className="px-4 py-2.5">Code</th>
-                      <th className="px-4 py-2.5">Account</th>
-                      <th className="px-4 py-2.5">Header</th>
-                      <th className="px-4 py-2.5 text-right">Debit</th>
-                      <th className="px-4 py-2.5 text-right">Credit</th>
+                      <th className="px-4 py-2.5">{dt(lang, 'code')}</th>
+                      <th className="px-4 py-2.5">{dt(lang, 'account')}</th>
+                      <th className="px-4 py-2.5">{dt(lang, 'header')}</th>
+                      <th className="px-4 py-2.5 text-right">{dt(lang, 'debit')}</th>
+                      <th className="px-4 py-2.5 text-right">{dt(lang, 'credit')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -345,7 +359,7 @@ function ReportsPageInner() {
                   </tbody>
                   <tfoot>
                     <tr className="font-sans text-[13.5px] font-bold bg-dp-surface-container-low/60 border-t-2 border-dp-outline-variant">
-                      <td className="px-4 py-3" colSpan={3}>Total</td>
+                      <td className="px-4 py-3" colSpan={3}>{dt(lang, 'total')}</td>
                       <td className="px-4 py-3 text-right">{fmtAmount(totalDebitCol)}</td>
                       <td className="px-4 py-3 text-right">{fmtAmount(totalCreditCol)}</td>
                     </tr>
@@ -358,52 +372,52 @@ function ReportsPageInner() {
           {reportType === 'balance_sheet' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-                <div className="px-4 py-3 bg-dp-surface-container-low/60 border-b border-dp-outline-variant font-sans text-[14px] font-bold">Assets</div>
+                <div className="px-4 py-3 bg-dp-surface-container-low/60 border-b border-dp-outline-variant font-sans text-[14px] font-bold">{dt(lang, 'assets')}</div>
                 {balanceSheetData.assets.map(({ account, balance }) => (
                   <div key={account.id} className="flex justify-between px-4 py-2.5 border-t border-dp-outline-variant font-sans text-[13.5px]"><span>{account.name}</span><span className="font-semibold">{fmtAmount(balance)}</span></div>
                 ))}
-                <div className="flex justify-between px-4 py-3 border-t-2 border-dp-outline-variant font-sans text-[14px] font-bold bg-dp-surface-container-low/40"><span>Total Assets</span><span>{fmtAmount(balanceSheetData.totalAssets)}</span></div>
+                <div className="flex justify-between px-4 py-3 border-t-2 border-dp-outline-variant font-sans text-[14px] font-bold bg-dp-surface-container-low/40"><span>{dt(lang, 'totalAssets')}</span><span>{fmtAmount(balanceSheetData.totalAssets)}</span></div>
               </div>
               <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-                <div className="px-4 py-3 bg-dp-surface-container-low/60 border-b border-dp-outline-variant font-sans text-[14px] font-bold">Liabilities</div>
+                <div className="px-4 py-3 bg-dp-surface-container-low/60 border-b border-dp-outline-variant font-sans text-[14px] font-bold">{dt(lang, 'liabilities')}</div>
                 {balanceSheetData.liabilities.map(({ account, balance }) => (
                   <div key={account.id} className="flex justify-between px-4 py-2.5 border-t border-dp-outline-variant font-sans text-[13.5px]"><span>{account.name}</span><span className="font-semibold">{fmtAmount(balance)}</span></div>
                 ))}
-                <div className="flex justify-between px-4 py-3 border-t-2 border-dp-outline-variant font-sans text-[14px] font-bold bg-dp-surface-container-low/40"><span>Total Liabilities</span><span>{fmtAmount(balanceSheetData.totalLiabilities)}</span></div>
-                <div className="flex justify-between px-4 py-3 border-t border-dp-outline-variant font-sans text-[13.5px]"><span className="font-semibold">Fund Balance (Assets − Liabilities)</span><span className="font-bold">{fmtAmount(balanceSheetData.fundBalance)}</span></div>
+                <div className="flex justify-between px-4 py-3 border-t-2 border-dp-outline-variant font-sans text-[14px] font-bold bg-dp-surface-container-low/40"><span>{dt(lang, 'totalLiabilities')}</span><span>{fmtAmount(balanceSheetData.totalLiabilities)}</span></div>
+                <div className="flex justify-between px-4 py-3 border-t border-dp-outline-variant font-sans text-[13.5px]"><span className="font-semibold">{dt(lang, 'fundBalance')}</span><span className="font-bold">{fmtAmount(balanceSheetData.fundBalance)}</span></div>
               </div>
-              <p className="md:col-span-2 font-sans text-[12px] text-dp-on-surface-variant px-1">As of today. Fund Balance is a computed residual (accumulated surplus/deficit), not a separate postable account — appropriate for a committee rather than a shareholder "equity" figure.</p>
+              <p className="md:col-span-2 font-sans text-[12px] text-dp-on-surface-variant px-1">{dt(lang, 'fundBalanceFootnote')}</p>
             </div>
           )}
 
           {reportType === 'income_expense' && (
             <div className="max-w-2xl mx-auto">
               <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-                <div className="px-4 py-3 bg-dp-surface-container-low/60 border-b border-dp-outline-variant font-sans text-[14px] font-bold">Revenue</div>
+                <div className="px-4 py-3 bg-dp-surface-container-low/60 border-b border-dp-outline-variant font-sans text-[14px] font-bold">{dt(lang, 'revenue')}</div>
                 {incomeExpense.incomeAccounts.map((a) => (
                   <div key={a.id} className="flex justify-between px-4 py-2.5 border-t border-dp-outline-variant font-sans text-[13.5px]"><span>{a.name}</span><span className="font-semibold">{fmtAmount(netCredit(a))}</span></div>
                 ))}
-                <div className="flex justify-between px-4 py-2.5 border-t border-dp-outline-variant font-sans text-[13.5px]"><span>Gross Revenue</span><span className="font-semibold">{fmtAmount(grossRevenue)}</span></div>
+                <div className="flex justify-between px-4 py-2.5 border-t border-dp-outline-variant font-sans text-[13.5px]"><span>{dt(lang, 'grossRevenue')}</span><span className="font-semibold">{fmtAmount(grossRevenue)}</span></div>
                 {discountTotal > 0 && (
-                  <div className="flex justify-between px-4 py-2.5 border-t border-dp-outline-variant font-sans text-[13.5px] text-emerald-700"><span>Less: Discount Given</span><span>− {fmtAmount(discountTotal)}</span></div>
+                  <div className="flex justify-between px-4 py-2.5 border-t border-dp-outline-variant font-sans text-[13.5px] text-emerald-700"><span>{dt(lang, 'lessDiscountGiven')}</span><span>− {fmtAmount(discountTotal)}</span></div>
                 )}
-                <div className="flex justify-between px-4 py-3 border-t-2 border-dp-outline-variant font-sans text-[14px] font-bold bg-dp-surface-container-low/40"><span>Net Revenue</span><span>{fmtAmount(netRevenue)}</span></div>
+                <div className="flex justify-between px-4 py-3 border-t-2 border-dp-outline-variant font-sans text-[14px] font-bold bg-dp-surface-container-low/40"><span>{dt(lang, 'netRevenue')}</span><span>{fmtAmount(netRevenue)}</span></div>
 
                 {incomeExpense.cogsAccount && (
                   <>
-                    <div className="flex justify-between px-4 py-2.5 border-t border-dp-outline-variant font-sans text-[13.5px]"><span>Less: Cost of Goods Sold</span><span>− {fmtAmount(cogsTotal)}</span></div>
-                    <div className="flex justify-between px-4 py-3 border-t-2 border-dp-outline-variant font-sans text-[14px] font-bold bg-dp-surface-container-low/40"><span>Gross Profit</span><span>{fmtAmount(grossProfit)}</span></div>
+                    <div className="flex justify-between px-4 py-2.5 border-t border-dp-outline-variant font-sans text-[13.5px]"><span>{dt(lang, 'lessCogs')}</span><span>− {fmtAmount(cogsTotal)}</span></div>
+                    <div className="flex justify-between px-4 py-3 border-t-2 border-dp-outline-variant font-sans text-[14px] font-bold bg-dp-surface-container-low/40"><span>{dt(lang, 'grossProfit')}</span><span>{fmtAmount(grossProfit)}</span></div>
                   </>
                 )}
 
-                <div className="px-4 py-3 bg-dp-surface-container-low/60 border-y border-dp-outline-variant font-sans text-[14px] font-bold">Operating Expenses</div>
+                <div className="px-4 py-3 bg-dp-surface-container-low/60 border-y border-dp-outline-variant font-sans text-[14px] font-bold">{dt(lang, 'operatingExpenses')}</div>
                 {incomeExpense.expenseAccounts.map((a) => (
                   <div key={a.id} className="flex justify-between px-4 py-2.5 border-t border-dp-outline-variant font-sans text-[13.5px]"><span>{a.name}</span><span className="font-semibold">{fmtAmount(netDebit(a))}</span></div>
                 ))}
-                <div className="flex justify-between px-4 py-3 border-t-2 border-dp-outline-variant font-sans text-[14px] font-bold bg-dp-surface-container-low/40"><span>Total Operating Expenses</span><span>{fmtAmount(totalExpenseInRange)}</span></div>
+                <div className="flex justify-between px-4 py-3 border-t-2 border-dp-outline-variant font-sans text-[14px] font-bold bg-dp-surface-container-low/40"><span>{dt(lang, 'totalOperatingExpenses')}</span><span>{fmtAmount(totalExpenseInRange)}</span></div>
 
                 <div className="flex justify-between items-center px-4 py-5 border-t-2 border-dp-outline-variant">
-                  <span className="font-sans text-[15px] font-bold text-dp-on-surface">Net Surplus / (Deficit)</span>
+                  <span className="font-sans text-[15px] font-bold text-dp-on-surface">{dt(lang, 'netSurplusDeficit')}</span>
                   <span className={`font-heading text-[24px] font-bold ${netSurplus >= 0 ? 'text-dp-primary' : 'text-dp-error'}`}>Rs. {fmtAmount(netSurplus)}</span>
                 </div>
               </div>
@@ -416,15 +430,15 @@ function ReportsPageInner() {
                 <table className="w-full text-left min-w-[500px]">
                   <thead>
                     <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                      <th className="px-4 py-2.5">Consumer</th>
-                      <th className="px-4 py-2.5">Sector</th>
-                      <th className="px-4 py-2.5">Mobile</th>
-                      <th className="px-4 py-2.5 text-right">Outstanding</th>
-                      <th className="px-4 py-2.5 text-right print:hidden">Statement</th>
+                      <th className="px-4 py-2.5">{dt(lang, 'consumer')}</th>
+                      <th className="px-4 py-2.5">{dt(lang, 'sector')}</th>
+                      <th className="px-4 py-2.5">{dt(lang, 'mobile')}</th>
+                      <th className="px-4 py-2.5 text-right">{dt(lang, 'outstanding')}</th>
+                      <th className="px-4 py-2.5 text-right print:hidden">{dt(lang, 'statement')}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {consumerOutstanding.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">No outstanding balances.</td></tr>}
+                    {consumerOutstanding.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{dt(lang, 'noOutstandingBalances')}</td></tr>}
                     {consumerOutstanding.map(({ account, balance, info }) => (
                       <tr key={account.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
                         <td className="px-4 py-3 font-semibold">{account.name}</td>
@@ -433,7 +447,7 @@ function ReportsPageInner() {
                         <td className="px-4 py-3 text-right font-bold text-dp-error">{fmtAmount(balance)}</td>
                         <td className="px-4 py-3 text-right print:hidden">
                           <Link href={`/admin/accounts/${account.id}`} className="inline-flex items-center gap-1 text-dp-secondary font-semibold hover:underline">
-                            <ExternalLink size={13} /> View
+                            <ExternalLink size={13} /> {dt(lang, 'view')}
                           </Link>
                         </td>
                       </tr>
@@ -442,7 +456,7 @@ function ReportsPageInner() {
                   {consumerOutstanding.length > 0 && (
                     <tfoot>
                       <tr className="font-sans text-[13.5px] font-bold bg-dp-surface-container-low/60 border-t-2 border-dp-outline-variant">
-                        <td className="px-4 py-3" colSpan={3}>Total Outstanding</td>
+                        <td className="px-4 py-3" colSpan={3}>{dt(lang, 'totalOutstanding')}</td>
                         <td className="px-4 py-3 text-right">{fmtAmount(consumerOutstanding.reduce((s, r) => s + r.balance, 0))}</td>
                         <td className="px-4 py-3 print:hidden"></td>
                       </tr>
@@ -459,15 +473,15 @@ function ReportsPageInner() {
                 <table className="w-full text-left min-w-[600px]">
                   <thead>
                     <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                      <th className="px-4 py-2.5">Date</th>
-                      <th className="px-4 py-2.5">Donor</th>
-                      <th className="px-4 py-2.5">Project</th>
-                      <th className="px-4 py-2.5">Method</th>
-                      <th className="px-4 py-2.5 text-right">Amount</th>
+                      <th className="px-4 py-2.5">{dt(lang, 'date')}</th>
+                      <th className="px-4 py-2.5">{dt(lang, 'donor')}</th>
+                      <th className="px-4 py-2.5">{dt(lang, 'project')}</th>
+                      <th className="px-4 py-2.5">{dt(lang, 'method')}</th>
+                      <th className="px-4 py-2.5 text-right">{dt(lang, 'amount')}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredDonations.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">No donations in this period.</td></tr>}
+                    {filteredDonations.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{dt(lang, 'noDonationsInPeriod')}</td></tr>}
                     {filteredDonations.map((d) => (
                       <tr key={d.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
                         <td className="px-4 py-3 whitespace-nowrap">{new Date(d.date).toLocaleDateString('en-GB')}</td>
@@ -481,7 +495,7 @@ function ReportsPageInner() {
                   {filteredDonations.length > 0 && (
                     <tfoot>
                       <tr className="font-sans text-[13.5px] font-bold bg-dp-surface-container-low/60 border-t-2 border-dp-outline-variant">
-                        <td className="px-4 py-3" colSpan={4}>Total</td>
+                        <td className="px-4 py-3" colSpan={4}>{dt(lang, 'total')}</td>
                         <td className="px-4 py-3 text-right">{fmtAmount(filteredDonations.reduce((s, d) => s + Number(d.amount_pkr), 0))}</td>
                       </tr>
                     </tfoot>
@@ -494,23 +508,23 @@ function ReportsPageInner() {
           {reportType === 'account_statement' && (
             <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
               {!selectedAccountId ? (
-                <div className="px-4 py-12 text-center text-dp-on-surface-variant font-sans">Select an account above to view its statement.</div>
+                <div className="px-4 py-12 text-center text-dp-on-surface-variant font-sans">{dt(lang, 'selectAccountToView')}</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left min-w-[550px]">
                     <thead>
                       <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                        <th className="px-4 py-2.5">Date</th>
-                        <th className="px-4 py-2.5">Particular</th>
-                        <th className="px-4 py-2.5">Bill #</th>
-                        <th className="px-4 py-2.5 text-right">Debit</th>
-                        <th className="px-4 py-2.5 text-right">Credit</th>
-                        <th className="px-4 py-2.5 text-right">Balance</th>
+                        <th className="px-4 py-2.5">{dt(lang, 'date')}</th>
+                        <th className="px-4 py-2.5">{dt(lang, 'particular')}</th>
+                        <th className="px-4 py-2.5">{dt(lang, 'billHash')}</th>
+                        <th className="px-4 py-2.5 text-right">{dt(lang, 'debit')}</th>
+                        <th className="px-4 py-2.5 text-right">{dt(lang, 'credit')}</th>
+                        <th className="px-4 py-2.5 text-right">{dt(lang, 'balance')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr className="font-sans text-[13.5px] bg-dp-surface-container-low/30">
-                        <td className="px-4 py-2.5" colSpan={5}>Opening Balance</td>
+                        <td className="px-4 py-2.5" colSpan={5}>{dt(lang, 'openingBalance')}</td>
                         <td className="px-4 py-2.5 text-right font-bold">{fmtAmount(statementOpening)}</td>
                       </tr>
                       {(() => {
@@ -525,7 +539,7 @@ function ReportsPageInner() {
                               <td className="px-4 py-3">{r.particular}</td>
                               <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant whitespace-nowrap">
                                 {r.bill_number ?? '—'}
-                                {r.receipt_no && <span className="block text-dp-secondary">Receipt #{r.receipt_no}</span>}
+                                {r.receipt_no && <span className="block text-dp-secondary">{dt(lang, 'receiptHash')}{r.receipt_no}</span>}
                               </td>
                               <td className="px-4 py-3 text-right">{r.debit > 0 ? fmtAmount(r.debit) : '—'}</td>
                               <td className="px-4 py-3 text-right">{r.credit > 0 ? fmtAmount(r.credit) : '—'}</td>
@@ -534,7 +548,7 @@ function ReportsPageInner() {
                           )
                         })
                       })()}
-                      {statementRows.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">No transactions in this period.</td></tr>}
+                      {statementRows.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{dt(lang, 'noTransactionsInPeriod')}</td></tr>}
                     </tbody>
                   </table>
                 </div>

@@ -3,9 +3,12 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Search, FileText } from 'lucide-react'
+import { Search, FileText, Eye } from 'lucide-react'
 import { billBadge, billBadgeClass, type BillBadgeTone } from '@/lib/billStatus'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
+import { voucherTypeLabels, voucherReceiptKind } from '@/lib/ledgerLabels'
+import { ReceiptModal } from '@/components/admin/ReceiptModal'
+import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 
@@ -26,14 +29,15 @@ interface TxnRow {
   billId?: string
   paymentId?: string
   voucherId?: string
+  purchaseId?: string
+  purchaseNumber?: string | null
+  receiptNo?: string | null
   autoPosted?: boolean
   fullyApproved?: boolean
+  createdAt: string
 }
 
-const voucherTypeLabels: Record<string, string> = {
-  expense: 'Expense', income: 'Income', contra: 'Bank Transfer',
-  withdrawal: 'Cash Withdrawal', deposit: 'Cash Deposit', security_deposit: 'Security Deposit',
-}
+const systemLabels: Record<SystemTab, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects System' }
 
 function fmtAmount(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -64,6 +68,7 @@ export default function AllTransactionsPage() {
   const [autoPostedOnly, setAutoPostedOnly] = useState(false)
   const [search, setSearch] = useState('')
   const [rows, setRows] = useState<TxnRow[]>([])
+  const [viewReceipt, setViewReceipt] = useState<ReceiptData | null>(null)
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
@@ -84,20 +89,20 @@ export default function AllTransactionsPage() {
         ? supabase.from('consumers').select('consumer_id, name, mobile')
         : Promise.resolve({ data: [] as { consumer_id: string; name: string; mobile: string }[] }),
       system === 'water_supply'
-        ? supabase.from('bills').select('id, bill_number, consumer_id, month, year, amount_pkr, discount_amount, paid_amount, due_date, description, created_at')
+        ? supabase.from('bills').select('id, bill_number, consumer_id, month, year, amount_pkr, discount_amount, paid_amount, due_date, description, created_at, security_deposit_amount, security_deposit_voucher_id')
             .gte('created_at', from).lte('created_at', `${to}T23:59:59`)
-        : Promise.resolve({ data: [] as { id: string; bill_number: string | null; consumer_id: string; month: number; year: number; amount_pkr: number; discount_amount: number | null; paid_amount: number | null; due_date: string | null; description: string | null; created_at: string }[] }),
+        : Promise.resolve({ data: [] as { id: string; bill_number: string | null; consumer_id: string; month: number; year: number; amount_pkr: number; discount_amount: number | null; paid_amount: number | null; due_date: string | null; description: string | null; created_at: string; security_deposit_amount: number | null; security_deposit_voucher_id: string | null }[] }),
       system === 'water_supply'
-        ? supabase.from('payments').select('id, bill_id, consumer_id, amount_pkr, method, paid_date, receipt_no, note').gte('paid_date', from).lte('paid_date', to)
-        : Promise.resolve({ data: [] as { id: string; bill_id: string; consumer_id: string; amount_pkr: number; method: string | null; paid_date: string; receipt_no: string | null; note: string | null }[] }),
-      supabase.from('vouchers').select('id, voucher_type, voucher_no, receipt_no, voucher_date, particular, amount_pkr, party_name')
+        ? supabase.from('payments').select('id, bill_id, consumer_id, amount_pkr, method, paid_date, receipt_no, note, created_at').gte('paid_date', from).lte('paid_date', to)
+        : Promise.resolve({ data: [] as { id: string; bill_id: string; consumer_id: string; amount_pkr: number; method: string | null; paid_date: string; receipt_no: string | null; note: string | null; created_at: string }[] }),
+      supabase.from('vouchers').select('id, voucher_type, voucher_no, receipt_no, voucher_date, particular, amount_pkr, party_name, bill_id, created_at')
         .eq('system', system).in('status', ['posted', 'approved']).gte('voucher_date', from).lte('voucher_date', to),
       system === 'donors_projects'
-        ? supabase.from('donors').select('id, name, amount_pkr, date, payment_method, notes, is_anonymous').gte('date', from).lte('date', to)
-        : Promise.resolve({ data: [] as { id: string; name: string; amount_pkr: number; date: string; payment_method: string | null; notes: string | null; is_anonymous: boolean }[] }),
+        ? supabase.from('donors').select('id, name, amount_pkr, date, payment_method, notes, is_anonymous, created_at').gte('date', from).lte('date', to)
+        : Promise.resolve({ data: [] as { id: string; name: string; amount_pkr: number; date: string; payment_method: string | null; notes: string | null; is_anonymous: boolean; created_at: string }[] }),
       system === 'water_supply'
-        ? supabase.from('purchases').select('id, vendor, purchase_date, method, note').eq('system', system).eq('status', 'posted').gte('purchase_date', from).lte('purchase_date', to)
-        : Promise.resolve({ data: [] as { id: string; vendor: string | null; purchase_date: string; method: string; note: string | null }[] }),
+        ? supabase.from('purchases').select('id, vendor, purchase_date, method, note, purchase_number, created_at').eq('system', system).eq('status', 'posted').gte('purchase_date', from).lte('purchase_date', to)
+        : Promise.resolve({ data: [] as { id: string; vendor: string | null; purchase_date: string; method: string; note: string | null; purchase_number: string | null; created_at: string }[] }),
       // Auto-posted = the transaction went live after the 24-hour deadline
       // without every configured approver confirming (migration 060) — flagged
       // here so it can be surfaced/filtered separately from a normally-approved one.
@@ -108,18 +113,29 @@ export default function AllTransactionsPage() {
 
     const consumersById = Object.fromEntries((consumersRes.data ?? []).map((c) => [c.consumer_id, c]))
     const billNumberById = Object.fromEntries((billsRes.data ?? []).map((b) => [b.id, b.bill_number]))
+    // A security deposit collected with a bill posts as its own voucher for
+    // real double-entry correctness, but it's the same cash-collection event —
+    // fold its receipt info into the bill's row instead of showing it as an
+    // unrelated third transaction.
+    const depositReceiptByVoucherId = Object.fromEntries(
+      (vouchersRes.data ?? []).filter((v) => v.voucher_type === 'security_deposit').map((v) => [v.id, v.receipt_no])
+    )
     const result: TxnRow[] = []
 
     for (const b of billsRes.data ?? []) {
       const net = Math.max(b.amount_pkr - (b.discount_amount ?? 0), 0)
       const consumer = consumersById[b.consumer_id]
+      let description = b.description || `Water Bill — ${new Date(b.year, b.month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+      if (b.security_deposit_amount && b.security_deposit_amount > 0) {
+        const receiptNo = b.security_deposit_voucher_id ? depositReceiptByVoucherId[b.security_deposit_voucher_id] : null
+        description += ` · + Security Deposit Rs ${fmtAmount(b.security_deposit_amount)}${receiptNo ? ` (Receipt # ${receiptNo})` : ''}`
+      }
       result.push({
         id: `bill-${b.id}`, kind: 'bill', borderColor: 'border-emerald-500',
         typeLabel: null, partyName: consumer?.name ?? b.consumer_id,
         docLabel: b.bill_number ? `Bill # ${b.bill_number}` : 'Bill',
         date: b.due_date ?? new Date(b.year, b.month - 1, 1).toISOString().slice(0, 10),
-        description: b.description || `Water Bill — ${new Date(b.year, b.month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
-        amount: net, badge: billBadge(b), note: null, billId: b.id,
+        description, amount: net, badge: billBadge(b), note: null, billId: b.id, createdAt: b.created_at,
         searchBlob: `${consumer?.name ?? ''} ${b.consumer_id} ${consumer?.mobile ?? ''} ${b.bill_number ?? ''} ${b.description ?? ''}`.toLowerCase(),
       })
     }
@@ -132,13 +148,15 @@ export default function AllTransactionsPage() {
         typeLabel: p.method ? p.method.charAt(0).toUpperCase() + p.method.slice(1) : 'Cash',
         partyName: consumer?.name ?? p.consumer_id,
         docLabel: p.receipt_no ? `Receipt # ${p.receipt_no}` : 'Receipt',
-        date: p.paid_date, description: billNo ? `Against Bill ${billNo}` : 'Payment received',
-        amount: p.amount_pkr, badge: null, note: p.note, billId: p.bill_id, paymentId: p.id,
+        date: p.paid_date, description: billNo ? `Against Bill ${billNo}` : (p.note || 'Payment received'),
+        amount: p.amount_pkr, badge: null, note: p.note, billId: p.bill_id, paymentId: p.id, receiptNo: p.receipt_no, createdAt: p.created_at,
         searchBlob: `${consumer?.name ?? ''} ${p.consumer_id} ${consumer?.mobile ?? ''} ${p.receipt_no ?? ''} ${p.method ?? ''} ${p.note ?? ''}`.toLowerCase(),
       })
     }
 
     for (const v of vouchersRes.data ?? []) {
+      // Bill-linked security deposits are now folded into their bill's row above.
+      if (v.voucher_type === 'security_deposit' && v.bill_id) continue
       const isSecurityDeposit = v.voucher_type === 'security_deposit'
       const docLabel = isSecurityDeposit
         ? (v.receipt_no ? `Receipt # ${v.receipt_no}` : 'Receipt')
@@ -149,7 +167,7 @@ export default function AllTransactionsPage() {
         borderColor: isSecurityDeposit ? 'border-cyan-500' : 'border-slate-400',
         typeLabel: label, partyName: v.party_name || label, docLabel,
         date: v.voucher_date, description: v.particular, amount: v.amount_pkr,
-        badge: null, note: null, voucherId: v.id, autoPosted: autoPostedIds.has(v.id), fullyApproved: fullyApprovedIds.has(v.id),
+        badge: null, note: null, voucherId: v.id, receiptNo: v.receipt_no, autoPosted: autoPostedIds.has(v.id), fullyApproved: fullyApprovedIds.has(v.id), createdAt: v.created_at,
         searchBlob: `${v.party_name ?? ''} ${label} ${v.voucher_no ?? ''} ${v.receipt_no ?? ''} ${v.particular ?? ''}`.toLowerCase(),
       })
     }
@@ -160,23 +178,38 @@ export default function AllTransactionsPage() {
         typeLabel: d.payment_method ? d.payment_method.charAt(0).toUpperCase() + d.payment_method.slice(1) : null,
         partyName: d.is_anonymous ? 'Anonymous Donor' : d.name,
         docLabel: 'Donation', date: d.date, description: d.notes || 'Donation received',
-        amount: d.amount_pkr, badge: null, note: null,
+        amount: d.amount_pkr, badge: null, note: null, createdAt: d.created_at,
         searchBlob: `${d.name} ${d.payment_method ?? ''} ${d.notes ?? ''}`.toLowerCase(),
       })
     }
 
-    for (const p of purchasesRes.data ?? []) {
+    const purchasesList = purchasesRes.data ?? []
+    let purchaseTotalsById: Record<string, number> = {}
+    let purchaseItemCountById: Record<string, number> = {}
+    if (purchasesList.length > 0) {
+      const { data: purchaseLineRows } = await supabase.from('inventory_transactions')
+        .select('purchase_id, quantity, unit_cost_at_time').in('purchase_id', purchasesList.map((p) => p.id))
+      for (const r of purchaseLineRows ?? []) {
+        const pid = r.purchase_id as string
+        purchaseTotalsById[pid] = (purchaseTotalsById[pid] ?? 0) + r.quantity * (r.unit_cost_at_time ?? 0)
+        purchaseItemCountById[pid] = (purchaseItemCountById[pid] ?? 0) + 1
+      }
+    }
+
+    for (const p of purchasesList) {
+      const itemCount = purchaseItemCountById[p.id] ?? 0
       result.push({
         id: `purchase-${p.id}`, kind: 'purchase', borderColor: 'border-amber-500',
         typeLabel: p.method.charAt(0).toUpperCase() + p.method.slice(1),
-        partyName: p.vendor || 'Purchase', docLabel: 'Purchase Bill',
-        date: p.purchase_date, description: p.note || 'Inventory purchase',
-        amount: 0, badge: null, note: p.note, autoPosted: autoPostedIds.has(p.id), fullyApproved: fullyApprovedIds.has(p.id),
+        partyName: p.vendor || 'Purchase', docLabel: p.purchase_number ? `Purchase # ${p.purchase_number}` : 'Purchase Bill',
+        date: p.purchase_date, description: itemCount > 0 ? `${itemCount} item${itemCount > 1 ? 's' : ''} purchased${p.note ? ' — ' + p.note : ''}` : (p.note || 'Inventory purchase'),
+        amount: purchaseTotalsById[p.id] ?? 0, badge: null, note: p.note, purchaseId: p.id, purchaseNumber: p.purchase_number,
+        autoPosted: autoPostedIds.has(p.id), fullyApproved: fullyApprovedIds.has(p.id), createdAt: p.created_at,
         searchBlob: `${p.vendor ?? ''} ${p.method} ${p.note ?? ''}`.toLowerCase(),
       })
     }
 
-    result.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+    result.sort((a, b) => (a.date !== b.date ? (a.date < b.date ? 1 : -1) : (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0)))
     setRows(result)
     setLoading(false)
   }, [system, from, to, supabase])
@@ -197,7 +230,10 @@ export default function AllTransactionsPage() {
       if (kindFilter !== 'all') {
         if (kindFilter.startsWith('voucher:')) {
           const vt = kindFilter.slice('voucher:'.length)
-          if (r.kind !== 'voucher' || r.voucherType !== vt) return false
+          // An advance settlement's real economic effect is an expense (see
+          // migration 090) — it should surface under the Expense filter too.
+          const matchesType = r.voucherType === vt || (vt === 'expense' && r.voucherType === 'advance_settlement')
+          if (r.kind !== 'voucher' || !matchesType) return false
         } else if (r.kind !== kindFilter) {
           return false
         }
@@ -216,6 +252,37 @@ export default function AllTransactionsPage() {
     const currentYear = new Date().getFullYear()
     return Array.from({ length: 6 }, (_, i) => currentYear - i)
   }, [])
+
+  // A read-only audit view — View is the one action that belongs here regardless
+  // of type; Edit/Delete stay on the Transactions (finance) page that owns them.
+  const openRowReceipt = (r: TxnRow) => {
+    if (r.kind === 'payment' && r.paymentId) {
+      setViewReceipt({
+        kind: 'payment', receiptNo: r.receiptNo ?? r.paymentId.slice(0, 8).toUpperCase(),
+        date: r.date, systemLabel: systemLabels[system], accountName: r.partyName,
+        particular: r.description, amount: r.amount, balanceAfter: 0,
+      })
+    } else if (r.kind === 'voucher' && r.voucherId) {
+      setViewReceipt({
+        kind: voucherReceiptKind[r.voucherType ?? ''] ?? 'manual',
+        receiptNo: r.receiptNo ?? r.docLabel.replace(/^(Voucher # |Receipt # )/, '') ?? r.voucherId.slice(0, 8).toUpperCase(),
+        date: r.date, systemLabel: systemLabels[system], accountName: r.partyName,
+        particular: r.description, amount: r.amount, balanceAfter: 0,
+      })
+    } else if (r.kind === 'purchase' && r.purchaseId) {
+      setViewReceipt({
+        kind: 'purchase_payment', receiptNo: r.purchaseNumber ?? r.purchaseId.slice(0, 8).toUpperCase(),
+        date: r.date, systemLabel: systemLabels[system], accountName: r.partyName,
+        particular: r.note || r.description, amount: r.amount, balanceAfter: 0,
+      })
+    } else if (r.kind === 'donation') {
+      setViewReceipt({
+        kind: 'donation', receiptNo: r.id.slice(-8).toUpperCase(),
+        date: r.date, systemLabel: systemLabels[system], accountName: r.partyName,
+        particular: r.description, amount: r.amount, balanceAfter: 0,
+      })
+    }
+  }
 
   return (
     <>
@@ -276,7 +343,9 @@ export default function AllTransactionsPage() {
               <option value="voucher:contra">Bank Transfers</option>
               <option value="voucher:withdrawal">Cash Withdrawals</option>
               <option value="voucher:deposit">Cash Deposits</option>
+              <option value="voucher:advance">Advance Payments</option>
               <option value="voucher:security_deposit">Security Deposits</option>
+              <option value="voucher:security_deposit_refund">Security Deposit Refunds</option>
             </select>
           </div>
           <div>
@@ -345,11 +414,17 @@ export default function AllTransactionsPage() {
                     <Link href={`/admin/invoice/bill/${r.billId}`} title="View invoice" className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[12px] font-semibold hover:underline cursor-pointer"><FileText size={13} /> View</Link>
                   </div>
                 )}
+                {(r.kind === 'payment' || r.kind === 'voucher' || r.kind === 'purchase' || r.kind === 'donation') && (
+                  <div className="flex justify-end mt-2 pt-2 border-t border-dp-outline-variant/60">
+                    <button onClick={() => openRowReceipt(r)} title="View" className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[12px] font-semibold hover:underline cursor-pointer"><Eye size={13} /> View</button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
       </div>
+      {viewReceipt && <ReceiptModal data={viewReceipt} onClose={() => setViewReceipt(null)} />}
     </>
   )
 }

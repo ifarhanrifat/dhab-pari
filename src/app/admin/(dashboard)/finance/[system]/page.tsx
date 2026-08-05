@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, Save, Wallet, ArrowDownCircle, ArrowLeftRight, ArrowUpFromLine,
-  ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck, ChevronDown, Search, PlusCircle, ChevronLeft,
+  ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck, ChevronDown, Search, PlusCircle, ChevronLeft, HandCoins,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
@@ -15,10 +15,12 @@ import { FileAttachment } from '@/components/admin/FileAttachment'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { billBadge, billBadgeClass, type BillBadgeTone } from '@/lib/billStatus'
+import { QuickAddAccountModal, type NewAccount } from '@/components/admin/QuickAddAccountModal'
+import { voucherTypeLabels as sharedVoucherTypeLabels, voucherReceiptKind } from '@/lib/ledgerLabels'
 
 type SystemTab = 'water_supply' | 'donors_projects'
-type VoucherType = 'expense' | 'income' | 'contra' | 'withdrawal' | 'deposit'
-type ActiveType = VoucherType | 'bill' | 'donation' | 'purchase'
+type VoucherType = 'expense' | 'income' | 'contra' | 'withdrawal' | 'deposit' | 'advance'
+type ActiveType = VoucherType | 'bill' | 'donation' | 'purchase' | 'cash_receipt'
 
 interface Account { id: string; name: string; name_ur: string | null; type: string; code: string; system: string }
 interface Consumer { consumer_id: string; name: string; monthly_rate: number; connections: number }
@@ -34,6 +36,7 @@ interface TxnCard {
   paymentBillOutstandingNow?: number; paymentReceiptNo?: string | null
   paymentConsumerId?: string; paymentMethod?: string; paymentNote?: string | null
   purchaseLineItems?: { description: string; quantity: number; unitPrice: number }[]
+  purchaseNumber?: string | null
   voucherType?: string
   autoPosted?: boolean
   fullyApproved?: boolean
@@ -87,18 +90,39 @@ const voucherConfig: Record<VoucherType, {
     toLabel: 'To Bank Account', toFilter: (a) => a.type === 'bank',
     partyLabel: null,
   },
+  advance: {
+    label: 'Advance Payment', icon: HandCoins,
+    fromLabel: 'Paid From', fromFilter: (a) => a.type === 'cash' || a.type === 'bank',
+    toLabel: 'Advance Account', toFilter: (a) => a.code === 'WS-4003',
+    partyLabel: 'Paid To (worker/contractor)',
+  },
+}
+
+// Mirrors each voucherConfig entry's from/to filters as a plain type list, so the
+// "+ New Account" quick-add link knows which account_headers type to create
+// under — a fixed single-account field (advance's "to") gets an empty list,
+// which just hides the link since there's nothing sensible to quick-add there.
+const voucherAccountTypes: Record<VoucherType, { from: string[]; to: string[] }> = {
+  expense: { from: ['cash', 'bank'], to: ['expense'] },
+  income: { from: ['income'], to: ['cash', 'bank'] },
+  contra: { from: ['cash', 'bank'], to: ['cash', 'bank'] },
+  withdrawal: { from: ['bank'], to: ['cash'] },
+  deposit: { from: ['cash'], to: ['bank'] },
+  advance: { from: ['cash', 'bank'], to: [] },
 }
 
 const today = () => new Date().toISOString().slice(0, 10)
-const defaultDueDate = () => {
-  const d = new Date()
-  d.setDate(d.getDate() + 7)
-  return d.toISOString().slice(0, 10)
+// Fixed rule (migration 075): a bill's due date defaults to the 7th of its
+// billing month — same rule the recurring engine and reminder system use, so
+// "overdue" means one unambiguous thing everywhere. Still manually editable
+// per bill.
+const defaultDueDate = (month: number, year: number) => {
+  return `${year}-${String(month).padStart(2, '0')}-07`
 }
 const emptyVoucherForm = { date: today(), fromId: '', toId: '', amount: 0, party: '', particular: '' }
 const emptyBillForm = {
   consumer_id: '', month: new Date().getMonth() + 1, year: new Date().getFullYear(),
-  due_date: defaultDueDate(), description: '', discount_amount: 0, security_deposit_amount: 0, deposit_account_id: '',
+  due_date: defaultDueDate(new Date().getMonth() + 1, new Date().getFullYear()), description: '', discount_amount: 0, security_deposit_amount: 0, deposit_account_id: '',
   attachment_url: '',
 }
 const emptyDonationForm = { name: '', name_ur: '', phone: '', donor_type: 'villager', amount_pkr: 0, date: today(), payment_method: 'cash', project_id: '', is_anonymous: false }
@@ -133,16 +157,33 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [confirmDeletePaymentId, setConfirmDeletePaymentId] = useState<string | null>(null)
   const [receivePaymentTarget, setReceivePaymentTarget] = useState<{ billId: string; billNumber: string | null; consumerId: string; outstanding: number } | null>(null)
   const [viewReceipt, setViewReceipt] = useState<ReceiptData | null>(null)
-  const [editPaymentTarget, setEditPaymentTarget] = useState<{ id: string; billId: string; consumerId: string; receiptNo: string | null } | null>(null)
+  const [editPaymentTarget, setEditPaymentTarget] = useState<{ id: string; billId: string | null; consumerId: string; receiptNo: string | null } | null>(null)
   const [editPaymentForm, setEditPaymentForm] = useState({ amount: 0, method: 'cash' as 'cash' | 'jazzcash' | 'easypaisa' | 'bank', date: today(), note: '' })
   const [editPaymentSaving, setEditPaymentSaving] = useState(false)
   const [quickPayAmount, setQuickPayAmount] = useState(0)
   const [quickPayMethod, setQuickPayMethod] = useState<'cash' | 'jazzcash' | 'easypaisa' | 'bank'>('cash')
   const [quickPaySaving, setQuickPaySaving] = useState(false)
+  // Cash Receipt: settle one or several outstanding bills for a consumer in a
+  // single receipt, instead of "Receive Now" one bill at a time.
+  const [cashReceiptConsumerId, setCashReceiptConsumerId] = useState('')
+  const [cashReceiptDate, setCashReceiptDate] = useState(today())
+  const [cashReceiptMethod, setCashReceiptMethod] = useState<'cash' | 'jazzcash' | 'easypaisa' | 'bank'>('cash')
+  const [cashReceiptBills, setCashReceiptBills] = useState<{ id: string; bill_number: string | null; outstanding: number; selected: boolean; amount: number }[]>([])
+  const [cashReceiptAdvance, setCashReceiptAdvance] = useState(false)
+  const [cashReceiptAdvanceAmount, setCashReceiptAdvanceAmount] = useState(0)
+  const [savingCashReceipt, setSavingCashReceipt] = useState(false)
   const [loading, setLoading] = useState(true)
   const [activeType, setActiveType] = useState<ActiveType>('expense')
   const [mobileTypeMenuOpen, setMobileTypeMenuOpen] = useState(false)
   const [voucherForm, setVoucherForm] = useState(emptyVoucherForm)
+  const [voucherAttachment, setVoucherAttachment] = useState('')
+  // Expense-only: split one cash-out event across several expense accounts
+  // instead of just one. Reuses the same draft -> line items -> finalize
+  // path the Advance settlement flow uses (migration 083) — degrades to an
+  // ordinary single-account expense when only one line is used.
+  const [multiLineExpense, setMultiLineExpense] = useState(false)
+  const [voucherLines, setVoucherLines] = useState<{ account_id: string; amount: number; description: string }[]>([{ account_id: '', amount: 0, description: '' }])
+  const [quickAddFor, setQuickAddFor] = useState<{ types: string[]; onPick: (a: NewAccount) => void } | null>(null)
   const [billForm, setBillForm] = useState(emptyBillForm)
   const [editingBill, setEditingBill] = useState<{ id: string; bill_number: string | null; paid_amount: number; security_deposit_voucher_id: string | null; recurring_schedule_id: string | null } | null>(null)
   const [editLoading, setEditLoading] = useState(false)
@@ -230,18 +271,18 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
     const [billsRes, paymentsRes, vouchersRes, donationsRes, purchasesRes, autoPostedRes] = await Promise.all([
       system === 'water_supply'
-        ? supabase.from('bills').select('id, bill_number, consumer_id, month, year, amount_pkr, discount_amount, paid_amount, due_date, description, created_at').order('created_at', { ascending: false }).limit(50)
-        : Promise.resolve({ data: [] as { id: string; bill_number: string | null; consumer_id: string; month: number; year: number; amount_pkr: number; discount_amount: number | null; paid_amount: number | null; due_date: string | null; description: string | null; created_at: string }[] }),
+        ? supabase.from('bills').select('id, bill_number, consumer_id, month, year, amount_pkr, discount_amount, paid_amount, due_date, description, created_at, security_deposit_amount, security_deposit_voucher_id').order('created_at', { ascending: false }).limit(50)
+        : Promise.resolve({ data: [] as { id: string; bill_number: string | null; consumer_id: string; month: number; year: number; amount_pkr: number; discount_amount: number | null; paid_amount: number | null; due_date: string | null; description: string | null; created_at: string; security_deposit_amount: number | null; security_deposit_voucher_id: string | null }[] }),
       system === 'water_supply'
         ? supabase.from('payments').select('id, bill_id, consumer_id, amount_pkr, method, paid_date, receipt_no, note, created_at').order('created_at', { ascending: false }).limit(50)
         : Promise.resolve({ data: [] as { id: string; bill_id: string; consumer_id: string; amount_pkr: number; method: string | null; paid_date: string; receipt_no: string | null; note: string | null; created_at: string }[] }),
-      supabase.from('vouchers').select('id, voucher_type, voucher_no, receipt_no, voucher_date, particular, amount_pkr, party_name, created_at').eq('system', system).in('status', ['posted', 'approved']).order('created_at', { ascending: false }).limit(50),
+      supabase.from('vouchers').select('id, voucher_type, voucher_no, receipt_no, voucher_date, particular, amount_pkr, party_name, bill_id, created_at').eq('system', system).in('status', ['posted', 'approved']).order('created_at', { ascending: false }).limit(50),
       system === 'donors_projects'
         ? supabase.from('donors').select('id, name, amount_pkr, date, payment_method, notes, is_anonymous, created_at').order('created_at', { ascending: false }).limit(50)
         : Promise.resolve({ data: [] as { id: string; name: string; amount_pkr: number; date: string; payment_method: string | null; notes: string | null; is_anonymous: boolean; created_at: string }[] }),
       system === 'water_supply'
-        ? supabase.from('purchases').select('id, vendor, purchase_date, method, note, attachment_url, created_at').eq('system', system).eq('status', 'posted').order('created_at', { ascending: false }).limit(50)
-        : Promise.resolve({ data: [] as { id: string; vendor: string | null; purchase_date: string; method: string; note: string | null; attachment_url: string | null; created_at: string }[] }),
+        ? supabase.from('purchases').select('id, vendor, purchase_date, method, note, attachment_url, purchase_number, created_at').eq('system', system).eq('status', 'posted').order('created_at', { ascending: false }).limit(50)
+        : Promise.resolve({ data: [] as { id: string; vendor: string | null; purchase_date: string; method: string; note: string | null; attachment_url: string | null; purchase_number: string | null; created_at: string }[] }),
       supabase.from('approval_requests').select('reference_id, auto_posted').eq('system', system).eq('status', 'posted'),
     ])
     const autoPostedIds = new Set((autoPostedRes.data ?? []).filter((r) => r.auto_posted).map((r) => r.reference_id))
@@ -258,16 +299,28 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     const billOutstandingById = Object.fromEntries(billsList.map((b) => [
       b.id, Math.max(Math.max(b.amount_pkr - (b.discount_amount ?? 0), 0) - (b.paid_amount ?? 0), 0),
     ]))
+    // A security deposit collected with a bill posts as its own voucher for real
+    // double-entry correctness, but it's the same cash-collection event — fold its
+    // receipt info into the bill's row instead of showing it as an unrelated
+    // second card (same fold All Transactions already does).
+    const depositReceiptByVoucherId = Object.fromEntries(
+      (vouchersRes.data ?? []).filter((v) => v.voucher_type === 'security_deposit').map((v) => [v.id, v.receipt_no])
+    )
     const cards: TxnCard[] = []
 
     for (const b of billsList) {
       const net = Math.max(b.amount_pkr - (b.discount_amount ?? 0), 0)
+      let description = b.description || `Water Bill — ${new Date(b.year, b.month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+      if (b.security_deposit_amount && b.security_deposit_amount > 0) {
+        const receiptNo = b.security_deposit_voucher_id ? depositReceiptByVoucherId[b.security_deposit_voucher_id] : null
+        description += ` · + Security Deposit Rs ${fmtAmount(b.security_deposit_amount)}${receiptNo ? ` (Receipt # ${receiptNo})` : ''}`
+      }
       cards.push({
         id: `bill-${b.id}`, kind: 'bill', borderColor: 'border-emerald-500',
         typeLabel: null, partyName: consumersById[b.consumer_id] ?? b.consumer_id,
         docLabel: b.bill_number ? `Bill # ${b.bill_number}` : 'Bill',
         date: b.due_date ?? new Date(b.year, b.month - 1, 1).toISOString().slice(0, 10),
-        description: b.description || `Water Bill — ${new Date(b.year, b.month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
+        description,
         amount: net, badge: billBadge(b), note: null, created_at: b.created_at, billId: b.id,
         billOutstanding: Math.max(net - (b.paid_amount ?? 0), 0), billConsumerId: b.consumer_id,
       })
@@ -280,7 +333,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         typeLabel: p.method ? p.method.charAt(0).toUpperCase() + p.method.slice(1) : 'Cash',
         partyName: consumersById[p.consumer_id] ?? p.consumer_id,
         docLabel: p.receipt_no ? `Receipt # ${p.receipt_no}` : 'Receipt',
-        date: p.paid_date, description: billNo ? `Against Bill ${billNo}` : 'Payment received',
+        date: p.paid_date, description: billNo ? `Against Bill ${billNo}` : (p.note || 'Payment received'),
         amount: p.amount_pkr, badge: null, note: p.note, created_at: p.created_at,
         paymentId: p.id, billId: p.bill_id,
         paymentBillOutstandingNow: billOutstandingById[p.bill_id] ?? 0, paymentReceiptNo: p.receipt_no,
@@ -289,11 +342,13 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     }
 
     for (const v of vouchersRes.data ?? []) {
+      // Bill-linked security deposits are now folded into their bill's row above.
+      if (v.voucher_type === 'security_deposit' && v.bill_id) continue
       // voucher_type also includes 'security_deposit' (posted from the bill form),
       // which isn't one of the 5 types in voucherConfig — fall back to a formatted
       // label instead of the raw snake_case value.
       const cfg = voucherConfig[v.voucher_type as VoucherType] as (typeof voucherConfig)[VoucherType] | undefined
-      const fallbackLabel = v.voucher_type.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+      const fallbackLabel = sharedVoucherTypeLabels[v.voucher_type] ?? v.voucher_type.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
       // A security deposit is cash actually received — it should read as a Receipt
       // (same numbering as a bill payment), not its own separate internal voucher
       // series. The voucher_no still exists in the database for internal reference,
@@ -348,10 +403,10 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         id: `purchase-${p.id}`, kind: 'purchase', borderColor: 'border-amber-500',
         typeLabel: p.method.charAt(0).toUpperCase() + p.method.slice(1),
         partyName: p.vendor || 'Purchase',
-        docLabel: 'Purchase Bill',
+        docLabel: p.purchase_number ? `Purchase # ${p.purchase_number}` : 'Purchase Bill',
         date: p.purchase_date, description: lines.length > 0 ? `${lines.length} item${lines.length > 1 ? 's' : ''} purchased` : (p.note || 'Inventory purchase'),
         amount: total, badge: null, note: p.note, created_at: p.created_at, purchaseId: p.id,
-        purchaseLineItems: lines, autoPosted: autoPostedIds.has(p.id), fullyApproved: fullyApprovedIds.has(p.id),
+        purchaseLineItems: lines, purchaseNumber: p.purchase_number, autoPosted: autoPostedIds.has(p.id), fullyApproved: fullyApprovedIds.has(p.id),
       })
     }
 
@@ -463,8 +518,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   }
 
   const openEditPayment = (card: TxnCard) => {
-    if (!card.paymentId || !card.billId || !card.paymentConsumerId) return
-    setEditPaymentTarget({ id: card.paymentId, billId: card.billId, consumerId: card.paymentConsumerId, receiptNo: card.paymentReceiptNo ?? null })
+    if (!card.paymentId || !card.paymentConsumerId) return
+    setEditPaymentTarget({ id: card.paymentId, billId: card.billId ?? null, consumerId: card.paymentConsumerId, receiptNo: card.paymentReceiptNo ?? null })
     setEditPaymentForm({
       amount: card.amount, method: (card.paymentMethod as typeof editPaymentForm.method) ?? 'cash',
       date: card.date, note: card.paymentNote ?? '',
@@ -516,11 +571,28 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     })
   }
 
+  // Every voucher type gets a View — previously only Delete existed here, so a
+  // saved Expense/Income/Advance/etc. had no way to be looked at again short of
+  // opening Chart of Accounts.
+  const openVoucherReceipt = (card: TxnCard) => {
+    if (!card.voucherId) return
+    setViewReceipt({
+      kind: voucherReceiptKind[card.voucherType ?? ''] ?? 'manual',
+      receiptNo: card.docLabel.replace(/^(Voucher # |Receipt # )/, '') || card.voucherId.slice(0, 8).toUpperCase(),
+      date: card.date,
+      systemLabel: systemLabels[system],
+      accountName: card.partyName,
+      particular: card.description,
+      amount: card.amount,
+      balanceAfter: 0,
+    })
+  }
+
   const openPurchaseReceipt = (card: TxnCard) => {
     if (!card.purchaseId) return
     setViewReceipt({
       kind: 'purchase_payment',
-      receiptNo: card.purchaseId.slice(0, 8).toUpperCase(),
+      receiptNo: card.purchaseNumber ?? card.purchaseId.slice(0, 8).toUpperCase(),
       date: card.date,
       systemLabel: systemLabels[system],
       accountName: card.partyName,
@@ -554,6 +626,68 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     load()
   }
 
+  const loadCashReceiptBills = async (consumerId: string) => {
+    setCashReceiptConsumerId(consumerId)
+    if (!consumerId) { setCashReceiptBills([]); return }
+    const { data } = await supabase.from('bills')
+      .select('id, bill_number, amount_pkr, discount_amount, paid_amount, status')
+      .eq('consumer_id', consumerId).neq('status', 'paid')
+      .order('year').order('month')
+    setCashReceiptBills((data ?? []).map((b) => {
+      const outstanding = Math.max((b.amount_pkr ?? 0) - (b.discount_amount ?? 0) - (b.paid_amount ?? 0), 0)
+      return { id: b.id, bill_number: b.bill_number, outstanding, selected: false, amount: outstanding }
+    }))
+  }
+
+  const saveCashReceipt = async () => {
+    const selected = cashReceiptBills.filter((b) => b.selected && b.amount > 0)
+    const advanceAmount = cashReceiptAdvance ? cashReceiptAdvanceAmount : 0
+    if (!cashReceiptConsumerId) { toast.error('Choose a consumer'); return }
+    if (selected.length === 0 && advanceAmount <= 0) { toast.error('Select at least one bill, or enter an advance amount'); return }
+    setSavingCashReceipt(true)
+    const inserted: { bill_number: string | null; amount: number; receipt_no: string | null }[] = []
+    for (const b of selected) {
+      const { data, error } = await supabase.from('payments').insert({
+        bill_id: b.id, consumer_id: cashReceiptConsumerId, amount_pkr: b.amount,
+        method: cashReceiptMethod, paid_date: cashReceiptDate,
+      }).select('receipt_no').single()
+      if (error) toast.error(`${b.bill_number ?? 'Bill'}: ${error.message}`)
+      else inserted.push({ bill_number: b.bill_number, amount: b.amount, receipt_no: data?.receipt_no ?? null })
+    }
+    // Cash received with nothing outstanding to apply it to (or beyond what's
+    // owed) — bill_id stays null; it just credits the consumer's own account,
+    // showing as an "Advance Balance" there until a future bill nets against it.
+    if (advanceAmount > 0) {
+      const { data, error } = await supabase.from('payments').insert({
+        bill_id: null, consumer_id: cashReceiptConsumerId, amount_pkr: advanceAmount,
+        method: cashReceiptMethod, paid_date: cashReceiptDate, note: 'Advance / Prepayment',
+      }).select('receipt_no').single()
+      if (error) toast.error(`Advance receipt: ${error.message}`)
+      else inserted.push({ bill_number: null, amount: advanceAmount, receipt_no: data?.receipt_no ?? null })
+    }
+    setSavingCashReceipt(false)
+    if (inserted.length === 0) return
+    toast.success(`Receipt recorded${selected.length > 0 ? ` against ${selected.length} bill${selected.length > 1 ? 's' : ''}` : ''}${advanceAmount > 0 ? ' (incl. advance)' : ''}`)
+
+    const consumerName = consumers.find((c) => c.consumer_id === cashReceiptConsumerId)?.name ?? cashReceiptConsumerId
+    setViewReceipt({
+      kind: 'payment',
+      receiptNo: inserted[inserted.length - 1].receipt_no ?? inserted[inserted.length - 1].bill_number ?? '—',
+      date: cashReceiptDate,
+      systemLabel: systemLabels[system],
+      accountName: consumerName,
+      particular: `Cash Receipt${selected.length > 0 ? ` against ${inserted.filter((i) => i.bill_number).map((i) => i.bill_number).join(', ')}` : ''}${advanceAmount > 0 ? ' + Advance/Prepayment' : ''}`,
+      amount: inserted.reduce((s, i) => s + i.amount, 0),
+      balanceAfter: 0,
+      lineItems: inserted.map((i) => ({ description: i.bill_number ? `Bill ${i.bill_number}` : 'Advance / Prepayment', quantity: 1, unitPrice: i.amount })),
+    })
+    setCashReceiptConsumerId('')
+    setCashReceiptBills([])
+    setCashReceiptAdvance(false)
+    setCashReceiptAdvanceAmount(0)
+    load()
+  }
+
   const types: { key: ActiveType; label: string; icon: typeof Wallet }[] = useMemo(() => {
     const base: { key: ActiveType; label: string; icon: typeof Wallet }[] = [
       { key: 'expense', label: 'Expense', icon: voucherConfig.expense.icon },
@@ -564,7 +698,9 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     ]
     if (system === 'water_supply') {
       base.push({ key: 'bill', label: 'Generate Bill', icon: Receipt })
+      base.push({ key: 'cash_receipt', label: 'Cash Receipt', icon: Banknote })
       base.push({ key: 'purchase', label: 'Purchase Bill', icon: ShoppingCart })
+      base.push({ key: 'advance', label: 'Advance Payment', icon: HandCoins })
     } else {
       base.push({ key: 'donation', label: 'Record Donation', icon: Heart })
     }
@@ -578,13 +714,23 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       if (activeType === 'bill') return c.kind === 'bill'
       if (activeType === 'donation') return c.kind === 'donation'
       if (activeType === 'purchase') return c.kind === 'purchase'
+      if (activeType === 'cash_receipt') return c.kind === 'payment'
+      // An advance settlement's real economic effect is an expense (see
+      // migration 090) — it should show up under Expense, not be invisible
+      // just because its own voucher_type isn't literally 'expense'.
+      if (activeType === 'expense') return c.kind === 'voucher' && (c.voucherType === 'expense' || c.voucherType === 'advance_settlement')
       return c.kind === 'voucher' && c.voucherType === activeType
     })
   }, [txnCards, activeType, filterLogByType])
 
   const selectType = (t: ActiveType) => {
     setActiveType(t)
-    setVoucherForm(emptyVoucherForm)
+    if (t === 'advance') {
+      const advanceAccount = accounts.find((a) => a.code === 'WS-4003')
+      setVoucherForm({ ...emptyVoucherForm, toId: advanceAccount?.id ?? '' })
+    } else {
+      setVoucherForm(emptyVoucherForm)
+    }
     setBillForm(emptyBillForm)
     setDonationForm(emptyDonationForm)
     setBillLines([])
@@ -767,6 +913,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   }
 
   const saveVoucher = async () => {
+    if (activeType === 'expense' && multiLineExpense) return saveMultiLineExpense()
+
     const cfg = voucherConfig[activeType as VoucherType]
     if (!voucherForm.fromId || !voucherForm.toId) { toast.error(`Choose both ${cfg.fromLabel} and ${cfg.toLabel}`); return }
     if (voucherForm.fromId === voucherForm.toId) { toast.error('From and To accounts must be different'); return }
@@ -780,7 +928,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       system, voucher_type: activeType, voucher_date: voucherForm.date,
       particular: voucherForm.particular, amount_pkr: voucherForm.amount,
       from_account_id: voucherForm.fromId, to_account_id: voucherForm.toId,
-      party_name: voucherForm.party || null,
+      party_name: voucherForm.party || null, attachment_url: voucherAttachment || null,
     }).select('id, voucher_type, voucher_date, particular, amount_pkr, status, voucher_no').single()
     setSaving(false)
     if (error) { toast.error(error.message); return }
@@ -790,6 +938,42 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       toast.success(`Saved (${saved.voucher_no})`)
     }
     setVoucherForm({ ...emptyVoucherForm, date: voucherForm.date })
+    setVoucherAttachment('')
+    load()
+  }
+
+  // Expense split across several accounts in one transaction (migration 083):
+  // insert as a draft voucher (so the real total is known only once every
+  // line is in), attach the line items, then finalize_voucher() decides
+  // pending-vs-posted and ledgers it — same mechanism the Advance settlement
+  // flow uses.
+  const saveMultiLineExpense = async () => {
+    if (!voucherForm.fromId) { toast.error('Choose Pay From'); return }
+    if (!voucherForm.particular.trim()) { toast.error('Description is required'); return }
+    const validLines = voucherLines.filter((l) => l.account_id && l.amount > 0)
+    if (validLines.length === 0) { toast.error('Add at least one expense line'); return }
+    setSaving(true)
+
+    const { data: draft, error: draftErr } = await supabase.from('vouchers').insert({
+      system, voucher_type: 'expense', voucher_date: voucherForm.date,
+      particular: voucherForm.particular, amount_pkr: 0, from_account_id: voucherForm.fromId,
+      party_name: voucherForm.party || null, attachment_url: voucherAttachment || null, status: 'draft',
+    }).select('id').single()
+    if (draftErr) { toast.error(draftErr.message); setSaving(false); return }
+
+    const { error: linesErr } = await supabase.from('voucher_line_items').insert(
+      validLines.map((l) => ({ voucher_id: draft.id, account_id: l.account_id, amount: l.amount, description: l.description || null }))
+    )
+    if (linesErr) { toast.error(linesErr.message); setSaving(false); return }
+
+    const { data: result, error: finalizeErr } = await supabase.rpc('finalize_voucher', { p_voucher_id: draft.id })
+    setSaving(false)
+    if (finalizeErr) { toast.error(finalizeErr.message); return }
+    toast.success(result.status === 'pending' ? 'Saved — awaiting approval before it posts' : 'Expense saved')
+
+    setVoucherForm({ ...emptyVoucherForm, date: voucherForm.date })
+    setVoucherAttachment('')
+    setVoucherLines([{ account_id: '', amount: 0, description: '' }])
     load()
   }
 
@@ -1063,6 +1247,17 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       group: `${systemLabels[a.system as SystemTab] ?? a.system} — ${a.type.charAt(0).toUpperCase() + a.type.slice(1)}`,
     }))
 
+  const handleAccountCreated = (a: NewAccount, onPick: (a: NewAccount) => void) => {
+    setAccounts((prev) => [...prev, { id: a.id, name: a.name, name_ur: null, type: a.type, code: a.code, system }])
+    onPick(a)
+  }
+
+  const newAccountLink = (types: string[], onPick: (a: NewAccount) => void) => types.length === 0 ? null : (
+    <button type="button" onClick={() => setQuickAddFor({ types, onPick })} className="text-[12px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer -mt-2">
+      + New Account
+    </button>
+  )
+
   return (
     <>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -1143,28 +1338,84 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
               return (
                 <div className="space-y-4">
                   <h2 className="font-heading text-[20px] font-bold text-dp-primary">{cfg.label}</h2>
-                  <div className="grid grid-cols-2 gap-4">
+
+                  {activeType === 'expense' && (
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={multiLineExpense} onChange={(e) => setMultiLineExpense(e.target.checked)} className="accent-dp-secondary w-4 h-4" />
+                      <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">Split across multiple accounts</span>
+                    </label>
+                  )}
+
+                  <div className={multiLineExpense && activeType === 'expense' ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-2 gap-4'}>
                     <div>
                       <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Date</label>
                       <input type="date" value={voucherForm.date} onChange={(e) => setVoucherForm({ ...voucherForm, date: e.target.value })} className="input-field" />
                     </div>
-                    <div>
-                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Amount (PKR)</label>
-                      <input type="number" value={voucherForm.amount || ''} onChange={(e) => setVoucherForm({ ...voucherForm, amount: +e.target.value })} className="input-field" />
+                    {!(multiLineExpense && activeType === 'expense') && (
+                      <div>
+                        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Amount (PKR)</label>
+                        <input type="number" value={voucherForm.amount || ''} onChange={(e) => setVoucherForm({ ...voucherForm, amount: +e.target.value })} className="input-field" />
+                      </div>
+                    )}
+                  </div>
+
+                  {multiLineExpense && activeType === 'expense' ? (
+                    <>
+                      <SearchableField
+                        label={cfg.fromLabel} value={voucherForm.fromId} placeholder="Select..."
+                        items={accountPickerItems(cfg.fromFilter)}
+                        onChange={(id) => setVoucherForm({ ...voucherForm, fromId: id })}
+                      />
+                      {newAccountLink(voucherAccountTypes[activeType as VoucherType].from, (a) => handleAccountCreated(a, (acc) => setVoucherForm((f) => ({ ...f, fromId: acc.id }))))}
+                      <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Expense Lines</p>
+                      {voucherLines.map((line, i) => (
+                        <div key={i} className="flex items-end gap-2 border border-dp-outline-variant rounded-lg p-3">
+                          <div className="flex-1 space-y-2">
+                            <SearchableField
+                              label="Expense Account" value={line.account_id} placeholder="Select..."
+                              items={accountPickerItems((a) => a.type === 'expense')}
+                              onChange={(id) => setVoucherLines(voucherLines.map((l, idx) => (idx === i ? { ...l, account_id: id } : l)))}
+                            />
+                            {newAccountLink(['expense'], (a) => handleAccountCreated(a, (acc) => setVoucherLines(voucherLines.map((l, idx) => (idx === i ? { ...l, account_id: acc.id } : l)))))}
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="number" min={0} value={line.amount || ''} onChange={(e) => setVoucherLines(voucherLines.map((l, idx) => (idx === i ? { ...l, amount: +e.target.value } : l)))} placeholder="Amount" className="input-field" />
+                              <input value={line.description} onChange={(e) => setVoucherLines(voucherLines.map((l, idx) => (idx === i ? { ...l, description: e.target.value } : l)))} placeholder="Note (optional)" className="input-field" />
+                            </div>
+                          </div>
+                          {voucherLines.length > 1 && (
+                            <button onClick={() => setVoucherLines(voucherLines.filter((_, idx) => idx !== i))} className="p-2 text-dp-on-surface-variant hover:text-dp-error cursor-pointer shrink-0"><Trash2 size={15} /></button>
+                          )}
+                        </div>
+                      ))}
+                      <button onClick={() => setVoucherLines([...voucherLines, { account_id: '', amount: 0, description: '' }])} className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dp-secondary text-dp-secondary rounded-full font-sans text-[13.5px] font-bold hover:bg-dp-secondary/5 transition-all cursor-pointer">
+                        <Plus size={15} /> Add Line
+                      </button>
+                      <div className="bg-dp-surface-container-low rounded-lg px-4 py-3 flex items-center justify-between">
+                        <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Total</span>
+                        <span className="font-heading text-[20px] font-bold text-dp-primary">Rs. {fmtAmount(voucherLines.reduce((s, l) => s + (l.amount || 0), 0))}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <SearchableField
+                          label={cfg.fromLabel} value={voucherForm.fromId} placeholder="Select..."
+                          items={accountPickerItems(cfg.fromFilter)}
+                          onChange={(id) => setVoucherForm({ ...voucherForm, fromId: id })}
+                        />
+                        {newAccountLink(voucherAccountTypes[activeType as VoucherType].from, (a) => handleAccountCreated(a, (acc) => setVoucherForm((f) => ({ ...f, fromId: acc.id }))))}
+                      </div>
+                      <div className="space-y-1.5">
+                        <SearchableField
+                          label={cfg.toLabel} value={voucherForm.toId} placeholder="Select..."
+                          items={accountPickerItems(cfg.toFilter)}
+                          onChange={(id) => setVoucherForm({ ...voucherForm, toId: id })}
+                        />
+                        {newAccountLink(voucherAccountTypes[activeType as VoucherType].to, (a) => handleAccountCreated(a, (acc) => setVoucherForm((f) => ({ ...f, toId: acc.id }))))}
+                      </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <SearchableField
-                      label={cfg.fromLabel} value={voucherForm.fromId} placeholder="Select..."
-                      items={accountPickerItems(cfg.fromFilter)}
-                      onChange={(id) => setVoucherForm({ ...voucherForm, fromId: id })}
-                    />
-                    <SearchableField
-                      label={cfg.toLabel} value={voucherForm.toId} placeholder="Select..."
-                      items={accountPickerItems(cfg.toFilter)}
-                      onChange={(id) => setVoucherForm({ ...voucherForm, toId: id })}
-                    />
-                  </div>
+                  )}
+
                   {cfg.partyLabel && (
                     <div>
                       <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{cfg.partyLabel}</label>
@@ -1175,12 +1426,92 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Description *</label>
                     <input value={voucherForm.particular} onChange={(e) => setVoucherForm({ ...voucherForm, particular: e.target.value })} className="input-field" placeholder="What is this transaction for?" />
                   </div>
+                  {activeType === 'expense' && (
+                    <FileAttachment label="Attach Bill (optional)" currentUrl={voucherAttachment} onUpload={setVoucherAttachment} />
+                  )}
                   <button disabled={saving} onClick={saveVoucher} className="flex items-center gap-2 px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
                     <Save size={16} /> Save {cfg.label}
                   </button>
                 </div>
               )
             })()}
+
+            {activeType === 'cash_receipt' && (
+              <div className="space-y-4">
+                <h2 className="font-heading text-[20px] font-bold text-dp-primary">Cash Receipt</h2>
+                <p className="font-sans text-[13px] text-dp-on-surface-variant -mt-2">Pick a consumer, then settle one or several of their outstanding bills in a single receipt.</p>
+                <SearchableField
+                  label="Consumer" value={cashReceiptConsumerId} placeholder="Select consumer..."
+                  items={consumers.map((c) => ({ id: c.consumer_id, label: c.name, sublabel: c.consumer_id }))}
+                  onChange={(id) => loadCashReceiptBills(id)}
+                />
+                {cashReceiptConsumerId && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Date</label>
+                        <input type="date" value={cashReceiptDate} onChange={(e) => setCashReceiptDate(e.target.value)} className="input-field" />
+                      </div>
+                      <div>
+                        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Method</label>
+                        <select value={cashReceiptMethod} onChange={(e) => setCashReceiptMethod(e.target.value as typeof cashReceiptMethod)} className="input-field">
+                          <option value="cash">Cash</option>
+                          <option value="jazzcash">JazzCash</option>
+                          <option value="easypaisa">Easypaisa</option>
+                          <option value="bank">Bank Transfer</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Outstanding Invoice{cashReceiptBills.length === 1 ? '' : 's'}</p>
+                    {cashReceiptBills.length === 0 ? (
+                      <p className="font-sans text-[13.5px] text-dp-on-surface-variant py-4 text-center">No outstanding bills for this consumer.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {cashReceiptBills.map((b, i) => (
+                          <label key={b.id} className="flex items-center gap-3 border border-dp-outline-variant rounded-lg p-3 cursor-pointer">
+                            <input type="checkbox" checked={b.selected} onChange={(e) => setCashReceiptBills(cashReceiptBills.map((x, idx) => (idx === i ? { ...x, selected: e.target.checked } : x)))} className="accent-dp-secondary w-4 h-4 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{b.bill_number ?? 'Bill'}</p>
+                              <p className="font-sans text-[12px] text-dp-on-surface-variant">Outstanding: Rs. {fmtAmount(b.outstanding)}</p>
+                            </div>
+                            <input
+                              type="number" min={0} max={b.outstanding} disabled={!b.selected}
+                              value={b.amount || ''} onChange={(e) => setCashReceiptBills(cashReceiptBills.map((x, idx) => (idx === i ? { ...x, amount: +e.target.value } : x)))}
+                              className="input-field !w-32 shrink-0 disabled:opacity-50"
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    )}
+
+                    <label className="flex items-center gap-3 border border-dp-outline-variant rounded-lg p-3 cursor-pointer">
+                      <input type="checkbox" checked={cashReceiptAdvance} onChange={(e) => { setCashReceiptAdvance(e.target.checked); if (!e.target.checked) setCashReceiptAdvanceAmount(0) }} className="accent-dp-secondary w-4 h-4 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">Advance / Prepayment</p>
+                        <p className="font-sans text-[12px] text-dp-on-surface-variant">Cash received beyond what&apos;s currently owed — credited to the consumer&apos;s account, netted against a future bill.</p>
+                      </div>
+                      {cashReceiptAdvance && (
+                        <input
+                          type="number" min={0} value={cashReceiptAdvanceAmount || ''}
+                          onChange={(e) => setCashReceiptAdvanceAmount(+e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="input-field !w-32 shrink-0"
+                        />
+                      )}
+                    </label>
+
+                    <div className="bg-dp-surface-container-low rounded-lg px-4 py-3 flex items-center justify-between">
+                      <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Receipt Total</span>
+                      <span className="font-heading text-[20px] font-bold text-dp-primary">Rs. {fmtAmount(cashReceiptBills.filter((b) => b.selected).reduce((s, b) => s + (b.amount || 0), 0) + (cashReceiptAdvance ? cashReceiptAdvanceAmount : 0))}</span>
+                    </div>
+                    <button disabled={savingCashReceipt} onClick={saveCashReceipt} className="flex items-center gap-2 px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+                      <Save size={16} /> Save Cash Receipt
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
 
             {activeType === 'bill' && editLoading && (
               <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading bill...</div>
@@ -1255,7 +1586,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     onChange={(e) => {
                       if (!e.target.value) return
                       const [y, m] = e.target.value.split('-').map(Number)
-                      setBillForm({ ...billForm, year: y, month: m })
+                      setBillForm({ ...billForm, year: y, month: m, due_date: defaultDueDate(m, y) })
                     }}
                     className="input-field"
                   />
@@ -1712,15 +2043,18 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                             <button onClick={() => attemptDeleteBill(c.billId!)} title="Delete bill" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
                           </>
                         )}
-                        {c.kind === 'payment' && c.billId && (
+                        {c.kind === 'payment' && (
                           <>
-                            <button onClick={() => openPaymentReceipt(c)} title="View cash receipt" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><FileText size={15} /></button>
+                            <button onClick={() => openPaymentReceipt(c)} title="View receipt" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><FileText size={15} /></button>
                             <button onClick={() => openEditPayment(c)} title="Edit payment" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></button>
                             <button onClick={() => setConfirmDeletePaymentId(c.paymentId!)} title="Delete payment" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
                           </>
                         )}
                         {c.kind === 'voucher' && c.voucherId && (
-                          <button onClick={() => setConfirmDeleteVoucherId(c.voucherId!)} title="Delete voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
+                          <>
+                            <button onClick={() => openVoucherReceipt(c)} title="View voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><FileText size={15} /></button>
+                            <button onClick={() => setConfirmDeleteVoucherId(c.voucherId!)} title="Delete voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
+                          </>
                         )}
                         {c.kind === 'purchase' && c.purchaseId && (
                           <button onClick={() => openPurchaseReceipt(c)} title="View payment voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><FileText size={15} /></button>
@@ -2017,6 +2351,13 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       )}
 
       {viewReceipt && <ReceiptModal data={viewReceipt} onClose={() => setViewReceipt(null)} />}
+      {quickAddFor && (
+        <QuickAddAccountModal
+          system={system} allowedTypes={quickAddFor.types}
+          onClose={() => setQuickAddFor(null)}
+          onCreated={(a) => quickAddFor.onPick(a)}
+        />
+      )}
 
       {editPaymentTarget && (
         <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4" onClick={() => setEditPaymentTarget(null)}>

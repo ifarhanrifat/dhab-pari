@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, Save, ShieldCheck, UserCircle2, Clock, CheckCircle2, Truck, Pencil, Trash2, Power, ChevronDown, ChevronUp } from 'lucide-react'
+import { PlusCircle, X, Save, ShieldCheck, UserCircle2, Clock, CheckCircle2, Truck, Pencil, Trash2, Power, ChevronDown, ChevronUp, Key, Copy, Eye, EyeOff, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 
@@ -126,12 +126,19 @@ const adminPermissionFields: { key: keyof AdminUser; label: string }[] = [
 ]
 
 const emptyInvite = {
-  email: '', full_name: '', role: 'water_accountant', secondary_role: '',
+  email: '', full_name: '', role: 'water_accountant', secondary_role: '', password: '',
   can_post_transactions: false, can_edit_transactions: false, can_delete_transactions: false,
   can_view_reports: false, can_approve_transactions: false,
   can_manage_parties: false, can_manage_accounts: false, can_edit_accounts: false, can_delete_accounts: false,
   can_restore_deleted: false, can_invite_users: false,
   access_water_supply: false, access_donors_projects: false,
+}
+
+function generatePassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%'
+  let out = ''
+  for (let i = 0; i < 12; i++) out += chars[Math.floor(Math.random() * chars.length)]
+  return out
 }
 
 const emptyCollectorForm = { mobile: '', can_collect_payments: false, assigned_sectors: [] as string[], can_verify_complaints: false, secondary_role: '' }
@@ -150,6 +157,12 @@ export default function AdminUsersPage() {
   const [showRoleDetails, setShowRoleDetails] = useState(false)
   const [collectorForm, setCollectorForm] = useState(emptyCollectorForm)
   const [savingCollector, setSavingCollector] = useState(false)
+  const [creatingDirect, setCreatingDirect] = useState(false)
+  const [passwordTarget, setPasswordTarget] = useState<AdminUser | null>(null)
+  const [passwordValue, setPasswordValue] = useState('')
+  const [loadingPassword, setLoadingPassword] = useState(false)
+  const [revealPassword, setRevealPassword] = useState(false)
+  const [savingPassword, setSavingPassword] = useState(false)
   const supabase = createClient()
 
   const load = async () => {
@@ -228,6 +241,60 @@ export default function AdminUsersPage() {
       toast.error('Network error sending invite')
     }
     setInviting(false)
+  }
+
+  // Bridge while invite/reset-password emails aren't reaching people — creates
+  // a working login immediately with a chosen password instead of an email.
+  const createDirect = async () => {
+    if (!form.email.trim() || !form.full_name.trim()) { toast.error('Email and full name required'); return }
+    if (!form.password || form.password.length < 8) { toast.error('Password must be at least 8 characters'); return }
+    setCreatingDirect(true)
+    try {
+      const res = await fetch('/api/admin/users/create-manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error || 'Failed to create user'); setCreatingDirect(false); return }
+      toast.success(`${form.full_name} can log in now with the password you set`)
+      setShowForm(false)
+      setForm(emptyInvite)
+      load()
+    } catch {
+      toast.error('Network error creating user')
+    }
+    setCreatingDirect(false)
+  }
+
+  const openPasswordPanel = async (u: AdminUser) => {
+    setPasswordTarget(u)
+    setPasswordValue('')
+    setRevealPassword(false)
+    setLoadingPassword(true)
+    const { data } = await supabase.from('admin_user_credentials').select('password').eq('admin_user_id', u.id).maybeSingle()
+    setPasswordValue(data?.password ?? '')
+    setLoadingPassword(false)
+  }
+
+  const savePassword = async () => {
+    if (!passwordTarget) return
+    if (!passwordValue || passwordValue.length < 8) { toast.error('Password must be at least 8 characters'); return }
+    setSavingPassword(true)
+    try {
+      const res = await fetch('/api/admin/users/set-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminUserId: passwordTarget.id, password: passwordValue }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error || 'Failed to set password'); setSavingPassword(false); return }
+      toast.success(`Password set for ${passwordTarget.full_name}`)
+      setPasswordTarget(null)
+    } catch {
+      toast.error('Network error setting password')
+    }
+    setSavingPassword(false)
   }
 
   const removeUser = async () => {
@@ -404,6 +471,11 @@ export default function AdminUsersPage() {
                         <button onClick={() => openEditCollector(u)} title="Edit mobile number / field collector / secondary role settings" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
                           <Pencil size={15} />
                         </button>
+                        {currentRole === 'super_admin' && (
+                          <button onClick={() => openPasswordPanel(u)} title="View / Set Password" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
+                            <Key size={15} />
+                          </button>
+                        )}
                         <button onClick={() => toggleActive(u.id, u.is_active)} title={u.is_active ? 'Deactivate' : 'Activate'} className="p-1.5 text-dp-on-surface-variant hover:text-amber-600 cursor-pointer">
                           <Power size={15} />
                         </button>
@@ -510,10 +582,83 @@ export default function AdminUsersPage() {
                   <p className="font-sans text-[13px] text-amber-800">Publisher posts will appear as <strong>drafts</strong> and must be approved by a Super Admin before going live on the website.</p>
                 </div>
               )}
-              <button disabled={inviting} onClick={sendInvite} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              <button disabled={inviting} onClick={sendInvite} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
                 <Save size={16} /> {inviting ? 'Sending Invite...' : 'Send Invitation'}
               </button>
+
+              {currentRole === 'super_admin' && (
+                <div className="border-t border-dp-outline-variant pt-4 mt-2">
+                  <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Or Create Directly</p>
+                  <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">If invite/reset-password emails aren&apos;t reaching people, set a password here and give it to them yourself. Remove this once email is fixed.</p>
+                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Password *</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      placeholder="At least 8 characters"
+                      className="input-field font-mono"
+                    />
+                    <button type="button" onClick={() => setForm({ ...form, password: generatePassword() })} title="Generate a password" className="px-3 border border-dp-outline-variant rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container-low cursor-pointer shrink-0">
+                      <RefreshCw size={16} />
+                    </button>
+                  </div>
+                  <button disabled={creatingDirect} onClick={createDirect} className="w-full flex items-center justify-center gap-2 border-2 border-dp-secondary text-dp-secondary py-3 rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-secondary/5 transition-all cursor-pointer disabled:opacity-50 mt-3">
+                    <Key size={16} /> {creatingDirect ? 'Creating...' : 'Create Directly'}
+                  </button>
+                </div>
+              )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {passwordTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPasswordTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary flex items-center gap-2"><Key size={18} /> Password</h2>
+              <button onClick={() => setPasswordTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{passwordTarget.full_name} · {passwordTarget.email}</p>
+            {loadingPassword ? (
+              <p className="font-sans text-[13px] text-dp-on-surface-variant text-center py-4">Loading...</p>
+            ) : (
+              <>
+                {!passwordValue && (
+                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-surface-container-low rounded-lg px-3 py-2 mb-4">
+                    No password on file here (invited normally, or never reset through this page). Set one below to unblock their login.
+                  </p>
+                )}
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">
+                  {passwordValue ? 'Password' : 'Set Password'}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type={revealPassword ? 'text' : 'password'}
+                    value={passwordValue}
+                    onChange={(e) => setPasswordValue(e.target.value)}
+                    placeholder="At least 8 characters"
+                    className="input-field font-mono"
+                  />
+                  <button onClick={() => setRevealPassword(!revealPassword)} title="Show/hide" className="px-3 border border-dp-outline-variant rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container-low cursor-pointer shrink-0">
+                    {revealPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                  {passwordValue && (
+                    <button onClick={() => { navigator.clipboard.writeText(passwordValue); toast.success('Copied') }} title="Copy" className="px-3 border border-dp-outline-variant rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container-low cursor-pointer shrink-0">
+                      <Copy size={16} />
+                    </button>
+                  )}
+                  <button onClick={() => setPasswordValue(generatePassword())} title="Generate" className="px-3 border border-dp-outline-variant rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container-low cursor-pointer shrink-0">
+                    <RefreshCw size={16} />
+                  </button>
+                </div>
+                <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1.5">Editing and saving here changes their real login password immediately.</p>
+                <button disabled={savingPassword} onClick={savePassword} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50 mt-4">
+                  <Save size={16} /> {savingPassword ? 'Saving...' : 'Save Password'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -11,6 +11,8 @@ import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { fetchBrandingSettings } from '@/lib/branding'
 import { printNodeInPopup } from '@/lib/receiptExport'
+import { entryTypeLabel } from '@/lib/ledgerLabels'
+import { dt } from '@/lib/docTranslations'
 
 interface Account {
   id: string; code: string; name: string; name_ur: string | null
@@ -22,8 +24,9 @@ interface ConsumerInfo {
 }
 interface LedgerRow {
   id: string; account_id: string; entry_date: string; particular: string
-  debit: number; credit: number; reference_type: 'bill' | 'payment' | 'donation' | 'manual' | null
+  debit: number; credit: number; reference_type: string | null
   reference_id: string | null; bill_number: string | null; receipt_no: string | null
+  voucher_type?: string | null; voucher_no?: string | null
 }
 interface BillStatus { status: string; paid_amount: number; amount_pkr: number; discount_amount: number }
 
@@ -80,13 +83,26 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
       .order('entry_date', { ascending: true })
       .order('created_at', { ascending: true })
 
+    // A ledger row referencing a voucher only stores reference_type='voucher' — the
+    // actual voucher_type (Advance, Expense, Security Deposit...) that tells the
+    // accountant what really happened lives on the vouchers table itself.
+    const voucherIds = Array.from(new Set((entries ?? [])
+      .filter((e) => e.reference_type === 'voucher' && e.reference_id)
+      .map((e) => e.reference_id as string)))
+    let voucherById: Record<string, { voucher_type: string; voucher_no: string | null }> = {}
+    if (voucherIds.length > 0) {
+      const { data: vouchersData } = await supabase.from('vouchers').select('id, voucher_type, voucher_no').in('id', voucherIds)
+      voucherById = Object.fromEntries((vouchersData ?? []).map((v) => [v.id, { voucher_type: v.voucher_type, voucher_no: v.voucher_no }]))
+    }
+
     // Same normal-balance rule as the Chart of Accounts list: income/liability/donor
     // accounts increase with a credit, everything else increases with a debit.
     const creditNormal = acc?.type === 'donor' || acc?.type === 'income' || acc?.type === 'liability'
     let running = acc?.opening_balance ?? 0
     const withBalance = (entries ?? []).map((e) => {
       running += creditNormal ? Number(e.credit) - Number(e.debit) : Number(e.debit) - Number(e.credit)
-      return { ...e, balance: running }
+      const v = e.reference_id ? voucherById[e.reference_id] : undefined
+      return { ...e, voucher_type: v?.voucher_type ?? null, voucher_no: v?.voucher_no ?? null, balance: running }
     })
     setRows(withBalance)
 
@@ -137,8 +153,9 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
     }
     if (consumerInfo) phone = consumerInfo.mobile
 
+    const receiptKind = row.reference_type === 'bill' || row.reference_type === 'payment' || row.reference_type === 'donation' ? row.reference_type : 'manual'
     setReceipt({
-      kind: row.reference_type ?? 'manual',
+      kind: receiptKind,
       receiptNo,
       date: row.entry_date,
       systemLabel: systemLabels[account?.system ?? ''] ?? '',
@@ -296,9 +313,9 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      <div ref={statementRef}>
+      <div ref={statementRef} dir={lang === 'ur' ? 'rtl' : 'ltr'} style={lang === 'ur' ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
       <div className="bg-white rounded-lg border border-dp-outline-variant p-6 mb-4">
-        <DocumentHeader title={systemLabels[account.system]} />
+        <DocumentHeader title={dt(lang, account.system === 'donors_projects' ? 'donorsProjectsSystem' : 'waterSupplySystem')} />
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="font-heading text-[24px] font-bold text-dp-primary">{accountPrimaryName}</h1>
@@ -316,7 +333,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
           </div>
           <div className="text-right">
             <p className="font-sans text-[12px] font-bold tracking-widest uppercase text-dp-on-surface-variant">
-              {account.type === 'donor' ? 'Total Contributed' : account.type === 'consumer' && currentBalance < 0 ? 'Advance Balance' : 'Current Balance'}
+              {dt(lang, account.type === 'donor' ? 'totalContributed' : account.type === 'consumer' && currentBalance < 0 ? 'advanceBalance' : 'currentBalance')}
             </p>
             <p className={`font-heading text-[28px] font-bold ${account.type === 'consumer' && currentBalance > 0 ? 'text-dp-error' : account.type === 'consumer' && currentBalance < 0 ? 'text-emerald-600' : 'text-dp-primary'}`}>
               Rs. {fmtAmount(account.type === 'consumer' && currentBalance < 0 ? -currentBalance : currentBalance)}
@@ -330,19 +347,20 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
           <table className="w-full text-left min-w-[720px]">
             <thead>
               <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                <th className="px-4 py-2.5">Date</th>
-                <th className="px-4 py-2.5">Particular</th>
-                <th className="px-4 py-2.5">Bill #</th>
-                {consumerInfo && <th className="px-4 py-2.5 text-center">Connections</th>}
+                <th className="px-4 py-2.5">{dt(lang, 'date')}</th>
+                <th className="px-4 py-2.5">{dt(lang, 'type')}</th>
+                <th className="px-4 py-2.5">{dt(lang, 'particular')}</th>
+                <th className="px-4 py-2.5">{dt(lang, 'billHash')}</th>
+                {consumerInfo && <th className="px-4 py-2.5 text-center">{dt(lang, 'connections')}</th>}
                 {account.type === 'donor' ? (
-                  <th className="px-4 py-2.5 text-right">Amount Donated</th>
+                  <th className="px-4 py-2.5 text-right">{dt(lang, 'amountDonated')}</th>
                 ) : (
                   <>
-                    <th className="px-4 py-2.5 text-right">Bill Receivable</th>
-                    <th className="px-4 py-2.5 text-right">Paid</th>
+                    <th className="px-4 py-2.5 text-right">{isParty ? dt(lang, 'billReceivable') : dt(lang, 'debit')}</th>
+                    <th className="px-4 py-2.5 text-right">{isParty ? dt(lang, 'paid') : dt(lang, 'credit')}</th>
                   </>
                 )}
-                <th className="px-4 py-2.5 text-right">{account.type === 'donor' ? 'Total' : 'Balance'}</th>
+                <th className="px-4 py-2.5 text-right">{account.type === 'donor' ? dt(lang, 'total') : dt(lang, 'balance')}</th>
                 <th className="no-export px-4 py-2.5 text-right print:hidden">Actions</th>
               </tr>
             </thead>
@@ -350,10 +368,15 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
               {rows.map((row) => (
                 <tr key={row.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
                   <td className="px-4 py-3 whitespace-nowrap">{fmtDate(row.entry_date)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="inline-block px-2 py-0.5 rounded font-sans text-[11px] font-bold bg-dp-surface-container-low text-dp-on-surface-variant">
+                      {entryTypeLabel(row.reference_type, row.voucher_type, lang)}
+                    </span>
+                  </td>
                   <td className="px-4 py-3">{row.particular}</td>
                   <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant whitespace-nowrap">
-                    {row.bill_number ?? '—'}
-                    {row.receipt_no && <span className="block text-dp-secondary">Receipt #{row.receipt_no}</span>}
+                    {row.bill_number ?? row.voucher_no ?? '—'}
+                    {row.receipt_no && <span className="block text-dp-secondary">{dt(lang, 'receiptHash')}{row.receipt_no}</span>}
                   </td>
                   {consumerInfo && <td className="px-4 py-3 text-center">{consumerInfo.connections}</td>}
                   {account.type === 'donor' ? (
@@ -392,8 +415,8 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={4 + (consumerInfo ? 1 : 0) + (account.type === 'donor' ? 2 : 3)} className="px-4 py-12 text-center text-dp-on-surface-variant font-sans">
-                    No transactions yet for this account.
+                  <td colSpan={5 + (consumerInfo ? 1 : 0) + (account.type === 'donor' ? 2 : 3)} className="px-4 py-12 text-center text-dp-on-surface-variant font-sans">
+                    {dt(lang, 'noTransactionsYet')}
                   </td>
                 </tr>
               )}

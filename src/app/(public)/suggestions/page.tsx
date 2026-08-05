@@ -28,6 +28,10 @@ export default function SuggestionsPage() {
       setError('Message is required.')
       return
     }
+    if (!mobile.trim()) {
+      setError('Mobile number is required so we can send you a reply.')
+      return
+    }
 
     setLoading(true)
     setError('')
@@ -137,15 +141,17 @@ export default function SuggestionsPage() {
 
               <div>
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">
-                  MOBILE (Optional) / موبائل نمبر
+                  MOBILE * / موبائل نمبر
                 </label>
                 <input
                   type="tel"
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
+                  required
                   placeholder="0300-1234567"
                   className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px] text-dp-on-surface"
                 />
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">So the committee can send you a reply.</p>
               </div>
 
               <div>

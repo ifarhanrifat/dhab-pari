@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { ShieldCheck, Check, X, Clock, ShoppingCart, Wallet, UserCog } from 'lucide-react'
+import { ShieldCheck, Check, X, Clock, ShoppingCart, Wallet, UserCog, Paperclip } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 
@@ -13,7 +13,8 @@ interface ApprovalRequest {
 interface MyConfirmation { id: string; approval_request_id: string; request: ApprovalRequest }
 interface RosterEntry { confirmation_id: string; approver_id: string; full_name: string; confirmed: boolean | null }
 interface PurchaseLine { description: string; quantity: number; unit_cost: number }
-interface VoucherDetail { voucher_type: string; from_account_id: string; to_account_id: string; party_name: string | null }
+interface VoucherDetail { voucher_type: string; from_account_id: string; to_account_id: string; party_name: string | null; attachment_url: string | null }
+interface VoucherLine { account_id: string; amount: number; description: string | null }
 
 const systemLabels: Record<string, string> = { water_supply: 'Water Supply', donors_projects: 'Donors & Projects' }
 
@@ -36,6 +37,9 @@ export default function ApprovalsPage() {
   const [accountNames, setAccountNames] = useState<Record<string, string>>({})
   const [voucherDetails, setVoucherDetails] = useState<Record<string, VoucherDetail>>({})
   const [purchaseLines, setPurchaseLines] = useState<Record<string, PurchaseLine[]>>({})
+  const [purchaseAttachments, setPurchaseAttachments] = useState<Record<string, string | null>>({})
+  const [voucherLines, setVoucherLines] = useState<Record<string, VoucherLine[]>>({})
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [confirmReject, setConfirmReject] = useState<MyConfirmation | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -75,20 +79,37 @@ export default function ApprovalsPage() {
     const purchaseRequestIds = allRequests.filter((r) => r.kind === 'purchase').map((r) => r.id)
 
     if (voucherRequestIds.length > 0) {
-      const { data } = await supabase.from('vouchers').select('id, voucher_type, from_account_id, to_account_id, party_name').in('id', voucherRequestIds)
+      const { data } = await supabase.from('vouchers').select('id, voucher_type, from_account_id, to_account_id, party_name, attachment_url').in('id', voucherRequestIds)
       setVoucherDetails(Object.fromEntries((data ?? []).map((v) => [v.id, v])))
+
+      // Multi-line vouchers (Advance Settlement, Multi-line Expense, Payslip
+      // Recognition) post via voucher_line_items instead of a single
+      // to_account_id — without this, a multi-line voucher here just showed
+      // a bare total with no breakdown of what it's actually made of.
+      const { data: lines } = await supabase.from('voucher_line_items').select('voucher_id, account_id, amount, description').in('voucher_id', voucherRequestIds)
+      const vMap: Record<string, VoucherLine[]> = {}
+      for (const l of lines ?? []) {
+        (vMap[l.voucher_id] ??= []).push({ account_id: l.account_id, amount: l.amount, description: l.description })
+      }
+      setVoucherLines(vMap)
     } else {
       setVoucherDetails({})
+      setVoucherLines({})
     }
     if (purchaseRequestIds.length > 0) {
-      const { data } = await supabase.from('purchase_line_items').select('purchase_id, description, quantity, unit_cost').in('purchase_id', purchaseRequestIds)
+      const [{ data: lines }, { data: purchases }] = await Promise.all([
+        supabase.from('purchase_line_items').select('purchase_id, description, quantity, unit_cost').in('purchase_id', purchaseRequestIds),
+        supabase.from('purchases').select('id, attachment_url').in('id', purchaseRequestIds),
+      ])
       const pMap: Record<string, PurchaseLine[]> = {}
-      for (const l of data ?? []) {
+      for (const l of lines ?? []) {
         (pMap[l.purchase_id] ??= []).push({ description: l.description, quantity: l.quantity, unit_cost: l.unit_cost })
       }
       setPurchaseLines(pMap)
+      setPurchaseAttachments(Object.fromEntries((purchases ?? []).map((p) => [p.id, p.attachment_url])))
     } else {
       setPurchaseLines({})
+      setPurchaseAttachments({})
     }
 
     if ((pendingRequests ?? []).length > 0) {
@@ -158,6 +179,8 @@ export default function ApprovalsPage() {
               const r = c.request
               const v = voucherDetails[r.id]
               const lines = purchaseLines[r.id]
+              const vLines = voucherLines[r.id]
+              const attachmentUrl = r.kind === 'purchase' ? purchaseAttachments[r.id] : v?.attachment_url
               return (
                 <div key={c.id} className="bg-white rounded-lg border border-amber-300 overflow-hidden">
                   <div className="px-5 py-3.5 flex items-start justify-between gap-3 flex-wrap">
@@ -179,7 +202,17 @@ export default function ApprovalsPage() {
                           {lines.map((l, i) => <li key={i}>{l.description} × {l.quantity} @ Rs. {fmt(l.unit_cost)}</li>)}
                         </ul>
                       )}
+                      {vLines && vLines.length > 0 && (
+                        <ul className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1 list-disc list-inside">
+                          {vLines.map((l, i) => <li key={i}>{l.description ?? accountNames[l.account_id] ?? 'Line'}: Rs. {fmt(l.amount)}</li>)}
+                        </ul>
+                      )}
                       <p className="font-sans text-[16px] font-bold text-dp-primary mt-1">Rs. {fmt(r.amount_pkr)}</p>
+                      {attachmentUrl && (
+                        <a href={attachmentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[12.5px] font-semibold hover:underline mt-1">
+                          <Paperclip size={13} /> View Attached Bill
+                        </a>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button
@@ -227,36 +260,70 @@ export default function ApprovalsPage() {
                   {otherPending.map((r) => {
                     const roster = rosterByRequest[r.id] ?? []
                     const waiting = roster.filter((a) => a.confirmed === null)
+                    const v = voucherDetails[r.id]
+                    const lines = purchaseLines[r.id]
+                    const vLines = voucherLines[r.id]
+                    const hasDetail = !!v || !!(lines && lines.length > 0)
+                    const expanded = expandedId === r.id
                     return (
-                      <tr key={r.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
-                        <td className="px-5 py-3">
-                          <span className="font-semibold">{r.particular}</span>
-                          <p className="text-[11.5px] text-dp-on-surface-variant">{systemLabels[r.system]} · {r.kind}</p>
-                        </td>
-                        <td className="px-5 py-3 text-right font-bold">Rs. {fmt(r.amount_pkr)}</td>
-                        <td className="px-5 py-3 text-dp-on-surface-variant">
-                          {waiting.length === 0 ? 'All confirmed' : (
-                            <div className="flex flex-col gap-1">
-                              {waiting.map((a) => (
-                                <span key={a.confirmation_id} className="flex items-center gap-2">
-                                  {a.full_name}
-                                  {currentRole === 'super_admin' && (
-                                    <button
-                                      disabled={overrideBusyId === a.confirmation_id}
-                                      onClick={() => setConfirmOverride({ confirmationId: a.confirmation_id, name: a.full_name })}
-                                      title="Approve on their behalf"
-                                      className="flex items-center gap-1 px-1.5 py-0.5 border border-dp-outline-variant rounded font-sans text-[10.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-40"
-                                    >
-                                      <UserCog size={10} /> Approve for them
-                                    </button>
-                                  )}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-5 py-3 text-dp-on-surface-variant">{hoursLeft(r.deadline_at)}</td>
-                      </tr>
+                      <Fragment key={r.id}>
+                        <tr
+                          className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${hasDetail ? 'cursor-pointer hover:bg-dp-surface-container-low/40' : ''}`}
+                          onClick={() => hasDetail && setExpandedId(expanded ? null : r.id)}
+                        >
+                          <td className="px-5 py-3">
+                            <span className="font-semibold">{r.particular}</span>
+                            <p className="text-[11.5px] text-dp-on-surface-variant">
+                              {systemLabels[r.system]} · {r.kind}{hasDetail ? (expanded ? ' · hide detail' : ' · click to view detail') : ''}
+                            </p>
+                          </td>
+                          <td className="px-5 py-3 text-right font-bold">Rs. {fmt(r.amount_pkr)}</td>
+                          <td className="px-5 py-3 text-dp-on-surface-variant">
+                            {waiting.length === 0 ? 'All confirmed' : (
+                              <div className="flex flex-col gap-1">
+                                {waiting.map((a) => (
+                                  <span key={a.confirmation_id} className="flex items-center gap-2">
+                                    {a.full_name}
+                                    {currentRole === 'super_admin' && (
+                                      <button
+                                        disabled={overrideBusyId === a.confirmation_id}
+                                        onClick={(e) => { e.stopPropagation(); setConfirmOverride({ confirmationId: a.confirmation_id, name: a.full_name }) }}
+                                        title="Approve on their behalf"
+                                        className="flex items-center gap-1 px-1.5 py-0.5 border border-dp-outline-variant rounded font-sans text-[10.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-40"
+                                      >
+                                        <UserCog size={10} /> Approve for them
+                                      </button>
+                                    )}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-5 py-3 text-dp-on-surface-variant">{hoursLeft(r.deadline_at)}</td>
+                        </tr>
+                        {expanded && hasDetail && (
+                          <tr className="bg-dp-surface-container-low/30 border-b border-dp-outline-variant last:border-b-0">
+                            <td colSpan={4} className="px-5 py-3">
+                              {v && (
+                                <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-1.5">
+                                  {accountNames[v.from_account_id] ?? '—'} → {accountNames[v.to_account_id] ?? '—'}
+                                  {v.party_name ? ` · ${v.party_name}` : ''}
+                                </p>
+                              )}
+                              {lines && lines.length > 0 && (
+                                <ul className="font-sans text-[12.5px] text-dp-on-surface-variant list-disc list-inside">
+                                  {lines.map((l, i) => <li key={i}>{l.description} × {l.quantity} @ Rs. {fmt(l.unit_cost)}</li>)}
+                                </ul>
+                              )}
+                              {vLines && vLines.length > 0 && (
+                                <ul className="font-sans text-[12.5px] text-dp-on-surface-variant list-disc list-inside">
+                                  {vLines.map((l, i) => <li key={i}>{l.description ?? accountNames[l.account_id] ?? 'Line'}: Rs. {fmt(l.amount)}</li>)}
+                                </ul>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     )
                   })}
                 </tbody>

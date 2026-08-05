@@ -14,6 +14,7 @@ type TopSellingPeriod = 'month' | '90d' | 'all'
 interface InventoryItem {
   id: string; item_code: string; name: string; unit: string
   unit_cost: number; unit_price: number; quantity_on_hand: number; reorder_level: number; is_active: boolean
+  is_connection_essential: boolean
 }
 interface ServiceItem {
   id: string; service_code: string; name: string; charge_amount: number; description: string | null; is_active: boolean
@@ -194,6 +195,10 @@ export default function InventoryPage() {
     toast.success(i.is_active ? 'Item deactivated' : 'Item activated')
     load()
   }
+  const toggleConnectionEssential = async (i: InventoryItem) => {
+    await supabase.from('inventory_items').update({ is_connection_essential: !i.is_connection_essential }).eq('id', i.id)
+    load()
+  }
   const toggleServiceActive = async (s: ServiceItem) => {
     await supabase.from('service_items').update({ is_active: !s.is_active }).eq('id', s.id)
     toast.success(s.is_active ? 'Service deactivated' : 'Service activated')
@@ -328,7 +333,7 @@ export default function InventoryPage() {
           </div>
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left min-w-[750px]">
+              <table className="w-full text-left min-w-[850px]">
                 <thead>
                   <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                     <th className="px-4 py-2.5">Code</th>
@@ -337,12 +342,13 @@ export default function InventoryPage() {
                     <th className="px-4 py-2.5 text-right">Unit Price</th>
                     <th className="px-4 py-2.5 text-right">Stock</th>
                     <th className="px-4 py-2.5">Status</th>
+                    <th className="px-4 py-2.5 text-center">New Connection</th>
                     <th className="px-4 py-2.5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">Loading...</td></tr>}
-                  {!loading && items.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">No inventory items yet.</td></tr>}
+                  {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">Loading...</td></tr>}
+                  {!loading && items.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">No inventory items yet.</td></tr>}
                   {!loading && items.map((i) => (
                     <tr key={i.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${!i.is_active ? 'opacity-50' : ''}`}>
                       <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant">{i.item_code}</td>
@@ -352,6 +358,15 @@ export default function InventoryPage() {
                       <td className={`px-4 py-3 text-right font-bold ${i.quantity_on_hand <= i.reorder_level ? 'text-dp-error' : ''}`}>{fmt(i.quantity_on_hand)}</td>
                       <td className="px-4 py-3">
                         <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${i.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{i.is_active ? 'Active' : 'Inactive'}</span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={i.is_connection_essential}
+                          onChange={() => toggleConnectionEssential(i)}
+                          title="Required equipment for a new connection installation"
+                          className="accent-dp-secondary w-4 h-4 cursor-pointer"
+                        />
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">

@@ -8,6 +8,8 @@ import { billBadge } from '@/lib/billStatus'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import { useRef } from 'react'
+import { fetchBrandingSettings } from '@/lib/branding'
+import { dt, type Lang } from '@/lib/docTranslations'
 
 interface ConsumerRow { consumer_id: string; name: string; mobile: string | null; sector: string | null; status: string }
 interface BillRow {
@@ -31,8 +33,11 @@ export default function NonPaymentReportPage() {
   const [bills, setBills] = useState<BillRow[]>([])
   const [loading, setLoading] = useState(true)
   const [sectorFilter, setSectorFilter] = useState('')
+  const [lang, setLang] = useState<Lang>('en')
   const printRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
+
+  useEffect(() => { fetchBrandingSettings().then((b) => setLang(b.language)) }, [])
 
   useEffect(() => {
     setLoading(true)
@@ -97,28 +102,28 @@ export default function NonPaymentReportPage() {
   const bySector = useMemo(() => {
     const groups: Record<string, FlaggedConsumer[]> = {}
     for (const f of filtered) {
-      const key = f.consumer.sector || 'Unassigned Sector'
+      const key = f.consumer.sector || dt(lang, 'unassignedSector')
       ;(groups[key] ??= []).push(f)
     }
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))
-  }, [filtered])
+  }, [filtered, lang])
 
   const totalPending = filtered.reduce((s, f) => s + f.totalOutstanding, 0)
 
   const handlePrint = () => {
-    if (printRef.current) printNodeInPopup(printRef.current, '2-Month Non-Payment Report — Water Supply System')
+    if (printRef.current) printNodeInPopup(printRef.current, `${dt(lang, 'reportNonPayment')} — ${dt(lang, 'waterSupplySystem')}`)
   }
 
   return (
-    <div ref={printRef}>
-      <DocumentHeader title="2-Month Non-Payment Report — Water Supply System" className="hidden print:block" />
+    <div ref={printRef} dir={lang === 'ur' ? 'rtl' : 'ltr'} style={lang === 'ur' ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+      <DocumentHeader title={`${dt(lang, 'reportNonPayment')} — ${dt(lang, 'waterSupplySystem')}`} className="hidden print:block" />
       <div className="flex items-center justify-between mb-6 print:hidden gap-4 flex-wrap">
         <div>
           <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2">
-            <AlertTriangle size={24} className="text-amber-600" /> Non-Payment Report
+            <AlertTriangle size={24} className="text-amber-600" /> {dt(lang, 'reportNonPayment')}
           </h1>
           <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">
-            Consumers who failed to pay (unpaid or partial) for 2 consecutive months
+            {dt(lang, 'nonPaymentSubtitle')}
           </p>
         </div>
         <button
@@ -131,15 +136,15 @@ export default function NonPaymentReportPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 print:hidden">
         <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3">
-          <p className="font-sans text-[11px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant mb-1">Consumers Flagged</p>
+          <p className="font-sans text-[11px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant mb-1">{dt(lang, 'consumersFlagged')}</p>
           <p className="font-sans text-[20px] font-bold text-dp-primary">{filtered.length}</p>
         </div>
         <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3">
-          <p className="font-sans text-[11px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant mb-1">Sectors Affected</p>
+          <p className="font-sans text-[11px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant mb-1">{dt(lang, 'sectorsAffected')}</p>
           <p className="font-sans text-[20px] font-bold text-dp-primary">{bySector.length}</p>
         </div>
         <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3">
-          <p className="font-sans text-[11px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant mb-1">Total Pending</p>
+          <p className="font-sans text-[11px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant mb-1">{dt(lang, 'totalPending')}</p>
           <p className="font-sans text-[20px] font-bold text-dp-error">Rs. {fmtAmount(totalPending)}</p>
         </div>
       </div>
@@ -154,7 +159,7 @@ export default function NonPaymentReportPage() {
       {loading && <p className="text-center py-12 text-dp-on-surface-variant font-sans text-[13.5px]">Loading...</p>}
       {!loading && filtered.length === 0 && (
         <p className="text-center py-12 text-dp-on-surface-variant font-sans text-[13.5px]">
-          No consumers have failed to pay for 2 consecutive months.
+          {dt(lang, 'noConsumersFailedToPay')}
         </p>
       )}
 
@@ -170,10 +175,10 @@ export default function NonPaymentReportPage() {
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-dp-surface-container-low/60 border-b border-dp-outline-variant">
-                  <th className="px-4 py-2.5 font-sans text-[11.5px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant">Consumer</th>
-                  <th className="px-4 py-2.5 font-sans text-[11.5px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant">Contact</th>
-                  <th className="px-4 py-2.5 font-sans text-[11.5px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant">Pending Bills</th>
-                  <th className="px-4 py-2.5 font-sans text-[11.5px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant text-right">Total Outstanding</th>
+                  <th className="px-4 py-2.5 font-sans text-[11.5px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant">{dt(lang, 'consumer')}</th>
+                  <th className="px-4 py-2.5 font-sans text-[11.5px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant">{dt(lang, 'contact')}</th>
+                  <th className="px-4 py-2.5 font-sans text-[11.5px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant">{dt(lang, 'pendingBills')}</th>
+                  <th className="px-4 py-2.5 font-sans text-[11.5px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant text-right">{dt(lang, 'totalOutstanding')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -193,7 +198,7 @@ export default function NonPaymentReportPage() {
                     <td className="px-4 py-3">
                       {f.bills.map((b) => (
                         <div key={b.billId} className="font-sans text-[12.5px] text-dp-on-surface-variant">
-                          {monthName(b.month)} {b.year}{b.billNumber ? ` (${b.billNumber})` : ''} — Rs. {fmtAmount(b.outstanding)} due
+                          {monthName(b.month)} {b.year}{b.billNumber ? ` (${b.billNumber})` : ''} — Rs. {fmtAmount(b.outstanding)}{dt(lang, 'dueSuffix')}
                         </div>
                       ))}
                     </td>

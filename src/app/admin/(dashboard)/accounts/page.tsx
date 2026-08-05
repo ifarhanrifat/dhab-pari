@@ -54,7 +54,6 @@ const emptyAccount = {
 }
 
 const emptyHeaderForm = { label: '', label_ur: '', code: '', code_prefix: '' }
-const emptyConsumerEdit = { name: '', name_ur: '', mobile: '', address: '', connections: 1, monthly_rate: 200, status: 'active' }
 
 function fmtAmount(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -75,8 +74,6 @@ export default function AccountsPage() {
   const [form, setForm] = useState({ ...emptyAccount, system: 'water_supply' as SystemTab })
   const [showHeaderForm, setShowHeaderForm] = useState(false)
   const [headerForm, setHeaderForm] = useState(emptyHeaderForm)
-  const [consumerEditAccount, setConsumerEditAccount] = useState<Account | null>(null)
-  const [consumerForm, setConsumerForm] = useState(emptyConsumerEdit)
   const [search, setSearch] = useState('')
   const [sortByBalance, setSortByBalance] = useState(false)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
@@ -119,7 +116,7 @@ export default function AccountsPage() {
   // increase with a debit; income/liability/donor accounts increase with a credit
   // (income and liabilities are only ever credited in this app so far, but vouchers in
   // Phase 2 start posting real credits to them, so the sign must be correct now).
-  const creditNormal = (type: string) => type === 'donor' || type === 'income' || type === 'liability'
+  const creditNormal = (type: string) => type === 'donor' || type === 'income' || type === 'liability' || type === 'employee'
   const balanceOf = (a: Account) => creditNormal(a.type)
     ? a.opening_balance - (balances[a.id] ?? 0)
     : a.opening_balance + (balances[a.id] ?? 0)
@@ -179,17 +176,9 @@ export default function AccountsPage() {
 
   const openEdit = (a: Account) => {
     setMenuId(null)
-    if (a.type === 'consumer' && a.consumer_id) {
-      const c = consumers[a.consumer_id]
-      setConsumerEditAccount(a)
-      setConsumerForm({
-        name: a.name, name_ur: a.name_ur ?? '',
-        mobile: c?.mobile ?? '', address: c?.address ?? '',
-        connections: c?.connections ?? 1, monthly_rate: c?.monthly_rate ?? 200,
-        status: c?.status ?? 'active',
-      })
-      return
-    }
+    // Consumer accounts are edited from the Billing page now (Edit / Activate /
+    // Deactivate / Permanent Disconnection) — this dialog only handles the
+    // general chart-of-accounts case.
     const header = headers.find((h) => h.system === a.system && h.code === a.type)
     setEditId(a.id)
     setForm({ name: a.name, name_ur: a.name_ur ?? '', headerId: header?.id ?? '', system: a.system as SystemTab, description: a.description ?? '', opening_balance: a.opening_balance, is_active: a.is_active })
@@ -246,32 +235,12 @@ export default function AccountsPage() {
     if (data) setForm((f) => ({ ...f, headerId: data.id }))
   }
 
-  const saveConsumerEdit = async () => {
-    if (!consumerEditAccount?.consumer_id) return
-    if (!consumerForm.name.trim() || !consumerForm.mobile.trim()) { toast.error('Name and mobile required'); return }
-    const { error: e1 } = await supabase.from('consumers').update({
-      name: consumerForm.name, name_ur: consumerForm.name_ur || null,
-      mobile: consumerForm.mobile, address: consumerForm.address || null,
-      connections: consumerForm.connections, monthly_rate: consumerForm.monthly_rate,
-      status: consumerForm.status,
-    }).eq('consumer_id', consumerEditAccount.consumer_id)
-    if (e1) { toast.error(e1.message); return }
-    const { error: e2 } = await supabase.from('accounts').update({
-      name: consumerForm.name, name_ur: consumerForm.name_ur || null,
-      is_active: consumerForm.status === 'active',
-    }).eq('id', consumerEditAccount.id)
-    if (e2) { toast.error(e2.message); return }
-    toast.success('Consumer updated')
-    setConsumerEditAccount(null)
-    load()
-  }
-
+  // Consumer active/inactive/disconnected status is managed from the Billing
+  // page now — this toggle only ever runs for non-consumer accounts (the menu
+  // item is hidden for type='consumer' rows).
   const toggleActive = async (a: Account) => {
     setMenuId(null)
     await supabase.from('accounts').update({ is_active: !a.is_active }).eq('id', a.id)
-    if (a.type === 'consumer' && a.consumer_id) {
-      await supabase.from('consumers').update({ status: a.is_active ? 'inactive' : 'active' }).eq('consumer_id', a.consumer_id)
-    }
     toast.success(a.is_active ? 'Account disabled' : 'Account enabled')
     load()
   }
@@ -321,12 +290,18 @@ export default function AccountsPage() {
                 <button onClick={() => viewAccount(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
                   <Eye size={14} /> View Account
                 </button>
-                <button onClick={() => openEdit(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
-                  <Pencil size={14} /> Edit Account
-                </button>
-                <button onClick={() => toggleActive(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
-                  <Power size={14} /> {a.is_active ? 'Disable Account' : 'Enable Account'}
-                </button>
+                {a.type === 'consumer' ? (
+                  <p className="px-3 py-2 text-[12px] font-sans text-dp-on-surface-variant">Edit / Activate / Deactivate from Billing</p>
+                ) : (
+                  <>
+                    <button onClick={() => openEdit(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
+                      <Pencil size={14} /> Edit Account
+                    </button>
+                    <button onClick={() => toggleActive(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
+                      <Power size={14} /> {a.is_active ? 'Disable Account' : 'Enable Account'}
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -552,57 +527,6 @@ export default function AccountsPage() {
         </div>
       )}
 
-      {/* Edit Consumer Modal */}
-      {consumerEditAccount && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setConsumerEditAccount(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[24px] font-bold text-dp-primary">Edit Consumer</h2>
-              <button onClick={() => setConsumerEditAccount(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Name *</label>
-                <input value={consumerForm.name} onChange={(e) => setConsumerForm({ ...consumerForm, name: e.target.value })} className="input-field" />
-              </div>
-              <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Name (Urdu)</label>
-                <input value={consumerForm.name_ur} onChange={(e) => setConsumerForm({ ...consumerForm, name_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Mobile *</label>
-                  <input value={consumerForm.mobile} onChange={(e) => setConsumerForm({ ...consumerForm, mobile: e.target.value })} className="input-field" />
-                </div>
-                <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Connections</label>
-                  <input type="number" min={1} value={consumerForm.connections || ''} onChange={(e) => setConsumerForm({ ...consumerForm, connections: +e.target.value })} className="input-field" />
-                </div>
-              </div>
-              <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Address</label>
-                <input value={consumerForm.address} onChange={(e) => setConsumerForm({ ...consumerForm, address: e.target.value })} className="input-field" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Monthly Rate (PKR)</label>
-                  <input type="number" value={consumerForm.monthly_rate || ''} onChange={(e) => setConsumerForm({ ...consumerForm, monthly_rate: +e.target.value })} className="input-field" />
-                </div>
-                <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Status</label>
-                  <select value={consumerForm.status} onChange={(e) => setConsumerForm({ ...consumerForm, status: e.target.value })} className="input-field">
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
-              </div>
-              <button onClick={saveConsumerEdit} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-                <Save size={16} /> Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   )
 }

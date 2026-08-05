@@ -417,7 +417,6 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
                 <div>
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Frequency</label>
                   <select value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value as Frequency })} className="input-field">
-                    <option value="every_minute">Every Minute (Testing)</option>
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>

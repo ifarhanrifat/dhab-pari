@@ -6,7 +6,7 @@ import { Upload, X, Loader2, Image as ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface MultiImageUploadProps {
-  bucket: 'images' | 'thumbnails'
+  bucket: 'images' | 'thumbnails' | 'attachments'
   onUpload: (urls: string[]) => void
   currentUrls?: string[]
   label?: string
