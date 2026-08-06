@@ -6,12 +6,12 @@ import { PlusCircle, X, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 
-interface Project { id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null; status: string; progress_percent: number; budget_pkr: number | null; spent_pkr: number | null; category: string | null; location: string | null; sector: string | null; is_featured: boolean; before_image_url: string | null; after_image_url: string | null; start_date: string | null; end_date: string | null; beneficiaries_count: number | null }
+interface Project { id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null; status: string; progress_percent: number; budget_pkr: number | null; spent_pkr: number | null; category: string | null; location: string | null; sector: string | null; is_featured: boolean; before_image_url: string | null; after_image_url: string | null; start_date: string | null; end_date: string | null; beneficiaries_count: number | null; funding_model: string | null; monthly_operating_cost_pkr: number | null }
 
 const statuses = ['ongoing', 'completed', 'upcoming']
-const categories = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'other']
+const categories = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'sports', 'other']
 
-const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0 }
+const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0, funding_model: 'one_time', monthly_operating_cost_pkr: 0 }
 
 export default function AdminProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
@@ -29,7 +29,12 @@ export default function AdminProjectsPage() {
 
   const save = async () => {
     if (!form.title.trim()) { toast.error('Title is required'); return }
-    const payload = { ...form, budget_pkr: form.budget_pkr || null, spent_pkr: form.spent_pkr || null, start_date: form.start_date || null, end_date: form.end_date || null, beneficiaries_count: form.beneficiaries_count || null, sector: form.sector || null, description_ur: form.description_ur || null }
+    const payload = {
+      ...form, budget_pkr: form.budget_pkr || null, spent_pkr: form.spent_pkr || null, start_date: form.start_date || null,
+      end_date: form.end_date || null, beneficiaries_count: form.beneficiaries_count || null, sector: form.sector || null,
+      description_ur: form.description_ur || null,
+      monthly_operating_cost_pkr: form.funding_model === 'recurring_support' ? (form.monthly_operating_cost_pkr || null) : null,
+    }
     if (editing) {
       const { error } = await supabase.from('projects').update(payload).eq('id', editing)
       if (error) { toast.error(error.message); return }
@@ -42,7 +47,7 @@ export default function AdminProjectsPage() {
     setShowForm(false); setEditing(null); setForm(empty); load()
   }
 
-  const edit = (p: Project) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0 }); setEditing(p.id); setShowForm(true) }
+  const edit = (p: Project) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0 }); setEditing(p.id); setShowForm(true) }
 
   const remove = async (id: string) => { if (!confirm('Delete this project?')) return; await supabase.from('projects').delete().eq('id', id); toast.success('Deleted'); load() }
 
@@ -98,6 +103,15 @@ export default function AdminProjectsPage() {
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Budget (PKR)</label><input type="number" value={form.budget_pkr || ''} onChange={(e) => setForm({ ...form, budget_pkr: +e.target.value })} className="input-field" /></div>
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Spent (PKR)</label><input type="number" value={form.spent_pkr || ''} onChange={(e) => setForm({ ...form, spent_pkr: +e.target.value })} className="input-field" /></div>
               </div>
+              <div className="border border-dp-outline-variant rounded-lg p-4">
+                <label className="flex items-center gap-2 cursor-pointer mb-3">
+                  <input type="checkbox" checked={form.funding_model === 'recurring_support'} onChange={(e) => setForm({ ...form, funding_model: e.target.checked ? 'recurring_support' : 'one_time' })} className="accent-dp-secondary" />
+                  <span className="font-sans text-[14px] font-semibold">Needs ongoing monthly support (e.g. staff salary)</span>
+                </label>
+                {form.funding_model === 'recurring_support' && (
+                  <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Monthly Operating Cost (PKR)</label><input type="number" value={form.monthly_operating_cost_pkr || ''} onChange={(e) => setForm({ ...form, monthly_operating_cost_pkr: +e.target.value })} className="input-field" /></div>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Start Date</label><input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="input-field" /></div>
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">End Date</label><input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="input-field" /></div>
@@ -122,6 +136,6 @@ export default function AdminProjectsPage() {
 }
 
 function StatusPill({ status }: { status: string }) {
-  const s: Record<string, string> = { ongoing: 'bg-amber-100 text-amber-800', completed: 'bg-dp-primary text-white', upcoming: 'bg-blue-100 text-blue-800' }
+  const s: Record<string, string> = { ongoing: 'bg-amber-100 text-amber-800', completed: 'bg-dp-primary text-white', upcoming: 'bg-blue-100 text-blue-800', announced: 'bg-slate-200 text-slate-600', reviewing: 'bg-purple-100 text-purple-800', rejected: 'bg-red-100 text-red-700' }
   return <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full font-sans ${s[status] ?? ''}`}>{status}</span>
 }

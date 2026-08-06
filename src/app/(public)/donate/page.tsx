@@ -15,18 +15,28 @@ import {
   Copy,
   MessageCircle,
 } from 'lucide-react'
+import { DonateCTAButton } from '@/components/public/DonateCTAButton'
 
 export default async function DonatePage() {
   const supabase = await createClient()
 
-  const { data: donors } = await supabase
-    .from('donors')
-    .select('id, name, amount_pkr, date, is_anonymous, project_id, projects(title)')
-    .eq('is_verified', true)
-    .order('amount_pkr', { ascending: false })
-    .limit(10)
+  // donors_public (migration 116) — not the raw `donors` table, which is
+  // staff-only now that it carries WhatsApp numbers, father's names, and
+  // payment-screenshot URLs. The view already suppresses the name for
+  // anonymous donors and exposes is_verified so "Announced" (pending
+  // accountant verification) donations can be shown separately from the
+  // honor wall.
+  const [{ data: donors }, { data: announced }, { data: projectRows }] = await Promise.all([
+    supabase.from('donors_public').select('id, name, amount_pkr, date, is_anonymous, project_id')
+      .eq('is_verified', true).order('amount_pkr', { ascending: false }).limit(10),
+    supabase.from('donors_public').select('id, name, amount_pkr, date, is_anonymous, project_id')
+      .eq('is_verified', false).order('date', { ascending: false }).limit(10),
+    supabase.from('projects').select('id, title'),
+  ])
 
+  const projectTitleById = new Map((projectRows ?? []).map((p) => [p.id, p.title]))
   const allDonors = donors ?? []
+  const announcedDonors = announced ?? []
 
   const rankBadges: Record<number, string> = {
     0: 'bg-amber-400',
@@ -143,7 +153,7 @@ export default async function DonatePage() {
             {[
               { n: '1', title: 'Select Channel', desc: 'Choose your preferred payment method from JazzCash, Easypaisa, or Bank Transfer.' },
               { n: '2', title: 'Make Payment', desc: 'Enter the account details and amount. Please include "Welfare" or "Project Name" in the reference.' },
-              { n: '3', title: 'Share Receipt', desc: 'Send a screenshot of the confirmation message to our official WhatsApp number for verification.' },
+              { n: '3', title: 'Submit Your Receipt', desc: 'Fill out our donation form with your details and upload the payment screenshot for verification.' },
             ].map((step) => (
               <div key={step.n} className="flex gap-4">
                 <div className="w-10 h-10 shrink-0 bg-dp-primary text-white rounded-full flex items-center justify-center font-bold font-sans">
@@ -156,15 +166,18 @@ export default async function DonatePage() {
               </div>
             ))}
           </div>
-          <a
-            href={SITE.whatsappLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-10 inline-flex items-center gap-2 bg-dp-primary text-white px-8 py-3 rounded-lg font-bold font-sans hover:bg-dp-primary-container transition-all"
-          >
-            <MessageCircle size={18} />
-            Share Receipt via WhatsApp
-          </a>
+          <div className="mt-10 flex flex-wrap gap-4">
+            <DonateCTAButton className="inline-flex items-center gap-2 bg-dp-primary text-white px-8 py-3 rounded-lg font-bold font-sans hover:bg-dp-primary-container transition-all" />
+            <a
+              href={SITE.whatsappLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 border border-dp-outline-variant text-dp-primary px-8 py-3 rounded-lg font-bold font-sans hover:bg-dp-surface-container transition-all"
+            >
+              <MessageCircle size={18} />
+              Contact via WhatsApp
+            </a>
+          </div>
         </div>
         <div className="relative aspect-square overflow-hidden rounded-lg bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container flex items-center justify-center">
           <Heart size={80} className="text-white/20" />
@@ -200,7 +213,7 @@ export default async function DonatePage() {
             </thead>
             <tbody className="divide-y divide-dp-outline-variant">
               {allDonors.map((donor, i) => {
-                const project = (donor as Record<string, unknown>).projects as { title: string } | null
+                const project = donor.project_id ? { title: projectTitleById.get(donor.project_id) } : null
                 return (
                   <tr key={donor.id} className="hover:bg-dp-surface-container transition-colors">
                     <td className="px-6 py-4">
@@ -246,6 +259,44 @@ export default async function DonatePage() {
           </button>
         </div>
       </section>
+
+      {/* Announced Funds — submitted but pending accountant verification */}
+      {announcedDonors.length > 0 && (
+        <section className="mb-10">
+          <div className="mb-6">
+            <h2 className="font-heading text-[20px] font-bold leading-[28px] text-dp-primary">
+              Announced Funds
+            </h2>
+            <p className="text-dp-on-surface-variant font-sans text-[16px]">
+              Submitted by donors, pending verification against the payment record.
+            </p>
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-dp-outline-variant bg-white">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-dp-surface-container-low">
+                <tr>
+                  <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-dp-on-surface-variant">Name</th>
+                  <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-dp-on-surface-variant">Amount (PKR)</th>
+                  <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-dp-on-surface-variant">Project</th>
+                  <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-dp-on-surface-variant">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-dp-outline-variant">
+                {announcedDonors.map((donor) => (
+                  <tr key={donor.id}>
+                    <td className="px-6 py-4 font-bold text-dp-primary font-sans">{donor.is_anonymous ? 'Anonymous Donor' : donor.name}</td>
+                    <td className="px-6 py-4 font-bold font-sans">Rs. {Number(donor.amount_pkr).toLocaleString()}</td>
+                    <td className="px-6 py-4 font-sans text-dp-on-surface-variant">{donor.project_id ? (projectTitleById.get(donor.project_id) ?? 'Project') : 'General Fund'}</td>
+                    <td className="px-6 py-4">
+                      <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded text-[12px] font-sans font-bold tracking-[0.05em]">Announced</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   )
 }

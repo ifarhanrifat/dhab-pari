@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Send, MessageCircle } from 'lucide-react'
+import { Send, MessageCircle, Megaphone } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface LogEntry { id: string; type: string; recipient: string | null; message: string | null; status: string; sent_at: string | null; created_at: string }
@@ -13,6 +13,11 @@ export default function AdminNotificationsPage() {
   const [audience, setAudience] = useState('all')
   const [sending, setSending] = useState(false)
   const supabase = createClient()
+
+  const [portalTitle, setPortalTitle] = useState('')
+  const [portalBody, setPortalBody] = useState('')
+  const [portalLink, setPortalLink] = useState('')
+  const [broadcasting, setBroadcasting] = useState(false)
 
   const load = async () => { const { data } = await supabase.from('notifications_log').select('*').order('created_at', { ascending: false }).limit(20); setLogs(data ?? []); setLoading(false) }
   useEffect(() => { load() }, [])
@@ -28,9 +33,48 @@ export default function AdminNotificationsPage() {
     load()
   }
 
+  const sendPortalBroadcast = async () => {
+    if (!portalTitle.trim()) { toast.error('Title required'); return }
+    setBroadcasting(true)
+    const { data, error } = await supabase.rpc('broadcast_portal_notification', {
+      p_event_type: 'emergency_appeal', p_title: portalTitle.trim(), p_body: portalBody.trim() || null, p_link: portalLink.trim() || null,
+    })
+    setBroadcasting(false)
+    if (error) { toast.error(error.message); return }
+    toast.success(`Sent to ${data} registered portal user(s)`)
+    setPortalTitle(''); setPortalBody(''); setPortalLink('')
+  }
+
   return (
     <>
       <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary mb-8">Notifications</h1>
+
+      {/* Portal emergency broadcast — real, in-app (portal_notifications),
+          unlike the WhatsApp compose below which is a logged placeholder. */}
+      <div className="bg-white border border-dp-outline-variant rounded-lg p-6 mb-8">
+        <div className="flex items-center gap-3 mb-6">
+          <Megaphone size={20} className="text-dp-error" />
+          <h2 className="font-sans text-[20px] font-semibold leading-[28px] text-dp-primary">Send Portal Emergency Alert</h2>
+        </div>
+        <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4 -mt-3">Delivered instantly to every registered donor/consumer portal user (in-app + real-time).</p>
+        <div className="space-y-4">
+          <div>
+            <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Title</label>
+            <input value={portalTitle} onChange={(e) => setPortalTitle(e.target.value)} placeholder="e.g. Urgent: Medical Emergency Appeal" className="input-field" />
+          </div>
+          <div>
+            <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Message</label>
+            <textarea value={portalBody} onChange={(e) => setPortalBody(e.target.value)} rows={3} placeholder="Details of the appeal..." className="input-field resize-none" />
+          </div>
+          <div>
+            <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Link (optional)</label>
+            <input value={portalLink} onChange={(e) => setPortalLink(e.target.value)} placeholder="/portal/complaints" className="input-field" />
+          </div>
+          <button onClick={sendPortalBroadcast} disabled={broadcasting} className="flex items-center gap-2 px-6 py-3 bg-dp-error text-white rounded-lg font-sans font-semibold hover:opacity-90 transition-all disabled:opacity-50 cursor-pointer">
+            <Megaphone size={16} /> {broadcasting ? 'Sending...' : 'Broadcast to All Portal Users'}
+          </button>
+        </div>
+      </div>
 
       {/* Compose */}
       <div className="bg-white border border-dp-outline-variant rounded-lg p-6 mb-8">

@@ -4,13 +4,17 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import {
-  Wallet, Landmark, TrendingUp, TrendingDown, Printer, X, Plus, Trash2, ChevronDown, ChevronUp,
-  FileText, UserCheck, UserPlus, MessageSquareWarning, ClipboardList, Heart, FolderKanban, ArrowDownToLine, ArrowUpFromLine, AlertTriangle,
+  Wallet, Landmark, TrendingUp, TrendingDown, Printer, X, ChevronDown, ChevronUp,
+  FileText, UserCheck, UserPlus, MessageSquareWarning, ClipboardList, Heart, FolderKanban, ArrowDownToLine, ArrowUpFromLine, AlertTriangle, RefreshCw,
 } from 'lucide-react'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { fetchBrandingSettings } from '@/lib/branding'
 import { dt, type Lang } from '@/lib/docTranslations'
-import { buildClosingNarrative, buildDonorClosingNarrative, type ClosingReportData, type NonPayerEntry, type ExpenseLine } from '@/lib/monthlyClosingNarrative'
+import {
+  buildClosingNarrative, buildDonorClosingNarrative, expenseCashOutCategories, urduDate,
+  type ClosingReportData, type ExpenseLine, type ComplaintEntry, type CashCategoryAmount,
+  type NonPayerOpinion, type PendingBillConsumer, type NonPayerDueToComplaint, type TwoMonthDefaulter,
+} from '@/lib/monthlyClosingNarrative'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import { printNodeInPopup } from '@/lib/receiptExport'
 
@@ -58,7 +62,7 @@ function ExpenseTable({ lines }: { lines: ExpenseLine[] }) {
             <tr key={i} className="border-b border-dp-outline-variant last:border-0 font-sans text-[13.5px]">
               <td className="px-4 py-2.5">{e.description}</td>
               <td className="px-4 py-2.5 text-[12.5px]">
-                {e.approved_by.length > 0 ? (
+                {(e.approved_by ?? []).length > 0 ? (
                   <span className="flex items-center gap-1.5 text-dp-on-surface-variant"><UserCheck size={13} className="text-emerald-600 shrink-0" /> {e.approved_by.join(', ')}</span>
                 ) : e.auto_posted ? (
                   <span className="text-amber-700 font-semibold">Auto-posted</span>
@@ -79,37 +83,230 @@ function ExpenseTable({ lines }: { lines: ExpenseLine[] }) {
 // itemized breakdown as a comma-joined sentence — a wall of line items read
 // as unprofessional when written as prose. RTL, Urdu column headers, but
 // descriptions/approver names stay exactly as entered (never machine-translated).
+// Compact (tight padding/font) — this only ever renders inside the printed
+// report, never the live dashboard, so there's no separate on-screen size to preserve.
 function UrduExpenseTable({ lines }: { lines: ExpenseLine[] }) {
   return (
-    <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mt-3" style={{ fontFamily: 'var(--font-urdu), serif' }}>
-      <table className="w-full text-right">
+    <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden w-fit" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+      <table className="text-right">
         <thead>
-          <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-            <th className="px-4 py-2.5">تفصیل</th>
-            <th className="px-4 py-2.5">منظوری</th>
-            <th className="px-4 py-2.5 text-left">رقم</th>
+          <tr className="text-dp-on-surface-variant text-[9.5px] font-sans font-bold border-b border-dp-outline-variant bg-dp-surface-container-low/60">
+            <th className="px-2 py-1">تفصیل</th>
+            <th className="px-2 py-1">منظوری</th>
+            <th className="px-2 py-1 text-left">رقم</th>
           </tr>
         </thead>
         <tbody>
-          {lines.length === 0 && <tr><td colSpan={3} className="px-4 py-6 text-center text-dp-on-surface-variant font-sans text-[13px]">—</td></tr>}
+          {lines.length === 0 && <tr><td colSpan={3} className="px-2 py-2 text-center text-dp-on-surface-variant font-sans text-[10px]">—</td></tr>}
           {lines.map((e, i) => (
-            <tr key={i} className="border-b border-dp-outline-variant last:border-0 font-sans text-[13.5px]">
-              <td className="px-4 py-2.5" style={{ direction: 'ltr', textAlign: 'right' }}>{e.description}</td>
-              <td className="px-4 py-2.5 text-[12.5px]" style={{ direction: 'ltr', textAlign: 'right' }}>
-                {e.approved_by.length > 0 ? (
-                  <span className="flex items-center gap-1.5 justify-end text-dp-on-surface-variant">{e.approved_by.join('، ')} <UserCheck size={13} className="text-emerald-600 shrink-0" /></span>
+            <tr key={i} className="border-b border-dp-outline-variant last:border-0 font-sans text-[10px]">
+              <td className="px-2 py-0.5" style={{ direction: 'ltr', textAlign: 'right' }}>{e.description}</td>
+              <td className="px-2 py-0.5 text-[9.5px]" style={{ direction: 'ltr', textAlign: 'right' }}>
+                {(e.approved_by ?? []).length > 0 ? (
+                  <span className="flex items-center gap-1 justify-end text-dp-on-surface-variant">{e.approved_by.join('، ')} <UserCheck size={10} className="text-emerald-600 shrink-0" /></span>
                 ) : e.auto_posted ? (
                   <span className="text-amber-700 font-semibold">خودکار پوسٹ</span>
                 ) : (
                   <span className="text-dp-on-surface-variant">کوئی منظوری درکار نہیں</span>
                 )}
               </td>
-              <td className={`px-4 py-2.5 text-left font-semibold whitespace-nowrap ${e.amount < 0 ? 'text-emerald-600' : ''}`}>روپے {fmtAmount(e.amount)}</td>
+              <td className={`px-2 py-0.5 text-left font-semibold whitespace-nowrap ${e.amount < 0 ? 'text-emerald-600' : ''}`}>روپے {fmtAmount(e.amount)}</td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+  )
+}
+
+// Each table sizes to its own content (no forced equal-width columns — that
+// made a 2-row, 5-line table look identical in width to a 20-row one) and
+// sits centered on the page individually, not paired into rows.
+function PrintTableBlock({ heading, children }: { heading: string; children: React.ReactNode }) {
+  return (
+    <div className="mt-3 flex flex-col items-center">
+      <p dir="rtl" className="font-sans text-[10px] font-bold text-dp-primary mb-1" style={{ fontFamily: 'var(--font-urdu), serif' }}>{heading}</p>
+      {children}
+    </div>
+  )
+}
+
+// Same compact styling as UrduExpenseTable — the discount detail previously
+// lived only as a comma-joined sentence in the narrative.
+function UrduDiscountTable({ lines }: { lines: { consumer_name: string; amount: number }[] }) {
+  if (lines.length === 0) return null
+  return (
+    <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden w-fit" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+      <table className="text-right">
+        <thead>
+          <tr className="text-dp-on-surface-variant text-[9.5px] font-sans font-bold border-b border-dp-outline-variant bg-dp-surface-container-low/60">
+            <th className="px-2 py-1">صارف</th>
+            <th className="px-2 py-1 text-left">رعایت</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((d, i) => (
+            <tr key={i} className="border-b border-dp-outline-variant last:border-0 font-sans text-[10px]">
+              <td className="px-2 py-0.5" style={{ direction: 'ltr', textAlign: 'right' }}>{d.consumer_name}</td>
+              <td className="px-2 py-0.5 text-left font-semibold whitespace-nowrap">روپے {fmtAmount(d.amount)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// Pending bills grouped under a sector heading — same grouping pattern
+// already used for agenda task categories in AgendaMinutesDocument.tsx.
+function UrduPendingBillsBySectorTable({ consumers }: { consumers: PendingBillConsumer[] }) {
+  if (consumers.length === 0) return null
+  const sectors = Array.from(new Set(consumers.map((c) => c.sector))).sort()
+  return (
+    <div dir="rtl" className="w-fit" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+      {sectors.map((sector) => {
+        const rows = consumers.filter((c) => c.sector === sector)
+        const total = rows.reduce((s, r) => s + Number(r.amount), 0)
+        return (
+          <div key={sector} className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mb-1 last:mb-0">
+            <div className="flex items-center justify-between gap-4 px-2 py-0.5 bg-dp-surface-container-low/60 border-b border-dp-outline-variant">
+              <span className="font-sans text-[9.5px] font-bold text-dp-primary">{sector}</span>
+              <span className="font-sans text-[9.5px] font-semibold">روپے {fmtAmount(total)}</span>
+            </div>
+            <table className="text-right">
+              <tbody>
+                {rows.map((c, i) => (
+                  <tr key={i} className="border-b border-dp-outline-variant last:border-0 font-sans text-[10px]">
+                    <td className="px-2 py-0.5" style={{ direction: 'ltr', textAlign: 'right' }}>{c.consumer_name}</td>
+                    <td className="px-2 py-0.5 text-left font-semibold whitespace-nowrap w-20">روپے {fmtAmount(c.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// consumer_nonpayment_flags (064) already detects exactly "2 consecutive
+// unpaid months" — reused directly (migration 114), not re-derived.
+function UrduTwoMonthDefaultersTable({ defaulters }: { defaulters: TwoMonthDefaulter[] }) {
+  if (defaulters.length === 0) return null
+  return (
+    <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden w-fit" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+      <table className="text-right">
+        <thead>
+          <tr className="text-dp-on-surface-variant text-[9.5px] font-sans font-bold border-b border-dp-outline-variant bg-dp-surface-container-low/60">
+            <th className="px-2 py-1">صارف</th>
+            <th className="px-2 py-1">سیکٹر</th>
+            <th className="px-2 py-1 text-left">بقایا</th>
+          </tr>
+        </thead>
+        <tbody>
+          {defaulters.map((d, i) => (
+            <tr key={i} className="border-b border-dp-outline-variant last:border-0 font-sans text-[10px]">
+              <td className="px-2 py-0.5" style={{ direction: 'ltr', textAlign: 'right' }}>{d.consumer_name}</td>
+              <td className="px-2 py-0.5 text-dp-on-surface-variant">{d.sector ?? '—'}</td>
+              <td className="px-2 py-0.5 text-left font-semibold whitespace-nowrap">روپے {fmtAmount(d.outstanding)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// The one human-entered field (committee's opinion) sits alongside the
+// auto-detected complaint/unpaid dates — same data the editable panel below
+// (print:hidden) lets the accountant fill in.
+function UrduNonPayersDueToComplaintTable({ entries, opinions }: { entries: NonPayerDueToComplaint[]; opinions: NonPayerOpinion[] }) {
+  if (entries.length === 0) return null
+  return (
+    <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden w-fit" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+      <table className="text-right">
+        <thead>
+          <tr className="text-dp-on-surface-variant text-[9.5px] font-sans font-bold border-b border-dp-outline-variant bg-dp-surface-container-low/60">
+            <th className="px-2 py-1">صارف</th>
+            <th className="px-2 py-1">شکایت</th>
+            <th className="px-2 py-1">عدم ادائیگی</th>
+            <th className="px-2 py-1 text-left">بقایا</th>
+            <th className="px-2 py-1">رائے</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((n, i) => (
+            <tr key={i} className="border-b border-dp-outline-variant last:border-0 font-sans text-[10px]">
+              <td className="px-2 py-0.5" style={{ direction: 'ltr', textAlign: 'right' }}>{n.name}{n.sector ? ` (${n.sector})` : ''}</td>
+              <td className="px-2 py-0.5 text-dp-on-surface-variant whitespace-nowrap">{urduDate(n.complaint_since)}</td>
+              <td className="px-2 py-0.5 text-dp-on-surface-variant whitespace-nowrap">{urduDate(n.unpaid_since)}</td>
+              <td className="px-2 py-0.5 text-left font-semibold whitespace-nowrap">روپے {fmtAmount(n.outstanding)}</td>
+              <td className="px-2 py-0.5 text-dp-on-surface-variant">{opinions.find((o) => o.consumer_id === n.consumer_id)?.opinion?.trim() || 'ابھی زیر غور'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+const complaintStatusMeta: Record<ComplaintEntry['status'], { label: string; cls: string }> = {
+  open: { label: 'Open', cls: 'bg-red-100 text-red-700' },
+  awaiting_verification: { label: 'Resolved — Awaiting Verification', cls: 'bg-amber-100 text-amber-800' },
+  verified: { label: 'Resolved & Verified', cls: 'bg-emerald-100 text-emerald-700' },
+}
+
+// Shows each complaint's real current status instead of listing it as a bare
+// unresolved item forever — a complaint the handler already closed and
+// higher management already verified looked identical to a brand new one
+// before this (migration 112 added status/incharge/resolved-by to the data).
+function ComplaintList({ complaints }: { complaints: ComplaintEntry[] }) {
+  return (
+    <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
+      {complaints.map((c, i) => {
+        const meta = complaintStatusMeta[c.status] ?? complaintStatusMeta.open
+        return (
+          <div key={i} className="p-3.5 flex items-start gap-3">
+            <MessageSquareWarning size={16} className="text-amber-600 shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{c.name ?? 'Unknown'} {c.sector && <span className="font-normal text-dp-on-surface-variant">— Sector {c.sector}</span>}</p>
+                <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold shrink-0 ${meta.cls}`}>{meta.label}</span>
+              </div>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant">{c.text}</p>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">
+                {c.status === 'verified'
+                  ? <>Resolved by <span className="font-semibold">{c.resolved_by_name ?? 'Unknown'}</span>{c.resolved_at ? ` on ${new Date(c.resolved_at).toLocaleDateString('en-GB')}` : ''}</>
+                  : <>Incharge: <span className="font-semibold">{c.incharge_name ?? 'Not yet assigned'}</span></>}
+              </p>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// Purchases, advances, security-deposit refunds, internal transfers — real
+// cash outflows that aren't "Expenses" (those already have their own table
+// above) but were previously invisible: cash_out_breakdown already computed
+// them, this page just never rendered it.
+function OtherOutgoingPayments({ breakdown }: { breakdown: CashCategoryAmount[] }) {
+  const other = breakdown.filter((c) => !expenseCashOutCategories.has(c.category))
+  if (other.length === 0) return null
+  return (
+    <>
+      <SectionHeading>Other Outgoing Payments</SectionHeading>
+      <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
+        {other.map((c, i) => (
+          <div key={i} className="p-3.5 flex items-center justify-between gap-3">
+            <span className="font-sans text-[13.5px] text-dp-on-surface">{c.category}</span>
+            <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">Rs. {fmtAmount(c.amount)}</span>
+          </div>
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -126,10 +323,11 @@ export default function RunningCapitalPage() {
   const [showDiscountDetail, setShowDiscountDetail] = useState(false)
   const [canManage, setCanManage] = useState(false)
   const [viewTarget, setViewTarget] = useState<ClosingRow | null>(null)
-  const [editingNonPayers, setEditingNonPayers] = useState<NonPayerEntry[]>([])
-  const [savingNonPayers, setSavingNonPayers] = useState(false)
+  const [editingOpinions, setEditingOpinions] = useState<Record<string, string>>({})
+  const [savingOpinions, setSavingOpinions] = useState(false)
   const [reconciliationRemarks, setReconciliationRemarks] = useState('')
   const [savingRemarks, setSavingRemarks] = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
   const printRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
@@ -165,7 +363,7 @@ export default function RunningCapitalPage() {
 
   const openView = (r: ClosingRow) => {
     setViewTarget(r)
-    setEditingNonPayers(r.non_payers)
+    setEditingOpinions(Object.fromEntries((r.non_payer_opinions ?? []).map((o) => [o.consumer_id, o.opinion])))
     setReconciliationRemarks(r.reconciliation_remarks)
   }
 
@@ -180,21 +378,37 @@ export default function RunningCapitalPage() {
     load()
   }
 
-  const addNonPayerRow = () => setEditingNonPayers([...editingNonPayers, { name: '', sector: '', reason: '' }])
-  const removeNonPayerRow = (i: number) => setEditingNonPayers(editingNonPayers.filter((_, idx) => idx !== i))
-  const updateNonPayerRow = (i: number, patch: Partial<NonPayerEntry>) =>
-    setEditingNonPayers(editingNonPayers.map((n, idx) => (idx === i ? { ...n, ...patch } : n)))
-
-  const saveNonPayers = async () => {
+  // Who's on the list is auto-detected (complaints.consumer_id + outstanding
+  // bills, migration 113) — nothing to type there. The committee's opinion is
+  // the one thing that's still a human judgment call, saved per consumer_id.
+  const saveOpinions = async () => {
     if (!viewTarget) return
-    setSavingNonPayers(true)
-    const cleaned = editingNonPayers.filter((n) => n.name.trim())
-    const { error } = await supabase.rpc('update_closing_report_non_payers', { p_report_id: viewTarget.id, p_non_payers: cleaned })
-    setSavingNonPayers(false)
+    setSavingOpinions(true)
+    const opinions: NonPayerOpinion[] = Object.entries(editingOpinions)
+      .filter(([, opinion]) => opinion.trim())
+      .map(([consumer_id, opinion]) => ({ consumer_id, opinion: opinion.trim() }))
+    const { error } = await supabase.rpc('update_closing_report_non_payer_opinions', { p_report_id: viewTarget.id, p_opinions: opinions })
+    setSavingOpinions(false)
     if (error) { toast.error(error.message); return }
     toast.success('Saved')
-    setViewTarget({ ...viewTarget, non_payers: cleaned })
-    setEditingNonPayers(cleaned)
+    setViewTarget({ ...viewTarget, non_payer_opinions: opinions })
+    load()
+  }
+
+  // Only the cron sweep ever writes a report row (last month's, on the 1st)
+  // — an older stale report generated before a report-logic fix (like the
+  // discount-exclusion / purchase-labeling / complaint-status fix in
+  // migration 112) otherwise sits frozen forever. This recomputes and
+  // overwrites one specific report on demand.
+  const regenerateReport = async () => {
+    if (!viewTarget) return
+    setRegenerating(true)
+    const { error } = await supabase.rpc('regenerate_monthly_closing_report', { p_report_id: viewTarget.id })
+    setRegenerating(false)
+    if (error) { toast.error(error.message); return }
+    toast.success('Report regenerated with current figures')
+    const { data: refreshed } = await supabase.from('monthly_closing_reports').select('*').eq('id', viewTarget.id).single()
+    if (refreshed) setViewTarget(refreshed as ClosingRow)
     load()
   }
 
@@ -286,6 +500,7 @@ export default function RunningCapitalPage() {
             <StatCard icon={live.net_surplus >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />} label={dt(lang, 'netSurplusDeficit')} value={fmtAmount(live.net_surplus)} tone={live.net_surplus >= 0 ? 'good' : 'bad'} />
           </div>
           <ExpenseTable lines={live.expense_lines} />
+          <OtherOutgoingPayments breakdown={live.cash_out_breakdown} />
 
           <SectionHeading>Cash Flow</SectionHeading>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -330,17 +545,7 @@ export default function RunningCapitalPage() {
           {live.complaints_this_month.length > 0 && (
             <>
               <SectionHeading>Complaints This Month</SectionHeading>
-              <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
-                {live.complaints_this_month.map((c, i) => (
-                  <div key={i} className="p-3.5 flex items-start gap-3">
-                    <MessageSquareWarning size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                    <div className="min-w-0">
-                      <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{c.name ?? 'Unknown'} {c.sector && <span className="font-normal text-dp-on-surface-variant">— Sector {c.sector}</span>}</p>
-                      <p className="font-sans text-[13px] text-dp-on-surface-variant">{c.text}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ComplaintList complaints={live.complaints_this_month} />
             </>
           )}
 
@@ -444,21 +649,12 @@ export default function RunningCapitalPage() {
             <StatCard icon={live.net_surplus >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />} label={dt(lang, 'netSurplusDeficit')} value={fmtAmount(live.net_surplus)} tone={live.net_surplus >= 0 ? 'good' : 'bad'} />
           </div>
           <ExpenseTable lines={live.expense_lines} />
+          <OtherOutgoingPayments breakdown={live.cash_out_breakdown} />
 
           {live.complaints_this_month.length > 0 && (
             <>
               <SectionHeading>Complaints This Month</SectionHeading>
-              <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
-                {live.complaints_this_month.map((c, i) => (
-                  <div key={i} className="p-3.5 flex items-start gap-3">
-                    <MessageSquareWarning size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                    <div className="min-w-0">
-                      <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{c.name ?? 'Unknown'} {c.sector && <span className="font-normal text-dp-on-surface-variant">— Sector {c.sector}</span>}</p>
-                      <p className="font-sans text-[13px] text-dp-on-surface-variant">{c.text}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ComplaintList complaints={live.complaints_this_month} />
             </>
           )}
         </>
@@ -494,27 +690,59 @@ export default function RunningCapitalPage() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant shrink-0">
               <h2 className="font-heading text-[18px] font-bold text-dp-primary">{monthNamesEn[viewTarget.report_month - 1]} {viewTarget.report_year}</h2>
               <div className="flex items-center gap-2">
+                {canManage && (
+                  <button onClick={regenerateReport} disabled={regenerating} title="Recompute this report with current figures/logic" className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
+                    <RefreshCw size={13} className={regenerating ? 'animate-spin' : ''} /> {regenerating ? 'Regenerating...' : 'Regenerate'}
+                  </button>
+                )}
                 <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={13} /> Print</button>
                 <button onClick={() => setViewTarget(null)} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-5">
               <div ref={printRef}>
-                <DocumentHeader title={`${dt(lang, 'monthlyClosingReports')} — ${systemLabel}`} className="hidden print:block" />
-                {(() => {
-                  const narrative = system === 'water_supply' ? buildClosingNarrative(viewTarget, 'واٹر سپلائی') : buildDonorClosingNarrative(viewTarget)
-                  return (
-                    <>
-                      <p dir="rtl" className="font-sans text-[15px] leading-[2] text-dp-on-surface whitespace-pre-wrap" style={{ fontFamily: 'var(--font-urdu), serif', textAlign: 'right' }}>
-                        {narrative.before}
-                      </p>
-                      <UrduExpenseTable lines={viewTarget.expense_lines} />
-                      <p dir="rtl" className="font-sans text-[15px] leading-[2] text-dp-on-surface whitespace-pre-wrap mt-4" style={{ fontFamily: 'var(--font-urdu), serif', textAlign: 'right' }}>
-                        {narrative.after}
-                      </p>
-                    </>
-                  )
-                })()}
+                {/* Scoped to this printed report only — captured by
+                    printNodeInPopup's outerHTML copy, so it never leaks into
+                    any other document printed elsewhere in the app. No @page
+                    rule existed anywhere before this. */}
+                <style>{`
+                  @page { size: A4; margin: 10mm; }
+                  @media print {
+                    .monthly-report-print { font-size: 10px; }
+                    .monthly-report-print p { margin-bottom: 5px !important; }
+                  }
+                `}</style>
+                <div className="monthly-report-print">
+                  <DocumentHeader title={`${dt(lang, 'monthlyClosingReports')} — ${systemLabel}`} className="hidden print:block" />
+                  {(() => {
+                    const narrative = system === 'water_supply' ? buildClosingNarrative(viewTarget, 'واٹر سپلائی') : buildDonorClosingNarrative(viewTarget)
+                    return (
+                      <>
+                        <p dir="rtl" className="font-sans text-[11px] leading-[1.55] text-dp-on-surface whitespace-pre-wrap" style={{ fontFamily: 'var(--font-urdu), serif', textAlign: 'right' }}>
+                          {narrative.before}
+                        </p>
+
+                        <PrintTableBlock heading="اخراجات"><UrduExpenseTable lines={viewTarget.expense_lines} /></PrintTableBlock>
+                        {viewTarget.discount_by_consumer.length > 0 && (
+                          <PrintTableBlock heading="رعایت پانے والے صارفین"><UrduDiscountTable lines={viewTarget.discount_by_consumer} /></PrintTableBlock>
+                        )}
+                        {viewTarget.pending_bills_by_consumer.length > 0 && (
+                          <PrintTableBlock heading="زیر التوا بل — سیکٹر وار"><UrduPendingBillsBySectorTable consumers={viewTarget.pending_bills_by_consumer} /></PrintTableBlock>
+                        )}
+                        {viewTarget.two_month_defaulters.length > 0 && (
+                          <PrintTableBlock heading="مسلسل 2 ماہ سے نادہندہ صارفین"><UrduTwoMonthDefaultersTable defaulters={viewTarget.two_month_defaulters} /></PrintTableBlock>
+                        )}
+                        {viewTarget.non_payers_due_to_complaint.length > 0 && (
+                          <PrintTableBlock heading="شکایت کی وجہ سے عدم ادائیگی"><UrduNonPayersDueToComplaintTable entries={viewTarget.non_payers_due_to_complaint} opinions={viewTarget.non_payer_opinions} /></PrintTableBlock>
+                        )}
+
+                        <p dir="rtl" className="font-sans text-[11px] leading-[1.55] text-dp-on-surface whitespace-pre-wrap mt-3" style={{ fontFamily: 'var(--font-urdu), serif', textAlign: 'right' }}>
+                          {narrative.after}
+                        </p>
+                      </>
+                    )
+                  })()}
+                </div>
               </div>
 
               {viewTarget.opening_balance_mismatch && (
@@ -534,30 +762,33 @@ export default function RunningCapitalPage() {
                 </div>
               )}
 
-              {system === 'water_supply' && (
+              {system === 'water_supply' && viewTarget.non_payers_due_to_complaint.length > 0 && (
                 <div className="border-t border-dp-outline-variant pt-4 print:hidden">
-                  <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-3">{dt(lang, 'nonPayersDueToComplaint')}</p>
-                  <div className="space-y-2">
-                    {editingNonPayers.map((n, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <input value={n.name} onChange={(e) => updateNonPayerRow(i, { name: e.target.value })} placeholder={dt(lang, 'name')} disabled={!canManage} className="input-field flex-1 disabled:opacity-60" />
-                        <input value={n.sector} onChange={(e) => updateNonPayerRow(i, { sector: e.target.value })} placeholder={dt(lang, 'sector')} disabled={!canManage} className="input-field w-28 disabled:opacity-60" />
-                        <input value={n.reason} onChange={(e) => updateNonPayerRow(i, { reason: e.target.value })} placeholder={dt(lang, 'reason')} disabled={!canManage} className="input-field flex-1 disabled:opacity-60" />
-                        {canManage && (
-                          <button onClick={() => removeNonPayerRow(i)} className="p-2 text-dp-on-surface-variant hover:text-dp-error cursor-pointer shrink-0"><Trash2 size={15} /></button>
-                        )}
+                  <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">{dt(lang, 'nonPayersDueToComplaint')}</p>
+                  <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">Auto-detected — a consumer with an active complaint and an outstanding bill. Add the committee&apos;s opinion for the printed report; nothing else here is editable.</p>
+                  <div className="space-y-3">
+                    {viewTarget.non_payers_due_to_complaint.map((n) => (
+                      <div key={n.consumer_id} className="border border-dp-outline-variant rounded-lg p-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                          <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{n.name}{n.sector ? ` — ${n.sector}` : ''}</p>
+                          <span className="font-sans text-[12.5px] font-semibold text-dp-error">Rs. {fmtAmount(n.outstanding)}</span>
+                        </div>
+                        <p className="font-sans text-[12px] text-dp-on-surface-variant mb-2">
+                          Complaint since {new Date(n.complaint_since).toLocaleDateString('en-GB')}
+                          {n.unpaid_since && ` · Unpaid since ${new Date(n.unpaid_since).toLocaleDateString('en-GB')}`}
+                        </p>
+                        <textarea
+                          value={editingOpinions[n.consumer_id] ?? ''} onChange={(e) => setEditingOpinions({ ...editingOpinions, [n.consumer_id]: e.target.value })}
+                          disabled={!canManage} rows={2} placeholder="Committee's opinion..."
+                          className="input-field w-full disabled:opacity-60 !text-[13px]"
+                        />
                       </div>
                     ))}
                   </div>
                   {canManage && (
-                    <div className="flex items-center gap-2 mt-3">
-                      <button onClick={addNonPayerRow} className="flex items-center gap-1.5 px-3 py-1.5 border-2 border-dp-secondary text-dp-secondary rounded-full font-sans text-[12.5px] font-bold hover:bg-dp-secondary/5 transition-all cursor-pointer">
-                        <Plus size={13} /> {dt(lang, 'addNonPayer')}
-                      </button>
-                      <button disabled={savingNonPayers} onClick={saveNonPayers} className="px-4 py-1.5 bg-dp-secondary text-white rounded-full font-sans text-[12.5px] font-bold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                        {savingNonPayers ? 'Saving...' : 'Save'}
-                      </button>
-                    </div>
+                    <button disabled={savingOpinions} onClick={saveOpinions} className="mt-3 px-4 py-1.5 bg-dp-secondary text-white rounded-full font-sans text-[12.5px] font-bold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+                      {savingOpinions ? 'Saving...' : 'Save'}
+                    </button>
                   )}
                 </div>
               )}

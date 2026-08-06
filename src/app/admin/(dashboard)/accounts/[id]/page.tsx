@@ -96,8 +96,10 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
     }
 
     // Same normal-balance rule as the Chart of Accounts list: income/liability/donor
-    // accounts increase with a credit, everything else increases with a debit.
-    const creditNormal = acc?.type === 'donor' || acc?.type === 'income' || acc?.type === 'liability'
+    // accounts increase with a credit, everything else increases with a debit. Project
+    // accounts (migration 118) are the same shape as donor accounts — credited on
+    // donations, debited on project-tagged expenses.
+    const creditNormal = acc?.type === 'donor' || acc?.type === 'income' || acc?.type === 'liability' || acc?.type === 'project'
     let running = acc?.opening_balance ?? 0
     const withBalance = (entries ?? []).map((e) => {
       running += creditNormal ? Number(e.credit) - Number(e.debit) : Number(e.debit) - Number(e.credit)

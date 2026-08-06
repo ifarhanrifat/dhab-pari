@@ -116,7 +116,7 @@ export default function AccountsPage() {
   // increase with a debit; income/liability/donor accounts increase with a credit
   // (income and liabilities are only ever credited in this app so far, but vouchers in
   // Phase 2 start posting real credits to them, so the sign must be correct now).
-  const creditNormal = (type: string) => type === 'donor' || type === 'income' || type === 'liability' || type === 'employee'
+  const creditNormal = (type: string) => type === 'donor' || type === 'income' || type === 'liability' || type === 'employee' || type === 'project'
   const balanceOf = (a: Account) => creditNormal(a.type)
     ? a.opening_balance - (balances[a.id] ?? 0)
     : a.opening_balance + (balances[a.id] ?? 0)

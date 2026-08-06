@@ -25,6 +25,21 @@ export interface AgendaMinutesEmergencyJob {
   calledByName: string
   completedByName: string | null
 }
+export interface AgendaMinutesComplaint {
+  complaintNumber: string | null
+  complainantName: string | null
+  sector: string | null
+  text: string
+  status: 'open' | 'awaiting_verification' | 'verified'
+  inchargeName: string | null
+}
+export interface AgendaMinutesProjectDiscussion {
+  title: string
+  status: string
+  voteCount: number
+  voteTarget: number | null
+  comments: { authorName: string | null; text: string; isSystem: boolean }[]
+}
 export interface AgendaMinutesData {
   meetingDateLabel: string
   title: string | null
@@ -32,12 +47,17 @@ export interface AgendaMinutesData {
   tasks: AgendaMinutesTask[]
   suggestions: AgendaMinutesSuggestion[]
   emergencyJobs: AgendaMinutesEmergencyJob[]
+  complaints: AgendaMinutesComplaint[]
+  projectDiscussions: AgendaMinutesProjectDiscussion[]
 }
 
 interface Props { data: AgendaMinutesData; branding: Partial<BrandingSettings> }
 
 const statusLabelUr: Record<AgendaMinutesTask['status'], string> = {
   pending: 'زیرِ التوا', in_progress: 'جاری ہے', done: 'مکمل',
+}
+const complaintStatusLabelUr: Record<AgendaMinutesComplaint['status'], string> = {
+  open: 'زیرِ التوا', awaiting_verification: 'حل کیا گیا، تصدیق باقی', verified: 'مکمل طور پر حل شدہ',
 }
 
 // Blank ruled lines under every printed point, for handwritten notes/replies
@@ -166,6 +186,55 @@ export const AgendaMinutesDocument = forwardRef<HTMLDivElement, Props>(function 
                   بلایا: {e.calledByName}
                   {e.status === 'done' && e.completedByName && ` · مکمل کیا: ${e.completedByName}`}
                 </p>
+                <ReplySpace />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {data.complaints.length > 0 && (
+        <>
+          <p className="text-[13px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-2 mt-6">شکایات کی صورتحال</p>
+          <div className="space-y-2.5">
+            {data.complaints.map((c, i) => (
+              <div key={i} className="border border-dp-outline-variant rounded-lg p-3">
+                <div className="flex justify-between items-start gap-2">
+                  <p className="text-[14px] flex-1">
+                    {i + 1}. {c.complaintNumber ? `${c.complaintNumber} — ` : ''}{c.complainantName ?? 'نامعلوم'}{c.sector ? ` (سیکٹر ${c.sector})` : ''}
+                  </p>
+                  <span className="text-[11px] font-bold shrink-0 px-2 py-0.5 rounded-full bg-dp-surface-container-low">{complaintStatusLabelUr[c.status]}</span>
+                </div>
+                <p className="text-[12.5px] text-dp-on-surface-variant mt-1">{c.text}</p>
+                <p className="text-[12px] text-dp-on-surface-variant mt-1">انچارج: {c.inchargeName ?? 'تاحال متعین نہیں'}</p>
+                <ReplySpace />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {data.projectDiscussions.length > 0 && (
+        <>
+          <p className="text-[13px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-2 mt-6">منصوبہ جات کی تجاویز اور رائے</p>
+          <div className="space-y-2.5">
+            {data.projectDiscussions.map((p, i) => (
+              <div key={i} className="border border-dp-outline-variant rounded-lg p-3">
+                <div className="flex justify-between items-start gap-2">
+                  <p className="text-[14px] flex-1 font-semibold">{i + 1}. {p.title}</p>
+                  <span className="text-[11px] font-bold shrink-0 px-2 py-0.5 rounded-full bg-dp-surface-container-low">
+                    {p.status === 'upcoming' ? `${p.voteCount}/${p.voteTarget ?? '?'} ووٹ` : 'کمیٹی زیرِ غور'}
+                  </span>
+                </div>
+                {p.comments.length > 0 && (
+                  <div className="mt-1.5 space-y-1">
+                    {p.comments.map((c, j) => (
+                      <p key={j} className="text-[12px] text-dp-on-surface-variant">
+                        <span className="font-semibold">{c.authorName ?? 'نامعلوم'}:</span> {c.text}
+                      </p>
+                    ))}
+                  </div>
+                )}
                 <ReplySpace />
               </div>
             ))}

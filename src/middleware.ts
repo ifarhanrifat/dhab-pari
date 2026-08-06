@@ -1,25 +1,29 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Edge-compatible rate limiter for /api/admin/login
+// Edge-compatible rate limiter for /api/admin/login and /api/portal/login
 // Uses a module-level Map (shared within the same worker instance)
 const loginAttempts = new Map<string, { count: number; windowStart: number }>()
 const LOGIN_WINDOW_MS = 60_000  // 1 minute window
-const LOGIN_MAX_REQ   = 10      // max 10 POST requests to the login API per minute per IP
+const LOGIN_MAX_REQ   = 10      // max 10 POST requests to a login API per minute per IP
 
 function middlewareRateLimit(request: NextRequest): NextResponse | null {
-  if (request.nextUrl.pathname !== '/api/admin/login' || request.method !== 'POST') return null
+  const path = request.nextUrl.pathname
+  if ((path !== '/api/admin/login' && path !== '/api/portal/login') || request.method !== 'POST') return null
 
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
     request.headers.get('x-real-ip') ??
     'unknown'
+  // Keyed by IP+path — a burst of staff login attempts must not also rate-limit
+  // portal logins (or vice versa) from the same IP (e.g. a shared village NAT).
+  const key = `${ip}:${path}`
 
   const now = Date.now()
-  const state = loginAttempts.get(ip)
+  const state = loginAttempts.get(key)
 
   if (!state || now - state.windowStart > LOGIN_WINDOW_MS) {
-    loginAttempts.set(ip, { count: 1, windowStart: now })
+    loginAttempts.set(key, { count: 1, windowStart: now })
     return null
   }
 
@@ -94,9 +98,17 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith('/admin/login')) {
     if (user) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/admin'
-      return NextResponse.redirect(url)
+      // A session can exist without being staff (a portal_users-only session,
+      // since Phase 2) — redirecting to /admin unconditionally here caused an
+      // infinite loop with the /admin branch below, which bounces a
+      // non-staff session right back to /admin/login. Only redirect away if
+      // this session actually has an admin_users row.
+      const { data: staffProfile } = await supabase.from('admin_users').select('id').eq('auth_user_id', user.id).eq('is_active', true).single()
+      if (staffProfile) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/admin'
+        return NextResponse.redirect(url)
+      }
     }
     return supabaseResponse
   }
@@ -131,6 +143,19 @@ export async function middleware(request: NextRequest) {
         .eq('is_active', true)
         .single()
 
+      // A session can be authenticated (real Supabase Auth user) without being
+      // staff — since Phase 2 added portal_users, a donor/consumer session now
+      // exists that previously could never occur here. Without this check none
+      // of the role branches below would match (role is undefined) and such a
+      // session would fall through onto /admin pages unblocked by middleware
+      // (RLS would still deny the underlying data, but the page shell shouldn't
+      // render for them at all).
+      if (!profile) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/admin/login'
+        return NextResponse.redirect(url)
+      }
+
       const role = profile?.role
       if (role === 'water_accountant' && (pathname.startsWith('/admin/donors') || pathname.startsWith('/admin/finance/donors_projects'))) {
         const url = request.nextUrl.clone()
@@ -155,9 +180,42 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Portal (donor/consumer) auth gate — entirely separate identity/table from
+  // admin_users above; a staff session with no portal_users row is simply
+  // treated as unauthenticated here, same as the reverse case above.
+  if (pathname.startsWith('/portal/login')) {
+    if (user) {
+      const { data: portalProfile } = await supabase.from('portal_users').select('id').eq('auth_user_id', user.id).eq('is_active', true).single()
+      if (portalProfile) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/portal'
+        return NextResponse.redirect(url)
+      }
+    }
+    return supabaseResponse
+  }
+
+  if (pathname.startsWith('/portal/signup')) {
+    return supabaseResponse
+  }
+
+  if (pathname.startsWith('/portal')) {
+    if (!user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/portal/login'
+      return NextResponse.redirect(url)
+    }
+    const { data: portalProfile } = await supabase.from('portal_users').select('id').eq('auth_user_id', user.id).eq('is_active', true).single()
+    if (!portalProfile) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/portal/login'
+      return NextResponse.redirect(url)
+    }
+  }
+
   return supabaseResponse
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*'],
+  matcher: ['/admin/:path*', '/api/admin/:path*', '/portal/:path*', '/api/portal/:path*'],
 }

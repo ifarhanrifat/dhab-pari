@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
-import { MessageCircle, Menu } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { MessageCircle, Menu, UserCircle2 } from 'lucide-react'
 import { SITE } from '@/lib/constants'
 import { MobileNav } from './MobileNav'
+import { createClient } from '@/lib/supabase/client'
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -22,6 +23,19 @@ const navLinks = [
 export function Header() {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [isPortalUser, setIsPortalUser] = useState(false)
+
+  // A registered donor/consumer is a website user too — surface a single
+  // "My Portal" entry point when logged in, rather than duplicating the
+  // portal's own navigation into the public site's header.
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data } = await supabase.from('portal_users').select('id').eq('auth_user_id', user.id).eq('is_active', true).maybeSingle()
+      if (data) setIsPortalUser(true)
+    })
+  }, [])
 
   return (
     <>
@@ -59,6 +73,22 @@ export function Header() {
 
           {/* Right Actions */}
           <div className="flex items-center gap-4">
+            {isPortalUser ? (
+              <Link
+                href="/portal"
+                className="hidden md:flex items-center gap-2 bg-dp-secondary text-white px-4 py-2 rounded-lg font-sans text-[14px] font-semibold tracking-[0.05em] hover:bg-dp-secondary-container hover:text-dp-on-secondary-container transition-all active:scale-95"
+              >
+                <UserCircle2 size={18} />
+                My Portal
+              </Link>
+            ) : (
+              <Link
+                href="/portal/login"
+                className="hidden md:flex items-center gap-2 text-white/80 hover:text-white text-[14px] font-sans font-semibold tracking-[0.05em] transition-colors"
+              >
+                Log In
+              </Link>
+            )}
             <a
               href={SITE.whatsappLink}
               target="_blank"
@@ -86,6 +116,7 @@ export function Header() {
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
         navLinks={navLinks}
+        isPortalUser={isPortalUser}
       />
     </>
   )

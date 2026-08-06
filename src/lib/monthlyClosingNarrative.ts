@@ -15,9 +15,20 @@
 // read as unprofessional), sitting between these two halves of the prose.
 
 export interface NonPayerEntry { name: string; sector: string; reason: string }
+export interface NonPayerDueToComplaint {
+  consumer_id: string; name: string; sector: string | null
+  complaint_since: string; unpaid_since: string | null; outstanding: number
+}
+export interface NonPayerOpinion { consumer_id: string; opinion: string }
+export interface PendingBillConsumer { consumer_name: string; sector: string; amount: number }
+export interface TwoMonthDefaulter { consumer_name: string; sector: string | null; outstanding: number; flagged_since: string }
 export interface ExpenseLine { description: string; amount: number; approved_by: string[]; auto_posted: boolean }
 export interface NewConnectionDetail { consumer_name: string; incharge_name: string | null; activated: boolean }
-export interface ComplaintEntry { name: string | null; sector: string | null; text: string }
+export interface ComplaintEntry {
+  name: string | null; sector: string | null; text: string
+  status: 'open' | 'awaiting_verification' | 'verified'
+  incharge_name: string | null; resolved_by_name: string | null; resolved_at: string | null
+}
 export interface TaskProgressEntry { request_number: string; consumer_name: string; sector: string | null; incharge_name: string | null; task_status: string }
 export interface DonorBreakdown { by_project: { title: string; total: number }[]; by_type: { type: string; total: number }[] }
 export interface ProjectProgressEntry { title: string; status: string; progress_percent: number | null; budget_pkr: number | null; spent_pkr: number | null }
@@ -51,12 +62,16 @@ export interface ClosingReportData {
   total_payable: number
   total_pending_bills: number
   pending_by_sector: Record<string, number>
+  pending_bills_by_consumer: PendingBillConsumer[]
+  two_month_defaulters: TwoMonthDefaulter[]
   billing_income: number | null
   sale_income: number | null
   total_expenses: number
   expense_lines: ExpenseLine[]
   net_surplus: number
   non_payers: NonPayerEntry[]
+  non_payers_due_to_complaint: NonPayerDueToComplaint[]
+  non_payer_opinions: NonPayerOpinion[]
   complaints_this_month: ComplaintEntry[]
   task_progress: TaskProgressEntry[]
   donor_breakdown: DonorBreakdown
@@ -77,6 +92,20 @@ const projectStatusUr: Record<string, string> = {
   ongoing: 'جاری', completed: 'مکمل', upcoming: 'آئندہ',
 }
 const auditActionUr: Record<string, string> = { update: 'ترمیم', delete: 'حذف' }
+const complaintStatusUr: Record<ComplaintEntry['status'], string> = {
+  open: 'زیر التوا', awaiting_verification: 'حل کیا گیا، تصدیق باقی', verified: 'مکمل طور پر حل شدہ',
+}
+function complaintStatusClause(c: ComplaintEntry): string {
+  if (c.status === 'verified') return `حالت: ${complaintStatusUr[c.status]}${c.resolved_by_name ? `، حل کیا: ${c.resolved_by_name}` : ''}`
+  if (c.status === 'awaiting_verification') return `حالت: ${complaintStatusUr[c.status]}${c.incharge_name ? `، انچارج: ${c.incharge_name}` : ''}`
+  return `حالت: ${complaintStatusUr[c.status]}${c.incharge_name ? `، انچارج: ${c.incharge_name}` : ' — تاحال کسی کو تفویض نہیں'}`
+}
+
+export function urduDate(d: string | null): string {
+  if (!d) return 'نامعلوم'
+  const dt = new Date(d)
+  return `${dt.getDate()} ${urduMonths[dt.getMonth()]} ${dt.getFullYear()}`
+}
 
 // Cash category labels are generated server-side in plain English (they're
 // structural, not user-typed) — translate them here before they go into Urdu
@@ -111,7 +140,7 @@ function catUr(category: string): string {
 // same figure a second time with no new information. Only cash-out categories
 // beyond expenses (advances, refunds, internal transfers) are worth calling
 // out in prose; if that's everything, the paragraph is skipped entirely.
-const expenseCashOutCategories = new Set(['Expenses Paid', 'Expenses Paid (Advance Settlement)'])
+export const expenseCashOutCategories = new Set(['Expenses Paid', 'Expenses Paid (Advance Settlement)'])
 
 function fmt(n: number | null | undefined) {
   return Number(n ?? 0).toLocaleString('en-US', { maximumFractionDigits: 0 })
@@ -183,12 +212,14 @@ export function buildClosingNarrative(r: ClosingReportData, systemLabelUr: strin
   }
 
   if (r.complaints_this_month.length > 0) {
-    const list = r.complaints_this_month.map((c) => `${c.name ?? 'نامعلوم'} (سیکٹر ${c.sector ?? '—'}) کی جانب سے: ${c.text}`).join('؛ ')
+    const list = r.complaints_this_month.map((c) => `${c.name ?? 'نامعلوم'} (سیکٹر ${c.sector ?? '—'}) کی جانب سے: ${c.text} (${complaintStatusClause(c)})`).join('؛ ')
     before.push(`اس مہینے کمیٹی کو ${r.complaints_this_month.length} شکایات موصول ہوئیں: ${list}۔`)
   }
-  if (r.non_payers.length > 0) {
-    const list = r.non_payers.map((p) => `${p.name} (سیکٹر ${p.sector}${p.reason ? `، وجہ: ${p.reason}` : ''})`).join('، ')
-    before.push(`قابل ذکر بات یہ ہے کہ ${r.non_payers.length} صارفین نے شکایت کی بنا پر اس مہینے بل ادا نہیں کیا: ${list}۔`)
+  if (r.non_payers_due_to_complaint.length > 0) {
+    before.push(`قابل ذکر بات یہ ہے کہ ${r.non_payers_due_to_complaint.length} صارفین کی شکایت زیرِ التوا ہونے کی بنا پر انہوں نے بل ادا نہیں کیا — تفصیل، بشمول کمیٹی کی رائے، ذیل کے جدول میں دی گئی ہے۔`)
+  }
+  if (r.two_month_defaulters.length > 0) {
+    before.push(`${r.two_month_defaulters.length} صارفین مسلسل 2 مہینے سے بل ادا نہیں کر رہے — مکمل فہرست ذیل کے جدول میں دی گئی ہے۔`)
   }
 
   let billingPara = `اب بلنگ کی صورتحال ملاحظہ کریں: اس مہینے کل روپے ${fmt(r.this_month_billed)} کی بلنگ کی گئی`
@@ -196,12 +227,11 @@ export function buildClosingNarrative(r: ClosingReportData, systemLabelUr: strin
   billingPara += `، اور خالص بلنگ آمدنی روپے ${fmt(r.billing_income)} رہی۔`
   before.push(billingPara)
   if (r.discount_by_consumer.length > 0) {
-    before.push(`رعایت کی تفصیل درج ذیل ہے: ${r.discount_by_consumer.map((d) => `${d.consumer_name} — روپے ${fmt(d.amount)}`).join('، ')}۔`)
+    before.push(`رعایت پانے والے صارفین کی مکمل فہرست ذیل کے جدول میں دی گئی ہے۔`)
   }
   before.push(`پچھلے مہینے (${prevMonthName} ${prevYear}) کل روپے ${fmt(r.prev_month_billing)} کی بلنگ ہوئی تھی، جبکہ اس مہینے روپے ${fmt(r.this_month_recovery)} کی وصولی کی گئی۔`)
   if (r.total_pending_bills > 0) {
-    const sectorList = Object.entries(r.pending_by_sector).sort(([, a], [, b]) => b - a).map(([s, amt]) => `${s}: روپے ${fmt(amt)}`).join('، ')
-    before.push(`آج تک کمیٹی کے ذمے روپے ${fmt(r.total_pending_bills)} کے بل زیر التوا ہیں، جن کی سیکٹر وار تفصیل یہ ہے: ${sectorList}۔`)
+    before.push(`آج تک کمیٹی کے ذمے روپے ${fmt(r.total_pending_bills)} کے بل زیر التوا ہیں — سیکٹر وار مکمل تفصیل ذیل کے جدول میں دی گئی ہے۔`)
   }
   before.push(netPositionParagraph(r))
 
@@ -249,7 +279,7 @@ export function buildDonorClosingNarrative(r: ClosingReportData): NarrativeParts
   }
 
   if (r.complaints_this_month.length > 0) {
-    const list = r.complaints_this_month.map((c) => `${c.name ?? 'نامعلوم'} (سیکٹر ${c.sector ?? '—'}) کی جانب سے: ${c.text}`).join('؛ ')
+    const list = r.complaints_this_month.map((c) => `${c.name ?? 'نامعلوم'} (سیکٹر ${c.sector ?? '—'}) کی جانب سے: ${c.text} (${complaintStatusClause(c)})`).join('؛ ')
     before.push(`اس مہینے ${r.complaints_this_month.length} شکایات موصول ہوئیں: ${list}۔`)
   }
 

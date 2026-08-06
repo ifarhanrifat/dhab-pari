@@ -1,47 +1,84 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, CheckCircle, XCircle } from 'lucide-react'
+import { PlusCircle, X, CheckCircle, XCircle, ShieldCheck, Image as ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { BulkActionsBar } from '@/components/admin/BulkActionsBar'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { ReceiptModal } from '@/components/admin/ReceiptModal'
+import type { ReceiptData } from '@/components/admin/ReceiptDocument'
+import { normalizePakPhone } from '@/lib/receiptExport'
+import { renderTemplate } from '@/lib/messageTemplates'
+import { useSystemAccess } from '@/hooks/useSystemAccess'
 
-interface Donor { id: string; name: string; name_ur: string | null; phone: string | null; donor_type: string | null; amount_pkr: number; date: string; is_anonymous: boolean; is_verified: boolean; payment_method: string | null; notes: string | null; project_id: string | null }
+interface Donor {
+  id: string; name: string; name_ur: string | null; phone: string | null; father_husband_name: string | null
+  whatsapp_number: string | null; donor_type: string | null; amount_pkr: number; date: string
+  is_anonymous: boolean; is_verified: boolean; payment_method: string | null; notes: string | null
+  project_id: string | null; payment_proof_url: string | null; submitted_via: string; voucher_no: string | null
+  confirmed_at: string | null
+}
 interface Project { id: string; title: string }
-const empty = { name: '', name_ur: '', phone: '', donor_type: 'villager', amount_pkr: 0, date: new Date().toISOString().split('T')[0], is_anonymous: false, payment_method: 'cash', notes: '', project_id: '' }
+const empty = {
+  name: '', name_ur: '', phone: '', father_husband_name: '', whatsapp_number: '', donor_type: 'villager',
+  amount_pkr: 0, date: new Date().toISOString().split('T')[0], is_anonymous: false, payment_method: 'cash',
+  notes: '', project_id: '',
+}
+
+// donor_key_for(name, phone) mirrored client-side (migration 007: phone if
+// present else lowercased/trimmed name) — the only way to map a donation row
+// to its ledger account's donor_account_no without a server-side join, since
+// accounts.donor_key isn't exposed on the donors table itself.
+function donorKeyFor(name: string, phone: string | null) {
+  const p = (phone ?? '').trim()
+  return (p !== '' ? p : name.trim()).toLowerCase()
+}
 
 export default function AdminDonorsPage() {
+  const access = useSystemAccess()
   const [donors, setDonors] = useState<Donor[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [accountNoByKey, setAccountNoByKey] = useState<Map<string, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(empty)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editTarget, setEditTarget] = useState<Donor | null>(null)
+  const [editForm, setEditForm] = useState(empty)
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
+  const [viewReceipt, setViewReceipt] = useState<ReceiptData | null>(null)
+  const [confirmedWhatsapp, setConfirmedWhatsapp] = useState<string | null>(null)
+  const [thankYouMessage, setThankYouMessage] = useState<string | null>(null)
   const supabase = createClient()
 
   const load = async () => {
-    const [donorsRes, projectsRes] = await Promise.all([
+    const [donorsRes, projectsRes, accountsRes] = await Promise.all([
       supabase.from('donors').select('*').order('date', { ascending: false }),
       supabase.from('projects').select('id, title').order('title'),
+      supabase.from('accounts').select('donor_key, donor_account_no').eq('system', 'donors_projects').eq('type', 'donor').not('donor_account_no', 'is', null),
     ])
     setDonors(donorsRes.data ?? [])
     setProjects(projectsRes.data ?? [])
+    setAccountNoByKey(new Map((accountsRes.data ?? []).map((a) => [a.donor_key as string, a.donor_account_no as string])))
     setLoading(false)
   }
   useEffect(() => { load() }, [])
 
+  const projectTitle = (id: string | null) => projects.find((p) => p.id === id)?.title ?? null
+
   const save = async () => {
     if (!form.name.trim()) { toast.error('Name required'); return }
-    const payload = { ...form, name_ur: form.name_ur || null, project_id: form.project_id || null, notes: form.notes || null, phone: form.phone || null }
-    const { error } = await supabase.from('donors').insert({ ...payload, is_verified: true })
+    const payload = { ...form, name_ur: form.name_ur || null, project_id: form.project_id || null, notes: form.notes || null, phone: form.phone || null, father_husband_name: form.father_husband_name || null, whatsapp_number: form.whatsapp_number || null }
+    const { error } = await supabase.from('donors').insert({ ...payload, is_verified: true, submitted_via: 'staff' })
     if (error) { toast.error(error.message); return }
     toast.success('Donor added'); setShowForm(false); setForm(empty); load()
   }
 
-  const toggleVerify = async (id: string, current: boolean) => {
-    await supabase.from('donors').update({ is_verified: !current }).eq('id', id)
-    toast.success(current ? 'Unverified' : 'Verified'); load()
+  const unverify = async (id: string) => {
+    await supabase.from('donors').update({ is_verified: false }).eq('id', id)
+    toast.success('Unverified'); load()
   }
 
   const toggleSelect = (id: string) => {
@@ -60,9 +97,11 @@ export default function AdminDonorsPage() {
 
   const bulkVerify = async () => {
     const ids = Array.from(selected)
-    const { error } = await supabase.from('donors').update({ is_verified: true }).in('id', ids)
-    if (error) { toast.error('Failed to verify donors'); return }
-    toast.success(`${ids.length} donor(s) verified`)
+    for (const id of ids) {
+      const { error } = await supabase.rpc('confirm_donation', { p_donor_id: id, p_edits: {} })
+      if (error) { toast.error(`${error.message} (stopped at ${ids.indexOf(id) + 1}/${ids.length})`); break }
+    }
+    toast.success(`${ids.length} donor(s) confirmed`)
     setSelected(new Set())
     load()
   }
@@ -77,17 +116,103 @@ export default function AdminDonorsPage() {
     load()
   }
 
+  const openEdit = async (d: Donor) => {
+    setEditTarget(d)
+    setEditForm({
+      name: d.name, name_ur: d.name_ur ?? '', phone: d.phone ?? '', father_husband_name: d.father_husband_name ?? '',
+      whatsapp_number: d.whatsapp_number ?? '', donor_type: d.donor_type ?? 'villager', amount_pkr: d.amount_pkr,
+      date: d.date, is_anonymous: d.is_anonymous, payment_method: d.payment_method ?? 'cash', notes: d.notes ?? '',
+      project_id: d.project_id ?? '',
+    })
+    setReceiptUrl(null)
+    if (d.payment_proof_url) {
+      const { data } = await supabase.storage.from('donation_receipts').createSignedUrl(d.payment_proof_url, 300)
+      setReceiptUrl(data?.signedUrl ?? null)
+    }
+  }
+
+  const saveEdits = async () => {
+    if (!editTarget) return
+    const { error } = await supabase.from('donors').update({
+      name: editForm.name, name_ur: editForm.name_ur || null, phone: editForm.phone || null,
+      father_husband_name: editForm.father_husband_name || null, whatsapp_number: editForm.whatsapp_number || null,
+      donor_type: editForm.donor_type, amount_pkr: editForm.amount_pkr, date: editForm.date,
+      payment_method: editForm.payment_method, project_id: editForm.project_id || null,
+      is_anonymous: editForm.is_anonymous, notes: editForm.notes || null,
+    }).eq('id', editTarget.id)
+    if (error) { toast.error(error.message); return }
+    toast.success('Saved')
+    setEditTarget(null)
+    load()
+  }
+
+  const confirmDonation = async () => {
+    if (!editTarget) return
+    setConfirming(true)
+    const { data, error } = await supabase.rpc('confirm_donation', {
+      p_donor_id: editTarget.id,
+      p_edits: {
+        name: editForm.name, name_ur: editForm.name_ur || null, phone: editForm.phone || null,
+        father_husband_name: editForm.father_husband_name || null, whatsapp_number: editForm.whatsapp_number || null,
+        donor_type: editForm.donor_type, amount_pkr: editForm.amount_pkr, date: editForm.date,
+        payment_method: editForm.payment_method, project_id: editForm.project_id || '',
+        is_anonymous: editForm.is_anonymous, notes: editForm.notes || null,
+      },
+    })
+    setConfirming(false)
+    if (error) { toast.error(error.message); return }
+    toast.success('Donation confirmed')
+
+    const { data: tpl } = await supabase.from('message_templates').select('body').eq('key', 'donor_donation_confirmed').single()
+    const projTitle = editForm.project_id ? (projectTitle(editForm.project_id) ?? 'General Fund') : 'General Fund'
+    const messageBody = tpl?.body
+      ? renderTemplate(tpl.body, { name: data.name, amount: Number(data.amount_pkr).toLocaleString(), account_no: data.account_no, project: projTitle })
+      : `Thank you ${data.name}! Your donation of Rs. ${Number(data.amount_pkr).toLocaleString()} (Account: ${data.account_no}) has been verified.`
+
+    setViewReceipt({
+      kind: 'donation', receiptNo: data.voucher_no, date: editForm.date,
+      systemLabel: 'Donors & Projects', accountName: editForm.is_anonymous ? 'Anonymous Donor' : data.name,
+      accountNameUr: editForm.name_ur || undefined,
+      particular: `Donation${projTitle !== 'General Fund' ? ` - ${projTitle}` : ''} (Account ${data.account_no})`,
+      amount: data.amount_pkr, balanceAfter: data.amount_pkr,
+    })
+    setConfirmedWhatsapp(editForm.whatsapp_number || editForm.phone || null)
+    setThankYouMessage(messageBody)
+    setEditTarget(null)
+    load()
+  }
+
+  const sendThankYou = () => {
+    const intl = confirmedWhatsapp ? normalizePakPhone(confirmedWhatsapp) : null
+    if (!intl || !thankYouMessage) { toast.error('No usable WhatsApp number for this donor'); return }
+    window.open(`https://wa.me/${intl}?text=${encodeURIComponent(thankYouMessage)}`, '_blank')
+  }
+
+  const pendingCount = useMemo(() => donors.filter((d) => !d.is_verified).length, [donors])
+
+  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (!access.canDonorsProjects) {
+    return (
+      <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
+        <p className="font-sans text-[14px] text-dp-on-surface-variant">Donors belongs to the Donors &amp; Projects system — your account doesn&apos;t have access to it.</p>
+      </div>
+    )
+  }
+
   return (
     <>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Donors</h1>
+        <div>
+          <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Donors</h1>
+          {pendingCount > 0 && <p className="font-sans text-[13px] text-amber-700 mt-1">{pendingCount} announced donation(s) awaiting verification</p>}
+        </div>
         <button onClick={() => { setForm(empty); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> Add Donor</button>
       </div>
       <BulkActionsBar
         count={selected.size}
         onClear={() => setSelected(new Set())}
         actions={[
-          { label: 'Verify Selected', onClick: bulkVerify, variant: 'primary' },
+          { label: 'Confirm Selected', onClick: bulkVerify, variant: 'primary' },
           { label: 'Delete Selected', onClick: () => setConfirmDelete(true), variant: 'danger' },
         ]}
       />
@@ -95,21 +220,28 @@ export default function AdminDonorsPage() {
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]"><th className="p-4 w-10"><input type="checkbox" checked={donors.length > 0 && selected.size === donors.length} onChange={toggleSelectAll} className="accent-dp-secondary cursor-pointer" /></th><th className="p-4">Name</th><th className="p-4">Type</th><th className="p-4">Phone</th><th className="p-4">Amount</th><th className="p-4">Date</th><th className="p-4">Method</th><th className="p-4">Verified</th><th className="p-4 text-right">Actions</th></tr></thead>
+            <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]"><th className="p-4 w-10"><input type="checkbox" checked={donors.length > 0 && selected.size === donors.length} onChange={toggleSelectAll} className="accent-dp-secondary cursor-pointer" /></th><th className="p-4">Name</th><th className="p-4">Account #</th><th className="p-4">Phone</th><th className="p-4">Amount</th><th className="p-4">Date</th><th className="p-4">Source</th><th className="p-4">Status</th><th className="p-4 text-right">Actions</th></tr></thead>
             <tbody className="font-sans text-[16px]">
               {loading && <tr><td colSpan={9} className="p-8 text-center text-dp-on-surface-variant">Loading...</td></tr>}
               {!loading && donors.map((d, i) => (
-                <tr key={d.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''} ${selected.has(d.id) ? 'bg-dp-secondary-container/20' : ''}`}>
+                <tr key={d.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''} ${selected.has(d.id) ? 'bg-dp-secondary-container/20' : ''} ${!d.is_verified ? 'bg-amber-50/40' : ''}`}>
                   <td className="p-4 border-b border-dp-outline-variant"><input type="checkbox" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} className="accent-dp-secondary cursor-pointer" /></td>
                   <td className="p-4 border-b border-dp-outline-variant font-semibold">{d.is_anonymous ? <span className="italic text-dp-on-surface-variant">Anonymous</span> : d.name}</td>
-                  <td className="p-4 border-b border-dp-outline-variant"><span className={`text-[11px] font-bold px-2 py-0.5 rounded-full font-sans ${d.donor_type === 'overseas' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>{d.donor_type === 'overseas' ? 'Overseas' : 'Villager'}</span></td>
+                  <td className="p-4 border-b border-dp-outline-variant text-[13px] font-mono text-dp-on-surface-variant">{accountNoByKey.get(donorKeyFor(d.name, d.phone)) ?? '—'}</td>
                   <td className="p-4 border-b border-dp-outline-variant text-[14px] text-dp-on-surface-variant">{d.phone ?? '—'}</td>
                   <td className="p-4 border-b border-dp-outline-variant font-bold text-dp-secondary">Rs. {Number(d.amount_pkr).toLocaleString()}</td>
                   <td className="p-4 border-b border-dp-outline-variant text-[14px] text-dp-on-surface-variant">{new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                  <td className="p-4 border-b border-dp-outline-variant"><span className="bg-dp-surface-container-high px-2 py-0.5 rounded text-[12px] font-sans">{d.payment_method ?? '—'}</span></td>
-                  <td className="p-4 border-b border-dp-outline-variant">{d.is_verified ? <CheckCircle size={16} className="text-dp-secondary" /> : <XCircle size={16} className="text-dp-on-surface-variant" />}</td>
-                  <td className="p-4 border-b border-dp-outline-variant text-right">
-                    <button onClick={() => toggleVerify(d.id, d.is_verified)} className={`px-3 py-1 rounded text-[14px] font-sans font-semibold cursor-pointer transition-all ${d.is_verified ? 'border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container' : 'bg-dp-secondary text-white hover:bg-dp-primary'}`}>{d.is_verified ? 'Unverify' : 'Verify'}</button>
+                  <td className="p-4 border-b border-dp-outline-variant"><span className={`text-[11px] font-bold px-2 py-0.5 rounded-full font-sans ${d.submitted_via === 'public' ? 'bg-blue-100 text-blue-700' : 'bg-dp-surface-container-high'}`}>{d.submitted_via === 'public' ? 'Public' : 'Staff'}</span></td>
+                  <td className="p-4 border-b border-dp-outline-variant">
+                    {d.is_verified ? <span className="inline-flex items-center gap-1 text-dp-secondary text-[12px] font-bold"><CheckCircle size={14} /> Verified</span> : <span className="inline-flex items-center gap-1 text-amber-700 text-[12px] font-bold"><XCircle size={14} /> Announced</span>}
+                  </td>
+                  <td className="p-4 border-b border-dp-outline-variant text-right whitespace-nowrap">
+                    <button onClick={() => openEdit(d)} className="px-3 py-1 rounded text-[14px] font-sans font-semibold cursor-pointer transition-all border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container mr-2">
+                      {d.is_verified ? 'Edit' : 'Review'}
+                    </button>
+                    {d.is_verified && (
+                      <button onClick={() => unverify(d.id)} className="px-3 py-1 rounded text-[14px] font-sans font-semibold cursor-pointer transition-all border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container">Unverify</button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -125,6 +257,7 @@ export default function AdminDonorsPage() {
         onConfirm={bulkDelete}
         onCancel={() => setConfirmDelete(false)}
       />
+
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
@@ -156,6 +289,72 @@ export default function AdminDonorsPage() {
               <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">Add Donor</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {editTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setEditTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading text-[24px] font-bold text-dp-primary">{editTarget.is_verified ? 'Edit Donor' : 'Review & Confirm'}</h2>
+              <button onClick={() => setEditTarget(null)} className="cursor-pointer"><X size={20} /></button>
+            </div>
+            <div className="space-y-4">
+              {receiptUrl && (
+                <div>
+                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2 flex items-center gap-1.5"><ImageIcon size={14} /> Payment Receipt</label>
+                  <a href={receiptUrl} target="_blank" rel="noopener noreferrer">
+                    <img src={receiptUrl} alt="Payment receipt" className="w-full max-h-56 object-contain rounded-lg border border-dp-outline-variant bg-dp-surface-container" />
+                  </a>
+                </div>
+              )}
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Name</label><input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="input-field" /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Father&apos;s / Husband&apos;s Name</label><input value={editForm.father_husband_name} onChange={(e) => setEditForm({ ...editForm, father_husband_name: e.target.value })} className="input-field" /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Donor Type</label><select value={editForm.donor_type} onChange={(e) => setEditForm({ ...editForm, donor_type: e.target.value })} className="input-field"><option value="villager">Villager</option><option value="overseas">Overseas</option></select></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Phone</label><input type="tel" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} className="input-field" /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">WhatsApp</label><input type="tel" value={editForm.whatsapp_number} onChange={(e) => setEditForm({ ...editForm, whatsapp_number: e.target.value })} className="input-field" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Amount (PKR)</label><input type="number" value={editForm.amount_pkr || ''} onChange={(e) => setEditForm({ ...editForm, amount_pkr: +e.target.value })} className="input-field" /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Date</label><input type="date" value={editForm.date} onChange={(e) => setEditForm({ ...editForm, date: e.target.value })} className="input-field" /></div>
+              </div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Payment Method</label><select value={editForm.payment_method} onChange={(e) => setEditForm({ ...editForm, payment_method: e.target.value })} className="input-field"><option value="cash">Cash</option><option value="jazzcash">JazzCash</option><option value="easypaisa">Easypaisa</option><option value="bank">Bank</option></select></div>
+              <div>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Project</label>
+                <select value={editForm.project_id} onChange={(e) => setEditForm({ ...editForm, project_id: e.target.value })} className="input-field">
+                  <option value="">No specific project</option>
+                  {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Notes</label>
+                <textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} rows={2} className="input-field resize-none" />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={editForm.is_anonymous} onChange={(e) => setEditForm({ ...editForm, is_anonymous: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">Anonymous Donor</span></label>
+
+              {editTarget.is_verified ? (
+                <button onClick={saveEdits} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">Save Changes</button>
+              ) : (
+                <button onClick={confirmDonation} disabled={confirming} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+                  <ShieldCheck size={16} /> {confirming ? 'Confirming...' : 'Confirm Donation'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewReceipt && (
+        <ReceiptModal data={viewReceipt} onClose={() => { setViewReceipt(null); setConfirmedWhatsapp(null); setThankYouMessage(null) }} />
+      )}
+      {viewReceipt && confirmedWhatsapp && (
+        <div className="fixed bottom-6 right-6 z-[130]">
+          <button onClick={sendThankYou} className="px-4 py-3 bg-emerald-600 text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-emerald-700 transition-all shadow-lg">
+            Send Thank You via WhatsApp
+          </button>
         </div>
       )}
     </>

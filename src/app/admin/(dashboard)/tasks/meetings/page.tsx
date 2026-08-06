@@ -10,7 +10,7 @@ import { AgendaMinutesDocument, type AgendaMinutesData } from '@/components/admi
 import {
   CalendarClock, PlusCircle, X, ChevronDown, ChevronUp, CheckCircle2, MessageCircle,
   Printer, Download, Lightbulb, ListChecks, AlertTriangle, User, FileText, Sparkles, Loader2, Globe2, Reply,
-  Siren, Copy,
+  Siren, Copy, MessageSquareWarning, Vote,
 } from 'lucide-react'
 
 type Category = 'miscellaneous' | 'donation_projects' | 'medical' | 'tree_plantation' | 'water_supply'
@@ -39,7 +39,15 @@ interface AgendaItem {
   is_emergency: boolean; created_by_admin_user_id: string | null
 }
 interface Assignee { id: string; agenda_item_id: string; committee_member_id: string }
+interface ComplaintHistoryEntry {
+  id: string; complaint_number: string | null; complainant_name: string | null; sector: string | null
+  complaint_text: string; status: 'open' | 'awaiting_verification' | 'verified'
+  incharge_name: string | null; resolved_by_name: string | null; resolved_at: string | null; created_at: string
+}
 interface WebsiteSuggestion { id: string; name: string | null; mobile: string | null; message: string; created_at: string }
+interface ReadyProposal { id: string; title: string; description: string | null; voteCount: number; vote_target: number | null; minimum_monthly_commitment_pkr: number | null }
+interface ProjectDiscussionComment { username: string | null; content: string; comment_type: string; created_at: string }
+interface ProjectDiscussion { id: string; title: string; status: string; vote_count: number; vote_target: number | null; comments: ProjectDiscussionComment[] }
 interface ExtractedPoint { text: string; include: boolean; due_date: string; committee_member_ids: string[]; category: Category }
 
 const emptyMeetingForm = { meeting_date: new Date().toISOString().slice(0, 10), title: '', run_by_admin_user_id: '', agenda_photo_urls: [] as string[] }
@@ -80,6 +88,7 @@ export default function MeetingsAgendaPage() {
 
   const [importMeetingId, setImportMeetingId] = useState<string | null>(null)
   const [websiteSuggestions, setWebsiteSuggestions] = useState<WebsiteSuggestion[]>([])
+  const [readyProposals, setReadyProposals] = useState<ReadyProposal[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
 
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
@@ -89,14 +98,25 @@ export default function MeetingsAgendaPage() {
   const [emergencyText, setEmergencyText] = useState('')
   const [savingEmergency, setSavingEmergency] = useState(false)
 
+  const [complaints, setComplaints] = useState<ComplaintHistoryEntry[]>([])
+  const [showResolvedComplaints, setShowResolvedComplaints] = useState(false)
+  const [complaintsOpen, setComplaintsOpen] = useState(false)
+
+  const [projectDiscussions, setProjectDiscussions] = useState<ProjectDiscussion[]>([])
+  const [projectDiscussionsOpen, setProjectDiscussionsOpen] = useState(false)
+
   const load = async () => {
-    const [meetingsRes, membersRes, adminUsersRes, itemsRes, assigneesRes, userRes] = await Promise.all([
+    const [meetingsRes, membersRes, adminUsersRes, itemsRes, assigneesRes, userRes, complaintsRes] = await Promise.all([
       supabase.from('agenda_meetings').select('*').order('meeting_date', { ascending: false }),
       supabase.from('committee_members').select('id, name, position, phone, admin_user_id, proxy_admin_user_id, uses_smartphone').order('display_order'),
       supabase.from('admin_users').select('id, full_name').eq('is_active', true).order('full_name'),
       supabase.from('agenda_items').select('*').order('display_order'),
       supabase.from('agenda_item_assignees').select('*'),
       supabase.auth.getUser(),
+      // Cross-meeting reference, not scoped to one meeting_id — committee
+      // members should see "what's the state of all complaints" during
+      // discussion, not just ones raised in a specific past meeting.
+      supabase.from('complaints').select('id, complaint_number, complainant_name, sector, complaint_text, status, assigned_to, resolved_by, resolved_at, created_at').order('created_at', { ascending: false }),
     ])
     setMeetings(meetingsRes.data ?? [])
     setMembers(membersRes.data ?? [])
@@ -107,6 +127,40 @@ export default function MeetingsAgendaPage() {
       const { data: me } = await supabase.from('admin_users').select('id').eq('auth_user_id', userRes.data.user.id).single()
       setCurrentUserId(me?.id ?? null)
     }
+    const adminList = adminUsersRes.data ?? []
+    const nameFor = (id: string | null) => adminList.find((a) => a.id === id)?.full_name ?? null
+    setComplaints((complaintsRes.data ?? []).map((c) => ({
+      ...c, incharge_name: nameFor(c.assigned_to), resolved_by_name: nameFor(c.resolved_by),
+    })))
+
+    // Same cross-meeting live-join idea as complaints above, but for
+    // proposals still being decided (upcoming = voting, reviewing =
+    // committee deciding budget) — so the committee sees the community's
+    // votes and comments verbatim during discussion, not a stale import.
+    const { data: discussionProjects } = await supabase
+      .from('projects').select('id, title, status, vote_target')
+      .in('status', ['upcoming', 'reviewing']).order('created_at', { ascending: false })
+    if (discussionProjects && discussionProjects.length > 0) {
+      const ids = discussionProjects.map((p) => p.id)
+      const [commentsRes, votesRes] = await Promise.all([
+        supabase.from('project_comments_public').select('project_id, username, content, comment_type, created_at').in('project_id', ids).order('created_at', { ascending: true }),
+        supabase.from('project_votes').select('project_id').in('project_id', ids),
+      ])
+      const voteCounts: Record<string, number> = {}
+      for (const v of votesRes.data ?? []) voteCounts[v.project_id] = (voteCounts[v.project_id] ?? 0) + 1
+      const commentsByProject: Record<string, ProjectDiscussionComment[]> = {}
+      for (const c of commentsRes.data ?? []) {
+        if (!commentsByProject[c.project_id]) commentsByProject[c.project_id] = []
+        commentsByProject[c.project_id].push(c)
+      }
+      setProjectDiscussions(discussionProjects.map((p) => ({
+        id: p.id, title: p.title, status: p.status, vote_target: p.vote_target,
+        vote_count: voteCounts[p.id] ?? 0, comments: commentsByProject[p.id] ?? [],
+      })))
+    } else {
+      setProjectDiscussions([])
+    }
+
     setLoading(false)
   }
   useEffect(() => { load(); fetchBrandingSettings().then(setBranding) }, [])
@@ -238,12 +292,29 @@ export default function MeetingsAgendaPage() {
     // that state can still be mid-fetch right after a page load/reload,
     // which would let an already-imported suggestion slip through and get
     // duplicated (no DB-level uniqueness on source_suggestion_id).
-    const [suggestionsRes, importedRes] = await Promise.all([
+    const [suggestionsRes, importedRes, upcomingRes, importedProjectsRes] = await Promise.all([
       supabase.from('suggestions').select('id, name, mobile, message, created_at').eq('type', 'suggestion').order('created_at', { ascending: false }),
       supabase.from('agenda_items').select('source_suggestion_id').not('source_suggestion_id', 'is', null),
+      supabase.from('projects').select('id, title, description, vote_target, minimum_monthly_commitment_pkr').eq('status', 'upcoming'),
+      supabase.from('agenda_items').select('source_project_id').not('source_project_id', 'is', null),
     ])
     const alreadyImported = new Set((importedRes.data ?? []).map((i) => i.source_suggestion_id))
     setWebsiteSuggestions((suggestionsRes.data ?? []).filter((s) => !alreadyImported.has(s.id)))
+
+    const alreadyImportedProjects = new Set((importedProjectsRes.data ?? []).map((i) => i.source_project_id))
+    const upcoming = (upcomingRes.data ?? []).filter((p) => !alreadyImportedProjects.has(p.id))
+    if (upcoming.length > 0) {
+      const { data: voteRows } = await supabase.from('project_votes').select('project_id').in('project_id', upcoming.map((p) => p.id))
+      const counts: Record<string, number> = {}
+      for (const v of voteRows ?? []) counts[v.project_id] = (counts[v.project_id] ?? 0) + 1
+      setReadyProposals(
+        upcoming
+          .filter((p) => p.vote_target != null && (counts[p.id] ?? 0) >= p.vote_target)
+          .map((p) => ({ id: p.id, title: p.title, description: p.description, voteCount: counts[p.id] ?? 0, vote_target: p.vote_target, minimum_monthly_commitment_pkr: p.minimum_monthly_commitment_pkr }))
+      )
+    } else {
+      setReadyProposals([])
+    }
     setLoadingSuggestions(false)
   }
   const importSuggestion = async (s: WebsiteSuggestion) => {
@@ -255,6 +326,21 @@ export default function MeetingsAgendaPage() {
     if (error) { toast.error(error.message); return }
     await supabase.from('suggestions').update({ status: 'actioned' }).eq('id', s.id)
     setWebsiteSuggestions((prev) => prev.filter((x) => x.id !== s.id))
+    toast.success('Added to agenda')
+    load()
+  }
+  // Vote-threshold-reached proposals — surfaced for committee discussion
+  // only. Approving/setting a budget still happens via the existing admin
+  // Projects page (status upcoming -> ongoing); importing here doesn't
+  // decide anything on its own.
+  const importProposal = async (p: ReadyProposal) => {
+    if (!importMeetingId) return
+    const text = `${p.title} — ${p.voteCount}/${p.vote_target} votes reached.${p.description ? ` ${p.description}` : ''}${p.minimum_monthly_commitment_pkr ? ` Proposer committed Rs. ${p.minimum_monthly_commitment_pkr}/month.` : ''}`
+    const { error } = await supabase.from('agenda_items').insert({
+      meeting_id: importMeetingId, kind: 'task', category: 'donation_projects', text_ur: text, source_project_id: p.id,
+    })
+    if (error) { toast.error(error.message); return }
+    setReadyProposals((prev) => prev.filter((x) => x.id !== p.id))
     toast.success('Added to agenda')
     load()
   }
@@ -386,6 +472,12 @@ export default function MeetingsAgendaPage() {
   const statusStyles: Record<AgendaItem['status'], string> = {
     pending: 'bg-gray-100 text-gray-700', in_progress: 'bg-blue-100 text-blue-800', done: 'bg-emerald-100 text-emerald-700',
   }
+  const complaintStatusStyles: Record<ComplaintHistoryEntry['status'], string> = {
+    open: 'bg-red-100 text-red-700', awaiting_verification: 'bg-amber-100 text-amber-800', verified: 'bg-emerald-100 text-emerald-700',
+  }
+  const complaintStatusLabel: Record<ComplaintHistoryEntry['status'], string> = {
+    open: 'Open', awaiting_verification: 'Resolved — Awaiting Verification', verified: 'Resolved & Verified',
+  }
 
   return (
     <div>
@@ -404,6 +496,94 @@ export default function MeetingsAgendaPage() {
           </button>
         </div>
       </div>
+
+      {/* Complaints Status — a cross-meeting reference, not scoped to any one
+          meeting, so the committee has the real current state (who's
+          incharge, resolved-by-whom) to discuss, not a list that goes stale
+          the moment a complaint is handled after this meeting was logged. */}
+      {!loading && complaints.length > 0 && (() => {
+        const visible = showResolvedComplaints ? complaints : complaints.filter((c) => c.status !== 'verified')
+        return (
+          <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-4">
+            <button onClick={() => setComplaintsOpen(!complaintsOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-left cursor-pointer hover:bg-dp-surface-container-low transition-all">
+              <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-2">
+                <MessageSquareWarning size={16} className="text-amber-600" /> Complaints Status
+                <span className="font-normal text-dp-on-surface-variant text-[12.5px]">({visible.length}{!showResolvedComplaints ? ' open/pending' : ''})</span>
+              </p>
+              {complaintsOpen ? <ChevronUp size={18} className="shrink-0 text-dp-on-surface-variant" /> : <ChevronDown size={18} className="shrink-0 text-dp-on-surface-variant" />}
+            </button>
+            {complaintsOpen && (
+              <div className="border-t border-dp-outline-variant p-4 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer mb-2">
+                  <input type="checkbox" checked={showResolvedComplaints} onChange={(e) => setShowResolvedComplaints(e.target.checked)} className="accent-dp-secondary" />
+                  <span className="font-sans text-[12.5px] text-dp-on-surface-variant">Show resolved &amp; verified too</span>
+                </label>
+                {visible.length === 0 ? (
+                  <p className="font-sans text-[13px] text-dp-on-surface-variant">Nothing open — all complaints are resolved and verified.</p>
+                ) : (
+                  visible.map((c) => (
+                    <div key={c.id} className="border border-dp-outline-variant rounded-lg p-3">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">
+                          {c.complaint_number ? `${c.complaint_number} — ` : ''}{c.complainant_name ?? 'Unknown'}{c.sector ? ` (Sector ${c.sector})` : ''}
+                        </p>
+                        <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold shrink-0 ${complaintStatusStyles[c.status]}`}>{complaintStatusLabel[c.status]}</span>
+                      </div>
+                      <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">{c.complaint_text}</p>
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">
+                        {c.status === 'verified'
+                          ? <>Resolved by <span className="font-semibold">{c.resolved_by_name ?? 'Unknown'}</span>{c.resolved_at ? ` on ${new Date(c.resolved_at).toLocaleDateString('en-GB')}` : ''}</>
+                          : <>Incharge: <span className="font-semibold">{c.incharge_name ?? 'Not yet assigned'}</span></>}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* Project Proposals & Discussions — same cross-meeting live-join idea
+          as Complaints Status: shows the community's votes and comments for
+          every proposal still in play, verbatim and with names, so the
+          committee can decide with full visibility during the meeting. */}
+      {!loading && projectDiscussions.length > 0 && (
+        <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-4">
+          <button onClick={() => setProjectDiscussionsOpen(!projectDiscussionsOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-left cursor-pointer hover:bg-dp-surface-container-low transition-all">
+            <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-2">
+              <Vote size={16} className="text-dp-secondary" /> Project Proposals &amp; Discussions
+              <span className="font-normal text-dp-on-surface-variant text-[12.5px]">({projectDiscussions.length})</span>
+            </p>
+            {projectDiscussionsOpen ? <ChevronUp size={18} className="shrink-0 text-dp-on-surface-variant" /> : <ChevronDown size={18} className="shrink-0 text-dp-on-surface-variant" />}
+          </button>
+          {projectDiscussionsOpen && (
+            <div className="border-t border-dp-outline-variant p-4 space-y-3">
+              {projectDiscussions.map((p) => (
+                <div key={p.id} className="border border-dp-outline-variant rounded-lg p-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{p.title}</p>
+                    <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold shrink-0 bg-dp-surface-container-low text-dp-on-surface-variant">
+                      {p.status === 'upcoming' ? `${p.vote_count}/${p.vote_target ?? '?'} votes` : 'Committee Reviewing'}
+                    </span>
+                  </div>
+                  {p.comments.length === 0 ? (
+                    <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1.5">No comments yet.</p>
+                  ) : (
+                    <div className="mt-1.5 space-y-1">
+                      {p.comments.map((c, i) => (
+                        <p key={i} className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                          <span className={`font-semibold ${c.comment_type === 'system' ? 'text-dp-secondary' : 'text-dp-on-surface'}`}>{c.username ?? 'Unknown'}:</span> {c.content}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <p className="font-sans text-dp-on-surface-variant py-8 text-center">Loading...</p>
@@ -843,6 +1023,20 @@ export default function MeetingsAgendaPage() {
               <h2 className="font-heading text-[18px] font-bold text-dp-primary flex items-center gap-2"><Globe2 size={18} className="text-dp-secondary" /> Import from Website</h2>
               <button onClick={() => setImportMeetingId(null)} className="cursor-pointer"><X size={20} /></button>
             </div>
+            {!loadingSuggestions && readyProposals.length > 0 && (
+              <div className="px-5 pt-4 space-y-2.5">
+                <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-wide">Proposals Ready for Decision</p>
+                {readyProposals.map((p) => (
+                  <div key={p.id} className="border border-blue-200 bg-blue-50/50 rounded-lg p-3">
+                    <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{p.title}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="font-sans text-[11.5px] text-blue-700 font-semibold">{p.voteCount}/{p.vote_target} votes reached</p>
+                      <button onClick={() => importProposal(p)} className="px-2.5 py-1 bg-dp-secondary text-white rounded-lg font-sans text-[11.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer shrink-0">+ Add</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="p-5 space-y-2.5">
               {loadingSuggestions ? (
                 <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-6">Loading...</p>
@@ -917,6 +1111,14 @@ export default function MeetingsAgendaPage() {
             textUr: e.text_ur, status: e.status,
             calledByName: adminName(e.created_by_admin_user_id) ?? 'Unknown',
             completedByName: adminName(e.done_by_admin_user_id),
+          })),
+          complaints: complaints.filter((c) => c.status !== 'verified').map((c) => ({
+            complaintNumber: c.complaint_number, complainantName: c.complainant_name, sector: c.sector,
+            text: c.complaint_text, status: c.status, inchargeName: c.incharge_name,
+          })),
+          projectDiscussions: projectDiscussions.map((p) => ({
+            title: p.title, status: p.status, voteCount: p.vote_count, voteTarget: p.vote_target,
+            comments: p.comments.map((c) => ({ authorName: c.username, text: c.content, isSystem: c.comment_type === 'system' })),
           })),
         }
         const buildBlob = async () => {

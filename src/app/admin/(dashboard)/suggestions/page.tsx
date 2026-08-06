@@ -26,6 +26,7 @@ const typeColors: Record<string, string> = {
   complaint: 'bg-red-50 text-red-700',
   volunteer: 'bg-emerald-50 text-emerald-700',
   general: 'bg-gray-100 text-gray-700',
+  role_request: 'bg-purple-50 text-purple-700',
 }
 
 export default function AdminSuggestionsPage() {

@@ -1,0 +1,120 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { usePortalUser } from '@/hooks/usePortalUser'
+import { toast } from 'sonner'
+import { HandHeart, Sparkles, Send } from 'lucide-react'
+
+interface Item { id: string; message: string; type: string; status: string; admin_notes: string | null; created_at: string }
+
+const statusLabel: Record<string, { label: string; cls: string }> = {
+  new: { label: 'Submitted', cls: 'bg-amber-100 text-amber-700' },
+  reviewed: { label: 'Reviewed', cls: 'bg-blue-100 text-blue-700' },
+  actioned: { label: 'Actioned', cls: 'bg-emerald-100 text-emerald-700' },
+}
+const typeLabel: Record<string, string> = { volunteer: 'Volunteer', role_request: 'Publisher Role Request' }
+
+// Both flows are deliberately lightweight: they just post into the existing
+// `suggestions` inbox (type='volunteer' / 'role_request') for staff to
+// review — no auto-granting of the publisher role, matching how every other
+// role change in this app already works (manual, via User Management).
+export default function PortalGetInvolvedPage() {
+  const { user, loading: userLoading } = usePortalUser()
+  const [items, setItems] = useState<Item[]>([])
+  const [loading, setLoading] = useState(true)
+  const [skills, setSkills] = useState('')
+  const [roleSkills, setRoleSkills] = useState('')
+  const [savingVolunteer, setSavingVolunteer] = useState(false)
+  const [savingRole, setSavingRole] = useState(false)
+
+  const load = async () => {
+    if (!user) return
+    const supabase = createClient()
+    const { data } = await supabase.from('suggestions').select('id, message, type, status, admin_notes, created_at')
+      .eq('portal_user_id', user.id).in('type', ['volunteer', 'role_request']).order('created_at', { ascending: false })
+    setItems(data ?? [])
+    setLoading(false)
+  }
+  useEffect(() => { load() }, [user])
+
+  const submitVolunteer = async () => {
+    if (!user || !skills.trim()) { toast.error('Describe how you can help'); return }
+    setSavingVolunteer(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('suggestions').insert({
+      name: user.full_name, mobile: user.whatsapp_number ?? user.mobile, message: skills.trim(), portal_user_id: user.id, type: 'volunteer',
+    })
+    setSavingVolunteer(false)
+    if (error) { toast.error(error.message); return }
+    toast.success('Volunteer application submitted')
+    setSkills('')
+    load()
+  }
+
+  const submitRoleRequest = async () => {
+    if (!user || !roleSkills.trim()) { toast.error('Describe your skills'); return }
+    setSavingRole(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('suggestions').insert({
+      name: user.full_name, mobile: user.whatsapp_number ?? user.mobile, message: roleSkills.trim(), portal_user_id: user.id, type: 'role_request',
+    })
+    setSavingRole(false)
+    if (error) { toast.error(error.message); return }
+    toast.success('Request submitted')
+    setRoleSkills('')
+    load()
+  }
+
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+
+  return (
+    <>
+      <div className="mb-6">
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary">Get Involved</h1>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Offer your time, skills, or request to help publish content for the committee.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-6">
+          <h2 className="font-heading text-[17px] font-bold text-dp-primary flex items-center gap-2 mb-3"><HandHeart size={18} className="text-dp-secondary" /> Volunteer</h2>
+          <p className="font-sans text-[13px] text-dp-on-surface-variant mb-3">Tell us what you can help with — labor, organizing, skills for ongoing projects.</p>
+          <textarea value={skills} onChange={(e) => setSkills(e.target.value)} rows={4} placeholder="e.g. I can help with plumbing work on weekends..." className="input-field resize-none mb-3" />
+          <button onClick={submitVolunteer} disabled={savingVolunteer} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+            <Send size={14} /> {savingVolunteer ? 'Submitting...' : 'Submit'}
+          </button>
+        </div>
+
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-6">
+          <h2 className="font-heading text-[17px] font-bold text-dp-primary flex items-center gap-2 mb-3"><Sparkles size={18} className="text-dp-secondary" /> Request Publisher Role</h2>
+          <p className="font-sans text-[13px] text-dp-on-surface-variant mb-3">Writing, photography, or design skills? Request access to publish news/content on the website.</p>
+          <textarea value={roleSkills} onChange={(e) => setRoleSkills(e.target.value)} rows={4} placeholder="e.g. I have 3 years of photography experience and can cover project events..." className="input-field resize-none mb-3" />
+          <button onClick={submitRoleRequest} disabled={savingRole} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+            <Send size={14} /> {savingRole ? 'Submitting...' : 'Request'}
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
+        <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/60"><span className="font-sans text-[14px] font-bold">My Requests</span></div>
+        {items.length === 0 ? (
+          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No requests submitted yet.</p>
+        ) : (
+          items.map((i) => (
+            <div key={i.id} className="px-5 py-4 border-b border-dp-outline-variant last:border-b-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1">
+                  <span className="font-sans text-[11px] font-bold text-dp-secondary uppercase tracking-wide">{typeLabel[i.type] ?? i.type}</span>
+                  <p className="font-sans text-[14px] mt-0.5">{i.message}</p>
+                </div>
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${statusLabel[i.status]?.cls}`}>{statusLabel[i.status]?.label ?? i.status}</span>
+              </div>
+              {i.admin_notes && <p className="font-sans text-[12.5px] text-dp-secondary mt-1.5">Reply: {i.admin_notes}</p>}
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">{new Date(i.created_at).toLocaleDateString('en-GB')}</p>
+            </div>
+          ))
+        )}
+      </div>
+    </>
+  )
+}

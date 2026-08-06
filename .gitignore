@@ -41,6 +41,7 @@ yarn-error.log*
 
 # supabase CLI local state (connection metadata, machine-specific)
 /supabase/.temp
+/supabase/.branches
 
 # personal reference images, not part of the app
 /references

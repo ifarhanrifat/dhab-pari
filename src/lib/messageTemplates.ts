@@ -33,6 +33,17 @@ export const TEMPLATE_KEYS: Record<string, TemplateKeyInfo[]> = {
     { token: '%%amount%%', description: 'Contribution amount' },
     { token: '%%due_date%%', description: 'Next contribution date' },
   ],
+  donor_donation_confirmed: [
+    { token: '%%name%%', description: 'Donor name' },
+    { token: '%%amount%%', description: 'Donation amount' },
+    { token: '%%account_no%%', description: 'Donor account number' },
+    { token: '%%project%%', description: 'Project name (or General Fund)' },
+  ],
+  donor_pledge_reminder: [
+    { token: '%%name%%', description: 'Donor name' },
+    { token: '%%amount%%', description: 'Pledged amount' },
+    { token: '%%date%%', description: 'Date the pledge was announced' },
+  ],
   consumer_outstanding_notify: [
     { token: '%%name%%', description: 'Consumer name' },
     { token: '%%consumer_id%%', description: 'Consumer number' },

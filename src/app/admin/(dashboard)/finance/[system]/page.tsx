@@ -119,7 +119,7 @@ const today = () => new Date().toISOString().slice(0, 10)
 const defaultDueDate = (month: number, year: number) => {
   return `${year}-${String(month).padStart(2, '0')}-07`
 }
-const emptyVoucherForm = { date: today(), fromId: '', toId: '', amount: 0, party: '', particular: '' }
+const emptyVoucherForm = { date: today(), fromId: '', toId: '', amount: 0, party: '', particular: '', projectId: '' }
 const emptyBillForm = {
   consumer_id: '', month: new Date().getMonth() + 1, year: new Date().getFullYear(),
   due_date: defaultDueDate(new Date().getMonth() + 1, new Date().getFullYear()), description: '', discount_amount: 0, security_deposit_amount: 0, deposit_account_id: '',
@@ -929,6 +929,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       particular: voucherForm.particular, amount_pkr: voucherForm.amount,
       from_account_id: voucherForm.fromId, to_account_id: voucherForm.toId,
       party_name: voucherForm.party || null, attachment_url: voucherAttachment || null,
+      project_id: (system === 'donors_projects' && activeType === 'expense' && voucherForm.projectId) || null,
     }).select('id, voucher_type, voucher_date, particular, amount_pkr, status, voucher_no').single()
     setSaving(false)
     if (error) { toast.error(error.message); return }
@@ -958,6 +959,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       system, voucher_type: 'expense', voucher_date: voucherForm.date,
       particular: voucherForm.particular, amount_pkr: 0, from_account_id: voucherForm.fromId,
       party_name: voucherForm.party || null, attachment_url: voucherAttachment || null, status: 'draft',
+      project_id: (system === 'donors_projects' && voucherForm.projectId) || null,
     }).select('id').single()
     if (draftErr) { toast.error(draftErr.message); setSaving(false); return }
 
@@ -1426,6 +1428,15 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Description *</label>
                     <input value={voucherForm.particular} onChange={(e) => setVoucherForm({ ...voucherForm, particular: e.target.value })} className="input-field" placeholder="What is this transaction for?" />
                   </div>
+                  {system === 'donors_projects' && activeType === 'expense' && (
+                    <div>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Project (optional)</label>
+                      <select value={voucherForm.projectId} onChange={(e) => setVoucherForm({ ...voucherForm, projectId: e.target.value })} className="input-field">
+                        <option value="">Not project-specific</option>
+                        {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                      </select>
+                    </div>
+                  )}
                   {activeType === 'expense' && (
                     <FileAttachment label="Attach Bill (optional)" currentUrl={voucherAttachment} onUpload={setVoucherAttachment} />
                   )}
