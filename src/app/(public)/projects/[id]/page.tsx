@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { ArrowLeft, MapPin, HeartHandshake, Megaphone, Receipt, CheckCircle, Vote, ThumbsUp, Flag, Share2, Clock, Users } from 'lucide-react'
+import { ArrowLeft, MapPin, HeartHandshake, Megaphone, Receipt, CheckCircle, Vote, ThumbsUp, Flag, Share2, Clock, Users, HandHeart, X } from 'lucide-react'
 
 interface Project {
   id: string; title: string; description: string | null; status: string
@@ -30,6 +30,23 @@ function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
 
+type Lang = 'en' | 'ur'
+
+// Same site-wide "Accounts Display Language" toggle /water/apply and
+// propose-project already respect (site_settings.display_language).
+const t: Record<string, { en: string; ur: string }> = {
+  announcedHeading: { en: 'Announced — Pledged, Not Yet Received', ur: 'اعلان شدہ — وعدہ کیا گیا، ابھی رقم موصول نہیں ہوئی' },
+  announcedSub: { en: "These donors have announced their funding, but it hasn't reached the project account yet.", ur: 'ان عطیہ دہندگان نے فنڈنگ کا اعلان کیا ہے، لیکن رقم ابھی تک منصوبے کے اکاؤنٹ میں نہیں پہنچی۔' },
+  confirmedHeading: { en: 'Confirmed — Received in Project Account', ur: 'موصول شدہ — منصوبے کے اکاؤنٹ میں پہنچ چکی' },
+  confirmedSub: { en: "This donor's amount has already arrived in the project's account.", ur: 'اس عطیہ دہندہ کی رقم منصوبے کے اکاؤنٹ میں پہنچ چکی ہے۔' },
+  expensesHeading: { en: 'Expenses', ur: 'اخراجات' },
+  discussionHeading: { en: 'Discussion', ur: 'تبادلہ خیال' },
+  noAnnounced: { en: 'No announced pledges yet.', ur: 'ابھی تک کوئی اعلان شدہ وعدہ نہیں۔' },
+  noConfirmed: { en: 'No verified donations yet.', ur: 'ابھی تک کوئی تصدیق شدہ عطیہ نہیں۔' },
+  noExpenses: { en: 'No expenses recorded yet.', ur: 'ابھی تک کوئی خرچ درج نہیں ہوا۔' },
+  receivedVia: { en: 'Received via', ur: 'موصولہ ذریعہ' },
+}
+
 // The first public, per-project real financial view in this app — everything
 // before this (the old /accounts page) was either admin-only or hardcoded
 // placeholder data. Reuses the project's own ledger account (migration 118)
@@ -43,7 +60,9 @@ export default function ProjectDetailPage() {
   const [announced, setAnnounced] = useState<DonorRow[]>([])
   const [expenses, setExpenses] = useState<ExpenseRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'verified' | 'announced' | 'expenses' | 'discussion'>('verified')
+  const [lang, setLang] = useState<Lang>('en')
+  const dt = (key: keyof typeof t) => t[key][lang]
+  const isUrdu = lang === 'ur'
   const [comments, setComments] = useState<CommentRow[]>([])
   const [myLikes, setMyLikes] = useState<Set<string>>(new Set())
   const [newComment, setNewComment] = useState('')
@@ -56,10 +75,15 @@ export default function ProjectDetailPage() {
   const [announceAmount, setAnnounceAmount] = useState(0)
   const [announcing, setAnnouncing] = useState(false)
 
+  const [showVolunteer, setShowVolunteer] = useState(false)
+  const [volunteerMessage, setVolunteerMessage] = useState('')
+  const [volunteering, setVolunteering] = useState(false)
+
   const [votes, setVotes] = useState<VoteRow[]>([])
   const [myVoteId, setMyVoteId] = useState<string | null>(null)
   const [voting, setVoting] = useState(false)
   const [monthlySponsored, setMonthlySponsored] = useState(0)
+  const [channels, setChannels] = useState<{ payment_method: string; total_pkr: number }[]>([])
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -85,6 +109,8 @@ export default function ProjectDetailPage() {
       const { data: sponsored } = await supabase.rpc('project_monthly_sponsorship_pkr', { p_project_id: id })
       setMonthlySponsored(Number(sponsored ?? 0))
     }
+    const { data: ch } = await supabase.rpc('project_donation_channels_pkr', { p_project_id: id })
+    setChannels(ch ?? [])
     setLoading(false)
 
     const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -103,6 +129,12 @@ export default function ProjectDetailPage() {
   }, [id])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    createClient().from('site_settings').select('value').eq('key', 'display_language').maybeSingle().then(({ data }) => {
+      if (data?.value === 'ur') setLang('ur')
+    })
+  }, [])
 
   // Live expenses — updates the moment staff post a project-tagged expense,
   // no refresh needed (migration 134 enables Realtime on ledger_entries).
@@ -145,6 +177,20 @@ export default function ProjectDetailPage() {
     setShowAnnounce(false)
     setAnnounceAmount(0)
     load()
+  }
+
+  const submitVolunteer = async () => {
+    if (!portalUser) { router.push(`/portal/login?next=/projects/${id}`); return }
+    setVolunteering(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('volunteers').insert({
+      portal_user_id: portalUser.id, project_id: id, message: volunteerMessage.trim() || null,
+    })
+    setVolunteering(false)
+    if (error) { toast.error(error.message); return }
+    toast.success('Thank you for volunteering!')
+    setShowVolunteer(false)
+    setVolunteerMessage('')
   }
 
   // Votes are permanent once cast — no retract path (RLS has no delete-own
@@ -240,6 +286,19 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
+      {channels.length > 0 && (
+        <div className="mb-8" dir={isUrdu ? 'rtl' : 'ltr'}>
+          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide mb-1.5" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('receivedVia')}</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-1">
+            {channels.map((c) => (
+              <p key={c.payment_method} className="font-sans text-[13.5px] text-dp-on-surface-variant">
+                <span className="capitalize font-semibold text-dp-on-surface">{c.payment_method}</span>: Rs. {fmt(c.total_pkr)}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
       {project.status === 'announced' ? (
         <div className="bg-slate-100 border border-slate-300 rounded-lg p-6 mb-8 flex items-center gap-3">
           <Clock size={22} className="text-slate-500 shrink-0" />
@@ -287,6 +346,9 @@ export default function ProjectDetailPage() {
           <button onClick={() => (portalUser ? setShowAnnounce(true) : router.push(`/portal/login?next=/projects/${id}`))} className="flex items-center gap-2 border-2 border-dp-primary text-dp-primary px-6 py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary hover:text-white transition-all cursor-pointer">
             <Megaphone size={16} /> Announce a Pledge
           </button>
+          <button onClick={() => (portalUser ? setShowVolunteer(true) : router.push(`/portal/login?next=/projects/${id}`))} className="flex items-center gap-2 border-2 border-dp-secondary text-dp-secondary px-6 py-3 rounded-lg font-sans font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
+            <HandHeart size={16} /> Volunteer for this Project
+          </button>
         </div>
       )}
 
@@ -310,42 +372,45 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      <div className="flex gap-2 mb-4 border-b border-dp-outline-variant">
-        {(['verified', 'announced', 'expenses', 'discussion'] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`px-4 py-2.5 font-sans text-[14px] font-semibold capitalize cursor-pointer border-b-2 transition-all ${tab === t ? 'border-dp-secondary text-dp-secondary' : 'border-transparent text-dp-on-surface-variant hover:text-dp-on-surface'}`}>
-            {t}
-          </button>
-        ))}
+      {/* Announced (left) / Confirmed (right) — always both visible side by
+          side, no tab-switching, per your ask. Headings follow the site's
+          display_language setting. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div dir={isUrdu ? 'rtl' : 'ltr'}>
+          <p className="font-sans text-[14px] font-bold text-amber-700 mb-0.5" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('announcedHeading')}</p>
+          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('announcedSub')}</p>
+          <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
+            {announced.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('noAnnounced')}</p>}
+            {announced.map((d) => (
+              <div key={d.id} className="flex items-center justify-between px-5 py-3.5">
+                <div>
+                  <span className="font-sans text-[14px] font-semibold">{d.name}</span>
+                  <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase">{d.payment_status === 'pledged' ? 'Pledged' : 'Awaiting Verification'}</span>
+                </div>
+                <span className="font-sans text-[14px] font-bold text-amber-600">Rs. {fmt(d.amount_pkr)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div dir={isUrdu ? 'rtl' : 'ltr'}>
+          <p className="font-sans text-[14px] font-bold text-dp-secondary mb-0.5" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('confirmedHeading')}</p>
+          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('confirmedSub')}</p>
+          <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
+            {verified.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('noConfirmed')}</p>}
+            {verified.map((d) => (
+              <div key={d.id} className="flex items-center justify-between px-5 py-3.5">
+                <span className="font-sans text-[14px] font-semibold flex items-center gap-2"><CheckCircle size={14} className="text-dp-secondary" /> {d.name}</span>
+                <span className="font-sans text-[14px] font-bold text-dp-secondary">Rs. {fmt(d.amount_pkr)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {tab === 'verified' && (
+      <div className="mb-8">
+        <p className="font-sans text-[14px] font-bold text-dp-on-surface mb-2" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('expensesHeading')}</p>
         <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
-          {verified.length === 0 && <p className="p-6 text-center font-sans text-[14px] text-dp-on-surface-variant">No verified donations yet.</p>}
-          {verified.map((d) => (
-            <div key={d.id} className="flex items-center justify-between px-5 py-3.5">
-              <span className="font-sans text-[14px] font-semibold flex items-center gap-2"><CheckCircle size={14} className="text-dp-secondary" /> {d.name}</span>
-              <span className="font-sans text-[14px] font-bold text-dp-secondary">Rs. {fmt(d.amount_pkr)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {tab === 'announced' && (
-        <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
-          {announced.length === 0 && <p className="p-6 text-center font-sans text-[14px] text-dp-on-surface-variant">No announced pledges yet.</p>}
-          {announced.map((d) => (
-            <div key={d.id} className="flex items-center justify-between px-5 py-3.5">
-              <div>
-                <span className="font-sans text-[14px] font-semibold">{d.name}</span>
-                <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase">{d.payment_status === 'pledged' ? 'Pledged' : 'Awaiting Verification'}</span>
-              </div>
-              <span className="font-sans text-[14px] font-bold text-amber-600">Rs. {fmt(d.amount_pkr)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {tab === 'expenses' && (
-        <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
-          {expenses.length === 0 && <p className="p-6 text-center font-sans text-[14px] text-dp-on-surface-variant">No expenses recorded yet.</p>}
+          {expenses.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('noExpenses')}</p>}
           {expenses.map((e) => (
             <div key={e.id} className="flex items-center justify-between px-5 py-3.5">
               <span className="font-sans text-[14px] flex items-center gap-2"><Receipt size={14} className="text-dp-error" /> {e.particular}</span>
@@ -356,40 +421,40 @@ export default function ProjectDetailPage() {
             </div>
           ))}
         </div>
-      )}
+      </div>
 
-      {tab === 'discussion' && (
-        <div>
-          <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-4">
-            <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} rows={2} placeholder={portalUser ? 'Share your thoughts...' : 'Log in to join the discussion'}
-              disabled={!portalUser} className="input-field resize-none mb-2" />
-            <button onClick={() => postComment()} disabled={postingComment || !portalUser} className="px-5 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-              {postingComment ? 'Posting...' : 'Post Comment'}
-            </button>
-          </div>
-          <div className="space-y-3">
-            {comments.length === 0 && <p className="text-center font-sans text-[14px] text-dp-on-surface-variant py-6">No comments yet — be the first to discuss this project.</p>}
-            {comments.filter((c) => !c.parent_comment_id).map((c) => (
-              <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
-                <CommentBody c={c} myLikes={myLikes} toggleLike={toggleLike} flagComment={flagComment} onReply={() => setReplyingTo(replyingTo === c.id ? null : c.id)} />
-                {replyingTo === c.id && (
-                  <div className="mt-3 pl-11 flex gap-2">
-                    <input value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Write a reply..." className="input-field flex-1" />
-                    <button onClick={() => postComment(c.id)} disabled={postingComment} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">Reply</button>
-                  </div>
-                )}
-                {comments.filter((r) => r.parent_comment_id === c.id).map((r) => (
-                  <div key={r.id} className="mt-3 pl-11 border-l-2 border-dp-outline-variant">
-                    <div className="pl-3">
-                      <CommentBody c={r} myLikes={myLikes} toggleLike={toggleLike} flagComment={flagComment} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
+      {/* Discussion — always visible, per your ask (no tab to switch to). */}
+      <div>
+        <p className="font-sans text-[14px] font-bold text-dp-on-surface mb-2" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('discussionHeading')}</p>
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-4">
+          <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} rows={2} placeholder={portalUser ? 'Share your thoughts...' : 'Log in to join the discussion'}
+            disabled={!portalUser} className="input-field resize-none mb-2" />
+          <button onClick={() => postComment()} disabled={postingComment || !portalUser} className="px-5 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+            {postingComment ? 'Posting...' : 'Post Comment'}
+          </button>
         </div>
-      )}
+        <div className="space-y-3">
+          {comments.length === 0 && <p className="text-center font-sans text-[14px] text-dp-on-surface-variant py-6">No comments yet — be the first to discuss this project.</p>}
+          {comments.filter((c) => !c.parent_comment_id).map((c) => (
+            <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
+              <CommentBody c={c} myLikes={myLikes} toggleLike={toggleLike} flagComment={flagComment} onReply={() => setReplyingTo(replyingTo === c.id ? null : c.id)} />
+              {replyingTo === c.id && (
+                <div className="mt-3 pl-11 flex gap-2">
+                  <input value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Write a reply..." className="input-field flex-1" />
+                  <button onClick={() => postComment(c.id)} disabled={postingComment} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">Reply</button>
+                </div>
+              )}
+              {comments.filter((r) => r.parent_comment_id === c.id).map((r) => (
+                <div key={r.id} className="mt-3 pl-11 border-l-2 border-dp-outline-variant">
+                  <div className="pl-3">
+                    <CommentBody c={r} myLikes={myLikes} toggleLike={toggleLike} flagComment={flagComment} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
 
       {showAnnounce && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowAnnounce(false)}>
@@ -399,6 +464,22 @@ export default function ProjectDetailPage() {
             <input type="number" min={1} value={announceAmount || ''} onChange={(e) => setAnnounceAmount(+e.target.value)} placeholder="Amount (PKR)" className="input-field mb-4" />
             <button onClick={submitAnnounce} disabled={announcing} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
               {announcing ? 'Announcing...' : 'Announce Pledge'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showVolunteer && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowVolunteer(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">Volunteer for this Project</h2>
+              <button onClick={() => setShowVolunteer(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">Your name shows publicly as a volunteer for this project. The committee will reach out with details.</p>
+            <textarea value={volunteerMessage} onChange={(e) => setVolunteerMessage(e.target.value)} rows={3} placeholder="Your skills, availability, etc. (optional)" className="input-field resize-none mb-4" />
+            <button onClick={submitVolunteer} disabled={volunteering} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+              {volunteering ? 'Submitting...' : 'Volunteer'}
             </button>
           </div>
         </div>

@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import {
   LayoutDashboard, HeartHandshake, Droplets, Repeat, MessageSquare,
-  MessageSquareWarning, Droplet, LogOut, X, UserCog, ArrowLeftCircle, HandHeart, Vote,
+  MessageSquareWarning, Droplet, LogOut, X, UserCog, ArrowLeftCircle, HandHeart, Vote, Briefcase,
 } from 'lucide-react'
 
 // Mirrors AdminSidebar.tsx's exact pattern (fixed desktop sidebar + mobile
@@ -23,6 +23,8 @@ const menuItems = [
   { href: '/portal/suggestions', label: 'Suggestions', icon: MessageSquare },
   { href: '/portal/complaints', label: 'Complaints', icon: MessageSquareWarning },
   { href: '/portal/blood-donor', label: 'Blood Donor', icon: Droplet },
+  { href: '/portal/post-job', label: 'My Job Listings', icon: Briefcase },
+  { href: '/portal/my-volunteering', label: 'My Volunteering', icon: HeartHandshake },
   { href: '/portal/get-involved', label: 'Get Involved', icon: HandHeart },
   { href: '/portal/profile', label: 'My Profile', icon: UserCog },
 ]

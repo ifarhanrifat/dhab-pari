@@ -17,7 +17,7 @@ import { dt } from '@/lib/docTranslations'
 interface Account {
   id: string; code: string; name: string; name_ur: string | null
   type: string; system: string; opening_balance: number; is_active: boolean
-  consumer_id: string | null; donor_key: string | null
+  consumer_id: string | null; donor_key: string | null; project_id: string | null
 }
 interface ConsumerInfo {
   consumer_id: string; mobile: string; address: string | null; connections: number
@@ -59,12 +59,17 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
   const [manualForm, setManualForm] = useState({ entry_date: new Date().toISOString().slice(0, 10), particular: '', debit: 0, credit: 0 })
   const [printing, setPrinting] = useState(false)
   const [lang, setLang] = useState<'en' | 'ur'>('en')
+  const [channels, setChannels] = useState<{ payment_method: string; total_pkr: number }[]>([])
   const statementRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
   const load = useCallback(async () => {
     const { data: acc } = await supabase.from('accounts').select('*').eq('id', id).single()
     setAccount(acc)
+    if (acc?.type === 'project' && acc.project_id) {
+      const { data: ch } = await supabase.rpc('project_donation_channels_pkr', { p_project_id: acc.project_id })
+      setChannels(ch ?? [])
+    }
 
     const brandingSettings = await fetchBrandingSettings()
     if (brandingSettings.language === 'ur') setLang('ur')
@@ -342,6 +347,18 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
             </p>
           </div>
         </div>
+        {account.type === 'project' && channels.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-dp-outline-variant">
+            <p className="font-sans text-[11px] font-bold tracking-widest uppercase text-dp-on-surface-variant mb-2">{dt(lang, 'receivedVia')}</p>
+            <div className="flex flex-wrap gap-4">
+              {channels.map((c) => (
+                <p key={c.payment_method} className="font-sans text-[13.5px] text-dp-on-surface">
+                  <span className="capitalize font-semibold">{c.payment_method}</span>: Rs. {fmtAmount(c.total_pkr)}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">

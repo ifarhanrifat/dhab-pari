@@ -3,15 +3,18 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { motion } from 'motion/react'
 import {
   MapPin,
   CheckCircle,
   Vote,
   ThumbsUp,
   MessageSquare,
-  ArrowRight,
   Flame,
   Lock,
+  Share2,
+  Eye,
+  HandHeart,
 } from 'lucide-react'
 
 interface Project {
@@ -31,6 +34,68 @@ interface Project {
   sector: string | null
   beneficiaries_count: number | null
   vote_target: number | null
+  before_image_url: string | null
+  after_image_url: string | null
+  proposal_image_url: string | null
+}
+
+type Lang = 'en' | 'ur'
+
+// Same site-wide "Accounts Display Language" toggle every other bilingual
+// page here already respects (site_settings.display_language).
+const t: Record<string, { en: string; ur: string }> = {
+  pageTitle: { en: 'Village Welfare Projects', ur: 'گاؤں کی فلاحی منصوبے' },
+  pageSubtitle: { en: 'Tracking the growth of Dhab Pari through community-funded infrastructure, healthcare, and educational initiatives.', ur: 'کمیونٹی کی مالی معاونت سے تعمیرات، صحت اور تعلیمی اقدامات کے ذریعے ڈھاب پڑی کی ترقی کا سفر۔' },
+  filterAll: { en: 'All', ur: 'تمام' },
+  filterOngoing: { en: 'Ongoing', ur: 'جاری' },
+  filterCompleted: { en: 'Completed', ur: 'مکمل' },
+  filterUpcoming: { en: 'Upcoming', ur: 'آئندہ' },
+  filterAnnounced: { en: 'Announced', ur: 'اعلان شدہ' },
+  sortByDate: { en: 'Sort by Date', ur: 'تاریخ کے مطابق ترتیب' },
+  noProjects: { en: 'No projects found for this filter.', ur: 'اس فلٹر کے لیے کوئی منصوبہ نہیں ملا۔' },
+  ctaTitle: { en: 'Have an idea for the village?', ur: 'گاؤں کے لیے کوئی خیال ہے؟' },
+  ctaBody: { en: "Every great transformation starts with a simple suggestion. Share your vision for Dhab Pari's future infrastructure or welfare projects.", ur: 'ہر بڑی تبدیلی ایک سادہ تجویز سے شروع ہوتی ہے۔ ڈھاب پڑی کے مستقبل کے تعمیراتی یا فلاحی منصوبوں کے لیے اپنا خیال پیش کریں۔' },
+  submitProposal: { en: 'Submit Proposal', ur: 'تجویز جمع کرائیں' },
+  browseProposals: { en: 'Browse Proposals', ur: 'تجاویز دیکھیں' },
+
+  before: { en: 'Before', ur: 'پہلے' },
+  present: { en: 'Present', ur: 'اب' },
+  ongoingBadge: { en: 'Ongoing', ur: 'جاری' },
+  completionLabel: { en: 'Project Completion', ur: 'منصوبے کی تکمیل' },
+  budgetLabel: { en: 'Budget', ur: 'بجٹ' },
+  spentLabel: { en: 'Spent', ur: 'خرچ شدہ' },
+  detailsBtn: { en: 'Details', ur: 'تفصیلات' },
+  donateBtn: { en: 'Donate', ur: 'عطیہ دیں' },
+
+  successStory: { en: 'Success Story', ur: 'کامیابی کی کہانی' },
+  completedBadge: { en: 'Completed', ur: 'مکمل' },
+  operationalStatus: { en: 'Operational Status', ur: 'آپریشنل حیثیت' },
+  fullyFunctional: { en: '100% Fully Functional', ur: '100% مکمل طور پر فعال' },
+  totalCost: { en: 'Total Cost', ur: 'کل لاگت' },
+  beneficiaries: { en: 'Beneficiaries', ur: 'مستفید افراد' },
+  homes: { en: 'Homes', ur: 'گھر' },
+  completedOn: { en: 'Completed', ur: 'مکمل ہوا' },
+  viewAudit: { en: 'View Audit', ur: 'آڈٹ دیکھیں' },
+
+  futureVision: { en: 'Future Vision', ur: 'مستقبل کا منصوبہ' },
+  votingStage: { en: 'Community Voting Stage', ur: 'کمیونٹی ووٹنگ مرحلہ' },
+  upcomingVoting: { en: 'Upcoming / Voting', ur: 'آئندہ / ووٹنگ' },
+  requestedBudget: { en: 'Requested Budget', ur: 'مطلوبہ بجٹ' },
+  votesWord: { en: 'Votes', ur: 'ووٹ' },
+  requiresToAdvance: { en: 'Requires {n} to advance', ur: 'آگے بڑھنے کے لیے {n} درکار' },
+  voteTargetNotSet: { en: 'Vote target not set', ur: 'ووٹ کا ہدف مقرر نہیں' },
+  viewAndVote: { en: 'View & Vote', ur: 'دیکھیں اور ووٹ دیں' },
+  shareToVote: { en: 'Share', ur: 'شیئر کریں' },
+  submitSuggestion: { en: 'Submit Suggestion', ur: 'تجویز جمع کرائیں' },
+
+  announcedBadge: { en: 'Announced', ur: 'اعلان شدہ' },
+  waitingConfirmation: { en: 'Waiting for the announced payment confirmation', ur: 'اعلان شدہ ادائیگی کی تصدیق کا انتظار' },
+  viewDetails: { en: 'View Details', ur: 'تفصیلات دیکھیں' },
+}
+
+const CATEGORY_LABEL_UR: Record<string, string> = {
+  infrastructure: 'تعمیرات', water: 'پانی', health: 'صحت', education: 'تعلیم',
+  environment: 'ماحولیات', welfare: 'بہبود', sports: 'کھیل', other: 'دیگر',
 }
 
 const filters = ['All', 'Ongoing', 'Completed', 'Upcoming', 'Announced']
@@ -42,15 +107,30 @@ function formatPKR(val: number | null) {
   return val.toLocaleString()
 }
 
+function fmtFull(val: number | null) {
+  return (val ?? 0).toLocaleString()
+}
+
+function categoryLabel(category: string | null, isUrdu: boolean) {
+  const c = category ?? 'other'
+  return isUrdu ? (CATEGORY_LABEL_UR[c] ?? c) : c
+}
+
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [voteCounts, setVoteCounts] = useState<Record<string, number>>({})
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
   const [activeFilter, setActiveFilter] = useState('All')
   const [loading, setLoading] = useState(true)
+  const [lang, setLang] = useState<Lang>('en')
+  const dt = (key: keyof typeof t) => t[key][lang]
+  const isUrdu = lang === 'ur'
 
   useEffect(() => {
     const supabase = createClient()
+    supabase.from('site_settings').select('value').eq('key', 'display_language').maybeSingle().then(({ data }) => {
+      if (data?.value === 'ur') setLang('ur')
+    })
     supabase
       .from('projects')
       .select('*')
@@ -88,16 +168,19 @@ export default function ProjectsPage() {
       : projects.filter((p) => p.status === activeFilter.toLowerCase())
   ).slice().sort((a, b) => engagementScore(b) - engagementScore(a))
 
+  const filterKeys: Record<string, keyof typeof t> = {
+    All: 'filterAll', Ongoing: 'filterOngoing', Completed: 'filterCompleted', Upcoming: 'filterUpcoming', Announced: 'filterAnnounced',
+  }
+
   return (
-    <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen">
+    <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="mb-12">
-        <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-on-surface">
-          Village Welfare Projects
+        <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-on-surface" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+          {dt('pageTitle')}
         </h2>
-        <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px] max-w-2xl mt-2">
-          Tracking the growth of Dhab Pari through community-funded
-          infrastructure, healthcare, and educational initiatives.
+        <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px] max-w-2xl mt-2" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+          {dt('pageSubtitle')}
         </p>
       </div>
 
@@ -112,13 +195,14 @@ export default function ProjectsPage() {
                 ? 'bg-dp-primary text-white shadow-sm'
                 : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-primary hover:text-dp-primary'
             }`}
+            style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
           >
-            {f}
+            {dt(filterKeys[f])}
           </button>
         ))}
-        <div className="ml-auto hidden md:flex items-center gap-2 text-dp-on-surface-variant">
-          <span className="font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">
-            Sort by Date
+        <div className="ms-auto hidden md:flex items-center gap-2 text-dp-on-surface-variant">
+          <span className="font-sans text-[14px] font-semibold tracking-[0.05em] uppercase" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+            {dt('sortByDate')}
           </span>
         </div>
       </div>
@@ -139,16 +223,16 @@ export default function ProjectsPage() {
       {!loading && (
         <div className="space-y-8">
           {filtered.map((project) => {
-            if (project.status === 'ongoing') return <OngoingCard key={project.id} project={project} isHot={hotIds.has(project.id)} />
-            if (project.status === 'completed') return <CompletedCard key={project.id} project={project} isHot={hotIds.has(project.id)} />
-            if (project.status === 'upcoming') return <UpcomingCard key={project.id} project={project} voteCount={voteCounts[project.id] ?? 0} isHot={hotIds.has(project.id)} />
-            if (project.status === 'announced') return <AnnouncedCard key={project.id} project={project} />
+            if (project.status === 'ongoing') return <OngoingCard key={project.id} project={project} isHot={hotIds.has(project.id)} commentCount={commentCounts[project.id] ?? 0} dt={dt} isUrdu={isUrdu} />
+            if (project.status === 'completed') return <CompletedCard key={project.id} project={project} isHot={hotIds.has(project.id)} dt={dt} isUrdu={isUrdu} />
+            if (project.status === 'upcoming') return <UpcomingCard key={project.id} project={project} voteCount={voteCounts[project.id] ?? 0} isHot={hotIds.has(project.id)} dt={dt} isUrdu={isUrdu} />
+            if (project.status === 'announced') return <AnnouncedCard key={project.id} project={project} dt={dt} isUrdu={isUrdu} />
             return null
           })}
 
           {filtered.length === 0 && !loading && (
-            <div className="text-center py-16 text-dp-on-surface-variant font-sans text-[16px]">
-              No projects found for this filter.
+            <div className="text-center py-16 text-dp-on-surface-variant font-sans text-[16px]" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+              {dt('noProjects')}
             </div>
           )}
         </div>
@@ -157,26 +241,26 @@ export default function ProjectsPage() {
       {/* Bottom CTA */}
       <div className="mt-20 bg-dp-primary-container text-white p-12 rounded-2xl text-center relative overflow-hidden">
         <div className="relative z-10">
-          <h3 className="font-heading text-[32px] font-bold leading-[40px] mb-4">
-            Have an idea for the village?
+          <h3 className="font-heading text-[32px] font-bold leading-[40px] mb-4" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+            {dt('ctaTitle')}
           </h3>
-          <p className="font-sans text-[18px] leading-[28px] mb-8 max-w-xl mx-auto opacity-90">
-            Every great transformation starts with a simple suggestion. Share
-            your vision for Dhab Pari&apos;s future infrastructure or welfare
-            projects.
+          <p className="font-sans text-[18px] leading-[28px] mb-8 max-w-xl mx-auto opacity-90" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+            {dt('ctaBody')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/portal/propose-project"
               className="inline-flex items-center justify-center gap-2 font-sans text-[14px] font-semibold tracking-[0.05em] rounded transition-all active:scale-[0.98] cursor-pointer px-8 py-3 bg-dp-secondary text-white hover:bg-dp-primary"
+              style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
             >
-              Submit Proposal
+              {dt('submitProposal')}
             </Link>
             <button
               onClick={() => setActiveFilter('Upcoming')}
               className="inline-flex items-center justify-center gap-2 font-sans text-[14px] font-semibold tracking-[0.05em] rounded transition-all active:scale-[0.98] cursor-pointer px-8 py-3 bg-transparent border-2 border-white text-white hover:bg-white/10"
+              style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
             >
-              Browse Proposals
+              {dt('browseProposals')}
             </button>
           </div>
         </div>
@@ -187,6 +271,8 @@ export default function ProjectsPage() {
   )
 }
 
+type Dt = (key: keyof typeof t) => string
+
 /* ========== ONGOING CARD ========== */
 function HotBadge() {
   return (
@@ -196,7 +282,9 @@ function HotBadge() {
   )
 }
 
-function OngoingCard({ project, isHot }: { project: Project; isHot: boolean }) {
+const urduStyle = { fontFamily: 'var(--font-urdu), serif' } as const
+
+function OngoingCard({ project, isHot, commentCount, dt, isUrdu }: { project: Project; isHot: boolean; commentCount: number; dt: Dt; isUrdu: boolean }) {
   return (
     <div className="relative bg-white border border-dp-outline-variant rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 hover:border-dp-secondary transition-all">
       {isHot && <HotBadge />}
@@ -204,15 +292,23 @@ function OngoingCard({ project, isHot }: { project: Project; isHot: boolean }) {
       <div className="relative grid grid-cols-2 gap-[2px] bg-dp-outline-variant p-[2px]">
         <div className="relative">
           <div className="absolute top-2 left-2 z-10 bg-black/50 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded font-sans">
-            Before
+            {dt('before')}
           </div>
-          <div className="aspect-[4/3] bg-gradient-to-br from-dp-surface-container-high to-dp-surface-dim" />
+          {project.before_image_url ? (
+            <img src={project.before_image_url} alt="Before" className="aspect-[4/3] w-full object-cover" />
+          ) : (
+            <div className="aspect-[4/3] bg-gradient-to-br from-dp-surface-container-high to-dp-surface-dim" />
+          )}
         </div>
         <div className="relative">
           <div className="absolute top-2 left-2 z-10 bg-dp-primary text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded font-sans">
-            Present
+            {dt('present')}
           </div>
-          <div className="aspect-[4/3] bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container" />
+          {project.after_image_url || project.proposal_image_url ? (
+            <img src={project.after_image_url ?? project.proposal_image_url ?? ''} alt="Present" className="aspect-[4/3] w-full object-cover" />
+          ) : (
+            <div className="aspect-[4/3] bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container" />
+          )}
         </div>
       </div>
 
@@ -220,12 +316,12 @@ function OngoingCard({ project, isHot }: { project: Project; isHot: boolean }) {
       <div className="p-8 flex flex-col justify-between">
         <div>
           <div className="flex items-center justify-between mb-4">
-            <span className="bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded font-sans text-[12px] font-semibold tracking-[0.05em] uppercase">
-              {project.category}
+            <span className="bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded font-sans text-[12px] font-semibold tracking-[0.05em] uppercase" style={isUrdu ? urduStyle : undefined}>
+              {categoryLabel(project.category, isUrdu)}
             </span>
-            <span className="bg-amber-100 text-amber-900 px-3 py-1 rounded-full font-sans text-[12px] font-semibold flex items-center gap-1">
+            <span className="bg-amber-100 text-amber-900 px-3 py-1 rounded-full font-sans text-[12px] font-semibold flex items-center gap-1" style={isUrdu ? urduStyle : undefined}>
               <span className="w-2 h-2 bg-amber-600 rounded-full animate-pulse" />
-              Ongoing
+              {dt('ongoingBadge')}
             </span>
           </div>
           <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-1 text-dp-on-surface">
@@ -238,8 +334,8 @@ function OngoingCard({ project, isHot }: { project: Project; isHot: boolean }) {
 
           {/* Progress */}
           <div className="mb-6">
-            <div className="flex justify-between font-sans text-[14px] font-semibold tracking-[0.05em] mb-2 text-dp-on-surface">
-              <span>Project Completion</span>
+            <div className="flex justify-between font-sans text-[14px] font-semibold tracking-[0.05em] mb-2 text-dp-on-surface" style={isUrdu ? urduStyle : undefined}>
+              <span>{dt('completionLabel')}</span>
               <span>{project.progress_percent}%</span>
             </div>
             <div className="h-3 w-full bg-dp-surface-container-highest rounded-full overflow-hidden">
@@ -253,8 +349,8 @@ function OngoingCard({ project, isHot }: { project: Project; isHot: boolean }) {
           {/* Budget */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="p-3 bg-dp-surface-container-low rounded-lg">
-              <p className="text-dp-on-surface-variant text-[12px] uppercase font-semibold mb-1 font-sans">
-                Budget
+              <p className="text-dp-on-surface-variant text-[12px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
+                {dt('budgetLabel')}
               </p>
               <p className="text-[20px] font-bold text-dp-primary font-sans leading-[28px]">
                 {formatPKR(project.budget_pkr)}{' '}
@@ -262,8 +358,8 @@ function OngoingCard({ project, isHot }: { project: Project; isHot: boolean }) {
               </p>
             </div>
             <div className="p-3 bg-dp-surface-container-low rounded-lg">
-              <p className="text-dp-on-surface-variant text-[12px] uppercase font-semibold mb-1 font-sans">
-                Spent
+              <p className="text-dp-on-surface-variant text-[12px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
+                {dt('spentLabel')}
               </p>
               <p className="text-[20px] font-bold text-dp-secondary font-sans leading-[28px]">
                 {formatPKR(project.spent_pkr)}{' '}
@@ -275,24 +371,26 @@ function OngoingCard({ project, isHot }: { project: Project; isHot: boolean }) {
 
         {/* Actions */}
         <div className="flex items-center justify-between">
-          <div className="flex -space-x-3">
-            {['bg-dp-primary-container', 'bg-dp-secondary', 'bg-dp-tertiary-container'].map((bg, i) => (
-              <div key={i} className={`w-8 h-8 rounded-full border-2 border-white ${bg}`} />
-            ))}
-            <div className="w-8 h-8 rounded-full border-2 border-white bg-dp-surface-container-high flex items-center justify-center text-[10px] font-bold font-sans">
-              +14
-            </div>
-          </div>
+          {commentCount > 0 ? (
+            <Link href={`/projects/${project.id}`} className="flex items-center gap-1.5 text-dp-on-surface-variant font-sans text-[13px] hover:text-dp-secondary transition-colors">
+              <MessageSquare size={15} /> {commentCount} {commentCount === 1 ? 'comment' : 'comments'}
+            </Link>
+          ) : <span />}
           <div className="flex gap-2">
-            <Link href={`/projects/${project.id}`} className="px-4 py-2 border-2 border-dp-primary text-dp-primary font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg hover:bg-dp-primary-container hover:text-white transition-all">
-              Details
-            </Link>
-            <Link
-              href={`/projects/${project.id}`}
-              className="px-4 py-2 bg-dp-primary text-white font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg hover:scale-95 transition-transform"
-            >
-              Donate
-            </Link>
+            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
+              <Link href={`/projects/${project.id}`} className="flex items-center gap-1.5 px-4 py-2 border-2 border-dp-primary text-dp-primary font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg hover:bg-dp-primary hover:text-white transition-colors" style={isUrdu ? urduStyle : undefined}>
+                <Eye size={15} /> {dt('detailsBtn')}
+              </Link>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
+              <Link
+                href={`/projects/${project.id}`}
+                className="flex items-center gap-1.5 px-4 py-2 bg-dp-primary text-white font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg shadow-sm hover:shadow-md hover:bg-dp-primary-container transition-all"
+                style={isUrdu ? urduStyle : undefined}
+              >
+                <HandHeart size={15} /> {dt('donateBtn')}
+              </Link>
+            </motion.div>
           </div>
         </div>
       </div>
@@ -301,28 +399,32 @@ function OngoingCard({ project, isHot }: { project: Project; isHot: boolean }) {
 }
 
 /* ========== COMPLETED CARD ========== */
-function CompletedCard({ project, isHot }: { project: Project; isHot: boolean }) {
+function CompletedCard({ project, isHot, dt, isUrdu }: { project: Project; isHot: boolean; dt: Dt; isUrdu: boolean }) {
   return (
     <div className="relative bg-white border border-dp-outline-variant rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 hover:border-dp-secondary transition-all">
       {isHot && <HotBadge />}
       {/* Left: Photo */}
       <div className="relative">
         <div className="absolute top-4 left-4 z-10 bg-dp-primary text-white text-[10px] uppercase font-bold px-3 py-1 rounded font-sans">
-          Success Story
+          {dt('successStory')}
         </div>
-        <div className="h-full min-h-[300px] bg-gradient-to-br from-dp-secondary to-dp-primary-container" />
+        {project.after_image_url || project.proposal_image_url ? (
+          <img src={project.after_image_url ?? project.proposal_image_url ?? ''} alt={project.title} className="h-full min-h-[300px] w-full object-cover" />
+        ) : (
+          <div className="h-full min-h-[300px] bg-gradient-to-br from-dp-secondary to-dp-primary-container" />
+        )}
       </div>
 
       {/* Right: Content */}
       <div className="p-8 flex flex-col justify-between">
         <div>
           <div className="flex items-center justify-between mb-4">
-            <span className="bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded font-sans text-[12px] font-semibold tracking-[0.05em] uppercase">
-              {project.category}
+            <span className="bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded font-sans text-[12px] font-semibold tracking-[0.05em] uppercase" style={isUrdu ? urduStyle : undefined}>
+              {categoryLabel(project.category, isUrdu)}
             </span>
-            <span className="bg-dp-primary text-white px-3 py-1 rounded-full font-sans text-[12px] font-semibold flex items-center gap-1">
+            <span className="bg-dp-primary text-white px-3 py-1 rounded-full font-sans text-[12px] font-semibold flex items-center gap-1" style={isUrdu ? urduStyle : undefined}>
               <CheckCircle size={14} />
-              Completed
+              {dt('completedBadge')}
             </span>
           </div>
           <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-1 text-dp-on-surface">
@@ -335,9 +437,9 @@ function CompletedCard({ project, isHot }: { project: Project; isHot: boolean })
 
           {/* Progress */}
           <div className="mb-6">
-            <div className="flex justify-between font-sans text-[14px] font-semibold tracking-[0.05em] mb-2 text-dp-primary font-bold">
-              <span>Operational Status</span>
-              <span>100% Fully Functional</span>
+            <div className="flex justify-between font-sans text-[14px] font-semibold tracking-[0.05em] mb-2 text-dp-primary font-bold" style={isUrdu ? urduStyle : undefined}>
+              <span>{dt('operationalStatus')}</span>
+              <span>{dt('fullyFunctional')}</span>
             </div>
             <div className="h-3 w-full bg-dp-surface-container-highest rounded-full overflow-hidden">
               <div className="h-full bg-dp-primary w-full" />
@@ -347,8 +449,8 @@ function CompletedCard({ project, isHot }: { project: Project; isHot: boolean })
           {/* Stats */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="p-3 border border-dp-outline-variant rounded-lg">
-              <p className="text-dp-on-surface-variant text-[12px] uppercase font-semibold mb-1 font-sans">
-                Total Cost
+              <p className="text-dp-on-surface-variant text-[12px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
+                {dt('totalCost')}
               </p>
               <p className="text-[20px] font-bold text-dp-on-surface font-sans leading-[28px]">
                 {formatPKR(project.budget_pkr)}{' '}
@@ -356,12 +458,12 @@ function CompletedCard({ project, isHot }: { project: Project; isHot: boolean })
               </p>
             </div>
             <div className="p-3 border border-dp-outline-variant rounded-lg">
-              <p className="text-dp-on-surface-variant text-[12px] uppercase font-semibold mb-1 font-sans">
-                Beneficiaries
+              <p className="text-dp-on-surface-variant text-[12px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
+                {dt('beneficiaries')}
               </p>
               <p className="text-[20px] font-bold text-dp-on-surface font-sans leading-[28px]">
                 {project.beneficiaries_count ?? 0}+{' '}
-                <span className="text-[14px] font-normal">Homes</span>
+                <span className="text-[14px] font-normal" style={isUrdu ? urduStyle : undefined}>{dt('homes')}</span>
               </p>
             </div>
           </div>
@@ -369,12 +471,16 @@ function CompletedCard({ project, isHot }: { project: Project; isHot: boolean })
 
         {/* Bottom */}
         <div className="flex items-center justify-between">
-          <p className="text-dp-on-surface-variant font-sans text-[16px] italic border-l-4 border-dp-secondary-fixed pl-3 max-w-[60%]">
-            &ldquo;Pure water is life for our children.&rdquo; — Haji Rasheed
-          </p>
-          <Link href={`/projects/${project.id}`} className="px-6 py-2 bg-dp-surface-container-highest text-dp-on-surface font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg hover:bg-dp-outline-variant transition-all">
-            View Audit
-          </Link>
+          {project.end_date ? (
+            <p className="text-dp-on-surface-variant font-sans text-[14px] border-l-4 border-dp-secondary-fixed pl-3" style={isUrdu ? urduStyle : undefined}>
+              {dt('completedOn')} {new Date(project.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
+          ) : <span />}
+          <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
+            <Link href={`/projects/${project.id}`} className="flex items-center gap-1.5 px-6 py-2 bg-dp-surface-container-highest text-dp-on-surface font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg shadow-sm hover:bg-dp-outline-variant hover:shadow-md transition-all" style={isUrdu ? urduStyle : undefined}>
+              <Eye size={15} /> {dt('viewAudit')}
+            </Link>
+          </motion.div>
         </div>
       </div>
     </div>
@@ -382,21 +488,34 @@ function CompletedCard({ project, isHot }: { project: Project; isHot: boolean })
 }
 
 /* ========== UPCOMING CARD ========== */
-function UpcomingCard({ project, voteCount, isHot }: { project: Project; voteCount: number; isHot: boolean }) {
+function UpcomingCard({ project, voteCount, isHot, dt, isUrdu }: { project: Project; voteCount: number; isHot: boolean; dt: Dt; isUrdu: boolean }) {
+  const share = async () => {
+    const url = typeof window !== 'undefined' ? `${window.location.origin}/projects/${project.id}` : ''
+    const text = `${project.title} — ${url}`
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try { await navigator.share({ title: project.title, text, url }); return } catch { return }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+  }
+
   return (
     <div className="relative bg-white border-2 border-dashed border-blue-200 rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm">
       {isHot && <HotBadge />}
-      {/* Left: Illustration */}
+      {/* Left: Photo when the proposer submitted one, else the illustration */}
       <div className="relative bg-blue-50 flex items-center justify-center min-h-[300px]">
-        <div className="text-center p-8">
-          <Vote size={64} className="text-blue-500 mb-4 mx-auto" />
-          <h4 className="font-heading text-[24px] font-bold leading-[32px] text-blue-900 mb-2">
-            Future Vision
-          </h4>
-          <p className="text-blue-700 font-sans text-[16px]">Community Voting Stage</p>
-        </div>
+        {project.proposal_image_url ? (
+          <img src={project.proposal_image_url} alt={project.title} className="absolute inset-0 w-full h-full object-cover" />
+        ) : (
+          <div className="text-center p-8">
+            <Vote size={64} className="text-blue-500 mb-4 mx-auto" />
+            <h4 className="font-heading text-[24px] font-bold leading-[32px] text-blue-900 mb-2" style={isUrdu ? urduStyle : undefined}>
+              {dt('futureVision')}
+            </h4>
+            <p className="text-blue-700 font-sans text-[16px]" style={isUrdu ? urduStyle : undefined}>{dt('votingStage')}</p>
+          </div>
+        )}
         <div
-          className="absolute inset-0 opacity-10"
+          className={`absolute inset-0 ${project.proposal_image_url ? 'hidden' : 'opacity-10'}`}
           style={{
             backgroundImage: 'radial-gradient(#2563eb 1px, transparent 1px)',
             backgroundSize: '20px 20px',
@@ -408,12 +527,12 @@ function UpcomingCard({ project, voteCount, isHot }: { project: Project; voteCou
       <div className="p-8 flex flex-col justify-between">
         <div>
           <div className="flex items-center justify-between mb-4">
-            <span className="bg-blue-600 text-white px-3 py-1 rounded font-sans text-[12px] font-semibold tracking-[0.05em] uppercase">
-              {project.category}
+            <span className="bg-blue-600 text-white px-3 py-1 rounded font-sans text-[12px] font-semibold tracking-[0.05em] uppercase" style={isUrdu ? urduStyle : undefined}>
+              {categoryLabel(project.category, isUrdu)}
             </span>
-            <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-sans text-[12px] font-semibold flex items-center gap-1">
+            <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-sans text-[12px] font-semibold flex items-center gap-1" style={isUrdu ? urduStyle : undefined}>
               <Vote size={14} />
-              Upcoming / Voting
+              {dt('upcomingVoting')}
             </span>
           </div>
           <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-1 text-dp-on-surface">
@@ -423,18 +542,24 @@ function UpcomingCard({ project, voteCount, isHot }: { project: Project; voteCou
             <MapPin size={16} />
             <span className="font-sans text-[16px]">{project.location}</span>
           </div>
-          <p className="text-dp-on-surface-variant mb-8 line-clamp-3 font-sans text-[16px] leading-[24px]">
+          <p className="text-dp-on-surface-variant mb-4 line-clamp-3 font-sans text-[16px] leading-[24px]">
             {project.description}
           </p>
+
+          {/* Budget — compulsory info before voting, not just votes */}
+          <div className="flex items-center justify-between mb-4 px-1">
+            <span className="font-sans text-[13px] font-semibold text-dp-on-surface-variant uppercase tracking-wide" style={isUrdu ? urduStyle : undefined}>{dt('requestedBudget')}</span>
+            <span className="font-heading text-[20px] font-bold text-blue-900">Rs. {fmtFull(project.budget_pkr)}</span>
+          </div>
 
           {/* Vote Box */}
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center justify-between mb-6">
             <div>
               <p className="text-blue-900 font-bold text-[20px] font-sans leading-[28px]">
-                {voteCount} Votes
+                {voteCount} {dt('votesWord')}
               </p>
-              <p className="text-blue-700 text-[14px] font-sans font-semibold tracking-[0.05em]">
-                {project.vote_target ? `Requires ${project.vote_target} to advance` : 'Vote target not set'}
+              <p className="text-blue-700 text-[14px] font-sans font-semibold tracking-[0.05em]" style={isUrdu ? urduStyle : undefined}>
+                {project.vote_target ? dt('requiresToAdvance').replace('{n}', String(project.vote_target)) : dt('voteTargetNotSet')}
               </p>
             </div>
             <div className="h-2 w-24 bg-blue-100 rounded-full overflow-hidden">
@@ -444,20 +569,34 @@ function UpcomingCard({ project, voteCount, isHot }: { project: Project; voteCou
         </div>
 
         {/* Actions */}
-        <div className="flex gap-4">
-          <Link
-            href={`/projects/${project.id}`}
-            className="flex-1 py-3 bg-blue-600 text-white font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+        <div className="flex gap-2.5">
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="flex-1">
+            <Link
+              href={`/projects/${project.id}`}
+              className="w-full py-3 bg-blue-600 text-white font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg shadow-sm hover:shadow-md hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+              style={isUrdu ? urduStyle : undefined}
+            >
+              <ThumbsUp size={16} />
+              {dt('viewAndVote')}
+            </Link>
+          </motion.div>
+          <motion.button
+            whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}
+            onClick={share}
+            title={dt('shareToVote')}
+            className="px-4 py-3 border-2 border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
           >
-            <ThumbsUp size={16} />
-            View &amp; Vote
-          </Link>
-          <Link
-            href="/suggestions"
-            className="px-6 py-3 border-2 border-blue-600 text-blue-600 font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg hover:bg-blue-50 transition-colors text-center"
-          >
-            Submit Suggestion
-          </Link>
+            <Share2 size={16} />
+          </motion.button>
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+            <Link
+              href="/suggestions"
+              className="h-full px-5 py-3 border-2 border-blue-600 text-blue-600 font-sans text-[13.5px] font-semibold tracking-[0.03em] rounded-lg hover:bg-blue-50 transition-colors text-center flex items-center justify-center"
+              style={isUrdu ? urduStyle : undefined}
+            >
+              {dt('submitSuggestion')}
+            </Link>
+          </motion.div>
         </div>
       </div>
     </div>
@@ -468,23 +607,26 @@ function UpcomingCard({ project, voteCount, isHot }: { project: Project; voteCou
 // A freshly-posted proposal, paused until the proposer's own self-commitment
 // is paid and staff-confirmed (migration 141) — greyed out on purpose, no
 // vote/donate actions yet, just the "waiting" label from the detail page.
-function AnnouncedCard({ project }: { project: Project }) {
+function AnnouncedCard({ project, dt, isUrdu }: { project: Project; dt: Dt; isUrdu: boolean }) {
   return (
     <div className="relative bg-dp-surface-container-low border-2 border-dashed border-dp-outline-variant rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 opacity-90">
       <div className="relative bg-slate-100 flex items-center justify-center min-h-[220px] md:min-h-[300px]">
-        <div className="text-center p-8">
+        {project.proposal_image_url && (
+          <img src={project.proposal_image_url} alt={project.title} className="absolute inset-0 w-full h-full object-cover grayscale opacity-40" />
+        )}
+        <div className="relative text-center p-8">
           <Lock size={56} className="text-slate-400 mb-4 mx-auto" />
-          <p className="text-slate-500 font-sans text-[15px] font-semibold">Waiting for the announced payment confirmation</p>
+          <p className="text-slate-500 font-sans text-[15px] font-semibold" style={isUrdu ? urduStyle : undefined}>{dt('waitingConfirmation')}</p>
         </div>
       </div>
       <div className="p-8 flex flex-col justify-between">
         <div>
           <div className="flex items-center justify-between mb-4">
-            <span className="bg-slate-300 text-slate-700 px-3 py-1 rounded font-sans text-[12px] font-semibold tracking-[0.05em] uppercase">
-              {project.category}
+            <span className="bg-slate-300 text-slate-700 px-3 py-1 rounded font-sans text-[12px] font-semibold tracking-[0.05em] uppercase" style={isUrdu ? urduStyle : undefined}>
+              {categoryLabel(project.category, isUrdu)}
             </span>
-            <span className="bg-slate-200 text-slate-600 px-3 py-1 rounded-full font-sans text-[12px] font-semibold">
-              Announced
+            <span className="bg-slate-200 text-slate-600 px-3 py-1 rounded-full font-sans text-[12px] font-semibold" style={isUrdu ? urduStyle : undefined}>
+              {dt('announcedBadge')}
             </span>
           </div>
           <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-1 text-dp-on-surface-variant">
@@ -494,16 +636,23 @@ function AnnouncedCard({ project }: { project: Project }) {
             <MapPin size={16} />
             <span className="font-sans text-[16px]">{project.location}</span>
           </div>
-          <p className="text-dp-on-surface-variant line-clamp-3 font-sans text-[16px] leading-[24px]">
+          <p className="text-dp-on-surface-variant line-clamp-3 font-sans text-[16px] leading-[24px] mb-4">
             {project.description}
           </p>
+          <div className="flex items-center justify-between px-1">
+            <span className="font-sans text-[13px] font-semibold text-dp-on-surface-variant uppercase tracking-wide" style={isUrdu ? urduStyle : undefined}>{dt('requestedBudget')}</span>
+            <span className="font-heading text-[18px] font-bold text-dp-on-surface-variant">Rs. {fmtFull(project.budget_pkr)}</span>
+          </div>
         </div>
-        <Link
-          href={`/projects/${project.id}`}
-          className="mt-6 py-3 border-2 border-dp-outline-variant text-dp-on-surface-variant font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg hover:border-dp-primary hover:text-dp-primary transition-colors flex items-center justify-center gap-2"
-        >
-          View Details
-        </Link>
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Link
+            href={`/projects/${project.id}`}
+            className="mt-6 py-3 border-2 border-dp-outline-variant text-dp-on-surface-variant font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg hover:border-dp-primary hover:text-dp-primary transition-colors flex items-center justify-center gap-2"
+            style={isUrdu ? urduStyle : undefined}
+          >
+            <Eye size={15} /> {dt('viewDetails')}
+          </Link>
+        </motion.div>
       </div>
     </div>
   )

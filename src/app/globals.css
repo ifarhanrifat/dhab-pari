@@ -83,6 +83,7 @@
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-playfair);
   --font-urdu: var(--font-noto-nastaliq);
+  --font-quran: var(--font-noto-naskh);
 
   /* --- Font sizes (design system scale) --- */
   --font-size-display-lg: 48px;

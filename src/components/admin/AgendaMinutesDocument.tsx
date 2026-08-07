@@ -40,6 +40,13 @@ export interface AgendaMinutesProjectDiscussion {
   voteTarget: number | null
   comments: { authorName: string | null; text: string; isSystem: boolean }[]
 }
+export interface AgendaMinutesActivityEntry {
+  eventType: string; label: string; title: string; detail: string | null; actorName: string | null
+}
+export interface AgendaMinutesProjectCommentGroup {
+  projectTitle: string
+  comments: { authorName: string | null; text: string; isSystem: boolean }[]
+}
 export interface AgendaMinutesData {
   meetingDateLabel: string
   title: string | null
@@ -49,6 +56,8 @@ export interface AgendaMinutesData {
   emergencyJobs: AgendaMinutesEmergencyJob[]
   complaints: AgendaMinutesComplaint[]
   projectDiscussions: AgendaMinutesProjectDiscussion[]
+  recentActivity: AgendaMinutesActivityEntry[]
+  projectComments: AgendaMinutesProjectCommentGroup[]
 }
 
 interface Props { data: AgendaMinutesData; branding: Partial<BrandingSettings> }
@@ -236,6 +245,43 @@ export const AgendaMinutesDocument = forwardRef<HTMLDivElement, Props>(function 
                   </div>
                 )}
                 <ReplySpace />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {data.projectComments.length > 0 && (
+        <>
+          <p className="text-[13px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-2 mt-6">پراجیکٹس پر نئے تبصرے</p>
+          <div className="space-y-3">
+            {data.projectComments.map((g, i) => (
+              <div key={i} className="border border-dp-outline-variant rounded-lg p-3">
+                <p className="text-[14px] font-semibold mb-1.5">{i + 1}. {g.projectTitle}</p>
+                <div className="space-y-2">
+                  {g.comments.map((c, j) => (
+                    <div key={j}>
+                      <p className="text-[12.5px] text-dp-on-surface-variant">
+                        <span className="font-semibold">{c.authorName ?? 'نامعلوم'}:</span> {c.text}
+                      </p>
+                      <ReplySpace />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {data.recentActivity.length > 0 && (
+        <>
+          <p className="text-[13px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-2 mt-6">پچھلے اجلاس کے بعد کی سرگرمیاں</p>
+          <div className="space-y-2">
+            {data.recentActivity.map((a, i) => (
+              <div key={i} className="border border-dp-outline-variant rounded-lg p-2.5">
+                <p className="text-[13px]"><span className="font-semibold">{a.actorName ?? 'نامعلوم'}</span> — {a.title}</p>
+                {a.detail && <p className="text-[11.5px] text-dp-on-surface-variant mt-0.5">{a.detail}</p>}
               </div>
             ))}
           </div>

@@ -12,6 +12,7 @@ const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/water', label: 'Water Bill' },
   { href: '/projects', label: 'Projects' },
+  { href: '/jobs', label: 'Jobs' },
   { href: '/accounts', label: 'Accounts' },
   { href: '/donate', label: 'Donate' },
   { href: '/news', label: 'News' },
@@ -40,19 +41,20 @@ export function Header() {
   return (
     <>
       <header className="bg-dp-primary sticky top-0 z-50 w-full">
-        <div className="max-w-[1200px] mx-auto w-full px-6 py-4 flex items-center justify-between">
-          {/* Logo */}
-          <div>
-            <Link href="/" className="font-heading text-[32px] font-bold leading-[40px] text-white tracking-tight">
+        <div className="max-w-[1200px] mx-auto w-full px-6 py-3.5 flex items-center justify-between gap-3">
+          {/* Logo — tagline only shows once there's room to spare (xl+),
+              so it never competes with the nav for space at lg. */}
+          <div className="shrink-0">
+            <Link href="/" className="font-heading text-[28px] font-bold leading-[34px] text-white tracking-tight">
               Dhab Pari
             </Link>
-            <p className="text-white/60 text-[12px] font-sans hidden md:block">
+            <p className="text-white/60 text-[12px] font-sans hidden xl:block">
               Village Transparency Portal
             </p>
           </div>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-6">
+          <nav className="hidden lg:flex items-center gap-4 xl:gap-5">
             {navLinks.map((link) => {
               const isActive = pathname === link.href
               return (
@@ -61,8 +63,8 @@ export function Header() {
                   href={link.href}
                   className={
                     isActive
-                      ? 'text-[#86f8c9] font-bold border-b-2 border-[#86f8c9] pb-1 text-[14px] font-sans tracking-[0.05em]'
-                      : 'text-white/80 hover:text-white transition-colors text-[14px] font-sans tracking-[0.05em]'
+                      ? 'text-[#86f8c9] font-bold border-b-2 border-[#86f8c9] pb-1 text-[13.5px] font-sans tracking-[0.02em] whitespace-nowrap'
+                      : 'text-white/80 hover:text-white transition-colors text-[13.5px] font-sans tracking-[0.02em] whitespace-nowrap'
                   }
                 >
                   {link.label}
@@ -72,33 +74,36 @@ export function Header() {
           </nav>
 
           {/* Right Actions */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 shrink-0">
             {isPortalUser ? (
               <Link
                 href="/portal"
-                className="hidden md:flex items-center gap-2 bg-dp-secondary text-white px-4 py-2 rounded-lg font-sans text-[14px] font-semibold tracking-[0.05em] hover:bg-dp-secondary-container hover:text-dp-on-secondary-container transition-all active:scale-95"
+                className="hidden md:flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1.5 rounded-lg font-sans text-[13px] font-semibold tracking-[0.02em] hover:bg-amber-600 transition-all active:scale-95 whitespace-nowrap"
               >
-                <UserCircle2 size={18} />
+                <UserCircle2 size={16} />
                 My Portal
               </Link>
             ) : (
               <Link
                 href="/portal/login"
-                className="hidden md:flex items-center gap-2 text-white/80 hover:text-white text-[14px] font-sans font-semibold tracking-[0.05em] transition-colors"
+                className="hidden md:flex items-center gap-2 text-white/80 hover:text-white text-[13px] font-sans font-semibold tracking-[0.02em] transition-colors whitespace-nowrap"
               >
                 Log In
               </Link>
             )}
+            {/* WhatsApp's own brand green (#25D366) — deliberately distinct
+                from the site's teal so it reads as "this opens WhatsApp",
+                not as another site action. */}
             <a
               href={SITE.whatsappLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden md:flex items-center gap-2 bg-dp-secondary text-white px-4 py-2 rounded-lg font-sans text-[14px] font-semibold tracking-[0.05em] hover:bg-dp-secondary-container hover:text-dp-on-secondary-container transition-all active:scale-95"
+              className="hidden md:flex items-center gap-1.5 bg-[#25D366] text-white px-3 py-1.5 rounded-lg font-sans text-[13px] font-semibold tracking-[0.02em] hover:bg-[#1ebe5a] transition-all active:scale-95 whitespace-nowrap"
             >
-              <MessageCircle size={18} />
+              <MessageCircle size={16} />
               WhatsApp
             </a>
-            <button className="text-white/80 hover:text-white border border-dp-outline-variant px-3 py-1 rounded text-[14px] font-sans font-semibold tracking-[0.05em] hidden md:block transition-colors">
+            <button className="text-white/80 hover:text-white border border-dp-outline-variant px-2 py-1 rounded text-[12.5px] font-sans font-semibold tracking-[0.02em] hidden md:block transition-colors">
               EN/UR
             </button>
             <button

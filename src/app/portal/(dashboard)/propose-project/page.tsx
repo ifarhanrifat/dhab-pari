@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { Vote, Sparkles, ListChecks } from 'lucide-react'
+import { ImageUpload } from '@/components/admin/ImageUpload'
 
 const CATEGORIES = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'sports', 'other']
 
@@ -30,6 +31,8 @@ const t: Record<string, { en: string; ur: string }> = {
   descGuide: { en: 'Before you post, consider covering: exactly what will be built/done and where; how many households or people it helps; why it’s needed now; what materials/approach you have in mind; any ongoing cost after completion (maintenance); and anything that could affect cost (site conditions, access, etc). A detailed, specific description gets more votes and a faster committee decision.', ur: 'پوسٹ کرنے سے پہلے ان باتوں کا خیال رکھیں: بالکل کیا اور کہاں بنایا/کیا جائے گا؛ کتنے گھرانوں یا افراد کو فائدہ ہوگا؛ ابھی اس کی ضرورت کیوں ہے؛ کن مواد/طریقہ کار کا ارادہ ہے؛ تکمیل کے بعد کوئی جاری لاگت (دیکھ بھال)؛ اور کوئی بھی چیز جو لاگت پر اثر ڈال سکتی ہے۔ تفصیلی اور واضح تفصیل زیادہ ووٹ اور تیز کمیٹی فیصلہ لاتی ہے۔' },
   categoryLabel: { en: 'Category', ur: 'قسم' },
   locationLabel: { en: 'Location / Sector', ur: 'مقام / سیکٹر' },
+  imageLabel: { en: 'Project Photo (optional)', ur: 'منصوبے کی تصویر (اختیاری)' },
+  imageGuide: { en: 'A real, relevant photo makes your project stand out and looks far better when shared on WhatsApp/Facebook. Shown on the project card and in the shared link preview.', ur: 'ایک حقیقی، متعلقہ تصویر آپ کے منصوبے کو نمایاں کرتی ہے اور واٹس ایپ/فیس بک پر شیئر کرتے وقت بہتر نظر آتی ہے۔ یہ پراجیکٹ کارڈ اور شیئر کردہ لنک پریویو میں دکھائی جاتی ہے۔' },
   aiToggle: { en: 'Let AI estimate the cost in Pakistani Rupees', ur: 'اے آئی کو پاکستانی روپے میں لاگت کا تخمینہ لگانے دیں' },
   aiGuide: { en: 'First calculates cost with modern/quality equipment, then (2nd click) the cheapest realistic way. This is a rough estimate only — not a real quote — to help you set a sensible budget.', ur: 'پہلے جدید/معیاری سامان کے ساتھ لاگت کا حساب لگاتا ہے، پھر (دوسری بار کلک پر) سب سے سستا حقیقت پسندانہ طریقہ۔ یہ صرف ایک اندازہ ہے — حقیقی قیمت نہیں — تاکہ آپ مناسب بجٹ طے کر سکیں۔' },
   budgetLabel: { en: 'Requested Budget (PKR)', ur: 'مطلوبہ بجٹ (روپے)' },
@@ -86,7 +89,7 @@ export default function ProposeProjectPage() {
   const isUrdu = lang === 'ur'
 
   const [form, setForm] = useState({
-    title: '', description: '', category: 'welfare', location: '',
+    title: '', description: '', category: 'welfare', location: '', image_url: '',
     budget_pkr: 0, self_commitment_type: 'one_time' as 'one_time' | 'monthly', self_commitment_amount_pkr: 0,
     needs_recurring_support: false, monthly_operating_cost_pkr: 0,
   })
@@ -182,6 +185,7 @@ export default function ProposeProjectPage() {
     const { data, error } = await supabase.from('projects').insert({
       title: form.title.trim(), description: form.description.trim(), category: form.category,
       location: form.location.trim() || null, budget_pkr: form.budget_pkr, status: 'announced',
+      proposal_image_url: form.image_url || null,
       proposed_by_portal_user_id: user.id,
       self_commitment_type: form.self_commitment_type, self_commitment_amount_pkr: form.self_commitment_amount_pkr,
       minimum_monthly_commitment_pkr: form.self_commitment_type === 'monthly' ? form.self_commitment_amount_pkr : null,
@@ -240,6 +244,11 @@ export default function ProposeProjectPage() {
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{dt('locationLabel')}</label>
             <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="input-field" />
           </div>
+        </div>
+
+        <div>
+          <ImageUpload bucket="images" label={dt('imageLabel')} currentUrl={form.image_url} onUpload={(url) => setForm({ ...form, image_url: url })} />
+          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif', direction: 'rtl' } : undefined}>{dt('imageGuide')}</p>
         </div>
 
         {/* AI cost estimate */}

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Source_Sans_3, Playfair_Display, Noto_Nastaliq_Urdu } from "next/font/google";
+import { Source_Sans_3, Playfair_Display, Noto_Nastaliq_Urdu, Noto_Naskh_Arabic } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -19,6 +19,15 @@ const playfair = Playfair_Display({
 const notoNastaliq = Noto_Nastaliq_Urdu({
   variable: "--font-noto-nastaliq",
   subsets: ["latin"],
+  weight: ["400", "700"],
+});
+
+// Quranic Arabic uses a Naskh-style script (proper for a Mushaf quotation),
+// not Nastaliq (that's the Urdu calligraphic style used everywhere else on
+// this site) — a separate font, only for the homepage ayah banner.
+const notoNaskhArabic = Noto_Naskh_Arabic({
+  variable: "--font-noto-naskh",
+  subsets: ["arabic"],
   weight: ["400", "700"],
 });
 
@@ -49,7 +58,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${sourceSans.variable} ${playfair.variable} ${notoNastaliq.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${sourceSans.variable} ${playfair.variable} ${notoNastaliq.variable} ${notoNaskhArabic.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {children}

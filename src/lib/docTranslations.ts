@@ -169,6 +169,7 @@ export const DOC_STRINGS = {
   amountDonated: { en: 'Amount Donated', ur: 'عطیہ کردہ رقم' },
   billReceivable: { en: 'Bill Receivable', ur: 'بل وصولی' },
   noTransactionsYet: { en: 'No transactions yet for this account.', ur: 'اس اکاؤنٹ میں ابھی تک کوئی لین دین نہیں۔' },
+  receivedVia: { en: 'Received via', ur: 'موصولہ ذریعہ' },
 
   // Voucher/reference type labels (src/lib/ledgerLabels.ts)
   typeExpense: { en: 'Expense', ur: 'اخراجات' },

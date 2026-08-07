@@ -18,6 +18,7 @@ interface Account {
   is_active: boolean
   consumer_id: string | null
   donor_key: string | null
+  parent_account_id: string | null
 }
 
 interface AccountHeader {
@@ -76,7 +77,10 @@ export default function AccountsPage() {
   const [headerForm, setHeaderForm] = useState(emptyHeaderForm)
   const [search, setSearch] = useState('')
   const [sortByBalance, setSortByBalance] = useState(false)
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  // Donors/Consumers default closed (that list is long and would otherwise
+  // dominate the page) — every other header defaults open, matching how
+  // the rest of the Chart of Accounts already behaved.
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ consumer: true, donor: true })
   const [menuId, setMenuId] = useState<string | null>(null)
   const supabase = createClient()
 
@@ -155,6 +159,10 @@ export default function AccountsPage() {
     headersForTab.forEach((h) => { grouped[h.code] = [] })
     bySystem.forEach((a) => {
       if (a.type === partyType) return
+      // Accounts with a parent (e.g. every project account, nested under
+      // Cash-in-Hand) render under their parent instead of their own
+      // header group — see childrenByParent below.
+      if (a.parent_account_id) return
       if (!grouped[a.type]) grouped[a.type] = []
       grouped[a.type].push(a)
     })
@@ -164,6 +172,38 @@ export default function AccountsPage() {
     return grouped
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bySystem, sortByBalance, balances, headersForTab, partyType])
+
+  // Purely a display grouping (accounts.parent_account_id) — `type` still
+  // does all the real work (voucher-picker filters, balance-sign rules), so
+  // e.g. a project's memo balance never becomes pickable as real cash/bank
+  // just because it's shown nested under Cash-in-Hand here.
+  const childrenByParent = useMemo(() => {
+    const map: Record<string, Account[]> = {}
+    bySystem.forEach((a) => {
+      if (a.parent_account_id) (map[a.parent_account_id] ??= []).push(a)
+    })
+    Object.keys(map).forEach((pid) => {
+      map[pid] = [...map[pid]].sort((a, b) => sortByBalance ? balanceOf(b) - balanceOf(a) : a.name.localeCompare(b.name))
+    })
+    return map
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bySystem, sortByBalance, balances])
+
+  // Consolidated balance per header — shown in the header bar itself (not
+  // just once expanded), so a collapsed section (e.g. Donors/Consumers)
+  // still tells you the total at a glance.
+  const headerTotals = useMemo(() => {
+    const totals: Record<string, number> = {}
+    Object.entries(byHeader).forEach(([code, accts]) => {
+      totals[code] = accts.reduce((sum, a) => sum + balanceOf(a) + (childrenByParent[a.id] ?? []).reduce((s, c) => s + balanceOf(c), 0), 0)
+    })
+    return totals
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [byHeader, childrenByParent, balances])
+
+  const partyTotal = useMemo(() => partyAccounts.reduce((sum, a) => sum + balanceOf(a), 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [partyAccounts, balances])
 
   const toggleGroup = (code: string) => setCollapsed((prev) => ({ ...prev, [code]: !prev[code] }))
 
@@ -248,21 +288,29 @@ export default function AccountsPage() {
   const waterCount = accounts.filter((a) => a.system === 'water_supply').length
   const donorCount = accounts.filter((a) => a.system === 'donors_projects').length
 
-  const renderRow = (a: Account) => {
+  const renderRow = (a: Account, indented = false) => {
     const bal = balanceOf(a)
+    // One language at a time (Urdu when set and selected, else English) —
+    // matches the single-language convention used everywhere else in this
+    // app (e.g. /water/apply), rather than always showing both lines, which
+    // used to misalign (Urdu line right-aligned, English line under it
+    // left-aligned). The Urdu name replaces the English one in the exact
+    // same spot/alignment/size — just the correct font-family for legible
+    // Urdu glyphs — not re-anchored to the right, so rows don't jump
+    // position depending on which account happens to have a translation.
+    // The other name is always one click away via Edit.
     const primary = displayName(a.name, a.name_ur)
-    const secondary = lang === 'ur' && a.name_ur ? a.name : a.name_ur
+    const isUrduLine = lang === 'ur' && !!a.name_ur
     return (
       <div
         key={a.id}
         onClick={() => viewAccount(a)}
-        className={`flex items-center justify-between gap-3 px-4 py-3.5 border-t border-dp-outline-variant hover:bg-dp-surface-container-low/50 cursor-pointer transition-colors ${!a.is_active ? 'opacity-50' : ''}`}
+        className={`flex items-center justify-between gap-3 px-4 py-3.5 border-t border-dp-outline-variant hover:bg-dp-surface-container-low/50 cursor-pointer transition-colors ${!a.is_active ? 'opacity-50' : ''} ${indented ? 'pl-10 bg-dp-surface-container-low/30' : ''}`}
       >
         <div className="min-w-0 flex-1">
-          <p className={`font-sans text-[14.5px] font-semibold text-dp-on-surface truncate ${lang === 'ur' && a.name_ur ? 'text-right' : ''}`} style={lang === 'ur' && a.name_ur ? { fontFamily: 'var(--font-urdu), serif', direction: 'rtl' } : undefined}>{primary}</p>
-          {lang === 'ur' && secondary && (
-            <p className="text-[13px] text-dp-on-surface-variant truncate">{secondary}</p>
-          )}
+          <p className={`font-sans font-semibold text-dp-on-surface truncate ${isUrduLine ? 'text-[13px]' : 'text-[14.5px]'}`} style={isUrduLine ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+            {indented && <span className="text-dp-on-surface-variant font-normal">↳ </span>}{primary}
+          </p>
           {a.type === 'consumer' && a.consumer_id && consumers[a.consumer_id] && (
             <p className="text-[12px] text-dp-on-surface-variant">{consumers[a.consumer_id].mobile}</p>
           )}
@@ -373,6 +421,7 @@ export default function AccountsPage() {
                   className="flex-1 flex items-center gap-2 cursor-pointer"
                 >
                   <span className="font-sans text-[14px] font-bold text-dp-on-surface">{partyLabel}</span>
+                  <span className="font-sans text-[13px] font-bold text-dp-secondary ms-auto pe-2">{fmtAmount(partyTotal)}</span>
                   {collapsed[partyType] ? <ChevronDown size={16} className="text-dp-on-surface-variant" /> : <ChevronUp size={16} className="text-dp-on-surface-variant" />}
                 </button>
                 {partyType === 'consumer' && (
@@ -384,7 +433,7 @@ export default function AccountsPage() {
                   </button>
                 )}
               </div>
-              {!collapsed[partyType] && <div>{partyAccounts.map(renderRow)}</div>}
+              {!collapsed[partyType] && <div>{partyAccounts.map((a) => renderRow(a))}</div>}
             </div>
           )}
 
@@ -396,12 +445,24 @@ export default function AccountsPage() {
               <div key={h.code} className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
                 <button
                   onClick={() => toggleGroup(h.code)}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-dp-surface-container-low/60 hover:bg-dp-surface-container-low cursor-pointer transition-colors"
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-dp-surface-container-low/60 hover:bg-dp-surface-container-low cursor-pointer transition-colors"
                 >
-                  <span className="font-sans text-[14px] font-bold text-dp-on-surface">{displayName(h.label, h.label_ur)}</span>
-                  {isCollapsed ? <ChevronDown size={16} className="text-dp-on-surface-variant" /> : <ChevronUp size={16} className="text-dp-on-surface-variant" />}
+                  <span className="font-sans text-[14px] font-bold text-dp-on-surface" style={lang === 'ur' && h.label_ur ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{displayName(h.label, h.label_ur)}</span>
+                  <span className="flex items-center gap-3 shrink-0">
+                    <span className="font-sans text-[13px] font-bold text-dp-secondary">{fmtAmount(headerTotals[h.code] ?? 0)}</span>
+                    {isCollapsed ? <ChevronDown size={16} className="text-dp-on-surface-variant" /> : <ChevronUp size={16} className="text-dp-on-surface-variant" />}
+                  </span>
                 </button>
-                {!isCollapsed && <div>{typeAccounts.map(renderRow)}</div>}
+                {!isCollapsed && (
+                  <div>
+                    {typeAccounts.map((a) => (
+                      <div key={a.id}>
+                        {renderRow(a)}
+                        {(childrenByParent[a.id] ?? []).map((c) => renderRow(c, true))}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )
           })}
@@ -477,6 +538,9 @@ export default function AccountsPage() {
               <div>
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Account Name (Urdu)</label>
                 <input value={form.name_ur ?? ''} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder="اردو میں نام" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+                {!form.name_ur?.trim() && (
+                  <p className="text-[12px] font-sans text-amber-700 mt-1.5">Not set — this account will show in English even when Urdu is selected.</p>
+                )}
               </div>
               <div>
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Opening Balance (PKR)</label>

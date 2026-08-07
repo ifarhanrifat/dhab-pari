@@ -42,6 +42,7 @@ import {
   Droplet,
   UploadCloud,
   ArrowRightLeft,
+  Briefcase,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -79,6 +80,7 @@ const menuItems = [
   { href: '/admin/ticker', label: 'Ticker', icon: TicketSlash },
   { href: '/admin/notifications', label: 'Alerts', icon: Bell },
   { href: '/admin/blood-donors', label: 'Blood Donors', icon: Droplet },
+  { href: '/admin/jobs', label: 'Job Listings', icon: Briefcase },
   { href: '/admin/reports', label: 'Reports', icon: FileText },
   { href: '/admin/running-capital', label: 'Running Capital', icon: LineChart },
   { href: '/admin/users', label: 'Users', icon: UserCog, adminAndAbove: true },

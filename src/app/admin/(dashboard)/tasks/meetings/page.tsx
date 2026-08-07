@@ -7,11 +7,25 @@ import { normalizePakPhone, nodeToPdfBlob, nodeToPngBlob, printBlob, downloadBlo
 import { fetchBrandingSettings, type BrandingSettings } from '@/lib/branding'
 import { MultiImageUpload } from '@/components/admin/MultiImageUpload'
 import { AgendaMinutesDocument, type AgendaMinutesData } from '@/components/admin/AgendaMinutesDocument'
+import { MeetingNoticeDocument, formatUrduDate, formatUrduTime } from '@/components/admin/MeetingNoticeDocument'
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import {
   CalendarClock, PlusCircle, X, ChevronDown, ChevronUp, CheckCircle2, MessageCircle,
   Printer, Download, Lightbulb, ListChecks, AlertTriangle, User, FileText, Sparkles, Loader2, Globe2, Reply,
-  Siren, Copy, MessageSquareWarning, Vote,
+  Siren, Copy, MessageSquareWarning, Vote, Activity, Briefcase, HandHeart, HeartHandshake, Lock, Send, Ban,
 } from 'lucide-react'
+
+interface ActivityEntry { event_type: string; title: string; detail: string | null; actor_name: string | null; created_at: string }
+interface ProjectCommentEntry { id: string; username: string | null; content: string; comment_type: string; created_at: string }
+interface ProjectCommentGroup { projectId: string; projectTitle: string; comments: ProjectCommentEntry[] }
+const ACTIVITY_ICON: Record<string, typeof Briefcase> = {
+  job: Briefcase, volunteer: HandHeart, comment: MessageCircle, complaint: MessageSquareWarning,
+  suggestion: Lightbulb, donation: HeartHandshake, proposal: Vote,
+}
+const ACTIVITY_LABEL: Record<string, string> = {
+  job: 'New job listing', volunteer: 'New volunteer', comment: 'New comment', complaint: 'New complaint',
+  suggestion: 'New suggestion', donation: 'Donation confirmed', proposal: 'New project proposal',
+}
 
 type Category = 'miscellaneous' | 'donation_projects' | 'medical' | 'tree_plantation' | 'water_supply'
 const CATEGORY_ORDER: Category[] = ['miscellaneous', 'donation_projects', 'medical', 'tree_plantation', 'water_supply']
@@ -23,6 +37,8 @@ const CATEGORY_LABEL: Record<Category, string> = {
 interface Meeting {
   id: string; meeting_date: string; title: string | null; run_by_admin_user_id: string
   agenda_photo_urls: string[] | null; created_at: string
+  status: 'open' | 'finalized' | 'cancelled'; finalized_at: string | null; finalized_by: string | null
+  meeting_time: string | null; location: string | null
 }
 interface CommitteeMember {
   id: string; name: string; position: string; phone: string | null
@@ -50,7 +66,7 @@ interface ProjectDiscussionComment { username: string | null; content: string; c
 interface ProjectDiscussion { id: string; title: string; status: string; vote_count: number; vote_target: number | null; comments: ProjectDiscussionComment[] }
 interface ExtractedPoint { text: string; include: boolean; due_date: string; committee_member_ids: string[]; category: Category }
 
-const emptyMeetingForm = { meeting_date: new Date().toISOString().slice(0, 10), title: '', run_by_admin_user_id: '', agenda_photo_urls: [] as string[] }
+const emptyMeetingForm = { meeting_date: new Date().toISOString().slice(0, 10), meeting_time: '', location: '', title: '', run_by_admin_user_id: '', agenda_photo_urls: [] as string[] }
 const emptyTaskForm = { text_ur: '', due_date: '', committee_member_ids: [] as string[], category: 'miscellaneous' as Category }
 const emptySuggestionForm = { text_ur: '', raised_by_committee_member_id: '' }
 
@@ -105,6 +121,32 @@ export default function MeetingsAgendaPage() {
   const [projectDiscussions, setProjectDiscussions] = useState<ProjectDiscussion[]>([])
   const [projectDiscussionsOpen, setProjectDiscussionsOpen] = useState(false)
 
+  const [activity, setActivity] = useState<ActivityEntry[]>([])
+  const [activitySince, setActivitySince] = useState<string | null>(null)
+  const [activityOpen, setActivityOpen] = useState(false)
+
+  // Unchecked by default, as specified — staff can tick it before hitting
+  // Mark Done to keep this specific completion private on the public
+  // Achievements page (visible that something was done, not what).
+  const [privateChecks, setPrivateChecks] = useState<Record<string, boolean>>({})
+
+  const [projectComments, setProjectComments] = useState<ProjectCommentGroup[]>([])
+  const [projectCommentsOpen, setProjectCommentsOpen] = useState(false)
+  const [replyOpenFor, setReplyOpenFor] = useState<string | null>(null)
+  const [replyDraft, setReplyDraft] = useState('')
+  const [postingReply, setPostingReply] = useState(false)
+
+  const [confirmFinalize, setConfirmFinalize] = useState<string | null>(null)
+  const [confirmCancel, setConfirmCancel] = useState<string | null>(null)
+
+  // Reference list only — OCR'd Urdu handwriting isn't reliable enough to
+  // safely auto-dedupe against, so this is shown alongside the AI-extracted
+  // points for a human to eyeball-compare, not filtered automatically.
+  const [recentDonePoints, setRecentDonePoints] = useState<string[]>([])
+
+  const [noticeFor, setNoticeFor] = useState<Meeting | null>(null)
+  const noticeRef = useRef<HTMLDivElement>(null)
+
   const load = async () => {
     const [meetingsRes, membersRes, adminUsersRes, itemsRes, assigneesRes, userRes, complaintsRes] = await Promise.all([
       supabase.from('agenda_meetings').select('*').order('meeting_date', { ascending: false }),
@@ -119,6 +161,41 @@ export default function MeetingsAgendaPage() {
       supabase.from('complaints').select('id, complaint_number, complainant_name, sector, complaint_text, status, assigned_to, resolved_by, resolved_at, created_at').order('created_at', { ascending: false }),
     ])
     setMeetings(meetingsRes.data ?? [])
+
+    // Window: from the most recent meeting that's already happened, to now
+    // — falls back to 10 days ago if there's no prior meeting yet. Distinct
+    // from the Complaints/Project Discussions panels above, which are
+    // status snapshots (all currently-open items), not time-windowed.
+    const todayStr = new Date().toISOString().slice(0, 10)
+    const lastPastMeeting = (meetingsRes.data ?? []).find((m) => m.meeting_date <= todayStr && m.status !== 'cancelled')
+    const since = lastPastMeeting
+      ? new Date(lastPastMeeting.meeting_date + 'T00:00:00Z').toISOString()
+      : new Date(Date.now() - 10 * 24 * 3600 * 1000).toISOString()
+    setActivitySince(since)
+    const { data: activityRows } = await supabase.rpc('recent_activity_since', { p_since: since })
+    setActivity(activityRows ?? [])
+
+    // New comments since the window, grouped per project — this is the
+    // actionable workspace (write the reply here at the meeting table,
+    // Post Reply below sends it back to the real thread), distinct from
+    // the flat overview above.
+    const { data: newComments } = await supabase.from('project_comments_public')
+      .select('id, project_id, username, content, comment_type, created_at')
+      .gte('created_at', since).order('created_at', { ascending: true })
+    if (newComments && newComments.length > 0) {
+      const projectIds = [...new Set(newComments.map((c) => c.project_id))]
+      const { data: projTitles } = await supabase.from('projects').select('id, title').in('id', projectIds)
+      const titleFor = (id: string) => projTitles?.find((p) => p.id === id)?.title ?? 'Untitled Project'
+      const groups: Record<string, ProjectCommentGroup> = {}
+      for (const c of newComments) {
+        if (!groups[c.project_id]) groups[c.project_id] = { projectId: c.project_id, projectTitle: titleFor(c.project_id), comments: [] }
+        groups[c.project_id].comments.push({ id: c.id, username: c.username, content: c.content, comment_type: c.comment_type, created_at: c.created_at })
+      }
+      setProjectComments(Object.values(groups))
+    } else {
+      setProjectComments([])
+    }
+
     setMembers(membersRes.data ?? [])
     setAdminUsers(adminUsersRes.data ?? [])
     setItems(itemsRes.data ?? [])
@@ -190,9 +267,10 @@ export default function MeetingsAgendaPage() {
     if (!meetingForm.meeting_date || !meetingForm.run_by_admin_user_id) { toast.error('Meeting date and who is running it are required'); return }
     setSavingMeeting(true)
     const { data: meeting, error } = await supabase.from('agenda_meetings').insert({
-      meeting_date: meetingForm.meeting_date, title: meetingForm.title || null,
+      meeting_date: meetingForm.meeting_date, meeting_time: meetingForm.meeting_time || null, location: meetingForm.location || null,
+      title: meetingForm.title || null,
       run_by_admin_user_id: meetingForm.run_by_admin_user_id, agenda_photo_urls: meetingForm.agenda_photo_urls.length ? meetingForm.agenda_photo_urls : null,
-    }).select('id').single()
+    }).select('*').single()
     if (error || !meeting) { toast.error(error?.message ?? 'Failed to create meeting'); setSavingMeeting(false); return }
 
     const { data: carried, error: carryErr } = await supabase.rpc('carry_forward_meeting', { p_new_meeting_id: meeting.id })
@@ -201,6 +279,19 @@ export default function MeetingsAgendaPage() {
     if (carryErr) toast.error(`Meeting created, but carry-forward failed: ${carryErr.message}`)
     else toast.success(carried > 0 ? `Meeting created — ${carried} unfinished task(s) carried forward` : 'Meeting created')
     setExpanded(meeting.id)
+    // Straight into the notice panel — the whole point of capturing
+    // time/place at creation is to broadcast them right away.
+    setNoticeFor(meeting)
+    load()
+  }
+
+  // Lets staff keep scanning agenda pages throughout an open meeting, not
+  // just at creation — MultiImageUpload already hands back the full
+  // cumulative list (existing + newly uploaded), so this is a plain
+  // overwrite of agenda_photo_urls, same shape as the insert at creation.
+  const updateAgendaPhotos = async (meetingId: string, urls: string[]) => {
+    const { error } = await supabase.from('agenda_meetings').update({ agenda_photo_urls: urls.length ? urls : null }).eq('id', meetingId)
+    if (error) { toast.error(error.message); return }
     load()
   }
 
@@ -247,6 +338,9 @@ export default function MeetingsAgendaPage() {
     setExtractMeetingId(meeting.id)
     setExtracting(true)
     setExtractedPoints([])
+    // Reference-only list for the review modal — see recentDonePoints comment.
+    supabase.from('agenda_items').select('text_ur').eq('status', 'done').order('done_at', { ascending: false }).limit(30)
+      .then(({ data }) => setRecentDonePoints((data ?? []).map((r) => r.text_ur)))
     try {
       const res = await fetch('/api/admin/agenda/extract', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -345,11 +439,76 @@ export default function MeetingsAgendaPage() {
     load()
   }
 
-  const markDone = async (item: AgendaItem) => {
-    const { error } = await supabase.rpc('mark_agenda_item_done', { p_item_id: item.id })
+  const markDone = async (item: AgendaItem, isPrivate: boolean) => {
+    const { error } = await supabase.rpc('mark_agenda_item_done', { p_item_id: item.id, p_is_private: isPrivate })
     if (error) { toast.error(error.message); return }
     toast.success('Marked done')
     load()
+  }
+
+  // The paper-to-digital loop: staff read the committee's handwritten note
+  // off the printed minutes and type it in once here — it becomes a real
+  // reply on the actual project comment thread (post_agenda_comment_reply,
+  // migration 153), same as any portal-user reply, just labeled "Committee
+  // Reply" so it's clear where it came from.
+  const postReply = async (commentId: string) => {
+    if (!replyDraft.trim()) return
+    setPostingReply(true)
+    const { error } = await supabase.rpc('post_agenda_comment_reply', { p_parent_comment_id: commentId, p_content: replyDraft.trim() })
+    setPostingReply(false)
+    if (error) { toast.error(error.message); return }
+    toast.success('Reply posted to the project')
+    setReplyDraft('')
+    setReplyOpenFor(null)
+    load()
+  }
+
+  // One-way — no un-finalize path, matching "it can't be edited with new
+  // things afterwards, there's nothing to do after what's happening."
+  const finalizeMeeting = async () => {
+    if (!confirmFinalize) return
+    const { error } = await supabase.rpc('finalize_meeting', { p_meeting_id: confirmFinalize })
+    setConfirmFinalize(null)
+    if (error) { toast.error(error.message); return }
+    toast.success('Meeting finalized — it is now view-only')
+    load()
+  }
+
+  // Also one-way, and mutually exclusive with finalize (only 'open' meetings
+  // can be cancelled) — a scheduled meeting that never actually happened.
+  // The next "New Meeting" created afterwards automatically carries forward
+  // from, and windows activity since, the last non-cancelled meeting (see
+  // migration 155's carry_forward_meeting + the lastPastMeeting predicate
+  // above), so nothing else needs to change to "redo" it.
+  const cancelMeeting = async () => {
+    if (!confirmCancel) return
+    const { error } = await supabase.rpc('cancel_meeting', { p_meeting_id: confirmCancel })
+    setConfirmCancel(null)
+    if (error) { toast.error(error.message); return }
+    toast.success('Meeting cancelled')
+    load()
+  }
+
+  // wa.me can't attach an image — the panel this feeds tells staff to
+  // download the notice PNG first, then attach it manually in the chat
+  // this opens, same "download + one-tap wa.me per member" pattern as the
+  // rest of this page's WhatsApp buttons.
+  const sendMeetingNoticeWhatsApp = (meeting: Meeting, committeeMemberId: string) => {
+    const member = members.find((m) => m.id === committeeMemberId)
+    if (!member) return
+    const intl = member.phone ? normalizePakPhone(member.phone) : null
+    if (!intl) { toast.error(`No phone number on file for ${member.name}`); return }
+    const lines = [
+      `*Dhab Pari Committee — Meeting Notice*`,
+      `Dear ${member.name},`,
+      `تاریخ: ${formatUrduDate(meeting.meeting_date)}`,
+      meeting.meeting_time ? `وقت: ${formatUrduTime(meeting.meeting_time)}` : '',
+      meeting.location ? `مقام: ${meeting.location}` : '',
+      ``,
+      `تمام ممبران کی شرکت ضروری ہے۔`,
+      `تمام ممبران سے التماس ہے کہ کم از کم 2 نئی تجاویز اپنے ساتھ ضرور لے کر آئیں، اور یہ کہ جن ممبران کے پاس واٹس ایپ نہیں ہے انہیں سرفراز احمد سیکرٹری خود اطلاع دیں گے۔ والسلام۔`,
+    ].filter(Boolean).join('\n')
+    window.open(`https://wa.me/${intl}?text=${encodeURIComponent(lines)}`, '_blank')
   }
 
   const sendWhatsApp = (item: AgendaItem, meeting: Meeting, committeeMemberId: string) => {
@@ -523,8 +682,8 @@ export default function MeetingsAgendaPage() {
                 ) : (
                   visible.map((c) => (
                     <div key={c.id} className="border border-dp-outline-variant rounded-lg p-3">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">
+                      <div className="flex items-center justify-between gap-2 flex-wrap pb-1.5 mb-1.5 border-b border-dp-outline-variant">
+                        <p className="font-sans text-[14.5px] font-bold text-dp-on-surface">
                           {c.complaint_number ? `${c.complaint_number} — ` : ''}{c.complainant_name ?? 'Unknown'}{c.sector ? ` (Sector ${c.sector})` : ''}
                         </p>
                         <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold shrink-0 ${complaintStatusStyles[c.status]}`}>{complaintStatusLabel[c.status]}</span>
@@ -585,6 +744,92 @@ export default function MeetingsAgendaPage() {
         </div>
       )}
 
+      {/* Recent Activity Since Last Meeting — a time-windowed digest (job
+          listings, volunteers, comments, complaints, suggestions,
+          donations, proposals), not a status snapshot like the two panels
+          above. Lets the committee see everything that happened on the
+          site between meetings, not just what's still outstanding. */}
+      {!loading && (
+        <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-4">
+          <button onClick={() => setActivityOpen(!activityOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-left cursor-pointer hover:bg-dp-surface-container-low transition-all">
+            <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-2">
+              <Activity size={16} className="text-dp-secondary" /> Recent Activity Since Last Meeting
+              <span className="font-normal text-dp-on-surface-variant text-[12.5px]">
+                ({activity.length}{activitySince ? ` · since ${new Date(activitySince).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}` : ''})
+              </span>
+            </p>
+            {activityOpen ? <ChevronUp size={18} className="shrink-0 text-dp-on-surface-variant" /> : <ChevronDown size={18} className="shrink-0 text-dp-on-surface-variant" />}
+          </button>
+          {activityOpen && (
+            <div className="border-t border-dp-outline-variant p-4 space-y-2">
+              {activity.length === 0 && <p className="font-sans text-[12.5px] text-dp-on-surface-variant">Nothing new since the last meeting.</p>}
+              {activity.map((a, i) => {
+                const Icon = ACTIVITY_ICON[a.event_type] ?? Activity
+                return (
+                  <div key={i} className="flex items-start gap-2.5 border border-dp-outline-variant rounded-lg p-3">
+                    <Icon size={15} className="text-dp-secondary shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-wide">{ACTIVITY_LABEL[a.event_type] ?? a.event_type}</p>
+                      <p className="font-sans text-[13.5px] text-dp-on-surface"><span className="font-semibold">{a.actor_name ?? 'Unknown'}</span> — {a.title}</p>
+                      {a.detail && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">{a.detail}</p>}
+                      <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{new Date(a.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Project Comments Since Last Meeting — the actionable workspace:
+          every new comment grouped by project, with a blank paper reply
+          space in the print-out, and a "Post Reply" input here so a
+          handwritten committee reply from the meeting table becomes a real
+          reply on the project's own thread once typed in. */}
+      {!loading && projectComments.length > 0 && (
+        <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-4">
+          <button onClick={() => setProjectCommentsOpen(!projectCommentsOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-left cursor-pointer hover:bg-dp-surface-container-low transition-all">
+            <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-2">
+              <MessageCircle size={16} className="text-dp-secondary" /> Project Comments Since Last Meeting
+              <span className="font-normal text-dp-on-surface-variant text-[12.5px]">({projectComments.reduce((n, g) => n + g.comments.length, 0)})</span>
+            </p>
+            {projectCommentsOpen ? <ChevronUp size={18} className="shrink-0 text-dp-on-surface-variant" /> : <ChevronDown size={18} className="shrink-0 text-dp-on-surface-variant" />}
+          </button>
+          {projectCommentsOpen && (
+            <div className="border-t border-dp-outline-variant p-4 space-y-4">
+              {projectComments.map((g) => (
+                <div key={g.projectId} className="border border-dp-outline-variant rounded-lg p-3">
+                  <p className="font-sans text-[14.5px] font-bold text-dp-on-surface pb-1.5 mb-2 border-b border-dp-outline-variant">{g.projectTitle}</p>
+                  <div className="space-y-3">
+                    {g.comments.map((c) => (
+                      <div key={c.id} className="bg-dp-surface-container-low/50 rounded-lg p-2.5">
+                        <p className="font-sans text-[12.5px] text-dp-on-surface">
+                          <span className={`font-semibold ${c.comment_type === 'system' ? 'text-dp-secondary' : 'text-dp-on-surface'}`}>{c.username ?? 'Unknown'}:</span> {c.content}
+                        </p>
+                        {replyOpenFor === c.id ? (
+                          <div className="mt-2 flex gap-2">
+                            <input value={replyDraft} onChange={(e) => setReplyDraft(e.target.value)} placeholder="Type the committee's reply..." className="input-field flex-1 text-[13px]" />
+                            <button onClick={() => postReply(c.id)} disabled={postingReply} className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50 shrink-0">
+                              {postingReply ? 'Posting...' : 'Post Reply'}
+                            </button>
+                            <button onClick={() => { setReplyOpenFor(null); setReplyDraft('') }} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer shrink-0"><X size={14} /></button>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setReplyOpenFor(c.id); setReplyDraft('') }} className="mt-1.5 flex items-center gap-1 text-[11.5px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer">
+                            <Reply size={12} /> Post Committee Reply
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <p className="font-sans text-dp-on-surface-variant py-8 text-center">Loading...</p>
       ) : meetings.length === 0 ? (
@@ -610,17 +855,49 @@ export default function MeetingsAgendaPage() {
                         {meeting.title ? ` — ${meeting.title}` : ''}
                       </p>
                       {isLatest && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-dp-secondary-container text-dp-on-secondary-container">Current</span>}
+                      {meeting.status === 'finalized' && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-dp-surface-container-high text-dp-on-surface-variant flex items-center gap-1"><Lock size={10} /> Finalized</span>}
+                      {meeting.status === 'cancelled' && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 flex items-center gap-1"><Ban size={10} /> Cancelled</span>}
                     </div>
-                    <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                    <p className={`font-sans text-[12.5px] text-dp-on-surface-variant ${meeting.status === 'cancelled' ? 'line-through' : ''}`}>
                       Run by {adminName(meeting.run_by_admin_user_id) ?? 'Unknown'} · {tasks.filter((t) => t.status === 'done').length}/{tasks.length} tasks done · {suggestions.length} suggestion(s)
+                      {(meeting.meeting_time || meeting.location) && ` · ${[meeting.meeting_time?.slice(0, 5), meeting.location].filter(Boolean).join(' · ')}`}
+                      {meeting.status === 'finalized' && meeting.finalized_at && ` · Finalized ${new Date(meeting.finalized_at).toLocaleDateString('en-GB')}`}
                     </p>
                   </div>
-                  {isOpen ? <ChevronUp size={18} className="shrink-0 text-dp-on-surface-variant" /> : <ChevronDown size={18} className="shrink-0 text-dp-on-surface-variant" />}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {meeting.status !== 'cancelled' && (
+                      <span onClick={(e) => { e.stopPropagation(); setNoticeFor(meeting) }} title="Send Meeting Notice" className="p-1.5 border border-dp-outline-variant rounded-lg text-dp-secondary hover:bg-dp-surface-container-low transition-all cursor-pointer">
+                        <Send size={14} />
+                      </span>
+                    )}
+                    {meeting.status === 'finalized' ? (
+                      <span onClick={(e) => { e.stopPropagation(); setPrintMeetingId(meeting.id) }} className="px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-secondary hover:bg-dp-surface-container-low transition-all cursor-pointer">View Minutes</span>
+                    ) : meeting.status === 'open' ? (
+                      <>
+                        <span onClick={(e) => { e.stopPropagation(); setConfirmCancel(meeting.id) }} className="px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-red-700 hover:bg-red-50 transition-all cursor-pointer">Cancel Meeting</span>
+                        <span onClick={(e) => { e.stopPropagation(); setConfirmFinalize(meeting.id) }} className="px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Finalize Meeting</span>
+                      </>
+                    ) : null}
+                    {isOpen ? <ChevronUp size={18} className="shrink-0 text-dp-on-surface-variant" /> : <ChevronDown size={18} className="shrink-0 text-dp-on-surface-variant" />}
+                  </div>
                 </button>
 
                 {isOpen && (
                   <div className="border-t border-dp-outline-variant p-4 space-y-5">
-                    {meeting.agenda_photo_urls && meeting.agenda_photo_urls.length > 0 && (
+                    {/* Agenda scans — an open meeting can keep adding photographed
+                        pages any time up to finalization (not just at creation),
+                        each one immediately available to "Extract with AI" below.
+                        Once finalized/cancelled, agenda_items_write's server-side
+                        lock (migration 153/155) blocks writes anyway, so this is
+                        read-only past that point. */}
+                    {meeting.status === 'open' ? (
+                      <MultiImageUpload
+                        bucket="attachments" max={12}
+                        label="Agenda Scans — photograph each page as the meeting happens"
+                        currentUrls={meeting.agenda_photo_urls ?? []}
+                        onUpload={(urls) => updateAgendaPhotos(meeting.id, urls)}
+                      />
+                    ) : meeting.agenda_photo_urls && meeting.agenda_photo_urls.length > 0 && (
                       <div className="grid grid-cols-4 gap-2">
                         {meeting.agenda_photo_urls.map((url, i) => (
                           <a key={i} href={url} target="_blank" rel="noreferrer" className="block rounded-lg overflow-hidden border border-dp-outline-variant aspect-square">
@@ -635,12 +912,14 @@ export default function MeetingsAgendaPage() {
                       <div className="flex items-center justify-between mb-2">
                         <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] flex items-center gap-1.5"><ListChecks size={14} /> Tasks</p>
                         <div className="flex items-center gap-3">
-                          {meeting.agenda_photo_urls && meeting.agenda_photo_urls.length > 0 && (
+                          {meeting.status === 'open' && meeting.agenda_photo_urls && meeting.agenda_photo_urls.length > 0 && (
                             <button onClick={() => openExtract(meeting)} className="flex items-center gap-1 text-[12.5px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer">
                               <Sparkles size={13} /> Extract with AI
                             </button>
                           )}
-                          <button onClick={() => openAddTask(meeting.id)} className="text-[12.5px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer">+ Add Point</button>
+                          {meeting.status === 'open' && (
+                            <button onClick={() => openAddTask(meeting.id)} className="text-[12.5px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer">+ Add Point</button>
+                          )}
                         </div>
                       </div>
                       {tasks.length === 0 ? (
@@ -648,17 +927,28 @@ export default function MeetingsAgendaPage() {
                       ) : (
                         <div className="space-y-4">
                           {CATEGORY_ORDER.map((cat) => {
+                            // Done items float to the top so progress during a
+                            // live meeting is visible at a glance; stable order
+                            // within each group otherwise (no secondary sort).
                             const catTasks = tasks.filter((t) => (t.category ?? 'miscellaneous') === cat)
+                              .slice().sort((a, b) => (a.status === 'done' ? 0 : 1) - (b.status === 'done' ? 0 : 1))
                             if (catTasks.length === 0) return null
                             return (
                               <div key={cat}>
                                 <p className="font-sans text-[11px] font-bold text-dp-secondary uppercase tracking-[0.05em] mb-1.5">{CATEGORY_LABEL[cat]}</p>
                                 <div className="space-y-2">
                                   {catTasks.map((item) => (
-                                    <div key={item.id} className="border border-dp-outline-variant rounded-lg p-3">
+                                    <div key={item.id} className={`border border-dp-outline-variant rounded-lg p-3 ${item.status === 'done' ? 'bg-emerald-50/40' : ''}`}>
                                       <div className="flex items-start justify-between gap-2">
-                                        <p className="font-sans text-[14px] text-dp-on-surface flex-1" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{item.text_ur}</p>
-                                        <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${statusStyles[item.status]}`}>{item.status.replace('_', ' ')}</span>
+                                        <p className={`font-sans text-[14px] text-dp-on-surface flex-1 ${item.status === 'done' ? 'line-through opacity-70' : ''}`} dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{item.text_ur}</p>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                          {item.carried_from_item_id ? (
+                                            <span title="Carried forward from a previous meeting" className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">↻ Carried ×{item.carry_count}</span>
+                                          ) : (
+                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-dp-secondary-container text-dp-on-secondary-container">New</span>
+                                          )}
+                                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusStyles[item.status]}`}>{item.status.replace('_', ' ')}</span>
+                                        </div>
                                       </div>
                                       <div className="flex items-center flex-wrap gap-1.5 mt-2">
                                         {carriedBadge(item)}
@@ -675,15 +965,23 @@ export default function MeetingsAgendaPage() {
                                           </div>
                                         ))}
                                       </div>
-                                      {item.status !== 'done' && (currentUserId && canMarkDone(item, meeting) ? (
-                                        <button onClick={() => markDone(item)} className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
-                                          <CheckCircle2 size={13} /> Mark Done
-                                        </button>
-                                      ) : (
-                                        <button onClick={() => markDone(item)} className="mt-2 flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-surface-container-low transition-all cursor-pointer">
-                                          <CheckCircle2 size={13} /> Mark Done (admin override)
-                                        </button>
-                                      ))}
+                                      {item.status !== 'done' && meeting.status === 'open' && (
+                                        <div className="mt-2 flex items-center gap-3 flex-wrap">
+                                          {currentUserId && canMarkDone(item, meeting) ? (
+                                            <button onClick={() => markDone(item, !!privateChecks[item.id])} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
+                                              <CheckCircle2 size={13} /> Mark Done
+                                            </button>
+                                          ) : (
+                                            <button onClick={() => markDone(item, !!privateChecks[item.id])} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-surface-container-low transition-all cursor-pointer">
+                                              <CheckCircle2 size={13} /> Mark Done (admin override)
+                                            </button>
+                                          )}
+                                          <label className="flex items-center gap-1.5 cursor-pointer">
+                                            <input type="checkbox" checked={!!privateChecks[item.id]} onChange={(e) => setPrivateChecks({ ...privateChecks, [item.id]: e.target.checked })} className="accent-dp-secondary" />
+                                            <span className="font-sans text-[11.5px] text-dp-on-surface-variant">Private (don&apos;t show details on Achievements)</span>
+                                          </label>
+                                        </div>
+                                      )}
                                       {item.status === 'done' && item.done_by_admin_user_id && (
                                         <p className="font-sans text-[11.5px] text-emerald-700 mt-1.5">Done by {adminName(item.done_by_admin_user_id) ?? 'Unknown'}{item.done_at ? ` on ${new Date(item.done_at).toLocaleDateString('en-GB')}` : ''}</p>
                                       )}
@@ -769,10 +1067,10 @@ export default function MeetingsAgendaPage() {
                       <div>
                         <p className="font-sans text-[13px] font-bold text-red-700 uppercase tracking-[0.05em] flex items-center gap-1.5 mb-2"><Siren size={14} /> Emergency Jobs</p>
                         <div className="space-y-2">
-                          {emergencyJobs.map((item) => (
-                            <div key={item.id} className="border border-red-200 bg-red-50/40 rounded-lg p-3">
+                          {emergencyJobs.slice().sort((a, b) => (a.status === 'done' ? 0 : 1) - (b.status === 'done' ? 0 : 1)).map((item) => (
+                            <div key={item.id} className={`border border-red-200 bg-red-50/40 rounded-lg p-3 ${item.status === 'done' ? 'opacity-70' : ''}`}>
                               <div className="flex items-start justify-between gap-2">
-                                <p className="font-sans text-[14px] text-dp-on-surface flex-1" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{item.text_ur}</p>
+                                <p className={`font-sans text-[14px] text-dp-on-surface flex-1 ${item.status === 'done' ? 'line-through' : ''}`} dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{item.text_ur}</p>
                                 <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${statusStyles[item.status]}`}>{item.status.replace('_', ' ')}</span>
                               </div>
                               <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">Called by {adminName(item.created_by_admin_user_id) ?? 'Unknown'}</p>
@@ -790,15 +1088,23 @@ export default function MeetingsAgendaPage() {
                                   <Copy size={11} /> Copy for Group
                                 </button>
                               </div>
-                              {item.status !== 'done' && (currentUserId && canMarkDone(item, meeting) ? (
-                                <button onClick={() => markDone(item)} className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
-                                  <CheckCircle2 size={13} /> Mark Done
-                                </button>
-                              ) : (
-                                <button onClick={() => markDone(item)} className="mt-2 flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-surface-container-low transition-all cursor-pointer">
-                                  <CheckCircle2 size={13} /> Mark Done (admin override)
-                                </button>
-                              ))}
+                              {item.status !== 'done' && meeting.status === 'open' && (
+                                <div className="mt-2 flex items-center gap-3 flex-wrap">
+                                  {currentUserId && canMarkDone(item, meeting) ? (
+                                    <button onClick={() => markDone(item, !!privateChecks[item.id])} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
+                                      <CheckCircle2 size={13} /> Mark Done
+                                    </button>
+                                  ) : (
+                                    <button onClick={() => markDone(item, !!privateChecks[item.id])} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-surface-container-low transition-all cursor-pointer">
+                                      <CheckCircle2 size={13} /> Mark Done (admin override)
+                                    </button>
+                                  )}
+                                  <label className="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" checked={!!privateChecks[item.id]} onChange={(e) => setPrivateChecks({ ...privateChecks, [item.id]: e.target.checked })} className="accent-dp-secondary" />
+                                    <span className="font-sans text-[11.5px] text-dp-on-surface-variant">Private (don&apos;t show details on Achievements)</span>
+                                  </label>
+                                </div>
+                              )}
                               {item.status === 'done' && item.done_by_admin_user_id && (
                                 <p className="font-sans text-[11.5px] text-emerald-700 mt-1.5">Completed by {adminName(item.done_by_admin_user_id) ?? 'Unknown'}{item.done_at ? ` on ${new Date(item.done_at).toLocaleDateString('en-GB')}` : ''}</p>
                               )}
@@ -828,9 +1134,19 @@ export default function MeetingsAgendaPage() {
               <button onClick={() => setShowMeetingForm(false)} className="cursor-pointer"><X size={20} /></button>
             </div>
             <div className="p-5 space-y-4">
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Meeting Date</label>
+                  <input type="date" value={meetingForm.meeting_date} onChange={(e) => setMeetingForm({ ...meetingForm, meeting_date: e.target.value })} className="input-field" />
+                </div>
+                <div className="flex-1">
+                  <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Time (optional)</label>
+                  <input type="time" value={meetingForm.meeting_time} onChange={(e) => setMeetingForm({ ...meetingForm, meeting_time: e.target.value })} className="input-field" />
+                </div>
+              </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Meeting Date</label>
-                <input type="date" value={meetingForm.meeting_date} onChange={(e) => setMeetingForm({ ...meetingForm, meeting_date: e.target.value })} className="input-field" />
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Place (optional)</label>
+                <input value={meetingForm.location} onChange={(e) => setMeetingForm({ ...meetingForm, location: e.target.value })} className="input-field" placeholder="e.g. Committee Office" />
               </div>
               <div>
                 <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Title (optional)</label>
@@ -960,6 +1276,19 @@ export default function MeetingsAgendaPage() {
               ) : (
                 <>
                   <p className="font-sans text-[12px] text-dp-on-surface-variant">Review and correct each point, then assign it. Nothing is saved until you click "Save Selected" below.</p>
+                  {recentDonePoints.length > 0 && (
+                    <details className="border border-dp-outline-variant rounded-lg p-3">
+                      <summary className="font-sans text-[12px] font-bold text-dp-on-surface-variant cursor-pointer">
+                        Already Resolved Recently ({recentDonePoints.length}) — check against these before including a point
+                      </summary>
+                      <p className="font-sans text-[11px] text-dp-on-surface-variant mt-2 mb-1.5">AI extraction doesn't auto-remove already-resolved points (Urdu handwriting isn't reliable enough to match automatically) — compare against this list yourself.</p>
+                      <div className="space-y-1 max-h-40 overflow-y-auto">
+                        {recentDonePoints.map((t, i) => (
+                          <p key={i} className="font-sans text-[13px] text-dp-on-surface-variant border-b border-dp-outline-variant/60 pb-1" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{t}</p>
+                        ))}
+                      </div>
+                    </details>
+                  )}
                   {extractedPoints.map((p, i) => (
                     <div key={i} className={`border rounded-lg p-3 ${p.include ? 'border-dp-outline-variant' : 'border-dp-outline-variant opacity-50'}`}>
                       <label className="flex items-center gap-2 mb-2 cursor-pointer">
@@ -1120,6 +1449,14 @@ export default function MeetingsAgendaPage() {
             title: p.title, status: p.status, voteCount: p.vote_count, voteTarget: p.vote_target,
             comments: p.comments.map((c) => ({ authorName: c.username, text: c.content, isSystem: c.comment_type === 'system' })),
           })),
+          recentActivity: activity.map((a) => ({
+            eventType: a.event_type, label: ACTIVITY_LABEL[a.event_type] ?? a.event_type, title: a.title,
+            detail: a.detail, actorName: a.actor_name,
+          })),
+          projectComments: projectComments.map((g) => ({
+            projectTitle: g.projectTitle,
+            comments: g.comments.map((c) => ({ authorName: c.username, text: c.content, isSystem: c.comment_type === 'system' })),
+          })),
         }
         const buildBlob = async () => {
           if (!docRef.current) throw new Error('Document not ready')
@@ -1150,6 +1487,72 @@ export default function MeetingsAgendaPage() {
           </div>
         )
       })()}
+
+      {/* Send Meeting Notice modal */}
+      {noticeFor && (
+        <div className="fixed inset-0 bg-black/50 z-[160] flex items-center justify-center p-4" onClick={() => setNoticeFor(null)}>
+          <div className="bg-white rounded-lg max-h-[92vh] overflow-y-auto w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-dp-outline-variant">
+              <span className="font-sans text-[14px] font-bold text-dp-primary">Send Meeting Notice</span>
+              <button onClick={() => setNoticeFor(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <div className="p-4 flex justify-center bg-dp-surface-container-low/40">
+              <MeetingNoticeDocument
+                ref={noticeRef}
+                branding={branding}
+                data={{
+                  meetingDateLabel: formatUrduDate(noticeFor.meeting_date),
+                  meetingTimeLabel: noticeFor.meeting_time ? formatUrduTime(noticeFor.meeting_time) : null,
+                  location: noticeFor.location,
+                  title: noticeFor.title,
+                }}
+              />
+            </div>
+            <div className="px-4 py-3 border-t border-dp-outline-variant">
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2.5">
+                WhatsApp links can't attach an image — download the notice first, then attach it in the chat each Send button opens.
+              </p>
+              <button
+                onClick={async () => { try { downloadBlob(await nodeToPngBlob(noticeRef.current!), `meeting-notice-${noticeFor.meeting_date}.png`) } catch { toast.error('Could not prepare the notice image') } }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer mb-3"
+              >
+                <Download size={14} /> Download Notice (PNG)
+              </button>
+              <div className="space-y-1.5 max-h-52 overflow-y-auto border border-dp-outline-variant rounded-lg p-2">
+                {members.map((m) => (
+                  <div key={m.id} className="flex items-center justify-between gap-2 px-1.5 py-1">
+                    <span className="font-sans text-[13px] text-dp-on-surface">{m.name} <span className="text-dp-on-surface-variant text-[11.5px]">({m.position})</span></span>
+                    {m.uses_smartphone ? (
+                      <button onClick={() => sendMeetingNoticeWhatsApp(noticeFor, m.id)} className="flex items-center gap-1 px-2 py-1 border border-dp-outline-variant rounded-full font-sans text-[11.5px] font-semibold text-green-700 hover:bg-green-50 transition-all cursor-pointer shrink-0">
+                        <Send size={11} /> Send
+                      </button>
+                    ) : (
+                      <span className="font-sans text-[11px] text-dp-on-surface-variant shrink-0" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>سرفراز احمد سیکرٹری کو خود اطلاع دیں گے</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!confirmFinalize}
+        title="Finalize this meeting?"
+        message="Once finalized, this meeting becomes view-only — no new points, replies, or completions can be added to it. This can't be undone. Any still-open tasks will carry forward to the next meeting as usual."
+        confirmLabel="Finalize"
+        onConfirm={finalizeMeeting}
+        onCancel={() => setConfirmFinalize(null)}
+      />
+      <ConfirmDialog
+        open={!!confirmCancel}
+        title="Cancel this meeting?"
+        message="This marks the meeting as never having happened — it's kept in history but skipped by carry-forward and the activity digest. The next meeting you create will reach back to whatever meeting actually happened before this one. This can't be undone."
+        confirmLabel="Cancel Meeting"
+        onConfirm={cancelMeeting}
+        onCancel={() => setConfirmCancel(null)}
+      />
     </div>
   )
 }

@@ -16,15 +16,28 @@ import {
   Play,
   Eye,
   ChevronRight,
+  Briefcase,
+  HandHeart,
+  Trophy,
+  Lock,
 } from 'lucide-react'
 import { HomeHero } from '@/components/home/HomeHero'
 import { HomeMobileQuickActions } from '@/components/home/HomeMobileQuickActions'
 import { HomeMobileUrduCta } from '@/components/home/HomeMobileUrduCta'
 
+function fmtPKR(n: number) {
+  return Math.round(n).toLocaleString()
+}
+
+interface HomepageStats {
+  available_funds: number; active_projects: number; donations_this_month: number
+  registered_households: number; revenue_this_month: number; expenses_this_month: number
+}
+
 export default async function HomePage() {
   const supabase = await createClient()
 
-  const [projectsRes, newsRes, videosRes, donorsRes] = await Promise.all([
+  const [projectsRes, newsRes, videosRes, donorsRes, statsRes, jobsRes, volunteersRes, achievementsRes] = await Promise.all([
     supabase
       .from('projects')
       .select('id, title, title_ur, status, progress_percent, budget_pkr, spent_pkr, category, location, before_image_url, after_image_url')
@@ -47,12 +60,27 @@ export default async function HomePage() {
       .eq('is_verified', true)
       .order('date', { ascending: false })
       .limit(4),
+    // Real aggregate stats (migration 150) — the stat cards and Cash
+    // Position card below used to be hardcoded placeholder text.
+    supabase.rpc('homepage_stats').maybeSingle(),
+    supabase.from('job_listings').select('id, category, headline').eq('is_active', true).order('created_at', { ascending: false }).limit(3),
+    supabase.from('volunteers_public').select('id, project_id, full_name').order('created_at', { ascending: false }).limit(4),
+    supabase.from('achievements_public').select('id, done_at, is_private, text_ur, done_by_name').limit(3),
   ])
 
   const projects = projectsRes.data ?? []
   const news = newsRes.data ?? []
   const videos = videosRes.data ?? []
   const donors = donorsRes.data ?? []
+  const stats = (statsRes.data as HomepageStats | null) ?? { available_funds: 0, active_projects: 0, donations_this_month: 0, registered_households: 0, revenue_this_month: 0, expenses_this_month: 0 }
+  const jobs = jobsRes.data ?? []
+  const volunteers = volunteersRes.data ?? []
+  const achievements = achievementsRes.data ?? []
+  const volunteerProjectIds = volunteers.map((v) => v.project_id).filter((id): id is string => !!id)
+  const { data: volunteerProjects } = volunteerProjectIds.length
+    ? await supabase.from('projects').select('id, title').in('id', volunteerProjectIds)
+    : { data: [] as { id: string; title: string }[] }
+  const volunteerProjectTitle = (id: string | null) => id ? (volunteerProjects?.find((p) => p.id === id)?.title ?? 'a project') : 'General — Any Project'
 
   const categoryEmojis: Record<string, string> = {
     sports: '⚽',
@@ -95,9 +123,8 @@ export default async function HomePage() {
               <span className="p-2 bg-dp-primary-fixed text-dp-primary rounded-lg">
                 <Wallet size={20} />
               </span>
-              <span className="text-green-600 font-bold text-[14px] font-sans tracking-[0.05em]">+12%</span>
             </div>
-            <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">PKR 1,24,500</div>
+            <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">PKR {fmtPKR(stats.available_funds)}</div>
             <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]">Available Funds</div>
           </div>
 
@@ -108,7 +135,7 @@ export default async function HomePage() {
               </span>
               <span className="bg-dp-secondary-container text-dp-on-secondary-container px-2 py-0.5 rounded text-[10px] font-bold">ACTIVE</span>
             </div>
-            <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">3 Projects</div>
+            <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">{stats.active_projects} Projects</div>
             <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]">Active Community Drives</div>
           </div>
 
@@ -119,7 +146,7 @@ export default async function HomePage() {
               </span>
               <span className="text-dp-primary-container font-bold text-[14px] font-sans tracking-[0.05em]">This Month</span>
             </div>
-            <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">PKR 55,000</div>
+            <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">PKR {fmtPKR(stats.donations_this_month)}</div>
             <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]">Total Donations</div>
           </div>
 
@@ -132,7 +159,7 @@ export default async function HomePage() {
                 <Eye size={16} />
               </span>
             </div>
-            <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">148 Consumers</div>
+            <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">{stats.registered_households} Consumers</div>
             <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]">Registered Households</div>
           </div>
         </div>
@@ -285,6 +312,64 @@ export default async function HomePage() {
               )}
             </div>
           </section>
+
+          {/* --- Village Job Board --- */}
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title flex items-center gap-3"><Briefcase size={26} /> Village Job Board</h2>
+              <Link href="/jobs" className="text-dp-secondary font-bold hover:underline flex items-center text-[14px] font-sans tracking-[0.05em]">
+                View All <ArrowRight size={16} className="ml-1" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {jobs.map((job) => (
+                <Link
+                  key={job.id}
+                  href="/jobs"
+                  className="p-5 bg-white border border-dp-outline-variant rounded-lg hover:bg-dp-surface-container-low transition-colors group"
+                >
+                  <span className="bg-dp-secondary-container text-dp-on-secondary-container text-[10px] font-extrabold px-2 py-1 rounded uppercase tracking-wider">
+                    {job.category}
+                  </span>
+                  <p className="text-[15px] font-sans font-semibold text-dp-primary group-hover:text-dp-secondary transition-colors mt-2 line-clamp-2">
+                    {job.headline}
+                  </p>
+                </Link>
+              ))}
+              {jobs.length === 0 && (
+                <div className="col-span-3 text-center py-12 text-dp-on-surface-variant">
+                  No listings yet — <Link href="/portal/post-job" className="text-dp-secondary font-semibold hover:underline">post the first one</Link>.
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* --- Our Achievements --- */}
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title flex items-center gap-3"><Trophy size={26} /> Our Achievements</h2>
+              <Link href="/achievements" className="text-dp-secondary font-bold hover:underline flex items-center text-[14px] font-sans tracking-[0.05em]">
+                View All <ArrowRight size={16} className="ml-1" />
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {achievements.map((a) => (
+                <div key={a.id} className="p-4 bg-white border border-dp-outline-variant rounded-lg flex items-start gap-3">
+                  {a.is_private ? <Lock size={16} className="text-dp-on-surface-variant shrink-0 mt-0.5" /> : <Trophy size={16} className="text-dp-secondary shrink-0 mt-0.5" />}
+                  {a.is_private ? (
+                    <p className="text-[14px] font-sans text-dp-on-surface-variant italic">Private task completed by <span className="font-semibold not-italic">{a.done_by_name ?? 'a committee member'}</span></p>
+                  ) : (
+                    <p className="text-[14px] font-sans text-dp-on-surface" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{a.text_ur}</p>
+                  )}
+                </div>
+              ))}
+              {achievements.length === 0 && (
+                <div className="text-center py-12 text-dp-on-surface-variant">
+                  Nothing completed yet.
+                </div>
+              )}
+            </div>
+          </section>
         </div>
 
         {/* ===== RIGHT SIDEBAR (280px) ===== */}
@@ -297,18 +382,18 @@ export default async function HomePage() {
             </h3>
             <div className="space-y-4">
               <div>
-                <div className="text-[28px] font-bold font-sans">PKR 124,500</div>
+                <div className="text-[28px] font-bold font-sans">PKR {fmtPKR(stats.available_funds)}</div>
                 <div className="text-[12px] opacity-70 font-sans">Total Liquid Balance</div>
               </div>
               <div className="h-px bg-white/20 w-full" />
               <div className="grid grid-cols-2 gap-2 text-[14px] font-sans font-semibold tracking-[0.05em]">
                 <div>
-                  <p className="opacity-60">Revenue</p>
-                  <p className="font-bold">+75k</p>
+                  <p className="opacity-60">Revenue (This Month)</p>
+                  <p className="font-bold">+{fmtPKR(stats.revenue_this_month)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="opacity-60">Expenses</p>
-                  <p className="font-bold text-red-300">-22k</p>
+                  <p className="opacity-60">Expenses (This Month)</p>
+                  <p className="font-bold text-red-300">-{fmtPKR(stats.expenses_this_month)}</p>
                 </div>
               </div>
               <Link
@@ -358,6 +443,38 @@ export default async function HomePage() {
               className="block p-3 text-center text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-secondary font-bold bg-dp-surface-container-low border-t border-dp-outline-variant hover:bg-dp-surface-container transition-colors"
             >
               View Full List
+            </Link>
+          </div>
+
+          {/* Volunteers */}
+          <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
+            <div className="p-4 bg-dp-surface-container-low border-b border-dp-outline-variant flex items-center justify-between">
+              <h3 className="font-bold text-dp-primary text-[14px] font-sans tracking-[0.05em] flex items-center gap-2">
+                <HandHeart size={16} /> Volunteers
+              </h3>
+            </div>
+            <div className="divide-y divide-dp-outline-variant max-h-[300px] overflow-y-auto hide-scrollbar">
+              {volunteers.map((v) => (
+                <div key={v.id} className="p-4 hover:bg-dp-surface-container-low transition-colors">
+                  <p className="font-bold text-dp-on-surface text-[14px] font-sans tracking-[0.05em] truncate">
+                    {v.full_name}
+                  </p>
+                  <p className="text-[12px] text-dp-secondary font-sans font-semibold truncate">
+                    {volunteerProjectTitle(v.project_id)}
+                  </p>
+                </div>
+              ))}
+              {volunteers.length === 0 && (
+                <div className="p-4 text-center text-dp-on-surface-variant text-[14px]">
+                  No volunteers yet.
+                </div>
+              )}
+            </div>
+            <Link
+              href="/volunteer"
+              className="block p-3 text-center text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-secondary font-bold bg-dp-surface-container-low border-t border-dp-outline-variant hover:bg-dp-surface-container transition-colors"
+            >
+              Join as a Volunteer
             </Link>
           </div>
 
