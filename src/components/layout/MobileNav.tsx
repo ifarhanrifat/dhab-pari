@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { X, UserCircle2 } from 'lucide-react'
+import { X, UserCircle2, ShieldCheck } from 'lucide-react'
 
 interface MobileNavProps {
   open: boolean
@@ -19,19 +19,23 @@ export function MobileNav({ open, onClose, navLinks, isPortalUser }: MobileNavPr
       {/* Backdrop */}
       {open && (
         <div
-          className="fixed inset-0 bg-black/50 z-[60] lg:hidden"
+          className="fixed inset-0 bg-black/50 z-[95] lg:hidden"
           onClick={onClose}
         />
       )}
 
-      {/* Drawer */}
+      {/* Drawer. z-[100] puts it above the install banner (z-80) and the
+          floating WhatsApp button (z-70), which were previously drawn on top
+          of the menu and hid several links. flex + overflow-y-auto so every
+          item stays reachable on a short screen — the staff login button at
+          the bottom used to be cut off with no way to scroll to it. */}
       <div
-        className={`fixed top-0 left-0 h-full w-[280px] bg-dp-primary z-[70] lg:hidden transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 h-full w-[280px] max-w-[85vw] bg-dp-primary z-[100] lg:hidden flex flex-col overflow-y-auto transform transition-transform duration-300 ease-in-out ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
           <span className="font-heading text-[24px] font-bold text-white">
             Dhab Pari
           </span>
@@ -77,8 +81,25 @@ export function MobileNav({ open, onClose, navLinks, isPortalUser }: MobileNavPr
           </Link>
         </div>
 
+        {/* Staff entry point. Nothing on the public site linked to /admin at
+            all, so once the app is installed a committee member, accountant
+            or administrator had no way to reach the dashboard short of typing
+            the URL. Points at /admin, not /admin/login: middleware sends an
+            unauthenticated visitor to the login page and an already-signed-in
+            staff member straight through, so one link serves both. */}
+        <div className="px-4">
+          <Link
+            href="/admin"
+            onClick={onClose}
+            className="flex items-center gap-2 border border-white/25 text-white/85 px-4 py-2.5 rounded-lg font-sans text-[13.5px] font-semibold justify-center hover:bg-white/10 transition-colors"
+          >
+            <ShieldCheck size={16} />
+            Committee / Staff Log In
+          </Link>
+        </div>
+
         {/* Language Toggle */}
-        <div className="px-6 mt-4">
+        <div className="px-6 mt-4 pb-6">
           <button className="w-full text-white/80 hover:text-white border border-dp-outline-variant px-4 py-2 rounded-lg text-[14px] font-sans font-semibold tracking-[0.05em] transition-colors">
             EN / اردو
           </button>

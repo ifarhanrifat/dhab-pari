@@ -120,8 +120,12 @@ export default async function HomePage() {
       {/* ========== HERO ========== */}
       <HomeHero />
 
-      {/* ========== STAT CARDS (overlapping hero) ========== */}
-      <div className="max-w-[1200px] mx-auto px-6 -mt-16 relative z-20">
+      {/* ========== STAT CARDS (overlapping hero on desktop only) ==========
+          The -mt-16 pull-up is a desktop effect: that hero has pb-32 to make
+          room for it. The mobile hero has no such padding, so on a phone the
+          cards rode up and covered the hero's own paragraph. Keep the overlap
+          from md upward, sit normally below the hero on mobile. */}
+      <div className="max-w-[1200px] mx-auto px-6 md:-mt-16 relative z-20">
         {/* Desktop: 4 cols / Mobile: 2x2 grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
           <div className="bg-white border border-dp-outline-variant p-4 lg:p-6 rounded-lg hover:bg-dp-surface-container-low transition-colors">

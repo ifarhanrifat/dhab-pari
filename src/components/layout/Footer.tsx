@@ -73,6 +73,12 @@ export function Footer() {
             <Link href="/terms" className="hover:text-dp-primary transition-all">
               Terms of Service
             </Link>
+            {/* Deliberately understated — this is for the handful of committee
+                staff, not villagers — but it has to exist somewhere on the
+                public site, because nothing linked to /admin at all. */}
+            <Link href="/admin" className="hover:text-dp-primary transition-all">
+              Staff Log In
+            </Link>
           </div>
         </div>
       </div>
