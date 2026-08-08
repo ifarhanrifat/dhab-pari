@@ -68,7 +68,11 @@ export function HomeHero() {
             اور آپ سے پوچھتے ہیں کہ کیا خرچ کریں؟ کہہ دیجیے: جو ضرورت سے زائد ہو (عفو)۔ اللہ اسی طرح تمہارے لیے احکام کھول کر بیان کرتا ہے تاکہ تم غور و فکر کرو۔
           </p>
         </div>
-        <div className="relative h-64 overflow-hidden flex flex-col justify-end p-6 mx-4 mt-6 rounded-lg border border-dp-outline-variant">
+        {/* min-h, not a fixed h-64 with overflow-hidden: the heading wraps to
+            three lines on a narrow phone, which pushed the paragraph out of
+            the clipped box entirely. mb-6 keeps it off the stat cards below,
+            which it was previously butting straight into. */}
+        <div className="relative min-h-64 overflow-hidden flex flex-col justify-end p-6 mx-4 mt-6 mb-6 rounded-lg border border-dp-outline-variant">
           <div className="absolute inset-0 z-0 bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-[1]" />
           <div className="relative z-10 text-white">

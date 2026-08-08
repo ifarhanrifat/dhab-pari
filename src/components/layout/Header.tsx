@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { MessageCircle, Menu, UserCircle2 } from 'lucide-react'
 import { SITE } from '@/lib/constants'
 import { MobileNav } from './MobileNav'
+import { useMobileNav } from './MobileNavContext'
 import { createClient } from '@/lib/supabase/client'
 
 const navLinks = [
@@ -23,7 +24,7 @@ const navLinks = [
 
 export function Header() {
   const pathname = usePathname()
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const { open: mobileOpen, setOpen: setMobileOpen } = useMobileNav()
   const [isPortalUser, setIsPortalUser] = useState(false)
 
   // A registered donor/consumer is a website user too — surface a single
@@ -42,15 +43,27 @@ export function Header() {
     <>
       <header className="bg-dp-primary sticky top-0 z-50 w-full">
         <div className="max-w-[1200px] mx-auto w-full px-6 py-3.5 flex items-center justify-between gap-3">
-          {/* Logo — tagline only shows once there's room to spare (xl+),
-              so it never competes with the nav for space at lg. */}
-          <div className="shrink-0">
-            <Link href="/" className="font-heading text-[28px] font-bold leading-[34px] text-white tracking-tight">
-              Dhab Pari
-            </Link>
-            <p className="text-white/60 text-[12px] font-sans hidden xl:block">
-              Village Transparency Portal
-            </p>
+          {/* Menu button sits on the LEFT, next to the logo, so it points at
+              the drawer that slides in from the left — it used to be on the
+              far right, which made the panel appear to come from nowhere. */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <button
+              className="lg:hidden text-white p-1.5 -ml-1.5 shrink-0"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Open menu"
+            >
+              <Menu size={26} />
+            </button>
+            {/* Logo — tagline only shows once there's room to spare (xl+),
+                so it never competes with the nav for space at lg. */}
+            <div className="shrink-0">
+              <Link href="/" className="font-heading text-[28px] font-bold leading-[34px] text-white tracking-tight">
+                Dhab Pari
+              </Link>
+              <p className="text-white/60 text-[12px] font-sans hidden xl:block">
+                Village Transparency Portal
+              </p>
+            </div>
           </div>
 
           {/* Desktop Nav */}
@@ -124,13 +137,6 @@ export function Header() {
             </a>
             <button className="text-white/80 hover:text-white border border-dp-outline-variant px-2 py-1 rounded text-[12.5px] font-sans font-semibold tracking-[0.02em] hidden md:block transition-colors">
               EN/UR
-            </button>
-            <button
-              className="lg:hidden text-white p-1"
-              onClick={() => setMobileOpen(true)}
-              aria-label="Open menu"
-            >
-              <Menu size={24} />
             </button>
           </div>
         </div>

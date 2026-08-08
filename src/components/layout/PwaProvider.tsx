@@ -15,6 +15,7 @@ const DISMISS_KEY = 'dp_install_dismissed'
 export function PwaProvider() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
   const [showIosHint, setShowIosHint] = useState(false)
+  const [iosNeedsSafari, setIosNeedsSafari] = useState(false)
   const [dismissed, setDismissed] = useState(true) // assume dismissed until localStorage is read (avoids a flash)
 
   useEffect(() => {
@@ -42,13 +43,22 @@ export function PwaProvider() {
     }
     window.addEventListener('beforeinstallprompt', handler)
 
-    // iOS Safari never fires beforeinstallprompt — there is no programmatic
-    // install at all, the user must use Share → Add to Home Screen. So detect
-    // iOS Safari and explain that instead of showing a button that can't work.
+    // iOS never fires beforeinstallprompt — there is no programmatic install
+    // at all, the user must use Share → Add to Home Screen. Worse, only
+    // *Safari* can install: Chrome/Firefox/Edge on iOS are all Safari's engine
+    // in a different wrapper and cannot add to the home screen. This first
+    // showed the hint only to iOS Safari, so someone browsing in Chrome on an
+    // iPhone saw nothing at all and had no idea why. Now every iOS browser
+    // gets a hint — and non-Safari ones are told to switch to Safari.
     const ua = window.navigator.userAgent
-    const isIos = /iPad|iPhone|iPod/.test(ua)
-    const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua)
-    if (isIos && isSafari) setShowIosHint(true)
+    const isIos = /iPad|iPhone|iPod/.test(ua) ||
+      // iPadOS 13+ reports itself as desktop Safari; touch points give it away.
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    const isIosNonSafari = /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua)
+    if (isIos) {
+      setShowIosHint(true)
+      setIosNeedsSafari(isIosNonSafari)
+    }
 
     return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
@@ -81,10 +91,19 @@ export function PwaProvider() {
         <div className="min-w-0 flex-1">
           <p className="font-sans text-[14px] font-bold leading-[20px]">Install Dhab Pari</p>
           {showIosHint ? (
-            <p className="font-sans text-[12.5px] text-white/75 leading-[18px] mt-1">
-              Tap <Share size={12} className="inline align-[-1px]" /> Share, then{' '}
-              <span className="font-semibold text-white">Add to Home Screen</span>.
-            </p>
+            iosNeedsSafari ? (
+              <p className="font-sans text-[12.5px] text-white/75 leading-[18px] mt-1">
+                On iPhone only <span className="font-semibold text-white">Safari</span> can install apps.
+                Open <span className="font-semibold text-white">dhabpari.com</span> in Safari, then tap{' '}
+                <Share size={12} className="inline align-[-1px]" /> Share →{' '}
+                <span className="font-semibold text-white">Add to Home Screen</span>.
+              </p>
+            ) : (
+              <p className="font-sans text-[12.5px] text-white/75 leading-[18px] mt-1">
+                Tap <Share size={12} className="inline align-[-1px]" /> Share at the bottom, then{' '}
+                <span className="font-semibold text-white">Add to Home Screen</span>.
+              </p>
+            )
           ) : (
             <>
               <p className="font-sans text-[12.5px] text-white/75 leading-[18px] mt-1">
