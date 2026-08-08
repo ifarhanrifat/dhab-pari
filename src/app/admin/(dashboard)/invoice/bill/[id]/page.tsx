@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Printer, Download, Share2, Mail, Pencil, Trash2, ChevronDown, ChevronUp, BookOpen } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { ReceiptDocument, type ReceiptData, type InvoiceTemplate } from '@/components/admin/ReceiptDocument'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { fetchBrandingSettings, type BrandingSettings } from '@/lib/branding'
@@ -205,7 +206,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
 
   const handleDelete = async () => {
     const { error } = await supabase.from('bills').delete().eq('id', bill.id)
-    if (error) { toast.error(error.message); setConfirmDelete(false); return }
+    if (error) { toast.error(friendlyError(error)); setConfirmDelete(false); return }
     toast.success('Bill deleted')
     router.push('/admin/billing')
   }

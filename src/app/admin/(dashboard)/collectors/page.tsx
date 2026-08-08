@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Coins, HandCoins, History } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 
@@ -88,7 +89,7 @@ export default function CollectorsPage() {
       to_account_id: settleToAccount, method: settleMethod, note: settleNote || null,
     })
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(`Rs. ${fmt(settleAmount)} received from ${settleFor.name}`)
     setSettleFor(null)
     load()

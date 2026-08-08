@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import {
   Wallet, Landmark, TrendingUp, TrendingDown, Printer, X, ChevronDown, ChevronUp,
   FileText, UserCheck, UserPlus, MessageSquareWarning, ClipboardList, Heart, FolderKanban, ArrowDownToLine, ArrowUpFromLine, AlertTriangle, RefreshCw,
@@ -348,7 +349,7 @@ export default function RunningCapitalPage() {
     const { data: liveData, error } = await supabase.rpc('compute_monthly_closing', {
       p_system: system, p_month: now.getMonth() + 1, p_year: now.getFullYear(),
     })
-    if (error) toast.error(error.message)
+    if (error) toast.error(friendlyError(error))
     setLive(error ? null : (liveData as ClosingReportData))
     setLoadingLive(false)
 
@@ -372,7 +373,7 @@ export default function RunningCapitalPage() {
     setSavingRemarks(true)
     const { error } = await supabase.rpc('update_closing_report_reconciliation_remarks', { p_report_id: viewTarget.id, p_remarks: reconciliationRemarks })
     setSavingRemarks(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Saved')
     setViewTarget({ ...viewTarget, reconciliation_remarks: reconciliationRemarks })
     load()
@@ -389,7 +390,7 @@ export default function RunningCapitalPage() {
       .map(([consumer_id, opinion]) => ({ consumer_id, opinion: opinion.trim() }))
     const { error } = await supabase.rpc('update_closing_report_non_payer_opinions', { p_report_id: viewTarget.id, p_opinions: opinions })
     setSavingOpinions(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Saved')
     setViewTarget({ ...viewTarget, non_payer_opinions: opinions })
     load()
@@ -405,7 +406,7 @@ export default function RunningCapitalPage() {
     setRegenerating(true)
     const { error } = await supabase.rpc('regenerate_monthly_closing_report', { p_report_id: viewTarget.id })
     setRegenerating(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Report regenerated with current figures')
     const { data: refreshed } = await supabase.from('monthly_closing_reports').select('*').eq('id', viewTarget.id).single()
     if (refreshed) setViewTarget(refreshed as ClosingRow)

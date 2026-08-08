@@ -1,7 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Source_Sans_3, Playfair_Display, Noto_Nastaliq_Urdu, Noto_Naskh_Arabic } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
+import { FloatingWhatsAppButton } from "@/components/layout/FloatingWhatsAppButton";
+import { PwaProvider } from "@/components/layout/PwaProvider";
 import "./globals.css";
 
 const sourceSans = Source_Sans_3({
@@ -48,6 +50,30 @@ export const metadata: Metadata = {
     locale: "en_US",
     type: "website",
   },
+  // iOS ignores the web manifest's icons and display mode — these are the
+  // only things that make an installed home-screen app look right on iPhone.
+  appleWebApp: {
+    capable: true,
+    title: "Dhab Pari",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: [{ url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  other: {
+    // Next emits the modern `mobile-web-app-capable`, which only iOS 15.4+
+    // honours. Plenty of phones in the village will be older than that, and
+    // without this legacy tag those launch in a Safari window with the address
+    // bar instead of full-screen. Harmless duplication on new devices.
+    "apple-mobile-web-app-capable": "yes",
+  },
+};
+
+// Colours the Android status bar / iOS notch area to match the site header
+// so the installed app doesn't show a white strip above the green header.
+export const viewport: Viewport = {
+  themeColor: "#0B3B2E",
 };
 
 export default function RootLayout({
@@ -62,9 +88,12 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         {children}
+        <PwaProvider />
+        <FloatingWhatsAppButton />
         <Toaster
           position="top-center"
           richColors
+          closeButton
           className="dp-toaster-center"
           toastOptions={{
             duration: 3500,

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Eye, Pencil, Trash2, Printer, PlusCircle, X, Save, Banknote } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
@@ -211,7 +212,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
   const saveBillEdit = async () => {
     if (!editBillRow?.reference_id) return
     const { error } = await supabase.from('bills').update(billForm).eq('id', editBillRow.reference_id)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Bill updated')
     setEditBillRow(null)
     load()
@@ -241,7 +242,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
       amount_pkr: amount, method: payForm.method, note: payForm.note || null,
     })
     setPaying(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     if (amount > payOutstanding) {
       toast.success(`Payment recorded — Rs. ${fmtAmount(amount - payOutstanding)} credited as advance balance`)
     } else {
@@ -264,7 +265,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
     } else {
       ({ error } = await supabase.from('ledger_entries').delete().eq('id', row.id))
     }
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Transaction deleted')
     setConfirmDeleteRow(null)
     load()
@@ -277,7 +278,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
       account_id: id, entry_date: manualForm.entry_date, particular: manualForm.particular,
       debit: manualForm.debit || 0, credit: manualForm.credit || 0, reference_type: 'manual',
     })
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Entry added')
     setShowManualForm(false)
     setManualForm({ entry_date: new Date().toISOString().slice(0, 10), particular: '', debit: 0, credit: 0 })
@@ -440,6 +441,28 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                 </tr>
               )}
             </tbody>
+            {rows.length > 0 && (() => {
+              const totalDebit = rows.reduce((s, r) => s + Number(r.debit), 0)
+              const totalCredit = rows.reduce((s, r) => s + Number(r.credit), 0)
+              const closingBalance = rows[rows.length - 1].balance
+              return (
+                <tfoot>
+                  <tr className="font-sans text-[13.5px] font-bold bg-dp-surface-container-low/60 border-t-2 border-dp-outline-variant">
+                    <td className="px-4 py-3" colSpan={4 + (consumerInfo ? 1 : 0)}>{dt(lang, 'total')}</td>
+                    {account.type === 'donor' ? (
+                      <td className="px-4 py-3 text-right">{fmtAmount(totalCredit)}</td>
+                    ) : (
+                      <>
+                        <td className="px-4 py-3 text-right">{fmtAmount(totalDebit)}</td>
+                        <td className="px-4 py-3 text-right">{fmtAmount(totalCredit)}</td>
+                      </>
+                    )}
+                    <td className="px-4 py-3 text-right">{fmtAmount(closingBalance)}</td>
+                    <td className="no-export px-4 py-3 print:hidden"></td>
+                  </tr>
+                </tfoot>
+              )
+            })()}
           </table>
         </div>
       </div>

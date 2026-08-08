@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { motion } from 'motion/react'
@@ -290,24 +291,24 @@ function OngoingCard({ project, isHot, commentCount, dt, isUrdu }: { project: Pr
       {isHot && <HotBadge />}
       {/* Left: Before / Present */}
       <div className="relative grid grid-cols-2 gap-[2px] bg-dp-outline-variant p-[2px]">
-        <div className="relative">
+        <div className="relative aspect-[4/3]">
           <div className="absolute top-2 left-2 z-10 bg-black/50 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded font-sans">
             {dt('before')}
           </div>
           {project.before_image_url ? (
-            <img src={project.before_image_url} alt="Before" className="aspect-[4/3] w-full object-cover" />
+            <Image src={project.before_image_url} alt="Before" fill sizes="(min-width: 768px) 25vw, 50vw" className="object-cover" />
           ) : (
-            <div className="aspect-[4/3] bg-gradient-to-br from-dp-surface-container-high to-dp-surface-dim" />
+            <div className="absolute inset-0 bg-gradient-to-br from-dp-surface-container-high to-dp-surface-dim" />
           )}
         </div>
-        <div className="relative">
+        <div className="relative aspect-[4/3]">
           <div className="absolute top-2 left-2 z-10 bg-dp-primary text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded font-sans">
             {dt('present')}
           </div>
           {project.after_image_url || project.proposal_image_url ? (
-            <img src={project.after_image_url ?? project.proposal_image_url ?? ''} alt="Present" className="aspect-[4/3] w-full object-cover" />
+            <Image src={project.after_image_url ?? project.proposal_image_url ?? ''} alt="Present" fill sizes="(min-width: 768px) 25vw, 50vw" className="object-cover" />
           ) : (
-            <div className="aspect-[4/3] bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container" />
+            <div className="absolute inset-0 bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container" />
           )}
         </div>
       </div>
@@ -404,14 +405,14 @@ function CompletedCard({ project, isHot, dt, isUrdu }: { project: Project; isHot
     <div className="relative bg-white border border-dp-outline-variant rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 hover:border-dp-secondary transition-all">
       {isHot && <HotBadge />}
       {/* Left: Photo */}
-      <div className="relative">
+      <div className="relative h-full min-h-[300px]">
         <div className="absolute top-4 left-4 z-10 bg-dp-primary text-white text-[10px] uppercase font-bold px-3 py-1 rounded font-sans">
           {dt('successStory')}
         </div>
         {project.after_image_url || project.proposal_image_url ? (
-          <img src={project.after_image_url ?? project.proposal_image_url ?? ''} alt={project.title} className="h-full min-h-[300px] w-full object-cover" />
+          <Image src={project.after_image_url ?? project.proposal_image_url ?? ''} alt={project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
         ) : (
-          <div className="h-full min-h-[300px] bg-gradient-to-br from-dp-secondary to-dp-primary-container" />
+          <div className="absolute inset-0 bg-gradient-to-br from-dp-secondary to-dp-primary-container" />
         )}
       </div>
 
@@ -504,7 +505,7 @@ function UpcomingCard({ project, voteCount, isHot, dt, isUrdu }: { project: Proj
       {/* Left: Photo when the proposer submitted one, else the illustration */}
       <div className="relative bg-blue-50 flex items-center justify-center min-h-[300px]">
         {project.proposal_image_url ? (
-          <img src={project.proposal_image_url} alt={project.title} className="absolute inset-0 w-full h-full object-cover" />
+          <Image src={project.proposal_image_url} alt={project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
         ) : (
           <div className="text-center p-8">
             <Vote size={64} className="text-blue-500 mb-4 mx-auto" />
@@ -612,7 +613,7 @@ function AnnouncedCard({ project, dt, isUrdu }: { project: Project; dt: Dt; isUr
     <div className="relative bg-dp-surface-container-low border-2 border-dashed border-dp-outline-variant rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 opacity-90">
       <div className="relative bg-slate-100 flex items-center justify-center min-h-[220px] md:min-h-[300px]">
         {project.proposal_image_url && (
-          <img src={project.proposal_image_url} alt={project.title} className="absolute inset-0 w-full h-full object-cover grayscale opacity-40" />
+          <Image src={project.proposal_image_url} alt={project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover grayscale opacity-40" />
         )}
         <div className="relative text-center p-8">
           <Lock size={56} className="text-slate-400 mb-4 mx-auto" />

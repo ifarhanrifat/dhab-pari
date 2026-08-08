@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -48,12 +49,22 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
 
   const visibleMenuItems = menuItems.filter((item) => !item.requiresConsumer || user?.consumer_id)
 
+  // Longest-match so exactly one item highlights — same fix as AdminSidebar,
+  // where plain startsWith() lit a parent and its child simultaneously. No
+  // portal route collides today; this keeps it that way when one is added.
+  const activeHref = (() => {
+    const matches = visibleMenuItems
+      .map((i) => i.href)
+      .filter((href) => (href === '/portal' ? pathname === '/portal' : pathname === href || pathname.startsWith(href + '/')))
+    return matches.sort((a, b) => b.length - a.length)[0] ?? null
+  })()
+
   const sidebarContent = (
     <>
       <nav className="flex-1 space-y-1 overflow-y-auto">
         {visibleMenuItems.map((item) => {
           const Icon = item.icon
-          const isActive = item.href === '/portal' ? pathname === '/portal' : pathname.startsWith(item.href)
+          const isActive = item.href === activeHref
           return (
             <Link key={item.href} href={item.href} onClick={onMobileClose}
               className={`flex items-center px-4 py-3 mx-2 rounded-lg transition-all text-[14px] font-sans ${
@@ -77,7 +88,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
       <div className="px-4 pt-4 mt-auto border-t border-white/10 shrink-0">
         <Link href="/portal/profile" onClick={onMobileClose} className="bg-dp-primary-container p-3 rounded-lg mb-3 flex items-center hover:opacity-90 transition-opacity">
           {user?.avatar_url ? (
-            <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover mr-2 shrink-0" />
+            <Image src={user.avatar_url} alt="" width={32} height={32} className="w-8 h-8 rounded-full object-cover mr-2 shrink-0" />
           ) : (
             <div className="w-8 h-8 rounded-full bg-[#5bc8a3] text-dp-primary flex items-center justify-center font-bold text-[12px] font-sans mr-2 shrink-0">
               {(user?.full_name ?? '?').charAt(0).toUpperCase()}

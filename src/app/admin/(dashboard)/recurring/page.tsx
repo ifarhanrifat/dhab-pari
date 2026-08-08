@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { RotateCcw, Trash2, Repeat, ListChecks } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 
@@ -108,7 +109,7 @@ export default function RecurringPage() {
   const removeSchedule = async () => {
     if (!confirmRemoveId) return
     const { error } = await supabase.from('recurring_schedules').delete().eq('id', confirmRemoveId)
-    if (error) { toast.error(error.message); setConfirmRemoveId(null); return }
+    if (error) { toast.error(friendlyError(error)); setConfirmRemoveId(null); return }
     toast.success('Recurring schedule removed — it will never fire again')
     setConfirmRemoveId(null)
     load()
@@ -118,7 +119,7 @@ export default function RecurringPage() {
     setResettingId(id)
     const { error } = await supabase.rpc('reset_recurring_schedule', { p_schedule_id: id })
     setResettingId(null)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Schedule reset — next occurrence recalculated from today')
     load()
   }

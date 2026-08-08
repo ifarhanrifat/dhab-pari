@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { Briefcase, Power } from 'lucide-react'
 
 interface Listing {
@@ -37,7 +38,7 @@ export default function AdminJobsPage() {
 
   const toggleActive = async (l: Listing) => {
     const { error } = await supabase.from('job_listings').update({ is_active: !l.is_active }).eq('id', l.id)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(l.is_active ? 'Listing deactivated' : 'Listing reactivated')
     load()
   }

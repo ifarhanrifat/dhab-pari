@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { HeartHandshake, X } from 'lucide-react'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 
@@ -48,7 +49,7 @@ export default function PortalStatementPage() {
     const supabase = createClient()
     const { error } = await supabase.rpc('submit_pledge_payment', { p_donor_id: payingId, p_payment_proof_url: payProof, p_payment_method: payMethod })
     setSubmitting(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Payment submitted — awaiting verification')
     setPayingId(null)
     setPayProof('')

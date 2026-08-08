@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Send, MessageCircle, Megaphone } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 
 interface LogEntry { id: string; type: string; recipient: string | null; message: string | null; status: string; sent_at: string | null; created_at: string }
 
@@ -26,7 +27,7 @@ export default function AdminNotificationsPage() {
     if (!message.trim()) { toast.error('Message required'); return }
     setSending(true)
     const { error } = await supabase.from('notifications_log').insert({ type: 'whatsapp', recipient: audience, message: message.trim(), status: 'pending' })
-    if (error) { toast.error(error.message); setSending(false); return }
+    if (error) { toast.error(friendlyError(error)); setSending(false); return }
     toast.success('WhatsApp alert queued — integration pending')
     setMessage('')
     setSending(false)
@@ -40,7 +41,7 @@ export default function AdminNotificationsPage() {
       p_event_type: 'emergency_appeal', p_title: portalTitle.trim(), p_body: portalBody.trim() || null, p_link: portalLink.trim() || null,
     })
     setBroadcasting(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(`Sent to ${data} registered portal user(s)`)
     setPortalTitle(''); setPortalBody(''); setPortalLink('')
   }

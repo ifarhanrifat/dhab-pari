@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PlusCircle, X, Save, Boxes, Wrench, Layers, ShoppingCart, Trash2, Star, History, LineChart as LineChartIcon, AlertTriangle, Trophy } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { StockValueTrendChart } from '@/components/admin/DashboardCharts'
@@ -173,7 +174,7 @@ export default function InventoryPage() {
   const saveItem = async () => {
     if (!itemForm.name.trim()) { toast.error('Item name required'); return }
     const { error } = await supabase.from('inventory_items').insert({ system: 'water_supply', ...itemForm })
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Item added')
     setShowItemForm(false)
     setItemForm(emptyItemForm)
@@ -183,7 +184,7 @@ export default function InventoryPage() {
   const saveService = async () => {
     if (!serviceForm.name.trim()) { toast.error('Service name required'); return }
     const { error } = await supabase.from('service_items').insert({ system: 'water_supply', ...serviceForm, description: serviceForm.description || null })
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Service added')
     setShowServiceForm(false)
     setServiceForm(emptyServiceForm)
@@ -219,14 +220,14 @@ export default function InventoryPage() {
       system: 'water_supply', purchase_date: new Date().toISOString().slice(0, 10),
       method: purchaseForm.method, note: purchaseForm.note || null,
     }).select('id').single()
-    if (purchaseErr) { toast.error(purchaseErr.message); return }
+    if (purchaseErr) { toast.error(friendlyError(purchaseErr)); return }
     const { error: lineErr } = await supabase.from('purchase_line_items').insert({
       purchase_id: purchase.id, inventory_item_id: purchaseFor.id,
       description: purchaseFor.name, quantity: purchaseForm.quantity, unit_cost: purchaseForm.unit_cost_at_time,
     })
-    if (lineErr) { toast.error(lineErr.message); return }
+    if (lineErr) { toast.error(friendlyError(lineErr)); return }
     const { error: submitErr } = await supabase.rpc('submit_purchase_for_approval', { p_purchase_id: purchase.id })
-    if (submitErr) { toast.error(submitErr.message); return }
+    if (submitErr) { toast.error(friendlyError(submitErr)); return }
     toast.success(`Purchase of ${purchaseForm.quantity} ${purchaseFor.unit} of ${purchaseFor.name} saved — awaiting approval before it posts to stock`)
     setPurchaseFor(null)
     load()
@@ -235,7 +236,7 @@ export default function InventoryPage() {
   const deleteRow = async () => {
     if (!confirmDeleteItem) return
     const { error } = await supabase.from(confirmDeleteItem.table).delete().eq('id', confirmDeleteItem.id)
-    if (error) { toast.error(error.message); setConfirmDeleteItem(null); return }
+    if (error) { toast.error(friendlyError(error)); setConfirmDeleteItem(null); return }
     toast.success('Deleted')
     setConfirmDeleteItem(null)
     load()
@@ -244,7 +245,7 @@ export default function InventoryPage() {
   const addTemplate = async () => {
     if (!newTemplateName.trim()) { toast.error('Template name required'); return }
     const { error } = await supabase.from('connection_templates').insert({ system: 'water_supply', name: newTemplateName })
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Template created')
     setNewTemplateName('')
     setShowAddTemplate(false)
@@ -268,7 +269,7 @@ export default function InventoryPage() {
       quantity: addLineForm.quantity,
     }
     const { error } = await supabase.from('connection_template_items').insert(payload)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     setAddLineForm({ item_type: 'inventory', ref_id: '', quantity: 1 })
     load()
   }

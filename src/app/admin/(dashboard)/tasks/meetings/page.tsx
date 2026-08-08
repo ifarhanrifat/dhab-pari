@@ -1,13 +1,15 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { normalizePakPhone, nodeToPdfBlob, nodeToPngBlob, printBlob, downloadBlob, getPreferredFormat, setPreferredFormat, type ReceiptFormat } from '@/lib/receiptExport'
 import { fetchBrandingSettings, type BrandingSettings } from '@/lib/branding'
 import { MultiImageUpload } from '@/components/admin/MultiImageUpload'
 import { AgendaMinutesDocument, type AgendaMinutesData } from '@/components/admin/AgendaMinutesDocument'
-import { MeetingNoticeDocument, formatUrduDate, formatUrduTime } from '@/components/admin/MeetingNoticeDocument'
+import { formatUrduDate, formatUrduTime } from '@/lib/urduFormat'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import {
   CalendarClock, PlusCircle, X, ChevronDown, ChevronUp, CheckCircle2, MessageCircle,
@@ -33,6 +35,12 @@ const CATEGORY_LABEL: Record<Category, string> = {
   miscellaneous: 'Miscellaneous', donation_projects: 'Donation & Projects', medical: 'Medical',
   tree_plantation: 'Tree Plantation', water_supply: 'Water Supply',
 }
+// Used only for the WhatsApp agenda text (below) — the rest of this page's
+// UI is English, but the message sent to members is Urdu throughout.
+const CATEGORY_LABEL_UR: Record<Category, string> = {
+  miscellaneous: 'متفرق امور', donation_projects: 'عطیات و منصوبے', medical: 'طبی امداد',
+  tree_plantation: 'شجرکاری', water_supply: 'واٹر سپلائی',
+}
 
 interface Meeting {
   id: string; meeting_date: string; title: string | null; run_by_admin_user_id: string
@@ -41,8 +49,9 @@ interface Meeting {
   meeting_time: string | null; location: string | null
 }
 interface CommitteeMember {
-  id: string; name: string; position: string; phone: string | null
+  id: string; name: string; name_ur: string | null; position: string; position_ur: string | null; phone: string | null
   admin_user_id: string | null; proxy_admin_user_id: string | null; uses_smartphone: boolean
+  handles_non_whatsapp_notice: boolean
 }
 interface AdminUserOpt { id: string; full_name: string }
 interface AgendaItem {
@@ -145,98 +154,43 @@ export default function MeetingsAgendaPage() {
   const [recentDonePoints, setRecentDonePoints] = useState<string[]>([])
 
   const [noticeFor, setNoticeFor] = useState<Meeting | null>(null)
-  const noticeRef = useRef<HTMLDivElement>(null)
 
+  // Was 12 separate round trips (meetings/members/admin users/items/
+  // assignees/complaints/auth/activity/comments x2/projects/votes) — now 3:
+  // one core-shell RPC, then activity + project-activity in parallel, all
+  // computed server-side (migration 160) instead of stitched together here.
   const load = async () => {
-    const [meetingsRes, membersRes, adminUsersRes, itemsRes, assigneesRes, userRes, complaintsRes] = await Promise.all([
-      supabase.from('agenda_meetings').select('*').order('meeting_date', { ascending: false }),
-      supabase.from('committee_members').select('id, name, position, phone, admin_user_id, proxy_admin_user_id, uses_smartphone').order('display_order'),
-      supabase.from('admin_users').select('id, full_name').eq('is_active', true).order('full_name'),
-      supabase.from('agenda_items').select('*').order('display_order'),
-      supabase.from('agenda_item_assignees').select('*'),
-      supabase.auth.getUser(),
-      // Cross-meeting reference, not scoped to one meeting_id — committee
-      // members should see "what's the state of all complaints" during
-      // discussion, not just ones raised in a specific past meeting.
-      supabase.from('complaints').select('id, complaint_number, complainant_name, sector, complaint_text, status, assigned_to, resolved_by, resolved_at, created_at').order('created_at', { ascending: false }),
-    ])
-    setMeetings(meetingsRes.data ?? [])
+    const { data: core, error: coreErr } = await supabase.rpc('get_meetings_core_data')
+    if (coreErr || !core) { toast.error(friendlyError(coreErr, 'Failed to load meetings')); setLoading(false); return }
+
+    const meetings: Meeting[] = core.meetings ?? []
+    setMeetings(meetings)
+    setMembers(core.members ?? [])
+    setAdminUsers(core.admin_users ?? [])
+    setItems(core.items ?? [])
+    setAssignees(core.assignees ?? [])
+    setComplaints(core.complaints ?? [])
+    setCurrentUserId(core.current_admin_id ?? null)
 
     // Window: from the most recent meeting that's already happened, to now
     // — falls back to 10 days ago if there's no prior meeting yet. Distinct
     // from the Complaints/Project Discussions panels above, which are
     // status snapshots (all currently-open items), not time-windowed.
     const todayStr = new Date().toISOString().slice(0, 10)
-    const lastPastMeeting = (meetingsRes.data ?? []).find((m) => m.meeting_date <= todayStr && m.status !== 'cancelled')
+    const lastPastMeeting = meetings.find((m) => m.meeting_date <= todayStr && m.status !== 'cancelled')
     const since = lastPastMeeting
       ? new Date(lastPastMeeting.meeting_date + 'T00:00:00Z').toISOString()
       : new Date(Date.now() - 10 * 24 * 3600 * 1000).toISOString()
     setActivitySince(since)
-    const { data: activityRows } = await supabase.rpc('recent_activity_since', { p_since: since })
+
+    const [{ data: activityRows }, { data: projectActivity, error: paErr }] = await Promise.all([
+      supabase.rpc('recent_activity_since', { p_since: since }),
+      supabase.rpc('get_meetings_project_activity', { p_since: since }),
+    ])
     setActivity(activityRows ?? [])
-
-    // New comments since the window, grouped per project — this is the
-    // actionable workspace (write the reply here at the meeting table,
-    // Post Reply below sends it back to the real thread), distinct from
-    // the flat overview above.
-    const { data: newComments } = await supabase.from('project_comments_public')
-      .select('id, project_id, username, content, comment_type, created_at')
-      .gte('created_at', since).order('created_at', { ascending: true })
-    if (newComments && newComments.length > 0) {
-      const projectIds = [...new Set(newComments.map((c) => c.project_id))]
-      const { data: projTitles } = await supabase.from('projects').select('id, title').in('id', projectIds)
-      const titleFor = (id: string) => projTitles?.find((p) => p.id === id)?.title ?? 'Untitled Project'
-      const groups: Record<string, ProjectCommentGroup> = {}
-      for (const c of newComments) {
-        if (!groups[c.project_id]) groups[c.project_id] = { projectId: c.project_id, projectTitle: titleFor(c.project_id), comments: [] }
-        groups[c.project_id].comments.push({ id: c.id, username: c.username, content: c.content, comment_type: c.comment_type, created_at: c.created_at })
-      }
-      setProjectComments(Object.values(groups))
-    } else {
-      setProjectComments([])
-    }
-
-    setMembers(membersRes.data ?? [])
-    setAdminUsers(adminUsersRes.data ?? [])
-    setItems(itemsRes.data ?? [])
-    setAssignees(assigneesRes.data ?? [])
-    if (userRes.data.user) {
-      const { data: me } = await supabase.from('admin_users').select('id').eq('auth_user_id', userRes.data.user.id).single()
-      setCurrentUserId(me?.id ?? null)
-    }
-    const adminList = adminUsersRes.data ?? []
-    const nameFor = (id: string | null) => adminList.find((a) => a.id === id)?.full_name ?? null
-    setComplaints((complaintsRes.data ?? []).map((c) => ({
-      ...c, incharge_name: nameFor(c.assigned_to), resolved_by_name: nameFor(c.resolved_by),
-    })))
-
-    // Same cross-meeting live-join idea as complaints above, but for
-    // proposals still being decided (upcoming = voting, reviewing =
-    // committee deciding budget) — so the committee sees the community's
-    // votes and comments verbatim during discussion, not a stale import.
-    const { data: discussionProjects } = await supabase
-      .from('projects').select('id, title, status, vote_target')
-      .in('status', ['upcoming', 'reviewing']).order('created_at', { ascending: false })
-    if (discussionProjects && discussionProjects.length > 0) {
-      const ids = discussionProjects.map((p) => p.id)
-      const [commentsRes, votesRes] = await Promise.all([
-        supabase.from('project_comments_public').select('project_id, username, content, comment_type, created_at').in('project_id', ids).order('created_at', { ascending: true }),
-        supabase.from('project_votes').select('project_id').in('project_id', ids),
-      ])
-      const voteCounts: Record<string, number> = {}
-      for (const v of votesRes.data ?? []) voteCounts[v.project_id] = (voteCounts[v.project_id] ?? 0) + 1
-      const commentsByProject: Record<string, ProjectDiscussionComment[]> = {}
-      for (const c of commentsRes.data ?? []) {
-        if (!commentsByProject[c.project_id]) commentsByProject[c.project_id] = []
-        commentsByProject[c.project_id].push(c)
-      }
-      setProjectDiscussions(discussionProjects.map((p) => ({
-        id: p.id, title: p.title, status: p.status, vote_target: p.vote_target,
-        vote_count: voteCounts[p.id] ?? 0, comments: commentsByProject[p.id] ?? [],
-      })))
-    } else {
-      setProjectDiscussions([])
-    }
+    if (paErr) toast.error(friendlyError(paErr))
+    setProjectComments(projectActivity?.project_comments ?? [])
+    setProjectDiscussions(projectActivity?.project_discussions ?? [])
 
     setLoading(false)
   }
@@ -271,7 +225,7 @@ export default function MeetingsAgendaPage() {
       title: meetingForm.title || null,
       run_by_admin_user_id: meetingForm.run_by_admin_user_id, agenda_photo_urls: meetingForm.agenda_photo_urls.length ? meetingForm.agenda_photo_urls : null,
     }).select('*').single()
-    if (error || !meeting) { toast.error(error?.message ?? 'Failed to create meeting'); setSavingMeeting(false); return }
+    if (error || !meeting) { toast.error(friendlyError(error, 'Failed to create meeting')); setSavingMeeting(false); return }
 
     const { data: carried, error: carryErr } = await supabase.rpc('carry_forward_meeting', { p_new_meeting_id: meeting.id })
     setSavingMeeting(false)
@@ -291,7 +245,7 @@ export default function MeetingsAgendaPage() {
   // overwrite of agenda_photo_urls, same shape as the insert at creation.
   const updateAgendaPhotos = async (meetingId: string, urls: string[]) => {
     const { error } = await supabase.from('agenda_meetings').update({ agenda_photo_urls: urls.length ? urls : null }).eq('id', meetingId)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     load()
   }
 
@@ -305,11 +259,11 @@ export default function MeetingsAgendaPage() {
       meeting_id: taskMeetingId, kind: 'task', text_ur: taskForm.text_ur.trim(), due_date: taskForm.due_date || null,
       category: taskForm.category,
     }).select('id').single()
-    if (error || !item) { toast.error(error?.message ?? 'Failed to add task'); setSavingTask(false); return }
+    if (error || !item) { toast.error(friendlyError(error, 'Failed to add task')); setSavingTask(false); return }
     const { error: assignErr } = await supabase.from('agenda_item_assignees')
       .insert(taskForm.committee_member_ids.map((cmId) => ({ agenda_item_id: item.id, committee_member_id: cmId })))
     setSavingTask(false)
-    if (assignErr) { toast.error(assignErr.message); return }
+    if (assignErr) { toast.error(friendlyError(assignErr)); return }
     toast.success('Task allocated')
     setTaskMeetingId(null)
     load()
@@ -325,7 +279,7 @@ export default function MeetingsAgendaPage() {
       raised_by_committee_member_id: suggestionForm.raised_by_committee_member_id || null,
     })
     setSavingSuggestion(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Suggestion recorded')
     setSuggestionMeetingId(null)
     load()
@@ -370,7 +324,7 @@ export default function MeetingsAgendaPage() {
       const { data: item, error } = await supabase.from('agenda_items').insert({
         meeting_id: extractMeetingId, kind: 'task', text_ur: p.text.trim(), due_date: p.due_date || null, category: p.category,
       }).select('id').single()
-      if (error || !item) { toast.error(error?.message ?? 'Failed to save a point'); continue }
+      if (error || !item) { toast.error(friendlyError(error, 'Failed to save a point')); continue }
       await supabase.from('agenda_item_assignees').insert(p.committee_member_ids.map((cmId) => ({ agenda_item_id: item.id, committee_member_id: cmId })))
     }
     setSavingExtracted(false)
@@ -417,7 +371,7 @@ export default function MeetingsAgendaPage() {
       meeting_id: importMeetingId, kind: 'suggestion', text_ur: s.message, raised_by_name: s.name || 'Anonymous',
       raised_by_mobile: s.mobile || null, source_suggestion_id: s.id,
     })
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     await supabase.from('suggestions').update({ status: 'actioned' }).eq('id', s.id)
     setWebsiteSuggestions((prev) => prev.filter((x) => x.id !== s.id))
     toast.success('Added to agenda')
@@ -433,7 +387,7 @@ export default function MeetingsAgendaPage() {
     const { error } = await supabase.from('agenda_items').insert({
       meeting_id: importMeetingId, kind: 'task', category: 'donation_projects', text_ur: text, source_project_id: p.id,
     })
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     setReadyProposals((prev) => prev.filter((x) => x.id !== p.id))
     toast.success('Added to agenda')
     load()
@@ -441,7 +395,7 @@ export default function MeetingsAgendaPage() {
 
   const markDone = async (item: AgendaItem, isPrivate: boolean) => {
     const { error } = await supabase.rpc('mark_agenda_item_done', { p_item_id: item.id, p_is_private: isPrivate })
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Marked done')
     load()
   }
@@ -456,7 +410,7 @@ export default function MeetingsAgendaPage() {
     setPostingReply(true)
     const { error } = await supabase.rpc('post_agenda_comment_reply', { p_parent_comment_id: commentId, p_content: replyDraft.trim() })
     setPostingReply(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Reply posted to the project')
     setReplyDraft('')
     setReplyOpenFor(null)
@@ -469,7 +423,7 @@ export default function MeetingsAgendaPage() {
     if (!confirmFinalize) return
     const { error } = await supabase.rpc('finalize_meeting', { p_meeting_id: confirmFinalize })
     setConfirmFinalize(null)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Meeting finalized — it is now view-only')
     load()
   }
@@ -484,31 +438,57 @@ export default function MeetingsAgendaPage() {
     if (!confirmCancel) return
     const { error } = await supabase.rpc('cancel_meeting', { p_meeting_id: confirmCancel })
     setConfirmCancel(null)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Meeting cancelled')
     load()
   }
 
-  // wa.me can't attach an image — the panel this feeds tells staff to
-  // download the notice PNG first, then attach it manually in the chat
-  // this opens, same "download + one-tap wa.me per member" pattern as the
-  // rest of this page's WhatsApp buttons.
+  // Tied to whichever committee_members row has handles_non_whatsapp_notice
+  // set (via the Members page), not a hardcoded name — so the notice always
+  // names the actual person responsible today, with their real title, and
+  // stays correct if that duty is ever reassigned to someone else.
+  const notifierPhrase = () => {
+    const notifier = members.find((m) => m.handles_non_whatsapp_notice)
+    const who = notifier ? `${notifier.name_ur || notifier.name} ${notifier.position_ur || notifier.position}` : 'کمیٹی سیکرٹری'
+    return `اور یہ کہ جن ممبران کے پاس واٹس ایپ نہیں ہے انہیں ${who} خود اطلاع دیں گے۔`
+  }
+
+  // Full agenda as WhatsApp text (WhatsApp markdown: *bold*) — no image to
+  // generate or manually attach, this is the whole message. Personalized
+  // per member (greeting line) so it's built fresh per Send tap rather than
+  // shown identically in the shared preview.
+  const buildAgendaText = (meeting: Meeting, memberName?: string) => {
+    const tasks = itemsFor(meeting.id, 'task').filter((t) => !t.is_emergency)
+    const lines: string[] = [`*🕌 Dhab Pari Committee — Meeting Notice*`]
+    if (memberName) lines.push(`_Dear ${memberName},_`)
+    lines.push(``, `📅 *تاریخ:* ${formatUrduDate(meeting.meeting_date)}`)
+    if (meeting.meeting_time) lines.push(`🕐 *وقت:* ${formatUrduTime(meeting.meeting_time)}`)
+    if (meeting.location) lines.push(`📍 *مقام:* ${meeting.location}`)
+    lines.push(``, `*تمام ممبران کی شرکت ضروری ہے*`)
+    if (tasks.length > 0) {
+      lines.push(``, `*ایجنڈا پوائنٹس:*`)
+      for (const cat of CATEGORY_ORDER) {
+        const catTasks = tasks.filter((t) => (t.category ?? 'miscellaneous') === cat)
+        if (catTasks.length === 0) continue
+        lines.push(``, `*${CATEGORY_LABEL_UR[cat]}*`)
+        catTasks.forEach((t, i) => lines.push(`${i + 1}. ${t.text_ur}`))
+      }
+    }
+    lines.push(
+      ``,
+      `تمام ممبران سے التماس ہے کہ کم از کم 2 نئی تجاویز اپنے ساتھ ضرور لے کر آئیں، ${notifierPhrase()}`,
+      ``,
+      `والسلام`,
+    )
+    return lines.join('\n')
+  }
+
   const sendMeetingNoticeWhatsApp = (meeting: Meeting, committeeMemberId: string) => {
     const member = members.find((m) => m.id === committeeMemberId)
     if (!member) return
     const intl = member.phone ? normalizePakPhone(member.phone) : null
     if (!intl) { toast.error(`No phone number on file for ${member.name}`); return }
-    const lines = [
-      `*Dhab Pari Committee — Meeting Notice*`,
-      `Dear ${member.name},`,
-      `تاریخ: ${formatUrduDate(meeting.meeting_date)}`,
-      meeting.meeting_time ? `وقت: ${formatUrduTime(meeting.meeting_time)}` : '',
-      meeting.location ? `مقام: ${meeting.location}` : '',
-      ``,
-      `تمام ممبران کی شرکت ضروری ہے۔`,
-      `تمام ممبران سے التماس ہے کہ کم از کم 2 نئی تجاویز اپنے ساتھ ضرور لے کر آئیں، اور یہ کہ جن ممبران کے پاس واٹس ایپ نہیں ہے انہیں سرفراز احمد سیکرٹری خود اطلاع دیں گے۔ والسلام۔`,
-    ].filter(Boolean).join('\n')
-    window.open(`https://wa.me/${intl}?text=${encodeURIComponent(lines)}`, '_blank')
+    window.open(`https://wa.me/${intl}?text=${encodeURIComponent(buildAgendaText(meeting, member.name))}`, '_blank')
   }
 
   const sendWhatsApp = (item: AgendaItem, meeting: Meeting, committeeMemberId: string) => {
@@ -542,11 +522,11 @@ export default function MeetingsAgendaPage() {
       meeting_id: emergencyMeetingId, kind: 'task', text_ur: emergencyText.trim(),
       is_emergency: true, created_by_admin_user_id: currentUserId,
     }).select('id').single()
-    if (error || !item) { toast.error(error?.message ?? 'Failed to raise emergency job'); setSavingEmergency(false); return }
+    if (error || !item) { toast.error(friendlyError(error, 'Failed to raise emergency job')); setSavingEmergency(false); return }
     const { error: assignErr } = await supabase.from('agenda_item_assignees')
       .insert(members.map((m) => ({ agenda_item_id: item.id, committee_member_id: m.id })))
     setSavingEmergency(false)
-    if (assignErr) { toast.error(assignErr.message); return }
+    if (assignErr) { toast.error(friendlyError(assignErr)); return }
     toast.success('Emergency job broadcast to all members')
     setEmergencyMeetingId(null)
     load()
@@ -593,7 +573,7 @@ export default function MeetingsAgendaPage() {
     const { error } = await supabase.from('agenda_items').update({
       reply_text: text.trim(), replied_at: new Date().toISOString(), replied_by_admin_user_id: currentUserId,
     }).eq('id', item.id)
-    if (error) { toast.error(error.message); setSavingReply(null); return }
+    if (error) { toast.error(friendlyError(error)); setSavingReply(null); return }
 
     if (item.source_suggestion_id) {
       const { data: src } = await supabase.from('suggestions').select('admin_notes, status').eq('id', item.source_suggestion_id).single()
@@ -900,8 +880,8 @@ export default function MeetingsAgendaPage() {
                     ) : meeting.agenda_photo_urls && meeting.agenda_photo_urls.length > 0 && (
                       <div className="grid grid-cols-4 gap-2">
                         {meeting.agenda_photo_urls.map((url, i) => (
-                          <a key={i} href={url} target="_blank" rel="noreferrer" className="block rounded-lg overflow-hidden border border-dp-outline-variant aspect-square">
-                            <img src={url} alt="Agenda scan" className="w-full h-full object-cover" />
+                          <a key={i} href={url} target="_blank" rel="noreferrer" className="relative block rounded-lg overflow-hidden border border-dp-outline-variant aspect-square">
+                            <Image src={url} alt="Agenda scan" fill sizes="150px" className="object-cover" />
                           </a>
                         ))}
                       </div>
@@ -1496,28 +1476,19 @@ export default function MeetingsAgendaPage() {
               <span className="font-sans text-[14px] font-bold text-dp-primary">Send Meeting Notice</span>
               <button onClick={() => setNoticeFor(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
-            <div className="p-4 flex justify-center bg-dp-surface-container-low/40">
-              <MeetingNoticeDocument
-                ref={noticeRef}
-                branding={branding}
-                data={{
-                  meetingDateLabel: formatUrduDate(noticeFor.meeting_date),
-                  meetingTimeLabel: noticeFor.meeting_time ? formatUrduTime(noticeFor.meeting_time) : null,
-                  location: noticeFor.location,
-                  title: noticeFor.title,
-                }}
-              />
-            </div>
-            <div className="px-4 py-3 border-t border-dp-outline-variant">
-              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2.5">
-                WhatsApp links can't attach an image — download the notice first, then attach it in the chat each Send button opens.
-              </p>
-              <button
-                onClick={async () => { try { downloadBlob(await nodeToPngBlob(noticeRef.current!), `meeting-notice-${noticeFor.meeting_date}.png`) } catch { toast.error('Could not prepare the notice image') } }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer mb-3"
+            <div className="px-4 pt-4">
+              <p className="font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Message Preview</p>
+              <pre
+                className="whitespace-pre-wrap bg-dp-surface-container-low/60 border border-dp-outline-variant rounded-lg p-3 text-[13.5px] font-sans max-h-64 overflow-y-auto"
+                dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}
               >
-                <Download size={14} /> Download Notice (PNG)
-              </button>
+                {buildAgendaText(noticeFor)}
+              </pre>
+            </div>
+            <div className="px-4 py-3 border-t border-dp-outline-variant mt-3">
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2.5">
+                Each Send button below opens WhatsApp for that member with the full agenda pre-filled — just hit send.
+              </p>
               <div className="space-y-1.5 max-h-52 overflow-y-auto border border-dp-outline-variant rounded-lg p-2">
                 {members.map((m) => (
                   <div key={m.id} className="flex items-center justify-between gap-2 px-1.5 py-1">
@@ -1527,7 +1498,12 @@ export default function MeetingsAgendaPage() {
                         <Send size={11} /> Send
                       </button>
                     ) : (
-                      <span className="font-sans text-[11px] text-dp-on-surface-variant shrink-0" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>سرفراز احمد سیکرٹری کو خود اطلاع دیں گے</span>
+                      <span className="font-sans text-[11px] text-dp-on-surface-variant shrink-0" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+                        {(() => {
+                          const notifier = members.find((x) => x.handles_non_whatsapp_notice)
+                          return notifier ? `${notifier.name_ur || notifier.name} کو خود اطلاع دیں گے` : 'کمیٹی سیکرٹری کو خود اطلاع دیں گے'
+                        })()}
+                      </span>
                     )}
                   </div>
                 ))}

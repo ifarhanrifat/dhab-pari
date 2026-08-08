@@ -131,16 +131,27 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
     return true
   })
 
+  // Exactly one item highlights at a time — the most specific match.
+  // `pathname.startsWith(href)` alone lit up a parent AND its child together
+  // ("Task Todo" + "Meetings & Agenda", "Donors" + "Donor Collectors",
+  // "Reports" + "Non-Payment Report"), and also mis-matched sibling routes
+  // that merely share a prefix (/admin/donors would match /admin/donors-x).
+  // Comparing against `href + '/'` fixes the prefix case; taking the longest
+  // match fixes the parent/child case.
+  const activeHref = (() => {
+    const matches = visibleMenuItems
+      .map((i) => i.href)
+      .filter((href) => (href === '/admin' ? pathname === '/admin' : pathname === href || pathname.startsWith(href + '/')))
+    return matches.sort((a, b) => b.length - a.length)[0] ?? null
+  })()
+
   const sidebarContent = (
     <>
       {/* Menu */}
       <nav className="flex-1 space-y-1 overflow-y-auto">
         {visibleMenuItems.map((item) => {
           const Icon = item.icon
-          const isActive =
-            item.href === '/admin'
-              ? pathname === '/admin'
-              : pathname.startsWith(item.href)
+          const isActive = item.href === activeHref
           return (
             <Link
               key={item.href}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PlusCircle, X, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 
 interface Project { id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null; status: string; progress_percent: number; budget_pkr: number | null; spent_pkr: number | null; category: string | null; location: string | null; sector: string | null; is_featured: boolean; before_image_url: string | null; after_image_url: string | null; start_date: string | null; end_date: string | null; beneficiaries_count: number | null; funding_model: string | null; monthly_operating_cost_pkr: number | null }
@@ -37,11 +38,11 @@ export default function AdminProjectsPage() {
     }
     if (editing) {
       const { error } = await supabase.from('projects').update(payload).eq('id', editing)
-      if (error) { toast.error(error.message); return }
+      if (error) { toast.error(friendlyError(error)); return }
       toast.success('Project updated')
     } else {
       const { error } = await supabase.from('projects').insert(payload)
-      if (error) { toast.error(error.message); return }
+      if (error) { toast.error(friendlyError(error)); return }
       toast.success('Project created')
     }
     setShowForm(false); setEditing(null); setForm(empty); load()

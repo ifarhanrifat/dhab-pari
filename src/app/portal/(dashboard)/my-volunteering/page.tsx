@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { HeartHandshake, PlusCircle, X, Trash2 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 
@@ -44,7 +45,7 @@ export default function PortalMyVolunteeringPage() {
     const supabase = createClient()
     const { error } = await supabase.from('volunteers').insert({ portal_user_id: user.id, project_id: projectId || null, message: message.trim() || null })
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Signed up — thank you!')
     setShowForm(false)
     setProjectId('')
@@ -56,7 +57,7 @@ export default function PortalMyVolunteeringPage() {
     const supabase = createClient()
     const { error } = await supabase.from('volunteers').delete().eq('id', id)
     setConfirmDelete(null)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Removed')
     load()
   }

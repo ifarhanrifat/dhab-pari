@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PlusCircle, X, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 
 interface Ticker { id: string; message: string; message_ur: string | null; is_active: boolean; display_order: number }
 
@@ -19,7 +20,7 @@ export default function AdminTickerPage() {
   const save = async () => {
     if (!form.message.trim()) { toast.error('Message required'); return }
     const { error } = await supabase.from('news_ticker').insert({ message: form.message, message_ur: form.message_ur || null, is_active: true, display_order: form.display_order || tickers.length })
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Added'); setShowForm(false); setForm({ message: '', message_ur: '', display_order: 0 }); load()
   }
 
@@ -28,7 +29,7 @@ export default function AdminTickerPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Ticker Messages</h1>
         <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> Add Message</button>
       </div>

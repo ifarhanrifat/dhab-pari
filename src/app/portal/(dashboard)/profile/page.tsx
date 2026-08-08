@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { UserCog, KeyRound } from 'lucide-react'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 
@@ -78,7 +79,7 @@ export default function PortalProfilePage() {
     if (verifyErr) { toast.error('Current password is incorrect'); setChangingPassword(false); return }
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     setChangingPassword(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Password changed')
     setCurrentPassword('')
     setNewPassword('')

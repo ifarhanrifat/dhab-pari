@@ -5,6 +5,11 @@ export const metadata: Metadata = {
   title: 'Accounts & Transparency',
   description: 'Full financial transparency for Dhab Pari village — income, expenses, and community fund status.',
 }
+
+// Not per-visitor, but a trust-critical financial-transparency page — kept
+// fresher than the mostly-static pages (1 minute) rather than the longer
+// windows used elsewhere.
+export const revalidate = 60
 import {
   TrendingUp,
   TrendingDown,

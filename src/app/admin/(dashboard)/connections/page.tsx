@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import {
   PlusCircle, Search, X, ChevronLeft, Plus, Pencil, Trash2, Eye, Banknote,
   UserPlus, Printer, CheckCircle2, Clock, Wrench, RefreshCw, Lock, Unlock,
@@ -270,19 +271,19 @@ export default function ConnectionsPage() {
 
     if (editingRequestId) {
       const { error } = await supabase.from('connection_requests').update(payload).eq('id', editingRequestId)
-      if (error) { toast.error(error.message); setSaving(false); return }
+      if (error) { toast.error(friendlyError(error)); setSaving(false); return }
       await supabase.from('connection_request_items').delete().eq('request_id', editingRequestId)
       for (const l of items) {
         const { error: itemErr } = await supabase.from('connection_request_items').insert({ request_id: editingRequestId, inventory_item_id: l.inventory_item_id, quantity: l.quantity, unit_price: l.unit_price })
-        if (itemErr) toast.error(itemErr.message)
+        if (itemErr) toast.error(friendlyError(itemErr))
       }
       toast.success('Connection request updated')
     } else {
       const { data: req, error } = await supabase.from('connection_requests').insert(payload).select('id, request_number').single()
-      if (error) { toast.error(error.message); setSaving(false); return }
+      if (error) { toast.error(friendlyError(error)); setSaving(false); return }
       for (const l of items) {
         const { error: itemErr } = await supabase.from('connection_request_items').insert({ request_id: req.id, inventory_item_id: l.inventory_item_id, quantity: l.quantity, unit_price: l.unit_price })
-        if (itemErr) toast.error(itemErr.message)
+        if (itemErr) toast.error(friendlyError(itemErr))
       }
       toast.success(`Connection request ${req.request_number} saved`)
     }
@@ -474,7 +475,7 @@ export default function ConnectionsPage() {
   const deleteRequest = async () => {
     if (!confirmDeleteId) return
     const { error } = await supabase.from('connection_requests').delete().eq('id', confirmDeleteId)
-    if (error) toast.error(error.message)
+    if (error) toast.error(friendlyError(error))
     else { toast.success('Request deleted'); load() }
     setConfirmDeleteId(null)
   }

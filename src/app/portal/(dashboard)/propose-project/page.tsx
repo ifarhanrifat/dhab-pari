@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { Vote, Sparkles, ListChecks } from 'lucide-react'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 
@@ -194,7 +195,7 @@ export default function ProposeProjectPage() {
     }).select('id').single()
     setSaving(false)
     setShowConfirm(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Proposal announced — pay your self-commitment from your portal, then it opens for voting once confirmed.')
     router.push(`/projects/${data.id}`)
   }

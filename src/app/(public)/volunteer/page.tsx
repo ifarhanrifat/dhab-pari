@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { HeartHandshake, HandHeart, X } from 'lucide-react'
 
 interface VolunteerRow {
@@ -49,7 +51,7 @@ export default function VolunteerPage() {
       portal_user_id: user.id, project_id: projectId || null, message: message.trim() || null,
     })
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Thank you for volunteering!')
     setShowForm(false)
     setProjectId('')
@@ -79,7 +81,7 @@ export default function VolunteerPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {volunteers.map((v) => (
             <div key={v.id} className="bg-white border border-dp-outline-variant rounded-lg p-5 flex gap-3">
-              {v.avatar_url ? <img src={v.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" /> : <div className="w-10 h-10 rounded-full bg-dp-secondary-container flex items-center justify-center text-[13px] font-bold text-dp-on-secondary-container shrink-0">{v.full_name.charAt(0).toUpperCase()}</div>}
+              {v.avatar_url ? <Image src={v.avatar_url} alt="" width={40} height={40} className="w-10 h-10 rounded-full object-cover shrink-0" /> : <div className="w-10 h-10 rounded-full bg-dp-secondary-container flex items-center justify-center text-[13px] font-bold text-dp-on-secondary-container shrink-0">{v.full_name.charAt(0).toUpperCase()}</div>}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-sans text-[15px] font-semibold text-dp-on-surface truncate">{v.full_name}</p>

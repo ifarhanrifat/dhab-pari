@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { History, RotateCcw, ShieldAlert, ArrowUpDown } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 
 type TableName = 'bills' | 'payments' | 'donors' | 'vouchers' | 'accounts' | 'consumers'
@@ -85,7 +86,7 @@ export default function AuditLogPage() {
     setRestoring(true)
     const { error } = await supabase.rpc('restore_deleted_record', { p_audit_id: confirmRestore.id })
     setRestoring(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Record restored')
     setConfirmRestore(null)
     load()

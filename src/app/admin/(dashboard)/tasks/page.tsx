@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { ClipboardList, UserPlus2, PlayCircle, CheckCircle2, Phone, Pencil, RefreshCw } from 'lucide-react'
 
 interface ConnectionTask {
@@ -94,7 +95,7 @@ export default function TasksPage() {
       ...(isReassign ? {} : { task_status: 'assigned', task_assigned_at: new Date().toISOString() }),
     }).eq('id', assignTarget.id)
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(isReassign ? 'Assignment updated' : 'Task assigned')
     setAssignTarget(null)
     load()
@@ -104,7 +105,7 @@ export default function TasksPage() {
     const { error } = await supabase.from('connection_requests').update({
       task_status: 'in_progress', task_started_at: new Date().toISOString(),
     }).eq('id', t.id)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Marked in progress')
     load()
   }
@@ -113,7 +114,7 @@ export default function TasksPage() {
     const { error } = await supabase.from('connection_requests').update({
       task_status: 'done', task_done_at: new Date().toISOString(),
     }).eq('id', t.id)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Marked done — ready to activate from New Connections')
     load()
   }

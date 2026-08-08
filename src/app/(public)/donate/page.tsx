@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: 'Donate',
   description: 'Support Dhab Pari village growth — donate via JazzCash, Easypaisa, or bank transfer.',
 }
+
+// No per-visitor content — payment method details/instructions change rarely.
+export const revalidate = 300
 import Link from 'next/link'
 import {
   Heart,

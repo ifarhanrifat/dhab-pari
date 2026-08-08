@@ -11,6 +11,7 @@ import {
   Power, Ban, PauseCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { billBadge, billBadgeClass } from '@/lib/billStatus'
 import { renderTemplate } from '@/lib/messageTemplates'
@@ -342,7 +343,7 @@ function BillingPageInner() {
       note: paymentForm.description || null,
     })
 
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     const remaining = outstanding(bill)
     if (entered > remaining) {
       toast.success(`Payment recorded — Rs. ${(entered - remaining).toLocaleString()} credited as advance balance`)
@@ -372,7 +373,7 @@ function BillingPageInner() {
       house_no: newConsumer.house_no, sector: newConsumer.sector, area: newConsumer.area, address: newConsumer.address,
       connections: newConsumer.connections || 1, monthly_rate: newConsumer.monthly_rate, status: 'active',
     }).select('consumer_id').single()
-    if (consumerError) { toast.error(consumerError.message); return }
+    if (consumerError) { toast.error(friendlyError(consumerError)); return }
 
     toast.success(`Consumer ${data.consumer_id} created`)
     setShowAddConsumer(false)
@@ -443,7 +444,7 @@ function BillingPageInner() {
 
   const pauseSchedule = async (scheduleId: string) => {
     const { error } = await supabase.from('recurring_schedules').update({ is_active: false }).eq('id', scheduleId)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Recurring billing paused')
     loadData()
   }
@@ -479,7 +480,7 @@ function BillingPageInner() {
       address: editForm.address || null, connections: editForm.connections || 1, monthly_rate: editForm.monthly_rate,
     }).eq('consumer_id', editConsumerTarget.consumer_id)
     setSavingEdit(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Consumer updated')
     setEditConsumerTarget(null)
     loadData()
@@ -491,7 +492,7 @@ function BillingPageInner() {
     if (c.status === 'disconnected') return
     const nextStatus = c.status === 'active' ? 'inactive' : 'active'
     const { error } = await supabase.from('consumers').update({ status: nextStatus }).eq('consumer_id', c.consumer_id)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     await supabase.from('accounts').update({ is_active: nextStatus === 'active' }).eq('type', 'consumer').eq('consumer_id', c.consumer_id)
     // Deactivating without pausing the schedule would keep generating bills
     // for someone marked inactive — pause it in sync, and resume it in sync
@@ -514,7 +515,7 @@ function BillingPageInner() {
     setDisconnectTarget(c)
     setDisconnectPreview(null)
     const { data, error } = await supabase.rpc('preview_disconnect_consumer', { p_consumer_id: c.consumer_id })
-    if (error) { toast.error(error.message); setDisconnectTarget(null); return }
+    if (error) { toast.error(friendlyError(error)); setDisconnectTarget(null); return }
     setDisconnectPreview(data)
   }
 
@@ -523,7 +524,7 @@ function BillingPageInner() {
     setDisconnecting(true)
     const { data, error } = await supabase.rpc('disconnect_consumer', { p_consumer_id: disconnectTarget.consumer_id })
     setDisconnecting(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     const parts: string[] = []
     if (data.applied > 0) parts.push(`Rs. ${Number(data.applied).toLocaleString()} applied to their pending balance`)
     if (data.refund > 0) parts.push(`Rs. ${Number(data.refund).toLocaleString()} refunded`)
@@ -537,7 +538,7 @@ function BillingPageInner() {
   const deleteBill = async () => {
     if (!confirmDeleteBill) return
     const { error } = await supabase.from('bills').delete().eq('id', confirmDeleteBill)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Bill deleted')
     setConfirmDeleteBill(null)
     loadData()

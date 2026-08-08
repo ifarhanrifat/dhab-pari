@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PlusCircle, X, Pencil, Trash2, Star } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { VideoUpload } from '@/components/admin/VideoUpload'
 
@@ -24,8 +25,8 @@ export default function AdminVideosPage() {
   const save = async () => {
     if (!form.title.trim() || !form.video_url.trim()) { toast.error('Title and URL required'); return }
     const payload = { ...form, duration_seconds: form.duration_seconds || null }
-    if (editing) { const { error } = await supabase.from('video_content').update(payload).eq('id', editing); if (error) { toast.error(error.message); return }; toast.success('Updated') }
-    else { const { error } = await supabase.from('video_content').insert(payload); if (error) { toast.error(error.message); return }; toast.success('Added') }
+    if (editing) { const { error } = await supabase.from('video_content').update(payload).eq('id', editing); if (error) { toast.error(friendlyError(error)); return }; toast.success('Updated') }
+    else { const { error } = await supabase.from('video_content').insert(payload); if (error) { toast.error(friendlyError(error)); return }; toast.success('Added') }
     setShowForm(false); setEditing(null); setForm(empty); load()
   }
   const edit = (v: Video) => { setForm({ title: v.title, title_ur: v.title_ur ?? '', description: v.description ?? '', video_url: v.video_url, thumbnail_url: v.thumbnail_url ?? '', category: v.category ?? 'event', duration_seconds: v.duration_seconds ?? 0, is_published: v.is_published, is_featured: v.is_featured }); setEditing(v.id); setShowForm(true) }
@@ -33,7 +34,7 @@ export default function AdminVideosPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Videos</h1>
         <button onClick={() => { setForm(empty); setEditing(null); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> Add Video</button>
       </div>

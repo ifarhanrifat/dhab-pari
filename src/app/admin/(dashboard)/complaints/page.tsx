@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { MessageSquareWarning, PlusCircle, X, Clock } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 
 type SystemTab = 'water_supply' | 'donors_projects'
@@ -94,7 +95,7 @@ export default function ComplaintsPage() {
       consumer_id: form.consumer_id || null,
     }).select('complaint_number').single()
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(`Complaint ${data.complaint_number} registered`)
     setShowForm(false)
     setForm(emptyForm)

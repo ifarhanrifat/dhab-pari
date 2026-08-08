@@ -31,17 +31,46 @@ const KEYS = [
   'footer_facebook_link', 'footer_whatsapp_group_link', 'footer_projects_link', 'footer_donation_link',
 ]
 
+// Donor receipts can override any of these (migration 158) — company
+// name/logo/signature stay shared (same organization identity either way),
+// only wording/footer/help-numbers/template are ever donor-specific.
+const DONOR_OVERRIDE_KEYS: Record<string, string> = {
+  invoice_template: 'donor_invoice_template',
+  helpline_numbers: 'donor_helpline_numbers',
+  invoice_instructions: 'donor_invoice_instructions',
+  footer_complaint_number: 'donor_footer_complaint_number',
+  footer_management_contacts: 'donor_footer_management_contacts',
+  footer_facebook_link: 'donor_footer_facebook_link',
+  footer_whatsapp_group_link: 'donor_footer_whatsapp_group_link',
+  footer_projects_link: 'donor_footer_projects_link',
+  footer_donation_link: 'donor_footer_donation_link',
+}
+
 // Every generated bill, cash receipt, and payment voucher (ReceiptDocument) pulls
 // its company identity and footer content from here — one place instead of three
 // separate ad-hoc site_settings fetches that could silently drift out of sync.
-export async function fetchBrandingSettings(): Promise<BrandingSettings> {
+//
+// Pass system: 'donors_projects' to let a donor_* override win over its
+// shared counterpart wherever one has actually been filled in — otherwise
+// (or for 'water_supply'/omitted) this behaves exactly as before.
+export async function fetchBrandingSettings(system?: 'water_supply' | 'donors_projects'): Promise<BrandingSettings> {
   const supabase = createClient()
-  const { data } = await supabase.from('site_settings').select('key, value').in('key', KEYS)
+  const donorKeys = system === 'donors_projects' ? Object.values(DONOR_OVERRIDE_KEYS) : []
+  const { data } = await supabase.from('site_settings').select('key, value').in('key', [...KEYS, ...donorKeys])
   const v = Object.fromEntries((data ?? []).map((r) => [r.key, r.value]))
 
+  const pick = (sharedKey: string): string | null => {
+    if (system === 'donors_projects') {
+      const donorValue = v[DONOR_OVERRIDE_KEYS[sharedKey]]
+      if (donorValue) return donorValue
+    }
+    return v[sharedKey] ?? null
+  }
+
   let contacts: ManagementContact[] = []
-  if (v.footer_management_contacts) {
-    try { contacts = JSON.parse(v.footer_management_contacts) } catch { contacts = [] }
+  const contactsRaw = pick('footer_management_contacts')
+  if (contactsRaw) {
+    try { contacts = JSON.parse(contactsRaw) } catch { contacts = [] }
   }
 
   return {
@@ -53,14 +82,14 @@ export async function fetchBrandingSettings(): Promise<BrandingSettings> {
     logoOffsetY: v.invoice_logo_offset_y ? +v.invoice_logo_offset_y : 0,
     signatureUrl: v.invoice_signature_url ?? null,
     language: v.display_language === 'ur' ? 'ur' : 'en',
-    invoiceTemplate: (v.invoice_template as InvoiceTemplate) || 'classic',
-    helplineNumbers: v.helpline_numbers ?? null,
-    instructions: v.invoice_instructions ?? null,
-    footerComplaintNumber: v.footer_complaint_number ?? null,
+    invoiceTemplate: (pick('invoice_template') as InvoiceTemplate) || 'classic',
+    helplineNumbers: pick('helpline_numbers'),
+    instructions: pick('invoice_instructions'),
+    footerComplaintNumber: pick('footer_complaint_number'),
     footerManagementContacts: contacts,
-    footerFacebookLink: v.footer_facebook_link ?? null,
-    footerWhatsappGroupLink: v.footer_whatsapp_group_link ?? null,
-    footerProjectsLink: v.footer_projects_link ?? null,
-    footerDonationLink: v.footer_donation_link ?? null,
+    footerFacebookLink: pick('footer_facebook_link'),
+    footerWhatsappGroupLink: pick('footer_whatsapp_group_link'),
+    footerProjectsLink: pick('footer_projects_link'),
+    footerDonationLink: pick('footer_donation_link'),
   }
 }

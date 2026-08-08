@@ -118,7 +118,21 @@ function Footer({ data }: { data: ReceiptData }) {
         </div>
       )}
       {hasLinks && (
-        <p>{links.filter(([, v]) => v).map(([label, v]) => `${label}: ${v}`).join('  ·  ')}</p>
+        // Real anchors so they're clickable wherever the receipt is viewed as
+        // HTML (the on-screen preview, and the print popup). Note the PDF/PNG
+        // download path rasterizes via html2canvas, so in a downloaded/shared
+        // file these stay visible but aren't tappable — that's a limitation of
+        // image export, not of this markup.
+        <p className="flex flex-wrap gap-x-2 gap-y-0.5">
+          {links.filter(([, v]) => v).map(([label, v], i, arr) => (
+            <span key={label}>
+              <a href={v as string} target="_blank" rel="noopener noreferrer" className="text-dp-secondary underline">
+                {label}
+              </a>
+              {i < arr.length - 1 && <span className="ms-2">·</span>}
+            </span>
+          ))}
+        </p>
       )}
     </div>
   )

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { SITE } from '@/lib/constants'
 
@@ -6,6 +7,11 @@ export const metadata: Metadata = {
   title: 'About & Committee',
   description: 'Meet the Dhab Pari Water & Welfare Committee — village history, vision, mission, and team members.',
 }
+
+// Nothing on this page is per-visitor — committee roster, vision/mission,
+// and village history all change rarely. Caching for 5 minutes turns every
+// visit's full server render + DB round trip into one shared cached page.
+export const revalidate = 300
 import { Phone, Eye, Target } from 'lucide-react'
 
 const initialsColors = [
@@ -31,10 +37,13 @@ export default async function AboutPage() {
   const { data: settings } = await supabase
     .from('site_settings')
     .select('key, value')
-    .in('key', ['about_text', 'vision', 'mission'])
+    .in('key', ['about_text', 'vision', 'mission', 'display_language'])
 
   const settingsMap: Record<string, string> = {}
   settings?.forEach((s) => { settingsMap[s.key] = s.value ?? '' })
+  // Same single-language-at-a-time convention as /projects, /water/apply,
+  // etc. — admin-set site-wide toggle, not per-visitor.
+  const isUrdu = settingsMap.display_language === 'ur'
 
   return (
     <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen">
@@ -133,9 +142,13 @@ export default async function AboutPage() {
                 key={member.id}
                 className="bg-white border border-dp-outline-variant rounded-lg p-6 text-center hover:border-dp-secondary transition-all"
               >
-                <div className={`w-16 h-16 rounded-full ${color} flex items-center justify-center font-bold font-sans text-[20px] mx-auto mb-4`}>
-                  {initials}
-                </div>
+                {member.photo_url ? (
+                  <Image src={member.photo_url} alt={member.name} width={64} height={64} className="w-16 h-16 rounded-full object-cover mx-auto mb-4" />
+                ) : (
+                  <div className={`w-16 h-16 rounded-full ${color} flex items-center justify-center font-bold font-sans text-[20px] mx-auto mb-4`}>
+                    {initials}
+                  </div>
+                )}
                 <h3 className="font-sans text-[18px] font-bold text-dp-on-surface leading-[28px]">
                   {member.name}
                 </h3>
@@ -147,8 +160,11 @@ export default async function AboutPage() {
                     {member.name_ur}
                   </p>
                 )}
-                <p className="text-dp-secondary font-sans text-[14px] font-semibold tracking-[0.05em] mt-2">
-                  {member.position}
+                <p
+                  className="text-dp-secondary font-sans text-[14px] font-semibold tracking-[0.05em] mt-2"
+                  style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
+                >
+                  {isUrdu ? (member.position_ur || member.position) : member.position}
                 </p>
                 {member.phone && (
                   <a
@@ -159,9 +175,13 @@ export default async function AboutPage() {
                     {member.phone}
                   </a>
                 )}
-                {member.bio && (
-                  <p className="text-dp-on-surface-variant text-[14px] font-sans mt-3 line-clamp-2">
-                    {member.bio}
+                {(isUrdu ? (member.bio_ur || member.bio) : member.bio) && (
+                  <p
+                    className="text-dp-on-surface-variant text-[14px] font-sans mt-3 line-clamp-2"
+                    dir={isUrdu ? 'rtl' : undefined}
+                    style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
+                  >
+                    {isUrdu ? (member.bio_ur || member.bio) : member.bio}
                   </p>
                 )}
               </div>

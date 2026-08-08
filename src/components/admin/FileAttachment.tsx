@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { Paperclip, X, FileText, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -69,7 +70,7 @@ export function FileAttachment({ onUpload, currentUrl, label = 'Attachment' }: F
       {fileUrl ? (
         <div className="flex items-center gap-2 px-3 py-2.5 border border-dp-outline-variant rounded-lg bg-dp-surface-container-low/40">
           {isImage(fileUrl) ? (
-            <img src={fileUrl} alt="Attachment" className="w-9 h-9 rounded object-cover shrink-0" />
+            <Image src={fileUrl} alt="Attachment" width={36} height={36} className="w-9 h-9 rounded object-cover shrink-0" />
           ) : (
             <FileText size={20} className="text-dp-on-surface-variant shrink-0" />
           )}

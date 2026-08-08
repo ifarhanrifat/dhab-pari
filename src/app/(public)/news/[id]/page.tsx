@@ -1,5 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
+
+// A published article rarely changes and isn't per-visitor (view count here
+// is a display-only column, not incremented by this render).
+export const revalidate = 300
 import Link from 'next/link'
 import { Calendar, User, Eye, ArrowLeft } from 'lucide-react'
 

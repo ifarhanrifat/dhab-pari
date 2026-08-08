@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { Send } from 'lucide-react'
 
 interface Complaint {
@@ -51,7 +52,7 @@ export default function PortalComplaintsPage() {
       sector: system === 'water_supply' ? (sector || null) : null, complaint_text: complaintText.trim(), source: 'website',
     })
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Complaint submitted')
     setComplaintText('')
     load()

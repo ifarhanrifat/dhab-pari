@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PlusCircle, X, Trash2, Image as ImageIcon, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { MultiImageUpload } from '@/components/admin/MultiImageUpload'
 import { BulkActionsBar } from '@/components/admin/BulkActionsBar'
@@ -59,7 +60,7 @@ export default function AdminGalleryPage() {
   const saveAlbum = async () => {
     if (!albumForm.title.trim()) { toast.error('Title required'); return }
     const { error } = await supabase.from('gallery_albums').insert(albumForm)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Album created'); setShowAlbumForm(false); setAlbumForm({ title: '', title_ur: '', category: 'events' }); loadAlbums()
   }
 
@@ -68,7 +69,7 @@ export default function AdminGalleryPage() {
   const addItem = async () => {
     if (!itemForm.url.trim() || !selectedAlbum) { toast.error('URL required'); return }
     const { error } = await supabase.from('gallery_items').insert({ album_id: selectedAlbum, url: itemForm.url, caption: itemForm.caption || null, display_order: items.length })
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Item added'); setShowItemForm(false); setItemForm({ url: '', caption: '' }); loadItems(selectedAlbum)
   }
 
@@ -77,7 +78,7 @@ export default function AdminGalleryPage() {
     if (urls.length === 0 || !selectedAlbum) { toast.error('Upload at least one image'); return }
     const inserts = urls.map((url, i) => ({ album_id: selectedAlbum, url, caption: itemForm.caption || null, display_order: items.length + i }))
     const { error } = await supabase.from('gallery_items').insert(inserts)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(`${urls.length} photo(s) added`); setShowItemForm(false); setItemForm({ url: '', caption: '' }); loadItems(selectedAlbum)
   }
 
@@ -89,7 +90,7 @@ export default function AdminGalleryPage() {
     <>
       {!selectedAlbum ? (
         <>
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
             <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Gallery Albums</h1>
             <button onClick={() => setShowAlbumForm(true)} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> New Album</button>
           </div>

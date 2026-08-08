@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { Droplet, ShieldCheck } from 'lucide-react'
 
 const GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
@@ -40,7 +41,7 @@ export default function PortalBloodDonorPage() {
       { onConflict: 'portal_user_id' }
     )
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Saved')
     setRegistered(true)
   }
@@ -51,7 +52,7 @@ export default function PortalBloodDonorPage() {
     const supabase = createClient()
     const { error } = await supabase.from('blood_donors').delete().eq('portal_user_id', user.id)
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Removed from the blood donor registry')
     setRegistered(false)
     setBloodGroup('')

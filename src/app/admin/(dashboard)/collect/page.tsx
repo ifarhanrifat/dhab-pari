@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Truck, Banknote, MessageCircle, MapPin, Phone, Save, MessageSquareWarning } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
@@ -108,7 +109,7 @@ export default function CollectPaymentPage() {
     setSavingPhone(true)
     const { error } = await supabase.rpc('set_consumer_contact_number', { p_consumer_id: selectedConsumer.consumer_id, p_mobile: phoneInput.trim() })
     setSavingPhone(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     setConsumers((cur) => cur.map((c) => (c.consumer_id === selectedConsumer.consumer_id ? { ...c, mobile: phoneInput.trim() } : c)))
     setPhoneInput('')
     toast.success('Phone number saved')
@@ -125,7 +126,7 @@ export default function CollectPaymentPage() {
       complaint_text: complaintText.trim() || categoryLabel, source: 'manual',
     }).select('complaint_number').single()
     setSavingComplaint(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(`Complaint ${data.complaint_number} logged`)
     setComplaintCategory('')
     setComplaintText('')
@@ -141,7 +142,7 @@ export default function CollectPaymentPage() {
       amount_pkr: amount, method, note: note || null, collected_by: me.id,
     }).select('id, receipt_no, paid_date').single()
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
 
     const newOutstanding = Math.max(outstanding(selectedBill) - amount, 0)
     setReceipt({

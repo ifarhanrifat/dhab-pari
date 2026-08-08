@@ -1,8 +1,10 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { PlusCircle, X, CheckCircle, XCircle, ShieldCheck, Image as ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { BulkActionsBar } from '@/components/admin/BulkActionsBar'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
@@ -35,7 +37,16 @@ function donorKeyFor(name: string, phone: string | null) {
 }
 
 export default function AdminDonorsPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>}>
+      <AdminDonorsPageInner />
+    </Suspense>
+  )
+}
+
+function AdminDonorsPageInner() {
   const access = useSystemAccess()
+  const searchParams = useSearchParams()
   const [donors, setDonors] = useState<Donor[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [accountNoByKey, setAccountNoByKey] = useState<Map<string, string>>(new Map())
@@ -66,13 +77,28 @@ export default function AdminDonorsPage() {
   }
   useEffect(() => { load() }, [])
 
+  // Deep-linked from the finance page's Recent Transactions "Edit" button
+  // (/admin/donors?edit=<id>) — same open-a-modal-via-query-param pattern
+  // already used for editing bills from that page.
+  useEffect(() => {
+    const editId = searchParams.get('edit')
+    if (!editId || donors.length === 0) return
+    const d = donors.find((x) => x.id === editId)
+    if (d) openEdit(d)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [donors.length, searchParams])
+
   const projectTitle = (id: string | null) => projects.find((p) => p.id === id)?.title ?? null
 
   const save = async () => {
     if (!form.name.trim()) { toast.error('Name required'); return }
     const payload = { ...form, name_ur: form.name_ur || null, project_id: form.project_id || null, notes: form.notes || null, phone: form.phone || null, father_husband_name: form.father_husband_name || null, whatsapp_number: form.whatsapp_number || null }
-    const { error } = await supabase.from('donors').insert({ ...payload, is_verified: true, submitted_via: 'staff' })
-    if (error) { toast.error(error.message); return }
+    const { data, error } = await supabase.from('donors').insert({ ...payload, is_verified: true, submitted_via: 'staff' }).select('id').single()
+    if (error) { toast.error(friendlyError(error)); return }
+    // Staff-entered donations post to the ledger immediately (is_verified is
+    // already true above) but, unlike confirm_donation()'s flow, never got a
+    // voucher_no/donor_account_no on their own — assign them now the same way.
+    if (data) await supabase.rpc('assign_donor_numbers', { p_donor_id: data.id })
     toast.success('Donor added'); setShowForm(false); setForm(empty); load()
   }
 
@@ -140,7 +166,7 @@ export default function AdminDonorsPage() {
       payment_method: editForm.payment_method, project_id: editForm.project_id || null,
       is_anonymous: editForm.is_anonymous, notes: editForm.notes || null,
     }).eq('id', editTarget.id)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Saved')
     setEditTarget(null)
     load()
@@ -160,7 +186,7 @@ export default function AdminDonorsPage() {
       },
     })
     setConfirming(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Donation confirmed')
 
     const { data: tpl } = await supabase.from('message_templates').select('body').eq('key', 'donor_donation_confirmed').single()
@@ -201,7 +227,7 @@ export default function AdminDonorsPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
         <div>
           <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Donors</h1>
           {pendingCount > 0 && <p className="font-sans text-[13px] text-amber-700 mt-1">{pendingCount} announced donation(s) awaiting verification</p>}
@@ -304,6 +330,9 @@ export default function AdminDonorsPage() {
                 <div>
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2 flex items-center gap-1.5"><ImageIcon size={14} /> Payment Receipt</label>
                   <a href={receiptUrl} target="_blank" rel="noopener noreferrer">
+                    {/* object-contain against an unknown receipt aspect ratio (could
+                        be portrait or landscape) — no fixed dimensions to give
+                        next/image, kept as a plain <img> deliberately. */}
                     <img src={receiptUrl} alt="Payment receipt" className="w-full max-h-56 object-contain rounded-lg border border-dp-outline-variant bg-dp-surface-container" />
                   </a>
                 </div>
@@ -348,7 +377,7 @@ export default function AdminDonorsPage() {
       )}
 
       {viewReceipt && (
-        <ReceiptModal data={viewReceipt} onClose={() => { setViewReceipt(null); setConfirmedWhatsapp(null); setThankYouMessage(null) }} />
+        <ReceiptModal data={viewReceipt} system="donors_projects" onClose={() => { setViewReceipt(null); setConfirmedWhatsapp(null); setThankYouMessage(null) }} />
       )}
       {viewReceipt && confirmedWhatsapp && (
         <div className="fixed bottom-6 right-6 z-[130]">

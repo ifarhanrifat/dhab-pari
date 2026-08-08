@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { PlusCircle, X, Pencil, Save, Droplets, Heart, Search, MoreVertical, ChevronDown, ChevronUp, SlidersHorizontal, Eye, Power } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
+import { useSystemAccess } from '@/hooks/useSystemAccess'
 
 interface Account {
   id: string
@@ -70,6 +72,18 @@ export default function AccountsPage() {
   const [lang, setLang] = useState<Lang>('en')
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<SystemTab>('water_supply')
+  const access = useSystemAccess()
+
+  // Don't leave a role-restricted user sitting on a tab whose data RLS will
+  // never return — that renders as an empty chart of accounts and reads like
+  // a bug rather than a permission boundary. The tab buttons below are hidden
+  // for the same reason.
+  useEffect(() => {
+    if (access.loading) return
+    if (tab === 'water_supply' && !access.canWaterSupply) setTab(access.defaultSystem)
+    if (tab === 'donors_projects' && !access.canDonorsProjects) setTab(access.defaultSystem)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [access.loading, access.canWaterSupply, access.canDonorsProjects, tab])
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState({ ...emptyAccount, system: 'water_supply' as SystemTab })
@@ -241,16 +255,16 @@ export default function AccountsPage() {
         name: form.name, name_ur: form.name_ur || null, type: header.code, system: form.system,
         description: form.description || null, opening_balance: form.opening_balance, is_active: form.is_active,
       }).eq('id', editId)
-      if (error) { toast.error(error.message); return }
+      if (error) { toast.error(friendlyError(error)); return }
       toast.success('Account updated')
     } else {
       const { data: code, error: codeError } = await supabase.rpc('next_account_code', { p_header_id: header.id })
-      if (codeError) { toast.error(codeError.message); return }
+      if (codeError) { toast.error(friendlyError(codeError)); return }
       const { error } = await supabase.from('accounts').insert({
         code, name: form.name, name_ur: form.name_ur || null, type: header.code, system: form.system,
         description: form.description || null, opening_balance: form.opening_balance, is_active: form.is_active,
       })
-      if (error) { toast.error(error.message); return }
+      if (error) { toast.error(friendlyError(error)); return }
       toast.success(`Account created (${code})`)
     }
     setShowForm(false)
@@ -267,7 +281,7 @@ export default function AccountsPage() {
       system: form.system, code, label: headerForm.label, label_ur: headerForm.label_ur || null,
       code_prefix: headerForm.code_prefix.trim().toUpperCase(), display_order: headers.length + 1,
     }).select().single()
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Header created')
     setShowHeaderForm(false)
     setHeaderForm(emptyHeaderForm)
@@ -366,22 +380,22 @@ export default function AccountsPage() {
       </div>
 
       <div className="flex gap-2 mb-6">
-        <button
+        {access.canWaterSupply && <button
           onClick={() => setTab('water_supply')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-sans text-[14px] font-semibold transition-all cursor-pointer ${tab === 'water_supply' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
         >
           <Droplets size={16} />
           Water Supply System
           <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${tab === 'water_supply' ? 'bg-white/20 text-white' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>{waterCount}</span>
-        </button>
-        <button
+        </button>}
+        {access.canDonorsProjects && <button
           onClick={() => setTab('donors_projects')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-sans text-[14px] font-semibold transition-all cursor-pointer ${tab === 'donors_projects' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
         >
           <Heart size={16} />
           Donors &amp; Projects
           <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${tab === 'donors_projects' ? 'bg-white/20 text-white' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>{donorCount}</span>
-        </button>
+        </button>}
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant p-3 mb-4 flex items-center gap-3">

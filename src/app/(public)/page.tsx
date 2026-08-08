@@ -7,6 +7,12 @@ export const metadata: Metadata = {
   title: 'Home',
   description: 'Official portal for Dhab Pari Water & Welfare Committee — village transparency, water bills, projects, and community updates.',
 }
+
+// Homepage stats/activity digest change more often than About/Donate, but
+// nothing here is per-visitor — a 1-minute cache still means every real
+// visitor gets a fast cached page instead of the full stats+jobs+volunteers+
+// achievements query set running fresh on every single visit.
+export const revalidate = 60
 import {
   Wallet,
   GitBranch,

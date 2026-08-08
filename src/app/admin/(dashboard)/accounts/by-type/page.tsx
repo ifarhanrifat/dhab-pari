@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Eye, Power } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 
 interface Account {
   id: string; code: string; name: string; name_ur: string | null
@@ -65,7 +66,7 @@ function AccountsByTypePageInner() {
 
   const toggleActive = async (a: Account) => {
     const { error } = await supabase.from('accounts').update({ is_active: !a.is_active }).eq('id', a.id)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(a.is_active ? 'Account deactivated' : 'Account activated')
     load()
   }

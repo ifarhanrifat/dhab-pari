@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'motion/react'
 import { X, Image as ImageIcon, ChevronLeft, ChevronRight, PlayCircle } from 'lucide-react'
@@ -107,7 +108,7 @@ export default function GalleryPage() {
                 className="relative aspect-[4/3] rounded-lg overflow-hidden group cursor-pointer text-left"
               >
                 {album.cover_url ? (
-                  <img src={album.cover_url} alt={album.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <Image src={album.cover_url} alt={album.title} fill sizes="(min-width: 768px) 33vw, 100vw" className="object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
                   <div className={`absolute inset-0 bg-gradient-to-br ${gradient} group-hover:scale-105 transition-transform duration-500`} />
                 )}
@@ -171,6 +172,11 @@ export default function GalleryPage() {
                     </div>
                   </div>
                 ) : (
+                  // Masonry relies on each image's own natural aspect ratio (that's
+                  // the whole point of the layout) — next/image needs width/height
+                  // (or a fixed-size `fill` parent) known ahead of render, which we
+                  // don't have without storing per-image dimensions. Kept as a plain
+                  // lazy-loaded <img> deliberately, not an oversight.
                   <img src={item.url} alt={item.caption ?? ''} className="w-full h-auto block" loading="lazy" />
                 )}
                 {item.caption && (
@@ -231,6 +237,8 @@ export default function GalleryPage() {
               {albumItems[lightboxIndex].type === 'video' ? (
                 <video src={albumItems[lightboxIndex].url} controls autoPlay className="max-w-full max-h-[70vh] rounded-lg" />
               ) : (
+                // Same reasoning as the masonry grid above — unknown dimensions,
+                // sized by its own natural aspect ratio.
                 <img src={albumItems[lightboxIndex].url} alt={albumItems[lightboxIndex].caption ?? ''} className="max-w-full max-h-[70vh] rounded-lg object-contain" />
               )}
               {albumItems[lightboxIndex].caption && (

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { X, UploadCloud } from 'lucide-react'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 
@@ -64,7 +65,7 @@ export default function PortalWaterPage() {
       payment_method: claimMethod, payment_proof_url: claimProof,
     })
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Payment submitted — awaiting verification by the accountant')
     setClaimFor(null)
     load()

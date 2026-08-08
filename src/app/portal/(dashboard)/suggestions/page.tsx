@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { Send } from 'lucide-react'
 
 interface Suggestion { id: string; message: string; status: string; admin_notes: string | null; created_at: string }
@@ -39,7 +40,7 @@ export default function PortalSuggestionsPage() {
       name: user.full_name, mobile: user.whatsapp_number ?? user.mobile, message: message.trim(), portal_user_id: user.id, type: 'suggestion',
     })
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Suggestion submitted')
     setMessage('')
     load()

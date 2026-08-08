@@ -244,6 +244,26 @@
   box-shadow: none;
 }
 
+/* --- Toolbar / filter rows ---
+   Filter bars mixed .input-field (py-3, 16px text) with buttons using
+   px-4 py-2 / px-3 py-2.5 / px-5 py-2.5, so a row of controls stair-stepped
+   instead of lining up. These two classes lock every control in such a row
+   to one height — 44px, which is also the minimum comfortable tap target on
+   a phone. Use .filter-field on inputs/selects and .filter-btn on buttons
+   and links that sit beside them. (Not applied to .input-field itself: that
+   is also used on <textarea>, where a fixed height would be wrong.) */
+.filter-field {
+  @apply w-full h-11 px-3 bg-white border-2 border-[#bfc9c4] rounded-lg transition-all font-sans text-[15px] text-[#1c1b1b];
+}
+.filter-field:focus {
+  border-color: #006c4e;
+  outline: none;
+  box-shadow: none;
+}
+.filter-btn {
+  @apply h-11 inline-flex items-center justify-center gap-1.5 px-4 rounded-lg font-sans text-[14px] font-semibold whitespace-nowrap transition-all cursor-pointer;
+}
+
 /* Number input up/down steppers read as an unfinished/unprofessional form
    control on transaction screens (quantity, rate, discount, amount fields) —
    hidden everywhere in the admin panel. Users can still type or paste values. */

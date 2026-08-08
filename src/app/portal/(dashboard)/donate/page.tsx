@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { HeartHandshake, CheckCircle } from 'lucide-react'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
@@ -53,7 +54,7 @@ function PortalDonatePageInner() {
       payment_proof_url: receiptPath, is_verified: false, submitted_via: 'public',
     })
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     setSubmitted(true)
   }
 

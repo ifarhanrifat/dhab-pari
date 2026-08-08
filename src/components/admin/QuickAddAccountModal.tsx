@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { X, Save } from 'lucide-react'
 
 export interface NewAccount { id: string; code: string; name: string; type: string }
@@ -38,12 +39,12 @@ export function QuickAddAccountModal({ system, allowedTypes, onClose, onCreated 
       setSaving(false); return
     }
     const { data: code, error: codeError } = await supabase.rpc('next_account_code', { p_header_id: header.id })
-    if (codeError) { toast.error(codeError.message); setSaving(false); return }
+    if (codeError) { toast.error(friendlyError(codeError)); setSaving(false); return }
     const { data, error } = await supabase.from('accounts').insert({
       code, name, system, type, opening_balance: openingBalance || 0,
     }).select('id, code, name, type').single()
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(`Account created (${code})`)
     onCreated(data)
     onClose()

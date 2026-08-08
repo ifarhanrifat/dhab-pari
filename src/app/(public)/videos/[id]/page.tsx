@@ -4,6 +4,10 @@ import Link from 'next/link'
 import { ArrowLeft, Eye, Calendar, Tag } from 'lucide-react'
 import { VideoPlayer } from '@/components/VideoPlayer'
 
+// A published video rarely changes and isn't per-visitor (view count here is
+// a display-only column, not incremented by this render).
+export const revalidate = 300
+
 export default async function VideoDetailPage({
   params,
 }: {

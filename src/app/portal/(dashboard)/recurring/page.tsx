@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { PlusCircle, X, Pause, Play, Trash2 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 
@@ -54,7 +55,7 @@ export default function PortalRecurringPage() {
       particular: form.particular || 'Recurring donation', is_active: true,
     })
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Recurring donation set up')
     setShowForm(false)
     setForm(empty)
@@ -64,7 +65,7 @@ export default function PortalRecurringPage() {
   const togglePause = async (s: Schedule) => {
     const supabase = createClient()
     const { error } = await supabase.from('recurring_schedules').update({ is_active: !s.is_active }).eq('id', s.id)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(s.is_active ? 'Paused' : 'Resumed')
     load()
   }
@@ -73,7 +74,7 @@ export default function PortalRecurringPage() {
     if (!confirmCancel) return
     const supabase = createClient()
     const { error } = await supabase.from('recurring_schedules').delete().eq('id', confirmCancel)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Cancelled')
     setConfirmCancel(null)
     load()
@@ -83,7 +84,7 @@ export default function PortalRecurringPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
         <div>
           <h1 className="font-heading text-[26px] font-bold text-dp-primary">Recurring Donations</h1>
           <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Set up automatic giving to a project or the general fund.</p>

@@ -1,19 +1,20 @@
-'use client'
-
 import Link from 'next/link'
-import { motion } from 'motion/react'
 import { SITE } from '@/lib/constants'
 
+// Was `motion`-animated (a JS animation library) for two one-shot fade-ins
+// on the homepage's above-the-fold hero — the single heaviest page for a
+// first-time/mobile visitor. `tw-animate-css` (already a dependency, used
+// elsewhere in this app) gives the identical fade+slide-in as pure CSS
+// classes, so the hero no longer needs to ship or run any animation JS at
+// all. motion is still used as-is on Gallery/Projects (their interactivity
+// is genuinely motion-driven, not just decorative), just not here.
 export function HomeHero() {
   return (
     <section className="bg-dp-primary-container relative overflow-hidden">
       {/* Desktop Hero */}
       <div className="hidden md:block pt-16 pb-32">
         <div className="max-w-[1200px] mx-auto px-6 relative z-10 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
-            className="max-w-3xl mx-auto mb-10"
-          >
+          <div className="max-w-3xl mx-auto mb-10 animate-in fade-in slide-in-from-top-3 duration-700">
             <p dir="rtl" className="text-white text-[30px] lg:text-[36px] font-bold leading-[1.9]" style={{ fontFamily: 'var(--font-quran), serif' }}>
               ﴿وَيَسْأَلُونَكَ مَاذَا يُنفِقُونَ قُلِ الْعَفْوَ ۗ كَذَٰلِكَ يُبَيِّنُ اللَّهُ لَكُمُ الْآيَاتِ لَعَلَّكُمْ تَتَفَكَّرُونَ﴾
             </p>
@@ -23,15 +24,14 @@ export function HomeHero() {
             <p dir="rtl" className="text-white/60 text-[13px] mt-2" style={{ fontFamily: 'var(--font-urdu), serif' }}>
               (سورۃ البقرہ، آیت 219)
             </p>
-          </motion.div>
-          <motion.h1
+          </div>
+          <h1
             dir="rtl"
-            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}
-            className="font-bold text-white drop-shadow-xl leading-tight text-[32px] lg:text-[38px]"
+            className="font-bold text-white drop-shadow-xl leading-tight text-[32px] lg:text-[38px] animate-in fade-in slide-in-from-top-3 duration-700 [animation-delay:200ms] [animation-fill-mode:both]"
             style={{ fontFamily: 'var(--font-urdu), serif' }}
           >
             {SITE.committeeUrdu}
-          </motion.h1>
+          </h1>
           <p className="font-heading text-[26px] lg:text-[30px] font-semibold text-dp-on-primary-container mb-6 mt-1 tracking-wide">
             Dhab Pari
           </p>

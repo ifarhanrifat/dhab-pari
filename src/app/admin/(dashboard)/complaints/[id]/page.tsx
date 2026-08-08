@@ -8,6 +8,7 @@ import {
   MessageCircle, Send, Image as ImageIcon, Mic as MicIcon, UserPlus, Link2, Receipt,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { FileAttachment } from '@/components/admin/FileAttachment'
 import { VoiceRecorder } from '@/components/admin/VoiceRecorder'
 import { normalizePakPhone } from '@/lib/receiptExport'
@@ -142,7 +143,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
     setBusy(true)
     const { error } = await supabase.from('complaints').update({ consumer_id: consumerId }).eq('id', id)
     setBusy(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Linked to consumer')
     setLinkQuery('')
     load()
@@ -155,7 +156,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
       p_waiver_percent: waiverType === 'percent' ? waiverPercent : null,
     })
     setWaiverBusy(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Bill waiver applied')
     load()
   }
@@ -164,7 +165,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
     setWaiverBusy(true)
     const { error } = await supabase.rpc('set_complaint_waiver', { p_complaint_id: id, p_active: false, p_waiver_type: null, p_waiver_percent: null })
     setWaiverBusy(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Bill waiver cleared')
     load()
   }
@@ -177,7 +178,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
       photo_url: photoUrl || null, voice_url: voiceUrl || null,
     })
     setPosting(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     setCommentBody(''); setPhotoUrl(''); setVoiceUrl('')
     load()
   }
@@ -187,7 +188,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
     setBusy(true)
     const { error } = await supabase.from('complaints').update({ assigned_to: adminUserId }).eq('id', id)
     setBusy(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Assigned')
     setAssignTo('')
     load()
@@ -198,7 +199,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
     const { error } = await supabase.rpc('mark_complaint_resolved', { p_complaint_id: id, p_note: resolveNote || null })
     setBusy(false)
     setShowResolve(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Marked resolved — awaiting verification')
     setResolveNote('')
     load()
@@ -209,7 +210,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
     const { error } = await supabase.rpc('extend_complaint_deadline', { p_complaint_id: id, p_days: extendDays, p_note: extendNote || null })
     setBusy(false)
     setShowExtend(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(`Deadline extended by ${extendDays} day(s)`)
     setExtendNote('')
     load()
@@ -221,7 +222,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
     const fn = showVerifyDecision === 'verify' ? 'verify_complaint' : 'reopen_complaint'
     const { error } = await supabase.rpc(fn, { p_complaint_id: id, p_note: verifyNote || null })
     setBusy(false)
-    if (error) { toast.error(error.message); setShowVerifyDecision(null); return }
+    if (error) { toast.error(friendlyError(error)); setShowVerifyDecision(null); return }
     toast.success(showVerifyDecision === 'verify' ? 'Verified and closed' : 'Sent back to handler')
     setVerifyNote('')
     setShowVerifyDecision(null)

@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import NextImage from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { CheckCircle, XCircle, Image as ImageIcon } from 'lucide-react'
 
@@ -46,7 +48,7 @@ export default function AdminPaymentClaimsPage() {
     setBusyId(id)
     const { error } = await supabase.rpc('approve_bill_payment_claim', { p_claim_id: id, p_review_note: null })
     setBusyId(null)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Payment approved and posted to the ledger')
     load()
   }
@@ -55,7 +57,7 @@ export default function AdminPaymentClaimsPage() {
     setBusyId(id)
     const { error } = await supabase.rpc('reject_bill_payment_claim', { p_claim_id: id, p_review_note: null })
     setBusyId(null)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Claim rejected')
     load()
   }
@@ -87,8 +89,8 @@ export default function AdminPaymentClaimsPage() {
           {claims.map((c) => (
             <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-5 flex flex-col md:flex-row gap-5">
               {signedUrls[c.id] && (
-                <a href={signedUrls[c.id]} target="_blank" rel="noopener noreferrer" className="shrink-0">
-                  <img src={signedUrls[c.id]} alt="Payment slip" className="w-full md:w-40 h-40 object-cover rounded-lg border border-dp-outline-variant" />
+                <a href={signedUrls[c.id]} target="_blank" rel="noopener noreferrer" className="relative shrink-0 w-full md:w-40 h-40 block">
+                  <NextImage src={signedUrls[c.id]} alt="Payment slip" fill sizes="160px" className="object-cover rounded-lg border border-dp-outline-variant" />
                 </a>
               )}
               <div className="flex-1">

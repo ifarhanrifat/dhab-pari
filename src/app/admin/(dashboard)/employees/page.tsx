@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import {
   HardHat, PlusCircle, X, Pencil, Power, PauseCircle, Banknote,
   FileText, Printer, Download, HandCoins, Settings2, Receipt,
@@ -125,7 +126,7 @@ export default function EmployeesPage() {
 
     if (formTarget === 'new') {
       const { data, error } = await supabase.from('employees').insert(payload).select('id').single()
-      if (error) { toast.error(error.message); setSaving(false); return }
+      if (error) { toast.error(friendlyError(error)); setSaving(false); return }
 
       if (form.monthly_salary > 0 && accountsByCode['WS-3001']) {
         const { data: employeeAccountId } = await supabase.rpc('ensure_employee_account', { p_employee_id: data.id })
@@ -144,7 +145,7 @@ export default function EmployeesPage() {
       toast.success('Employee added')
     } else if (formTarget) {
       const { error } = await supabase.from('employees').update(payload).eq('id', formTarget.id)
-      if (error) { toast.error(error.message); setSaving(false); return }
+      if (error) { toast.error(friendlyError(error)); setSaving(false); return }
 
       if (formTarget.salary_schedule_id) {
         await supabase.from('recurring_schedules').update({
@@ -196,7 +197,7 @@ export default function EmployeesPage() {
       employee_id: advanceTarget.id, party_name: advanceTarget.name,
     })
     setGivingAdvance(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Advance recorded')
     setAdvanceTarget(null)
     load()
@@ -205,7 +206,7 @@ export default function EmployeesPage() {
   const toggleActive = async (e: Employee) => {
     const nextActive = !e.is_active
     const { error } = await supabase.from('employees').update({ is_active: nextActive }).eq('id', e.id)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     if (e.salary_schedule_id) {
       await supabase.from('recurring_schedules').update({ is_active: nextActive }).eq('id', e.salary_schedule_id)
     }
@@ -219,7 +220,7 @@ export default function EmployeesPage() {
     if (!key) { toast.error('Enter a valid label'); return }
     setSavingRole(true)
     const { error } = await supabase.from('employee_roles').insert({ key, label_en: newRole.label_en.trim(), label_ur: newRole.label_ur.trim() })
-    if (error) { toast.error(error.message); setSavingRole(false); return }
+    if (error) { toast.error(friendlyError(error)); setSavingRole(false); return }
     await supabase.from('message_templates').insert([
       { key: `hiring_${key}_requirements`, label: `Hiring Request — ${newRole.label_en.trim()} — Requirements`, body: '' },
       { key: `hiring_${key}_procedure`, label: `Hiring Request — ${newRole.label_en.trim()} — Working Procedure`, body: '' },
@@ -233,7 +234,7 @@ export default function EmployeesPage() {
 
   const toggleRoleActive = async (r: EmployeeRole) => {
     const { error } = await supabase.from('employee_roles').update({ is_active: !r.is_active }).eq('key', r.key)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     load()
   }
 
@@ -659,7 +660,7 @@ function PayslipButton({
           employee_id: employee.id, month, year,
           overtime_amount: form.overtime, bonus_amount: form.bonus, emergency_amount: form.emergency,
         }).select('id').single()
-        if (error) { toast.error(error.message); return }
+        if (error) { toast.error(friendlyError(error)); return }
         payslipId = data.id
       }
 
@@ -667,7 +668,7 @@ function PayslipButton({
         const { error } = await supabase.rpc('edit_employee_payslip_recognition', {
           p_payslip_id: payslipId, p_overtime: form.overtime, p_bonus: form.bonus, p_emergency: form.emergency,
         })
-        if (error) { toast.error(error.message); return }
+        if (error) { toast.error(friendlyError(error)); return }
       } else if (newRecognitionTotal > 0) {
         const { data: draft, error: draftErr } = await supabase.from('vouchers').insert({
           system: 'water_supply', voucher_type: 'expense', voucher_date: today(),
@@ -675,7 +676,7 @@ function PayslipButton({
           amount_pkr: 0, status: 'draft', employee_id: employee.id, party_name: employee.name,
           from_account_id: employeeAccountId,
         }).select('id').single()
-        if (draftErr) { toast.error(draftErr.message); return }
+        if (draftErr) { toast.error(friendlyError(draftErr)); return }
 
         const lines: { voucher_id: string; account_id: string; amount: number; description: string }[] = []
         if (form.overtime > 0) lines.push({ voucher_id: draft.id, account_id: accountsByCode['WS-3012'], amount: form.overtime, description: 'Overtime' })
@@ -684,10 +685,10 @@ function PayslipButton({
         jobLines.forEach((j) => lines.push({ voucher_id: draft.id, account_id: accountsByCode['WS-3014'], amount: j.amount, description: `Job ${j.label}` }))
 
         const { error: lineErr } = await supabase.from('voucher_line_items').insert(lines)
-        if (lineErr) { toast.error(lineErr.message); return }
+        if (lineErr) { toast.error(friendlyError(lineErr)); return }
 
         const { error: finalizeErr } = await supabase.rpc('finalize_voucher', { p_voucher_id: draft.id })
-        if (finalizeErr) { toast.error(finalizeErr.message); return }
+        if (finalizeErr) { toast.error(friendlyError(finalizeErr)); return }
 
         recognitionVoucherId = draft.id
         await supabase.from('employee_payslips').update({ recognition_voucher_id: draft.id }).eq('id', payslipId)
@@ -733,7 +734,7 @@ function PayslipButton({
         amount_pkr: payAmount, from_account_id: accountsByCode[fromCode], to_account_id: employeeAccountId,
         employee_id: employee.id, party_name: employee.name,
       })
-      if (error) { toast.error(error.message); return }
+      if (error) { toast.error(friendlyError(error)); return }
       toast.success('Payment recorded')
       const bal = await fetchBalance()
       setBalance(bal)

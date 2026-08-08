@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ShieldCheck, Send } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { createClient } from '@/lib/supabase/client'
 
 interface Request { id: string; system: string; kind: string; particular: string; amount_pkr: number; created_at: string }
@@ -50,7 +51,7 @@ export function PendingApprovalsWidget() {
     setResendingId(id)
     const { error } = await supabase.rpc('resend_approval_notifications', { p_request_id: id })
     setResendingId(null)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Reminder sent')
   }
 

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, Save, ShieldCheck, UserCircle2, Clock, CheckCircle2, Truck, Pencil, Trash2, Power, ChevronDown, ChevronUp, Key, Copy, Eye, EyeOff, RefreshCw } from 'lucide-react'
+import { PlusCircle, X, Save, ShieldCheck, UserCircle2, Clock, CheckCircle2, Truck, Pencil, Trash2, Power, ChevronDown, ChevronUp, Key, Copy, Eye, EyeOff, RefreshCw, Search } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 
 interface AdminUser {
@@ -163,7 +164,25 @@ export default function AdminUsersPage() {
   const [loadingPassword, setLoadingPassword] = useState(false)
   const [revealPassword, setRevealPassword] = useState(false)
   const [savingPassword, setSavingPassword] = useState(false)
+  const [search, setSearch] = useState('')
+  const [showInactive, setShowInactive] = useState(true)
   const supabase = createClient()
+
+  // Name / email / mobile, case-insensitive. Deactivated accounts can be
+  // hidden too — there are a lot of retired test logins that can't be hard
+  // deleted (they hold history other tables still point at), and they were
+  // burying the real staff list.
+  const visibleUsers = users.filter((u) => {
+    if (!showInactive && !u.is_active) return false
+    const q = search.trim().toLowerCase()
+    if (!q) return true
+    return (
+      u.full_name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      (u.mobile ?? '').toLowerCase().includes(q)
+    )
+  })
+  const hiddenCount = users.length - visibleUsers.length
 
   const load = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -210,7 +229,7 @@ export default function AdminUsersPage() {
       secondary_role: collectorForm.secondary_role || null,
     }).eq('id', editingUser.id)
     setSavingCollector(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(`${editingUser.full_name}'s settings updated`)
     setEditingUser(null)
     load()
@@ -329,7 +348,7 @@ export default function AdminUsersPage() {
     const { error } = await supabase.from('admin_users').update({
       role: newRole, ...(clearingSecondary ? { secondary_role: null } : {}),
     }).eq('id', u.id)
-    if (error) { toast.error(error.message); load(); return }
+    if (error) { toast.error(friendlyError(error)); load(); return }
     toast.success(`${u.full_name}'s role changed to ${roleLabels[newRole] ?? newRole}`)
     load()
   }
@@ -389,6 +408,30 @@ export default function AdminUsersPage() {
         )}
       </div>
 
+      <div className="bg-white rounded-lg border border-dp-outline-variant p-3 mb-4 flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, email or mobile..."
+            className="filter-field !pl-9"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer">
+              <X size={15} />
+            </button>
+          )}
+        </div>
+        <label className="flex items-center gap-2 cursor-pointer shrink-0">
+          <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} className="accent-dp-secondary" />
+          <span className="font-sans text-[13px] text-dp-on-surface-variant">Show deactivated</span>
+        </label>
+        <span className="font-sans text-[12.5px] text-dp-on-surface-variant shrink-0">
+          {visibleUsers.length} of {users.length}{hiddenCount > 0 ? ` · ${hiddenCount} hidden` : ''}
+        </span>
+      </div>
+
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -404,13 +447,13 @@ export default function AdminUsersPage() {
             </thead>
             <tbody className="font-sans text-[14px]">
               {loading && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">Loading...</td></tr>}
-              {!loading && users.length === 0 && (
+              {!loading && visibleUsers.length === 0 && (
                 <tr><td colSpan={6} className="p-8 text-center">
                   <UserCircle2 size={40} className="text-dp-on-surface-variant mx-auto mb-3 opacity-40" />
                   <p className="font-sans text-[16px] text-dp-on-surface-variant">No users yet.</p>
                 </td></tr>
               )}
-              {!loading && users.map((u, i) => (
+              {!loading && visibleUsers.map((u, i) => (
                 <tr key={u.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''} ${!u.is_active ? 'opacity-50' : ''}`}>
                   <td className="p-4 border-b border-dp-outline-variant">
                     <div className="flex items-center gap-2">

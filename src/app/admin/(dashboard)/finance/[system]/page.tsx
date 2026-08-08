@@ -9,6 +9,7 @@ import {
   ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck, ChevronDown, Search, PlusCircle, ChevronLeft, HandCoins,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import { FileAttachment } from '@/components/admin/FileAttachment'
@@ -22,7 +23,7 @@ type SystemTab = 'water_supply' | 'donors_projects'
 type VoucherType = 'expense' | 'income' | 'contra' | 'withdrawal' | 'deposit' | 'advance'
 type ActiveType = VoucherType | 'bill' | 'donation' | 'purchase' | 'cash_receipt'
 
-interface Account { id: string; name: string; name_ur: string | null; type: string; code: string; system: string }
+interface Account { id: string; name: string; name_ur: string | null; type: string; code: string; system: string; opening_balance: number }
 interface Consumer { consumer_id: string; name: string; monthly_rate: number; connections: number }
 interface Project { id: string; title: string }
 interface TxnCard {
@@ -32,6 +33,7 @@ interface TxnCard {
   badge: { text: string; tone: BillBadgeTone } | null
   note: string | null; created_at: string
   billId?: string; paymentId?: string; voucherId?: string; donationId?: string; purchaseId?: string
+  donationVerified?: boolean; donationVoucherNo?: string | null; donationNameUr?: string | null
   billOutstanding?: number; billConsumerId?: string
   paymentBillOutstandingNow?: number; paymentReceiptNo?: string | null
   paymentConsumerId?: string; paymentMethod?: string; paymentNote?: string | null
@@ -149,6 +151,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const router = useRouter()
 
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [accountBalances, setAccountBalances] = useState<Record<string, { debit: number; credit: number }>>({})
   const [consumers, setConsumers] = useState<Consumer[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [txnCards, setTxnCards] = useState<TxnCard[]>([])
@@ -190,6 +193,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [lockedReceipts, setLockedReceipts] = useState<string[]>([])
   const [donationForm, setDonationForm] = useState(emptyDonationForm)
   const [confirmDeleteVoucherId, setConfirmDeleteVoucherId] = useState<string | null>(null)
+  const [confirmDeleteDonationId, setConfirmDeleteDonationId] = useState<string | null>(null)
   const [confirmDeleteBillId, setConfirmDeleteBillId] = useState<string | null>(null)
   const [billDeleteBlock, setBillDeleteBlock] = useState<{ billNumber: string | null; receipts: string[] } | null>(null)
   const [saving, setSaving] = useState(false)
@@ -228,35 +232,35 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [editingPurchaseLineIndex, setEditingPurchaseLineIndex] = useState<number | null>(null)
   const supabase = createClient()
 
+  // Was 15+ separate round trips (accounts/ledger/consumers/projects/pending/
+  // inventory/service/template + bills/payments/vouchers/donations/purchases/
+  // purchase-lines/auto-posted) — now 2 RPCs computed server-side (migration
+  // 164/166), fetched in parallel. None of the card-building/badge/folding
+  // logic below changed — only where the raw rows come from.
   const load = useCallback(async () => {
-    const [accountsRes, consumersRes, projectsRes, pendingRes, invRes, svcRes, tmplRes] = await Promise.all([
-      // Not scoped to the current system tab — the account picker shows the whole
-      // chart of accounts (Water Supply + Donors & Projects together), since a
-      // committee's cash/bank accounts are often shared across both books.
-      supabase.from('accounts').select('id, name, name_ur, type, code, system').eq('is_active', true).order('name'),
-      system === 'water_supply' ? supabase.from('consumers').select('consumer_id, name, monthly_rate, connections').eq('status', 'active').order('name') : Promise.resolve({ data: [] }),
-      system === 'donors_projects' ? supabase.from('projects').select('id, title').order('title') : Promise.resolve({ data: [] }),
-      supabase.from('approval_requests').select('id, kind, particular, amount_pkr, created_at').eq('system', system).eq('status', 'pending').order('created_at', { ascending: false }),
-      system === 'water_supply' ? supabase.from('inventory_items').select('id, name, unit_price, unit_cost, unit').eq('is_active', true).order('name') : Promise.resolve({ data: [] }),
-      system === 'water_supply' ? supabase.from('service_items').select('id, name, charge_amount').eq('is_active', true).order('name') : Promise.resolve({ data: [] }),
-      system === 'water_supply' ? supabase.from('connection_templates').select('id').eq('system', 'water_supply').eq('is_default', true).single() : Promise.resolve({ data: null }),
+    const [{ data: shell, error: shellErr }, { data: docs, error: docsErr }] = await Promise.all([
+      supabase.rpc('get_transactions_workspace_shell', { p_system: system }),
+      supabase.rpc('get_transactions_workspace_documents', { p_system: system }),
     ])
-    const accts: Account[] = accountsRes.data ?? []
-    setAccounts(accts)
-    setConsumers(consumersRes.data ?? [])
-    setProjects(projectsRes.data ?? [])
-    setPendingApprovals(pendingRes.data ?? [])
-    setInventoryItems(invRes.data ?? [])
-    setServiceItems(svcRes.data ?? [])
+    if (shellErr || !shell) { toast.error(friendlyError(shellErr, 'Failed to load accounts')); setLoading(false); return }
+    if (docsErr || !docs) { toast.error(friendlyError(docsErr, 'Failed to load transactions')); setLoading(false); return }
 
-    const tmplId = (tmplRes.data as { id: string } | null)?.id
-    if (tmplId) {
-      const { data: tmplItems } = await supabase.from('connection_template_items')
-        .select('item_type, inventory_item_id, service_item_id, quantity').eq('template_id', tmplId)
-      setDefaultTemplateItems(tmplItems ?? [])
-    } else {
-      setDefaultTemplateItems([])
+    const accts: Account[] = shell.accounts ?? []
+    setAccounts(accts)
+    const bMap: Record<string, { debit: number; credit: number }> = {}
+    for (const l of shell.ledger_balances ?? []) {
+      const cur = bMap[l.account_id] ?? { debit: 0, credit: 0 }
+      cur.debit += Number(l.debit); cur.credit += Number(l.credit)
+      bMap[l.account_id] = cur
     }
+    setAccountBalances(bMap)
+    const consumersRes = { data: (shell.consumers ?? []) as { consumer_id: string; name: string; monthly_rate: number; connections: number }[] }
+    setConsumers(consumersRes.data)
+    setProjects(shell.projects ?? [])
+    setPendingApprovals(shell.pending_approvals ?? [])
+    setInventoryItems(shell.inventory_items ?? [])
+    setServiceItems(shell.service_items ?? [])
+    setDefaultTemplateItems(shell.default_template_items ?? [])
 
     // Recent Transactions shows one card per real-world document (a bill, a cash
     // receipt, a voucher, a donation) instead of the raw double-entry ledger legs
@@ -266,25 +270,15 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     // from bills/payments/vouchers/donors rather than ledger_entries, so there's no
     // debit/credit leg-deduplication to get right — each table row is already exactly
     // one document.
-    const consumersById = Object.fromEntries((consumersRes.data ?? []).map((c) => [c.consumer_id, c.name]))
+    const consumersById = Object.fromEntries(consumersRes.data.map((c) => [c.consumer_id, c.name]))
     const ascending = logSortDir === 'asc'
 
-    const [billsRes, paymentsRes, vouchersRes, donationsRes, purchasesRes, autoPostedRes] = await Promise.all([
-      system === 'water_supply'
-        ? supabase.from('bills').select('id, bill_number, consumer_id, month, year, amount_pkr, discount_amount, paid_amount, due_date, description, created_at, security_deposit_amount, security_deposit_voucher_id').order('created_at', { ascending: false }).limit(50)
-        : Promise.resolve({ data: [] as { id: string; bill_number: string | null; consumer_id: string; month: number; year: number; amount_pkr: number; discount_amount: number | null; paid_amount: number | null; due_date: string | null; description: string | null; created_at: string; security_deposit_amount: number | null; security_deposit_voucher_id: string | null }[] }),
-      system === 'water_supply'
-        ? supabase.from('payments').select('id, bill_id, consumer_id, amount_pkr, method, paid_date, receipt_no, note, created_at').order('created_at', { ascending: false }).limit(50)
-        : Promise.resolve({ data: [] as { id: string; bill_id: string; consumer_id: string; amount_pkr: number; method: string | null; paid_date: string; receipt_no: string | null; note: string | null; created_at: string }[] }),
-      supabase.from('vouchers').select('id, voucher_type, voucher_no, receipt_no, voucher_date, particular, amount_pkr, party_name, bill_id, created_at').eq('system', system).in('status', ['posted', 'approved']).order('created_at', { ascending: false }).limit(50),
-      system === 'donors_projects'
-        ? supabase.from('donors').select('id, name, amount_pkr, date, payment_method, notes, is_anonymous, created_at').order('created_at', { ascending: false }).limit(50)
-        : Promise.resolve({ data: [] as { id: string; name: string; amount_pkr: number; date: string; payment_method: string | null; notes: string | null; is_anonymous: boolean; created_at: string }[] }),
-      system === 'water_supply'
-        ? supabase.from('purchases').select('id, vendor, purchase_date, method, note, attachment_url, purchase_number, created_at').eq('system', system).eq('status', 'posted').order('created_at', { ascending: false }).limit(50)
-        : Promise.resolve({ data: [] as { id: string; vendor: string | null; purchase_date: string; method: string; note: string | null; attachment_url: string | null; purchase_number: string | null; created_at: string }[] }),
-      supabase.from('approval_requests').select('reference_id, auto_posted').eq('system', system).eq('status', 'posted'),
-    ])
+    const billsRes = { data: (docs.bills ?? []) as { id: string; bill_number: string | null; consumer_id: string; month: number; year: number; amount_pkr: number; discount_amount: number | null; paid_amount: number | null; due_date: string | null; description: string | null; created_at: string; security_deposit_amount: number | null; security_deposit_voucher_id: string | null }[] }
+    const paymentsRes = { data: (docs.payments ?? []) as { id: string; bill_id: string; consumer_id: string; amount_pkr: number; method: string | null; paid_date: string; receipt_no: string | null; note: string | null; created_at: string }[] }
+    const vouchersRes = { data: (docs.vouchers ?? []) as { id: string; voucher_type: string; voucher_no: string | null; receipt_no: string | null; voucher_date: string; particular: string; amount_pkr: number; party_name: string | null; bill_id: string | null; created_at: string }[] }
+    const donationsRes = { data: (docs.donations ?? []) as { id: string; name: string; name_ur: string | null; amount_pkr: number; date: string; payment_method: string | null; notes: string | null; is_anonymous: boolean; is_verified: boolean; voucher_no: string | null; created_at: string }[] }
+    const purchasesRes = { data: (docs.purchases ?? []) as { id: string; vendor: string | null; purchase_date: string; method: string; note: string | null; attachment_url: string | null; purchase_number: string | null; created_at: string }[] }
+    const autoPostedRes = { data: (docs.approval_statuses ?? []) as { reference_id: string; auto_posted: boolean }[] }
     const autoPostedIds = new Set((autoPostedRes.data ?? []).filter((r) => r.auto_posted).map((r) => r.reference_id))
     // Genuinely gated AND fully confirmed by every approver (as opposed to
     // never having been gated at all, e.g. because no approvers were
@@ -373,27 +367,27 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         id: `donation-${d.id}`, kind: 'donation', borderColor: 'border-violet-500',
         typeLabel: d.payment_method ? d.payment_method.charAt(0).toUpperCase() + d.payment_method.slice(1) : null,
         partyName: d.is_anonymous ? 'Anonymous Donor' : d.name,
-        docLabel: 'Donation', date: d.date, description: d.notes || 'Donation received',
-        amount: d.amount_pkr, badge: null, note: null, created_at: d.created_at, donationId: d.id,
+        docLabel: d.voucher_no ? `Voucher # ${d.voucher_no}` : 'Donation',
+        date: d.date, description: d.notes || 'Donation received',
+        amount: d.amount_pkr,
+        // Not yet posted to the ledger (trg_donor_ledger only fires once
+        // is_verified is true) — flagged here rather than filtered out, since
+        // this list is the operational queue staff act on, unlike the Donor
+        // Report (a financial summary, filtered to verified-only instead).
+        badge: d.is_verified ? null : { text: 'PENDING', tone: 'amber' },
+        note: null, created_at: d.created_at, donationId: d.id,
+        donationVerified: d.is_verified, donationVoucherNo: d.voucher_no, donationNameUr: d.name_ur,
       })
     }
 
     const purchasesList = purchasesRes.data ?? []
-    let purchaseLinesByPurchase: Record<string, { description: string; quantity: number; unitPrice: number }[]> = {}
-    if (purchasesList.length > 0) {
-      const { data: purchaseLineRows } = await supabase
-        .from('inventory_transactions')
-        .select('purchase_id, quantity, unit_cost_at_time, inventory_items(name)')
-        .in('purchase_id', purchasesList.map((p) => p.id))
-      purchaseLinesByPurchase = {}
-      for (const r of purchaseLineRows ?? []) {
-        const pid = r.purchase_id as string
-        if (!purchaseLinesByPurchase[pid]) purchaseLinesByPurchase[pid] = []
-        purchaseLinesByPurchase[pid].push({
-          description: (r.inventory_items as unknown as { name: string } | null)?.name ?? 'Item',
-          quantity: r.quantity, unitPrice: r.unit_cost_at_time ?? 0,
-        })
-      }
+    const purchaseLinesByPurchase: Record<string, { description: string; quantity: number; unitPrice: number }[]> = {}
+    for (const r of docs.purchase_line_items ?? []) {
+      const pid = r.purchase_id as string
+      if (!purchaseLinesByPurchase[pid]) purchaseLinesByPurchase[pid] = []
+      purchaseLinesByPurchase[pid].push({
+        description: r.item_name ?? 'Item', quantity: r.quantity, unitPrice: r.unit_cost_at_time ?? 0,
+      })
     }
 
     for (const p of purchasesList) {
@@ -511,7 +505,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const deletePayment = async () => {
     if (!confirmDeletePaymentId) return
     const { error } = await supabase.from('payments').delete().eq('id', confirmDeletePaymentId)
-    if (error) { toast.error(error.message); setConfirmDeletePaymentId(null); return }
+    if (error) { toast.error(friendlyError(error)); setConfirmDeletePaymentId(null); return }
     toast.success('Payment deleted')
     setConfirmDeletePaymentId(null)
     load()
@@ -536,7 +530,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     if (!editPaymentForm.amount || editPaymentForm.amount <= 0) { toast.error('Enter a valid amount'); return }
     setEditPaymentSaving(true)
     const { error: delErr } = await supabase.from('payments').delete().eq('id', editPaymentTarget.id)
-    if (delErr) { toast.error(delErr.message); setEditPaymentSaving(false); return }
+    if (delErr) { toast.error(friendlyError(delErr)); setEditPaymentSaving(false); return }
     const { error: insErr } = await supabase.from('payments').insert({
       bill_id: editPaymentTarget.billId, consumer_id: editPaymentTarget.consumerId,
       amount_pkr: editPaymentForm.amount, method: editPaymentForm.method,
@@ -603,6 +597,21 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     })
   }
 
+  const openDonationReceipt = (card: TxnCard) => {
+    if (!card.donationId) return
+    setViewReceipt({
+      kind: 'donation',
+      receiptNo: card.donationVoucherNo || card.donationId.slice(0, 8).toUpperCase(),
+      date: card.date,
+      systemLabel: systemLabels[system],
+      accountName: card.partyName,
+      accountNameUr: card.donationNameUr || undefined,
+      particular: card.description,
+      amount: card.amount,
+      balanceAfter: card.amount,
+    })
+  }
+
   const openQuickReceivePayment = (card: TxnCard) => {
     if (!card.billId || !card.billConsumerId) return
     const outstanding = card.billOutstanding ?? 0
@@ -620,7 +629,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       amount_pkr: quickPayAmount, method: quickPayMethod,
     })
     setQuickPaySaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(`Payment of Rs. ${fmtAmount(quickPayAmount)} recorded`)
     setReceivePaymentTarget(null)
     load()
@@ -904,8 +913,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     const { data, error } = await supabase.from('accounts')
       .insert({ code, name: newChargeAccountName.trim(), type: 'income', system })
       .select('id, name, type, code, system').single()
-    if (error) { toast.error(error.message); return }
-    setAccounts([...accounts, { id: data.id, name: data.name, name_ur: null, type: data.type, code: data.code, system: data.system }])
+    if (error) { toast.error(friendlyError(error)); return }
+    setAccounts([...accounts, { id: data.id, name: data.name, name_ur: null, type: data.type, code: data.code, system: data.system, opening_balance: 0 }])
     setOtherChargeAccountId(data.id)
     setNewChargeAccountName('')
     setShowAddChargeAccount(false)
@@ -932,7 +941,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       project_id: (system === 'donors_projects' && activeType === 'expense' && voucherForm.projectId) || null,
     }).select('id, voucher_type, voucher_date, particular, amount_pkr, status, voucher_no').single()
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     if (saved.status === 'pending') {
       toast.success('Saved — awaiting approval before it posts')
     } else {
@@ -961,16 +970,16 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       party_name: voucherForm.party || null, attachment_url: voucherAttachment || null, status: 'draft',
       project_id: (system === 'donors_projects' && voucherForm.projectId) || null,
     }).select('id').single()
-    if (draftErr) { toast.error(draftErr.message); setSaving(false); return }
+    if (draftErr) { toast.error(friendlyError(draftErr)); setSaving(false); return }
 
     const { error: linesErr } = await supabase.from('voucher_line_items').insert(
       validLines.map((l) => ({ voucher_id: draft.id, account_id: l.account_id, amount: l.amount, description: l.description || null }))
     )
-    if (linesErr) { toast.error(linesErr.message); setSaving(false); return }
+    if (linesErr) { toast.error(friendlyError(linesErr)); setSaving(false); return }
 
     const { data: result, error: finalizeErr } = await supabase.rpc('finalize_voucher', { p_voucher_id: draft.id })
     setSaving(false)
-    if (finalizeErr) { toast.error(finalizeErr.message); return }
+    if (finalizeErr) { toast.error(friendlyError(finalizeErr)); return }
     toast.success(result.status === 'pending' ? 'Saved — awaiting approval before it posts' : 'Expense saved')
 
     setVoucherForm({ ...emptyVoucherForm, date: voucherForm.date })
@@ -1173,7 +1182,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       system, vendor: purchaseForm.vendor || null, purchase_date: purchaseForm.date,
       method: purchaseForm.method, note: purchaseForm.note || null, attachment_url: purchaseForm.attachment_url || null,
     }).select('id').single()
-    if (purchaseErr) { toast.error(purchaseErr.message); setSaving(false); return }
+    if (purchaseErr) { toast.error(friendlyError(purchaseErr)); setSaving(false); return }
 
     const errors: string[] = []
     for (const l of purchaseLines) {
@@ -1186,7 +1195,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     if (errors.length > 0) toast.error(`Some items could not be recorded — ${errors.join('; ')}`)
     if (errors.length < purchaseLines.length) {
       const { error: submitErr } = await supabase.rpc('submit_purchase_for_approval', { p_purchase_id: purchase.id })
-      if (submitErr) toast.error(submitErr.message)
+      if (submitErr) toast.error(friendlyError(submitErr))
       else toast.success(`Purchase bill Rs. ${fmtAmount(purchaseTotal)} saved — awaiting approval before it posts to stock`)
       setPurchaseForm(emptyPurchaseForm)
       setPurchaseLines([])
@@ -1206,7 +1215,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       is_anonymous: donationForm.is_anonymous, is_verified: true,
     })
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Donation recorded')
     setDonationForm(emptyDonationForm)
     load()
@@ -1215,9 +1224,20 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const deleteVoucher = async () => {
     if (!confirmDeleteVoucherId) return
     const { error } = await supabase.from('vouchers').delete().eq('id', confirmDeleteVoucherId)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Voucher deleted')
     setConfirmDeleteVoucherId(null)
+    load()
+  }
+
+  // donor_delete_ledger_trigger (AFTER DELETE ON donors, migration 007) already
+  // removes the matching ledger_entries automatically — no manual cleanup needed.
+  const deleteDonation = async () => {
+    if (!confirmDeleteDonationId) return
+    const { error } = await supabase.from('donors').delete().eq('id', confirmDeleteDonationId)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success('Donation deleted')
+    setConfirmDeleteDonationId(null)
     load()
   }
 
@@ -1237,20 +1257,31 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const deleteBill = async () => {
     if (!confirmDeleteBillId) return
     const { error } = await supabase.from('bills').delete().eq('id', confirmDeleteBillId)
-    if (error) { toast.error(error.message); setConfirmDeleteBillId(null); return }
+    if (error) { toast.error(friendlyError(error)); setConfirmDeleteBillId(null); return }
     toast.success('Bill deleted')
     setConfirmDeleteBillId(null)
     load()
   }
 
+  // Credit-normal types increase with a credit (same rule as Chart of
+  // Accounts) — used only to show each account's current balance in the
+  // picker below, not its internal code (not useful when choosing where
+  // money comes from/goes to).
+  const creditNormalType = (type: string) => type === 'donor' || type === 'income' || type === 'liability' || type === 'employee' || type === 'project'
+  const accountBalanceOf = (a: Account) => {
+    const b = accountBalances[a.id]
+    const net = b ? b.debit - b.credit : 0
+    return creditNormalType(a.type) ? a.opening_balance - net : a.opening_balance + net
+  }
+
   const accountPickerItems = (filter: (a: Account) => boolean) =>
     accounts.filter(filter).map((a) => ({
-      id: a.id, label: a.name, sublabel: a.code,
+      id: a.id, label: a.name, sublabel: `Rs ${fmtAmount(accountBalanceOf(a))}`,
       group: `${systemLabels[a.system as SystemTab] ?? a.system} — ${a.type.charAt(0).toUpperCase() + a.type.slice(1)}`,
     }))
 
   const handleAccountCreated = (a: NewAccount, onPick: (a: NewAccount) => void) => {
-    setAccounts((prev) => [...prev, { id: a.id, name: a.name, name_ur: null, type: a.type, code: a.code, system }])
+    setAccounts((prev) => [...prev, { id: a.id, name: a.name, name_ur: null, type: a.type, code: a.code, system, opening_balance: 0 }])
     onPick(a)
   }
 
@@ -1453,7 +1484,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 <p className="font-sans text-[13px] text-dp-on-surface-variant -mt-2">Pick a consumer, then settle one or several of their outstanding bills in a single receipt.</p>
                 <SearchableField
                   label="Consumer" value={cashReceiptConsumerId} placeholder="Select consumer..."
-                  items={consumers.map((c) => ({ id: c.consumer_id, label: c.name, sublabel: c.consumer_id }))}
+                  items={consumers.map((c) => ({ id: c.consumer_id, label: c.name }))}
                   onChange={(id) => loadCashReceiptBills(id)}
                 />
                 {cashReceiptConsumerId && (
@@ -1577,7 +1608,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   placeholder="Select consumer..."
                   pickerTitle="Select Consumer"
                   searchPlaceholder="Search by name or consumer ID..."
-                  items={consumers.map((c) => ({ id: c.consumer_id, label: c.name, sublabel: c.consumer_id }))}
+                  items={consumers.map((c) => ({ id: c.consumer_id, label: c.name }))}
                   onChange={(id) => { setBillForm({ ...billForm, consumer_id: id }); applyDefaultTemplate(id) }}
                 />
 
@@ -2070,6 +2101,13 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         {c.kind === 'purchase' && c.purchaseId && (
                           <button onClick={() => openPurchaseReceipt(c)} title="View payment voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><FileText size={15} /></button>
                         )}
+                        {c.kind === 'donation' && c.donationId && (
+                          <>
+                            <button onClick={() => openDonationReceipt(c)} title="View receipt" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><FileText size={15} /></button>
+                            <Link href={`/admin/donors?edit=${c.donationId}`} title={c.donationVerified ? 'Edit donation' : 'Review & confirm'} className="inline-block p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
+                            <button onClick={() => setConfirmDeleteDonationId(c.donationId!)} title="Delete donation" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -2102,6 +2140,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         message="Are you sure you want to delete this payment? Its ledger entries will be reversed and the bill will show as unpaid/outstanding again. This cannot be undone."
         onConfirm={deletePayment}
         onCancel={() => setConfirmDeletePaymentId(null)}
+      />
+
+      <ConfirmDialog
+        open={!!confirmDeleteDonationId}
+        title="Delete Donation"
+        message="Are you sure you want to delete this donation? If it was already confirmed, its ledger entries will be removed automatically. This cannot be undone."
+        onConfirm={deleteDonation}
+        onCancel={() => setConfirmDeleteDonationId(null)}
       />
 
       {billDeleteBlock && (
@@ -2361,7 +2407,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         </div>
       )}
 
-      {viewReceipt && <ReceiptModal data={viewReceipt} onClose={() => setViewReceipt(null)} />}
+      {viewReceipt && <ReceiptModal data={viewReceipt} system={system} onClose={() => setViewReceipt(null)} />}
       {quickAddFor && (
         <QuickAddAccountModal
           system={system} allowedTypes={quickAddFor.types}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import NextImage from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { Upload, X, Loader2, Image as ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -72,7 +73,7 @@ export function MultiImageUpload({ bucket, onUpload, currentUrls = [], label = '
         <div className="grid grid-cols-3 gap-2 mb-3">
           {urls.map((url, i) => (
             <div key={i} className="relative rounded-lg overflow-hidden border border-dp-outline-variant group aspect-square">
-              <img src={url} alt="" className="w-full h-full object-cover" />
+              <NextImage src={url} alt="" fill sizes="200px" className="object-cover" />
               <button
                 type="button"
                 onClick={() => removeUrl(i)}

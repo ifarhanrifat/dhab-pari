@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { ArrowLeft, MapPin, HeartHandshake, Megaphone, Receipt, CheckCircle, Vote, ThumbsUp, Flag, Share2, Clock, Users, HandHeart, X } from 'lucide-react'
 
 interface Project {
@@ -172,7 +174,7 @@ export default function ProjectDetailPage() {
       payment_status: 'pledged', portal_user_id: portalUser.id,
     })
     setAnnouncing(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Pledge announced! Pay anytime from your portal to complete it.')
     setShowAnnounce(false)
     setAnnounceAmount(0)
@@ -187,7 +189,7 @@ export default function ProjectDetailPage() {
       portal_user_id: portalUser.id, project_id: id, message: volunteerMessage.trim() || null,
     })
     setVolunteering(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Thank you for volunteering!')
     setShowVolunteer(false)
     setVolunteerMessage('')
@@ -202,7 +204,7 @@ export default function ProjectDetailPage() {
     const supabase = createClient()
     const { error } = await supabase.from('project_votes').insert({ project_id: id, portal_user_id: portalUser.id })
     setVoting(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     load()
   }
 
@@ -214,7 +216,7 @@ export default function ProjectDetailPage() {
     const supabase = createClient()
     const { error } = await supabase.from('project_comments').insert({ project_id: id, portal_user_id: portalUser.id, content: content.trim(), parent_comment_id: parentId ?? null })
     setPostingComment(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     if (parentId) { setReplyText(''); setReplyingTo(null) } else { setNewComment('') }
     load()
   }
@@ -249,7 +251,7 @@ export default function ProjectDetailPage() {
     if (reason === null) return
     const supabase = createClient()
     const { error } = await supabase.rpc('flag_project_comment', { p_comment_id: commentId, p_reason: reason })
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Flagged for staff review')
   }
 
@@ -331,7 +333,7 @@ export default function ProjectDetailPage() {
             <div className="flex flex-wrap gap-2">
               {votes.map((v) => (
                 <div key={v.id} title={v.username ?? undefined} className="flex items-center gap-1.5 bg-white border border-blue-100 rounded-full pl-1 pr-3 py-1">
-                  {v.avatar_url ? <img src={v.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover" /> : <div className="w-6 h-6 rounded-full bg-blue-200 flex items-center justify-center text-[10px] font-bold text-blue-800">{(v.username ?? '?').charAt(0).toUpperCase()}</div>}
+                  {v.avatar_url ? <Image src={v.avatar_url} alt="" width={24} height={24} className="w-6 h-6 rounded-full object-cover" /> : <div className="w-6 h-6 rounded-full bg-blue-200 flex items-center justify-center text-[10px] font-bold text-blue-800">{(v.username ?? '?').charAt(0).toUpperCase()}</div>}
                   <span className="font-sans text-[12px] font-semibold text-blue-900">{v.username}</span>
                 </div>
               ))}
@@ -501,7 +503,7 @@ function CommentBody({ c, myLikes, toggleLike, flagComment, onReply }: {
   }
   return (
     <div className="flex items-start gap-3">
-      {c.avatar_url ? <img src={c.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" /> : <div className="w-8 h-8 rounded-full bg-dp-secondary-container flex items-center justify-center text-[12px] font-bold text-dp-on-secondary-container shrink-0">{(c.username ?? '?').charAt(0).toUpperCase()}</div>}
+      {c.avatar_url ? <Image src={c.avatar_url} alt="" width={32} height={32} className="w-8 h-8 rounded-full object-cover shrink-0" /> : <div className="w-8 h-8 rounded-full bg-dp-secondary-container flex items-center justify-center text-[12px] font-bold text-dp-on-secondary-container shrink-0">{(c.username ?? '?').charAt(0).toUpperCase()}</div>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-sans text-[13.5px] font-bold text-dp-on-surface">{c.username}</span>

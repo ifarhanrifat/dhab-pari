@@ -9,6 +9,7 @@ import { printNodeInPopup } from '@/lib/receiptExport'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import { fetchBrandingSettings } from '@/lib/branding'
 import { dt, type Lang, type DocStringKey } from '@/lib/docTranslations'
+import { useSystemAccess } from '@/hooks/useSystemAccess'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 type ReportType = 'trial_balance' | 'balance_sheet' | 'income_expense' | 'consumer_outstanding' | 'donor_report' | 'account_statement'
@@ -65,10 +66,23 @@ export default function ReportsPage() {
 
 function ReportsPageInner() {
   const searchParams = useSearchParams()
+  const access = useSystemAccess()
   const initialReport = (searchParams.get('report') as ReportType) || 'trial_balance'
   const initialSystem = (searchParams.get('system') as SystemTab) || 'water_supply'
   const [system, setSystem] = useState<SystemTab>(initialSystem)
   const [reportType, setReportType] = useState<ReportType>(initialReport)
+
+  // A water_accountant could previously pick "Donors & Projects" here and get
+  // an empty report (RLS returned nothing), which reads as a broken page
+  // rather than a permission boundary. Snap to whichever system they can
+  // actually see; the <select> below only offers those too. Same treatment
+  // /admin/transactions already had — Reports just never got it.
+  useEffect(() => {
+    if (access.loading) return
+    if (system === 'water_supply' && !access.canWaterSupply) setSystem(access.defaultSystem)
+    if (system === 'donors_projects' && !access.canDonorsProjects) setSystem(access.defaultSystem)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [access.loading, access.canWaterSupply, access.canDonorsProjects, system])
   const [from, setFrom] = useState(monthStart())
   const [to, setTo] = useState(today())
   const [loading, setLoading] = useState(false)
@@ -115,7 +129,14 @@ function ReportsPageInner() {
 
     if (system === 'donors_projects') {
       const [{ data: donationsData }, { data: projectsData }] = await Promise.all([
-        supabase.from('donors').select('id, name, amount_pkr, date, donor_type, project_id, payment_method').order('date', { ascending: false }),
+        // Verified-only — an unconfirmed donation hasn't actually posted to
+        // ledger_entries yet (trg_donor_ledger), so counting it here would
+        // disagree with the Trial Balance/Balance Sheet on this same page,
+        // both of which are ledger-derived. Matches homepage_stats()'s
+        // precedent. (Recent Transactions on the finance page deliberately
+        // still shows pending ones too, with a Pending badge — that's the
+        // operational queue, this is a financial summary.)
+        supabase.from('donors').select('id, name, amount_pkr, date, donor_type, project_id, payment_method').eq('is_verified', true).order('date', { ascending: false }),
         supabase.from('projects').select('id, title'),
       ])
       setDonations(donationsData ?? [])
@@ -253,24 +274,27 @@ function ReportsPageInner() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6 print:hidden">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Reports</h1>
-        <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-6 print:hidden">
+        <h1 className="font-heading text-[26px] sm:text-[32px] font-bold leading-[34px] sm:leading-[40px] text-dp-primary">Reports</h1>
+        <button onClick={handlePrint} className="filter-btn border border-dp-outline-variant text-dp-on-surface hover:bg-dp-surface-container-low shrink-0">
           <Printer size={15} /> Print
         </button>
       </div>
 
-      <div className="bg-white rounded-lg border border-dp-outline-variant p-4 mb-4 flex flex-wrap items-end gap-4 print:hidden">
-        <div>
+      {/* Each control gets flex-1 with a sensible minimum so the row fills the
+          width on desktop and wraps into clean full-width rows on a phone,
+          instead of shrinking to content and stair-stepping. */}
+      <div className="bg-white rounded-lg border border-dp-outline-variant p-4 mb-4 flex flex-wrap items-end gap-3 print:hidden">
+        <div className="flex-1 min-w-[160px]">
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">System</label>
-          <select value={system} onChange={(e) => setSystem(e.target.value as SystemTab)} className="input-field">
-            <option value="water_supply">Water Supply System</option>
-            <option value="donors_projects">Donors &amp; Projects</option>
+          <select value={system} onChange={(e) => setSystem(e.target.value as SystemTab)} className="filter-field">
+            {access.canWaterSupply && <option value="water_supply">Water Supply System</option>}
+            {access.canDonorsProjects && <option value="donors_projects">Donors &amp; Projects</option>}
           </select>
         </div>
-        <div>
+        <div className="flex-1 min-w-[190px]">
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Report</label>
-          <select value={reportType} onChange={(e) => setReportType(e.target.value as ReportType)} className="input-field">
+          <select value={reportType} onChange={(e) => setReportType(e.target.value as ReportType)} className="filter-field">
             <option value="trial_balance">Trial Balance</option>
             <option value="balance_sheet">Balance Sheet</option>
             <option value="income_expense">Profit &amp; Loss Statement</option>
@@ -281,45 +305,45 @@ function ReportsPageInner() {
         </div>
         {(reportType === 'income_expense' || reportType === 'donor_report' || reportType === 'account_statement') && (
           <>
-            <div>
+            <div className="flex-1 min-w-[140px]">
               <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">From</label>
-              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="input-field" />
+              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="filter-field" />
             </div>
-            <div>
+            <div className="flex-1 min-w-[140px]">
               <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">To</label>
-              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="input-field" />
+              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="filter-field" />
             </div>
           </>
         )}
         {reportType === 'donor_report' && (
-          <div>
+          <div className="flex-1 min-w-[170px]">
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Project</label>
-            <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="input-field">
+            <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="filter-field">
               <option value="">All projects</option>
               {Object.entries(projects).map(([id, title]) => <option key={id} value={id}>{title}</option>)}
             </select>
           </div>
         )}
         {reportType === 'consumer_outstanding' && (
-          <div>
+          <div className="flex-1 min-w-[150px]">
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Sector</label>
-            <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)} className="input-field">
+            <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)} className="filter-field">
               <option value="">All sectors</option>
               {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
         )}
         {reportType === 'account_statement' && (
-          <div className="flex items-end gap-2">
-            <div>
+          <div className="flex items-end gap-2 flex-1 min-w-[220px] flex-wrap">
+            <div className="flex-1 min-w-[200px]">
               <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Account</label>
-              <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)} className="input-field min-w-[220px]">
+              <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)} className="filter-field">
                 <option value="">Select account...</option>
-                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.code})</option>)}
+                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
             {selectedAccountId && (
-              <Link href={`/admin/accounts/${selectedAccountId}`} className="flex items-center gap-1.5 px-3 py-2.5 text-dp-secondary font-sans text-[13px] font-semibold hover:underline">
+              <Link href={`/admin/accounts/${selectedAccountId}`} className="filter-btn text-dp-secondary hover:underline px-0 sm:px-2">
                 <ExternalLink size={13} /> Open in Chart of Accounts
               </Link>
             )}
@@ -339,7 +363,6 @@ function ReportsPageInner() {
                 <table className="w-full text-left min-w-[600px]">
                   <thead>
                     <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                      <th className="px-4 py-2.5">{dt(lang, 'code')}</th>
                       <th className="px-4 py-2.5">{dt(lang, 'account')}</th>
                       <th className="px-4 py-2.5">{dt(lang, 'header')}</th>
                       <th className="px-4 py-2.5 text-right">{dt(lang, 'debit')}</th>
@@ -349,7 +372,6 @@ function ReportsPageInner() {
                   <tbody>
                     {trialBalanceRows.map(({ account, debitCol, creditCol }) => (
                       <tr key={account.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
-                        <td className="px-4 py-3 font-mono text-[12.5px]">{account.code}</td>
                         <td className="px-4 py-3 font-semibold">{account.name}</td>
                         <td className="px-4 py-3 text-dp-on-surface-variant">{headerLabel(account.type)}</td>
                         <td className="px-4 py-3 text-right">{debitCol > 0 ? fmtAmount(debitCol) : '—'}</td>
@@ -359,7 +381,7 @@ function ReportsPageInner() {
                   </tbody>
                   <tfoot>
                     <tr className="font-sans text-[13.5px] font-bold bg-dp-surface-container-low/60 border-t-2 border-dp-outline-variant">
-                      <td className="px-4 py-3" colSpan={3}>{dt(lang, 'total')}</td>
+                      <td className="px-4 py-3" colSpan={2}>{dt(lang, 'total')}</td>
                       <td className="px-4 py-3 text-right">{fmtAmount(totalDebitCol)}</td>
                       <td className="px-4 py-3 text-right">{fmtAmount(totalCreditCol)}</td>
                     </tr>
@@ -550,6 +572,23 @@ function ReportsPageInner() {
                       })()}
                       {statementRows.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{dt(lang, 'noTransactionsInPeriod')}</td></tr>}
                     </tbody>
+                    {statementRows.length > 0 && (() => {
+                      const acc = accounts.find((a) => a.id === selectedAccountId)
+                      const isCredit = acc ? creditNormal(acc.type) : false
+                      const totalDebit = statementRows.reduce((s, r) => s + Number(r.debit), 0)
+                      const totalCredit = statementRows.reduce((s, r) => s + Number(r.credit), 0)
+                      const closingBalance = statementOpening + (isCredit ? totalCredit - totalDebit : totalDebit - totalCredit)
+                      return (
+                        <tfoot>
+                          <tr className="font-sans text-[13.5px] font-bold bg-dp-surface-container-low/60 border-t-2 border-dp-outline-variant">
+                            <td className="px-4 py-3" colSpan={3}>{dt(lang, 'total')} / {dt(lang, 'closingBalance')}</td>
+                            <td className="px-4 py-3 text-right">{fmtAmount(totalDebit)}</td>
+                            <td className="px-4 py-3 text-right">{fmtAmount(totalCredit)}</td>
+                            <td className="px-4 py-3 text-right">{fmtAmount(closingBalance)}</td>
+                          </tr>
+                        </tfoot>
+                      )
+                    })()}
                   </table>
                 </div>
               )}

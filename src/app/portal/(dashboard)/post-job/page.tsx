@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { Briefcase, PlusCircle, X, Pencil, Pause, Play, Megaphone } from 'lucide-react'
 
 const CATEGORIES = ['plumber', 'electrician', 'mason', 'carpenter', 'painter', 'laborer', 'driver', 'tailor', 'cook', 'tutor', 'mechanic', 'other']
@@ -66,7 +67,7 @@ export default function PostJobPage() {
       ? await supabase.from('job_listings').update(payload).eq('id', editId)
       : await supabase.from('job_listings').insert({ ...payload, portal_user_id: user.id })
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(editId ? 'Listing updated' : 'Listing posted — visible on the public Jobs page now')
     setShowForm(false)
     load()
@@ -75,7 +76,7 @@ export default function PostJobPage() {
   const toggleActive = async (l: Listing) => {
     const supabase = createClient()
     const { error } = await supabase.from('job_listings').update({ is_active: !l.is_active }).eq('id', l.id)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(l.is_active ? 'Listing paused' : 'Listing reactivated')
     load()
   }

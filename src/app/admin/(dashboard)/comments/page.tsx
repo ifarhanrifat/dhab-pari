@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { MessageSquare, EyeOff, Eye } from 'lucide-react'
 
@@ -33,7 +34,7 @@ export default function AdminCommentsPage() {
 
   const setHidden = async (id: string, hidden: boolean) => {
     const { error } = await supabase.rpc('set_project_comment_hidden', { p_comment_id: id, p_hidden: hidden })
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(hidden ? 'Comment hidden' : 'Comment restored')
     load()
   }
@@ -51,7 +52,7 @@ export default function AdminCommentsPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5"><MessageSquare size={26} /> Project Comments</h1>
         <label className="flex items-center gap-2 cursor-pointer font-sans text-[14px]">
           <input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} className="accent-dp-secondary" />

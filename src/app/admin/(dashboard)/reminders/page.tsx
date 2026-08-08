@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { BellRing, MessageCircle, SkipForward, Clock, AlertTriangle, Heart, CalendarClock, Copy, Megaphone } from 'lucide-react'
 import { normalizePakPhone } from '@/lib/receiptExport'
 
@@ -38,13 +39,13 @@ export default function RemindersPage() {
     if (!intl) { toast.error('Invalid phone number'); return }
     window.open(`https://wa.me/${intl}?text=${encodeURIComponent(r.message)}`, '_blank')
     const { error } = await supabase.from('reminder_queue').update({ status: 'sent', sent_at: new Date().toISOString() }).eq('id', r.id)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     setReminders(reminders.filter((x) => x.id !== r.id))
   }
 
   const skip = async (r: Reminder) => {
     const { error } = await supabase.from('reminder_queue').update({ status: 'skipped' }).eq('id', r.id)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     setReminders(reminders.filter((x) => x.id !== r.id))
   }
 

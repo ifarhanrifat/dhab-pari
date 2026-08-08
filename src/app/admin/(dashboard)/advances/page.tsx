@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { HandCoins, PlusCircle, X, Trash2, CheckCircle2, Plus, Paperclip, Eye, Pencil } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { FileAttachment } from '@/components/admin/FileAttachment'
@@ -97,7 +98,7 @@ export default function AdvancesPage() {
       p_particular: editForm.particular || `Advance to ${editForm.party_name}`, p_voucher_date: editForm.voucher_date, p_party_name: editForm.party_name,
     })
     setEditing(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Advance updated')
     setEditTarget(null)
     load()
@@ -133,16 +134,16 @@ export default function AdvancesPage() {
       amount_pkr: 0, from_account_id: settleFromAccount, settles_voucher_id: settleTarget.id,
       party_name: settleTarget.party_name, attachment_url: settleAttachment || null, status: 'draft',
     }).select('id').single()
-    if (draftErr) { toast.error(draftErr.message); setSettling(false); return }
+    if (draftErr) { toast.error(friendlyError(draftErr)); setSettling(false); return }
 
     const { error: linesErr } = await supabase.from('voucher_line_items').insert(
       validLines.map((l) => ({ voucher_id: draft.id, account_id: l.account_id, amount: l.amount, description: l.description || null }))
     )
-    if (linesErr) { toast.error(linesErr.message); setSettling(false); return }
+    if (linesErr) { toast.error(friendlyError(linesErr)); setSettling(false); return }
 
     const { data: result, error: finalizeErr } = await supabase.rpc('finalize_voucher', { p_voucher_id: draft.id })
     setSettling(false)
-    if (finalizeErr) { toast.error(finalizeErr.message); return }
+    if (finalizeErr) { toast.error(friendlyError(finalizeErr)); return }
 
     if (result.status === 'pending') {
       toast.success('Settlement sent for approval')

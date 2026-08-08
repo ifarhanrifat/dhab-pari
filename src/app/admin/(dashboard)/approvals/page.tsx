@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ShieldCheck, Check, X, Clock, ShoppingCart, Wallet, UserCog, Paperclip } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 
 interface ApprovalRequest {
@@ -137,7 +138,7 @@ export default function ApprovalsPage() {
     const { error } = await supabase.from('approval_confirmations').update({ confirmed, decided_at: new Date().toISOString() }).eq('id', c.id)
     setBusyId(null)
     setConfirmReject(null)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(confirmed ? 'Confirmed' : 'Rejected — this transaction will not post')
     load()
   }
@@ -147,7 +148,7 @@ export default function ApprovalsPage() {
     const { error } = await supabase.rpc('override_approve_confirmation', { p_confirmation_id: confirmationId })
     setOverrideBusyId(null)
     setConfirmOverride(null)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Approved on their behalf')
     load()
   }

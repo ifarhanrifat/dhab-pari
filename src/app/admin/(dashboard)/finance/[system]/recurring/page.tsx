@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, PlusCircle, X, Save, Pause, Play, Trash2, Repeat, Share2, History } from 'lucide-react'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
@@ -191,7 +192,7 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
   const deleteSchedule = async () => {
     if (!confirmDelete) return
     const { error } = await supabase.from('recurring_schedules').delete().eq('id', confirmDelete)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Schedule removed')
     setConfirmDelete(null)
     load()
@@ -246,7 +247,7 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
     const ids = Array.from(selectedHistoryIds)
     const { error } = await supabase.from(table).delete().in('id', ids)
     setConfirmDeleteHistory(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success(`${ids.length} record(s) deleted — ledger updated accordingly`)
     openHistory(historySchedule)
     load()

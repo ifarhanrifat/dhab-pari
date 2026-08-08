@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import { ArrowRightLeft } from 'lucide-react'
@@ -55,7 +56,7 @@ export default function ProjectTransfersPage() {
       p_from_project_id: fromId, p_to_project_id: toId, p_amount: amount, p_agenda_reference: reference.trim(),
     })
     setSaving(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Funds transferred')
     setFromId(''); setToId(''); setAmount(0); setReference('')
     load()

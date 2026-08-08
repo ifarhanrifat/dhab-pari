@@ -14,9 +14,13 @@ interface ReceiptModalProps {
   data: ReceiptData
   phone?: string | null
   onClose: () => void
+  // Pass 'donors_projects' to pick up donor-specific footer/help-numbers/
+  // template overrides (Settings → Donor Templates) instead of the shared
+  // ones — see fetchBrandingSettings(). Omit for water_supply (unchanged).
+  system?: 'water_supply' | 'donors_projects'
 }
 
-export function ReceiptModal({ data, phone, onClose }: ReceiptModalProps) {
+export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps) {
   const nodeRef = useRef<HTMLDivElement>(null)
   const [format, setFormat] = useState<ReceiptFormat>(getPreferredFormat())
   const [busy, setBusy] = useState(false)
@@ -24,11 +28,11 @@ export function ReceiptModal({ data, phone, onClose }: ReceiptModalProps) {
   const [branding, setBranding] = useState<Partial<BrandingSettings>>({})
 
   useEffect(() => {
-    fetchBrandingSettings().then((b) => {
+    fetchBrandingSettings(system).then((b) => {
       setTemplate(b.invoiceTemplate)
       setBranding(b)
     })
-  }, [])
+  }, [system])
 
   const chooseFormat = (f: ReceiptFormat) => {
     setFormat(f)
@@ -88,7 +92,7 @@ export function ReceiptModal({ data, phone, onClose }: ReceiptModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[120] flex items-center justify-center p-4 print:bg-white print:p-0" onClick={onClose}>
-      <div className="bg-white rounded-lg max-h-[92vh] overflow-y-auto print:max-h-none print:overflow-visible print:rounded-none" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-lg max-h-[92vh] max-w-full overflow-y-auto print:max-h-none print:overflow-visible print:rounded-none" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3 border-b border-dp-outline-variant print:hidden">
           <div className="flex items-center gap-1 bg-dp-surface-container-low rounded-lg p-1">
             <button onClick={() => chooseFormat('pdf')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${format === 'pdf' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>PDF</button>
@@ -97,7 +101,11 @@ export function ReceiptModal({ data, phone, onClose }: ReceiptModalProps) {
           <button onClick={onClose} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
         </div>
 
-        <div className="flex justify-center p-4">
+        {/* The document is a fixed ~560-640px wide because that IS the printed
+            and exported size — making it fluid would change every generated
+            PDF/PNG. So on a phone we scroll it horizontally instead of
+            resizing it, leaving nodeRef's real box untouched for html2canvas. */}
+        <div className="flex justify-center p-4 overflow-x-auto">
           <ReceiptDocument ref={nodeRef} data={{ ...data, ...branding }} template={template} />
         </div>
 

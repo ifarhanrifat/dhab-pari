@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { HandHeart, Sparkles, Send } from 'lucide-react'
 
 interface Item { id: string; message: string; type: string; status: string; admin_notes: string | null; created_at: string }
@@ -46,7 +47,7 @@ export default function PortalGetInvolvedPage() {
       name: user.full_name, mobile: user.whatsapp_number ?? user.mobile, message: skills.trim(), portal_user_id: user.id, type: 'volunteer',
     })
     setSavingVolunteer(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Volunteer application submitted')
     setSkills('')
     load()
@@ -60,7 +61,7 @@ export default function PortalGetInvolvedPage() {
       name: user.full_name, mobile: user.whatsapp_number ?? user.mobile, message: roleSkills.trim(), portal_user_id: user.id, type: 'role_request',
     })
     setSavingRole(false)
-    if (error) { toast.error(error.message); return }
+    if (error) { toast.error(friendlyError(error)); return }
     toast.success('Request submitted')
     setRoleSkills('')
     load()

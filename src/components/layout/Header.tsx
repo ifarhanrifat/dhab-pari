@@ -93,15 +93,34 @@ export function Header() {
             )}
             {/* WhatsApp's own brand green (#25D366) — deliberately distinct
                 from the site's teal so it reads as "this opens WhatsApp",
-                not as another site action. */}
+                not as another site action. Joins the committee's community
+                group (not a 1:1 chat) — the floating button on every page
+                is the direct "chat with us" contact instead. */}
             <a
-              href={SITE.whatsappLink}
+              href={SITE.whatsappGroupLink}
               target="_blank"
               rel="noopener noreferrer"
               className="hidden md:flex items-center gap-1.5 bg-[#25D366] text-white px-3 py-1.5 rounded-lg font-sans text-[13px] font-semibold tracking-[0.02em] hover:bg-[#1ebe5a] transition-all active:scale-95 whitespace-nowrap"
             >
               <MessageCircle size={16} />
-              WhatsApp
+              Join our Group
+            </a>
+            {/* Facebook's own brand blue, icon-only — lucide dropped brand
+                icons, so this is the official mark as inline SVG. Kept
+                icon-only deliberately: the header nav is already at its
+                width limit (adding "Jobs" once pushed it onto two rows),
+                and the f mark is universally recognized without a label. */}
+            <a
+              href={SITE.facebookLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Follow us on Facebook"
+              aria-label="Follow us on Facebook"
+              className="hidden md:flex items-center justify-center bg-[#1877F2] text-white w-[30px] h-[30px] rounded-lg hover:bg-[#0f66d0] transition-all active:scale-95 shrink-0"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.412c0-3.025 1.792-4.696 4.533-4.696 1.313 0 2.686.236 2.686.236v2.971H15.83c-1.491 0-1.956.93-1.956 1.886v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z" />
+              </svg>
             </a>
             <button className="text-white/80 hover:text-white border border-dp-outline-variant px-2 py-1 rounded text-[12.5px] font-sans font-semibold tracking-[0.02em] hidden md:block transition-colors">
               EN/UR
