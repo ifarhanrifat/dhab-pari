@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Download, X, Share } from 'lucide-react'
 
 // Chrome/Edge/Android fire this so the site can show its own install button.
@@ -17,6 +18,14 @@ export function PwaProvider() {
   const [showIosHint, setShowIosHint] = useState(false)
   const [iosNeedsSafari, setIosNeedsSafari] = useState(false)
   const [dismissed, setDismissed] = useState(true) // assume dismissed until localStorage is read (avoids a flash)
+  const pathname = usePathname()
+
+  // Never float this over a form someone is trying to fill in. On the admin
+  // login it sat directly on top of the password field and the Sign In
+  // button. Staff/portal auth screens are working surfaces, not places to
+  // advertise the app — the service worker below still registers everywhere.
+  const suppressed = pathname?.startsWith('/admin') || pathname?.startsWith('/portal/login')
+    || pathname?.startsWith('/portal/signup')
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -78,6 +87,7 @@ export function PwaProvider() {
     dismiss()
   }
 
+  if (suppressed) return null
   if (dismissed) return null
   if (!deferred && !showIosHint) return null
 
