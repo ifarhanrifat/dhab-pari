@@ -18,7 +18,61 @@ export const DOC_STRINGS = {
   whatsappGroup: { en: 'WhatsApp Group', ur: 'واٹس ایپ گروپ' },
   currentProjects: { en: 'Current Projects', ur: 'جاری منصوبے' },
   donate: { en: 'Donate', ur: 'عطیہ دیں' },
-  helpline: { en: 'Helpline: ', ur: 'ہیلپ لائن: ' },
+  // Footer rows read as invitations, not as bare link labels — each pairs this
+  // wording with its actual address on the same line.
+  stayConnected: { en: 'Stay connected', ur: 'ہمارے ساتھ جڑے رہیں' },
+  joinFacebookPage: { en: 'Join our Facebook page', ur: 'ہمارا فیس بک پیج جوائن کریں' },
+  joinWhatsappGroup: { en: 'Join our WhatsApp group', ur: 'ہمارا واٹس ایپ گروپ جوائن کریں' },
+  seeCurrentProjects: { en: 'See our current projects', ur: 'ہمارے جاری منصوبے دیکھیں' },
+  donateOnline: { en: 'Donate online', ur: 'آن لائن عطیہ دیں' },
+  emailUs: { en: 'Email us', ur: 'ہمیں ای میل کریں' },
+  // Short captions under the Universal Slip's branded icon row.
+  website: { en: 'Website', ur: 'ویب سائٹ' },
+  email: { en: 'Email', ur: 'ای میل' },
+  // Short forms — an icon caption has ~70px, so the sentence-length variants
+  // above ("Join our WhatsApp group") wrap to three lines there.
+  whatsappShort: { en: 'WhatsApp', ur: 'واٹس ایپ' },
+  projectsShort: { en: 'Projects', ur: 'منصوبے' },
+  chatWithUs: { en: 'Chat with us', ur: 'ہم سے بات کریں' },
+  notYetConfirmed: { en: 'Not yet confirmed', ur: 'ابھی تصدیق نہیں ہوئی' },
+  groupShort: { en: 'Group', ur: 'گروپ' },
+  suggestionsShort: { en: 'Suggestions', ur: 'تجاویز' },
+  complaintsShort: { en: 'Complaints', ur: 'شکایات' },
+  // Payroll body (Universal Slip). Our model nets advances into the employee's
+  // own ledger account rather than listing them as payslip deductions, so the
+  // right-hand column is Owed / Paid Now / Carried Forward, not a deductions list.
+  titleSalarySlip: { en: 'Salary Slip', ur: 'تنخواہ کی پرچی' },
+  employee: { en: 'Employee', ur: 'ملازم کا نام' },
+  earningsThisCycle: { en: 'Earnings This Cycle', ur: 'اس دورانیے کی آمدنی' },
+  settlement: { en: 'Settlement', ur: 'حساب' },
+  salaryAccrued: { en: 'Salary Accrued', ur: 'واجب الادا تنخواہ' },
+  overtime: { en: 'Overtime', ur: 'اوور ٹائم' },
+  eidBonus: { en: 'Eid Bonus', ur: 'عید بونس' },
+  emergencyWork: { en: 'Emergency Work', ur: 'ہنگامی کام' },
+  totalEarnings: { en: 'Total Earnings', ur: 'کل آمدنی' },
+  balanceOwed: { en: 'Balance Owed', ur: 'واجب الادا رقم' },
+  paidNow: { en: 'Paid Now', ur: 'ابھی ادا شدہ' },
+  carriedForward: { en: 'Balance Carried Forward', ur: 'آئندہ کے لیے بقایا' },
+  netPay: { en: 'Net Pay', ur: 'خالص تنخواہ' },
+  period: { en: 'Period', ur: 'مدت' },
+  designation: { en: 'Designation', ur: 'عہدہ' },
+  forProject: { en: 'For Project', ur: 'برائے منصوبہ' },
+  generalFund: { en: 'General Fund', ur: 'جنرل فنڈ' },
+  // Spelled out as an instruction rather than a bare "Helpline:" label — a
+  // donor/consumer reading a printed receipt should not have to guess what the
+  // number is for or that WhatsApp works on it too.
+  helplineDonation: {
+    en: 'Call or WhatsApp this number for any donation issue: ',
+    ur: 'کسی بھی عطیہ سے متعلق مسئلے کے لیے اس نمبر پر کال یا واٹس ایپ کریں: ',
+  },
+  helplineWater: {
+    en: 'Call or WhatsApp this number for any water supply issue: ',
+    ur: 'کسی بھی واٹر سپلائی مسئلے کے لیے اس نمبر پر کال یا واٹس ایپ کریں: ',
+  },
+  helplineGeneral: {
+    en: 'Call or WhatsApp this number for any query: ',
+    ur: 'کسی بھی سوال کے لیے اس نمبر پر کال یا واٹس ایپ کریں: ',
+  },
   complaint: { en: 'Complaint: ', ur: 'شکایت: ' },
   subtotal: { en: 'Subtotal', ur: 'ذیلی مجموعہ' },
   discount: { en: 'Discount', ur: 'رعایت' },
@@ -37,7 +91,15 @@ export const DOC_STRINGS = {
   titleBill: { en: 'Bill', ur: 'بل' },
   titlePaymentVoucher: { en: 'Payment Voucher', ur: 'ادائیگی واؤچر' },
   titleReceipt: { en: 'Receipt', ur: 'رسید' },
+  // Donation receipts speak in donation vocabulary throughout, not the generic
+  // debtor/collection vocabulary a water bill uses:
+  //   donationReceived   — the amount on THIS receipt (replaces "Total"/کل)
+  //   totalContributed   — the donor's lifetime total INCLUDING this receipt
+  //   announcedRemaining — announced/pledged but not yet collected; the donor
+  //                        analogue of a consumer's outstanding amount
   totalContributed: { en: 'Total Contributed', ur: 'کل عطیہ' },
+  donationReceived: { en: 'Donation Received', ur: 'عطیہ وصولی' },
+  announcedRemaining: { en: 'Announced Remaining', ur: 'اعلان شدہ بقایا' },
   outstandingAmount: { en: 'Outstanding Amount', ur: 'بقایا رقم' },
   paidTo: { en: 'Paid To', ur: 'ادائیگی بنام' },
   receivedFrom: { en: 'Received From', ur: 'وصول کنندہ از' },
@@ -46,6 +108,7 @@ export const DOC_STRINGS = {
   customerDebtor: { en: 'Customer/Debtor', ur: 'صارف/مقروض' },
   paidToLine: { en: 'Paid to: ', ur: 'ادائیگی بنام: ' },
   receivedWithThanksFrom: { en: 'Received with thanks from: ', ur: 'شکریے کے ساتھ وصول کنندہ از: ' },
+  receivedWithThanksFromDonor: { en: 'Received with thanks from donor: ', ur: 'شکریے کے ساتھ عطیہ دہندہ: ' },
   amountBilledTo: { en: 'Amount billed to: ', ur: 'بل کی رقم بنام: ' },
   due: { en: 'Due ', ur: 'آخری تاریخ ' },
   from: { en: 'From', ur: 'از' },
@@ -227,4 +290,22 @@ export type DocStringKey = keyof typeof DOC_STRINGS
 
 export function dt(lang: Lang, key: DocStringKey): string {
   return DOC_STRINGS[key][lang]
+}
+
+// The Universal Slip can print BOTH languages in the same slot rather than
+// making them compete for it — "Donation Received / عطیہ وصولی". A slip is read
+// by villagers who are comfortable in Urdu and by committee members who keep
+// their books in English; printing one language forces one of them to guess.
+export type SlipLang = Lang | 'both'
+
+// Returned as parts, not a joined string, because the two scripts need
+// different fonts and different bidi handling — the caller renders each in its
+// own span. Trailing/leading punctuation is never baked in for the same reason.
+export function dtBoth(mode: SlipLang, key: DocStringKey): { en: string | null; ur: string | null } {
+  const pair = DOC_STRINGS[key]
+  if (mode === 'en') return { en: pair.en, ur: null }
+  if (mode === 'ur') return { en: null, ur: pair.ur }
+  // Identical in both languages (numbers, proper nouns) — don't print it twice.
+  if (pair.en === pair.ur) return { en: pair.en, ur: null }
+  return { en: pair.en, ur: pair.ur }
 }

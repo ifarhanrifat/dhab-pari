@@ -1,10 +1,11 @@
 'use client'
 
 import { useRef, useState, useEffect } from 'react'
-import { X, Printer, Download, Share2 } from 'lucide-react'
+import { X, Printer, Download, Share2, FileText, Receipt } from 'lucide-react'
 import { toast } from 'sonner'
 import { ReceiptDocument, type ReceiptData, type InvoiceTemplate } from './ReceiptDocument'
 import { fetchBrandingSettings, type BrandingSettings } from '@/lib/branding'
+import type { SlipFormat } from './UniversalSlip'
 import {
   getPreferredFormat, setPreferredFormat, nodeToPdfBlob, nodeToPngBlob,
   downloadBlob, shareReceipt, printBlob, type ReceiptFormat,
@@ -26,10 +27,15 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
   const [busy, setBusy] = useState(false)
   const [template, setTemplate] = useState<InvoiceTemplate>('classic')
   const [branding, setBranding] = useState<Partial<BrandingSettings>>({})
+  // Print target is a runtime choice, never stored on the transaction — the
+  // same receipt goes to A4 in the office and to a Bluetooth thermal roll in
+  // the field. Settings only decides which one starts selected, per audience.
+  const [slipFormat, setSlipFormat] = useState<SlipFormat>('a4')
 
   useEffect(() => {
     fetchBrandingSettings(system).then((b) => {
       setTemplate(b.invoiceTemplate)
+      setSlipFormat(b.slipFormat)
       setBranding(b)
     })
   }, [system])
@@ -78,11 +84,24 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
     try {
       const blob = await buildBlob()
       const mime = format === 'pdf' ? 'application/pdf' : 'image/png'
+      // A PDF cannot be pasted into a chat, so the clipboard fallback always
+      // gets a PNG — rendered here only when the OS share sheet is unavailable,
+      // which is the one case it will actually be used.
+      const canNativeShare = typeof navigator !== 'undefined'
+        && navigator.canShare?.({ files: [new File([blob], filename(), { type: mime })] })
+      const clipboardBlob = canNativeShare
+        ? null
+        : format === 'png' ? blob : await nodeToPngBlob(nodeRef.current!)
+
       const result = await shareReceipt({
-        blob, filename: filename(), mime, phone,
+        blob, filename: filename(), mime, phone, clipboardBlob,
         message: `Receipt ${data.receiptNo} — Rs. ${data.amount.toLocaleString()}`,
       })
-      toast.success(result === 'shared' ? 'Shared' : 'Downloaded — share it from your files app')
+      toast.success(
+        result === 'shared' ? 'Shared'
+          : result === 'copied' ? 'Image copied — press Ctrl+V (⌘V) in the WhatsApp chat to attach it'
+            : 'Downloaded — attach it in the chat that just opened'
+      )
     } catch {
       toast.error('Could not share the receipt')
     } finally {
@@ -98,7 +117,19 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
             <button onClick={() => chooseFormat('pdf')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${format === 'pdf' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>PDF</button>
             <button onClick={() => chooseFormat('png')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${format === 'png' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>PNG</button>
           </div>
-          <button onClick={onClose} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
+          <div className="flex items-center gap-2">
+            {template === 'universal' && (
+              <div className="flex items-center gap-1 bg-dp-surface-container-low rounded-lg p-1">
+                <button onClick={() => setSlipFormat('a4')} title="A4 printer / PDF" className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${slipFormat === 'a4' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>
+                  <FileText size={14} /> A4
+                </button>
+                <button onClick={() => setSlipFormat('thermal')} title="58/80mm Bluetooth thermal printer" className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${slipFormat === 'thermal' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>
+                  <Receipt size={14} /> Thermal
+                </button>
+              </div>
+            )}
+            <button onClick={onClose} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
+          </div>
         </div>
 
         {/* The document is a fixed ~560-640px wide because that IS the printed
@@ -106,7 +137,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
             PDF/PNG. So on a phone we scroll it horizontally instead of
             resizing it, leaving nodeRef's real box untouched for html2canvas. */}
         <div className="flex justify-center p-4 overflow-x-auto">
-          <ReceiptDocument ref={nodeRef} data={{ ...data, ...branding }} template={template} />
+          <ReceiptDocument ref={nodeRef} data={{ ...data, ...branding }} template={template} format={slipFormat} />
         </div>
 
         <div className="flex items-center gap-2 px-4 py-3 border-t border-dp-outline-variant print:hidden">

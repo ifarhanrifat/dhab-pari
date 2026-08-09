@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
+import { donorReceiptTotals } from '@/lib/donorReceiptTotals'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 
 type SystemTab = 'water_supply' | 'donors_projects'
@@ -119,7 +120,7 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
       if (!bill) return
       const consumerRow = Array.isArray(bill.consumers) ? bill.consumers[0] : bill.consumers
       setReceipt({
-        kind: 'bill', receiptNo: `BILL-${item.id.slice(0, 8).toUpperCase()}`, date: bill.created_at ?? today(),
+        kind: 'bill', receiptNo: bill.bill_number ?? '—', date: bill.created_at ?? today(),
         systemLabel: systemLabels[system], accountName: consumerRow?.name ?? '—', accountNameUr: consumerRow?.name_ur ?? null,
         particular: item.label, amount: bill.amount_pkr, balanceAfter: bill.amount_pkr,
       })
@@ -127,10 +128,14 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
     } else if (item.type === 'donation') {
       const { data: donor } = await supabase.from('donors').select('*').eq('id', item.id).single()
       if (!donor) return
+      const donationTotals = await donorReceiptTotals(item.id)
       setReceipt({
-        kind: 'donation', receiptNo: `DON-${item.id.slice(0, 8).toUpperCase()}`, date: donor.date,
+        kind: 'donation', receiptNo: donor.voucher_no ?? '—', date: donor.date,
         systemLabel: systemLabels[system], accountName: donor.name, accountNameUr: donor.name_ur,
-        particular: item.label, amount: donor.amount_pkr, balanceAfter: donor.amount_pkr,
+        particular: item.label, amount: donor.amount_pkr,
+        balanceAfter: donationTotals.totalContributed, announcedRemaining: donationTotals.announcedRemaining,
+        projectName: donationTotals.projectName,
+      isConfirmed: donationTotals.isConfirmed,
       })
       await supabase.from('donors').update({ whatsapp_sent_at: new Date().toISOString() }).eq('id', item.id)
     }
@@ -346,7 +351,7 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
         onCancel={() => setConfirmDelete(null)}
       />
 
-      {receipt && <ReceiptModal data={receipt} onClose={() => setReceipt(null)} />}
+      {receipt && <ReceiptModal data={receipt} system={system} onClose={() => setReceipt(null)} />}
 
       {historySchedule && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setHistorySchedule(null)}>

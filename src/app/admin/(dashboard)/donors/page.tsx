@@ -12,6 +12,7 @@ import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { normalizePakPhone } from '@/lib/receiptExport'
 import { renderTemplate } from '@/lib/messageTemplates'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
+import { donorReceiptTotals } from '@/lib/donorReceiptTotals'
 
 interface Donor {
   id: string; name: string; name_ur: string | null; phone: string | null; father_husband_name: string | null
@@ -195,12 +196,19 @@ function AdminDonorsPageInner() {
       ? renderTemplate(tpl.body, { name: data.name, amount: Number(data.amount_pkr).toLocaleString(), account_no: data.account_no, project: projTitle })
       : `Thank you ${data.name}! Your donation of Rs. ${Number(data.amount_pkr).toLocaleString()} (Account: ${data.account_no}) has been verified.`
 
+    // Totals are read after confirm_donation() has committed, so this receipt's
+    // own amount is already inside totalContributed — which is what the donor
+    // should see: their lifetime total including the donation in their hand.
+    const totals = await donorReceiptTotals(editTarget.id)
     setViewReceipt({
       kind: 'donation', receiptNo: data.voucher_no, date: editForm.date,
       systemLabel: 'Donors & Projects', accountName: editForm.is_anonymous ? 'Anonymous Donor' : data.name,
       accountNameUr: editForm.name_ur || undefined,
       particular: `Donation${projTitle !== 'General Fund' ? ` - ${projTitle}` : ''} (Account ${data.account_no})`,
-      amount: data.amount_pkr, balanceAfter: data.amount_pkr,
+      amount: data.amount_pkr,
+      balanceAfter: totals.totalContributed, announcedRemaining: totals.announcedRemaining,
+      projectName: projTitle,
+      isConfirmed: true,
     })
     setConfirmedWhatsapp(editForm.whatsapp_number || editForm.phone || null)
     setThankYouMessage(messageBody)

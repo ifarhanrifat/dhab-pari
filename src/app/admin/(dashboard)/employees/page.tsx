@@ -12,6 +12,10 @@ import { fetchBrandingSettings, type BrandingSettings } from '@/lib/branding'
 import { nodeToPdfBlob, nodeToPngBlob, printBlob, downloadBlob, getPreferredFormat, setPreferredFormat, type ReceiptFormat } from '@/lib/receiptExport'
 import { HiringRequestDocument, type HiringRequestData } from '@/components/admin/HiringRequestDocument'
 import { PayslipDocument, type PayslipData } from '@/components/admin/PayslipDocument'
+import { ReceiptDocument, type ReceiptData } from '@/components/admin/ReceiptDocument'
+import type { SlipFormat } from '@/components/admin/UniversalSlip'
+
+const slipMonthName = (m: number) => new Date(2000, m - 1, 1).toLocaleString('en', { month: 'long' })
 
 interface EmployeeRole { key: string; label_en: string; label_ur: string; is_active: boolean }
 interface Employee {
@@ -600,6 +604,7 @@ function PayslipButton({
   const [paying, setPaying] = useState(false)
   const [showDoc, setShowDoc] = useState(false)
   const [format, setFormat] = useState<ReceiptFormat>(getPreferredFormat())
+  const [slipFormat, setSlipFormat] = useState<SlipFormat>('a4')
   const nodeRef = useRef<HTMLDivElement>(null)
 
   const fetchBalance = async () => {
@@ -754,6 +759,37 @@ function PayslipButton({
     balanceOwed: balance, amountPaidNow: payAmount, balanceCarriedForward: Math.max(balance - payAmount, 0),
   }
 
+  // The Universal Slip carries the payroll body; the ten legacy skins have no
+  // payroll layout, so whenever one of those is selected the original
+  // PayslipDocument still renders. Same numbers feed both.
+  const useUniversal = branding.invoiceTemplate === 'universal'
+  const slipData: ReceiptData = {
+    ...branding,
+    kind: 'salary',
+    receiptNo: `SLP-${String(month).padStart(2, '0')}${year}-${employee.id.slice(0, 4).toUpperCase()}`,
+    date: new Date().toISOString().slice(0, 10),
+    systemLabel: 'Payroll',
+    accountName: employee.name,
+    billingPeriod: `${slipMonthName(month)} ${year}`,
+    particular: `Payslip — ${slipMonthName(month)} ${year}`,
+    amount: payAmount,
+    balanceAfter: Math.max(balance - payAmount, 0),
+    payroll: {
+      designation: roleLabelEn(employee.primary_role),
+      earnings: [
+        { label: 'Salary Accrued', amount: salaryAccrued },
+        { label: 'Overtime', amount: form.overtime },
+        { label: 'Eid Bonus', amount: form.bonus },
+        { label: 'Emergency Work', amount: form.emergency },
+        ...jobLines.map((j) => ({ label: `Job — ${j.label}`, amount: j.amount })),
+      ].filter((e) => e.amount > 0),
+      totalEarnings: salaryAccrued + form.overtime + form.bonus + form.emergency + jobTotal,
+      balanceOwed: balance,
+      paidNow: payAmount,
+      carriedForward: Math.max(balance - payAmount, 0),
+    },
+  }
+
   const buildBlob = async () => {
     if (!nodeRef.current) throw new Error('Document not ready')
     return format === 'pdf' ? nodeToPdfBlob(nodeRef.current) : nodeToPngBlob(nodeRef.current)
@@ -864,13 +900,21 @@ function PayslipButton({
             {showDoc && (
               <>
                 <div className="p-4 flex justify-center bg-dp-surface-container-low/40 border-t border-dp-outline-variant">
-                  <PayslipDocument ref={nodeRef} data={docData} branding={branding} />
+                  {useUniversal
+                    ? <ReceiptDocument ref={nodeRef} data={slipData} template="universal" format={slipFormat} />
+                    : <PayslipDocument ref={nodeRef} data={docData} branding={branding} />}
                 </div>
                 <div className="flex items-center gap-2 px-4 py-3 border-t border-dp-outline-variant">
                   <select value={format} onChange={(e) => { setFormat(e.target.value as ReceiptFormat); setPreferredFormat(e.target.value as ReceiptFormat) }} className="input-field !py-1.5 !text-[13px] max-w-[100px]">
                     <option value="pdf">PDF</option>
                     <option value="png">PNG</option>
                   </select>
+                  {useUniversal && (
+                    <select value={slipFormat} onChange={(e) => setSlipFormat(e.target.value as SlipFormat)} className="input-field !py-1.5 !text-[13px] max-w-[130px]">
+                      <option value="a4">A4</option>
+                      <option value="thermal">Thermal</option>
+                    </select>
+                  )}
                   <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={14} /> Print</button>
                   <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ml-auto"><Download size={14} /> Download</button>
                 </div>

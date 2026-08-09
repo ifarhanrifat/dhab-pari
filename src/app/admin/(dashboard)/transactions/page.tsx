@@ -9,6 +9,7 @@ import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { voucherTypeLabels, voucherReceiptKind } from '@/lib/ledgerLabels'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
+import { donorReceiptTotals } from '@/lib/donorReceiptTotals'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 
@@ -31,6 +32,8 @@ interface TxnRow {
   voucherId?: string
   purchaseId?: string
   purchaseNumber?: string | null
+  donationId?: string
+  donationVoucherNo?: string | null
   receiptNo?: string | null
   autoPosted?: boolean
   fullyApproved?: boolean
@@ -98,8 +101,8 @@ export default function AllTransactionsPage() {
       supabase.from('vouchers').select('id, voucher_type, voucher_no, receipt_no, voucher_date, particular, amount_pkr, party_name, bill_id, created_at')
         .eq('system', system).in('status', ['posted', 'approved']).gte('voucher_date', from).lte('voucher_date', to),
       system === 'donors_projects'
-        ? supabase.from('donors').select('id, name, amount_pkr, date, payment_method, notes, is_anonymous, created_at').gte('date', from).lte('date', to)
-        : Promise.resolve({ data: [] as { id: string; name: string; amount_pkr: number; date: string; payment_method: string | null; notes: string | null; is_anonymous: boolean; created_at: string }[] }),
+        ? supabase.from('donors').select('id, name, amount_pkr, date, payment_method, notes, is_anonymous, created_at, voucher_no').gte('date', from).lte('date', to)
+        : Promise.resolve({ data: [] as { id: string; name: string; amount_pkr: number; date: string; payment_method: string | null; notes: string | null; is_anonymous: boolean; created_at: string; voucher_no: string | null }[] }),
       system === 'water_supply'
         ? supabase.from('purchases').select('id, vendor, purchase_date, method, note, purchase_number, created_at').eq('system', system).eq('status', 'posted').gte('purchase_date', from).lte('purchase_date', to)
         : Promise.resolve({ data: [] as { id: string; vendor: string | null; purchase_date: string; method: string; note: string | null; purchase_number: string | null; created_at: string }[] }),
@@ -179,6 +182,7 @@ export default function AllTransactionsPage() {
         partyName: d.is_anonymous ? 'Anonymous Donor' : d.name,
         docLabel: 'Donation', date: d.date, description: d.notes || 'Donation received',
         amount: d.amount_pkr, badge: null, note: null, createdAt: d.created_at,
+        donationId: d.id, donationVoucherNo: d.voucher_no,
         searchBlob: `${d.name} ${d.payment_method ?? ''} ${d.notes ?? ''}`.toLowerCase(),
       })
     }
@@ -255,7 +259,7 @@ export default function AllTransactionsPage() {
 
   // A read-only audit view — View is the one action that belongs here regardless
   // of type; Edit/Delete stay on the Transactions (finance) page that owns them.
-  const openRowReceipt = (r: TxnRow) => {
+  const openRowReceipt = async (r: TxnRow) => {
     if (r.kind === 'payment' && r.paymentId) {
       setViewReceipt({
         kind: 'payment', receiptNo: r.receiptNo ?? r.paymentId.slice(0, 8).toUpperCase(),
@@ -275,11 +279,15 @@ export default function AllTransactionsPage() {
         date: r.date, systemLabel: systemLabels[system], accountName: r.partyName,
         particular: r.note || r.description, amount: r.amount, balanceAfter: 0,
       })
-    } else if (r.kind === 'donation') {
+    } else if (r.kind === 'donation' && r.donationId) {
+      const totals = await donorReceiptTotals(r.donationId)
       setViewReceipt({
-        kind: 'donation', receiptNo: r.id.slice(-8).toUpperCase(),
+        kind: 'donation', receiptNo: r.donationVoucherNo ?? '—',
         date: r.date, systemLabel: systemLabels[system], accountName: r.partyName,
-        particular: r.description, amount: r.amount, balanceAfter: 0,
+        particular: r.description, amount: r.amount,
+        balanceAfter: totals.totalContributed, announcedRemaining: totals.announcedRemaining,
+        projectName: totals.projectName,
+      isConfirmed: totals.isConfirmed,
       })
     }
   }
@@ -424,7 +432,7 @@ export default function AllTransactionsPage() {
           ))}
         </div>
       </div>
-      {viewReceipt && <ReceiptModal data={viewReceipt} onClose={() => setViewReceipt(null)} />}
+      {viewReceipt && <ReceiptModal data={viewReceipt} system={system} onClose={() => setViewReceipt(null)} />}
     </>
   )
 }

@@ -14,6 +14,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import { FileAttachment } from '@/components/admin/FileAttachment'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
+import { donorReceiptTotals } from '@/lib/donorReceiptTotals'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { billBadge, billBadgeClass, type BillBadgeTone } from '@/lib/billStatus'
 import { QuickAddAccountModal, type NewAccount } from '@/components/admin/QuickAddAccountModal'
@@ -597,18 +598,25 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     })
   }
 
-  const openDonationReceipt = (card: TxnCard) => {
+  const openDonationReceipt = async (card: TxnCard) => {
     if (!card.donationId) return
+    // A donation that hasn't been confirmed yet legitimately has no document
+    // number — print a dash rather than a slice of its UUID, which only looks
+    // like a receipt number.
+    const totals = await donorReceiptTotals(card.donationId)
     setViewReceipt({
       kind: 'donation',
-      receiptNo: card.donationVoucherNo || card.donationId.slice(0, 8).toUpperCase(),
+      receiptNo: card.donationVoucherNo || '—',
       date: card.date,
       systemLabel: systemLabels[system],
       accountName: card.partyName,
       accountNameUr: card.donationNameUr || undefined,
       particular: card.description,
       amount: card.amount,
-      balanceAfter: card.amount,
+      balanceAfter: totals.totalContributed,
+      announcedRemaining: totals.announcedRemaining,
+      projectName: totals.projectName,
+      isConfirmed: totals.isConfirmed,
     })
   }
 

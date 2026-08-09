@@ -28,6 +28,7 @@ const approvalTypes: { key: 'expense' | 'withdrawal' | 'purchase'; label: string
 ]
 
 const invoiceTemplates: { id: string; label: string; blurb: string }[] = [
+  { id: 'universal', label: 'Universal Slip (Recommended)', blurb: 'One design for A4 and Bluetooth thermal, bilingual labels, branded contact icons' },
   { id: 'classic', label: 'Classic', blurb: 'Traditional bordered receipt with Urdu heading' },
   { id: 'modern', label: 'Modern', blurb: 'Bold colored header, card-style layout' },
   { id: 'minimal', label: 'Minimal', blurb: 'Clean and sparse, large amount focus' },
@@ -60,16 +61,27 @@ const settingGroups: { label: string; keys: string[]; category: SettingsCategory
   { label: 'Bank Details', keys: ['bank_name', 'bank_account', 'bank_branch'], category: 'payments' },
   { label: 'Office', keys: ['office_hours'], category: 'general' },
   {
+    label: 'Universal Slip — Language, Type Size & Printer', keys: [
+      'slip_display_mode', 'slip_font_heading', 'slip_font_body', 'slip_font_footer',
+      'slip_format_water', 'slip_format_donor', 'footer_website_link',
+    ],
+    category: 'documents',
+  },
+  {
     label: 'Invoice Footer', keys: [
-      'helpline_numbers', 'invoice_instructions', 'footer_complaint_number',
-      'footer_facebook_link', 'footer_whatsapp_group_link', 'footer_projects_link', 'footer_donation_link',
+      'helpline_numbers', 'invoice_instructions', 'receipt_fund_note', 'footer_complaint_number',
+      'footer_facebook_link', 'footer_whatsapp_group_link', 'footer_whatsapp_chat',
+      'footer_projects_link', 'footer_donation_link',
+      'footer_suggestions_link', 'footer_complaints_link',
     ],
     category: 'documents',
   },
   {
     label: 'Donor Invoice Footer', keys: [
-      'donor_helpline_numbers', 'donor_invoice_instructions', 'donor_footer_complaint_number',
+      'donor_helpline_numbers', 'donor_invoice_instructions', 'donor_receipt_fund_note', 'donor_footer_complaint_number',
       'donor_footer_facebook_link', 'donor_footer_whatsapp_group_link', 'donor_footer_projects_link', 'donor_footer_donation_link',
+      'donor_footer_website_link', 'donor_footer_whatsapp_chat',
+      'donor_footer_suggestions_link', 'donor_footer_complaints_link',
     ],
     category: 'donorTemplates',
   },
@@ -402,14 +414,51 @@ export default function AdminSettingsPage() {
           <div className="space-y-4">
             {group.keys.map((key) => {
               const setting = settings.find((s) => s.key === key)
-              const isLong = ['about_text', 'vision', 'mission', 'invoice_instructions', 'donor_invoice_instructions'].includes(key)
+              const isLong = ['about_text', 'vision', 'mission', 'invoice_instructions', 'donor_invoice_instructions', 'receipt_fund_note', 'donor_receipt_fund_note'].includes(key)
               return (
                 <div key={key}>
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">
                     {key.replace(/_/g, ' ').toUpperCase()}
                     {setting?.description && <span className="font-normal text-[12px] ml-2 opacity-70">— {setting.description}</span>}
                   </label>
-                  {key === 'display_language' ? (
+                  {key === 'slip_display_mode' ? (
+                    <>
+                      <select value={values[key] || 'both'} onChange={(e) => setValues({ ...values, [key]: e.target.value })} className="input-field">
+                        <option value="both">Both — English / اردو side by side</option>
+                        <option value="en">English only</option>
+                        <option value="ur">Urdu only</option>
+                      </select>
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant mt-2">
+                        Applies to the Universal Slip. &ldquo;Both&rdquo; prints each label in English and Urdu together (Donation Received / عطیہ وصولی) so neither language has to give up its slot. Names, amounts and anything typed in always print exactly as entered.
+                      </p>
+                    </>
+                  ) : key === 'slip_format_water' || key === 'slip_format_donor' ? (
+                    <>
+                      <select value={values[key] || 'a4'} onChange={(e) => setValues({ ...values, [key]: e.target.value })} className="input-field">
+                        <option value="a4">A4 printer / PDF</option>
+                        <option value="thermal">Bluetooth thermal (58/80mm)</option>
+                      </select>
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant mt-2">
+                        Which target is pre-selected when a {key === 'slip_format_donor' ? 'donor' : 'consumer'} slip is opened. Whoever is printing can still switch it on the slip itself.
+                      </p>
+                    </>
+                  ) : key.startsWith('slip_font_') ? (
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="number" min={8} max={48}
+                        value={values[key] ?? ''}
+                        onChange={(e) => setValues({ ...values, [key]: e.target.value })}
+                        className="input-field max-w-[120px]"
+                      />
+                      <span className="font-sans text-[12px] text-dp-on-surface-variant">px</span>
+                      <span
+                        className="font-sans text-dp-on-surface truncate"
+                        style={{ fontSize: Math.min(Math.max(Number(values[key]) || 14, 8), 48) }}
+                      >
+                        Sample 1,250.00
+                      </span>
+                    </div>
+                  ) : key === 'display_language' ? (
                     <>
                       <select
                         value={values[key] || 'en'}

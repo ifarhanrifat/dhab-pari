@@ -476,7 +476,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
         onCancel={() => setConfirmDeleteRow(null)}
       />
 
-      {receipt && <ReceiptModal data={receipt} phone={consumerInfo?.mobile} onClose={() => setReceipt(null)} />}
+      {receipt && <ReceiptModal data={receipt} phone={consumerInfo?.mobile} system={account?.system === 'donors_projects' ? 'donors_projects' : 'water_supply'} onClose={() => setReceipt(null)} />}
 
       {editBillRow && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setEditBillRow(null)}>

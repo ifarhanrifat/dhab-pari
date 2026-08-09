@@ -39,7 +39,37 @@ export async function nodeToPdfBlob(node: HTMLElement): Promise<Blob> {
     format: [widthMm, heightMm],
   })
   pdf.addImage(imgData, 'PNG', 0, 0, widthMm, heightMm)
+
+  // html2canvas flattens the document to pixels, which kills every hyperlink —
+  // the Facebook/WhatsApp/Donate row and the helpline numbers all came out dead
+  // in the exported file. Re-attach them as real PDF link annotations, mapped
+  // from each anchor's on-screen box into page millimetres. The visual stays a
+  // raster; the tappable regions come back.
+  const base = node.getBoundingClientRect()
+  const mmPerPx = base.width > 0 ? widthMm / base.width : 0
+  if (mmPerPx > 0) {
+    node.querySelectorAll('a[href]').forEach((el) => {
+      const href = (el as HTMLAnchorElement).href
+      if (!href || href.startsWith('blob:') || href.startsWith('javascript:')) return
+      const r = el.getBoundingClientRect()
+      if (r.width <= 0 || r.height <= 0) return
+      pdf.link((r.left - base.left) * mmPerPx, (r.top - base.top) * mmPerPx, r.width * mmPerPx, r.height * mmPerPx, { url: href })
+    })
+  }
+
   return pdf.output('blob')
+}
+
+/** Puts a PNG on the clipboard so it can be pasted straight into a chat.
+ *  Returns false when the browser refuses (unsupported, or not a user gesture). */
+export async function copyImageToClipboard(blob: Blob): Promise<boolean> {
+  try {
+    if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) return false
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -110,11 +140,26 @@ interface ShareOptions {
   mime: string
   phone?: string | null
   message?: string
+  /** PNG used for the clipboard fallback when the OS share sheet isn't available. */
+  clipboardBlob?: Blob | null
 }
 
-/** Shares the file via the native share sheet (lets the user pick WhatsApp) when supported.
- *  Falls back to downloading the file and opening a wa.me chat with instructions. */
-export async function shareReceipt({ blob, filename, mime, phone, message }: ShareOptions): Promise<'shared' | 'downloaded'> {
+/**
+ * Best available way to get the document into a WhatsApp chat, in order:
+ *
+ *  1. OS share sheet with the file attached (`navigator.share({ files })`) —
+ *     on Android/iOS this hands WhatsApp the real file, no download step. This
+ *     is the only true "attach directly" a web page has.
+ *  2. Clipboard — copy the PNG, open the chat, user presses Ctrl/Cmd+V. WhatsApp
+ *     Web accepts a pasted image as an attachment, so this is one keystroke away
+ *     from the same result on desktop.
+ *  3. Download + open the chat, and tell them to attach it.
+ *
+ * There is deliberately no fourth option: wa.me/api.whatsapp.com accept text
+ * only, and no browser API can push a file into another site's composer. Native
+ * desktop apps manage it because they drive the OS, not a sandboxed page.
+ */
+export async function shareReceipt({ blob, filename, mime, phone, message, clipboardBlob }: ShareOptions): Promise<'shared' | 'copied' | 'downloaded'> {
   const file = new File([blob], filename, { type: mime })
 
   if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
@@ -122,21 +167,22 @@ export async function shareReceipt({ blob, filename, mime, phone, message }: Sha
       await navigator.share({ files: [file], title: filename, text: message })
       return 'shared'
     } catch {
-      // user cancelled or share failed — fall through to download
+      // user cancelled or share failed — fall through
     }
   }
 
-  downloadBlob(blob, filename)
+  const copied = clipboardBlob ? await copyImageToClipboard(clipboardBlob) : false
+  if (!copied) downloadBlob(blob, filename)
 
   if (phone) {
     const intl = normalizePakPhone(phone)
     if (intl) {
-      const text = encodeURIComponent(
-        (message ?? 'Your receipt is attached.') + ' (Receipt file downloaded — please attach it to this chat.)'
-      )
-      window.open(`https://wa.me/${intl}?text=${text}`, '_blank')
+      const note = copied
+        ? ' (Image copied — press Ctrl+V / Cmd+V here to attach it.)'
+        : ' (File downloaded — please attach it to this chat.)'
+      window.open(`https://wa.me/${intl}?text=${encodeURIComponent((message ?? 'Your receipt is attached.') + note)}`, '_blank')
     }
   }
 
-  return 'downloaded'
+  return copied ? 'copied' : 'downloaded'
 }

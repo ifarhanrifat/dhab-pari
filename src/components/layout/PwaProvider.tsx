@@ -28,13 +28,33 @@ export function PwaProvider() {
     || pathname?.startsWith('/portal/signup')
 
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      // Registered after load so it never competes with the first paint.
-      const onLoad = () => navigator.serviceWorker.register('/sw.js').catch(() => {})
-      if (document.readyState === 'complete') onLoad()
-      else window.addEventListener('load', onLoad)
-      return () => window.removeEventListener('load', onLoad)
+    if (!('serviceWorker' in navigator)) return
+
+    // A service worker has no business running against a dev server. It used to
+    // register everywhere, and its cache-first rule for /_next/static/ — safe in
+    // production, where those filenames are content-hashed and immutable — served
+    // dead HMR chunks in dev after every recompile. The resulting ChunkLoadError
+    // made Next reload the page, which hit the same dead chunk, which reloaded
+    // again: an endless refresh loop with nothing ever rendering.
+    //
+    // So: register only in production, and in dev actively tear down any worker
+    // a previous run installed. Without that teardown a browser that already has
+    // the old worker keeps looping no matter what this file says, because the
+    // installed worker — not this code — is what answers the fetch.
+    if (process.env.NODE_ENV !== 'production') {
+      navigator.serviceWorker.getRegistrations()
+        .then((regs) => Promise.all(regs.map((r) => r.unregister())))
+        .then(() => (typeof caches !== 'undefined' ? caches.keys() : Promise.resolve([])))
+        .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+        .catch(() => {})
+      return
     }
+
+    // Registered after load so it never competes with the first paint.
+    const onLoad = () => navigator.serviceWorker.register('/sw.js').catch(() => {})
+    if (document.readyState === 'complete') onLoad()
+    else window.addEventListener('load', onLoad)
+    return () => window.removeEventListener('load', onLoad)
   }, [])
 
   useEffect(() => {

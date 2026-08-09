@@ -7,7 +7,7 @@
 // proper offline page instead of the browser's dinosaur.
 //
 // Bump CACHE_VERSION to force every client to drop the old cache.
-const CACHE_VERSION = 'dp-shell-v1'
+const CACHE_VERSION = 'dp-shell-v2'
 const OFFLINE_URL = '/offline.html'
 
 const PRECACHE = [
@@ -34,9 +34,22 @@ self.addEventListener('activate', (event) => {
   )
 })
 
+// True only for the production build. In dev, Turbopack regenerates chunk URLs
+// on every recompile and reuses names across compiles, so a cache-first rule
+// hands back chunks that no longer exist — which is exactly what put the dev
+// server into an endless reload loop. Belt and braces: PwaProvider no longer
+// registers this worker outside production, but a worker already installed in
+// someone's browser keeps running until it is replaced, and this check is what
+// makes that stale copy harmless in the meantime.
+function isDevHost() {
+  const h = self.location.hostname
+  return h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h.endsWith('.local')
+}
+
 function isCacheableAsset(url) {
-  // Next.js fingerprints these filenames, so a cached copy can never be stale
-  // — a new build produces a new URL.
+  if (isDevHost()) return false
+  // In a production build Next.js content-hashes these filenames, so a cached
+  // copy can never be stale — a new build produces a new URL.
   return url.pathname.startsWith('/_next/static/')
     || url.pathname.startsWith('/icons/')
     || /\.(png|jpg|jpeg|svg|webp|avif|woff2?)$/.test(url.pathname)
@@ -45,6 +58,8 @@ function isCacheableAsset(url) {
 self.addEventListener('fetch', (event) => {
   const { request } = event
   if (request.method !== 'GET') return
+
+  if (isDevHost()) return
 
   const url = new URL(request.url)
 
