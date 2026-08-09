@@ -194,6 +194,11 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [lockedReceipts, setLockedReceipts] = useState<string[]>([])
   const [donationForm, setDonationForm] = useState(emptyDonationForm)
   const [confirmDeleteVoucherId, setConfirmDeleteVoucherId] = useState<string | null>(null)
+  const [editVoucherTarget, setEditVoucherTarget] = useState<{ id: string; voucherNo: string | null } | null>(null)
+  const [editVoucherSaving, setEditVoucherSaving] = useState(false)
+  const [editVoucherForm, setEditVoucherForm] = useState({
+    amount: 0, date: today(), particular: '', party_name: '', from_account_id: '', to_account_id: '',
+  })
   const [confirmDeleteDonationId, setConfirmDeleteDonationId] = useState<string | null>(null)
   const [confirmDeleteBillId, setConfirmDeleteBillId] = useState<string | null>(null)
   const [billDeleteBlock, setBillDeleteBlock] = useState<{ billNumber: string | null; receipts: string[] } | null>(null)
@@ -457,6 +462,19 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [system, consumers.length, defaultTemplateItems.length])
+
+  // Deep link from All Transactions, whose Edit button hands the record back to
+  // the page that owns its edit form rather than keeping a second copy of it.
+  // Waits for cards to load, since the edit modal is populated from the card.
+  useEffect(() => {
+    const voucherParam = searchParams.get('edit_voucher')
+    if (voucherParam) { openEditVoucher(voucherParam); return }
+    const paymentParam = searchParams.get('edit_payment')
+    if (!paymentParam || txnCards.length === 0) return
+    const card = txnCards.find((c) => c.paymentId === paymentParam)
+    if (card) openEditPayment(card)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, txnCards.length])
 
   useEffect(() => {
     const billParam = searchParams.get('bill')
@@ -1226,6 +1244,42 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     if (error) { toast.error(friendlyError(error)); return }
     toast.success('Donation recorded')
     setDonationForm(emptyDonationForm)
+    load()
+  }
+
+  const openEditVoucher = async (voucherId: string) => {
+    const { data, error } = await supabase.from('vouchers')
+      .select('id, voucher_no, amount_pkr, voucher_date, particular, party_name, from_account_id, to_account_id')
+      .eq('id', voucherId).single()
+    if (error || !data) { toast.error(friendlyError(error ?? new Error('Voucher not found'))); return }
+    setEditVoucherTarget({ id: data.id, voucherNo: data.voucher_no })
+    setEditVoucherForm({
+      amount: Number(data.amount_pkr), date: data.voucher_date, particular: data.particular ?? '',
+      party_name: data.party_name ?? '', from_account_id: data.from_account_id, to_account_id: data.to_account_id,
+    })
+  }
+
+  // Everything the correction touches — the voucher row and both ledger
+  // postings — happens inside edit_voucher() so the books can never end up
+  // half-updated. See migration 175 for why this is not delete-then-reinsert.
+  const saveEditVoucher = async () => {
+    if (!editVoucherTarget) return
+    if (!editVoucherForm.amount || editVoucherForm.amount <= 0) { toast.error('Enter a valid amount'); return }
+    if (!editVoucherForm.from_account_id || !editVoucherForm.to_account_id) { toast.error('Both accounts are required'); return }
+    setEditVoucherSaving(true)
+    const { error } = await supabase.rpc('edit_voucher', {
+      p_voucher_id: editVoucherTarget.id,
+      p_amount: editVoucherForm.amount,
+      p_date: editVoucherForm.date,
+      p_particular: editVoucherForm.particular,
+      p_party_name: editVoucherForm.party_name || null,
+      p_from_account_id: editVoucherForm.from_account_id,
+      p_to_account_id: editVoucherForm.to_account_id,
+    })
+    setEditVoucherSaving(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success('Voucher updated')
+    setEditVoucherTarget(null)
     load()
   }
 
@@ -2103,6 +2157,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         {c.kind === 'voucher' && c.voucherId && (
                           <>
                             <button onClick={() => openVoucherReceipt(c)} title="View voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><FileText size={15} /></button>
+                            <button onClick={() => openEditVoucher(c.voucherId!)} title="Edit voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></button>
                             <button onClick={() => setConfirmDeleteVoucherId(c.voucherId!)} title="Delete voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
                           </>
                         )}
@@ -2422,6 +2477,53 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
           onClose={() => setQuickAddFor(null)}
           onCreated={(a) => quickAddFor.onPick(a)}
         />
+      )}
+
+      {editVoucherTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4" onClick={() => setEditVoucherTarget(null)}>
+          <div className="bg-white rounded-lg p-5 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">Edit Voucher</h2>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
+              {editVoucherTarget.voucherNo ?? 'Voucher'} — number and approval history stay the same
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Amount (PKR)</label>
+                <input type="number" min={1} value={editVoucherForm.amount || ''} onChange={(e) => setEditVoucherForm({ ...editVoucherForm, amount: +e.target.value })} className="input-field !py-2.5 text-[15px]" />
+              </div>
+              <div>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Date</label>
+                <input type="date" value={editVoucherForm.date} onChange={(e) => setEditVoucherForm({ ...editVoucherForm, date: e.target.value })} className="input-field !py-2.5 text-[15px]" />
+              </div>
+              <div>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Particular</label>
+                <input value={editVoucherForm.particular} onChange={(e) => setEditVoucherForm({ ...editVoucherForm, particular: e.target.value })} className="input-field !py-2.5 text-[15px]" />
+              </div>
+              <div>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Party (optional)</label>
+                <input value={editVoucherForm.party_name} onChange={(e) => setEditVoucherForm({ ...editVoucherForm, party_name: e.target.value })} className="input-field !py-2.5 text-[15px]" />
+              </div>
+              <div>
+                <SearchableField
+                  label="Paid From" value={editVoucherForm.from_account_id} placeholder="Select..."
+                  items={accountPickerItems((a) => a.system === system)}
+                  onChange={(id) => setEditVoucherForm({ ...editVoucherForm, from_account_id: id })}
+                />
+              </div>
+              <div>
+                <SearchableField
+                  label="Posted To" value={editVoucherForm.to_account_id} placeholder="Select..."
+                  items={accountPickerItems((a) => a.system === system)}
+                  onChange={(id) => setEditVoucherForm({ ...editVoucherForm, to_account_id: id })}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setEditVoucherTarget(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+              <button disabled={editVoucherSaving} onClick={saveEditVoucher} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">{editVoucherSaving ? 'Saving...' : 'Save'}</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {editPaymentTarget && (

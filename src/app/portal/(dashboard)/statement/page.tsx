@@ -59,6 +59,12 @@ export default function PortalStatementPage() {
   if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
 
   const pledges = donations.filter((d) => d.payment_status === 'pledged')
+  // Paid but not yet verified by the committee. Until now this showed nowhere:
+  // the donor paid, uploaded proof, and the money vanished from their view —
+  // not in the pledges box (it is no longer a pledge) and not in the statement
+  // (nothing posts to the ledger until an admin confirms). Silence at exactly
+  // the moment a donor most wants reassurance.
+  const awaiting = donations.filter((d) => d.payment_status !== 'pledged' && !d.is_verified)
   let running = account?.opening_balance ?? 0
   const withBalance = rows.map((r) => { running += Number(r.credit) - Number(r.debit); return { ...r, balance: running } })
   const total = withBalance.length > 0 ? withBalance[withBalance.length - 1].balance : 0
@@ -82,6 +88,26 @@ export default function PortalStatementPage() {
               <button onClick={() => { setPayingId(p.id); setPayProof(''); setPayMethod('jazzcash') }} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
                 Pay Now
               </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {awaiting.length > 0 && (
+        <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mb-6">
+          <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low">
+            <span className="font-sans text-[14px] font-bold text-dp-on-surface">Paid — Awaiting Confirmation</span>
+            <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">
+              We have your payment on record. It will appear in your statement below once the committee confirms it.
+            </p>
+          </div>
+          {awaiting.map((d) => (
+            <div key={d.id} className="flex items-center justify-between px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0">
+              <div>
+                <p className="font-sans text-[15px] font-bold">Rs. {fmt(d.amount_pkr)}</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant">Paid {new Date(d.date).toLocaleDateString('en-GB')}</p>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-sans text-[11.5px] font-bold">Awaiting confirmation</span>
             </div>
           ))}
         </div>

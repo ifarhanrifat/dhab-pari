@@ -207,7 +207,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
         )}
         <div style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
           {mode !== 'en' && data.companyNameUr && (
-            <div style={{ ...urduFont, fontSize: h(1.3), fontWeight: 700, lineHeight: 1.75 }} dir="rtl">{data.companyNameUr}</div>
+            <div style={{ ...urduFont, fontSize: h(1.3) - 3, fontWeight: 700, lineHeight: 1.75 }} dir="rtl">{data.companyNameUr}</div>
           )}
           <div style={{ fontSize: f(0.92), fontWeight: 400, letterSpacing: '0.08em', color: MUTED, lineHeight: 1.5 }}>
             {data.companyNameEn || 'Dhab Pari'}
@@ -231,11 +231,11 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
         <L data={data} k={partyKey} style={{ fontSize: f(1), color: MUTED }} />
         <L data={data} k={titleKey} style={{ fontSize: f(1), color: MUTED, textAlign: 'right' }} />
 
-        <div style={{ fontWeight: 600, fontSize: b(1.15), minWidth: 0 }}>{data.accountName}</div>
+        <div style={{ fontWeight: 600, fontSize: b(1.15) - 2, minWidth: 0 }}>{data.accountName}</div>
         <div style={{ textAlign: 'right' }}>
           {unconfirmed
             ? <L data={data} k="notYetConfirmed" style={{ fontWeight: 700, fontSize: b(0.95), color: '#b3261e' }} />
-            : <Ltr style={{ fontWeight: 700, fontSize: b(1.15) }}>{data.receiptNo}</Ltr>}
+            : <Ltr style={{ fontWeight: 700, fontSize: b(1.15) - 2 }}>{data.receiptNo}</Ltr>}
         </div>
 
         <div style={{ minWidth: 0 }}>
@@ -372,7 +372,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
       ) : (
         <div style={{ textAlign: 'center', marginTop: thermal ? 12 : 26 }}>
           <L data={data} k={isDonation ? 'donationReceived' : 'amount'} style={{ fontSize: f(1.05), color: MUTED, display: 'block' }} />
-          <div style={{ fontWeight: 700, fontSize: thermal ? b(1.9) : b(3), marginTop: 4, letterSpacing: '-0.01em' }}>
+          <div style={{ fontWeight: 700, fontSize: (thermal ? b(1.9) : b(3)) - 3, marginTop: 4, letterSpacing: '-0.01em' }}>
             <Ltr>Rs. {fmt(data.amount)}</Ltr>
           </div>
           {data.particular && (

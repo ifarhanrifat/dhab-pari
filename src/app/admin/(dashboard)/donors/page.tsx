@@ -2,7 +2,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, CheckCircle, XCircle, ShieldCheck, Image as ImageIcon } from 'lucide-react'
+import { PlusCircle, X, CheckCircle, XCircle, ShieldCheck, Image as ImageIcon, Search, Clock, Paperclip } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { BulkActionsBar } from '@/components/admin/BulkActionsBar'
@@ -19,9 +19,12 @@ interface Donor {
   whatsapp_number: string | null; donor_type: string | null; amount_pkr: number; date: string
   is_anonymous: boolean; is_verified: boolean; payment_method: string | null; notes: string | null
   project_id: string | null; payment_proof_url: string | null; submitted_via: string; voucher_no: string | null
+  payment_status: string | null
   confirmed_at: string | null
 }
 interface Project { id: string; title: string }
+type SortKey = 'name' | 'account' | 'amount' | 'date' | 'status'
+
 const empty = {
   name: '', name_ur: '', phone: '', father_husband_name: '', whatsapp_number: '', donor_type: 'villager',
   amount_pkr: 0, date: new Date().toISOString().split('T')[0], is_anonymous: false, payment_method: 'cash',
@@ -48,6 +51,10 @@ export default function AdminDonorsPage() {
 function AdminDonorsPageInner() {
   const access = useSystemAccess()
   const searchParams = useSearchParams()
+  const [donorSearch, setDonorSearch] = useState('')
+  const [proofLoadingId, setProofLoadingId] = useState<string | null>(null)
+  const [sortKey, setSortKey] = useState<SortKey>('date')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [donors, setDonors] = useState<Donor[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [accountNoByKey, setAccountNoByKey] = useState<Map<string, string>>(new Map())
@@ -158,6 +165,18 @@ function AdminDonorsPageInner() {
     }
   }
 
+  // The bucket is private (migration 116), so a screenshot is never a plain URL —
+  // it needs a short-lived signed link minted per view. Five minutes is enough
+  // to look at it and long enough to survive a slow connection.
+  const openProof = async (d: Donor) => {
+    if (!d.payment_proof_url) return
+    setProofLoadingId(d.id)
+    const { data, error } = await supabase.storage.from('donation_receipts').createSignedUrl(d.payment_proof_url, 300)
+    setProofLoadingId(null)
+    if (error || !data?.signedUrl) { toast.error('Could not open the payment screenshot'); return }
+    window.open(data.signedUrl, '_blank', 'noopener')
+  }
+
   const saveEdits = async () => {
     if (!editTarget) return
     const { error } = await supabase.from('donors').update({
@@ -222,7 +241,40 @@ function AdminDonorsPageInner() {
     window.open(`https://wa.me/${intl}?text=${encodeURIComponent(thankYouMessage)}`, '_blank')
   }
 
+  const donorStatus = (d: Donor): 'received' | 'announced' | 'awaiting' =>
+    d.is_verified ? 'received' : d.payment_status === 'pledged' ? 'announced' : 'awaiting'
+
   const pendingCount = useMemo(() => donors.filter((d) => !d.is_verified).length, [donors])
+  const awaitingCount = useMemo(() => donors.filter((d) => donorStatus(d) === 'awaiting').length, [donors])
+
+  // Search covers everything on screen — name, phone, account number, amount —
+  // so the box at the top matches what someone is actually looking at.
+  const visibleDonors = useMemo(() => {
+    const q = donorSearch.trim().toLowerCase()
+    const statusRank = { announced: 0, awaiting: 1, received: 2 }
+    const filtered = q
+      ? donors.filter((d) => [
+          d.is_anonymous ? 'anonymous' : d.name, d.phone ?? '', d.name_ur ?? '',
+          accountNoByKey.get(donorKeyFor(d.name, d.phone)) ?? '', String(d.amount_pkr),
+        ].join(' ').toLowerCase().includes(q))
+      : donors
+    const dir = sortDir === 'asc' ? 1 : -1
+    return [...filtered].sort((a, b) => {
+      switch (sortKey) {
+        case 'name': return dir * (a.is_anonymous ? 'Anonymous' : a.name).localeCompare(b.is_anonymous ? 'Anonymous' : b.name)
+        case 'amount': return dir * (Number(a.amount_pkr) - Number(b.amount_pkr))
+        case 'status': return dir * (statusRank[donorStatus(a)] - statusRank[donorStatus(b)])
+        case 'account': return dir * (accountNoByKey.get(donorKeyFor(a.name, a.phone)) ?? '').localeCompare(accountNoByKey.get(donorKeyFor(b.name, b.phone)) ?? '')
+        default: return dir * (new Date(a.date).getTime() - new Date(b.date).getTime())
+      }
+    })
+  }, [donors, donorSearch, sortKey, sortDir, accountNoByKey])
+
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) setSortDir((v) => (v === 'asc' ? 'desc' : 'asc'))
+    else { setSortKey(k); setSortDir(k === 'date' || k === 'amount' ? 'desc' : 'asc') }
+  }
+  const sortArrow = (k: SortKey) => (sortKey === k ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '')
 
   if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
   if (!access.canDonorsProjects) {
@@ -238,10 +290,25 @@ function AdminDonorsPageInner() {
       <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
         <div>
           <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Donors</h1>
-          {pendingCount > 0 && <p className="font-sans text-[13px] text-amber-700 mt-1">{pendingCount} announced donation(s) awaiting verification</p>}
+          {pendingCount > 0 && (
+            <p className="font-sans text-[13px] text-amber-700 mt-1">
+              {pendingCount} unconfirmed
+              {awaitingCount > 0 && ` — ${awaitingCount} already paid and waiting on you to confirm`}
+            </p>
+          )}
         </div>
         <button onClick={() => { setForm(empty); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> Add Donor</button>
       </div>
+      <div className="relative mb-4">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+        <input
+          value={donorSearch}
+          onChange={(e) => setDonorSearch(e.target.value)}
+          placeholder="Search donors by name, phone, account number or amount..."
+          className="input-field !pl-9"
+        />
+      </div>
+
       <BulkActionsBar
         count={selected.size}
         onClear={() => setSelected(new Set())}
@@ -254,10 +321,13 @@ function AdminDonorsPageInner() {
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]"><th className="p-4 w-10"><input type="checkbox" checked={donors.length > 0 && selected.size === donors.length} onChange={toggleSelectAll} className="accent-dp-secondary cursor-pointer" /></th><th className="p-4">Name</th><th className="p-4">Account #</th><th className="p-4">Phone</th><th className="p-4">Amount</th><th className="p-4">Date</th><th className="p-4">Source</th><th className="p-4">Status</th><th className="p-4 text-right">Actions</th></tr></thead>
+            <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]"><th className="p-4 w-10"><input type="checkbox" checked={donors.length > 0 && selected.size === donors.length} onChange={toggleSelectAll} className="accent-dp-secondary cursor-pointer" /></th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('name')}>Name{sortArrow('name')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('account')}>Account #{sortArrow('account')}</th><th className="p-4">Phone</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('amount')}>Amount{sortArrow('amount')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('date')}>Date{sortArrow('date')}</th><th className="p-4">Source</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('status')}>Status{sortArrow('status')}</th><th className="p-4 text-right">Actions</th></tr></thead>
             <tbody className="font-sans text-[16px]">
               {loading && <tr><td colSpan={9} className="p-8 text-center text-dp-on-surface-variant">Loading...</td></tr>}
-              {!loading && donors.map((d, i) => (
+              {!loading && visibleDonors.length === 0 && (
+                <tr><td colSpan={9} className="p-8 text-center text-dp-on-surface-variant">{donorSearch ? 'No donors match that search.' : 'No donations yet.'}</td></tr>
+              )}
+              {!loading && visibleDonors.map((d, i) => (
                 <tr key={d.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''} ${selected.has(d.id) ? 'bg-dp-secondary-container/20' : ''} ${!d.is_verified ? 'bg-amber-50/40' : ''}`}>
                   <td className="p-4 border-b border-dp-outline-variant"><input type="checkbox" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} className="accent-dp-secondary cursor-pointer" /></td>
                   <td className="p-4 border-b border-dp-outline-variant font-semibold">{d.is_anonymous ? <span className="italic text-dp-on-surface-variant">Anonymous</span> : d.name}</td>
@@ -265,11 +335,28 @@ function AdminDonorsPageInner() {
                   <td className="p-4 border-b border-dp-outline-variant text-[14px] text-dp-on-surface-variant">{d.phone ?? '—'}</td>
                   <td className="p-4 border-b border-dp-outline-variant font-bold text-dp-secondary">Rs. {Number(d.amount_pkr).toLocaleString()}</td>
                   <td className="p-4 border-b border-dp-outline-variant text-[14px] text-dp-on-surface-variant">{new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                  <td className="p-4 border-b border-dp-outline-variant"><span className={`text-[11px] font-bold px-2 py-0.5 rounded-full font-sans ${d.submitted_via === 'public' ? 'bg-blue-100 text-blue-700' : 'bg-dp-surface-container-high'}`}>{d.submitted_via === 'public' ? 'Public' : 'Staff'}</span></td>
                   <td className="p-4 border-b border-dp-outline-variant">
-                    {d.is_verified ? <span className="inline-flex items-center gap-1 text-dp-secondary text-[12px] font-bold"><CheckCircle size={14} /> Verified</span> : <span className="inline-flex items-center gap-1 text-amber-700 text-[12px] font-bold"><XCircle size={14} /> Announced</span>}
+                    <span className="inline-flex flex-wrap gap-1">
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full font-sans ${d.submitted_via === 'public' ? 'bg-blue-100 text-blue-700' : 'bg-dp-surface-container-high'}`}>{d.submitted_via === 'public' ? 'Public' : 'Staff'}</span>
+                      {d.donor_type === 'overseas' && <span className="text-[11px] font-bold px-2 py-0.5 rounded-full font-sans bg-violet-100 text-violet-700">Overseas</span>}
+                    </span>
+                  </td>
+                  <td className="p-4 border-b border-dp-outline-variant">
+                    {donorStatus(d) === 'received' && <span className="inline-flex items-center gap-1 text-dp-secondary text-[12px] font-bold"><CheckCircle size={14} /> Received</span>}
+                    {donorStatus(d) === 'announced' && <span className="inline-flex items-center gap-1 text-amber-700 text-[12px] font-bold" title="Donor has promised this — no money sent yet"><XCircle size={14} /> Announced</span>}
+                    {donorStatus(d) === 'awaiting' && <span className="inline-flex items-center gap-1 text-dp-on-surface-variant text-[12px] font-bold" title="Donor has paid — waiting on the committee to confirm"><Clock size={14} /> Awaiting confirmation</span>}
                   </td>
                   <td className="p-4 border-b border-dp-outline-variant text-right whitespace-nowrap">
+                    {d.payment_proof_url && (
+                      <button
+                        onClick={() => openProof(d)}
+                        disabled={proofLoadingId === d.id}
+                        title="View the payment screenshot the donor sent"
+                        className="inline-flex items-center gap-1 px-2 py-1 mr-2 rounded text-[13px] font-sans font-semibold cursor-pointer transition-all border border-dp-outline-variant text-dp-secondary hover:bg-dp-surface-container disabled:opacity-50"
+                      >
+                        <Paperclip size={13} /> {proofLoadingId === d.id ? '...' : 'Proof'}
+                      </button>
+                    )}
                     <button onClick={() => openEdit(d)} className="px-3 py-1 rounded text-[14px] font-sans font-semibold cursor-pointer transition-all border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container mr-2">
                       {d.is_verified ? 'Edit' : 'Review'}
                     </button>
