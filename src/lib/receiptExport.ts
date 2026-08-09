@@ -12,6 +12,27 @@ export function setPreferredFormat(format: ReceiptFormat) {
   window.localStorage.setItem(FORMAT_KEY, format)
 }
 
+/** A4 sheet printer vs 58/80mm Bluetooth thermal roll. */
+export type SlipPrintTarget = 'a4' | 'thermal'
+
+const SLIP_TARGET_KEY = 'dp_slip_print_target'
+
+// Remembered per person, per device — a field collector carrying a Bluetooth
+// printer and an accountant at an office A4 machine share one login-level
+// setting but need different defaults. The Settings value (slip_format_water /
+// slip_format_donor) is the committee-wide starting point; whatever this user
+// last chose overrides it for them, and nobody else is affected.
+export function getPreferredSlipTarget(): SlipPrintTarget | null {
+  if (typeof window === 'undefined') return null
+  const v = window.localStorage.getItem(SLIP_TARGET_KEY)
+  return v === 'a4' || v === 'thermal' ? v : null
+}
+
+export function setPreferredSlipTarget(target: SlipPrintTarget) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(SLIP_TARGET_KEY, target)
+}
+
 async function renderNodeToCanvas(node: HTMLElement): Promise<HTMLCanvasElement> {
   // html2canvas-pro (not the original html2canvas) — the original can't parse the
   // oklch()/lab() color functions Tailwind's theme emits and throws on every render.

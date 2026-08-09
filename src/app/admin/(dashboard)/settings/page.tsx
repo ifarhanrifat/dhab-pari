@@ -69,7 +69,9 @@ const settingGroups: { label: string; keys: string[]; category: SettingsCategory
   },
   {
     label: 'Invoice Footer', keys: [
-      'helpline_numbers', 'invoice_instructions', 'receipt_fund_note', 'footer_complaint_number',
+      'helpline_numbers', 'helpline_label_en', 'helpline_label_ur',
+      'footer_complaint_number', 'complaint_label_en', 'complaint_label_ur',
+      'invoice_instructions', 'receipt_fund_note',
       'footer_facebook_link', 'footer_whatsapp_group_link', 'footer_whatsapp_chat',
       'footer_projects_link', 'footer_donation_link',
       'footer_suggestions_link', 'footer_complaints_link',
@@ -78,7 +80,9 @@ const settingGroups: { label: string; keys: string[]; category: SettingsCategory
   },
   {
     label: 'Donor Invoice Footer', keys: [
-      'donor_helpline_numbers', 'donor_invoice_instructions', 'donor_receipt_fund_note', 'donor_footer_complaint_number',
+      'donor_helpline_numbers', 'donor_helpline_label_en', 'donor_helpline_label_ur',
+      'donor_footer_complaint_number', 'donor_complaint_label_en', 'donor_complaint_label_ur',
+      'donor_invoice_instructions', 'donor_receipt_fund_note',
       'donor_footer_facebook_link', 'donor_footer_whatsapp_group_link', 'donor_footer_projects_link', 'donor_footer_donation_link',
       'donor_footer_website_link', 'donor_footer_whatsapp_chat',
       'donor_footer_suggestions_link', 'donor_footer_complaints_link',

@@ -25,6 +25,12 @@ export interface BrandingSettings {
   footerDonationLink: string | null
   footerWebsiteLink: string | null
   footerWhatsappChat: string | null
+  // Green contact box wording — editable per system (migration 174). Null when
+  // unset, which tells the slip to use its built-in wording.
+  helplineLabelEn: string | null
+  helplineLabelUr: string | null
+  complaintLabelEn: string | null
+  complaintLabelUr: string | null
   footerSuggestionsLink: string | null
   footerComplaintsLink: string | null
   // Universal Slip only — see migration 172.
@@ -44,6 +50,7 @@ const KEYS = [
   'footer_complaint_number', 'footer_management_contacts',
   'footer_facebook_link', 'footer_whatsapp_group_link', 'footer_projects_link', 'footer_donation_link',
   'footer_website_link', 'footer_whatsapp_chat', 'footer_suggestions_link', 'footer_complaints_link',
+  'helpline_label_en', 'helpline_label_ur', 'complaint_label_en', 'complaint_label_ur',
   'slip_display_mode', 'slip_font_heading', 'slip_font_body', 'slip_font_footer',
   'slip_format_water', 'slip_format_donor',
 ]
@@ -64,12 +71,20 @@ const DONOR_OVERRIDE_KEYS: Record<string, string> = {
   footer_donation_link: 'donor_footer_donation_link',
   footer_website_link: 'donor_footer_website_link',
   footer_whatsapp_chat: 'donor_footer_whatsapp_chat',
+  helpline_label_en: 'donor_helpline_label_en',
+  helpline_label_ur: 'donor_helpline_label_ur',
+  complaint_label_en: 'donor_complaint_label_en',
+  complaint_label_ur: 'donor_complaint_label_ur',
   footer_suggestions_link: 'donor_footer_suggestions_link',
   footer_complaints_link: 'donor_footer_complaints_link',
 }
 
 // Free-text prose keys — see the comment in pick() below.
-const NO_FALLBACK_KEYS = new Set(['invoice_instructions', 'receipt_fund_note'])
+const NO_FALLBACK_KEYS = new Set([
+  'invoice_instructions', 'receipt_fund_note',
+  // Same reason: a donor receipt must never inherit water-supply wording.
+  'helpline_label_en', 'helpline_label_ur', 'complaint_label_en', 'complaint_label_ur',
+])
 
 // Every generated bill, cash receipt, and payment voucher (ReceiptDocument) pulls
 // its company identity and footer content from here — one place instead of three
@@ -132,6 +147,10 @@ export async function fetchBrandingSettings(system?: 'water_supply' | 'donors_pr
     footerDonationLink: pick('footer_donation_link'),
     footerWebsiteLink: pick('footer_website_link'),
     footerWhatsappChat: pick('footer_whatsapp_chat'),
+    helplineLabelEn: pick('helpline_label_en'),
+    helplineLabelUr: pick('helpline_label_ur'),
+    complaintLabelEn: pick('complaint_label_en'),
+    complaintLabelUr: pick('complaint_label_ur'),
     footerSuggestionsLink: pick('footer_suggestions_link'),
     footerComplaintsLink: pick('footer_complaints_link'),
     // Type sizes and label language are one global setting for both systems —

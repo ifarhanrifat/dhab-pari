@@ -42,6 +42,18 @@ function L({ data, k, className = '', style }: { data: ReceiptData; k: DocString
 
 // In a ~70px icon caption the inline "English / اردو" form wraps mid-phrase.
 // Stack the two scripts on their own lines there instead.
+function WaNumber({ number, size, gap }: { number: string; size: number; gap: number }) {
+  const href = waHref(number)
+  const pair = (
+    <span dir="ltr" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <SlipIcon name="whatsapp" size={size} />
+      <Ltr style={{ fontWeight: 700 }}>{number}</Ltr>
+    </span>
+  )
+  const body = <span style={{ marginInlineStart: gap }}>{pair}</span>
+  return href ? <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{body}</a> : body
+}
+
 function LStack({ data, k, size }: { data: ReceiptData; k: DocStringKey; size: number }) {
   const mode: SlipLang = data.slipDisplayMode ?? 'both'
   const { en, ur } = dtBoth(mode, k)
@@ -74,6 +86,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
   const b = (n: number) => Math.round(fB * n * k)
   const f = (n: number) => Math.round(fF * n * k)
 
+  const logoPx = thermal ? 38 : (data.logoWidth ?? 56)
   const width = thermal ? 302 : 794
   const pad = thermal ? 18 : 48
 
@@ -115,7 +128,29 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
 
   // Bilingual is roughly double the characters of one language, so it needs the
   // extra step down to stay on a single line inside the box.
-  const boxFont = thermal ? f(0.9) : mode === 'both' ? Math.min(f(1), 10) : f(1)
+  // Split into its own rows rather than one bilingual sentence, so the box has
+  // room for the full wording at a readable size.
+  const boxFont = thermal ? f(0.9) : f(1)
+  const boxRow: React.CSSProperties = { fontSize: boxFont, color: '#14532d', lineHeight: 2, whiteSpace: 'nowrap' }
+  const waSize = Math.round(boxFont * 1.15)
+  const waGap = thermal ? 6 : 12
+  // Settings wording wins where it has been filled in; the built-in strings
+  // remain the fallback so a blank field prints the sensible default rather
+  // than an empty row. Salary slips keep the neutral built-in wording either
+  // way — the water supply's label would tell an employee to call about a
+  // water fault.
+  const helpPair = dtBoth(mode, helplineKey)
+  const cmpPair = dtBoth(mode, 'complaint')
+  const custom = data.kind !== 'salary'
+  const pickLabel = (setting: string | null | undefined, builtIn: string | null) => {
+    if (!builtIn) return null           // language switched off for this slip
+    const v = custom ? setting?.trim() : ''
+    return v || builtIn
+  }
+  const helpEn = pickLabel(data.helplineLabelEn, helpPair.en?.trim().replace(/:$/, '') ?? null)
+  const helpUr = pickLabel(data.helplineLabelUr, helpPair.ur?.trim().replace(/:$/, '') ?? null)
+  const cmpEn = pickLabel(data.complaintLabelEn, cmpPair.en?.trim().replace(/:$/, '') ?? null)
+  const cmpUr = pickLabel(data.complaintLabelUr, cmpPair.ur?.trim().replace(/:$/, '') ?? null)
 
   const iconGap = iconLinks.length > 7 ? 12 : 18
   const iconCell = iconLinks.length > 7 ? 62 : 70
@@ -157,25 +192,31 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
         fontFamily: 'var(--font-sans), sans-serif', fontSize: b(1), lineHeight: 1.5,
       }}
     >
-      {/* ── Header: identical for every document type ───────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, borderBottom: `2px solid ${INK}`, paddingBottom: thermal ? 10 : 18 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: thermal ? 8 : 14, minWidth: 0 }}>
-          {data.logoUrl && (
-            <img
-              src={data.logoUrl} alt=""
-              style={{ width: thermal ? 38 : (data.logoWidth ?? 56), height: thermal ? 38 : (data.logoWidth ?? 56), objectFit: 'contain', borderRadius: 6, flexShrink: 0 }}
-            />
+      {/* ── Header: identical for every document type ─────────────────
+          The Urdu name is the organisation's actual name, so it leads and is
+          the largest thing in the header; "Dhab Pari" is the short/English
+          form and sits under it at the same weight and size as the system
+          label. The block is optically centred in the row — the trailing
+          spacer matches the logo's width so the logo doesn't drag it left. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: thermal ? 8 : 14, borderBottom: `2px solid ${INK}`, paddingBottom: thermal ? 10 : 18 }}>
+        {data.logoUrl && (
+          <img
+            src={data.logoUrl} alt=""
+            style={{ width: logoPx, height: logoPx, objectFit: 'contain', borderRadius: 6, flexShrink: 0 }}
+          />
+        )}
+        <div style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
+          {mode !== 'en' && data.companyNameUr && (
+            <div style={{ ...urduFont, fontSize: h(1.3), fontWeight: 700, lineHeight: 1.75 }} dir="rtl">{data.companyNameUr}</div>
           )}
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: h(1), lineHeight: 1.2 }}>{data.companyNameEn || 'Dhab Pari'}</div>
-            {mode !== 'en' && data.companyNameUr && (
-              <div style={{ ...urduFont, fontSize: h(0.7), color: MUTED, lineHeight: 1.9, marginTop: 1 }} dir="rtl">{data.companyNameUr}</div>
-            )}
-            <div style={{ fontSize: f(0.92), letterSpacing: '0.08em', textTransform: 'uppercase', color: MUTED, marginTop: 2 }}>
-              {data.systemLabel}
-            </div>
+          <div style={{ fontSize: f(0.92), fontWeight: 400, letterSpacing: '0.08em', color: MUTED, lineHeight: 1.5 }}>
+            {data.companyNameEn || 'Dhab Pari'}
+          </div>
+          <div style={{ fontSize: f(0.92), fontWeight: 400, letterSpacing: '0.08em', textTransform: 'uppercase', color: MUTED, lineHeight: 1.5 }}>
+            {data.systemLabel}
           </div>
         </div>
+        {data.logoUrl && <div style={{ width: logoPx, flexShrink: 0 }} aria-hidden />}
       </div>
 
       {/* ── Meta block ───────────────────────────────────────────────
@@ -395,20 +436,26 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
               textAlign: urduLed ? 'right' : 'left',
             }}
           >
-            {helplines.length > 0 && (
-              <div style={{ fontSize: boxFont, color: '#14532d', lineHeight: 1.95, whiteSpace: 'nowrap' }}>
-                <L data={data} k={helplineKey} />{' '}
-                {helplines.map((n, i) => (
-                  <span key={n}>{i > 0 && <span> · </span>}<PhoneLink number={n} style={{ fontWeight: 700 }} /></span>
-                ))}
+            {helplines.length > 0 && helpEn && (
+              <div dir="ltr" style={{ ...boxRow, textAlign: urduLed ? 'right' : 'left' }}>{helpEn}</div>
+            )}
+            {helplines.length > 0 && helpUr && (
+              <div dir="rtl" style={{ ...boxRow, ...urduFont, textAlign: 'right' }}>
+                {helpUr}
+                {helplines.map((n) => <WaNumber key={n} number={n} size={waSize} gap={waGap} />)}
+              </div>
+            )}
+            {helplines.length > 0 && !helpUr && helpEn && (
+              <div dir="ltr" style={{ ...boxRow, textAlign: urduLed ? 'right' : 'left' }}>
+                {helplines.map((n) => <WaNumber key={n} number={n} size={waSize} gap={0} />)}
               </div>
             )}
             {complaints.length > 0 && (
-              <div style={{ fontSize: boxFont, color: '#14532d', lineHeight: 1.95, whiteSpace: 'nowrap' }}>
-                <L data={data} k="complaint" />{' '}
-                {complaints.map((n, i) => (
-                  <span key={n}>{i > 0 && <span> · </span>}<PhoneLink number={n} style={{ fontWeight: 700 }} /></span>
-                ))}
+              <div dir={urduLed ? 'rtl' : 'ltr'} style={{ ...boxRow, textAlign: urduLed ? 'right' : 'left' }}>
+                {cmpEn && <span dir="ltr" style={{ display: 'inline-block' }}>{cmpEn}</span>}
+                {cmpEn && cmpUr && <span style={{ opacity: 0.55 }}> / </span>}
+                {cmpUr && <span dir="rtl" style={{ ...urduFont, display: 'inline-block' }}>{cmpUr}</span>}
+                {complaints.map((n) => <WaNumber key={n} number={n} size={waSize} gap={waGap} />)}
               </div>
             )}
           </div>

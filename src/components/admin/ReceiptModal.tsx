@@ -9,6 +9,7 @@ import type { SlipFormat } from './UniversalSlip'
 import {
   getPreferredFormat, setPreferredFormat, nodeToPdfBlob, nodeToPngBlob,
   downloadBlob, shareReceipt, printBlob, type ReceiptFormat,
+  getPreferredSlipTarget, setPreferredSlipTarget,
 } from '@/lib/receiptExport'
 
 interface ReceiptModalProps {
@@ -30,15 +31,22 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
   // Print target is a runtime choice, never stored on the transaction — the
   // same receipt goes to A4 in the office and to a Bluetooth thermal roll in
   // the field. Settings only decides which one starts selected, per audience.
-  const [slipFormat, setSlipFormat] = useState<SlipFormat>('a4')
+  const [slipFormat, setSlipFormat] = useState<SlipFormat>(() => getPreferredSlipTarget() ?? 'a4')
 
   useEffect(() => {
     fetchBrandingSettings(system).then((b) => {
       setTemplate(b.invoiceTemplate)
-      setSlipFormat(b.slipFormat)
+      // This person's own last choice wins; the Settings value is only the
+      // starting point for someone who has never picked one on this device.
+      setSlipFormat(getPreferredSlipTarget() ?? b.slipFormat)
       setBranding(b)
     })
   }, [system])
+
+  const chooseSlipFormat = (t: SlipFormat) => {
+    setSlipFormat(t)
+    setPreferredSlipTarget(t)
+  }
 
   const chooseFormat = (f: ReceiptFormat) => {
     setFormat(f)
@@ -120,10 +128,10 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
           <div className="flex items-center gap-2">
             {template === 'universal' && (
               <div className="flex items-center gap-1 bg-dp-surface-container-low rounded-lg p-1">
-                <button onClick={() => setSlipFormat('a4')} title="A4 printer / PDF" className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${slipFormat === 'a4' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>
+                <button onClick={() => chooseSlipFormat('a4')} title="A4 printer / PDF" className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${slipFormat === 'a4' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>
                   <FileText size={14} /> A4
                 </button>
-                <button onClick={() => setSlipFormat('thermal')} title="58/80mm Bluetooth thermal printer" className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${slipFormat === 'thermal' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>
+                <button onClick={() => chooseSlipFormat('thermal')} title="58/80mm Bluetooth thermal printer" className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${slipFormat === 'thermal' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>
                   <Receipt size={14} /> Thermal
                 </button>
               </div>

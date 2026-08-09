@@ -62,6 +62,12 @@ export interface ReceiptData {
   footerDonationLink?: string | null
   footerWebsiteLink?: string | null
   footerWhatsappChat?: string | null
+  // Admin-editable green-box wording (migration 174); blank falls back to the
+  // built-in strings in docTranslations.
+  helplineLabelEn?: string | null
+  helplineLabelUr?: string | null
+  complaintLabelEn?: string | null
+  complaintLabelUr?: string | null
   footerSuggestionsLink?: string | null
   footerComplaintsLink?: string | null
   // Donation receipts: false when the donation has not been confirmed yet, so
@@ -172,7 +178,9 @@ function Footer({ data }: { data: ReceiptData }) {
         <div className="rounded-md bg-dp-surface-container-low px-3 py-2 mb-2 space-y-0.5">
           {helplines.length > 0 && (
             <p className="font-semibold text-dp-on-surface">
-              {dt(lang, data.kind === 'donation' ? 'helplineDonation' : 'helplineWater')}
+              {(lang === 'ur' ? data.helplineLabelUr : data.helplineLabelEn)?.trim()
+                || dt(lang, data.kind === 'donation' ? 'helplineDonation' : 'helplineWater').replace(/:\s*$/, '')}
+              {': '}
               {helplines.map((n, i) => (
                 <span key={n}>{i > 0 && <span className="mx-1">·</span>}<PhoneLink number={n} className="font-semibold" /></span>
               ))}
@@ -180,7 +188,8 @@ function Footer({ data }: { data: ReceiptData }) {
           )}
           {complaints.length > 0 && (
             <p className="font-semibold text-dp-on-surface">
-              {dt(lang, 'complaint')}
+              {(lang === 'ur' ? data.complaintLabelUr : data.complaintLabelEn)?.trim() || dt(lang, 'complaint').replace(/:\s*$/, '')}
+              {': '}
               {complaints.map((n, i) => (
                 <span key={n}>{i > 0 && <span className="mx-1">·</span>}<PhoneLink number={n} className="font-semibold" /></span>
               ))}
@@ -677,7 +686,13 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
           <div className="flex justify-between text-[11px] mt-1"><span>{dt(lang, 'depositRefundableSeparate')}</span><span>{fmt(data.securityDepositAmount!)}</span></div>
         )}
         {data.fundNote && <p className="text-center mt-2 text-[10px]">{data.fundNote}</p>}
-        {data.helplineNumbers && <p className="text-center mt-2 text-[10px]">{dt(lang, isDonation ? 'helplineDonation' : 'helplineWater')}{data.helplineNumbers}</p>}
+        {data.helplineNumbers && (
+          <p className="text-center mt-2 text-[10px]">
+            {(lang === 'ur' ? data.helplineLabelUr : data.helplineLabelEn)?.trim()
+              || dt(lang, isDonation ? 'helplineDonation' : 'helplineWater').replace(/:\s*$/, '')}
+            {': '}{data.helplineNumbers}
+          </p>
+        )}
         <p className="text-center mt-1 text-[10px]">{dt(lang, 'thankYou')}</p>
       </div>
     )

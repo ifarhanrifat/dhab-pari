@@ -9,7 +9,7 @@ import {
   FileText, Printer, Download, HandCoins, Settings2, Receipt,
 } from 'lucide-react'
 import { fetchBrandingSettings, type BrandingSettings } from '@/lib/branding'
-import { nodeToPdfBlob, nodeToPngBlob, printBlob, downloadBlob, getPreferredFormat, setPreferredFormat, type ReceiptFormat } from '@/lib/receiptExport'
+import { nodeToPdfBlob, nodeToPngBlob, printBlob, downloadBlob, getPreferredFormat, setPreferredFormat, getPreferredSlipTarget, setPreferredSlipTarget, type ReceiptFormat } from '@/lib/receiptExport'
 import { HiringRequestDocument, type HiringRequestData } from '@/components/admin/HiringRequestDocument'
 import { PayslipDocument, type PayslipData } from '@/components/admin/PayslipDocument'
 import { ReceiptDocument, type ReceiptData } from '@/components/admin/ReceiptDocument'
@@ -604,7 +604,7 @@ function PayslipButton({
   const [paying, setPaying] = useState(false)
   const [showDoc, setShowDoc] = useState(false)
   const [format, setFormat] = useState<ReceiptFormat>(getPreferredFormat())
-  const [slipFormat, setSlipFormat] = useState<SlipFormat>('a4')
+  const [slipFormat, setSlipFormat] = useState<SlipFormat>(() => getPreferredSlipTarget() ?? 'a4')
   const nodeRef = useRef<HTMLDivElement>(null)
 
   const fetchBalance = async () => {
@@ -910,7 +910,7 @@ function PayslipButton({
                     <option value="png">PNG</option>
                   </select>
                   {useUniversal && (
-                    <select value={slipFormat} onChange={(e) => setSlipFormat(e.target.value as SlipFormat)} className="input-field !py-1.5 !text-[13px] max-w-[130px]">
+                    <select value={slipFormat} onChange={(e) => { setSlipFormat(e.target.value as SlipFormat); setPreferredSlipTarget(e.target.value as SlipFormat) }} className="input-field !py-1.5 !text-[13px] max-w-[130px]">
                       <option value="a4">A4</option>
                       <option value="thermal">Thermal</option>
                     </select>
