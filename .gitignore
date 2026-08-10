@@ -14,7 +14,9 @@
 /coverage
 
 # next.js
-/.next/
+# Not just /.next/ — Finder's "Duplicate" leaves ".next 2", which slipped past
+# the old rule and pushed a 245 MB Turbopack cache file at GitHub.
+/.next*/
 /out/
 
 # production

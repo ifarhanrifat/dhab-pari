@@ -26,6 +26,7 @@ import {
   HandHeart,
   Trophy,
   Lock,
+  Droplet,
 } from 'lucide-react'
 import { HomeHero } from '@/components/home/HomeHero'
 import { HomeMobileQuickActions } from '@/components/home/HomeMobileQuickActions'
@@ -43,7 +44,7 @@ interface HomepageStats {
 export default async function HomePage() {
   const supabase = await createClient()
 
-  const [projectsRes, newsRes, videosRes, donorsRes, statsRes, jobsRes, volunteersRes, achievementsRes] = await Promise.all([
+  const [projectsRes, newsRes, videosRes, donorsRes, statsRes, jobsRes, volunteersRes, achievementsRes, bloodRes] = await Promise.all([
     supabase
       .from('projects')
       .select('id, title, title_ur, status, progress_percent, budget_pkr, spent_pkr, category, location, before_image_url, after_image_url')
@@ -72,6 +73,9 @@ export default async function HomePage() {
     supabase.from('job_listings').select('id, category, headline').eq('is_active', true).order('created_at', { ascending: false }).limit(3),
     supabase.from('volunteers_public').select('id, project_id, full_name').order('created_at', { ascending: false }).limit(4),
     supabase.from('achievements_public').select('id, done_at, is_private, text_ur, done_by_name').limit(3),
+    // Counts only — the function is SECURITY DEFINER precisely so that no
+    // donor name, number or address can ever reach this page (migration 188).
+    supabase.rpc('blood_group_counts'),
   ])
 
   const projects = projectsRes.data ?? []
@@ -82,6 +86,8 @@ export default async function HomePage() {
   const jobs = jobsRes.data ?? []
   const volunteers = volunteersRes.data ?? []
   const achievements = achievementsRes.data ?? []
+  const bloodGroups = (bloodRes.data ?? []) as { blood_group: string; registered: number; available_now: number }[]
+  const bloodTotal = bloodGroups.reduce((s, g) => s + g.registered, 0)
   const volunteerProjectIds = volunteers.map((v) => v.project_id).filter((id): id is string => !!id)
   const { data: volunteerProjects } = volunteerProjectIds.length
     ? await supabase.from('projects').select('id, title').in('id', volunteerProjectIds)
@@ -487,6 +493,46 @@ export default async function HomePage() {
               Join as a Volunteer
             </Link>
           </div>
+
+          {/* Blood Donor Registry — numbers only.
+              Publishing names and numbers is how village blood lists get
+              spammed and how donors quietly de-register. Anyone who needs
+              blood phones the committee; the committee does the matching. */}
+          {bloodGroups.length > 0 && (
+          <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
+            <div className="p-4 bg-dp-surface-container-low border-b border-dp-outline-variant flex items-center justify-between">
+              <h3 className="font-bold text-dp-primary text-[14px] font-sans tracking-[0.05em] flex items-center gap-2">
+                <Droplet size={16} className="text-dp-error" /> Blood Donor Registry
+              </h3>
+              <span className="text-[12px] font-sans font-bold text-dp-on-surface-variant">{bloodTotal} registered</span>
+            </div>
+            <div className="p-4 grid grid-cols-4 gap-2">
+              {bloodGroups.map((g) => (
+                <div key={g.blood_group} className="text-center border border-dp-outline-variant rounded-lg py-2">
+                  <p className="font-heading text-[15px] font-bold text-dp-error leading-none">{g.blood_group}</p>
+                  <p className="font-sans text-[17px] font-bold text-dp-on-surface leading-tight mt-1">{g.registered}</p>
+                  <p className="font-sans text-[9.5px] text-dp-on-surface-variant leading-none">{g.available_now} ready</p>
+                </div>
+              ))}
+            </div>
+            <div className="px-4 pb-3">
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-snug">
+                Donor names and numbers are never published. To request blood, call{' '}
+                <a href={`tel:${SITE.whatsapp.replace(/-/g, '')}`} className="text-dp-secondary font-semibold">{SITE.whatsapp}</a>{' '}
+                — the committee verifies the request by phone before contacting any donor.
+              </p>
+              <p dir="rtl" className="font-urdu text-[12.5px] text-dp-on-surface-variant leading-relaxed mt-1.5">
+                خون کے عطیہ دہندگان کے نام اور نمبر ظاہر نہیں کیے جاتے۔ خون کی ضرورت ہو تو کمیٹی کو فون کریں۔
+              </p>
+            </div>
+            <Link
+              href="/portal/blood-donor"
+              className="block p-3 text-center text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-secondary font-bold bg-dp-surface-container-low border-t border-dp-outline-variant hover:bg-dp-surface-container transition-colors"
+            >
+              Register as a Blood Donor
+            </Link>
+          </div>
+          )}
 
           {/* Donate Now Card */}
           <div className="bg-dp-secondary text-white rounded-lg p-6 relative overflow-hidden">

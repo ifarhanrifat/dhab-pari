@@ -82,6 +82,7 @@ const menuItems = [
   { href: '/admin/ticker', label: 'Ticker', icon: TicketSlash },
   { href: '/admin/notifications', label: 'Alerts', icon: Bell },
   { href: '/admin/blood-donors', label: 'Blood Donors', icon: Droplet },
+  { href: '/admin/blood-requests', label: 'Blood Requests', icon: Droplet },
   { href: '/admin/jobs', label: 'Job Listings', icon: Briefcase },
   { href: '/admin/reports', label: 'Reports', icon: FileText },
   { href: '/admin/running-capital', label: 'Running Capital', icon: LineChart },
