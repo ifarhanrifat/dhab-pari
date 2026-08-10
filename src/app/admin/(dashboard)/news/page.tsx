@@ -11,11 +11,12 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 
 interface Post { id: string; title: string; title_ur: string | null; content: string; content_ur: string | null; category: string | null; cover_image_url: string | null; author: string; is_published: boolean; views: number; published_at: string | null }
 
-const categories = ['sports', 'education', 'health', 'environment', 'social', 'announcement', 'event']
+interface PostCategory { key: string; label_en: string; label_ur: string; icon: string | null }
 const empty = { title: '', title_ur: '', content: '', content_ur: '', category: 'announcement', author: 'Committee', is_published: false, cover_image_url: '' }
 
 export default function AdminNewsPage() {
   const [posts, setPosts] = useState<Post[]>([])
+  const [categories, setCategories] = useState<PostCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
@@ -24,7 +25,15 @@ export default function AdminNewsPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const supabase = createClient()
 
-  const load = async () => { const { data } = await supabase.from('news_posts').select('*').order('created_at', { ascending: false }); setPosts(data ?? []); setLoading(false) }
+  const load = async () => {
+    const [{ data }, { data: cats }] = await Promise.all([
+      supabase.from('news_posts').select('*').order('created_at', { ascending: false }),
+      supabase.from('post_categories').select('key, label_en, label_ur, icon').eq('is_active', true).order('display_order'),
+    ])
+    setPosts(data ?? [])
+    setCategories(cats ?? [])
+    setLoading(false)
+  }
   useEffect(() => { load() }, [])
 
   const toggleSelect = (id: string) => {
@@ -151,7 +160,7 @@ export default function AdminNewsPage() {
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Content (UR)</label><textarea value={form.content_ur} onChange={(e) => setForm({ ...form, content_ur: e.target.value })} rows={4} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <ImageUpload bucket="images" currentUrl={form.cover_image_url} onUpload={(url) => setForm({ ...form, cover_image_url: url })} label="Cover Image" />
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Category</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">{categories.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Category</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">{categories.map((c) => <option key={c.key} value={c.key}>{c.icon ? `${c.icon} ` : ''}{c.label_en} — {c.label_ur}</option>)}</select></div>
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Author</label><input value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} className="input-field" /></div>
               </div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_published} onChange={(e) => setForm({ ...form, is_published: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">Publish immediately</span></label>

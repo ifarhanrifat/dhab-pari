@@ -18,16 +18,7 @@ interface NewsPost {
   published_at: string | null
 }
 
-const categories = [
-  'All',
-  'Announcement',
-  'Sports',
-  'Education',
-  'Health',
-  'Environment',
-  'Social',
-  'Event',
-]
+interface PostCategory { key: string; label_en: string; icon: string | null }
 
 const categoryColors: Record<string, { bg: string; text: string; accent: string }> = {
   sports: { bg: 'bg-emerald-50', text: 'text-emerald-700', accent: 'bg-emerald-600' },
@@ -37,6 +28,8 @@ const categoryColors: Record<string, { bg: string; text: string; accent: string 
   social: { bg: 'bg-purple-50', text: 'text-purple-700', accent: 'bg-purple-600' },
   announcement: { bg: 'bg-amber-50', text: 'text-amber-700', accent: 'bg-amber-600' },
   event: { bg: 'bg-indigo-50', text: 'text-indigo-700', accent: 'bg-indigo-600' },
+  editorial: { bg: 'bg-slate-50', text: 'text-slate-700', accent: 'bg-slate-600' },
+  poetry: { bg: 'bg-fuchsia-50', text: 'text-fuchsia-700', accent: 'bg-fuchsia-600' },
 }
 
 const categoryEmojis: Record<string, string> = {
@@ -47,6 +40,8 @@ const categoryEmojis: Record<string, string> = {
   social: '🤝',
   announcement: '📢',
   event: '🎉',
+  editorial: '✍️',
+  poetry: '🖋️',
 }
 
 function formatDate(dateStr: string | null) {
@@ -61,6 +56,7 @@ function formatDate(dateStr: string | null) {
 export default function NewsPage() {
   const [posts, setPosts] = useState<NewsPost[]>([])
   const [activeFilter, setActiveFilter] = useState('All')
+  const [categories, setCategories] = useState<PostCategory[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -74,6 +70,8 @@ export default function NewsPage() {
         setPosts(data ?? [])
         setLoading(false)
       })
+    supabase.from('post_categories').select('key, label_en, icon').eq('is_active', true).order('display_order')
+      .then(({ data }) => setCategories(data ?? []))
   }, [])
 
   const filtered =
@@ -100,17 +98,17 @@ export default function NewsPage() {
 
       {/* Category Filters */}
       <div className="flex flex-wrap gap-3 mb-10">
-        {categories.map((cat) => (
+        {[{ key: 'All', label_en: 'All', icon: null }, ...categories].map((cat) => (
           <button
-            key={cat}
-            onClick={() => setActiveFilter(cat)}
+            key={cat.key}
+            onClick={() => setActiveFilter(cat.key)}
             className={`px-5 py-2 rounded-full font-sans text-[14px] font-semibold tracking-[0.05em] transition-all cursor-pointer ${
-              activeFilter === cat
+              activeFilter === cat.key
                 ? 'bg-dp-primary text-white'
                 : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-primary hover:text-dp-primary'
             }`}
           >
-            {cat}
+            {cat.icon ? `${cat.icon} ` : ''}{cat.label_en}
           </button>
         ))}
       </div>

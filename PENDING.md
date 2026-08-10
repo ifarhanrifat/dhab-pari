@@ -106,7 +106,37 @@ None of that is urgent today. It's the direction to go if the committee grows.
 
 ---
 
-## 4. Other known gaps
+## 4. Volunteers and publishers — what was built, and what wasn't
+
+Built: an admin Volunteers page (there was none — offers could be made but never
+accepted), notifications on both sides of Get Involved, `project_tasks` for
+giving volunteers work, structured "how can you help" questions on signup,
+templated accept/decline replies, and a versioned Publisher content-rules gate.
+
+Still open:
+
+- **Get Involved and My Volunteering still overlap.** The first writes to
+  `suggestions`, the second to `volunteers`. A resident who fills in Get
+  Involved reasonably believes they have volunteered, but nothing appears under
+  My Volunteering and neither page mentions the other. Needs a pointer between
+  them, or merging the two flows.
+- **Accepting a publisher does not create the account.** By design — an account
+  arrives through Users → invite so the person sets their own password, and a
+  password must never be sent in a notification. But it is a manual second step
+  that is easy to forget after clicking Accept.
+- **Volunteer replies still don't send.** Same root cause as everywhere else:
+  the reply queues into `notifications_log` and there is no WhatsApp API. The
+  portal notification does arrive; the WhatsApp message does not.
+- **Content types remain separate where they should be.** `news_posts` (with
+  categories, now including Editorial and Poetry), `video_content`,
+  `gallery_albums`/`gallery_items` and `news_ticker` are four different shapes,
+  and merging them would be tidiness for its own sake. Only articles were
+  consolidated. If a fifth *article-like* type is ever wanted, it is a row in
+  `post_categories`, not a new table.
+
+---
+
+## 5. Other known gaps
 
 - **iPhone 7 / iOS 15 cannot run the site.** Tailwind v4 emits `@property` and
   `color-mix()` and requires Safari 16.4+ *by design*; its PostCSS plugin exposes

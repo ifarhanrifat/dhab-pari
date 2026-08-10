@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { MessageSquare, X, Send, CheckCircle, Clock, Eye } from 'lucide-react'
 import { toast } from 'sonner'
+import { renderTemplate } from '@/lib/messageTemplates'
 
 interface Suggestion {
   id: string
@@ -54,6 +55,16 @@ export default function AdminSuggestionsPage() {
     toast.success(`Marked as ${status}`)
     load()
     if (selected?.id === id) setSelected({ ...selected, status })
+  }
+
+  // Templates live in message_templates so the committee can reword them
+  // without a deploy — especially the decline, which otherwise gets written
+  // once in haste and reused for years.
+  const useTemplate = async (key: string) => {
+    if (!selected) return
+    const { data } = await supabase.from('message_templates').select('body').eq('key', key).single()
+    if (!data?.body) { toast.error('Template not found — check Settings'); return }
+    setReply(renderTemplate(data.body, { name: selected.name ?? 'friend', project: 'the project' }))
   }
 
   const sendReply = async () => {
@@ -211,6 +222,33 @@ export default function AdminSuggestionsPage() {
                 <CheckCircle size={12} /> Actioned
               </button>
             </div>
+
+            {(selected.type === 'role_request' || selected.type === 'volunteer') && (
+              <div className="mb-4 pb-4 border-b border-dp-outline-variant">
+                <h4 className="font-sans text-[14px] font-semibold text-dp-on-surface-variant mb-2">Decision</h4>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => useTemplate(selected.type === 'role_request' ? 'role_request_accepted' : 'volunteer_accepted')}
+                    className="px-3 py-1.5 rounded-lg bg-dp-secondary text-white font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"
+                  >
+                    Accept
+                  </button>
+                  {selected.type === 'role_request' && (
+                    <button
+                      onClick={() => useTemplate('role_request_declined')}
+                      className="px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low transition-all"
+                    >
+                      Decline kindly
+                    </button>
+                  )}
+                </div>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-2">
+                  {selected.type === 'role_request'
+                    ? 'Loads an editable reply below. Accepting does not create the account — do that in Users → invite with role Publisher, so they set their own password.'
+                    : 'Loads an editable reply below. Put them on a project in Volunteers to actually accept them.'}
+                </p>
+              </div>
+            )}
 
             {/* Reply */}
             <div>
