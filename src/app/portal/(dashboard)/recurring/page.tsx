@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { PlusCircle, X, Pause, Play, Trash2 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { useTranslation } from '@/hooks/useTranslation'
 
 interface Schedule {
   id: string; amount_pkr: number; frequency: string; next_run_date: string; is_active: boolean
@@ -28,23 +29,39 @@ export default function PortalRecurringPage() {
   const [form, setForm] = useState(empty)
   const [saving, setSaving] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState<string | null>(null)
+  // Follows the reader's own language toggle, not the committee's setting —
+  // this text is the one thing on the page they must actually understand.
+  const { isUrdu } = useTranslation()
+  const [policy, setPolicy] = useState<{ en: string; ur: string }>({ en: '', ur: '' })
+  const [acknowledged, setAcknowledged] = useState(false)
 
   const load = async () => {
     if (!user) return
     const supabase = createClient()
-    const [{ data: sched }, { data: proj }] = await Promise.all([
+    const [{ data: sched }, { data: proj }, { data: pol }] = await Promise.all([
       supabase.from('recurring_schedules').select('id, amount_pkr, frequency, next_run_date, is_active, project_id, payment_method, particular')
         .eq('created_by_portal_user_id', user.id).order('next_run_date', { ascending: true }),
       supabase.from('projects').select('id, title').neq('status', 'upcoming').order('title'),
+      supabase.from('site_settings').select('key, value').in('key', ['recurring_policy_en', 'recurring_policy_ur']),
     ])
     setSchedules(sched ?? [])
     setProjects(proj ?? [])
+    const v = Object.fromEntries((pol ?? []).map((x) => [x.key, x.value ?? '']))
+    setPolicy({ en: v.recurring_policy_en ?? '', ur: v.recurring_policy_ur ?? '' })
     setLoading(false)
   }
   useEffect(() => { load() }, [user])
 
+  const policyText = isUrdu ? (policy.ur || policy.en) : (policy.en || policy.ur)
+
   const save = async () => {
     if (!user || !form.amount_pkr || form.amount_pkr <= 0) { toast.error('Enter a valid amount'); return }
+    // Announcing is the one action here that creates an obligation, so it does
+    // not proceed until the donor has confirmed they understand what it means.
+    if (policyText && !acknowledged) {
+      toast.error(isUrdu ? 'براہ کرم پہلے شرائط پڑھ کر تصدیق کریں' : 'Please read and confirm the terms first')
+      return
+    }
     setSaving(true)
     const supabase = createClient()
     const { error } = await supabase.from('recurring_schedules').insert({
@@ -89,7 +106,7 @@ export default function PortalRecurringPage() {
           <h1 className="font-heading text-[26px] font-bold text-dp-primary">Recurring Donations</h1>
           <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Set up automatic giving to a project or the general fund.</p>
         </div>
-        <button onClick={() => { setForm(empty); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
+        <button onClick={() => { setForm(empty); setAcknowledged(false); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
           <PlusCircle size={16} /> New Schedule
         </button>
       </div>
@@ -139,7 +156,9 @@ export default function PortalRecurringPage() {
                 </select>
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Starting</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">
+                  {isUrdu ? 'پہلی قسط کی تاریخ' : 'Date of the first instalment'}
+                </label>
                 <input type="date" value={form.next_run_date} onChange={(e) => setForm({ ...form, next_run_date: e.target.value })} className="input-field" />
               </div>
               <div>
@@ -157,8 +176,45 @@ export default function PortalRecurringPage() {
                   <option value="bank">Bank Transfer</option>
                 </select>
               </div>
-              <button disabled={saving} onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-                {saving ? 'Saving...' : 'Set Up Recurring Donation'}
+              {/* The policy sits between the form and the button on purpose —
+                  above the fields it gets scrolled past, below the button it is
+                  read after the fact. */}
+              {policyText && (
+                <div
+                  dir={isUrdu ? 'rtl' : 'ltr'}
+                  className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3"
+                  style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
+                >
+                  <p className="font-sans text-[13px] font-bold text-amber-900 mb-1.5">
+                    {isUrdu ? 'اعلان کرنے سے پہلے' : 'Before you announce'}
+                  </p>
+                  <div className={`font-sans text-[12.5px] text-amber-900 whitespace-pre-line ${isUrdu ? 'leading-[2]' : 'leading-[1.65]'}`}>
+                    {policyText}
+                  </div>
+                  <label className="flex items-start gap-2.5 mt-3 pt-3 border-t border-amber-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={acknowledged}
+                      onChange={(e) => setAcknowledged(e.target.checked)}
+                      className="accent-dp-secondary mt-0.5 cursor-pointer shrink-0"
+                    />
+                    <span className="font-sans text-[12.5px] font-semibold text-amber-900">
+                      {isUrdu
+                        ? 'میں نے یہ شرائط پڑھ لی ہیں اور سمجھ گیا ہوں کہ یہ ایک وعدہ ہے، خودکار ادائیگی نہیں۔'
+                        : 'I have read this and understand that an announcement is a promise, not an automatic payment.'}
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              <button
+                disabled={saving || (!!policyText && !acknowledged)}
+                onClick={save}
+                className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving
+                  ? (isUrdu ? 'محفوظ ہو رہا ہے...' : 'Saving...')
+                  : (isUrdu ? 'باقاعدہ عطیہ کا اعلان کریں' : 'Set Up Recurring Donation')}
               </button>
             </div>
           </div>

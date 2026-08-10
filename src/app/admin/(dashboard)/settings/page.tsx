@@ -90,6 +90,12 @@ const settingGroups: { label: string; keys: string[]; category: SettingsCategory
     category: 'donorTemplates',
   },
   {
+    label: 'Recurring Donation Policy (shown to donors)', keys: [
+      'recurring_policy_ur', 'recurring_policy_en',
+    ],
+    category: 'donorTemplates',
+  },
+  {
     label: 'Publisher Content Rules', keys: [
       'publisher_guidelines_version', 'publisher_guidelines_ur', 'publisher_guidelines_en',
     ],
@@ -424,7 +430,7 @@ export default function AdminSettingsPage() {
           <div className="space-y-4">
             {group.keys.map((key) => {
               const setting = settings.find((s) => s.key === key)
-              const isLong = ['about_text', 'vision', 'mission', 'invoice_instructions', 'donor_invoice_instructions', 'receipt_fund_note', 'donor_receipt_fund_note', 'publisher_guidelines_ur', 'publisher_guidelines_en'].includes(key)
+              const isLong = ['about_text', 'vision', 'mission', 'invoice_instructions', 'donor_invoice_instructions', 'receipt_fund_note', 'donor_receipt_fund_note', 'publisher_guidelines_ur', 'publisher_guidelines_en', 'recurring_policy_ur', 'recurring_policy_en'].includes(key)
               return (
                 <div key={key}>
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">
@@ -486,7 +492,7 @@ export default function AdminSettingsPage() {
                     <textarea
                       value={values[key] ?? ''}
                       onChange={(e) => setValues({ ...values, [key]: e.target.value })}
-                      rows={key.startsWith('publisher_guidelines') ? 14 : 3}
+                      rows={key.startsWith('publisher_guidelines') || key.startsWith('recurring_policy') ? 14 : 3}
                       dir={key.endsWith('_ur') ? 'rtl' : 'ltr'}
                       className="input-field resize-y"
                     />
