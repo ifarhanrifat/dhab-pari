@@ -44,6 +44,16 @@ export const TEMPLATE_KEYS: Record<string, TemplateKeyInfo[]> = {
     { token: '%%amount%%', description: 'Pledged amount' },
     { token: '%%date%%', description: 'Date the pledge was announced' },
   ],
+  role_request_accepted: [
+    { token: '%%name%%', description: 'Requester name' },
+  ],
+  role_request_declined: [
+    { token: '%%name%%', description: 'Requester name' },
+  ],
+  volunteer_accepted: [
+    { token: '%%name%%', description: 'Volunteer name' },
+    { token: '%%project%%', description: 'Project(s) they were put on, read from Volunteers' },
+  ],
   consumer_outstanding_notify: [
     { token: '%%name%%', description: 'Consumer name' },
     { token: '%%consumer_id%%', description: 'Consumer number' },

@@ -14,6 +14,7 @@ interface Suggestion {
   status: string
   admin_notes: string | null
   created_at: string
+  portal_user_id: string | null
 }
 
 const statusColors: Record<string, string> = {
@@ -64,7 +65,38 @@ export default function AdminSuggestionsPage() {
     if (!selected) return
     const { data } = await supabase.from('message_templates').select('body').eq('key', key).single()
     if (!data?.body) { toast.error('Template not found — check Settings'); return }
-    setReply(renderTemplate(data.body, { name: selected.name ?? 'friend', project: 'the project' }))
+
+    // The project is whatever the committee actually put this person on in
+    // Volunteers — read it back rather than writing a generic phrase. Someone
+    // helping on two projects gets both named.
+    let project = ''
+    if (selected.portal_user_id) {
+      const { data: vols } = await supabase
+        .from('volunteers')
+        .select('status, projects(title)')
+        .eq('portal_user_id', selected.portal_user_id)
+        .in('status', ['assigned', 'offered'])
+      const titles = (vols ?? [])
+        .map((v) => {
+          const pr = Array.isArray(v.projects) ? v.projects[0] : v.projects
+          return pr?.title as string | undefined
+        })
+        .filter((t): t is string => !!t)
+      const unique = [...new Set(titles)]
+      project = unique.length === 0 ? ''
+        : unique.length === 1 ? `"${unique[0]}"`
+          : unique.slice(0, -1).map((t) => `"${t}"`).join(', ') + ` and "${unique[unique.length - 1]}"`
+    }
+
+    if (!project && key === 'volunteer_accepted') {
+      toast.error('Put them on a project in Volunteers first — the reply names it')
+      return
+    }
+
+    setReply(renderTemplate(data.body, {
+      name: selected.name ?? 'friend',
+      project: project || 'the committee’s work',
+    }))
   }
 
   const sendReply = async () => {
