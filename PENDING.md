@@ -136,7 +136,25 @@ Still open:
 
 ---
 
-## 5. Security: the whole ledger was public (fixed in 182)
+## 5. Recurring schedules depend on pg_cron actually being enabled
+
+Migration 015 tried `CREATE EXTENSION pg_cron` + `cron.schedule(...)` inside an
+exception handler that swallowed any failure, so nobody could tell afterwards
+whether it worked. On Supabase, pg_cron normally has to be enabled from the
+dashboard (Database > Extensions) — a migration cannot force it.
+
+If it is NOT enabled, the only thing that runs schedules is a staff member
+opening the admin Recurring page, which calls `run_due_recurring_schedules()`.
+That is a safety net, not a mechanism: nobody should have to remember to open a
+page for bills to exist.
+
+`recurring_scheduler_status()` (migration 185) reports the truth — whether the
+extension is installed, whether the job exists, and its cron expression. Call it
+before assuming schedules are automatic.
+
+---
+
+## 6. Security: the whole ledger was public (fixed in 182)
 
 Recorded because the cause is subtle and could easily be reintroduced.
 
@@ -168,7 +186,7 @@ purpose.
 
 ---
 
-## 6. Other known gaps
+## 7. Other known gaps
 
 - **iPhone 7 / iOS 15 cannot run the site.** Tailwind v4 emits `@property` and
   `color-mix()` and requires Safari 16.4+ *by design*; its PostCSS plugin exposes
