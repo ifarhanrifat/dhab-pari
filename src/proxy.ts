@@ -87,7 +87,7 @@ function middlewareRateLimit(request: NextRequest): NextResponse | null {
   return null
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Rate limit the login API endpoint before anything else
   const rateLimitResponse = middlewareRateLimit(request)
   if (rateLimitResponse) return rateLimitResponse
@@ -116,6 +116,7 @@ export async function middleware(request: NextRequest) {
   )
 
   const { pathname } = request.nextUrl
+
 
   // Invite / magic-link / password-reset emails redirect back here with a PKCE
   // ?code= param — exchange it for a real session (setting the auth cookies)
