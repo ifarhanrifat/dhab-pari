@@ -93,7 +93,7 @@ export default function ProjectDetailPage() {
       supabase.from('projects').select('id, title, description, status, budget_pkr, category, location, vote_target, minimum_monthly_commitment_pkr, funding_model, monthly_operating_cost_pkr').eq('id', id).single(),
       supabase.from('donors_public').select('id, name, amount_pkr, date, is_verified, payment_status').eq('project_id', id).eq('is_verified', true).order('amount_pkr', { ascending: false }),
       supabase.from('donors_public').select('id, name, amount_pkr, date, is_verified, payment_status').eq('project_id', id).eq('is_verified', false).order('date', { ascending: false }),
-      supabase.from('accounts').select('id').eq('project_id', id).maybeSingle(),
+      supabase.from('project_accounts_public').select('id').eq('project_id', id).maybeSingle(),
       supabase.from('project_votes_public').select('id, username, avatar_url').eq('project_id', id).order('created_at', { ascending: false }),
       supabase.from('project_comments_public').select('*').eq('project_id', id).order('created_at', { ascending: false }),
     ])
@@ -103,8 +103,10 @@ export default function ProjectDetailPage() {
     setVotes(voteRows ?? [])
     setComments(commentRows ?? [])
     if (expenseAcct) {
-      const { data: legs } = await supabase.from('ledger_entries').select('id, entry_date, particular, debit')
-        .eq('account_id', expenseAcct.id).gt('debit', 0).order('entry_date', { ascending: false })
+      // Narrow public view (migration 182) — project spending stays public
+      // without the rest of the ledger coming with it.
+      const { data: legs } = await supabase.from('project_expenses_public').select('id, entry_date, particular, debit')
+        .eq('project_id', id).order('entry_date', { ascending: false })
       setExpenses(legs ?? [])
     }
     if (p?.funding_model === 'recurring_support') {

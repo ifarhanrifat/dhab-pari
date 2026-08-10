@@ -254,14 +254,14 @@ function AdminDonorsPageInner() {
     const statusRank = { announced: 0, awaiting: 1, received: 2 }
     const filtered = q
       ? donors.filter((d) => [
-          d.is_anonymous ? 'anonymous' : d.name, d.phone ?? '', d.name_ur ?? '',
+          d.name, d.is_anonymous ? 'anonymous' : '', d.phone ?? '', d.name_ur ?? '',
           accountNoByKey.get(donorKeyFor(d.name, d.phone)) ?? '', String(d.amount_pkr),
         ].join(' ').toLowerCase().includes(q))
       : donors
     const dir = sortDir === 'asc' ? 1 : -1
     return [...filtered].sort((a, b) => {
       switch (sortKey) {
-        case 'name': return dir * (a.is_anonymous ? 'Anonymous' : a.name).localeCompare(b.is_anonymous ? 'Anonymous' : b.name)
+        case 'name': return dir * a.name.localeCompare(b.name)
         case 'amount': return dir * (Number(a.amount_pkr) - Number(b.amount_pkr))
         case 'status': return dir * (statusRank[donorStatus(a)] - statusRank[donorStatus(b)])
         case 'account': return dir * (accountNoByKey.get(donorKeyFor(a.name, a.phone)) ?? '').localeCompare(accountNoByKey.get(donorKeyFor(b.name, b.phone)) ?? '')
@@ -330,7 +330,17 @@ function AdminDonorsPageInner() {
               {!loading && visibleDonors.map((d, i) => (
                 <tr key={d.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''} ${selected.has(d.id) ? 'bg-dp-secondary-container/20' : ''} ${!d.is_verified ? 'bg-amber-50/40' : ''}`}>
                   <td className="p-4 border-b border-dp-outline-variant"><input type="checkbox" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} className="accent-dp-secondary cursor-pointer" /></td>
-                  <td className="p-4 border-b border-dp-outline-variant font-semibold">{d.is_anonymous ? <span className="italic text-dp-on-surface-variant">Anonymous</span> : d.name}</td>
+                  <td className="p-4 border-b border-dp-outline-variant font-semibold">
+                    {d.name}
+                    {d.is_anonymous && (
+                      <span
+                        title="Shown as “Anonymous” on the public website — the committee still sees the real name for verification"
+                        className="ml-2 align-middle text-[10.5px] font-bold uppercase px-2 py-0.5 rounded-full font-sans bg-dp-surface-container-high text-dp-on-surface-variant"
+                      >
+                        Anonymous publicly
+                      </span>
+                    )}
+                  </td>
                   <td className="p-4 border-b border-dp-outline-variant text-[13px] font-mono text-dp-on-surface-variant">{accountNoByKey.get(donorKeyFor(d.name, d.phone)) ?? '—'}</td>
                   <td className="p-4 border-b border-dp-outline-variant text-[14px] text-dp-on-surface-variant">{d.phone ?? '—'}</td>
                   <td className="p-4 border-b border-dp-outline-variant font-bold text-dp-secondary">Rs. {Number(d.amount_pkr).toLocaleString()}</td>

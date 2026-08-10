@@ -185,7 +185,8 @@ export default function AllTransactionsPage() {
       result.push({
         id: `donation-${d.id}`, kind: 'donation', borderColor: 'border-violet-500',
         typeLabel: d.payment_method ? d.payment_method.charAt(0).toUpperCase() + d.payment_method.slice(1) : null,
-        partyName: d.is_anonymous ? 'Anonymous Donor' : d.name,
+        // Real name for staff; anonymity is enforced publicly by donors_public.
+        partyName: d.is_anonymous ? `${d.name} (anonymous publicly)` : d.name,
         docLabel: 'Donation', date: d.date, description: d.notes || 'Donation received',
         amount: d.amount_pkr, note: null, createdAt: d.created_at,
         badge: d.is_verified

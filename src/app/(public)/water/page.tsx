@@ -40,6 +40,7 @@ const monthNames = [
 
 export default function WaterBillPage() {
   const [query, setQuery] = useState('')
+  const [verify, setVerify] = useState('')
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [consumer, setConsumer] = useState<Consumer | null>(null)
@@ -52,36 +53,40 @@ export default function WaterBillPage() {
     e.preventDefault()
     const trimmed = query.trim().toUpperCase()
     if (!trimmed) return
+    if (!verify.trim()) {
+      setError('Please also enter the last 4 digits of your registered mobile number, or your house number.')
+      setSearched(true)
+      return
+    }
 
     setLoading(true)
     setError('')
     setConsumer(null)
     setBills([])
 
-    const { data: consumerData } = await supabase
-      .from('consumers')
-      .select('consumer_id, name, name_ur, address, house_no, sector, area')
-      .eq('consumer_id', trimmed)
-      .single()
+    const { data: rows, error: lookupError } = await supabase
+      .rpc('public_bill_lookup', { p_consumer_id: trimmed, p_verify: verify.trim() })
 
-    if (!consumerData) {
-      setError('Consumer not found. Please check your Consumer No. and try again.')
+    if (lookupError || !rows || rows.length === 0) {
+      setError('No bill found. Please check your Consumer No. and the last 4 digits of your registered mobile (or your house number) and try again.')
       setSearched(true)
       setLoading(false)
       return
     }
 
-    setConsumer(consumerData)
+    const first = rows[0]
+    setConsumer({
+      consumer_id: first.consumer_id, name: first.name, name_ur: first.name_ur,
+      address: first.address, house_no: first.house_no, sector: first.sector, area: first.area,
+    })
 
-    const { data: billsData } = await supabase
-      .from('bills')
-      .select('id, month, year, amount_pkr, status, paid_date')
-      .eq('consumer_id', consumerData.consumer_id)
-      .order('year', { ascending: false })
-      .order('month', { ascending: false })
-      .limit(6)
-
-    setBills(billsData ?? [])
+    // One row per bill, repeating the consumer columns; a consumer with no
+    // bills still comes back as a single row with null bill fields.
+    setBills(
+      rows.filter((r: { bill_id: string | null }) => r.bill_id).map((r: {
+        bill_id: string; month: number; year: number; amount_pkr: number; status: string; paid_date: string | null
+      }) => ({ id: r.bill_id, month: r.month, year: r.year, amount_pkr: r.amount_pkr, status: r.status, paid_date: r.paid_date }))
+    )
     setSearched(true)
     setLoading(false)
   }
@@ -138,6 +143,29 @@ export default function WaterBillPage() {
                   className="w-full pl-12 pr-4 py-4 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[18px] leading-[28px] text-dp-on-surface"
                 />
               </div>
+            </div>
+
+            {/* Second factor. Consumer numbers run in sequence, so without this
+                anyone could walk the range and read every household's details. */}
+            <div>
+              <label htmlFor="verify" className="block font-sans text-[16px] font-semibold text-dp-on-surface mb-2">
+                Last 4 digits of your mobile, or your house number
+                <span className="block font-normal text-[14px] text-dp-on-surface-variant" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+                  اپنے موبائل نمبر کے آخری 4 ہندسے، یا اپنا مکان نمبر
+                </span>
+              </label>
+              <input
+                id="verify"
+                type="text"
+                inputMode="numeric"
+                value={verify}
+                onChange={(e) => setVerify(e.target.value)}
+                placeholder="e.g. 4567"
+                className="w-full px-4 py-4 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[18px] leading-[28px] text-dp-on-surface"
+              />
+              <p className="font-sans text-[13px] text-dp-on-surface-variant mt-2">
+                This keeps your bill private — only someone who knows your number can see it.
+              </p>
             </div>
             <button
               type="submit"

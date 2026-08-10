@@ -372,7 +372,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       cards.push({
         id: `donation-${d.id}`, kind: 'donation', borderColor: 'border-violet-500',
         typeLabel: d.payment_method ? d.payment_method.charAt(0).toUpperCase() + d.payment_method.slice(1) : null,
-        partyName: d.is_anonymous ? 'Anonymous Donor' : d.name,
+        // Real name for staff; anonymity is enforced publicly by donors_public.
+        partyName: d.is_anonymous ? `${d.name} (anonymous publicly)` : d.name,
         docLabel: d.voucher_no ? `Voucher # ${d.voucher_no}` : 'Donation',
         date: d.date, description: d.notes || 'Donation received',
         amount: d.amount_pkr,

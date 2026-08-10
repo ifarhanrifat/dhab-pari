@@ -136,7 +136,39 @@ Still open:
 
 ---
 
-## 5. Other known gaps
+## 5. Security: the whole ledger was public (fixed in 182)
+
+Recorded because the cause is subtle and could easily be reintroduced.
+
+Measured with the **anon key** — the one shipped in every browser bundle:
+`ledger_entries` 244/244, `bills` 38/38, `payments` 34/34, `vouchers` 10/10,
+`consumers` 12/12 (names, mobiles, addresses). Only `donors` was safe.
+
+**Cause:** migrations 002/007/009 created `FOR SELECT USING (true)` policies.
+The RBAC work in 014 added strict policies *alongside* them. **Postgres OR's RLS
+policies together**, so adding a strict policy next to an open one restricts
+nothing at all. Migration 116 noticed this for `donors` and dropped
+`public_read_donors`; the other five were never revisited.
+
+**The rule to remember:** adding a policy can only ever grant more access. To
+restrict, the permissive policy must be *dropped*.
+
+Supabase's advisor did not catch this. It flagged the five `*_public`
+SECURITY DEFINER views as Critical — which are the *correct* pattern, narrow
+projections that deliberately read past RLS to expose only safe columns — and
+said nothing about five tables with no protection at all. After 182 the advisor
+will show **more** such warnings, not fewer, because the fix adds two more of
+those views. That is expected; dismiss them.
+
+Also note the public bill lookup now requires two factors (consumer number plus
+last four digits of the registered mobile, or house number), because consumer
+numbers are sequential and a lookup on that alone is an enumeration oracle. A
+wrong verifier and an unknown consumer number return the same empty result on
+purpose.
+
+---
+
+## 6. Other known gaps
 
 - **iPhone 7 / iOS 15 cannot run the site.** Tailwind v4 emits `@property` and
   `color-mix()` and requires Safari 16.4+ *by design*; its PostCSS plugin exposes
