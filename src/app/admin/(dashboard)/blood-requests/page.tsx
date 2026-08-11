@@ -227,7 +227,7 @@ export default function AdminBloodRequestsPage() {
       <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
         <div>
           <h1 className="font-heading text-[24px] sm:text-[32px] font-bold leading-[32px] sm:leading-[40px] text-dp-primary flex items-center gap-2">
-            <Droplet size={26} /> Blood Requests
+            <Droplet size={26} /> {t('br.title')}
           </h1>
           <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">
             Every request is taken by phone and approved here. Nobody can raise one themselves.
@@ -235,7 +235,7 @@ export default function AdminBloodRequestsPage() {
           </p>
         </div>
         <button onClick={() => { setForm(emptyForm); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
-          <Plus size={16} /> Record a call
+          <Plus size={16} /> {t('br.recordCall')}
         </button>
       </div>
 
@@ -254,7 +254,7 @@ export default function AdminBloodRequestsPage() {
       {loading && <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}
       {!loading && visible.length === 0 && (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
-          <p className="font-sans text-[14px] text-dp-on-surface-variant">No requests here.</p>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('br.noRequests')}</p>
         </div>
       )}
 
@@ -288,11 +288,11 @@ export default function AdminBloodRequestsPage() {
                 {r.status === 'pending_approval' && (
                   r.source === 'public_form' ? (
                     <button disabled={busy} onClick={() => { setVerifyFor(r); setVerifyChecked(false) }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dp-secondary text-white font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-                      <Phone size={14} /> Verify by phone &amp; approve
+                      <Phone size={14} /> {t('br.verifyApprove')}
                     </button>
                   ) : (
                     <button disabled={busy} onClick={() => approve(r.id)} className="px-3 py-1.5 rounded-lg bg-dp-secondary text-white font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-                      Approve &amp; notify donors
+                      {t('br.approveNotify')}
                     </button>
                   )
                 )}
@@ -302,11 +302,11 @@ export default function AdminBloodRequestsPage() {
                       {openId === r.id ? 'Hide donors' : 'Matching donors'}
                     </button>
                     <button onClick={() => setPaused(r.id, r.status === 'open')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low transition-all">
-                      {r.status === 'open' ? <><Pause size={14} /> Pause</> : <><Play size={14} /> Resume</>}
+                      {r.status === 'open' ? <><Pause size={14} /> {t('br.pause')}</> : <><Play size={14} /> {t('br.resume')}</>}
                     </button>
                     {!r.ticker_id && (
                       <button onClick={() => { setTickerFor(r.id); setTickerNumber(r.requester_whatsapp) }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low transition-all">
-                        <Megaphone size={14} /> Post appeal
+                        <Megaphone size={14} /> {t('br.postAppealBtn')}
                       </button>
                     )}
                   </>
@@ -318,7 +318,7 @@ export default function AdminBloodRequestsPage() {
                 )}
                 {r.status === 'fulfilled' && !r.thanks_ticker_id && (
                   <button onClick={() => postThanks(r.id)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-secondary cursor-pointer hover:bg-dp-surface-container-low transition-all">
-                    <Heart size={14} /> Post thank-you
+                    <Heart size={14} /> {t('br.postThanks')}
                   </button>
                 )}
               </div>
@@ -358,7 +358,7 @@ export default function AdminBloodRequestsPage() {
                 </div>
                 {eligible.length > 0 && (
                   <button disabled={busy} onClick={() => fulfil(r.id)} className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-dp-secondary text-white font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-                    <CheckCircle2 size={15} /> Mark ticked donors as donated &amp; close
+                    <CheckCircle2 size={15} /> {t('br.markDonated')}
                   </button>
                 )}
               </div>
@@ -371,7 +371,7 @@ export default function AdminBloodRequestsPage() {
         <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-5 w-full max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3 mb-1">
-              <h2 className="font-heading text-[18px] font-bold text-dp-primary">Record a blood request</h2>
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('br.recordRequest')}</h2>
               <button onClick={() => setShowForm(false)} className="text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={18} /></button>
             </div>
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">
@@ -380,11 +380,11 @@ export default function AdminBloodRequestsPage() {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Patient name</label>
+                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.patientName')}</label>
                   <input value={form.patient_name} onChange={(e) => setForm({ ...form, patient_name: e.target.value })} className="input-field !py-2.5 text-[15px]" />
                 </div>
                 <div>
-                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Blood group needed</label>
+                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.groupNeeded')}</label>
                   <select value={form.blood_group} onChange={(e) => setForm({ ...form, blood_group: e.target.value })} className="input-field !py-2.5 text-[15px]">
                     {GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
                   </select>
@@ -392,41 +392,41 @@ export default function AdminBloodRequestsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Who called</label>
+                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.whoCalled')}</label>
                   <input value={form.requester_name} onChange={(e) => setForm({ ...form, requester_name: e.target.value })} className="input-field !py-2.5 text-[15px]" />
                 </div>
                 <div>
-                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Their WhatsApp</label>
+                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.theirWhatsapp')}</label>
                   <input value={form.requester_whatsapp} onChange={(e) => setForm({ ...form, requester_whatsapp: e.target.value })} placeholder="03xx-xxxxxxx" className="input-field !py-2.5 text-[15px]" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Relation to patient</label>
+                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.relation')}</label>
                   <input value={form.requester_relation} onChange={(e) => setForm({ ...form, requester_relation: e.target.value })} placeholder="brother, son..." className="input-field !py-2.5 text-[15px]" />
                 </div>
                 <div>
-                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Units needed</label>
+                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.unitsNeeded')}</label>
                   <input type="number" min={1} value={form.units_needed} onChange={(e) => setForm({ ...form, units_needed: +e.target.value })} className="input-field !py-2.5 text-[15px]" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Hospital</label>
+                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.hospital')}</label>
                   <input value={form.hospital} onChange={(e) => setForm({ ...form, hospital: e.target.value })} className="input-field !py-2.5 text-[15px]" />
                 </div>
                 <div>
-                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">City</label>
+                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.city')}</label>
                   <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Chakwal" className="input-field !py-2.5 text-[15px]" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Date needed</label>
+                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.dateNeeded')}</label>
                   <input type="date" value={form.needed_on} onChange={(e) => setForm({ ...form, needed_on: e.target.value })} className="input-field !py-2.5 text-[15px]" />
                 </div>
                 <div>
-                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Time needed</label>
+                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.timeNeeded')}</label>
                   <div className="flex gap-1.5">
                     <select value={form.needed_hour} onChange={(e) => setForm({ ...form, needed_hour: +e.target.value })} className="input-field !py-2.5 text-[15px] w-20">
                       {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => <option key={h} value={h}>{h}</option>)}
@@ -442,7 +442,7 @@ export default function AdminBloodRequestsPage() {
               </div>
               {/* Drives the public appeal's wording, which never names the patient. */}
               <div>
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">The patient is</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.patientIs')}</label>
                 <div className="grid grid-cols-3 gap-2">
                   {([['man', 'A man'], ['woman', 'A woman'], ['child', 'A child']] as const).map(([v, l]) => (
                     <button key={v} type="button" onClick={() => setForm({ ...form, patient_kind: v })}
@@ -471,7 +471,7 @@ export default function AdminBloodRequestsPage() {
       {verifyFor && (
         <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4" onClick={() => setVerifyFor(null)}>
           <div className="bg-white rounded-lg p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">Verify before approving</h2>
+            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">{t('br.verifyBefore')}</h2>
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">
               This request came from the website. Approving it notifies every compatible donor
               at once, so speak to the person who sent it first.
@@ -486,7 +486,7 @@ export default function AdminBloodRequestsPage() {
               <div className="flex gap-2 mt-3">
                 <a href={`tel:${normalizePakPhone(verifyFor.requester_whatsapp)}`}
                   className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-dp-primary text-white font-sans text-[13px] font-semibold hover:opacity-90 transition-all">
-                  <Phone size={14} /> Call
+                  <Phone size={14} /> {t('br.call')}
                 </a>
                 <a href={`https://wa.me/${normalizePakPhone(verifyFor.requester_whatsapp)}`} target="_blank" rel="noopener noreferrer"
                   className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#25D366] text-white font-sans text-[13px] font-semibold hover:opacity-90 transition-all">
@@ -499,7 +499,7 @@ export default function AdminBloodRequestsPage() {
               <input type="checkbox" checked={verifyChecked} onChange={(e) => setVerifyChecked(e.target.checked)} className="accent-dp-secondary mt-0.5" />
               <span className="font-sans text-[13px] text-dp-on-surface">
                 I have spoken to {verifyFor.requester_name} and this request is genuine.
-                <span className="block text-[11.5px] text-dp-on-surface-variant">Recorded against your name.</span>
+                <span className="block text-[11.5px] text-dp-on-surface-variant">{t('br.againstYourName')}</span>
               </span>
             </label>
 
@@ -507,7 +507,7 @@ export default function AdminBloodRequestsPage() {
               <button onClick={() => setVerifyFor(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant cursor-pointer">{t('f.back')}</button>
               <button disabled={busy || !verifyChecked} onClick={() => approve(verifyFor.id, true)}
                 className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer disabled:opacity-50">
-                Approve &amp; notify donors
+                {t('br.approveNotify')}
               </button>
             </div>
           </div>
@@ -517,14 +517,14 @@ export default function AdminBloodRequestsPage() {
       {cancelFor && (
         <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4" onClick={() => setCancelFor(null)}>
           <div className="bg-white rounded-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">Cancel this request</h2>
+            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">{t('br.cancelThis')}</h2>
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">
               Everyone already contacted is told to stand down, and they are told why. Say if this was a fake call — that is worth recording.
             </p>
             <input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Fake call / arranged elsewhere / family cancelled" className="input-field !py-2.5 text-[15px]" />
             <div className="flex gap-2 mt-4">
               <button onClick={() => setCancelFor(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant cursor-pointer">{t('f.back')}</button>
-              <button disabled={busy || !cancelReason.trim()} onClick={doCancel} className="flex-1 px-4 py-2 bg-dp-error text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer disabled:opacity-50">Cancel request</button>
+              <button disabled={busy || !cancelReason.trim()} onClick={doCancel} className="flex-1 px-4 py-2 bg-dp-error text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer disabled:opacity-50">{t('br.cancelRequest')}</button>
             </div>
           </div>
         </div>
@@ -533,13 +533,13 @@ export default function AdminBloodRequestsPage() {
       {tickerFor && (
         <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4" onClick={() => setTickerFor(null)}>
           <div className="bg-white rounded-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">Post an appeal</h2>
+            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">{t('br.postAppeal')}</h2>
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">
               Shows in red at the top of every matching portal, and on the website if public. The
               patient is described as &quot;a villager (man/woman/child)&quot; — never by name.
             </p>
 
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Number for people to call</label>
+            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.numberToCall')}</label>
             <input value={tickerNumber} onChange={(e) => setTickerNumber(e.target.value)} placeholder="03xx-xxxxxxx" className="input-field !py-2.5 text-[15px]" />
 
             <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1 mt-3">{t('g.whoShouldSee')}</label>
@@ -554,7 +554,7 @@ export default function AdminBloodRequestsPage() {
 
             {appealAudience === 'overseas' && (
               <div className="mt-2">
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Countries (comma separated, blank = all)</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.countries')}</label>
                 <input value={appealCountries} onChange={(e) => setAppealCountries(e.target.value)} placeholder="UK, UAE, Saudi Arabia" className="input-field !py-2.5 text-[14px]" />
               </div>
             )}
@@ -568,7 +568,7 @@ export default function AdminBloodRequestsPage() {
             </label>
             <div className="flex gap-2 mt-4">
               <button onClick={() => { setTickerFor(null); setTickerNumber('') }} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant cursor-pointer">{t('f.back')}</button>
-              <button disabled={!tickerNumber.trim()} onClick={postTicker} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer disabled:opacity-50">Post appeal</button>
+              <button disabled={!tickerNumber.trim()} onClick={postTicker} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer disabled:opacity-50">{t('br.postAppealBtn')}</button>
             </div>
           </div>
         </div>

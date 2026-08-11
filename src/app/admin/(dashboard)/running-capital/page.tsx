@@ -55,7 +55,7 @@ function ExpenseTable({ lines }: { lines: ExpenseLine[] }) {
         <thead>
           <tr className="text-dp-on-surface-variant text-[11px] font-sans font-bold uppercase tracking-[0.04em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
             <th className="px-4 py-2.5">{t('a.description')}</th>
-            <th className="px-4 py-2.5">Approved By</th>
+            <th className="px-4 py-2.5">{t('rk.approvedBy')}</th>
             <th className="px-4 py-2.5 text-end">{t('w.amount')}</th>
           </tr>
         </thead>
@@ -70,7 +70,7 @@ function ExpenseTable({ lines }: { lines: ExpenseLine[] }) {
                 ) : e.auto_posted ? (
                   <span className="text-amber-700 font-semibold">{t('a.autoPosted')}</span>
                 ) : (
-                  <span className="text-dp-on-surface-variant">No approval required</span>
+                  <span className="text-dp-on-surface-variant">{t('rk.noApproval')}</span>
                 )}
               </td>
               <td className={`px-4 py-2.5 text-end font-semibold whitespace-nowrap ${e.amount < 0 ? 'text-emerald-600' : ''}`}>Rs. {fmtAmount(e.amount)}</td>
@@ -297,11 +297,12 @@ function ComplaintList({ complaints }: { complaints: ComplaintEntry[] }) {
 // above) but were previously invisible: cash_out_breakdown already computed
 // them, this page just never rendered it.
 function OtherOutgoingPayments({ breakdown }: { breakdown: CashCategoryAmount[] }) {
+  const { t } = useLocale()
   const other = breakdown.filter((c) => !expenseCashOutCategories.has(c.category))
   if (other.length === 0) return null
   return (
     <>
-      <SectionHeading>Other Outgoing Payments</SectionHeading>
+      <SectionHeading>{t('rk.otherOutgoing')}</SectionHeading>
       <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
         {other.map((c, i) => (
           <div key={i} className="p-3.5 flex items-center justify-between gap-3">
@@ -458,7 +459,7 @@ export default function RunningCapitalPage() {
       {loadingLive ? (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
       ) : !live ? (
-        <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">Could not load figures.</div>
+        <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">{t('rk.couldNotLoad')}</div>
       ) : system === 'water_supply' ? (
         <>
           <SectionHeading>{dt(lang, 'livePosition')}</SectionHeading>
@@ -470,7 +471,7 @@ export default function RunningCapitalPage() {
             <StatCard icon={<TrendingUp size={16} />} label={dt(lang, 'netRealizablePosition')} value={fmtAmount(netPosition)} tone={netPosition >= 0 ? 'good' : 'bad'} />
           </div>
 
-          <SectionHeading>Billing This Month</SectionHeading>
+          <SectionHeading>{t('rk.billingMonth')}</SectionHeading>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard icon={<TrendingUp size={16} />} label="Billed Amount (Gross)" value={fmtAmount(live.this_month_billed)} />
             <StatCard icon={<TrendingDown size={16} />} label="Discount Given" value={fmtAmount(live.this_month_discount)} />
@@ -499,7 +500,7 @@ export default function RunningCapitalPage() {
             </>
           )}
 
-          <SectionHeading>Expenses This Month</SectionHeading>
+          <SectionHeading>{t('rk.expensesMonth')}</SectionHeading>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
             <StatCard icon={<TrendingDown size={16} />} label={dt(lang, 'totalExpenses')} value={fmtAmount(live.total_expenses)} />
             <StatCard icon={live.net_surplus >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />} label={dt(lang, 'netSurplusDeficit')} value={fmtAmount(live.net_surplus)} tone={live.net_surplus >= 0 ? 'good' : 'bad'} />
@@ -507,7 +508,7 @@ export default function RunningCapitalPage() {
           <ExpenseTable lines={live.expense_lines} />
           <OtherOutgoingPayments breakdown={live.cash_out_breakdown} />
 
-          <SectionHeading>Cash Flow</SectionHeading>
+          <SectionHeading>{t('rk.cashFlow')}</SectionHeading>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard icon={<ArrowDownToLine size={16} />} label="Cash In This Month" value={fmtAmount(live.cash_in)} tone="good" />
             <StatCard icon={<ArrowUpFromLine size={16} />} label="Cash Out This Month" value={fmtAmount(live.cash_out)} tone="bad" />
@@ -529,9 +530,9 @@ export default function RunningCapitalPage() {
             </div>
           )}
 
-          <SectionHeading>New Connections This Month</SectionHeading>
+          <SectionHeading>{t('rk.newConnMonth')}</SectionHeading>
           {live.new_connections_detail.length === 0 ? (
-            <p className="font-sans text-[13.5px] text-dp-on-surface-variant">No new connections this month.</p>
+            <p className="font-sans text-[13.5px] text-dp-on-surface-variant">{t('rk.noNewConn')}</p>
           ) : (
             <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
               {live.new_connections_detail.map((c, i) => (
@@ -549,14 +550,14 @@ export default function RunningCapitalPage() {
 
           {live.complaints_this_month.length > 0 && (
             <>
-              <SectionHeading>Complaints This Month</SectionHeading>
+              <SectionHeading>{t('rk.complaintsMonth')}</SectionHeading>
               <ComplaintList complaints={live.complaints_this_month} />
             </>
           )}
 
           {live.task_progress.length > 0 && (
             <>
-              <SectionHeading>Installation Task Progress</SectionHeading>
+              <SectionHeading>{t('rk.installProgress')}</SectionHeading>
               <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
                 <table className="w-full text-start">
                   <thead>
@@ -592,14 +593,14 @@ export default function RunningCapitalPage() {
             <StatCard icon={netCash >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />} label={dt(lang, 'change') + ' vs ' + dt(lang, 'previousMonth')} value={fmtAmount(Math.abs(netCash))} tone={netCash >= 0 ? 'good' : 'bad'} />
           </div>
 
-          <SectionHeading>Donations This Month</SectionHeading>
+          <SectionHeading>{t('rk.donationsMonth')}</SectionHeading>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
             <StatCard icon={<Heart size={16} />} label="Donations Received" value={fmtAmount(live.billing_income)} />
             <StatCard icon={<Heart size={16} />} label={dt(lang, 'previousMonth')} value={fmtAmount(live.prev_month_billing)} />
           </div>
           {live.donor_breakdown.by_project.length > 0 && (
             <div className="bg-white rounded-lg border border-dp-outline-variant p-4 mb-3">
-              <p className="font-sans text-[12px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant mb-2">By Project</p>
+              <p className="font-sans text-[12px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant mb-2">{t('rk.byProject')}</p>
               <div className="flex flex-wrap gap-2">
                 {live.donor_breakdown.by_project.map((p, i) => (
                   <span key={i} className="px-3 py-1.5 bg-dp-surface-container-low rounded-full font-sans text-[12.5px] font-semibold text-dp-on-surface">{p.title}: Rs. {fmtAmount(p.total)}</span>
@@ -609,7 +610,7 @@ export default function RunningCapitalPage() {
           )}
           {live.donor_breakdown.by_type.length > 0 && (
             <div className="bg-white rounded-lg border border-dp-outline-variant p-4">
-              <p className="font-sans text-[12px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant mb-2">By Donor Type</p>
+              <p className="font-sans text-[12px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant mb-2">{t('rk.byDonorType')}</p>
               <div className="flex flex-wrap gap-2">
                 {live.donor_breakdown.by_type.map((t, i) => (
                   <span key={i} className="px-3 py-1.5 bg-dp-surface-container-low rounded-full font-sans text-[12.5px] font-semibold text-dp-on-surface capitalize">{t.type}: Rs. {fmtAmount(t.total)}</span>
@@ -618,9 +619,9 @@ export default function RunningCapitalPage() {
             </div>
           )}
 
-          <SectionHeading>Project Progress</SectionHeading>
+          <SectionHeading>{t('rk.projectProgress')}</SectionHeading>
           {live.project_progress.length === 0 ? (
-            <p className="font-sans text-[13.5px] text-dp-on-surface-variant">No projects yet.</p>
+            <p className="font-sans text-[13.5px] text-dp-on-surface-variant">{t('rk.noProjects')}</p>
           ) : (
             <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
               <table className="w-full text-start">
@@ -628,9 +629,9 @@ export default function RunningCapitalPage() {
                   <tr className="text-dp-on-surface-variant text-[11px] font-sans font-bold uppercase tracking-[0.04em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                     <th className="px-4 py-2.5"><FolderKanban size={12} className="inline me-1" />{t('w.project')}</th>
                     <th className="px-4 py-2.5">{t('w.status')}</th>
-                    <th className="px-4 py-2.5">Progress</th>
-                    <th className="px-4 py-2.5 text-end">Budget</th>
-                    <th className="px-4 py-2.5 text-end">Spent</th>
+                    <th className="px-4 py-2.5">{t('rk.progress')}</th>
+                    <th className="px-4 py-2.5 text-end">{t('rk.budget')}</th>
+                    <th className="px-4 py-2.5 text-end">{t('rk.spent')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -648,7 +649,7 @@ export default function RunningCapitalPage() {
             </div>
           )}
 
-          <SectionHeading>Expenses This Month</SectionHeading>
+          <SectionHeading>{t('rk.expensesMonth')}</SectionHeading>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
             <StatCard icon={<TrendingDown size={16} />} label={dt(lang, 'totalExpenses')} value={fmtAmount(live.total_expenses)} />
             <StatCard icon={live.net_surplus >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />} label={dt(lang, 'netSurplusDeficit')} value={fmtAmount(live.net_surplus)} tone={live.net_surplus >= 0 ? 'good' : 'bad'} />
@@ -658,7 +659,7 @@ export default function RunningCapitalPage() {
 
           {live.complaints_this_month.length > 0 && (
             <>
-              <SectionHeading>Complaints This Month</SectionHeading>
+              <SectionHeading>{t('rk.complaintsMonth')}</SectionHeading>
               <ComplaintList complaints={live.complaints_this_month} />
             </>
           )}
@@ -752,7 +753,7 @@ export default function RunningCapitalPage() {
 
               {viewTarget.opening_balance_mismatch && (
                 <div className="border-t border-dp-outline-variant pt-4 print:hidden">
-                  <p className="font-sans text-[13px] font-bold text-amber-800 uppercase tracking-[0.05em] mb-2 flex items-center gap-1.5"><AlertTriangle size={14} /> Reconciliation Remarks</p>
+                  <p className="font-sans text-[13px] font-bold text-amber-800 uppercase tracking-[0.05em] mb-2 flex items-center gap-1.5"><AlertTriangle size={14} /> {t('rk.reconciliation')}</p>
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">Explain why this month&apos;s opening balance didn&apos;t match the previous report — this note is included when the report is printed.</p>
                   <textarea
                     value={reconciliationRemarks} onChange={(e) => setReconciliationRemarks(e.target.value)}

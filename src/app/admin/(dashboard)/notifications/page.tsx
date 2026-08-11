@@ -148,7 +148,7 @@ export default function AdminNotificationsPage() {
 
   return (
     <>
-      <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary mb-8">Alerts &amp; Appeals</h1>
+      <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary mb-8">{t('al.title')}</h1>
 
       {/* Appeals replace what "Send Portal Emergency Alert" was reaching for.
           That block broadcast one untargeted bell notification that scrolled
@@ -158,7 +158,7 @@ export default function AdminNotificationsPage() {
       <div className="bg-white border border-dp-outline-variant rounded-lg p-6 mb-8">
         <div className="flex items-center gap-3 mb-2">
           <AlertTriangle size={20} className="text-dp-error" />
-          <h2 className="font-sans text-[20px] font-semibold leading-[28px] text-dp-primary">Post an Appeal</h2>
+          <h2 className="font-sans text-[20px] font-semibold leading-[28px] text-dp-primary">{t('al.postAppeal')}</h2>
         </div>
         <p className="font-sans text-[13px] text-dp-on-surface-variant mb-5">
           Shows in red at the top of every matching portal until you close it, and on the public
@@ -169,7 +169,7 @@ export default function AdminNotificationsPage() {
         {/* Sets the word shown in front of the scrolling text, and the order
             appeals appear in when more than one is live. */}
         <div className="mb-4">
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">How it is announced</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('al.howAnnounced')}</label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {SEVERITIES.map(([v, l]) => (
               <button key={v} type="button" onClick={() => setASeverity(v)}
@@ -182,24 +182,24 @@ export default function AdminNotificationsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Kind</label>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('al.kind')}</label>
             <select value={aKind} onChange={(e) => setAKind(e.target.value)} className="input-field">
               {KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </div>
           <div>
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Heading in Urdu (optional)</label>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('al.headingUr')}</label>
             <input value={aTitleUr} onChange={(e) => setATitleUr(e.target.value)} dir="rtl" className="input-field" />
           </div>
         </div>
 
         <div className="mb-4">
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Appeal in Urdu *</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('al.appealUr')}</label>
           <textarea value={aBodyUr} onChange={(e) => setABodyUr(e.target.value)} rows={3} dir="rtl"
             placeholder={`${SITE.nameUrdu} کے ایک خاندان کو فوری طبی امداد درکار ہے...`} className="input-field resize-none" />
         </div>
         <div className="mb-4">
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Appeal in English *</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('al.appealEn')}</label>
           <textarea value={aBodyEn} onChange={(e) => setABodyEn(e.target.value)} rows={2}
             placeholder={`A family in ${SITE.name} needs urgent medical help...`} className="input-field resize-none" />
           <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Both are shown — Urdu large, English underneath. Never put a private person&apos;s name in a public appeal.</p>
@@ -228,18 +228,18 @@ export default function AdminNotificationsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Number to call (optional)</label>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('al.numberOptional')}</label>
             <input value={aContact} onChange={(e) => setAContact(e.target.value)} placeholder="03xx-xxxxxxx" className="input-field" />
           </div>
           <div>
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Start showing (optional)</label>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('al.startShowing')}</label>
             <input type="datetime-local" value={aStarts} onChange={(e) => setAStarts(e.target.value)} className="input-field" />
             <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Leave blank to start now. Write Friday&apos;s notice on Wednesday and it appears on its own.</p>
           </div>
           <div>
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Stop showing (optional)</label>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('al.stopShowing')}</label>
             <input type="datetime-local" value={aExpires} onChange={(e) => setAExpires(e.target.value)} className="input-field" />
-            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Leave blank to keep it up until you close it.</p>
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('al.blankKeepUp')}</p>
           </div>
         </div>
 
@@ -251,7 +251,7 @@ export default function AdminNotificationsPage() {
         </label>
         <label className="flex items-start gap-2 cursor-pointer mb-5">
           <input type="checkbox" checked={aNotify} onChange={(e) => setANotify(e.target.checked)} className="accent-dp-secondary mt-0.5" />
-          <span className="font-sans text-[13.5px]">Also send it as a notification
+          <span className="font-sans text-[13.5px]">{t('al.alsoNotify')}
             <span className="block text-[11.5px] text-dp-on-surface-variant">The red bar only reaches someone who opens the portal. This pushes it to them.</span>
           </span>
         </label>
@@ -336,14 +336,14 @@ export default function AdminNotificationsPage() {
                   {h.status !== 'active' && (
                     <button onClick={() => reopenAppeal(h.id)}
                       className="shrink-0 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-secondary cursor-pointer hover:bg-dp-surface-container-low transition-all">
-                      Show again
+                      {t('al.showAgain')}
                     </button>
                   )}
                 </div>
               )
             })}
             {history.length === 0 && (
-              <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No appeals posted yet.</p>
+              <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('al.noAppeals')}</p>
             )}
           </div>
         )}
@@ -353,16 +353,16 @@ export default function AdminNotificationsPage() {
       <div className="bg-white border border-dp-outline-variant rounded-lg p-6 mb-8">
         <div className="flex items-center gap-3 mb-6">
           <MessageCircle size={20} className="text-[#25D366]" />
-          <h2 className="font-sans text-[20px] font-semibold leading-[28px] text-dp-primary">Compose WhatsApp Alert</h2>
+          <h2 className="font-sans text-[20px] font-semibold leading-[28px] text-dp-primary">{t('al.composeWhatsapp')}</h2>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Audience</label>
+            <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('al.audience')}</label>
             <select value={audience} onChange={(e) => setAudience(e.target.value)} className="input-field">
-              <option value="all">All Consumers</option>
-              <option value="unpaid">Unpaid Bills Only</option>
-              <option value="custom">Custom Recipients</option>
+              <option value="all">{t('al.allConsumers')}</option>
+              <option value="unpaid">{t('al.unpaidOnly')}</option>
+              <option value="custom">{t('al.customRecipients')}</option>
             </select>
           </div>
 
@@ -395,12 +395,12 @@ export default function AdminNotificationsPage() {
       {/* History Log */}
       <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-dp-outline-variant">
-          <h3 className="font-sans text-[20px] font-semibold leading-[28px]">Message History</h3>
+          <h3 className="font-sans text-[20px] font-semibold leading-[28px]">{t('al.messageHistory')}</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]">
-              <th className="p-4">{t('w.date')}</th><th className="p-4">{t('a.type')}</th><th className="p-4">Recipient</th><th className="p-4">{t('g.message')}</th><th className="p-4">{t('w.status')}</th>
+              <th className="p-4">{t('w.date')}</th><th className="p-4">{t('a.type')}</th><th className="p-4">{t('al.recipient')}</th><th className="p-4">{t('g.message')}</th><th className="p-4">{t('w.status')}</th>
             </tr></thead>
             <tbody className="font-sans text-[16px]">
               {loading && <tr><td colSpan={5} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}
@@ -415,7 +415,7 @@ export default function AdminNotificationsPage() {
                   </td>
                 </tr>
               ))}
-              {!loading && logs.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-dp-on-surface-variant">No messages sent yet.</td></tr>}
+              {!loading && logs.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-dp-on-surface-variant">{t('al.noMessages')}</td></tr>}
             </tbody>
           </table>
         </div>

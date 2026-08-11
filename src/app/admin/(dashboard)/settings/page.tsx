@@ -174,7 +174,7 @@ function SettingsSection({
 }
 
 export default function AdminSettingsPage() {
-  const { t } = useLocale()
+  const { t: tr } = useLocale()
   const [settings, setSettings] = useState<Setting[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -460,7 +460,7 @@ export default function AdminSettingsPage() {
     setSaving(false)
   }
 
-  if (loading) return <div className="text-center py-12 text-dp-on-surface-variant">Loading settings...</div>
+  if (loading) return <div className="text-center py-12 text-dp-on-surface-variant">{tr('st.loading')}</div>
 
   // Renders the generic key/value cards for whichever settingGroups belong to
   // a category — shared across every category tab that has any, instead of
@@ -488,9 +488,9 @@ export default function AdminSettingsPage() {
                   {key === 'slip_display_mode' ? (
                     <>
                       <select value={values[key] || 'both'} onChange={(e) => setValues({ ...values, [key]: e.target.value })} className="input-field">
-                        <option value="both">Both — English / اردو side by side</option>
-                        <option value="en">English only</option>
-                        <option value="ur">Urdu only</option>
+                        <option value="both">{tr('st.bothLangs')}</option>
+                        <option value="en">{tr('st.englishOnly')}</option>
+                        <option value="ur">{tr('st.urduOnly')}</option>
                       </select>
                       <p className="font-sans text-[12px] text-dp-on-surface-variant mt-2">
                         Applies to the Universal Slip. &ldquo;Both&rdquo; prints each label in English and Urdu together (Donation Received / عطیہ وصولی) so neither language has to give up its slot. Names, amounts and anything typed in always print exactly as entered.
@@ -500,7 +500,7 @@ export default function AdminSettingsPage() {
                     <>
                       <select value={values[key] || 'a4'} onChange={(e) => setValues({ ...values, [key]: e.target.value })} className="input-field">
                         <option value="a4">A4 printer / PDF</option>
-                        <option value="thermal">Bluetooth thermal (58/80mm)</option>
+                        <option value="thermal">{tr('st.thermal')}</option>
                       </select>
                       <p className="font-sans text-[12px] text-dp-on-surface-variant mt-2">
                         Which target is pre-selected when a {key === 'slip_format_donor' ? 'donor' : 'consumer'} slip is opened. Whoever is printing can still switch it on the slip itself.
@@ -519,7 +519,7 @@ export default function AdminSettingsPage() {
                         className="font-sans text-dp-on-surface truncate"
                         style={{ fontSize: Math.min(Math.max(Number(values[key]) || 14, 8), 48) }}
                       >
-                        Sample 1,250.00
+                        {tr('st.sample')}
                       </span>
                     </div>
                   ) : key === 'display_language' ? (
@@ -529,8 +529,8 @@ export default function AdminSettingsPage() {
                         onChange={(e) => setValues({ ...values, [key]: e.target.value })}
                         className="input-field"
                       >
-                        <option value="en">English</option>
-                        <option value="ur">Urdu</option>
+                        <option value="en">{tr('st.english')}</option>
+                        <option value="ur">{tr('st.urdu')}</option>
                       </select>
                       <p className="font-sans text-[12px] text-dp-on-surface-variant mt-2">
                         When set to Urdu, every bill, receipt, voucher, printable statement/register, and report switches to Urdu — labels, headings, and table columns. Company name/email and any name or note actually typed in (consumer names, particulars, etc.) always stay exactly as entered, in whichever script was used.
@@ -565,7 +565,7 @@ export default function AdminSettingsPage() {
     <>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="font-heading text-[28px] sm:text-[32px] font-bold leading-[40px] text-dp-primary">Site Settings</h1>
+          <h1 className="font-heading text-[28px] sm:text-[32px] font-bold leading-[40px] text-dp-primary">{tr('st.title')}</h1>
           <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">Changes in most sections save immediately. Company/branding/payment/document fields are staged — use Save All below.</p>
         </div>
         <button onClick={saveAll} disabled={saving} className="flex items-center gap-2 px-6 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50 shrink-0">
@@ -628,18 +628,18 @@ export default function AdminSettingsPage() {
             onClick={() => setMobileMenuOpen(true)}
             className="md:hidden flex items-center gap-1.5 text-dp-secondary font-sans text-[13.5px] font-semibold cursor-pointer mb-1"
           >
-            <ChevronLeft size={17} /> All settings
+            <ChevronLeft size={17} /> {tr('st.allSettings')}
           </button>
           {activeCategory === 'general' && (
             <>
               <SettingsSection title="Company Identity" icon={Building2} defaultOpen>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
-                    <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Company Name (English)</label>
+                    <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{tr('st.companyNameEn')}</label>
                     <input type="text" value={values.company_name_en ?? ''} onChange={(e) => setValues({ ...values, company_name_en: e.target.value })} className="input-field" />
                   </div>
                   <div>
-                    <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Company Name (Urdu)</label>
+                    <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{tr('st.companyNameUr')}</label>
                     <input
                       type="text" dir="rtl" value={values.company_name_ur ?? ''}
                       onChange={(e) => setValues({ ...values, company_name_ur: e.target.value })}
@@ -648,7 +648,7 @@ export default function AdminSettingsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Company Email</label>
+                    <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{tr('st.companyEmail')}</label>
                     <input type="email" value={values.company_email ?? ''} onChange={(e) => setValues({ ...values, company_email: e.target.value })} className="input-field" />
                   </div>
                 </div>
@@ -664,11 +664,11 @@ export default function AdminSettingsPage() {
                   <div className="mt-6 pt-6 border-t border-dp-outline-variant">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-4">
                       <div>
-                        <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Logo Size (px)</label>
+                        <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{tr('st.logoSize')}</label>
                         <input type="number" min={20} max={200} value={values.invoice_logo_width || '56'} onChange={(e) => setValues({ ...values, invoice_logo_width: e.target.value })} className="input-field" />
                       </div>
                       <div>
-                        <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Vertical Position (px, negative moves up)</label>
+                        <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{tr('st.verticalPos')}</label>
                         <input type="number" value={values.invoice_logo_offset_y || '0'} onChange={(e) => setValues({ ...values, invoice_logo_offset_y: e.target.value })} className="input-field" />
                       </div>
                     </div>
@@ -715,7 +715,7 @@ export default function AdminSettingsPage() {
                       />
                       <div className="mt-2 bg-dp-surface-container-low/60 rounded-lg px-3 py-2.5">
                         <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">
-                          Tags you can use in this message
+                          {tr('st.tagsYouCanUse')}
                         </p>
                         <div className="flex flex-wrap gap-1.5">
                           {(TEMPLATE_KEYS[t.key] ?? []).map((k) => (
@@ -821,7 +821,7 @@ export default function AdminSettingsPage() {
                     onClick={() => setValues({ ...values, donor_invoice_template: '' })}
                     className={`text-start p-4 rounded-lg border-2 cursor-pointer transition-all ${!values.donor_invoice_template ? 'border-dp-secondary bg-dp-secondary/5' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
                   >
-                    <p className={`font-sans text-[14px] font-bold mb-1 ${!values.donor_invoice_template ? 'text-dp-secondary' : 'text-dp-on-surface'}`}>Same as Water Supply</p>
+                    <p className={`font-sans text-[14px] font-bold mb-1 ${!values.donor_invoice_template ? 'text-dp-secondary' : 'text-dp-on-surface'}`}>{tr('st.sameAsWater')}</p>
                     <p className="font-sans text-[12px] text-dp-on-surface-variant">Uses whichever template is picked under Documents &amp; Templates</p>
                   </button>
                   {invoiceTemplates.map((t) => {
@@ -947,7 +947,7 @@ export default function AdminSettingsPage() {
 
                       <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2">{s.label} — Approver Roster</p>
                       {(eligibleApprovers[s.key] ?? []).length === 0 ? (
-                        <p className="font-sans text-[12.5px] text-dp-on-surface-variant">No eligible users for this system yet.</p>
+                        <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{tr('st.noEligible')}</p>
                       ) : (
                         <div className="space-y-1.5">
                           {(eligibleApprovers[s.key] ?? []).map((u) => {
@@ -985,7 +985,7 @@ export default function AdminSettingsPage() {
                     <div key={s.key}>
                       <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2">{s.label}</p>
                       {(eligibleHandlers[s.key] ?? []).length === 0 ? (
-                        <p className="font-sans text-[12.5px] text-dp-on-surface-variant">No eligible users for this system yet.</p>
+                        <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{tr('st.noEligible')}</p>
                       ) : (
                         <div className="space-y-1.5">
                           {(eligibleHandlers[s.key] ?? []).map((u) => {
@@ -1009,7 +1009,7 @@ export default function AdminSettingsPage() {
                   Choose how each alert reaches people — an in-app popup (instant, only seen while logged in) and/or a WhatsApp message (opens a pre-filled chat someone taps to send, since no WhatsApp Business API is connected). Both can be on at once.
                 </p>
                 {notifPrefs.length === 0 ? (
-                  <p className="font-sans text-[13px] text-dp-on-surface-variant">No notification types configured yet.</p>
+                  <p className="font-sans text-[13px] text-dp-on-surface-variant">{tr('st.noNotifTypes')}</p>
                 ) : (
                   <div className="space-y-2">
                     {notifPrefs.map((p) => (
@@ -1018,11 +1018,11 @@ export default function AdminSettingsPage() {
                         <div className="flex items-center gap-4">
                           <label className="flex items-center gap-1.5 cursor-pointer">
                             <input type="checkbox" checked={p.popup_enabled} onChange={() => toggleNotifChannel(p.event_type, 'popup_enabled', p.popup_enabled)} className="accent-dp-secondary" />
-                            <span className="font-sans text-[12.5px] text-dp-on-surface-variant flex items-center gap-1"><Bell size={12} /> Popup</span>
+                            <span className="font-sans text-[12.5px] text-dp-on-surface-variant flex items-center gap-1"><Bell size={12} /> {tr('st.popup')}</span>
                           </label>
                           <label className="flex items-center gap-1.5 cursor-pointer">
                             <input type="checkbox" checked={p.whatsapp_enabled} onChange={() => toggleNotifChannel(p.event_type, 'whatsapp_enabled', p.whatsapp_enabled)} className="accent-[#25d366]" />
-                            <span className="font-sans text-[12.5px] text-dp-on-surface-variant flex items-center gap-1"><MessageCircle size={12} /> {t('w.whatsapp')}</span>
+                            <span className="font-sans text-[12.5px] text-dp-on-surface-variant flex items-center gap-1"><MessageCircle size={12} /> {tr('w.whatsapp')}</span>
                           </label>
                         </div>
                       </div>
@@ -1036,7 +1036,7 @@ export default function AdminSettingsPage() {
           {activeCategory === 'danger' && (
             <div className="bg-white border-2 border-dp-error/40 rounded-lg p-6">
               <h2 className="font-sans text-[18px] font-semibold leading-[26px] text-dp-error mb-1 flex items-center gap-2">
-                <AlertTriangle size={20} /> Danger Zone
+                <AlertTriangle size={20} /> {tr('st.dangerZone')}
               </h2>
               <p className="font-sans text-[12px] text-dp-on-surface-variant mb-4 pb-3 border-b border-dp-outline-variant">
                 Resetting a system permanently clears its bills, payments, vouchers, purchases, inventory movement history, and recurring schedules. Consumers, inventory stock levels, and the chart of accounts are kept exactly as they are. This cannot be undone.
@@ -1055,20 +1055,20 @@ export default function AdminSettingsPage() {
                     <div className="flex items-center justify-between gap-3 flex-wrap">
                       <span className="font-sans text-[14px] font-semibold text-dp-on-surface">{sys === 'water_supply' ? 'Water Supply' : 'Donors & Projects'}</span>
                       {resetSystem !== sys && (
-                        <button onClick={() => { setResetSystem(sys); setResetConfirmText('') }} className="px-3 py-1.5 border border-dp-error text-dp-error rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-error/5 transition-all cursor-pointer">Reset...</button>
+                        <button onClick={() => { setResetSystem(sys); setResetConfirmText('') }} className="px-3 py-1.5 border border-dp-error text-dp-error rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-error/5 transition-all cursor-pointer">{tr('st.reset')}</button>
                       )}
                     </div>
                     {resetSystem === sys && (
                       <div className="mt-3 space-y-2 bg-dp-error-container/30 rounded-lg p-3">
                         <p className="font-sans text-[12.5px] text-dp-on-surface">
-                          {t('a.type')} <span className="font-mono font-bold">{resetLabel(sys)}</span> to confirm.
+                          {tr('a.type')} <span className="font-mono font-bold">{resetLabel(sys)}</span> to confirm.
                         </p>
                         <input
                           autoFocus value={resetConfirmText} onChange={(e) => setResetConfirmText(e.target.value)}
                           placeholder="Type to confirm" className="input-field !py-2 text-[14px]"
                         />
                         <div className="flex gap-2">
-                          <button onClick={() => setResetSystem(null)} className="flex-1 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
+                          <button onClick={() => setResetSystem(null)} className="flex-1 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{tr('action.cancel')}</button>
                           <button
                             disabled={resetConfirmText !== resetLabel(sys) || resetting}
                             onClick={() => handleReset(sys)}

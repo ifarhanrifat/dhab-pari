@@ -241,7 +241,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
   }
 
   if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
-  if (!complaint) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Complaint not found.</div>
+  if (!complaint) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('cp.notFound')}</div>
 
   const canVerify = me && (me.role === 'super_admin' || me.can_verify_complaints)
   const isHandler = me && handlers.some((h) => h.admin_user_id === me.id)
@@ -250,7 +250,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
   return (
     <>
       <Link href="/admin/complaints" className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[13px] font-semibold hover:underline mb-4">
-        <ArrowLeft size={14} /> Back to Complaints
+        <ArrowLeft size={14} /> {t('cp.back')}
       </Link>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant p-6 mb-6">
@@ -272,7 +272,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
 
         <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-dp-outline-variant flex-wrap">
           <p className="font-sans text-[13px] text-dp-on-surface-variant">
-            Assigned to: <span className="font-semibold text-dp-on-surface">{complaint.assigned_to ? (names[complaint.assigned_to] ?? 'Someone') : 'Unassigned'}</span>
+            {t('cp.assignedTo')} <span className="font-semibold text-dp-on-surface">{complaint.assigned_to ? (names[complaint.assigned_to] ?? 'Someone') : 'Unassigned'}</span>
           </p>
           <div className="flex items-center gap-2 flex-wrap">
             {complaint.status !== 'verified' && (
@@ -288,32 +288,32 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
             )}
             {isHandler && me && complaint.assigned_to !== me.id && complaint.status !== 'verified' && (
               <button onClick={() => assign(me.id)} disabled={busy} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">
-                <UserPlus size={13} /> Assign to Me
+                <UserPlus size={13} /> {t('cp.assignMe')}
               </button>
             )}
             {complaint.status === 'open' && (
               <>
                 <button onClick={() => setShowExtend(true)} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">
-                  <CalendarPlus size={13} /> Extend Deadline
+                  <CalendarPlus size={13} /> {t('cp.extendDeadline')}
                 </button>
                 <button onClick={() => setShowResolve(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
-                  <CheckCircle2 size={13} /> Mark Resolved
+                  <CheckCircle2 size={13} /> {t('cp.markResolved')}
                 </button>
               </>
             )}
             {complaint.status === 'awaiting_verification' && canVerify && (
               <>
                 <button onClick={() => setShowVerifyDecision('reopen')} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-error text-dp-error rounded-lg font-sans text-[12.5px] font-semibold hover:bg-red-50 transition-all cursor-pointer">
-                  <RotateCcw size={13} /> Send Back
+                  <RotateCcw size={13} /> {t('cp.sendBack')}
                 </button>
                 <button onClick={() => setShowVerifyDecision('verify')} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
-                  <CheckCircle2 size={13} /> Verify &amp; Close
+                  <CheckCircle2 size={13} /> {t('cp.verifyClose')}
                 </button>
               </>
             )}
             {complaint.status === 'verified' && complaint.phone && (
               <button onClick={notifyComplainantViaWhatsApp} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#25d366] text-white rounded-lg font-sans text-[12.5px] font-semibold hover:opacity-90 transition-all cursor-pointer">
-                <MessageCircle size={13} /> Notify Complainant
+                <MessageCircle size={13} /> {t('cp.notify')}
               </button>
             )}
           </div>
@@ -322,7 +322,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
 
       {complaint.system === 'water_supply' && (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-6 mb-6">
-          <h2 className="font-sans text-[15px] font-bold text-dp-on-surface mb-4 flex items-center gap-2"><Link2 size={16} /> Consumer &amp; Bill Waiver</h2>
+          <h2 className="font-sans text-[15px] font-bold text-dp-on-surface mb-4 flex items-center gap-2"><Link2 size={16} /> {t('cp.consumerWaiver')}</h2>
 
           {!consumerInfo ? (
             <div className="relative">
@@ -352,10 +352,10 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
                   {consumerInfo.mobile && <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{consumerInfo.mobile}</p>}
                 </div>
                 <div className="text-end">
-                  <p className="font-sans text-[11px] uppercase tracking-wide text-dp-on-surface-variant">Outstanding</p>
+                  <p className="font-sans text-[11px] uppercase tracking-wide text-dp-on-surface-variant">{t('cp.outstanding')}</p>
                   <p className={`font-sans text-[16px] font-bold ${outstanding > 0 ? 'text-dp-error' : 'text-emerald-700'}`}>Rs. {outstanding.toLocaleString()}</p>
                 </div>
-                <Link href={`/admin/billing?consumer=${consumerInfo.consumer_id}`} className="text-dp-secondary font-sans text-[12.5px] font-semibold hover:underline">View Billing →</Link>
+                <Link href={`/admin/billing?consumer=${consumerInfo.consumer_id}`} className="text-dp-secondary font-sans text-[12.5px] font-semibold hover:underline">{t('cp.viewBilling')}</Link>
               </div>
 
               {complaint.status !== 'verified' && canVerify && (
@@ -363,24 +363,24 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
                   {complaint.waiver_active ? (
                     <div className="flex items-center justify-between flex-wrap gap-3">
                       <p className="font-sans text-[13px] text-dp-on-surface">
-                        Waiver active: <span className="font-bold">{complaint.waiver_type === 'full' ? 'Full' : `${complaint.waiver_percent}%`}</span> — applied automatically to the pending bill and every future bill while this complaint stays open.
+                        {t('cp.waiverActive')} <span className="font-bold">{complaint.waiver_type === 'full' ? 'Full' : `${complaint.waiver_percent}%`}</span> — applied automatically to the pending bill and every future bill while this complaint stays open.
                       </p>
                       <button disabled={waiverBusy} onClick={clearWaiver} className="px-3 py-1.5 border border-dp-error text-dp-error rounded-lg font-sans text-[12.5px] font-semibold hover:bg-red-50 transition-all cursor-pointer disabled:opacity-50 shrink-0">
-                        Clear Waiver
+                        {t('cp.clearWaiver')}
                       </button>
                     </div>
                   ) : (
                     <div className="flex items-end gap-3 flex-wrap">
                       <div>
-                        <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Waiver Type</label>
+                        <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('cp.waiverType')}</label>
                         <select value={waiverType} onChange={(e) => setWaiverType(e.target.value as 'full' | 'percent')} className="input-field !py-1.5 !text-[13px]">
-                          <option value="full">Full</option>
-                          <option value="percent">Custom %</option>
+                          <option value="full">{t('cp.full')}</option>
+                          <option value="percent">{t('cp.customPct')}</option>
                         </select>
                       </div>
                       {waiverType === 'percent' && (
                         <div>
-                          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Percent</label>
+                          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('cp.percent')}</label>
                           <input type="number" min={1} max={100} value={waiverPercent} onChange={(e) => setWaiverPercent(+e.target.value)} className="input-field !py-1.5 !text-[13px] w-24" />
                         </div>
                       )}
@@ -394,7 +394,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
 
               {waivedBills.length > 0 && (
                 <div>
-                  <p className="font-sans text-[12px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-2">Bills Waived Through This Complaint</p>
+                  <p className="font-sans text-[12px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-2">{t('cp.billsWaived')}</p>
                   <div className="space-y-1.5">
                     {waivedBills.map((b) => {
                       const v = waiverVouchers[b.waiver_voucher_id]
@@ -419,16 +419,16 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
       {showResolve && (
         <Modal title="Mark Resolved" onClose={() => setShowResolve(false)}>
           <textarea value={resolveNote} onChange={(e) => setResolveNote(e.target.value)} rows={3} placeholder="What was done to fix it? (optional)" className="input-field resize-none mb-4" />
-          <button disabled={busy} onClick={resolve} className="w-full bg-emerald-600 text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-50">Submit for Verification</button>
+          <button disabled={busy} onClick={resolve} className="w-full bg-emerald-600 text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-50">{t('cp.submitVerification')}</button>
         </Modal>
       )}
       {showExtend && (
         <Modal title="Extend Deadline" onClose={() => setShowExtend(false)}>
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Extend by (days)</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cp.extendBy')}</label>
           <input type="number" min={1} value={extendDays} onChange={(e) => setExtendDays(+e.target.value)} className="input-field mb-4" />
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Reason (optional)</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cp.reasonOptional')}</label>
           <textarea value={extendNote} onChange={(e) => setExtendNote(e.target.value)} rows={2} className="input-field resize-none mb-4" />
-          <button disabled={busy} onClick={extend} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">Extend</button>
+          <button disabled={busy} onClick={extend} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">{t('cp.extend')}</button>
         </Modal>
       )}
       {showVerifyDecision && (
@@ -445,10 +445,10 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
       )}
 
       <div className="bg-white rounded-lg border border-dp-outline-variant p-6">
-        <h2 className="font-sans text-[15px] font-bold text-dp-on-surface mb-4">Status &amp; Conversation</h2>
+        <h2 className="font-sans text-[15px] font-bold text-dp-on-surface mb-4">{t('cp.statusConversation')}</h2>
         <div className="space-y-4 mb-6">
           {updates.length === 0 ? (
-            <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-6">No updates yet.</p>
+            <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-6">{t('cp.noUpdates')}</p>
           ) : (
             updates.map((u) => (
               <div key={u.id} className={u.kind === 'comment' ? 'flex gap-3' : ''}>
@@ -460,7 +460,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
                     {u.body && <p className="font-sans text-[13.5px] text-dp-on-surface whitespace-pre-wrap">{u.body}</p>}
                     {u.photo_url && (
                       <a href={u.photo_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[12.5px] font-semibold hover:underline">
-                        <ImageIcon size={13} /> View photo
+                        <ImageIcon size={13} /> {t('cp.viewPhoto')}
                       </a>
                     )}
                     {u.voice_url && (
@@ -485,9 +485,9 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <FileAttachment label="Photo (optional)" currentUrl={photoUrl || null} onUpload={setPhotoUrl} />
             <div>
-              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Voice Message (optional)</label>
+              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cp.voiceOptional')}</label>
               <VoiceRecorder onUpload={setVoiceUrl} />
-              {voiceUrl && <p className="font-sans text-[11.5px] text-emerald-700 mt-1">Voice message attached — ready to post.</p>}
+              {voiceUrl && <p className="font-sans text-[11.5px] text-emerald-700 mt-1">{t('cp.voiceAttached')}</p>}
             </div>
           </div>
           <button disabled={posting} onClick={postComment} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
