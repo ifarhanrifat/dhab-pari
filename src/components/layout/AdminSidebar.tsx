@@ -55,6 +55,7 @@ const menuItems: {
   href: string; label: string; icon: LucideIcon
   system?: 'water_supply' | 'donors_projects'
   module?: 'business'
+  publish?: 'news' | 'videos' | 'gallery' | 'ticker' | 'jobs'
   badge?: string
   collectorOnly?: boolean; adminAndAbove?: boolean; superAdminOnly?: boolean
 }[] = [
@@ -79,21 +80,21 @@ const menuItems: {
   { href: '/admin/payment-claims', label: 'Payment Claims', icon: UploadCloud, system: 'water_supply', badge: 'payment_claims' },
   { href: '/admin/collectors', label: 'Collectors', icon: Coins, system: 'water_supply' },
   { href: '/admin/employees', label: 'Employees', icon: HardHat, system: 'water_supply' },
-  { href: '/admin/news', label: 'News', icon: Newspaper },
-  { href: '/admin/videos', label: 'Videos', icon: Video },
+  { href: '/admin/news', label: 'News', icon: Newspaper, publish: 'news' },
+  { href: '/admin/videos', label: 'Videos', icon: Video, publish: 'videos' },
   { href: '/admin/donors', label: 'Donors', icon: Heart, system: 'donors_projects', badge: 'donors' },
   { href: '/admin/donors/collectors', label: 'Donor Collectors', icon: Coins, system: 'donors_projects' },
-  { href: '/admin/gallery', label: 'Gallery', icon: Image },
+  { href: '/admin/gallery', label: 'Gallery', icon: Image, publish: 'gallery' },
   { href: '/admin/suggestions', label: 'Suggestions', icon: MessageSquare, badge: 'suggestions' },
   { href: '/admin/volunteers', label: 'Volunteers', icon: HandHeart, system: 'donors_projects', badge: 'volunteers' },
   { href: '/admin/comments', label: 'Project Comments', icon: MessageSquare, system: 'donors_projects' },
   { href: '/admin/project-transfers', label: 'Project Transfers', icon: ArrowRightLeft, system: 'donors_projects' },
   { href: '/admin/complaints', label: 'Complaints', icon: MessageSquareWarning, badge: 'complaints' },
-  { href: '/admin/ticker', label: 'Ticker', icon: TicketSlash },
+  { href: '/admin/ticker', label: 'Ticker', icon: TicketSlash, publish: 'ticker' },
   { href: '/admin/notifications', label: 'Alerts & Appeals', icon: Bell, badge: 'alerts' },
   { href: '/admin/blood-donors', label: 'Blood Donors', icon: Droplet },
   { href: '/admin/blood-requests', label: 'Blood Requests', icon: Droplet, badge: 'blood_requests' },
-  { href: '/admin/jobs', label: 'Job Listings', icon: Briefcase },
+  { href: '/admin/jobs', label: 'Job Listings', icon: Briefcase, publish: 'jobs' },
   { href: '/admin/reports', label: 'Reports', icon: FileText },
   { href: '/admin/running-capital', label: 'Running Capital', icon: LineChart },
   { href: '/admin/users', label: 'Users', icon: UserCog, adminAndAbove: true },
@@ -118,7 +119,11 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
-  const [profile, setProfile] = useState<{ full_name: string; role: string; can_collect_payments: boolean } | null>(null)
+  const [profile, setProfile] = useState<{
+    full_name: string; role: string; can_collect_payments: boolean
+    can_publish_news: boolean; can_publish_videos: boolean; can_publish_gallery: boolean
+    can_publish_ticker: boolean; can_publish_jobs: boolean
+  } | null>(null)
   // Same can_access_system() the RLS policies are built on, rather than a
   // hand-maintained list of role names — the old check only knew about
   // water_accountant and donor_accountant, so an 'accountant' granted just one
@@ -130,7 +135,9 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
-      const { data } = await supabase.from('admin_users').select('full_name, role, can_collect_payments').eq('auth_user_id', user.id).single()
+      const { data } = await supabase.from('admin_users')
+        .select('full_name, role, can_collect_payments, can_publish_news, can_publish_videos, can_publish_gallery, can_publish_ticker, can_publish_jobs')
+        .eq('auth_user_id', user.id).single()
       if (data) setProfile(data)
     })
   }, [supabase])
@@ -166,6 +173,26 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
     if (item.collectorOnly && !profile.can_collect_payments) return false
     if (item.superAdminOnly && profile.role !== 'super_admin') return false
     if (item.adminAndAbove && profile.role !== 'super_admin' && profile.role !== 'admin') return false
+
+    // A publisher writes content and nothing else. The role was never filtered
+    // here, so a publisher previously saw billing, accounts, transactions and
+    // every committee section — they simply had no permission to act once they
+    // arrived. Now the menu says so: their own areas, and the dashboard.
+    const publisherAreas: Record<string, boolean> = {
+      news: !!profile.can_publish_news,
+      videos: !!profile.can_publish_videos,
+      gallery: !!profile.can_publish_gallery,
+      ticker: !!profile.can_publish_ticker,
+      jobs: !!profile.can_publish_jobs,
+    }
+    if (profile.role === 'publisher') {
+      if (item.href === '/admin') return true
+      return !!item.publish && publisherAreas[item.publish]
+    }
+    // Anyone else keeps a publishable section only if they hold that area.
+    // Administrators are given every area by the migration, so nothing changes
+    // for them.
+    if (item.publish && !publisherAreas[item.publish]) return false
 
     // While access is still loading, show nothing system-specific rather than
     // flashing the other account's menu and then removing it.

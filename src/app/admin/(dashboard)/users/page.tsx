@@ -28,6 +28,11 @@ interface AdminUser {
   can_invite_users: boolean
   access_water_supply: boolean
   access_donors_projects: boolean
+  can_publish_news: boolean
+  can_publish_videos: boolean
+  can_publish_gallery: boolean
+  can_publish_ticker: boolean
+  can_publish_jobs: boolean
   invited_at: string | null
   invite_accepted_at: string | null
   created_at: string
@@ -121,6 +126,16 @@ const permissionFields: { key: keyof AdminUser; label: string }[] = [
   { key: 'can_delete_accounts', label: 'Can delete chart of accounts entries' },
 ]
 
+// Each maps to one admin section and its RLS policy, so ticking a box here is
+// the same grant the database enforces — not a menu-hiding convenience.
+const publishFields: { key: keyof AdminUser; label: string; hint: string }[] = [
+  { key: 'can_publish_news', label: 'News & Announcements', hint: 'Village news, sports, education, health, social posts' },
+  { key: 'can_publish_videos', label: 'Videos', hint: 'Video library entries' },
+  { key: 'can_publish_gallery', label: 'Photo Gallery', hint: 'Albums and photographs' },
+  { key: 'can_publish_ticker', label: 'Homepage Ticker', hint: 'The scrolling notices strip' },
+  { key: 'can_publish_jobs', label: 'Job Listings', hint: 'Village job board' },
+]
+
 const adminPermissionFields: { key: keyof AdminUser; label: string }[] = [
   { key: 'can_restore_deleted', label: 'Can restore deleted records from the Audit Log' },
   { key: 'can_invite_users', label: 'Can invite and remove users (never Super Admins)' },
@@ -133,6 +148,8 @@ const emptyInvite = {
   can_manage_parties: false, can_manage_accounts: false, can_edit_accounts: false, can_delete_accounts: false,
   can_restore_deleted: false, can_invite_users: false,
   access_water_supply: false, access_donors_projects: false,
+  can_publish_news: false, can_publish_videos: false, can_publish_gallery: false,
+  can_publish_ticker: false, can_publish_jobs: false,
 }
 
 function generatePassword() {
@@ -142,7 +159,13 @@ function generatePassword() {
   return out
 }
 
-const emptyCollectorForm = { mobile: '', can_collect_payments: false, assigned_sectors: [] as string[], can_verify_complaints: false, secondary_role: '' }
+const emptyCollectorForm = {
+  mobile: '', can_collect_payments: false, assigned_sectors: [] as string[],
+  can_verify_complaints: false, secondary_role: '',
+  access_water_supply: false, access_donors_projects: false,
+  can_publish_news: false, can_publish_videos: false, can_publish_gallery: false,
+  can_publish_ticker: false, can_publish_jobs: false,
+}
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([])
@@ -206,6 +229,10 @@ export default function AdminUsersPage() {
     setCollectorForm({
       mobile: u.mobile ?? '', can_collect_payments: u.can_collect_payments, assigned_sectors: u.assigned_sectors ?? [],
       can_verify_complaints: u.can_verify_complaints, secondary_role: u.secondary_role ?? '',
+      access_water_supply: u.access_water_supply, access_donors_projects: u.access_donors_projects,
+      can_publish_news: u.can_publish_news, can_publish_videos: u.can_publish_videos,
+      can_publish_gallery: u.can_publish_gallery, can_publish_ticker: u.can_publish_ticker,
+      can_publish_jobs: u.can_publish_jobs,
     })
   }
 
@@ -227,6 +254,13 @@ export default function AdminUsersPage() {
       assigned_sectors: collectorForm.can_collect_payments && collectorForm.assigned_sectors.length > 0 ? collectorForm.assigned_sectors : null,
       can_verify_complaints: collectorForm.can_verify_complaints,
       secondary_role: collectorForm.secondary_role || null,
+      access_water_supply: collectorForm.access_water_supply,
+      access_donors_projects: collectorForm.access_donors_projects,
+      can_publish_news: collectorForm.can_publish_news,
+      can_publish_videos: collectorForm.can_publish_videos,
+      can_publish_gallery: collectorForm.can_publish_gallery,
+      can_publish_ticker: collectorForm.can_publish_ticker,
+      can_publish_jobs: collectorForm.can_publish_jobs,
     }).eq('id', editingUser.id)
     setSavingCollector(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -574,9 +608,15 @@ export default function AdminUsersPage() {
                 </select>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">Grants this role&apos;s access <em>in addition to</em> the primary role above — e.g. a Water Accountant with Donor Accountant as secondary can access both books.</p>
               </div>
-              {form.role === 'accountant' && (
+              {/* Which books, asked for every role rather than only for
+                  'accountant'. That restriction is why "a viewer for the water
+                  accounts only" or "a collector for donations only" could not be
+                  expressed — a viewer always saw both sets. Full administrators
+                  are not scoped; scoping them would lock the only people who can
+                  undo a scoping mistake out of undoing it. */}
+              {form.role !== 'super_admin' && form.role !== 'admin' && (
                 <div className="bg-dp-surface-container-low rounded-lg p-4 space-y-2.5">
-                  <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">System Access</p>
+                  <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Which books can they open?</p>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={form.access_water_supply} onChange={(e) => setForm({ ...form, access_water_supply: e.target.checked })} className="accent-dp-secondary" />
                     <span className="font-sans text-[13.5px]">Water Supply System</span>
@@ -585,6 +625,41 @@ export default function AdminUsersPage() {
                     <input type="checkbox" checked={form.access_donors_projects} onChange={(e) => setForm({ ...form, access_donors_projects: e.target.checked })} className="accent-dp-secondary" />
                     <span className="font-sans text-[13.5px]">Donors &amp; Projects System</span>
                   </label>
+                  {!form.access_water_supply && !form.access_donors_projects && form.role !== 'publisher' && (
+                    <p className="font-sans text-[12px] text-dp-error bg-dp-error/5 border border-dp-error/30 rounded px-2.5 py-2 mt-1">
+                      With neither ticked this user can sign in but will find every accounting
+                      screen empty. Tick at least one, or use the Publisher role for someone who
+                      only writes content.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Publishing areas. One publisher writes the news, another keeps
+                  the gallery — each sees only their own section, and the same
+                  grant is what the database checks on write. */}
+              {(form.role === 'publisher' || form.secondary_role === 'publisher') && (
+                <div className="bg-dp-surface-container-low rounded-lg p-4 space-y-2.5">
+                  <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">What can they publish?</p>
+                  {publishFields.map((f) => (
+                    <label key={f.key} className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!form[f.key as keyof typeof form]}
+                        onChange={(e) => setForm({ ...form, [f.key]: e.target.checked })}
+                        className="accent-dp-secondary mt-0.5"
+                      />
+                      <span className="min-w-0">
+                        <span className="block font-sans text-[13.5px]">{f.label}</span>
+                        <span className="block font-sans text-[11.5px] text-dp-on-surface-variant">{f.hint}</span>
+                      </span>
+                    </label>
+                  ))}
+                  {publishFields.every((f) => !form[f.key as keyof typeof form]) && (
+                    <p className="font-sans text-[12px] text-dp-error bg-dp-error/5 border border-dp-error/30 rounded px-2.5 py-2 mt-1">
+                      A publisher with no areas ticked sees only the dashboard.
+                    </p>
+                  )}
                 </div>
               )}
               {showPermissions && (
@@ -766,6 +841,35 @@ export default function AdminUsersPage() {
                 </div>
               )}
               <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                {/* Which books, for a user who already exists. Previously only
+                    settable at invite time, so correcting somebody's access meant
+                    deleting and recreating them. */}
+                {editingUser.role !== 'super_admin' && editingUser.role !== 'admin' && (
+                  <div className="bg-dp-surface-container-low rounded-lg p-3 space-y-2 mb-3">
+                    <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Which books can they open?</p>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={collectorForm.access_water_supply} onChange={(e) => setCollectorForm({ ...collectorForm, access_water_supply: e.target.checked })} className="accent-dp-secondary" />
+                      <span className="font-sans text-[13.5px]">Water Supply</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={collectorForm.access_donors_projects} onChange={(e) => setCollectorForm({ ...collectorForm, access_donors_projects: e.target.checked })} className="accent-dp-secondary" />
+                      <span className="font-sans text-[13.5px]">Donors &amp; Projects</span>
+                    </label>
+                  </div>
+                )}
+
+                {(editingUser.role === 'publisher' || collectorForm.secondary_role === 'publisher') && (
+                  <div className="bg-dp-surface-container-low rounded-lg p-3 space-y-2 mb-3">
+                    <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">What can they publish?</p>
+                    {publishFields.map((f) => (
+                      <label key={f.key} className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={!!collectorForm[f.key as keyof typeof collectorForm]} onChange={(e) => setCollectorForm({ ...collectorForm, [f.key]: e.target.checked })} className="accent-dp-secondary" />
+                        <span className="font-sans text-[13.5px]">{f.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"

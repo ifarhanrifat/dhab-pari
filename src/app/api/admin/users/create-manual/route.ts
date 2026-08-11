@@ -43,6 +43,8 @@ export async function POST(req: NextRequest) {
     can_manage_parties?: boolean; can_manage_accounts?: boolean; can_edit_accounts?: boolean; can_delete_accounts?: boolean
     can_restore_deleted?: boolean; can_invite_users?: boolean
     access_water_supply?: boolean; access_donors_projects?: boolean
+    can_publish_news?: boolean; can_publish_videos?: boolean; can_publish_gallery?: boolean
+    can_publish_ticker?: boolean; can_publish_jobs?: boolean
   }
   try {
     body = await req.json()
@@ -99,6 +101,11 @@ export async function POST(req: NextRequest) {
     can_restore_deleted: !!body.can_restore_deleted,
     can_invite_users: !!body.can_invite_users,
     access_water_supply: !!body.access_water_supply,
+    can_publish_news: !!body.can_publish_news,
+    can_publish_videos: !!body.can_publish_videos,
+    can_publish_gallery: !!body.can_publish_gallery,
+    can_publish_ticker: !!body.can_publish_ticker,
+    can_publish_jobs: !!body.can_publish_jobs,
     access_donors_projects: !!body.access_donors_projects,
     invited_at: new Date().toISOString(),
     invite_accepted_at: new Date().toISOString(),
