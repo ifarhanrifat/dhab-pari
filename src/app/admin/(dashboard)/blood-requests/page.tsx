@@ -13,6 +13,8 @@ interface BloodRequest {
   id: string; patient_name: string; requester_name: string; requester_whatsapp: string
   requester_relation: string | null; blood_group: string; units_needed: number
   city: string; hospital: string; needed_on: string; needed_time: string | null; notes: string | null
+  patient_kind: 'man' | 'woman' | 'child' | null
+  needed_hour: number | null; needed_period: 'subha' | 'dopahar' | 'shaam' | 'raat' | null
   status: 'pending_approval' | 'open' | 'paused' | 'fulfilled' | 'cancelled' | 'expired'
   taken_at: string; approved_at: string | null; cancelled_at: string | null
   cancel_reason: string | null; fulfilled_at: string | null
@@ -24,6 +26,16 @@ interface Eligible {
   blood_group: string; city: string | null; sector: string | null
   last_donation_date: string | null; available_from: string | null
   already_contacted: boolean; response: string | null
+}
+
+const PERIOD_EN: Record<string, string> = {
+  subha: 'in the morning', dopahar: 'in the afternoon', shaam: 'in the evening', raat: 'at night',
+}
+// Falls back to the free-text time on requests recorded before the structured
+// hour/period fields existed.
+function fmtTime(r: { needed_hour: number | null; needed_period: string | null; needed_time: string | null }) {
+  if (r.needed_hour && r.needed_period) return `${r.needed_hour} ${PERIOD_EN[r.needed_period] ?? ''}`.trim()
+  return r.needed_time ?? ''
 }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -42,7 +54,8 @@ const STATUS_LABEL: Record<string, string> = {
 const emptyForm = {
   patient_name: '', requester_name: '', requester_whatsapp: '', requester_relation: '',
   blood_group: 'O+', units_needed: 1, city: '', hospital: '',
-  needed_on: new Date().toISOString().slice(0, 10), needed_time: '', notes: '',
+  needed_on: new Date().toISOString().slice(0, 10), notes: '',
+  patient_kind: 'man', needed_hour: 9, needed_period: 'subha',
 }
 
 // Requests arrive two ways — typed up here from a phone call, or submitted by
@@ -69,6 +82,9 @@ export default function AdminBloodRequestsPage() {
   const [cancelReason, setCancelReason] = useState('')
   const [tickerFor, setTickerFor] = useState<string | null>(null)
   const [tickerNumber, setTickerNumber] = useState('')
+  const [appealAudience, setAppealAudience] = useState('everyone')
+  const [appealCountries, setAppealCountries] = useState('')
+  const [appealPublic, setAppealPublic] = useState(true)
   const [busy, setBusy] = useState(false)
 
   const load = useCallback(async () => {
@@ -105,7 +121,6 @@ export default function AdminBloodRequestsPage() {
     const { error } = await supabase.from('blood_requests').insert({
       ...form,
       requester_relation: form.requester_relation || null,
-      needed_time: form.needed_time || null,
       notes: form.notes || null,
       taken_by_admin_user_id: admin?.id ?? null,
     })
@@ -164,10 +179,16 @@ export default function AdminBloodRequestsPage() {
 
   const postTicker = async () => {
     if (!tickerFor || !tickerNumber.trim()) { toast.error('Give a number for the public to call'); return }
-    const { error } = await supabase.rpc('post_blood_request_ticker', { p_request_id: tickerFor, p_contact_number: tickerNumber.trim() })
+    const { error } = await supabase.rpc('post_blood_appeal', {
+      p_request_id: tickerFor,
+      p_contact_number: tickerNumber.trim(),
+      p_audience: appealAudience,
+      p_audience_countries: appealCountries.split(',').map((c) => c.trim()).filter(Boolean),
+      p_is_public: appealPublic,
+    })
     setTickerFor(null); setTickerNumber('')
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Posted to the homepage ticker')
+    toast.success('Appeal posted — it shows in red at the top of every matching portal')
     load()
   }
 
@@ -181,7 +202,7 @@ export default function AdminBloodRequestsPage() {
   const whatsappDonor = (d: Eligible, r: BloodRequest) => {
     const intl = normalizePakPhone(d.whatsapp_number || d.mobile || '')
     if (!intl) { toast.error('No usable number for this donor'); return }
-    const msg = `Assalam o Alaikum ${d.full_name}. ${r.units_needed} unit(s) of ${r.blood_group} blood are needed for a patient at ${r.hospital}, ${r.city} on ${new Date(r.needed_on).toLocaleDateString('en-GB')}${r.needed_time ? ` at ${r.needed_time}` : ''}. If you are able to help, please reply. — Dhab Pari Water & Welfare Committee`
+    const msg = `Assalam o Alaikum ${d.full_name}. ${r.units_needed} unit(s) of ${r.blood_group} blood are needed for a patient at ${r.hospital}, ${r.city} on ${new Date(r.needed_on).toLocaleDateString('en-GB')}${fmtTime(r) ? ` at ${fmtTime(r)}` : ''}. If you are able to help, please reply. — Dhab Pari Water & Welfare Committee`
     window.open(`https://wa.me/${intl}?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
@@ -244,7 +265,7 @@ export default function AdminBloodRequestsPage() {
                     <span className="text-rose-600">{r.blood_group}</span> · {r.units_needed} unit(s) · {r.patient_name}
                   </p>
                   <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">
-                    {r.hospital}, {r.city} · {new Date(r.needed_on).toLocaleDateString('en-GB')}{r.needed_time ? ` at ${r.needed_time}` : ''}
+                    {r.hospital}, {r.city} · {new Date(r.needed_on).toLocaleDateString('en-GB')}{fmtTime(r) ? ` at ${fmtTime(r)}` : ''}
                   </p>
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">
                     {r.source === 'public_form' ? 'Requested by' : 'Caller'}: {r.requester_name}{r.requester_relation ? ` (${r.requester_relation})` : ''} · {r.requester_whatsapp}
@@ -282,7 +303,7 @@ export default function AdminBloodRequestsPage() {
                     </button>
                     {!r.ticker_id && (
                       <button onClick={() => { setTickerFor(r.id); setTickerNumber(r.requester_whatsapp) }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low transition-all">
-                        <Megaphone size={14} /> Post public appeal
+                        <Megaphone size={14} /> Post appeal
                       </button>
                     )}
                   </>
@@ -402,8 +423,30 @@ export default function AdminBloodRequestsPage() {
                   <input type="date" value={form.needed_on} onChange={(e) => setForm({ ...form, needed_on: e.target.value })} className="input-field !py-2.5 text-[15px]" />
                 </div>
                 <div>
-                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Time (optional)</label>
-                  <input value={form.needed_time} onChange={(e) => setForm({ ...form, needed_time: e.target.value })} placeholder="morning, 4pm..." className="input-field !py-2.5 text-[15px]" />
+                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Time needed</label>
+                  <div className="flex gap-1.5">
+                    <select value={form.needed_hour} onChange={(e) => setForm({ ...form, needed_hour: +e.target.value })} className="input-field !py-2.5 text-[15px] w-20">
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                    <select value={form.needed_period} onChange={(e) => setForm({ ...form, needed_period: e.target.value })} className="input-field !py-2.5 text-[15px] flex-1">
+                      <option value="subha">صبح — morning</option>
+                      <option value="dopahar">دوپہر — afternoon</option>
+                      <option value="shaam">شام — evening</option>
+                      <option value="raat">رات — night</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              {/* Drives the public appeal's wording, which never names the patient. */}
+              <div>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">The patient is</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([['man', 'A man'], ['woman', 'A woman'], ['child', 'A child']] as const).map(([v, l]) => (
+                    <button key={v} type="button" onClick={() => setForm({ ...form, patient_kind: v })}
+                      className={`py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer transition-all ${form.patient_kind === v ? 'bg-dp-error text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-error'}`}>
+                      {l}
+                    </button>
+                  ))}
                 </div>
               </div>
               <div>
@@ -487,13 +530,39 @@ export default function AdminBloodRequestsPage() {
       {tickerFor && (
         <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4" onClick={() => setTickerFor(null)}>
           <div className="bg-white rounded-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">Post a public appeal</h2>
+            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">Post an appeal</h2>
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">
-              This goes on the village homepage for everyone, not just donors. The patient&apos;s name is never
-              shown — only the blood group, the hospital and a number to call.
+              Shows in red at the top of every matching portal, and on the website if public. The
+              patient is described as &quot;a villager (man/woman/child)&quot; — never by name.
             </p>
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Number for the public to call</label>
+
+            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Number for people to call</label>
             <input value={tickerNumber} onChange={(e) => setTickerNumber(e.target.value)} placeholder="03xx-xxxxxxx" className="input-field !py-2.5 text-[15px]" />
+
+            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1 mt-3">Who should see it</label>
+            <div className="grid grid-cols-2 gap-2">
+              {([['everyone', 'Everyone'], ['villagers', 'Villagers only'], ['consumers', 'Water consumers'], ['donors', 'Donors only'], ['overseas', 'Overseas only']] as const).map(([v, l]) => (
+                <button key={v} type="button" onClick={() => setAppealAudience(v)}
+                  className={`py-2 rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer transition-all ${appealAudience === v ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-secondary'}`}>
+                  {l}
+                </button>
+              ))}
+            </div>
+
+            {appealAudience === 'overseas' && (
+              <div className="mt-2">
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Countries (comma separated, blank = all)</label>
+                <input value={appealCountries} onChange={(e) => setAppealCountries(e.target.value)} placeholder="UK, UAE, Saudi Arabia" className="input-field !py-2.5 text-[14px]" />
+              </div>
+            )}
+
+            <label className="flex items-start gap-2 cursor-pointer mt-3">
+              <input type="checkbox" checked={appealPublic} onChange={(e) => setAppealPublic(e.target.checked)} className="accent-dp-secondary mt-0.5" />
+              <span className="font-sans text-[12.5px] text-dp-on-surface">
+                Also show on the public website
+                <span className="block text-[11px] text-dp-on-surface-variant">Untick to keep it inside the portal only — a targeted appeal usually should not be public.</span>
+              </span>
+            </label>
             <div className="flex gap-2 mt-4">
               <button onClick={() => { setTickerFor(null); setTickerNumber('') }} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant cursor-pointer">Back</button>
               <button disabled={!tickerNumber.trim()} onClick={postTicker} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer disabled:opacity-50">Post appeal</button>

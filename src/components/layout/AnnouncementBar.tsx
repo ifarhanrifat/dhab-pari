@@ -14,16 +14,22 @@ const SEPARATOR = '    ——    '
 export function AnnouncementBar() {
   const [messages, setMessages] = useState<TickerMessage[]>([])
 
+  // Re-read every two minutes. This used to fetch once on mount, so a notice
+  // posted while someone had the page open never appeared for them at all.
   useEffect(() => {
     const supabase = createClient()
-    supabase
-      .from('news_ticker')
-      .select('id, message, message_ur')
-      .eq('is_active', true)
-      .order('display_order')
-      .then(({ data }) => {
-        if (data) setMessages(data)
-      })
+    let cancelled = false
+    const load = async () => {
+      const { data } = await supabase
+        .from('news_ticker')
+        .select('id, message, message_ur')
+        .eq('is_active', true)
+        .order('display_order')
+      if (!cancelled && data) setMessages(data)
+    }
+    load()
+    const id = setInterval(load, 120000)
+    return () => { cancelled = true; clearInterval(id) }
   }, [])
 
   if (messages.length === 0) return null

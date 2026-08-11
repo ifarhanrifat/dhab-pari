@@ -41,7 +41,21 @@ const t: Record<string, { en: string; ur: string }> = {
   city: { en: 'City', ur: 'شہر' },
   hospital: { en: 'Hospital', ur: 'ہسپتال' },
   neededOn: { en: 'Date Needed', ur: 'کس تاریخ کو درکار ہے' },
-  neededTime: { en: 'Time (optional)', ur: 'وقت (اختیاری)' },
+  neededTime: { en: 'Time Needed', ur: 'وقت' },
+  patientKind: { en: 'The Patient Is', ur: 'مریض' },
+  kindMan: { en: 'A man', ur: 'مرد' },
+  kindWoman: { en: 'A woman', ur: 'خاتون' },
+  kindChild: { en: 'A child', ur: 'بچہ' },
+  patientKindNote: {
+    en: 'The public appeal never shows the patient\u2019s name — it says "a villager (woman)" instead, so people know who they are helping without the family losing their privacy.',
+    ur: 'عوامی اپیل میں مریض کا نام کبھی ظاہر نہیں کیا جاتا — اس کی جگہ "ایک مریض (خاتون)" لکھا جاتا ہے، تاکہ لوگوں کو معلوم ہو کہ وہ کس کی مدد کر رہے ہیں اور خاندان کی نجی معلومات محفوظ رہیں۔',
+  },
+  periodSubha: { en: 'Morning', ur: 'صبح' },
+  periodDopahar: { en: 'Afternoon', ur: 'دوپہر' },
+  periodShaam: { en: 'Evening', ur: 'شام' },
+  periodRaat: { en: 'Night', ur: 'رات' },
+  errKind: { en: 'Say whether the patient is a man, a woman or a child.', ur: 'بتائیں کہ مریض مرد، خاتون یا بچہ ہے۔' },
+  errTime: { en: 'Choose the time the blood is needed.', ur: 'خون کی ضرورت کا وقت منتخب کریں۔' },
   notes: { en: 'Anything else we should know (optional)', ur: 'کوئی اور بات جو ہمیں معلوم ہونی چاہیے (اختیاری)' },
   submit: { en: 'Submit Request', ur: 'درخواست جمع کرائیں' },
   submitting: { en: 'Submitting...', ur: 'جمع ہو رہا ہے...' },
@@ -77,7 +91,7 @@ export default function PublicBloodPage() {
   const [form, setForm] = useState({
     patientName: '', requesterName: '', requesterWhatsapp: '', relation: '',
     bloodGroup: '', units: '1', city: '', hospital: '',
-    neededOn: '', neededTime: '', notes: '',
+    neededOn: '', notes: '', patientKind: '', neededHour: '', neededPeriod: '',
   })
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -109,6 +123,8 @@ export default function PublicBloodPage() {
       setError(dt('errRequired')); return
     }
     if (!form.bloodGroup) { setError(dt('errGroup')); return }
+    if (!form.patientKind) { setError(dt('errKind')); return }
+    if (!form.neededHour || !form.neededPeriod) { setError(dt('errTime')); return }
 
     setLoading(true)
     setError('')
@@ -125,8 +141,10 @@ export default function PublicBloodPage() {
       p_needed_on: form.neededOn,
       p_units_needed: Number(form.units) || 1,
       p_requester_relation: form.relation.trim() || null,
-      p_needed_time: form.neededTime.trim() || null,
       p_notes: form.notes.trim() || null,
+      p_patient_kind: form.patientKind,
+      p_needed_hour: Number(form.neededHour),
+      p_needed_period: form.neededPeriod,
     })
 
     setLoading(false)
@@ -198,7 +216,7 @@ export default function PublicBloodPage() {
             {helplineBlock}
 
             <button
-              onClick={() => { setSubmitted(false); setForm({ patientName: '', requesterName: '', requesterWhatsapp: '', relation: '', bloodGroup: '', units: '1', city: '', hospital: '', neededOn: '', neededTime: '', notes: '' }) }}
+              onClick={() => { setSubmitted(false); setForm({ patientName: '', requesterName: '', requesterWhatsapp: '', relation: '', bloodGroup: '', units: '1', city: '', hospital: '', neededOn: '', notes: '', patientKind: '', neededHour: '', neededPeriod: '' }) }}
               className="w-full border border-dp-outline-variant text-dp-on-surface-variant py-2.5 rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp-surface-container transition-all">
               {dt('another')}
             </button>
@@ -254,14 +272,47 @@ export default function PublicBloodPage() {
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{dt('city')} *</label>
                 <input name="city" value={form.city} onChange={handleChange} placeholder="Chakwal" className="input-field" />
               </div>
-              <div>
+              <div className="sm:col-span-2">
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{dt('neededOn')} *</label>
                 <input name="neededOn" type="date" value={form.neededOn} onChange={handleChange} dir="ltr" className="input-field" />
               </div>
-              <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{dt('neededTime')}</label>
-                <input name="neededTime" value={form.neededTime} onChange={handleChange} placeholder="e.g. 9:00 AM" className="input-field" />
+            </div>
+
+            {/* Nobody here says "16:00". They say شام 4 بجے, so that is what the
+                form asks for and what every message repeats back. */}
+            <div className="mb-4">
+              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{dt('neededTime')} *</label>
+              <div className="flex gap-2">
+                <select name="neededHour" value={form.neededHour} onChange={handleChange} className="input-field w-24" dir="ltr">
+                  <option value="">--</option>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+                    <option key={h} value={h}>{h}</option>
+                  ))}
+                </select>
+                <div className="grid grid-cols-4 gap-2 flex-1">
+                  {([['subha', 'periodSubha'], ['dopahar', 'periodDopahar'], ['shaam', 'periodShaam'], ['raat', 'periodRaat']] as const).map(([v, k]) => (
+                    <button key={v} type="button" onClick={() => setForm((p) => ({ ...p, neededPeriod: v }))}
+                      className={`py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer transition-all ${form.neededPeriod === v ? 'bg-dp-error text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-error'}`}>
+                      {dt(k)}
+                    </button>
+                  ))}
+                </div>
               </div>
+            </div>
+
+            {/* Drives the public appeal's wording. The name entered above never
+                leaves the committee; this is what strangers see instead. */}
+            <div className="mb-4">
+              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{dt('patientKind')} *</label>
+              <div className="grid grid-cols-3 gap-2">
+                {([['man', 'kindMan'], ['woman', 'kindWoman'], ['child', 'kindChild']] as const).map(([v, k]) => (
+                  <button key={v} type="button" onClick={() => setForm((p) => ({ ...p, patientKind: v }))}
+                    className={`py-2.5 rounded-lg font-sans text-[14px] font-semibold cursor-pointer transition-all ${form.patientKind === v ? 'bg-dp-error text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-error'}`}>
+                    {dt(k)}
+                  </button>
+                ))}
+              </div>
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5 leading-snug">{dt('patientKindNote')}</p>
             </div>
 
             <div className="mb-5">
