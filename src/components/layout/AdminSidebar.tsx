@@ -291,7 +291,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col h-screen fixed left-0 top-0 py-6 bg-dp-primary border-e border-dp-outline-variant w-[210px] z-50 print:hidden">
+      <aside style={{ left: 0, right: "auto" }} className="hidden md:flex flex-col h-screen fixed top-0 py-6 bg-dp-primary border-e border-dp-outline-variant w-[210px] z-50 print:hidden">
         <div className="px-4 mb-8">
           <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">
             Admin Portal
@@ -306,16 +306,23 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
       {/* Mobile drawer backdrop */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-[90] md:hidden"
+          className="bg-black/50 z-[90] md:hidden"
+          style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0 }}
           onClick={onMobileClose}
         />
       )}
 
       {/* Mobile drawer */}
       <aside
-        className={`fixed left-0 top-0 h-screen w-[260px] bg-dp-primary z-[100] md:hidden flex flex-col py-6 transform transition-transform duration-300 ease-in-out ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full'
-        }`}
+        style={{
+          left: 0,
+          right: 'auto',
+          // Inline, not a class: the drawer was staying on screen taking half
+          // the display because the translate utility was not resolving, which
+          // left it with no way to hide itself.
+          transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
+        }}
+        className="fixed top-0 h-screen w-[260px] bg-dp-primary z-[100] md:hidden flex flex-col py-6 transition-transform duration-300 ease-in-out"
       >
         <div className="px-4 mb-8 flex items-center justify-between">
           <div>

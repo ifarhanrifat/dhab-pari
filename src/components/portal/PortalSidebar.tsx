@@ -142,7 +142,8 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
 
   return (
     <>
-      <aside className="hidden md:flex flex-col h-screen fixed left-0 top-0 py-6 bg-dp-primary border-e border-dp-outline-variant w-[210px] z-50 print:hidden">
+      <aside className="hidden md:flex flex-col h-screen fixed top-0 py-6 bg-dp-primary border-e border-dp-outline-variant w-[210px] z-50 print:hidden"
+        style={{ left: 0, right: "auto" }}>
         <div className="px-4 mb-8">
           <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">{t('portal.title')}</h2>
           <p className="text-[12px] font-sans text-white/60 mt-1">{SITE.shortCommittee}</p>
@@ -150,9 +151,16 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
         {sidebarContent}
       </aside>
 
-      {mobileOpen && <div className="fixed inset-0 bg-black/50 z-[90] md:hidden" onClick={onMobileClose} />}
+      {mobileOpen && <div className="bg-black/50 z-[90] md:hidden" style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0 }} onClick={onMobileClose} />}
 
-      <aside className={`fixed left-0 top-0 h-screen w-[260px] bg-dp-primary z-[100] md:hidden flex flex-col py-6 transform transition-transform duration-300 ease-in-out ${mobileOpen ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full'}`}>
+      <aside
+        style={{
+          left: 0,
+          right: 'auto',
+          transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
+        }}
+        className="fixed top-0 h-screen w-[260px] bg-dp-primary z-[100] md:hidden flex flex-col py-6 transition-transform duration-300 ease-in-out"
+      >
         <div className="px-4 mb-8 flex items-center justify-between">
           <div>
             <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">{t('portal.title')}</h2>

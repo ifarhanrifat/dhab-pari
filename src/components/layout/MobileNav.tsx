@@ -21,7 +21,8 @@ export function MobileNav({ open, onClose, navLinks, isPortalUser }: MobileNavPr
       {/* Backdrop */}
       {open && (
         <div
-          className="fixed inset-0 bg-black/50 z-[95] lg:hidden"
+          className="bg-black/50 z-[95] lg:hidden"
+          style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0 }}
           onClick={onClose}
         />
       )}
@@ -32,9 +33,11 @@ export function MobileNav({ open, onClose, navLinks, isPortalUser }: MobileNavPr
           item stays reachable on a short screen — the staff login button at
           the bottom used to be cut off with no way to scroll to it. */}
       <div
-        className={`fixed top-0 left-0 h-full w-[280px] max-w-[85vw] bg-dp-primary z-[100] lg:hidden flex flex-col overflow-y-auto transform transition-transform duration-300 ease-in-out ${
-          open ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full'
-        }`}
+        style={{
+          position: 'fixed', top: 0, left: 0, right: 'auto',
+          transform: open ? 'translateX(0)' : 'translateX(-100%)',
+        }}
+        className="h-full w-[280px] max-w-[85vw] bg-dp-primary z-[100] lg:hidden flex flex-col overflow-y-auto transition-transform duration-300 ease-in-out"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
