@@ -168,7 +168,7 @@ export default function PostJobPage() {
                     <input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} className="input-field" />
                   </div>
                   <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Mobile *</label>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.mobileReq')}</label>
                     <input value={form.contact_mobile} onChange={(e) => setForm({ ...form, contact_mobile: e.target.value })} className="input-field" />
                   </div>
                   <div>

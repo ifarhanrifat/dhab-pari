@@ -42,7 +42,7 @@ export default function RegisterPage() {
                 onClick={() => setSystem('donors_projects')}
                 className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'donors_projects' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}
               >
-                Donors &amp; Projects
+                {t('a.donorsProjects')}
               </button>
             )}
           </div>

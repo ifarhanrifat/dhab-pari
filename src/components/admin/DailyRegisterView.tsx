@@ -9,6 +9,7 @@ import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import { entryTypeLabel } from '@/lib/ledgerLabels'
 import { fetchBrandingSettings } from '@/lib/branding'
 import { dt, type Lang } from '@/lib/docTranslations'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 const systemLabelKeys: Record<SystemTab, 'waterSupplySystem' | 'donorsProjects'> = { water_supply: 'waterSupplySystem', donors_projects: 'donorsProjects' }
@@ -30,6 +31,7 @@ interface DailyRegisterViewProps {
 // linked from within that workflow) and the standalone sidebar entry (/admin/register, with
 // its own system switcher) — same cash/bank running-balance ledger, two entry points.
 export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) {
+  const { t } = useLocale()
   const [from, setFrom] = useState(today())
   const [to, setTo] = useState(today())
   const [rows, setRows] = useState<Row[]>([])
@@ -103,11 +105,11 @@ export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) 
       <div className="flex items-center justify-between mb-6 print:hidden">
         {backHref ? (
           <Link href={backHref} className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold">
-            <ArrowLeft size={16} /> Back to Transactions
+            <ArrowLeft size={16} /> {t('g.backToTransactions')}
           </Link>
         ) : <div />}
         <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
-          <Printer size={15} /> Print
+          <Printer size={15} /> {t('g.print')}
         </button>
       </div>
 

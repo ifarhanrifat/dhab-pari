@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Bell, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface PortalNotification {
   id: string; title: string; body: string | null; link: string | null
@@ -12,6 +13,7 @@ interface PortalNotification {
 }
 
 function timeAgo(iso: string) {
+  const { t } = useLocale()
   const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
   if (secs < 60) return 'just now'
   if (secs < 3600) return `${Math.floor(secs / 60)}m ago`
@@ -26,6 +28,7 @@ function timeAgo(iso: string) {
 // lacks), fixed/floating like the admin bell rather than inline in a nav bar
 // since the portal has its own header bar to sit in.
 export function PortalNotificationBell() {
+  const { t } = useLocale()
   const supabase = createClient()
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -117,12 +120,12 @@ export function PortalNotificationBell() {
       {open && (
         <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white border border-dp-outline-variant rounded-lg shadow-lg overflow-hidden text-dp-on-surface">
           <div className="px-4 py-2.5 border-b border-dp-outline-variant flex items-center justify-between">
-            <span className="font-sans text-[13px] font-bold">Notifications</span>
-            {unreadCount > 0 && <button onClick={markAllRead} className="font-sans text-[11.5px] font-semibold text-dp-secondary hover:underline cursor-pointer">Mark all read</button>}
+            <span className="font-sans text-[13px] font-bold">{t('g.notifications')}</span>
+            {unreadCount > 0 && <button onClick={markAllRead} className="font-sans text-[11.5px] font-semibold text-dp-secondary hover:underline cursor-pointer">{t('g.markAllRead')}</button>}
           </div>
           <div className="max-h-96 overflow-y-auto">
             {items.length === 0 ? (
-              <p className="px-4 py-8 text-center font-sans text-[13px] text-dp-on-surface-variant">No notifications yet.</p>
+              <p className="px-4 py-8 text-center font-sans text-[13px] text-dp-on-surface-variant">{t('g.noNotifications')}</p>
             ) : (
               items.map((n) => (
                 <div key={n.id} onClick={() => openNotification(n)}

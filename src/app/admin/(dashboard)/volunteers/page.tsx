@@ -258,7 +258,7 @@ export default function AdminVolunteersPage() {
               </select>
 
               {v.status === 'offered' && (
-                <button onClick={() => setStatus(v, 'assigned')} className="px-3 py-1.5 rounded-lg bg-dp-secondary text-white font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">Accept</button>
+                <button onClick={() => setStatus(v, 'assigned')} className="px-3 py-1.5 rounded-lg bg-dp-secondary text-white font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">{t('g.accept')}</button>
               )}
               {v.status === 'assigned' && (
                 <>

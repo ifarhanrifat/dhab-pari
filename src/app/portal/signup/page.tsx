@@ -74,7 +74,7 @@ export default function PortalSignupPage() {
       <div className="bg-white rounded-lg border border-dp-outline-variant p-6 md:p-8 w-full max-w-md">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">Full Name *</label>
+            <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('g.fullNameReq')}</label>
             <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required className="input-field" />
           </div>
           <div>
@@ -82,16 +82,16 @@ export default function PortalSignupPage() {
             <input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder="اردو میں نام" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
           </div>
           <div>
-            <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">Father&apos;s / Husband&apos;s Name *</label>
+            <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('g.fatherReq')}</label>
             <input value={form.father_husband_name} onChange={(e) => setForm({ ...form, father_husband_name: e.target.value })} required className="input-field" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">Mobile *</label>
+              <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('g.mobileReq')}</label>
               <input type="tel" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} required placeholder="0300-1234567" className="input-field" />
             </div>
             <div>
-              <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">WhatsApp *</label>
+              <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('g.whatsappReq')}</label>
               <input type="tel" value={form.whatsapp_number} onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })} required placeholder="0300-1234567" className="input-field" />
             </div>
           </div>
@@ -119,7 +119,7 @@ export default function PortalSignupPage() {
             )}
           </div>
           <div>
-            <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">Username *</label>
+            <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('g.usernameReq')}</label>
             <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required placeholder="6+ characters, no spaces" className="input-field" />
             <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Used to log in — never your phone number. This will also be your public name for community features.</p>
           </div>
@@ -128,7 +128,7 @@ export default function PortalSignupPage() {
             <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input-field" />
           </div>
           <div>
-            <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">Password *</label>
+            <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('g.passwordReq')}</label>
             <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required autoComplete="new-password" className="input-field" />
           </div>
 

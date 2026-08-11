@@ -39,7 +39,7 @@ export default function TransactionsPickerPage() {
               <Heart size={22} className="text-dp-on-primary-container" />
             </div>
             <div>
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">Donors &amp; Projects</h2>
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('a.donorsProjects')}</h2>
               <p className="font-sans text-[13px] text-dp-on-surface-variant">Expenses, donations, cash &amp; bank vouchers</p>
             </div>
           </div>

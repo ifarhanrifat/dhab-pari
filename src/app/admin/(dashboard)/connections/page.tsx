@@ -603,7 +603,7 @@ export default function ConnectionsPage() {
                 <div>
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.sector')}</label>
                   <select value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} className="input-field">
-                    <option value="">Select sector...</option>
+                    <option value="">{t('g.selectSector')}</option>
                     {sectors.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
                   </select>
                 </div>

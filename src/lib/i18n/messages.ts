@@ -672,6 +672,30 @@ export const messages: Record<Locale, Record<string, string>> = {
     'em.inactive': 'Inactive', 'em.manageRoles': 'Manage Roles', 'em.noEmployees': 'No employees added yet.',
     'em.none': 'None', 'em.paidFrom': 'Paid From', 'em.payslip': 'Payslip', 'em.primaryRole': 'Primary Role',
     'em.selectRole': 'Select role...', 'em.thermal': 'Thermal',
+    // ── Shared across the long tail of screens ───────────────────────────
+    'g.fullNameReq': 'Full Name *', 'g.passwordReq': 'Password *', 'g.usernameReq': 'Username *',
+    'g.mobileReq': 'Mobile *', 'g.whatsappReq': 'WhatsApp *', 'g.fatherReq': "Father's / Husband's Name *",
+    'g.nameUrdu': 'Name (Urdu)', 'g.phoneOptional': 'Phone (optional)', 'g.sectorOptional': 'Sector (optional)',
+    'g.selectSector': 'Select sector...', 'g.projectOptional': 'Project (optional)',
+    'g.secondaryOptional': 'Secondary Role (optional)', 'g.overseas': 'Overseas',
+    'g.restore': 'Restore', 'g.complaints': 'Complaints', 'g.suggestions': 'Suggestions',
+    'g.notifications': 'Notifications', 'g.download': 'Download', 'g.send': 'Send', 'g.reply': 'Reply',
+    'g.accept': 'Accept', 'g.close': 'Close', 'g.print': 'Print', 'g.message': 'Message',
+    'g.saveChanges': 'Save Changes', 'g.selectAll': 'Select all', 'g.startDate': 'Start Date',
+    'g.displayOrder': 'Display Order', 'g.published': 'Published', 'g.incharge': 'Incharge',
+    'g.sectors': 'Sectors', 'g.holding': 'Holding', 'g.currentHoldings': 'Current Holdings',
+    'g.totalHeld': 'Total Held by Collectors', 'g.settlementHistory': 'Settlement History',
+    'g.noSettlements': 'No settlements recorded yet.', 'g.amountReceived': 'Amount Received (PKR)',
+    'g.credit': 'Credit', 'g.debit': 'Debit', 'g.cashPosition': 'Cash Position',
+    'g.backToDashboard': 'Back to Dashboard', 'g.backToTransactions': 'Back to Transactions',
+    'g.editBill': 'Edit Bill', 'g.markAllRead': 'Mark all read', 'g.noNotifications': 'No notifications yet.',
+    'g.dragDrop': 'Drag & drop or', 'g.fileTypes': 'JPG, PNG, WebP, GIF · Max 5MB',
+    'g.resetPassword': 'Reset Password', 'g.backToSignIn': 'Back to Sign In',
+    'g.checkEmail': 'Check your email', 'g.confirmNewPassword': 'Confirm New Password',
+    'g.resetLinkInvalid': 'This reset link is invalid or has expired.',
+    'g.enterEmailReset': "Enter your email and we'll send you a reset link",
+    'g.alsoPublic': 'Also show on the public website', 'g.whoShouldSee': 'Who should see it',
+
 
 
 
@@ -1335,6 +1359,30 @@ export const messages: Record<Locale, Record<string, string>> = {
     'em.inactive': 'غیر فعال', 'em.manageRoles': 'کردار منظم کریں', 'em.noEmployees': 'ابھی کوئی ملازم شامل نہیں۔',
     'em.none': 'کوئی نہیں', 'em.paidFrom': 'ادائیگی کہاں سے', 'em.payslip': 'تنخواہ کی پرچی', 'em.primaryRole': 'بنیادی کردار',
     'em.selectRole': 'کردار منتخب کریں...', 'em.thermal': 'تھرمل',
+    // ── Shared across the long tail of screens ───────────────────────────
+    'g.fullNameReq': 'پورا نام *', 'g.passwordReq': 'پاس ورڈ *', 'g.usernameReq': 'یوزر نیم *',
+    'g.mobileReq': 'موبائل *', 'g.whatsappReq': 'واٹس ایپ *', 'g.fatherReq': 'والد / شوہر کا نام *',
+    'g.nameUrdu': 'نام (اردو)', 'g.phoneOptional': 'فون (اختیاری)', 'g.sectorOptional': 'سیکٹر (اختیاری)',
+    'g.selectSector': 'سیکٹر منتخب کریں...', 'g.projectOptional': 'منصوبہ (اختیاری)',
+    'g.secondaryOptional': 'ثانوی کردار (اختیاری)', 'g.overseas': 'بیرونِ ملک',
+    'g.restore': 'بحال کریں', 'g.complaints': 'شکایات', 'g.suggestions': 'تجاویز',
+    'g.notifications': 'اطلاعات', 'g.download': 'ڈاؤن لوڈ', 'g.send': 'بھیجیں', 'g.reply': 'جواب دیں',
+    'g.accept': 'قبول کریں', 'g.close': 'بند کریں', 'g.print': 'پرنٹ', 'g.message': 'پیغام',
+    'g.saveChanges': 'تبدیلیاں محفوظ کریں', 'g.selectAll': 'سب منتخب کریں', 'g.startDate': 'آغاز کی تاریخ',
+    'g.displayOrder': 'ترتیب', 'g.published': 'شائع شدہ', 'g.incharge': 'انچارج',
+    'g.sectors': 'سیکٹر', 'g.holding': 'زیرِ حراست رقم', 'g.currentHoldings': 'موجودہ رقوم',
+    'g.totalHeld': 'وصول کنندگان کے پاس کل رقم', 'g.settlementHistory': 'تصفیے کی تاریخ',
+    'g.noSettlements': 'ابھی کوئی تصفیہ درج نہیں۔', 'g.amountReceived': 'وصول شدہ رقم (روپے)',
+    'g.credit': 'کریڈٹ', 'g.debit': 'ڈیبٹ', 'g.cashPosition': 'نقدی کی صورتحال',
+    'g.backToDashboard': 'ڈیش بورڈ پر واپس', 'g.backToTransactions': 'لین دین پر واپس',
+    'g.editBill': 'بل میں ترمیم', 'g.markAllRead': 'سب پڑھا ہوا نشان زد کریں', 'g.noNotifications': 'ابھی کوئی اطلاع نہیں۔',
+    'g.dragDrop': 'یہاں گھسیٹ کر ڈالیں یا', 'g.fileTypes': 'JPG, PNG, WebP, GIF · زیادہ سے زیادہ 5MB',
+    'g.resetPassword': 'پاس ورڈ دوبارہ مقرر کریں', 'g.backToSignIn': 'سائن اِن پر واپس',
+    'g.checkEmail': 'اپنا ای میل دیکھیں', 'g.confirmNewPassword': 'نئے پاس ورڈ کی تصدیق',
+    'g.resetLinkInvalid': 'یہ لنک غلط ہے یا اس کی میعاد ختم ہو چکی ہے۔',
+    'g.enterEmailReset': 'اپنا ای میل درج کریں، ہم آپ کو دوبارہ مقرر کرنے کا لنک بھیجیں گے',
+    'g.alsoPublic': 'عوامی ویب سائٹ پر بھی دکھائیں', 'g.whoShouldSee': 'یہ کون دیکھے',
+
 
 
 

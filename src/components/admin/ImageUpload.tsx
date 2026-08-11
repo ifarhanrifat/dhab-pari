@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface ImageUploadProps {
   bucket: 'images' | 'thumbnails'
@@ -16,6 +17,7 @@ const MAX_SIZE = 5 * 1024 * 1024
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
 export function ImageUpload({ bucket, onUpload, currentUrl, label = 'Upload Image' }: ImageUploadProps) {
+  const { t } = useLocale()
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState<string | null>(currentUrl ?? null)
   const [dragOver, setDragOver] = useState(false)
@@ -118,10 +120,10 @@ export function ImageUpload({ bucket, onUpload, currentUrl, label = 'Upload Imag
         >
           <Upload size={24} className="mx-auto text-dp-on-surface-variant mb-2" />
           <p className="font-sans text-[14px] text-dp-on-surface-variant">
-            Drag & drop or <span className="text-dp-secondary font-semibold">click to browse</span>
+            {t('g.dragDrop')} <span className="text-dp-secondary font-semibold">click to browse</span>
           </p>
           <p className="font-sans text-[12px] text-dp-outline mt-1">
-            JPG, PNG, WebP, GIF · Max 5MB
+            {t('g.fileTypes')}
           </p>
         </div>
       )}

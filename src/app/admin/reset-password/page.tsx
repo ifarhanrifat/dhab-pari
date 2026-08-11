@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, ShieldCheck, Lock, AlertTriangle } from 'lucide-react'
 import { SITE } from '@/lib/constants'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 export default function ResetPasswordPage() {
+  const { t } = useLocale()
   const [checking, setChecking] = useState(true)
   const [validSession, setValidSession] = useState(false)
   const [password, setPassword] = useState('')
@@ -74,7 +76,7 @@ export default function ResetPasswordPage() {
           ) : !validSession ? (
             <div className="text-center py-8">
               <AlertTriangle size={40} className="text-dp-error mx-auto mb-3" />
-              <p className="font-sans font-semibold text-dp-on-surface mb-2">This reset link is invalid or has expired.</p>
+              <p className="font-sans font-semibold text-dp-on-surface mb-2">{t('g.resetLinkInvalid')}</p>
               <p className="font-sans text-[13px] text-dp-on-surface-variant">Request a new one from the sign-in page.</p>
             </div>
           ) : (
@@ -108,7 +110,7 @@ export default function ResetPasswordPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">Confirm New Password</label>
+                  <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('g.confirmNewPassword')}</label>
                   <input
                     type={showPw ? 'text' : 'password'}
                     value={confirmPassword}

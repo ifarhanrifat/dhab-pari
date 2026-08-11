@@ -1529,7 +1529,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   </div>
                   {system === 'donors_projects' && activeType === 'expense' && (
                     <div>
-                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Project (optional)</label>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.projectOptional')}</label>
                       <select value={voucherForm.projectId} onChange={(e) => setVoucherForm({ ...voucherForm, projectId: e.target.value })} className="input-field">
                         <option value="">{t('f.notProjectSpecific')}</option>
                         {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
@@ -2003,7 +2003,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     <input value={donationForm.name} onChange={(e) => setDonationForm({ ...donationForm, name: e.target.value })} className="input-field" />
                   </div>
                   <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Name (Urdu)</label>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.nameUrdu')}</label>
                     <input value={donationForm.name_ur} onChange={(e) => setDonationForm({ ...donationForm, name_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
                   </div>
                 </div>
@@ -2016,7 +2016,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('f.donorType')}</label>
                     <select value={donationForm.donor_type} onChange={(e) => setDonationForm({ ...donationForm, donor_type: e.target.value })} className="input-field">
                       <option value="villager">{t('f.villager')}</option>
-                      <option value="overseas">Overseas</option>
+                      <option value="overseas">{t('g.overseas')}</option>
                     </select>
                   </div>
                 </div>
@@ -2040,7 +2040,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   </select>
                 </div>
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Project (optional)</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.projectOptional')}</label>
                   <select value={donationForm.project_id} onChange={(e) => setDonationForm({ ...donationForm, project_id: e.target.value })} className="input-field">
                     <option value="">{t('a.noProject')}</option>
                     {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}

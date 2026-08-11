@@ -198,7 +198,7 @@ export default async function AccountsPage() {
           {/* Cash Position */}
           <div className="bg-white p-6 rounded-lg border border-dp-outline-variant">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-sans text-[20px] font-semibold leading-[28px]">Cash Position</h3>
+              <h3 className="font-sans text-[20px] font-semibold leading-[28px]"><T k="g.cashPosition" /></h3>
               <Building2 size={20} className="text-dp-primary" />
             </div>
             <div className="space-y-4">

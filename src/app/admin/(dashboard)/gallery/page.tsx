@@ -132,7 +132,7 @@ export default function AdminGalleryPage() {
           {items.length > 0 && (
             <label className="flex items-center gap-2 mb-3 cursor-pointer w-fit">
               <input type="checkbox" checked={selectedItems.size === items.length} onChange={toggleSelectAllItems} className="accent-dp-secondary cursor-pointer" />
-              <span className="font-sans text-[14px] text-dp-on-surface-variant">Select all</span>
+              <span className="font-sans text-[14px] text-dp-on-surface-variant">{t('g.selectAll')}</span>
             </label>
           )}
 

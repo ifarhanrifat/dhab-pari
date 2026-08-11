@@ -399,7 +399,7 @@ export default function AccountsPage() {
           className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-sans text-[14px] font-semibold transition-all cursor-pointer ${tab === 'donors_projects' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
         >
           <Heart size={16} />
-          Donors &amp; Projects
+          {t('a.donorsProjects')}
           <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${tab === 'donors_projects' ? 'bg-white/20 text-white' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>{donorCount}</span>
         </button>}
       </div>
@@ -538,7 +538,7 @@ export default function AccountsPage() {
                   disabled={!!editId}
                 >
                   <option value="water_supply">{t('a.waterSupplySystem')}</option>
-                  <option value="donors_projects">Donors &amp; Projects System</option>
+                  <option value="donors_projects">{t('ac.donorsSystem')}</option>
                 </select>
               </div>
               <div>

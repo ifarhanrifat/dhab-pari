@@ -91,7 +91,7 @@ function AccountsByTypePageInner() {
     <>
       <div className="mb-6">
         <Link href="/admin" className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold mb-3">
-          <ArrowLeft size={16} /> Back to Dashboard
+          <ArrowLeft size={16} /> {t('g.backToDashboard')}
         </Link>
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary">{headerLabel}</h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{systemLabels[system] ?? system}</p>

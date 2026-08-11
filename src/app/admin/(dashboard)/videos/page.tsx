@@ -75,7 +75,7 @@ export default function AdminVideosPage() {
               </div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.description')}</label><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="input-field resize-none" /></div>
               <div className="flex gap-6">
-                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_published} onChange={(e) => setForm({ ...form, is_published: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">Published</span></label>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_published} onChange={(e) => setForm({ ...form, is_published: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('g.published')}</span></label>
                 <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_featured} onChange={(e) => setForm({ ...form, is_featured: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">Featured</span></label>
               </div>
               <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{editing ? 'Update' : 'Add'} Video</button>

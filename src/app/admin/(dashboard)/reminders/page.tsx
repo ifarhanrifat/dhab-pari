@@ -112,7 +112,7 @@ export default function RemindersPage() {
                         disabled={!r.target_phone}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-[#25d366] text-white rounded-lg font-sans text-[12.5px] font-semibold hover:opacity-90 transition-all cursor-pointer disabled:opacity-50"
                       >
-                        <MessageCircle size={13} /> Send
+                        <MessageCircle size={13} /> {t('g.send')}
                       </button>
                     </div>
                   </div>

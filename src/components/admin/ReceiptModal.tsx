@@ -11,6 +11,7 @@ import {
   downloadBlob, shareReceipt, printBlob, type ReceiptFormat,
   getPreferredSlipTarget, setPreferredSlipTarget,
 } from '@/lib/receiptExport'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface ReceiptModalProps {
   data: ReceiptData
@@ -23,6 +24,7 @@ interface ReceiptModalProps {
 }
 
 export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps) {
+  const { t } = useLocale()
   const nodeRef = useRef<HTMLDivElement>(null)
   const [format, setFormat] = useState<ReceiptFormat>(getPreferredFormat())
   const [busy, setBusy] = useState(false)
@@ -150,7 +152,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
 
         <div className="flex items-center gap-2 px-4 py-3 border-t border-dp-outline-variant print:hidden">
           <button disabled={busy} onClick={handlePrint} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
-            <Printer size={16} /> Print
+            <Printer size={16} /> {t('g.print')}
           </button>
           <button disabled={busy} onClick={handleDownload} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
             <Download size={16} /> Download {format.toUpperCase()}

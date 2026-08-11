@@ -227,7 +227,7 @@ export default function AdminSuggestionsPage() {
 
             {/* Message */}
             <div className="mb-4 pb-4 border-b border-dp-outline-variant">
-              <h4 className="font-sans text-[14px] font-semibold text-dp-on-surface-variant mb-2">Message</h4>
+              <h4 className="font-sans text-[14px] font-semibold text-dp-on-surface-variant mb-2">{t('g.message')}</h4>
               <p className="font-sans text-[14px] text-dp-on-surface whitespace-pre-wrap">{selected.message}</p>
             </div>
 
@@ -265,7 +265,7 @@ export default function AdminSuggestionsPage() {
                     onClick={() => useTemplate(selected.type === 'role_request' ? 'role_request_accepted' : 'volunteer_accepted')}
                     className="px-3 py-1.5 rounded-lg bg-dp-secondary text-white font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"
                   >
-                    Accept
+                    {t('g.accept')}
                   </button>
                   {selected.type === 'role_request' && (
                     <button
@@ -286,7 +286,7 @@ export default function AdminSuggestionsPage() {
 
             {/* Reply */}
             <div>
-              <h4 className="font-sans text-[14px] font-semibold text-dp-on-surface-variant mb-2">Reply</h4>
+              <h4 className="font-sans text-[14px] font-semibold text-dp-on-surface-variant mb-2">{t('g.reply')}</h4>
               <textarea
                 value={reply}
                 onChange={(e) => setReply(e.target.value)}

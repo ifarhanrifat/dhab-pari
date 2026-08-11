@@ -265,7 +265,7 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link href={`/admin/finance/${system}`} className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold mb-3">
-            <ArrowLeft size={16} /> Back to Transactions
+            <ArrowLeft size={16} /> {t('g.backToTransactions')}
           </Link>
           <h1 className="font-heading text-[22px] sm:text-[28px] font-bold leading-[28px] sm:leading-[36px] text-dp-primary">{systemLabels[system]} — Recurring</h1>
         </div>
@@ -433,7 +433,7 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
                   </select>
                 </div>
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Start Date</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.startDate')}</label>
                   {form.frequency === 'every_minute' ? (
                     <p className="input-field flex items-center text-dp-on-surface-variant !py-3">Fires ~1 minute from now</p>
                   ) : (
@@ -472,7 +472,7 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
                     </div>
                   </div>
                   <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Project (optional)</label>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.projectOptional')}</label>
                     <select value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })} className="input-field">
                       <option value="">{t('a.noProject')}</option>
                       {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}

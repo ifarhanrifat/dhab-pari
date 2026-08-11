@@ -116,14 +116,14 @@ export default function CollectorsPage() {
       </div>
 
       <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3 mb-5 inline-block">
-        <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">Total Held by Collectors</p>
+        <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{t('g.totalHeld')}</p>
         <p className="font-heading text-[20px] font-bold text-dp-primary">Rs. {fmt(totalHeld)}</p>
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mb-6">
         <div className="px-5 py-3.5 border-b border-dp-outline-variant bg-dp-surface-container-low/60 flex items-center gap-2">
           <HandCoins size={16} className="text-dp-secondary" />
-          <span className="font-sans text-[14px] font-bold text-dp-on-surface">Current Holdings</span>
+          <span className="font-sans text-[14px] font-bold text-dp-on-surface">{t('g.currentHoldings')}</span>
         </div>
         {loading ? (
           <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('action.loading')}</p>
@@ -135,8 +135,8 @@ export default function CollectorsPage() {
               <thead>
                 <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                   <th className="px-5 py-2.5">{t('a.collector')}</th>
-                  <th className="px-5 py-2.5">Sectors</th>
-                  <th className="px-5 py-2.5 text-end">Holding</th>
+                  <th className="px-5 py-2.5">{t('g.sectors')}</th>
+                  <th className="px-5 py-2.5 text-end">{t('g.holding')}</th>
                   <th className="px-5 py-2.5 text-end">{t('w.action')}</th>
                 </tr>
               </thead>
@@ -164,10 +164,10 @@ export default function CollectorsPage() {
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="px-5 py-3.5 border-b border-dp-outline-variant bg-dp-surface-container-low/60 flex items-center gap-2">
           <History size={16} className="text-dp-secondary" />
-          <span className="font-sans text-[14px] font-bold text-dp-on-surface">Settlement History</span>
+          <span className="font-sans text-[14px] font-bold text-dp-on-surface">{t('g.settlementHistory')}</span>
         </div>
         {settlements.length === 0 ? (
-          <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No settlements recorded yet.</p>
+          <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('g.noSettlements')}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-start min-w-[500px]">
@@ -203,7 +203,7 @@ export default function CollectorsPage() {
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">Currently holding Rs. {fmt(settleFor.balance)}</p>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Amount Received (PKR)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.amountReceived')}</label>
                 <input type="number" min={1} value={settleAmount || ''} onChange={(e) => setSettleAmount(+e.target.value)} className="input-field" />
               </div>
               <SearchableField

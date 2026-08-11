@@ -115,7 +115,7 @@ export default function AdminNewsPage() {
       {!loading && posts.length > 0 && (
         <label className="flex items-center gap-2 mb-3 cursor-pointer w-fit">
           <input type="checkbox" checked={selected.size === posts.length} onChange={toggleSelectAll} className="accent-dp-secondary cursor-pointer" />
-          <span className="font-sans text-[14px] text-dp-on-surface-variant">Select all</span>
+          <span className="font-sans text-[14px] text-dp-on-surface-variant">{t('g.selectAll')}</span>
         </label>
       )}
 
@@ -128,7 +128,7 @@ export default function AdminNewsPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="bg-dp-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold uppercase font-sans">{p.category}</span>
-                  {p.is_published ? <span className="text-dp-secondary text-[10px] font-bold font-sans flex items-center gap-1"><Eye size={12} />Published</span> : <span className="text-dp-on-surface-variant text-[10px] font-bold font-sans flex items-center gap-1"><EyeOff size={12} />Draft</span>}
+                  {p.is_published ? <span className="text-dp-secondary text-[10px] font-bold font-sans flex items-center gap-1"><Eye size={12} />{t('g.published')}</span> : <span className="text-dp-on-surface-variant text-[10px] font-bold font-sans flex items-center gap-1"><EyeOff size={12} />Draft</span>}
                 </div>
                 <h3 className="font-sans text-[18px] font-bold text-dp-on-surface truncate">{p.title}</h3>
                 <p className="font-sans text-[14px] text-dp-on-surface-variant truncate">{p.content.slice(0, 80)}...</p>

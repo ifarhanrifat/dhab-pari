@@ -109,7 +109,7 @@ export default function ComplaintsPage() {
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
-            <MessageSquareWarning size={26} /> Complaints
+            <MessageSquareWarning size={26} /> {t('g.complaints')}
           </h1>
           <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">2-day SLA, assign a handler, verify before closing.</p>
         </div>
@@ -120,7 +120,7 @@ export default function ComplaintsPage() {
                 <button onClick={() => setSystem('water_supply')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'water_supply' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>{t('a.waterSupply')}</button>
               )}
               {access.canDonorsProjects && (
-                <button onClick={() => setSystem('donors_projects')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'donors_projects' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>Donors &amp; Projects</button>
+                <button onClick={() => setSystem('donors_projects')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'donors_projects' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>{t('a.donorsProjects')}</button>
               )}
             </div>
           )}
@@ -188,14 +188,14 @@ export default function ComplaintsPage() {
                 <input value={form.complainant_name} onChange={(e) => setForm({ ...form, complainant_name: e.target.value })} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Phone (optional)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.phoneOptional')}</label>
                 <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0300-1234567" className="input-field" />
               </div>
               {system === 'water_supply' && (
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Sector (optional)</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.sectorOptional')}</label>
                   <select value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} className="input-field">
-                    <option value="">Select sector...</option>
+                    <option value="">{t('g.selectSector')}</option>
                     {sectors.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
                   </select>
                 </div>

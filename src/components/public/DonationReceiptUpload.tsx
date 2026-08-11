@@ -13,6 +13,7 @@ import { useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Upload, X, Loader2, FileImage } from 'lucide-react'
 import { toast } from 'sonner'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Props {
   onUpload: (path: string) => void
@@ -24,6 +25,7 @@ const MAX_SIZE = 5 * 1024 * 1024
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
 export function DonationReceiptUpload({ onUpload, label = 'Upload Payment Screenshot', bucket = 'donation_receipts' }: Props) {
+  const { t } = useLocale()
   const [uploading, setUploading] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
@@ -113,9 +115,9 @@ export function DonationReceiptUpload({ onUpload, label = 'Upload Payment Screen
           <FileImage size={24} className="mx-auto text-dp-on-surface-variant mb-2" />
           <p className="font-sans text-[14px] text-dp-on-surface-variant">
             <Upload size={14} className="inline me-1" />
-            Drag & drop or <span className="text-dp-secondary font-semibold">click to browse</span>
+            {t('g.dragDrop')} <span className="text-dp-secondary font-semibold">click to browse</span>
           </p>
-          <p className="font-sans text-[12px] text-dp-outline mt-1">JPG, PNG, WebP, GIF · Max 5MB</p>
+          <p className="font-sans text-[12px] text-dp-outline mt-1">{t('g.fileTypes')}</p>
         </div>
       )}
 

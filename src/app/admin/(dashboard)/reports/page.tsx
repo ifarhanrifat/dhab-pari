@@ -292,7 +292,7 @@ function ReportsPageInner() {
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ac.system')}</label>
           <select value={system} onChange={(e) => setSystem(e.target.value as SystemTab)} className="filter-field">
             {access.canWaterSupply && <option value="water_supply">{t('a.waterSupplySystem')}</option>}
-            {access.canDonorsProjects && <option value="donors_projects">Donors &amp; Projects</option>}
+            {access.canDonorsProjects && <option value="donors_projects">{t('a.donorsProjects')}</option>}
           </select>
         </div>
         <div className="flex-1 min-w-[190px]">

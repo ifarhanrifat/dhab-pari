@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { Lock } from 'lucide-react'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 
@@ -27,6 +28,7 @@ const LABEL: Record<SystemTab, string> = {
  * screen that is working exactly as intended.
  */
 export function SystemGuard({ system, children }: { system: SystemTab; children: React.ReactNode }) {
+  const { t } = useLocale()
   const access = useSystemAccess()
 
   if (access.loading) {
@@ -63,7 +65,7 @@ export function SystemGuard({ system, children }: { system: SystemTab; children:
           href="/admin"
           className="inline-block px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all"
         >
-          Back to Dashboard
+          {t('g.backToDashboard')}
         </Link>
       )}
     </div>

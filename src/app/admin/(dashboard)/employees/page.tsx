@@ -321,7 +321,7 @@ export default function EmployeesPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Phone (optional)</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.phoneOptional')}</label>
                   <input value={form.phone} onChange={(ev) => setForm({ ...form, phone: ev.target.value })} className="input-field" />
                 </div>
                 <div>
@@ -338,7 +338,7 @@ export default function EmployeesPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Secondary Role (optional)</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.secondaryOptional')}</label>
                   <select value={form.secondary_role} onChange={(ev) => setForm({ ...form, secondary_role: ev.target.value })} className="input-field">
                     <option value="">{t('us.none')}</option>
                     {activeRoles.filter((r) => r.key !== form.primary_role).map((r) => <option key={r.key} value={r.key}>{r.label_en}</option>)}
@@ -565,7 +565,7 @@ function HiringRequestGenerator({ employees, employeeRoles, branding }: { employ
                 <option value="png">PNG</option>
               </select>
               <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={14} /> {t('a.print')}</button>
-              <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto"><Download size={14} /> Download</button>
+              <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto"><Download size={14} /> {t('g.download')}</button>
             </div>
           </div>
         </div>
@@ -920,7 +920,7 @@ function PayslipButton({
                     </select>
                   )}
                   <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={14} /> {t('a.print')}</button>
-                  <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto"><Download size={14} /> Download</button>
+                  <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto"><Download size={14} /> {t('g.download')}</button>
                 </div>
               </>
             )}

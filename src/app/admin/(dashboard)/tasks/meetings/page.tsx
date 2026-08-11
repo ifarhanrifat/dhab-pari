@@ -625,7 +625,7 @@ export default function MeetingsAgendaPage() {
     <div>
       <div className="flex items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-[26px] sm:text-[32px] font-bold text-dp-primary flex items-center gap-2.5">
-          <CalendarClock size={28} /> Meetings &amp; Agenda
+          <CalendarClock size={28} /> {t('mt.title')}
         </h1>
         <div className="flex items-center gap-2">
           {meetings.length > 0 && (
@@ -981,7 +981,7 @@ export default function MeetingsAgendaPage() {
                     {/* Suggestions — committee-member-raised first, website-raised last */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] flex items-center gap-1.5"><Lightbulb size={14} /> Suggestions</p>
+                        <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] flex items-center gap-1.5"><Lightbulb size={14} /> {t('g.suggestions')}</p>
                         <div className="flex items-center gap-3">
                           <button onClick={() => openImportSuggestions(meeting.id)} className="flex items-center gap-1 text-[12.5px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer">
                             <Globe2 size={13} /> {t('mt.importWebsite')}
@@ -1006,7 +1006,7 @@ export default function MeetingsAgendaPage() {
 
                                 {s.reply_text && (
                                   <div className="mt-2 bg-dp-surface-container-low rounded-lg p-2.5">
-                                    <p className="font-sans text-[10.5px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Reply</p>
+                                    <p className="font-sans text-[10.5px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">{t('g.reply')}</p>
                                     <p className="font-sans text-[13px] text-dp-on-surface whitespace-pre-wrap">{s.reply_text}</p>
                                   </div>
                                 )}
@@ -1464,7 +1464,7 @@ export default function MeetingsAgendaPage() {
                   <option value="png">PNG</option>
                 </select>
                 <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={14} /> {t('a.print')}</button>
-                <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto"><Download size={14} /> Download</button>
+                <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto"><Download size={14} /> {t('g.download')}</button>
               </div>
             </div>
           </div>
@@ -1498,7 +1498,7 @@ export default function MeetingsAgendaPage() {
                     <span className="font-sans text-[13px] text-dp-on-surface">{m.name} <span className="text-dp-on-surface-variant text-[11.5px]">({m.position})</span></span>
                     {m.uses_smartphone ? (
                       <button onClick={() => sendMeetingNoticeWhatsApp(noticeFor, m.id)} className="flex items-center gap-1 px-2 py-1 border border-dp-outline-variant rounded-full font-sans text-[11.5px] font-semibold text-green-700 hover:bg-green-50 transition-all cursor-pointer shrink-0">
-                        <Send size={11} /> Send
+                        <Send size={11} /> {t('g.send')}
                       </button>
                     ) : (
                       <span className="font-sans text-[11px] text-dp-on-surface-variant shrink-0" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>

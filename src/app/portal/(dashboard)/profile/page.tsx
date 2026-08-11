@@ -100,7 +100,7 @@ export default function PortalProfilePage() {
         <ImageUpload bucket="images" label="Profile Photo" currentUrl={form.avatar_url} onUpload={(url) => setForm({ ...form, avatar_url: url })} />
 
         <div>
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Username *</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.usernameReq')}</label>
           <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className="input-field" />
         </div>
         <div>
@@ -108,7 +108,7 @@ export default function PortalProfilePage() {
           <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input-field" />
         </div>
         <div>
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Full Name *</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.fullNameReq')}</label>
           <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="input-field" />
         </div>
         <div>
@@ -116,11 +116,11 @@ export default function PortalProfilePage() {
           <input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
         </div>
         <div>
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Father&apos;s / Husband&apos;s Name *</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.fatherReq')}</label>
           <input value={form.father_husband_name} onChange={(e) => setForm({ ...form, father_husband_name: e.target.value })} className="input-field" />
         </div>
         <div>
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">WhatsApp *</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.whatsappReq')}</label>
           <input type="tel" value={form.whatsapp_number} onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })} className="input-field" />
         </div>
         <div className="grid grid-cols-2 gap-3">

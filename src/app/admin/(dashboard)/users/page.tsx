@@ -588,7 +588,7 @@ export default function AdminUsersPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Full Name *</label>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('g.fullNameReq')}</label>
                 <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="input-field" />
               </div>
               <div>
@@ -603,7 +603,7 @@ export default function AdminUsersPage() {
                 <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">{roleDescriptions[form.role]}</p>
               </div>
               <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Secondary Role (optional)</label>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('g.secondaryOptional')}</label>
                 <select value={form.secondary_role} onChange={(e) => setForm({ ...form, secondary_role: e.target.value })} className="input-field">
                   <option value="">{t('us.none')}</option>
                   {availableRoles.filter((r) => r !== form.role).map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
@@ -625,7 +625,7 @@ export default function AdminUsersPage() {
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={form.access_donors_projects} onChange={(e) => setForm({ ...form, access_donors_projects: e.target.checked })} className="accent-dp-secondary" />
-                    <span className="font-sans text-[13.5px]">Donors &amp; Projects System</span>
+                    <span className="font-sans text-[13.5px]">{t('ac.donorsSystem')}</span>
                   </label>
                   {!form.access_water_supply && !form.access_donors_projects && form.role !== 'publisher' && (
                     <p className="font-sans text-[12px] text-dp-error bg-dp-error/5 border border-dp-error/30 rounded px-2.5 py-2 mt-1">
@@ -710,7 +710,7 @@ export default function AdminUsersPage() {
                 <div className="border-t border-dp-outline-variant pt-4 mt-2">
                   <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">{t('us.orCreateDirectly')}</p>
                   <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">If invite/reset-password emails aren&apos;t reaching people, set a password here and give it to them yourself. Remove this once email is fixed.</p>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Password *</label>
+                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('g.passwordReq')}</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -855,7 +855,7 @@ export default function AdminUsersPage() {
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={collectorForm.access_donors_projects} onChange={(e) => setCollectorForm({ ...collectorForm, access_donors_projects: e.target.checked })} className="accent-dp-secondary" />
-                      <span className="font-sans text-[13.5px]">Donors &amp; Projects</span>
+                      <span className="font-sans text-[13.5px]">{t('a.donorsProjects')}</span>
                     </label>
                   </div>
                 )}

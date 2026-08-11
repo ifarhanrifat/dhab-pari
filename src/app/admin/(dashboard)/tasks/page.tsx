@@ -32,6 +32,7 @@ const stageStyles: Record<ConnectionTask['task_status'], string> = {
 }
 
 export default function TasksPage() {
+  const { t } = useLocale()
   const { t: tr } = useLocale()
   const supabase = createClient()
   const [tasks, setTasks] = useState<ConnectionTask[]>([])
@@ -221,7 +222,7 @@ export default function TasksPage() {
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{assignTarget.request_number}</p>
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Incharge</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('g.incharge')}</label>
                 <select autoFocus value={assignForm.incharge_user_id} onChange={(e) => setAssignForm({ ...assignForm, incharge_user_id: e.target.value })} className="input-field">
                   <option value="">Select incharge...</option>
                   {inchargeOptions.map((o) => <option key={o.id} value={o.id}>{o.full_name}</option>)}

@@ -542,7 +542,7 @@ export default function AdminBloodRequestsPage() {
             <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Number for people to call</label>
             <input value={tickerNumber} onChange={(e) => setTickerNumber(e.target.value)} placeholder="03xx-xxxxxxx" className="input-field !py-2.5 text-[15px]" />
 
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1 mt-3">Who should see it</label>
+            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1 mt-3">{t('g.whoShouldSee')}</label>
             <div className="grid grid-cols-2 gap-2">
               {([['everyone', 'Everyone'], ['villagers', 'Villagers only'], ['consumers', 'Water consumers'], ['donors', 'Donors only'], ['overseas', 'Overseas only']] as const).map(([v, l]) => (
                 <button key={v} type="button" onClick={() => setAppealAudience(v)}
@@ -562,7 +562,7 @@ export default function AdminBloodRequestsPage() {
             <label className="flex items-start gap-2 cursor-pointer mt-3">
               <input type="checkbox" checked={appealPublic} onChange={(e) => setAppealPublic(e.target.checked)} className="accent-dp-secondary mt-0.5" />
               <span className="font-sans text-[12.5px] text-dp-on-surface">
-                Also show on the public website
+                {t('g.alsoPublic')}
                 <span className="block text-[11px] text-dp-on-surface-variant">Untick to keep it inside the portal only — a targeted appeal usually should not be public.</span>
               </span>
             </label>

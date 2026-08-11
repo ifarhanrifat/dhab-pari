@@ -52,12 +52,12 @@ export default function ForgotPasswordPage() {
           {sent ? (
             <div className="text-center py-4">
               <CheckCircle size={40} className="text-dp-secondary mx-auto mb-3" />
-              <p className="font-sans font-semibold text-dp-on-surface mb-2">Check your email</p>
+              <p className="font-sans font-semibold text-dp-on-surface mb-2">{t('g.checkEmail')}</p>
               <p className="font-sans text-[13.5px] text-dp-on-surface-variant">
                 If <strong>{email}</strong> is a registered admin account, a password reset link has been sent to it.
               </p>
               <Link href="/admin/login" className="inline-flex items-center gap-1.5 mt-6 font-sans text-[13px] font-semibold text-dp-secondary hover:underline">
-                <ArrowLeft size={14} /> Back to Sign In
+                <ArrowLeft size={14} /> {t('g.backToSignIn')}
               </Link>
             </div>
           ) : (
@@ -66,8 +66,8 @@ export default function ForgotPasswordPage() {
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-dp-primary-container rounded-full mb-3">
                   <Mail size={22} className="text-dp-on-primary-container" />
                 </div>
-                <h2 className="font-heading text-[24px] font-bold text-dp-primary mb-1">Reset Password</h2>
-                <p className="text-dp-on-surface-variant text-[13px] font-sans">Enter your email and we&apos;ll send you a reset link</p>
+                <h2 className="font-heading text-[24px] font-bold text-dp-primary mb-1">{t('g.resetPassword')}</h2>
+                <p className="text-dp-on-surface-variant text-[13px] font-sans">{t('g.enterEmailReset')}</p>
               </div>
 
               <form onSubmit={submit} className="space-y-5">
@@ -97,7 +97,7 @@ export default function ForgotPasswordPage() {
               </form>
 
               <Link href="/admin/login" className="flex items-center justify-center gap-1.5 mt-6 font-sans text-[13px] font-semibold text-dp-secondary hover:underline">
-                <ArrowLeft size={14} /> Back to Sign In
+                <ArrowLeft size={14} /> {t('g.backToSignIn')}
               </Link>
             </>
           )}

@@ -484,7 +484,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setEditBillRow(null)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">Edit Bill</h2>
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('g.editBill')}</h2>
               <button onClick={() => setEditBillRow(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <div className="space-y-4">
@@ -503,7 +503,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                 <input type="number" value={billForm.amount_pkr || ''} onChange={(e) => setBillForm({ ...billForm, amount_pkr: +e.target.value })} className="input-field" />
               </div>
               <button onClick={saveBillEdit} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-                <Save size={16} /> Save Changes
+                <Save size={16} /> {t('g.saveChanges')}
               </button>
             </div>
           </div>
@@ -567,11 +567,11 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Debit</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.debit')}</label>
                   <input type="number" value={manualForm.debit || ''} onChange={(e) => setManualForm({ ...manualForm, debit: +e.target.value })} className="input-field" />
                 </div>
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Credit</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.credit')}</label>
                   <input type="number" value={manualForm.credit || ''} onChange={(e) => setManualForm({ ...manualForm, credit: +e.target.value })} className="input-field" />
                 </div>
               </div>

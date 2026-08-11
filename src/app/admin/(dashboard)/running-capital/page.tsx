@@ -436,7 +436,7 @@ export default function RunningCapitalPage() {
               <button onClick={() => setSystem('water_supply')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'water_supply' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>{t('a.waterSupply')}</button>
             )}
             {access.canDonorsProjects && (
-              <button onClick={() => setSystem('donors_projects')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'donors_projects' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>Donors &amp; Projects</button>
+              <button onClick={() => setSystem('donors_projects')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'donors_projects' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>{t('a.donorsProjects')}</button>
             )}
           </div>
         )}
@@ -563,7 +563,7 @@ export default function RunningCapitalPage() {
                     <tr className="text-dp-on-surface-variant text-[11px] font-sans font-bold uppercase tracking-[0.04em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                       <th className="px-4 py-2.5">{t('a.consumer')}</th>
                       <th className="px-4 py-2.5">{t('w.sector')}</th>
-                      <th className="px-4 py-2.5"><ClipboardList size={12} className="inline me-1" />Incharge</th>
+                      <th className="px-4 py-2.5"><ClipboardList size={12} className="inline me-1" />{t('g.incharge')}</th>
                       <th className="px-4 py-2.5">{t('w.status')}</th>
                     </tr>
                   </thead>
@@ -584,7 +584,7 @@ export default function RunningCapitalPage() {
         </>
       ) : (
         <>
-          <SectionHeading>Cash Position</SectionHeading>
+          <SectionHeading>{t('g.cashPosition')}</SectionHeading>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard icon={<Wallet size={16} />} label={dt(lang, 'totalCash')} value={fmtAmount(Number(live.this_month_cash))} />
             <StatCard icon={<ArrowDownToLine size={16} />} label="Cash In This Month" value={fmtAmount(live.cash_in)} tone="good" />

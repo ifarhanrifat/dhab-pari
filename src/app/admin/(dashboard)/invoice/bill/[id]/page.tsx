@@ -225,7 +225,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
             title={paidAmount > 0 ? 'A payment is recorded — delete it first to edit this bill' : undefined}
             className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"
           >
-            <Pencil size={14} /> Edit Bill
+            <Pencil size={14} /> {t('g.editBill')}
           </Link>
           <button
             onClick={() => setConfirmDelete(true)}
@@ -280,8 +280,8 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
                   <th className="px-4 py-2">{t('rp.account')}</th>
                   <th className="px-4 py-2">{t('w.particular')}</th>
                   <th className="px-4 py-2">Receipt #</th>
-                  <th className="px-4 py-2 text-end">Debit</th>
-                  <th className="px-4 py-2 text-end">Credit</th>
+                  <th className="px-4 py-2 text-end">{t('g.debit')}</th>
+                  <th className="px-4 py-2 text-end">{t('g.credit')}</th>
                 </tr>
               </thead>
               <tbody>

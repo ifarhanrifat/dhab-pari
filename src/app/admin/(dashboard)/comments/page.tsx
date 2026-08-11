@@ -76,7 +76,7 @@ export default function AdminCommentsPage() {
                 <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{new Date(c.created_at).toLocaleString('en-GB')}</p>
               </div>
               <button onClick={() => setHidden(c.id, !c.is_hidden)} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12px] font-semibold cursor-pointer hover:bg-dp-surface-container transition-all shrink-0">
-                {c.is_hidden ? <><Eye size={13} /> Restore</> : <><EyeOff size={13} /> Hide</>}
+                {c.is_hidden ? <><Eye size={13} /> {t('g.restore')}</> : <><EyeOff size={13} /> Hide</>}
               </button>
             </div>
           ))

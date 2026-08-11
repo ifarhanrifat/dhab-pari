@@ -65,7 +65,7 @@ export default function PortalComplaintsPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary">Complaints</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('g.complaints')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.complaintsBlurb')}</p>
       </div>
 
@@ -73,7 +73,7 @@ export default function PortalComplaintsPage() {
         <div className="flex flex-wrap gap-3 mb-5">
           <button type="button" onClick={() => setSystem('donors_projects')}
             className={`px-4 py-2 rounded-full font-sans text-[13.5px] font-semibold cursor-pointer transition-all ${system === 'donors_projects' ? 'bg-dp-primary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
-            Donors &amp; Projects
+            {t('a.donorsProjects')}
           </button>
           {user?.consumer_id && (
             <button type="button" onClick={() => setSystem('water_supply')}
@@ -84,7 +84,7 @@ export default function PortalComplaintsPage() {
         </div>
         {system === 'water_supply' && (
           <div className="mb-4">
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Sector (optional)</label>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.sectorOptional')}</label>
             <select value={sector} onChange={(e) => setSector(e.target.value)} className="input-field">
               <option value="">{t('w.selectSector')}</option>
               {sectors.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}

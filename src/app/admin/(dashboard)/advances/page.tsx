@@ -326,7 +326,7 @@ export default function AdvancesPage() {
               )}
             </div>
             <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
-              <button onClick={() => setViewTarget(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Close</button>
+              <button onClick={() => setViewTarget(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('g.close')}</button>
             </div>
           </div>
         </div>

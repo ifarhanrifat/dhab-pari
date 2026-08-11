@@ -53,7 +53,7 @@ export default function PortalSuggestionsPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary">Suggestions</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('g.suggestions')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.suggestionsBlurb')}</p>
       </div>
 

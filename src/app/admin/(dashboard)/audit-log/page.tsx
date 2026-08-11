@@ -182,7 +182,7 @@ export default function AuditLogPage() {
                   <td className="px-4 py-3 text-end">
                     {r.action === 'delete' && !r.restored_at && canRestore && (
                       <button onClick={() => setConfirmRestore(r)} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto">
-                        <RotateCcw size={13} /> Restore
+                        <RotateCcw size={13} /> {t('g.restore')}
                       </button>
                     )}
                   </td>

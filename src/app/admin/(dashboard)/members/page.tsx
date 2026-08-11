@@ -124,11 +124,11 @@ export default function AdminMembersPage() {
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.phone')}</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input-field" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Bio</label><textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} rows={3} className="input-field resize-none" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Bio (UR)</label><textarea value={form.bio_ur} onChange={(e) => setForm({ ...form, bio_ur: e.target.value })} rows={3} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Display Order</label><input type="number" value={form.display_order || ''} onChange={(e) => setForm({ ...form, display_order: +e.target.value })} className="input-field" /></div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('g.displayOrder')}</label><input type="number" value={form.display_order || ''} onChange={(e) => setForm({ ...form, display_order: +e.target.value })} className="input-field" /></div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">Active Member</span></label>
 
               <div className="border-t border-dp-outline-variant pt-4 mt-2">
-                <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-3">Meetings &amp; Agenda</p>
+                <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-3">{t('mt.title')}</p>
                 <label className="flex items-center gap-2 cursor-pointer mb-3">
                   <input type="checkbox" checked={form.uses_smartphone} onChange={(e) => setForm({ ...form, uses_smartphone: e.target.checked })} className="accent-dp-secondary" />
                   <span className="font-sans text-[14px]">Uses a smartphone (can receive reminders directly)</span>

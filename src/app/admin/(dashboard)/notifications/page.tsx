@@ -206,7 +206,7 @@ export default function AdminNotificationsPage() {
         </div>
 
         <div className="mb-4">
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Who should see it</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.whoShouldSee')}</label>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             {AUDIENCES.map(([v, l]) => (
               <button key={v} type="button" onClick={() => setAAudience(v)}
@@ -245,7 +245,7 @@ export default function AdminNotificationsPage() {
 
         <label className="flex items-start gap-2 cursor-pointer mb-2">
           <input type="checkbox" checked={aPublic} onChange={(e) => setAPublic(e.target.checked)} className="accent-dp-secondary mt-0.5" />
-          <span className="font-sans text-[13.5px]">Also show on the public website
+          <span className="font-sans text-[13.5px]">{t('g.alsoPublic')}
             <span className="block text-[11.5px] text-dp-on-surface-variant">Adds it to the homepage ticker as well as the red bar. A targeted appeal usually should not be public.</span>
           </span>
         </label>
@@ -286,7 +286,7 @@ export default function AdminNotificationsPage() {
                 </div>
                 <button onClick={() => closeAppeal(a.id)}
                   className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-error cursor-pointer hover:bg-dp-surface-container-low transition-all">
-                  <X size={14} /> Close
+                  <X size={14} /> {t('g.close')}
                 </button>
               </div>
             ))}
@@ -367,7 +367,7 @@ export default function AdminNotificationsPage() {
           </div>
 
           <div>
-            <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Message</label>
+            <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('g.message')}</label>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -400,7 +400,7 @@ export default function AdminNotificationsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]">
-              <th className="p-4">{t('w.date')}</th><th className="p-4">{t('a.type')}</th><th className="p-4">Recipient</th><th className="p-4">Message</th><th className="p-4">{t('w.status')}</th>
+              <th className="p-4">{t('w.date')}</th><th className="p-4">{t('a.type')}</th><th className="p-4">Recipient</th><th className="p-4">{t('g.message')}</th><th className="p-4">{t('w.status')}</th>
             </tr></thead>
             <tbody className="font-sans text-[16px]">
               {loading && <tr><td colSpan={5} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}
