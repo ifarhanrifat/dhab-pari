@@ -12,6 +12,9 @@ import { createClient } from '@/lib/supabase/client'
 const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/water', label: 'Water Bill' },
+  // High in the list on purpose: someone looking for this is looking for it in
+  // an emergency, and will not hunt through a sidebar card to find it.
+  { href: '/blood', label: 'Blood' },
   { href: '/projects', label: 'Projects' },
   { href: '/jobs', label: 'Jobs' },
   { href: '/accounts', label: 'Accounts' },

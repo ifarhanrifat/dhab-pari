@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { CreditCard, Newspaper } from 'lucide-react'
+import { CreditCard, Newspaper, Droplet } from 'lucide-react'
 
 export function HomeMobileQuickActions() {
   return (
@@ -14,6 +14,15 @@ export function HomeMobileQuickActions() {
         >
           <span>Pay Water Bill</span>
           <CreditCard size={20} />
+        </Link>
+        {/* On a phone the blood card sits far below the fold, under the whole
+            main column. Anyone reaching for it is in a hurry, so it goes here. */}
+        <Link
+          href="/blood"
+          className="w-full bg-dp-error text-white py-4 px-6 rounded-lg font-sans font-semibold text-[18px] flex items-center justify-between active:scale-[0.98] transition-transform"
+        >
+          <span>Request Blood</span>
+          <Droplet size={20} />
         </Link>
         <Link
           href="/news"
