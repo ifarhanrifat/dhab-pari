@@ -12,6 +12,7 @@ import { friendlyError } from '@/lib/errors'
 import { FileAttachment } from '@/components/admin/FileAttachment'
 import { VoiceRecorder } from '@/components/admin/VoiceRecorder'
 import { normalizePakPhone } from '@/lib/receiptExport'
+import { SITE } from '@/lib/constants'
 
 interface Complaint {
   id: string; complaint_number: string; system: string; complainant_name: string | null
@@ -233,7 +234,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
     if (!complaint?.phone) return
     const intl = normalizePakPhone(complaint.phone)
     if (!intl) { toast.error('No usable phone number on this complaint'); return }
-    const msg = encodeURIComponent(`Dhab Pari — your complaint ${complaint.complaint_number} has been resolved. Thank you for your patience.`)
+    const msg = encodeURIComponent(`${SITE.name} — your complaint ${complaint.complaint_number} has been resolved. Thank you for your patience.`)
     window.open(`https://wa.me/${intl}?text=${msg}`, '_blank')
   }
 

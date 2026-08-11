@@ -37,6 +37,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...except the template that documents how to deploy for another village
+!.env.example
 
 # vercel
 .vercel

@@ -3,9 +3,10 @@ import { GraduationCap, BookOpen, Award, Users } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'Education Corner',
-  description: 'Scholarship programs, student achievements, and educational initiatives in Dhab Pari.',
+  description: `Scholarship programs, student achievements, and educational initiatives in ${SITE.name}.`,
 }
 import Link from 'next/link'
+import { SITE } from '@/lib/constants'
 
 export default function EducationPage() {
   return (
@@ -19,7 +20,7 @@ export default function EducationPage() {
           Education Corner
         </h1>
         <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px]">
-          Supporting the next generation of Dhab Pari through scholarships,
+          Supporting the next generation of {SITE.name} through scholarships,
           resources, and community learning.
         </p>
       </div>

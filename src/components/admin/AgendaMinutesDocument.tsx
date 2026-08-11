@@ -2,6 +2,7 @@
 
 import { forwardRef } from 'react'
 import type { BrandingSettings } from '@/lib/branding'
+import { SITE } from '@/lib/constants'
 
 type Category = 'miscellaneous' | 'donation_projects' | 'medical' | 'tree_plantation' | 'water_supply'
 const CATEGORY_ORDER: Category[] = ['miscellaneous', 'donation_projects', 'medical', 'tree_plantation', 'water_supply']
@@ -86,7 +87,7 @@ function ReplySpace() {
 // in this app. Tasks group by category in a fixed print order; suggestions
 // split into committee-member-raised (first) and website-raised (last).
 export const AgendaMinutesDocument = forwardRef<HTMLDivElement, Props>(function AgendaMinutesDocument({ data, branding }, ref) {
-  const companyNameEn = branding.companyNameEn || 'Dhab Pari'
+  const companyNameEn = branding.companyNameEn || SITE.name
   const companyNameUr = branding.companyNameUr || companyNameEn
 
   const memberSuggestions = data.suggestions.filter((s) => !s.isFromWebsite)

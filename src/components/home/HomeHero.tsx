@@ -33,7 +33,7 @@ export function HomeHero() {
             {SITE.committeeUrdu}
           </h1>
           <p className="font-heading text-[26px] lg:text-[30px] font-semibold text-dp-on-primary-container mb-6 mt-1 tracking-wide">
-            Dhab Pari
+            {SITE.name}
           </p>
           <p
             className="text-dp-on-primary-container text-[22px] mb-8 leading-relaxed"
@@ -80,7 +80,7 @@ export function HomeHero() {
               Building a Sustainable Village Together
             </h2>
             <p className="text-[16px] font-sans text-white/90 leading-[24px]">
-              Official portal for the Water & Welfare Committee of Dhab Pari village.
+              Official portal for the {SITE.committee} of {SITE.name} village.
             </p>
           </div>
         </div>

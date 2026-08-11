@@ -1,6 +1,7 @@
 'use client'
 
 import { Menu } from 'lucide-react'
+import { SITE } from '@/lib/constants'
 
 interface AdminHeaderProps {
   onMenuToggle?: () => void
@@ -20,7 +21,7 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
         <Menu size={26} />
       </button>
       <h1 className="text-white font-heading text-[20px] font-bold leading-[28px] truncate">
-        Dhab Pari Portal
+        {SITE.name} Portal
       </h1>
     </header>
   )

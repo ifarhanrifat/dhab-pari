@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, HeartHandshake, AlertTriangle } from 'lucide-react'
+import { SITE } from '@/lib/constants'
 
 const MIN_DELAY_MS = 1000
 const MAX_DELAY_MS = 8000
@@ -87,7 +88,7 @@ export default function PortalLoginPage() {
           <HeartHandshake size={26} />
         </div>
         <h1 className="font-heading text-[24px] font-bold text-dp-primary">Donor &amp; Consumer Portal</h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Dhab Pari Committee</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{SITE.shortCommittee}</p>
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant p-6 md:p-8 w-full max-w-sm">

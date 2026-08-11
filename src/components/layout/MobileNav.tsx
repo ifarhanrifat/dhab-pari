@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { X, UserCircle2, ShieldCheck } from 'lucide-react'
+import { SITE } from '@/lib/constants'
 
 interface MobileNavProps {
   open: boolean
@@ -37,7 +38,7 @@ export function MobileNav({ open, onClose, navLinks, isPortalUser }: MobileNavPr
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
           <span className="font-heading text-[24px] font-bold text-white">
-            Dhab Pari
+            {SITE.name}
           </span>
           <button
             onClick={onClose}

@@ -4,6 +4,7 @@ import { forwardRef } from 'react'
 import { dt, type Lang, type SlipLang } from '@/lib/docTranslations'
 import { UniversalSlip, type SlipFormat } from './UniversalSlip'
 import { fmt, fmtDate, Ltr, PhoneLink, prettyUrl, splitNumbers } from './slipShared'
+import { SITE } from '@/lib/constants'
 
 export type InvoiceTemplate =
   | 'universal'
@@ -391,7 +392,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
   const hasDiscount = !!data.discountAmount && data.discountAmount > 0
   const showUrdu = data.language === 'ur'
   const logoPad = data.logoUrl ? (data.logoWidth ?? 56) + 12 : 0
-  const companyNameEn = data.companyNameEn || 'Dhab Pari'
+  const companyNameEn = data.companyNameEn || SITE.name
   const companyNameUr = data.companyNameUr || 'واٹر اینڈ ویلفئیر کمیٹی'
   const companyEmail = data.companyEmail || 'dhabpariwelfare@gmail.com'
 

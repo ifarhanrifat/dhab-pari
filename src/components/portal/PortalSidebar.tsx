@@ -10,6 +10,7 @@ import {
   LayoutDashboard, HeartHandshake, Droplets, Repeat, MessageSquare,
   MessageSquareWarning, Droplet, LogOut, X, UserCog, ArrowLeftCircle, HandHeart, Vote, Briefcase,
 } from 'lucide-react'
+import { SITE } from '@/lib/constants'
 
 // Mirrors AdminSidebar.tsx's exact pattern (fixed desktop sidebar + mobile
 // slide-in drawer + persistent profile block at the bottom) — the portal
@@ -137,7 +138,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
       <aside className="hidden md:flex flex-col h-screen fixed left-0 top-0 py-6 bg-dp-primary border-r border-dp-outline-variant w-[210px] z-50 print:hidden">
         <div className="px-4 mb-8">
           <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">Donor Portal</h2>
-          <p className="text-[12px] font-sans text-white/60 mt-1">Dhab Pari Committee</p>
+          <p className="text-[12px] font-sans text-white/60 mt-1">{SITE.shortCommittee}</p>
         </div>
         {sidebarContent}
       </aside>
@@ -148,7 +149,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
         <div className="px-4 mb-8 flex items-center justify-between">
           <div>
             <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">Donor Portal</h2>
-            <p className="text-[12px] font-sans text-white/60 mt-1">Dhab Pari Committee</p>
+            <p className="text-[12px] font-sans text-white/60 mt-1">{SITE.shortCommittee}</p>
           </div>
           <button onClick={onMobileClose} className="text-white/80 hover:text-white p-1 cursor-pointer" aria-label="Close menu"><X size={22} /></button>
         </div>

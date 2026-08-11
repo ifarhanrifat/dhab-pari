@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, ShieldAlert, Lock, AlertTriangle } from 'lucide-react'
+import { SITE } from '@/lib/constants'
 
 const MIN_DELAY_MS = 1000   // 1 s after first failure, doubles each time
 const MAX_DELAY_MS = 8000   // cap at 8 s
@@ -112,7 +113,7 @@ export default function AdminLoginPage() {
           </div>
           <div>
             <h1 className="font-heading text-[24px] font-bold leading-[32px] text-white">
-              Dhab Pari
+              {SITE.name}
             </h1>
             <p className="text-white/60 text-[12px] font-sans">
               Admin Portal — Restricted Access
@@ -248,7 +249,7 @@ export default function AdminLoginPage() {
 
       {/* Footer */}
       <div className="text-center py-4 text-dp-on-surface-variant text-[12px] font-sans">
-        © {new Date().getFullYear()} Dhab Pari Water &amp; Welfare Committee — All access is logged
+        © {new Date().getFullYear()} {SITE.fullName} — All access is logged
       </div>
     </div>
   )

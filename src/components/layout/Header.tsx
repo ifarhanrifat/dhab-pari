@@ -61,7 +61,7 @@ export function Header() {
                 so it never competes with the nav for space at lg. */}
             <div className="shrink-0">
               <Link href="/" className="font-heading text-[28px] font-bold leading-[34px] text-white tracking-tight">
-                Dhab Pari
+                {SITE.name}
               </Link>
               <p className="text-white/60 text-[12px] font-sans hidden xl:block">
                 Village Transparency Portal

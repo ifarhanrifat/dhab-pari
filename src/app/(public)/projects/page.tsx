@@ -17,6 +17,7 @@ import {
   Eye,
   HandHeart,
 } from 'lucide-react'
+import { SITE } from '@/lib/constants'
 
 interface Project {
   id: string
@@ -46,7 +47,7 @@ type Lang = 'en' | 'ur'
 // page here already respects (site_settings.display_language).
 const t: Record<string, { en: string; ur: string }> = {
   pageTitle: { en: 'Village Welfare Projects', ur: 'گاؤں کی فلاحی منصوبے' },
-  pageSubtitle: { en: 'Tracking the growth of Dhab Pari through community-funded infrastructure, healthcare, and educational initiatives.', ur: 'کمیونٹی کی مالی معاونت سے تعمیرات، صحت اور تعلیمی اقدامات کے ذریعے ڈھاب پڑی کی ترقی کا سفر۔' },
+  pageSubtitle: { en: `Tracking the growth of ${SITE.name} through community-funded infrastructure, healthcare, and educational initiatives.`, ur: `کمیونٹی کی مالی معاونت سے تعمیرات، صحت اور تعلیمی اقدامات کے ذریعے ${SITE.nameUrdu} کی ترقی کا سفر۔` },
   filterAll: { en: 'All', ur: 'تمام' },
   filterOngoing: { en: 'Ongoing', ur: 'جاری' },
   filterCompleted: { en: 'Completed', ur: 'مکمل' },
@@ -55,7 +56,7 @@ const t: Record<string, { en: string; ur: string }> = {
   sortByDate: { en: 'Sort by Date', ur: 'تاریخ کے مطابق ترتیب' },
   noProjects: { en: 'No projects found for this filter.', ur: 'اس فلٹر کے لیے کوئی منصوبہ نہیں ملا۔' },
   ctaTitle: { en: 'Have an idea for the village?', ur: 'گاؤں کے لیے کوئی خیال ہے؟' },
-  ctaBody: { en: "Every great transformation starts with a simple suggestion. Share your vision for Dhab Pari's future infrastructure or welfare projects.", ur: 'ہر بڑی تبدیلی ایک سادہ تجویز سے شروع ہوتی ہے۔ ڈھاب پڑی کے مستقبل کے تعمیراتی یا فلاحی منصوبوں کے لیے اپنا خیال پیش کریں۔' },
+  ctaBody: { en: `Every great transformation starts with a simple suggestion. Share your vision for ${SITE.name}'s future infrastructure or welfare projects.`, ur: `ہر بڑی تبدیلی ایک سادہ تجویز سے شروع ہوتی ہے۔ ${SITE.nameUrdu} کے مستقبل کے تعمیراتی یا فلاحی منصوبوں کے لیے اپنا خیال پیش کریں۔` },
   submitProposal: { en: 'Submit Proposal', ur: 'تجویز جمع کرائیں' },
   browseProposals: { en: 'Browse Proposals', ur: 'تجاویز دیکھیں' },
 

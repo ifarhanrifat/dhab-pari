@@ -1,7 +1,8 @@
 import { ImageResponse } from 'next/og'
 import { createClient } from '@/lib/supabase/server'
+import { SITE } from '@/lib/constants'
 
-export const alt = 'Dhab Pari Project'
+export const alt = `${SITE.name} Project`
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -41,7 +42,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           <div style={{ position: 'absolute', inset: 0, display: 'flex', background: 'linear-gradient(to top, rgba(13,59,46,0.95), rgba(13,59,46,0.15) 55%, rgba(13,59,46,0.55))' }} />
         )}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, position: 'relative' }}>
-          <div style={{ fontSize: 30, fontWeight: 700 }}>Dhab Pari</div>
+          <div style={{ fontSize: 30, fontWeight: 700 }}>{SITE.name}</div>
           <div style={{ fontSize: 18, opacity: 0.7 }}>Water &amp; Welfare Committee</div>
         </div>
         <div style={{ display: 'flex', marginTop: 'auto', flexDirection: 'column', position: 'relative' }}>

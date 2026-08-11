@@ -4,7 +4,7 @@ import { SITE } from '@/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Donate',
-  description: 'Support Dhab Pari village growth — donate via JazzCash, Easypaisa, or bank transfer.',
+  description: `Support ${SITE.name} village growth — donate via JazzCash, Easypaisa, or bank transfer.`,
 }
 
 // No per-visitor content — payment method details/instructions change rarely.

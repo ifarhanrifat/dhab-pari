@@ -5,7 +5,7 @@ import { SITE } from '@/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Home',
-  description: 'Official portal for Dhab Pari Water & Welfare Committee — village transparency, water bills, projects, and community updates.',
+  description: `Official portal for ${SITE.fullName} — village transparency, water bills, projects, and community updates.`,
 }
 
 // Homepage stats/activity digest change more often than About/Donate, but

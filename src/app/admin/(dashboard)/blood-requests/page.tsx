@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Droplet, Plus, X, Search, MessageCircle, Megaphone, Pause, Play, Ban, CheckCircle2, Heart, Phone } from 'lucide-react'
 import { friendlyError } from '@/lib/errors'
 import { normalizePakPhone } from '@/lib/receiptExport'
+import { SITE } from '@/lib/constants'
 
 const GROUPS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']
 
@@ -202,7 +203,7 @@ export default function AdminBloodRequestsPage() {
   const whatsappDonor = (d: Eligible, r: BloodRequest) => {
     const intl = normalizePakPhone(d.whatsapp_number || d.mobile || '')
     if (!intl) { toast.error('No usable number for this donor'); return }
-    const msg = `Assalam o Alaikum ${d.full_name}. ${r.units_needed} unit(s) of ${r.blood_group} blood are needed for a patient at ${r.hospital}, ${r.city} on ${new Date(r.needed_on).toLocaleDateString('en-GB')}${fmtTime(r) ? ` at ${fmtTime(r)}` : ''}. If you are able to help, please reply. — Dhab Pari Water & Welfare Committee`
+    const msg = `Assalam o Alaikum ${d.full_name}. ${r.units_needed} unit(s) of ${r.blood_group} blood are needed for a patient at ${r.hospital}, ${r.city} on ${new Date(r.needed_on).toLocaleDateString('en-GB')}${fmtTime(r) ? ` at ${fmtTime(r)}` : ''}. If you are able to help, please reply. — ${SITE.fullName}`
     window.open(`https://wa.me/${intl}?text=${encodeURIComponent(msg)}`, '_blank')
   }
 

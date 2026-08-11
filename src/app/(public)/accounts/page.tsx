@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = {
   title: 'Accounts & Transparency',
-  description: 'Full financial transparency for Dhab Pari village — income, expenses, and community fund status.',
+  description: `Full financial transparency for ${SITE.name} village — income, expenses, and community fund status.`,
 }
 
 // Not per-visitor, but a trust-critical financial-transparency page — kept
@@ -17,6 +17,7 @@ import {
   Info,
   Building2,
 } from 'lucide-react'
+import { SITE } from '@/lib/constants'
 
 export default async function AccountsPage() {
   const supabase = await createClient()

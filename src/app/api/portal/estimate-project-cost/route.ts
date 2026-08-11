@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { GoogleGenAI } from '@google/genai'
+import { SITE } from '@/lib/constants'
 
 // Rough, non-binding cost estimate for a village project proposal — reuses
 // the same Gemini setup already configured for agenda photo extraction
@@ -13,7 +14,7 @@ import { GoogleGenAI } from '@google/genai'
 // with a machine-parseable "FINAL_ESTIMATE: <number>" line once it has
 // enough information, which the client watches for to know when to stop
 // the back-and-forth and show a number.
-const SYSTEM_PROMPT = (stage: 'modern' | 'cheapest') => `You are estimating a rough construction/welfare project cost in Pakistani Rupees (PKR) for a small village committee (Dhab Pari) in Pakistan.
+const SYSTEM_PROMPT = (stage: 'modern' | 'cheapest') => `You are estimating a rough construction/welfare project cost in Pakistani Rupees (PKR) for a small village committee (${SITE.name}) in Pakistan.
 
 Stage: ${stage === 'modern' ? 'Estimate using modern, good-quality equipment and materials (not the cheapest, not luxury — solid, standard modern quality).' : 'Estimate using the CHEAPEST realistic way to accomplish the same project — cheaper materials/labor/approach, while still being safe and functional.'}
 

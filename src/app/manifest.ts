@@ -1,12 +1,13 @@
 import type { MetadataRoute } from 'next'
+import { SITE } from '@/lib/constants'
 
 // Next.js serves this at /manifest.webmanifest and links it automatically —
 // no <link rel="manifest"> needed in the layout.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Dhab Pari — Water & Welfare Committee',
-    short_name: 'Dhab Pari',
-    description: 'Village transparency portal — water bills, donations, projects, and committee updates for Dhab Pari.',
+    name: `${SITE.name} — ${SITE.committee}`,
+    short_name: SITE.name,
+    description: `Village transparency portal — water bills, donations, projects, and committee updates for ${SITE.name}.`,
     start_url: '/',
     display: 'standalone',
     orientation: 'portrait',

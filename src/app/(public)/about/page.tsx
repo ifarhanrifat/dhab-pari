@@ -5,7 +5,7 @@ import { SITE } from '@/lib/constants'
 
 export const metadata: Metadata = {
   title: 'About & Committee',
-  description: 'Meet the Dhab Pari Water & Welfare Committee — village history, vision, mission, and team members.',
+  description: `Meet the ${SITE.fullName} — village history, vision, mission, and team members.`,
 }
 
 // Nothing on this page is per-visitor — committee roster, vision/mission,
@@ -50,7 +50,7 @@ export default async function AboutPage() {
       {/* Header */}
       <div className="mb-12 text-center max-w-3xl mx-auto">
         <h1 className="font-heading text-[32px] md:text-[40px] font-bold leading-[40px] md:leading-[48px] text-dp-primary mb-4">
-          About Dhab Pari
+          About {SITE.name}
         </h1>
         <p
           className="text-dp-on-surface-variant text-[20px] mb-2"
@@ -68,7 +68,7 @@ export default async function AboutPage() {
           </h2>
           <div className="prose max-w-none">
             <p className="font-sans text-[18px] leading-[28px] text-dp-on-surface-variant mb-4">
-              Dhab Pari is a historic village located in District Chakwal, Punjab, Pakistan.
+              {SITE.name} is a historic village located in District {SITE.district}, {SITE.province}, Pakistan.
               Nestled in the Potohar Plateau, the village has been home to resilient communities
               for generations, with agriculture and livestock as the backbone of its economy.
             </p>
@@ -79,7 +79,7 @@ export default async function AboutPage() {
               community-driven transparency portal serving hundreds of households.
             </p>
             <p className="font-sans text-[18px] leading-[28px] text-dp-on-surface-variant">
-              {settingsMap.about_text || 'Dedicated to the prosperity and welfare of Dhab Pari village through transparent management, modern water systems, and communal support.'}
+              {settingsMap.about_text || `Dedicated to the prosperity and welfare of ${SITE.name} village through transparent management, modern water systems, and communal support.`}
             </p>
           </div>
         </div>

@@ -9,10 +9,10 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-1 md:col-span-2">
             <div className="font-heading text-[20px] font-bold leading-[28px] text-dp-primary mb-4">
-              Dhab Pari Water & Welfare Committee
+              {SITE.fullName}
             </div>
             <p className="font-sans text-[16px] leading-[24px] text-dp-on-surface-variant max-w-md">
-              Dedicated to the prosperity and welfare of Dhab Pari village
+              Dedicated to the prosperity and welfare of {SITE.name} village
               through transparent management, modern water systems, and
               communal support.
             </p>
@@ -48,7 +48,7 @@ export function Footer() {
               Office
             </h4>
             <p className="text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-on-surface-variant leading-relaxed">
-              Main Market, Dhab Pari
+              Main Market, {SITE.name}
               <br />
               District Chakwal, Punjab
               <br />
@@ -63,7 +63,7 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-dp-outline-variant flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-on-surface-variant text-center md:text-left">
-            © {new Date().getFullYear()} Dhab Pari Water & Welfare Committee.
+            © {new Date().getFullYear()} {SITE.fullName}.
             All rights reserved.
           </p>
           <div className="flex gap-6 text-[14px] font-sans text-dp-on-surface-variant">

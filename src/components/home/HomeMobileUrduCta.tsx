@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { SITE } from '@/lib/constants'
 
 export function HomeMobileUrduCta() {
   return (
@@ -13,7 +14,7 @@ export function HomeMobileUrduCta() {
         className="text-white/80 text-[16px] leading-loose mb-6"
         style={{ fontFamily: 'var(--font-urdu), serif', lineHeight: '2.5' }}
       >
-        ڈھاب پڑی واٹر اینڈ ویلفیئر کمیٹی گاؤں کی ترقی اور خوشحالی کے لیے ہمہ وقت
+        {SITE.fullNameUrdu} گاؤں کی ترقی اور خوشحالی کے لیے ہمہ وقت
         کوشاں ہے۔ کسی بھی شکایت یا تجویز کے لیے بٹن دبائیں۔
       </p>
       <Link

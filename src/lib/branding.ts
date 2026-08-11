@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/client'
 import type { InvoiceTemplate } from '@/components/admin/ReceiptDocument'
 import type { SlipLang } from '@/lib/docTranslations'
+import { SITE } from '@/lib/constants'
 
 export interface ManagementContact { name: string; designation: string; whatsapp: string }
 
@@ -127,7 +128,7 @@ export async function fetchBrandingSettings(system?: 'water_supply' | 'donors_pr
   }
 
   return {
-    companyNameEn: v.company_name_en || 'Dhab Pari',
+    companyNameEn: v.company_name_en || SITE.name,
     companyNameUr: v.company_name_ur || 'واٹر اینڈ ویلفئیر کمیٹی',
     companyEmail: v.company_email || 'dhabpariwelfare@gmail.com',
     logoUrl: v.invoice_logo_url ?? null,

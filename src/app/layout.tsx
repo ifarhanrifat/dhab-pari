@@ -4,6 +4,7 @@ import { Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { FloatingWhatsAppButton } from "@/components/layout/FloatingWhatsAppButton";
 import { PwaProvider } from "@/components/layout/PwaProvider";
+import { SITE } from "@/lib/constants";
 import "./globals.css";
 
 const sourceSans = Source_Sans_3({
@@ -40,13 +41,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Dhab Pari Water & Welfare Committee",
-    template: "%s | Dhab Pari",
+    default: SITE.fullName,
+    template: `%s | ${SITE.name}`,
   },
-  description: "Official portal for the Water & Welfare Committee of Dhab Pari village, Dist. Chakwal, Punjab, Pakistan.",
-  metadataBase: new URL("https://dhabpari.com"),
+  description: `Official portal for the ${SITE.committee} of ${SITE.name} village, Dist. ${SITE.district}, ${SITE.province}, Pakistan.`,
+  metadataBase: new URL(`https://${SITE.domain}`),
   openGraph: {
-    siteName: "Dhab Pari Water & Welfare Committee",
+    siteName: SITE.fullName,
     locale: "en_US",
     type: "website",
   },
@@ -54,7 +55,7 @@ export const metadata: Metadata = {
   // only things that make an installed home-screen app look right on iPhone.
   appleWebApp: {
     capable: true,
-    title: "Dhab Pari",
+    title: SITE.name,
     statusBarStyle: "black-translucent",
   },
   icons: {

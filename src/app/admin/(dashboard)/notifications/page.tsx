@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Send, MessageCircle, Megaphone, AlertTriangle, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
+import { SITE } from '@/lib/constants'
 
 interface LogEntry { id: string; type: string; recipient: string | null; message: string | null; status: string; sent_at: string | null; created_at: string }
 interface HistoryRow {
@@ -193,12 +194,12 @@ export default function AdminNotificationsPage() {
         <div className="mb-4">
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Appeal in Urdu *</label>
           <textarea value={aBodyUr} onChange={(e) => setABodyUr(e.target.value)} rows={3} dir="rtl"
-            placeholder="ڈھاب پڑی کے ایک خاندان کو فوری طبی امداد درکار ہے..." className="input-field resize-none" />
+            placeholder={`${SITE.nameUrdu} کے ایک خاندان کو فوری طبی امداد درکار ہے...`} className="input-field resize-none" />
         </div>
         <div className="mb-4">
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Appeal in English *</label>
           <textarea value={aBodyEn} onChange={(e) => setABodyEn(e.target.value)} rows={2}
-            placeholder="A family in Dhab Pari needs urgent medical help..." className="input-field resize-none" />
+            placeholder={`A family in ${SITE.name} needs urgent medical help...`} className="input-field resize-none" />
           <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Both are shown — Urdu large, English underneath. Never put a private person&apos;s name in a public appeal.</p>
         </div>
 

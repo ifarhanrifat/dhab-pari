@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Download, X, Share } from 'lucide-react'
+import { SITE } from '@/lib/constants'
 
 // Chrome/Edge/Android fire this so the site can show its own install button.
 // Not in TypeScript's DOM lib yet, hence the local shape.
@@ -119,7 +120,7 @@ export function PwaProvider() {
       <div className="bg-dp-primary text-white rounded-xl shadow-2xl border border-white/10 p-4 flex items-start gap-3">
         <img src="/icons/icon-192.png" alt="" className="w-10 h-10 rounded-lg shrink-0 bg-white" />
         <div className="min-w-0 flex-1">
-          <p className="font-sans text-[14px] font-bold leading-[20px]">Install Dhab Pari</p>
+          <p className="font-sans text-[14px] font-bold leading-[20px]">Install {SITE.name}</p>
           {showIosHint ? (
             iosNeedsSafari ? (
               <p className="font-sans text-[12.5px] text-white/75 leading-[18px] mt-1">

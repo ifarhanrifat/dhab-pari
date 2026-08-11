@@ -10,6 +10,7 @@ import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { billBadge, billBadgeClass } from '@/lib/billStatus'
 import { normalizePakPhone } from '@/lib/receiptExport'
+import { SITE } from '@/lib/constants'
 
 interface Me { id: string; full_name: string; can_collect_payments: boolean; assigned_sectors: string[] | null }
 interface Consumer { consumer_id: string; name: string; mobile: string | null; sector: string | null; status: string }
@@ -185,7 +186,7 @@ export default function CollectPaymentPage() {
   const notifyViaWhatsApp = (target: NotifyTarget) => {
     if (!target.mobile || !receipt) return
     const msg = encodeURIComponent(
-      `Dhab Pari — Payment Collected\n\nCollected Rs. ${fmt(lastCollectedAmount)} from ${receipt.accountName} by ${me !== 'loading' && me ? me.full_name : ''}.\n\nPlease check /admin/collectors for the current holding balance.`
+      `${SITE.name} — Payment Collected\n\nCollected Rs. ${fmt(lastCollectedAmount)} from ${receipt.accountName} by ${me !== 'loading' && me ? me.full_name : ''}.\n\nPlease check /admin/collectors for the current holding balance.`
     )
     window.open(`https://wa.me/${normalizePakPhone(target.mobile)}?text=${msg}`, '_blank')
   }
@@ -195,7 +196,7 @@ export default function CollectPaymentPage() {
     const intl = normalizePakPhone(lastConsumerMobile)
     if (!intl) { toast.error('No usable phone number for this consumer'); return }
     const msg = encodeURIComponent(
-      `Dhab Pari — Payment Received\n\nThank you, ${receipt.accountName}. We received Rs. ${fmt(lastCollectedAmount)} against ${receipt.particular}.`
+      `${SITE.name} — Payment Received\n\nThank you, ${receipt.accountName}. We received Rs. ${fmt(lastCollectedAmount)} against ${receipt.particular}.`
       + (lastOutstanding > 0 ? `\n\nRemaining outstanding on this bill: Rs. ${fmt(lastOutstanding)}.` : '\n\nThis bill is now fully paid.')
     )
     window.open(`https://wa.me/${intl}?text=${msg}`, '_blank')

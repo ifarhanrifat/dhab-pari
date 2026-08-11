@@ -2,6 +2,7 @@
 
 import { forwardRef } from 'react'
 import type { BrandingSettings } from '@/lib/branding'
+import { SITE } from '@/lib/constants'
 
 export interface PayslipJobLine { label: string; amount: number }
 export interface PayslipData {
@@ -34,7 +35,7 @@ const monthName = (m: number) => new Date(2000, m - 1, 1).toLocaleString('en', {
 // own account, every payment debits it — "Balance Owed" is that account's
 // live balance, not a computed diff against a settled advance voucher.
 export const PayslipDocument = forwardRef<HTMLDivElement, Props>(function PayslipDocument({ data, branding }, ref) {
-  const companyNameEn = branding.companyNameEn || 'Dhab Pari'
+  const companyNameEn = branding.companyNameEn || SITE.name
 
   return (
     <div ref={ref} className="relative bg-white p-8 w-[560px] font-sans text-dp-on-surface" style={{ fontFamily: 'var(--font-sans), sans-serif' }}>

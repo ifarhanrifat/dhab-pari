@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { fetchBrandingSettings, type BrandingSettings } from '@/lib/branding'
+import { SITE } from '@/lib/constants'
 
 interface Props { title: string; subtitle?: string; className?: string }
 
@@ -18,7 +19,7 @@ export function DocumentHeader({ title, subtitle, className = '' }: Props) {
     fetchBrandingSettings().then(setBranding)
   }, [])
 
-  const companyNameEn = branding?.companyNameEn ?? 'Dhab Pari'
+  const companyNameEn = branding?.companyNameEn ?? SITE.name
   const companyNameUr = branding?.companyNameUr ?? 'واٹر اینڈ ویلفئیر کمیٹی'
   const showUrdu = branding?.language === 'ur'
 

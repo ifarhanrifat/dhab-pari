@@ -8,6 +8,7 @@ import { ImageUpload } from '@/components/admin/ImageUpload'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import type { ManagementContact } from '@/lib/branding'
 import { TEMPLATE_KEYS } from '@/lib/messageTemplates'
+import { SITE } from '@/lib/constants'
 
 interface Setting { id: string; key: string; value: string | null; description: string | null }
 interface Sector { id: string; name: string; display_order: number }
@@ -601,7 +602,7 @@ export default function AdminSettingsPage() {
                       {values.display_language === 'ur' && (
                         <p className="text-[16px] font-bold mb-1.5" style={{ fontFamily: 'var(--font-urdu), serif' }}>واٹر اینڈ ویلفئیر کمیٹی</p>
                       )}
-                      <p className="text-[13px] font-bold text-dp-on-surface-variant">Dhab Pari</p>
+                      <p className="text-[13px] font-bold text-dp-on-surface-variant">{SITE.name}</p>
                     </div>
                   </div>
                 )}

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Lock, Mail, CheckCircle, AlertTriangle } from 'lucide-react'
+import { SITE } from '@/lib/constants'
 
 export default function ForgotPasswordPage() {
   const supabase = createClient()
@@ -38,7 +39,7 @@ export default function ForgotPasswordPage() {
             <Lock size={18} className="text-white" />
           </div>
           <div>
-            <h1 className="font-heading text-[24px] font-bold leading-[32px] text-white">Dhab Pari</h1>
+            <h1 className="font-heading text-[24px] font-bold leading-[32px] text-white">{SITE.name}</h1>
             <p className="text-white/60 text-[12px] font-sans">Admin Portal — Reset Password</p>
           </div>
         </div>

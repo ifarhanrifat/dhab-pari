@@ -46,6 +46,7 @@ import {
   Briefcase,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { SITE } from '@/lib/constants'
 
 const menuItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -234,7 +235,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
             Admin Portal
           </h2>
           <p className="text-[12px] font-sans text-white/60 mt-1">
-            Dhab Pari Committee
+            {SITE.shortCommittee}
           </p>
         </div>
         {sidebarContent}
@@ -260,7 +261,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
               Admin Portal
             </h2>
             <p className="text-[12px] font-sans text-white/60 mt-1">
-              Dhab Pari Committee
+              {SITE.shortCommittee}
             </p>
           </div>
           <button

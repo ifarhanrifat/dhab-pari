@@ -5,6 +5,7 @@ import { dtBoth, type DocStringKey, type SlipLang } from '@/lib/docTranslations'
 import { fmt, fmtDate, Ltr, PhoneLink, prettyUrl, splitNumbers, waHref } from './slipShared'
 import { SlipIcon, type SlipIconName } from './SlipIcons'
 import type { ReceiptData } from './ReceiptDocument'
+import { SITE } from '@/lib/constants'
 
 export type SlipFormat = 'a4' | 'thermal'
 
@@ -210,7 +211,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
             <div style={{ ...urduFont, fontSize: h(1.3) - 3, fontWeight: 700, lineHeight: 1.75 }} dir="rtl">{data.companyNameUr}</div>
           )}
           <div style={{ fontSize: f(0.92), fontWeight: 400, letterSpacing: '0.08em', color: MUTED, lineHeight: 1.5 }}>
-            {data.companyNameEn || 'Dhab Pari'}
+            {data.companyNameEn || SITE.name}
           </div>
           <div style={{ fontSize: f(0.92), fontWeight: 400, letterSpacing: '0.08em', textTransform: 'uppercase', color: MUTED, lineHeight: 1.5 }}>
             {data.systemLabel}

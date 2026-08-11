@@ -3,9 +3,10 @@ import { BookOpen, Trophy, Smile } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'Community Corner',
-  description: 'Poetry, sports updates, and kids activities from Dhab Pari village.',
+  description: `Poetry, sports updates, and kids activities from ${SITE.name} village.`,
 }
 import Link from 'next/link'
+import { SITE } from '@/lib/constants'
 
 export default function EntertainmentPage() {
   return (
@@ -79,7 +80,7 @@ export default function EntertainmentPage() {
         <div className="space-y-4">
           {[
             { title: 'Cricket Tournament 2024', detail: 'Sector A vs Sector B — Final on Friday at village ground', status: 'Upcoming' },
-            { title: 'Kabaddi Championship', detail: 'Dhab Pari team won against Mirpur village (32-28)', status: 'Won' },
+            { title: 'Kabaddi Championship', detail: `${SITE.name} team won against Mirpur village (32-28)`, status: 'Won' },
             { title: 'Football League', detail: 'Youth league registration open — 8 teams confirmed', status: 'Open' },
             { title: 'Annual Athletics Day', detail: 'Scheduled for 15th March — track events, tug of war, relay races', status: 'Planning' },
           ].map((item, i) => (

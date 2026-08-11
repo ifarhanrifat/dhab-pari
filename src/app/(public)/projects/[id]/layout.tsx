@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
+import { SITE } from '@/lib/constants'
 
 // Per-project metadata so a shared /projects/[id] link shows the real
 // project (not the generic "Village Projects" list title/description) when
@@ -15,7 +16,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!project) return { title: 'Project Not Found' }
 
   const budgetLine = project.budget_pkr ? `Budget: Rs. ${Number(project.budget_pkr).toLocaleString()}. ` : ''
-  const description = `${budgetLine}${project.description ?? 'A community project by Dhab Pari Water & Welfare Committee.'}`.slice(0, 200)
+  const description = `${budgetLine}${project.description ?? `A community project by ${SITE.fullName}.`}`.slice(0, 200)
 
   return {
     title: project.title,

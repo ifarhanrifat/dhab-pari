@@ -16,6 +16,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { billBadge, billBadgeClass } from '@/lib/billStatus'
 import { renderTemplate } from '@/lib/messageTemplates'
 import { findDuplicate, type DuplicateCandidate } from '@/lib/duplicateCheck'
+import { SITE } from '@/lib/constants'
 
 interface Consumer {
   consumer_id: string
@@ -560,7 +561,7 @@ function BillingPageInner() {
     const stats = consumerStats[consumer.consumer_id]
     if (!consumer.mobile) { toast.error('No mobile number for this consumer'); return }
     const template = messageTemplates.consumer_outstanding_notify
-      ?? '*Dhab Pari Water Committee*\n\nDear %%name%%, your outstanding water bill is Rs. %%outstanding%% (%%pending_count%% bill(s) pending). Consumer No: %%consumer_id%%. Please pay at your earliest convenience. Thank you.'
+      ?? `*${SITE.name} Water Committee*\n\nDear %%name%%, your outstanding water bill is Rs. %%outstanding%% (%%pending_count%% bill(s) pending). Consumer No: %%consumer_id%%. Please pay at your earliest convenience. Thank you.`
     const msg = encodeURIComponent(renderTemplate(template, {
       name: consumer.name, outstanding: stats.outstanding.toLocaleString(),
       pending_count: String(stats.pendingCount), consumer_id: consumer.consumer_id,
