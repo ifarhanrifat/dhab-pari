@@ -6,6 +6,14 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 
 interface LogEntry { id: string; type: string; recipient: string | null; message: string | null; status: string; sent_at: string | null; created_at: string }
+interface HistoryRow {
+  id: string; kind: string; severity: string; body_ur: string; body_en: string
+  audience: string; is_public: boolean; status: string
+  starts_at: string; expires_at: string | null; created_at: string
+  closed_at: string | null; close_reason: string | null
+  created_by: string | null; closed_by: string | null
+}
+
 interface Appeal {
   id: string; kind: string; title_ur: string | null; body_ur: string; body_en: string
   audience: string; audience_countries: string[]; is_public: boolean; severity: string
@@ -52,13 +60,23 @@ export default function AdminNotificationsPage() {
   const [aNotify, setANotify] = useState(true)
   const [aContact, setAContact] = useState('')
   const [aExpires, setAExpires] = useState('')
+  const [aStarts, setAStarts] = useState('')
+  const [history, setHistory] = useState<HistoryRow[]>([])
+  const [showHistory, setShowHistory] = useState(false)
   const [reach, setReach] = useState<number | null>(null)
   const [posting, setPosting] = useState(false)
 
   const load = async () => { const { data } = await supabase.from('notifications_log').select('*').order('created_at', { ascending: false }).limit(20); setLogs(data ?? []); setLoading(false) }
   const loadAppeals = async () => {
+    // Brings any scheduled appeal that has come due into the green ticker, and
+    // drops expired ones. pg_cron does this too; calling it here means it still
+    // happens if cron is unavailable, and someone scheduling an appeal is
+    // looking at this screen anyway.
+    await supabase.rpc('sync_appeal_tickers')
     const { data } = await supabase.from('appeals').select('*').eq('status', 'active').order('created_at', { ascending: false })
     setAppeals((data ?? []) as Appeal[])
+    const { data: h } = await supabase.rpc('appeals_history', { p_limit: 50 })
+    setHistory((h ?? []) as HistoryRow[])
   }
   useEffect(() => { load(); loadAppeals() }, [])
 
@@ -89,11 +107,21 @@ export default function AdminNotificationsPage() {
       p_expires_at: aExpires ? new Date(aExpires).toISOString() : null,
       p_notify: aNotify,
       p_severity: aSeverity,
+      p_starts_at: aStarts ? new Date(aStarts).toISOString() : null,
     })
     setPosting(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(aNotify ? `Appeal posted and sent to ${reach ?? 0} portal user(s)` : 'Appeal posted')
-    setATitleUr(''); setABodyUr(''); setABodyEn(''); setAContact(''); setAExpires('')
+    toast.success(aStarts && new Date(aStarts) > new Date()
+      ? `Scheduled for ${new Date(aStarts).toLocaleString('en-GB')}`
+      : aNotify ? `Appeal posted and sent to ${reach ?? 0} portal user(s)` : 'Appeal posted')
+    setATitleUr(''); setABodyUr(''); setABodyEn(''); setAContact(''); setAExpires(''); setAStarts('')
+    loadAppeals()
+  }
+
+  const reopenAppeal = async (id: string) => {
+    const { error } = await supabase.rpc('reopen_appeal', { p_appeal_id: id, p_expires_at: null })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success('Showing again')
     loadAppeals()
   }
 
@@ -201,8 +229,14 @@ export default function AdminNotificationsPage() {
             <input value={aContact} onChange={(e) => setAContact(e.target.value)} placeholder="03xx-xxxxxxx" className="input-field" />
           </div>
           <div>
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Remove automatically on (optional)</label>
-            <input type="date" value={aExpires} onChange={(e) => setAExpires(e.target.value)} className="input-field" />
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Start showing (optional)</label>
+            <input type="datetime-local" value={aStarts} onChange={(e) => setAStarts(e.target.value)} className="input-field" />
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Leave blank to start now. Write Friday&apos;s notice on Wednesday and it appears on its own.</p>
+          </div>
+          <div>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Stop showing (optional)</label>
+            <input type="datetime-local" value={aExpires} onChange={(e) => setAExpires(e.target.value)} className="input-field" />
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Leave blank to keep it up until you close it.</p>
           </div>
         </div>
 
@@ -256,6 +290,61 @@ export default function AdminNotificationsPage() {
           </div>
         </div>
       )}
+
+      {/* History. Closing an appeal has always kept the row with who closed it,
+          when and why — nothing ever showed it back, so "is it saved?" had no
+          answer anyone could check. Scheduled ones appear here too, before they
+          go live. */}
+      <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-8">
+        <button onClick={() => setShowHistory((v) => !v)}
+          className="w-full px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-dp-surface-container-low transition-colors">
+          <h3 className="font-sans text-[18px] font-semibold text-dp-primary">Appeal history ({history.length})</h3>
+          <span className="font-sans text-[13px] text-dp-secondary font-semibold">{showHistory ? 'Hide' : 'Show'}</span>
+        </button>
+
+        {showHistory && (
+          <div className="divide-y divide-dp-outline-variant border-t border-dp-outline-variant">
+            {history.map((h) => {
+              const scheduled = h.status === 'active' && new Date(h.starts_at) > new Date()
+              return (
+                <div key={h.id} className="p-4 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                      <span className={`text-[11px] font-bold uppercase px-2 py-0.5 rounded-full font-sans ${
+                        scheduled ? 'bg-amber-100 text-amber-800'
+                        : h.status === 'active' ? 'bg-dp-error text-white'
+                        : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>
+                        {scheduled ? 'scheduled' : h.status === 'active' ? 'showing' : 'closed'}
+                      </span>
+                      <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-dp-error/10 text-dp-error font-sans">{h.severity}</span>
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-dp-surface-container text-dp-on-surface-variant font-sans">
+                        {AUDIENCES.find(([v]) => v === h.audience)?.[1] ?? h.audience}
+                      </span>
+                    </div>
+                    <p dir="rtl" className="font-urdu text-[13.5px] text-dp-on-surface leading-relaxed">{h.body_ur}</p>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">
+                      {scheduled
+                        ? `Starts ${new Date(h.starts_at).toLocaleString('en-GB')}`
+                        : `Posted ${new Date(h.created_at).toLocaleString('en-GB')}${h.created_by ? ` by ${h.created_by}` : ''}`}
+                      {h.closed_at && ` · closed ${new Date(h.closed_at).toLocaleString('en-GB')}${h.closed_by ? ` by ${h.closed_by}` : ''}`}
+                      {h.close_reason && ` — ${h.close_reason}`}
+                    </p>
+                  </div>
+                  {h.status !== 'active' && (
+                    <button onClick={() => reopenAppeal(h.id)}
+                      className="shrink-0 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-secondary cursor-pointer hover:bg-dp-surface-container-low transition-all">
+                      Show again
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+            {history.length === 0 && (
+              <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No appeals posted yet.</p>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Compose */}
       <div className="bg-white border border-dp-outline-variant rounded-lg p-6 mb-8">
