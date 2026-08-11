@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { Briefcase, Power } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Listing {
   id: string; category: string; headline: string; description: string | null; sector: string | null
@@ -19,6 +20,7 @@ const CATEGORIES = ['plumber', 'electrician', 'mason', 'carpenter', 'painter', '
 // posts them (no pre-approval queue, low friction by design); this page is
 // how staff take one down if something inappropriate slips through.
 export default function AdminJobsPage() {
+  const { t } = useLocale()
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
   const [category, setCategory] = useState('')
@@ -65,10 +67,10 @@ export default function AdminJobsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]">
-              <th className="p-4">Headline</th><th className="p-4">Category</th><th className="p-4">Contact</th><th className="p-4">Sector</th><th className="p-4">Status</th><th className="p-4"></th>
+              <th className="p-4">Headline</th><th className="p-4">{t('w.category')}</th><th className="p-4">Contact</th><th className="p-4">{t('w.sector')}</th><th className="p-4">{t('w.status')}</th><th className="p-4"></th>
             </tr></thead>
             <tbody className="font-sans text-[15px]">
-              {loading && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">Loading...</td></tr>}
+              {loading && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}
               {!loading && filtered.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">No matching listings.</td></tr>}
               {!loading && filtered.map((l, i) => (
                 <tr key={l.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''} ${!l.is_active ? 'opacity-60' : ''}`}>

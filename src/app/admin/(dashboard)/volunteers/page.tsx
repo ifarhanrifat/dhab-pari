@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { normalizePakPhone } from '@/lib/receiptExport'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Volunteer {
   id: string
@@ -64,6 +65,7 @@ const TASK_STYLE: Record<string, string> = {
 // but never accepted. This is that screen: accept an offer onto a project, give
 // the person jobs, and close everyone out when the project finishes.
 export default function AdminVolunteersPage() {
+  const { t } = useLocale()
   const access = useSystemAccess()
   const supabase = createClient()
   const [rows, setRows] = useState<Volunteer[]>([])
@@ -163,7 +165,7 @@ export default function AdminVolunteersPage() {
 
   const tasksFor = (v: Volunteer) => tasks.filter((t) => t.portal_user_id === v.portal_user_id && t.project_id === v.project_id && t.status !== 'cancelled')
 
-  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
   if (!access.canDonorsProjects) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
@@ -213,7 +215,7 @@ export default function AdminVolunteersPage() {
         ))}
       </div>
 
-      {loading && <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>}
+      {loading && <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}
       {!loading && visible.length === 0 && (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">{search || statusFilter !== 'all' ? 'No volunteers match that filter.' : 'Nobody has signed up to volunteer yet.'}</p>
@@ -264,7 +266,7 @@ export default function AdminVolunteersPage() {
                   <button onClick={() => setStatus(v, 'completed')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low transition-all"><CheckCircle2 size={14} /> Mark done</button>
                 </>
               )}
-              <button onClick={() => whatsapp(v)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-secondary cursor-pointer hover:bg-dp-surface-container-low transition-all"><MessageCircle size={14} /> WhatsApp</button>
+              <button onClick={() => whatsapp(v)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-secondary cursor-pointer hover:bg-dp-surface-container-low transition-all"><MessageCircle size={14} /> {t('w.whatsapp')}</button>
             </div>
 
             {tasksFor(v).length > 0 && (
@@ -313,7 +315,7 @@ export default function AdminVolunteersPage() {
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setTaskFor(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+              <button onClick={() => setTaskFor(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
               <button disabled={savingTask} onClick={saveTask} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">{savingTask ? 'Sending...' : 'Send task'}</button>
             </div>
           </div>

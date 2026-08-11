@@ -8,6 +8,7 @@ import { ArrowLeft, Eye, Power } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { SystemGuard } from '@/components/admin/SystemGuard'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Account {
   id: string; code: string; name: string; name_ur: string | null
@@ -22,8 +23,9 @@ function fmtAmount(n: number) {
 }
 
 export default function AccountsByTypePage() {
+  const { t } = useLocale()
   return (
-    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}>
       <AccountsByTypeGuarded />
     </Suspense>
   )
@@ -33,12 +35,14 @@ export default function AccountsByTypePage() {
 // arrive in a link pasted between staff. RLS already returns nothing for the
 // wrong system; this makes that read as a refusal instead of "no accounts".
 function AccountsByTypeGuarded() {
+  const { t } = useLocale()
   const searchParams = useSearchParams()
   const system = (searchParams.get('system') === 'donors_projects' ? 'donors_projects' : 'water_supply') as 'water_supply' | 'donors_projects'
   return <SystemGuard system={system}><AccountsByTypePageInner /></SystemGuard>
 }
 
 function AccountsByTypePageInner() {
+  const { t } = useLocale()
   const searchParams = useSearchParams()
   const system = (searchParams.get('system') === 'donors_projects' ? 'donors_projects' : 'water_supply') as 'water_supply' | 'donors_projects'
   const type = searchParams.get('type') ?? 'cash'
@@ -99,14 +103,14 @@ function AccountsByTypePageInner() {
             <thead>
               <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                 <th className="px-4 py-2.5">Code</th>
-                <th className="px-4 py-2.5">Name</th>
+                <th className="px-4 py-2.5">{t('a.name')}</th>
                 <th className="px-4 py-2.5 text-end">Balance</th>
-                <th className="px-4 py-2.5">Status</th>
-                <th className="px-4 py-2.5 text-end">Actions</th>
+                <th className="px-4 py-2.5">{t('w.status')}</th>
+                <th className="px-4 py-2.5 text-end">{t('a.actions')}</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">Loading...</td></tr>}
+              {loading && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</td></tr>}
               {!loading && accounts.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">No accounts under this header yet.</td></tr>}
               {!loading && accounts.map((a) => (
                 <tr key={a.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${!a.is_active ? 'opacity-50' : ''}`}>
@@ -130,7 +134,7 @@ function AccountsByTypePageInner() {
             {!loading && accounts.length > 0 && (
               <tfoot>
                 <tr className="font-sans text-[14px] font-bold bg-dp-surface-container-low/60 border-t-2 border-dp-outline-variant">
-                  <td className="px-4 py-3" colSpan={2}>Total</td>
+                  <td className="px-4 py-3" colSpan={2}>{t('a.total')}</td>
                   <td className="px-4 py-3 text-end">{fmtAmount(total)}</td>
                   <td colSpan={2}></td>
                 </tr>

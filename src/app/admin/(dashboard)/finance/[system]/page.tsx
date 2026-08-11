@@ -19,6 +19,7 @@ import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { billBadge, billBadgeClass, type BillBadgeTone } from '@/lib/billStatus'
 import { QuickAddAccountModal, type NewAccount } from '@/components/admin/QuickAddAccountModal'
 import { voucherTypeLabels as sharedVoucherTypeLabels, voucherReceiptKind } from '@/lib/ledgerLabels'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 type VoucherType = 'expense' | 'income' | 'contra' | 'withdrawal' | 'deposit' | 'advance'
@@ -140,14 +141,16 @@ function fmtAmount(n: number) {
 }
 
 export default function TransactionsWorkspace({ params }: { params: Promise<{ system: string }> }) {
+  const { t } = useLocale()
   return (
-    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}>
       <TransactionsWorkspaceInner params={params} />
     </Suspense>
   )
 }
 
 function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: string }> }) {
+  const { t } = useLocale()
   const { system: rawSystem } = usePromise(params)
   const system = (rawSystem === 'donors_projects' ? 'donors_projects' : 'water_supply') as SystemTab
   const searchParams = useSearchParams()
@@ -1446,12 +1449,12 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
                   <div className={multiLineExpense && activeType === 'expense' ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-2 gap-4'}>
                     <div>
-                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Date</label>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.date')}</label>
                       <input type="date" value={voucherForm.date} onChange={(e) => setVoucherForm({ ...voucherForm, date: e.target.value })} className="input-field" />
                     </div>
                     {!(multiLineExpense && activeType === 'expense') && (
                       <div>
-                        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Amount (PKR)</label>
+                        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
                         <input type="number" value={voucherForm.amount || ''} onChange={(e) => setVoucherForm({ ...voucherForm, amount: +e.target.value })} className="input-field" />
                       </div>
                     )}
@@ -1489,7 +1492,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         <Plus size={15} /> Add Line
                       </button>
                       <div className="bg-dp-surface-container-low rounded-lg px-4 py-3 flex items-center justify-between">
-                        <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Total</span>
+                        <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('a.total')}</span>
                         <span className="font-heading text-[20px] font-bold text-dp-primary">Rs. {fmtAmount(voucherLines.reduce((s, l) => s + (l.amount || 0), 0))}</span>
                       </div>
                     </>
@@ -1556,16 +1559,16 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   <>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Date</label>
+                        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.date')}</label>
                         <input type="date" value={cashReceiptDate} onChange={(e) => setCashReceiptDate(e.target.value)} className="input-field" />
                       </div>
                       <div>
-                        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Method</label>
+                        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.method')}</label>
                         <select value={cashReceiptMethod} onChange={(e) => setCashReceiptMethod(e.target.value as typeof cashReceiptMethod)} className="input-field">
-                          <option value="cash">Cash</option>
-                          <option value="jazzcash">JazzCash</option>
-                          <option value="easypaisa">Easypaisa</option>
-                          <option value="bank">Bank Transfer</option>
+                          <option value="cash">{t('w.cash')}</option>
+                          <option value="jazzcash">{t('w.jazzcash')}</option>
+                          <option value="easypaisa">{t('w.easypaisa')}</option>
+                          <option value="bank">{t('w.bankTransfer')}</option>
                         </select>
                       </div>
                     </div>
@@ -1653,7 +1656,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 {editingBill && (
                   <div className="flex items-center justify-between gap-3 bg-dp-secondary/10 border border-dp-secondary/30 rounded-lg px-4 py-3">
                     <p className="font-sans text-[13.5px] font-semibold text-dp-primary">Editing an existing bill — consumer can&apos;t be changed here.</p>
-                    <button onClick={() => { selectType('bill'); router.push('/admin/finance/water_supply?action=generate_bill') }} className="shrink-0 font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline cursor-pointer">Cancel</button>
+                    <button onClick={() => { selectType('bill'); router.push('/admin/finance/water_supply?action=generate_bill') }} className="shrink-0 font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline cursor-pointer">{t('action.cancel')}</button>
                   </div>
                 )}
 
@@ -1771,11 +1774,11 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                       />
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Description (optional)</label>
+                          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('a.descriptionOptional')}</label>
                           <input value={otherChargeDescription} onChange={(e) => setOtherChargeDescription(e.target.value)} placeholder="e.g. Cartage charged" className="input-field !py-2.5 text-[15px]" />
                         </div>
                         <div>
-                          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Amount</label>
+                          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('w.amount')}</label>
                           <input type="number" min={0} value={otherChargeAmount || ''} onChange={(e) => setOtherChargeAmount(+e.target.value)} className="input-field !py-2.5 text-[15px]" />
                         </div>
                       </div>
@@ -1854,7 +1857,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 </div>
 
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Description (optional)</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.descriptionOptional')}</label>
                   <input value={billForm.description} onChange={(e) => setBillForm({ ...billForm, description: e.target.value })} className="input-field" />
                 </div>
 
@@ -1892,16 +1895,16 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   {receivePaymentNow && (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Amount (PKR)</label>
+                        <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('w.amountPkr')}</label>
                         <input type="number" min={1} value={paymentAmount || ''} onChange={(e) => setPaymentAmount(+e.target.value)} className="input-field !py-2.5 text-[15px]" />
                       </div>
                       <div>
-                        <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Method</label>
+                        <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('w.method')}</label>
                         <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)} className="input-field !py-2.5 text-[15px]">
-                          <option value="cash">Cash</option>
-                          <option value="jazzcash">JazzCash</option>
-                          <option value="easypaisa">Easypaisa</option>
-                          <option value="bank">Bank Transfer</option>
+                          <option value="cash">{t('w.cash')}</option>
+                          <option value="jazzcash">{t('w.jazzcash')}</option>
+                          <option value="easypaisa">{t('w.easypaisa')}</option>
+                          <option value="bank">{t('w.bankTransfer')}</option>
                         </select>
                       </div>
                     </div>
@@ -1920,7 +1923,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Date</label>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.date')}</label>
                     <input type="date" value={purchaseForm.date} onChange={(e) => setPurchaseForm({ ...purchaseForm, date: e.target.value })} className="input-field" />
                   </div>
                   <div>
@@ -1956,7 +1959,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         onClick={() => { setCatalogSearch(''); setEditingPurchaseLineIndex(null); setNewPurchaseLine(emptyNewPurchaseLine); refetchCatalog(); setPurchaseModalStep('picker') }}
                         className="w-full flex items-center justify-center gap-2 py-3.5 bg-dp-secondary text-white rounded-full font-sans text-[15.5px] font-bold hover:bg-dp-primary transition-all cursor-pointer shadow-sm"
                       >
-                        <Plus size={19} /> Add Item
+                        <Plus size={19} /> {t('a.addItem')}
                       </button>
                     </div>
                   </div>
@@ -1965,13 +1968,13 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 <div>
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Paid Via</label>
                   <select value={purchaseForm.method} onChange={(e) => setPurchaseForm({ ...purchaseForm, method: e.target.value as 'cash' | 'bank' })} className="input-field">
-                    <option value="cash">Cash</option>
-                    <option value="bank">Bank</option>
+                    <option value="cash">{t('w.cash')}</option>
+                    <option value="bank">{t('a.bank')}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Note (optional)</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.noteOptional')}</label>
                   <input value={purchaseForm.note} onChange={(e) => setPurchaseForm({ ...purchaseForm, note: e.target.value })} className="input-field" />
                 </div>
 
@@ -1981,7 +1984,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 />
 
                 <div className="bg-white border border-dp-outline-variant rounded-xl p-5 flex items-center justify-between">
-                  <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.06em]">Total</span>
+                  <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.06em]">{t('a.total')}</span>
                   <span className="font-heading text-[26px] font-bold text-dp-primary">Rs. {fmtAmount(purchaseTotal)}</span>
                 </div>
 
@@ -1996,7 +1999,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 <h2 className="font-heading text-[20px] font-bold text-dp-primary">Record Donation</h2>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Name</label>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.name')}</label>
                     <input value={donationForm.name} onChange={(e) => setDonationForm({ ...donationForm, name: e.target.value })} className="input-field" />
                   </div>
                   <div>
@@ -2006,7 +2009,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Phone</label>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.phone')}</label>
                     <input value={donationForm.phone} onChange={(e) => setDonationForm({ ...donationForm, phone: e.target.value })} placeholder="0300-1234567" className="input-field" />
                   </div>
                   <div>
@@ -2019,27 +2022,27 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Amount (PKR)</label>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
                     <input type="number" value={donationForm.amount_pkr || ''} onChange={(e) => setDonationForm({ ...donationForm, amount_pkr: +e.target.value })} className="input-field" />
                   </div>
                   <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Date</label>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.date')}</label>
                     <input type="date" value={donationForm.date} onChange={(e) => setDonationForm({ ...donationForm, date: e.target.value })} className="input-field" />
                   </div>
                 </div>
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Payment Method</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
                   <select value={donationForm.payment_method} onChange={(e) => setDonationForm({ ...donationForm, payment_method: e.target.value })} className="input-field">
-                    <option value="cash">Cash</option>
-                    <option value="jazzcash">JazzCash</option>
-                    <option value="easypaisa">Easypaisa</option>
-                    <option value="bank">Bank</option>
+                    <option value="cash">{t('w.cash')}</option>
+                    <option value="jazzcash">{t('w.jazzcash')}</option>
+                    <option value="easypaisa">{t('w.easypaisa')}</option>
+                    <option value="bank">{t('a.bank')}</option>
                   </select>
                 </div>
                 <div>
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Project (optional)</label>
                   <select value={donationForm.project_id} onChange={(e) => setDonationForm({ ...donationForm, project_id: e.target.value })} className="input-field">
-                    <option value="">No specific project</option>
+                    <option value="">{t('a.noProject')}</option>
                     {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
                   </select>
                 </div>
@@ -2100,7 +2103,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 </button>
               </div>
             </div>
-            {loading && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">Loading...</p>}
+            {loading && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">{t('action.loading')}</p>}
             {!loading && visibleTxnCards.length === 0 && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">{filterLogByType ? `No ${activeTypeLabel.toLowerCase()} transactions yet.` : 'No transactions yet.'}</p>}
             <div className="divide-y divide-dp-outline-variant">
               {!loading && visibleTxnCards.map((c) => (
@@ -2112,12 +2115,12 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{c.partyName}</p>
                         {c.isRecurring && (
                           <span className="inline-block mt-0.5 me-1 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700" title="Generated automatically by a recurring schedule, not entered by hand">
-                            Recurring
+                            {t('a.recurring')}
                           </span>
                         )}
                         {c.autoPosted && (
                           <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800" title="Posted after 24 hours without every approver confirming">
-                            Auto-posted
+                            {t('a.autoPosted')}
                           </span>
                         )}
                         {c.fullyApproved && (
@@ -2301,12 +2304,12 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
               </div>
               <div className="p-5 space-y-4">
                 <div>
-                  <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Description</label>
+                  <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('a.description')}</label>
                   <input autoFocus={newLine.kind === 'custom'} value={newLine.description} onChange={(e) => setNewLine({ ...newLine, description: e.target.value })} placeholder="e.g. New Connection Charge" className="input-field text-[15px] font-medium" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Quantity</label>
+                    <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('a.quantity')}</label>
                     <input type="number" min={0.01} step="0.01" value={newLine.quantity} onChange={(e) => setNewLine({ ...newLine, quantity: +e.target.value })} className="input-field text-[16px] font-semibold" />
                   </div>
                   <div>
@@ -2327,7 +2330,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   </div>
                 )}
                 <div className="flex items-center justify-between pt-2 border-t border-dp-outline-variant">
-                  <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Total</span>
+                  <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('a.total')}</span>
                   <span className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmtAmount(total)}</span>
                 </div>
               </div>
@@ -2335,7 +2338,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 {editingLineIndex === null && (
                   <button onClick={saveDetailAndNew} className="flex-1 px-4 py-3 border-2 border-dp-secondary rounded-full font-sans text-[14px] font-bold text-dp-secondary hover:bg-dp-secondary/5 transition-all cursor-pointer">Save & New</button>
                 )}
-                <button onClick={saveDetailAndClose} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer">Save</button>
+                <button onClick={saveDetailAndClose} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer">{t('action.save')}</button>
               </div>
             </div>
           </div>
@@ -2346,7 +2349,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => { setPurchaseModalStep('closed'); setEditingPurchaseLineIndex(null) }}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant shrink-0">
-              <h2 className="font-heading text-[19px] font-bold text-dp-primary">Add Item</h2>
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('a.addItem')}</h2>
               <button onClick={() => { setPurchaseModalStep('closed'); setEditingPurchaseLineIndex(null) }} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
             </div>
             <div className="px-5 pt-4 shrink-0">
@@ -2362,7 +2365,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface-variant shrink-0">Rs. {fmtAmount(it.unit_cost)}</span>
                 </button>
               ))}
-              {inventoryItems.length === 0 && <p className="px-3.5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No inventory items yet.</p>}
+              {inventoryItems.length === 0 && <p className="px-3.5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('a.noInventory')}</p>}
             </div>
             <div className="border-t border-dp-outline-variant p-3 shrink-0">
               <a href="/admin/inventory" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1.5 py-2.5 font-sans text-[13.5px] font-bold text-dp-secondary hover:underline cursor-pointer">
@@ -2387,7 +2390,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
               <div className="p-5 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Quantity</label>
+                    <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('a.quantity')}</label>
                     <input autoFocus type="number" min={0.01} step="0.01" value={newPurchaseLine.quantity} onChange={(e) => setNewPurchaseLine({ ...newPurchaseLine, quantity: +e.target.value })} className="input-field text-[16px] font-semibold" />
                   </div>
                   <div>
@@ -2396,7 +2399,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   </div>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-dp-outline-variant">
-                  <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Total</span>
+                  <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('a.total')}</span>
                   <span className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmtAmount(total)}</span>
                 </div>
               </div>
@@ -2404,7 +2407,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 {editingPurchaseLineIndex === null && (
                   <button onClick={savePurchaseDetailAndNew} className="flex-1 px-4 py-3 border-2 border-dp-secondary rounded-full font-sans text-[14px] font-bold text-dp-secondary hover:bg-dp-secondary/5 transition-all cursor-pointer">Save & New</button>
                 )}
-                <button onClick={savePurchaseDetailAndClose} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer">Save</button>
+                <button onClick={savePurchaseDetailAndClose} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer">{t('action.save')}</button>
               </div>
             </div>
           </div>
@@ -2443,8 +2446,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
               placeholder="e.g. Late Payment Surcharge" className="input-field mb-3"
             />
             <div className="flex gap-2">
-              <button onClick={() => setShowAddChargeAccount(false)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
-              <button onClick={createChargeAccount} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">Save</button>
+              <button onClick={() => setShowAddChargeAccount(false)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
+              <button onClick={createChargeAccount} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">{t('action.save')}</button>
             </div>
           </div>
         </div>
@@ -2457,21 +2460,21 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{receivePaymentTarget.billNumber} — Rs. {fmtAmount(receivePaymentTarget.outstanding)} outstanding</p>
             <div className="space-y-3">
               <div>
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Amount (PKR)</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('w.amountPkr')}</label>
                 <input type="number" min={1} value={quickPayAmount || ''} onChange={(e) => setQuickPayAmount(+e.target.value)} className="input-field !py-2.5 text-[15px]" />
               </div>
               <div>
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Method</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('w.method')}</label>
                 <select value={quickPayMethod} onChange={(e) => setQuickPayMethod(e.target.value as typeof quickPayMethod)} className="input-field !py-2.5 text-[15px]">
-                  <option value="cash">Cash</option>
-                  <option value="jazzcash">JazzCash</option>
-                  <option value="easypaisa">Easypaisa</option>
-                  <option value="bank">Bank Transfer</option>
+                  <option value="cash">{t('w.cash')}</option>
+                  <option value="jazzcash">{t('w.jazzcash')}</option>
+                  <option value="easypaisa">{t('w.easypaisa')}</option>
+                  <option value="bank">{t('w.bankTransfer')}</option>
                 </select>
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setReceivePaymentTarget(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+              <button onClick={() => setReceivePaymentTarget(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
               <button disabled={quickPaySaving} onClick={saveQuickPayment} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">{quickPaySaving ? 'Saving...' : 'Receive'}</button>
             </div>
           </div>
@@ -2496,15 +2499,15 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
             </p>
             <div className="space-y-3">
               <div>
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Amount (PKR)</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('w.amountPkr')}</label>
                 <input type="number" min={1} value={editVoucherForm.amount || ''} onChange={(e) => setEditVoucherForm({ ...editVoucherForm, amount: +e.target.value })} className="input-field !py-2.5 text-[15px]" />
               </div>
               <div>
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Date</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('w.date')}</label>
                 <input type="date" value={editVoucherForm.date} onChange={(e) => setEditVoucherForm({ ...editVoucherForm, date: e.target.value })} className="input-field !py-2.5 text-[15px]" />
               </div>
               <div>
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Particular</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('w.particular')}</label>
                 <input value={editVoucherForm.particular} onChange={(e) => setEditVoucherForm({ ...editVoucherForm, particular: e.target.value })} className="input-field !py-2.5 text-[15px]" />
               </div>
               <div>
@@ -2527,7 +2530,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setEditVoucherTarget(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+              <button onClick={() => setEditVoucherTarget(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
               <button disabled={editVoucherSaving} onClick={saveEditVoucher} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">{editVoucherSaving ? 'Saving...' : 'Save'}</button>
             </div>
           </div>
@@ -2541,29 +2544,29 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{editPaymentTarget.receiptNo ? `Receipt #${editPaymentTarget.receiptNo}` : 'Receipt'} — number stays the same</p>
             <div className="space-y-3">
               <div>
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Amount (PKR)</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('w.amountPkr')}</label>
                 <input type="number" min={1} value={editPaymentForm.amount || ''} onChange={(e) => setEditPaymentForm({ ...editPaymentForm, amount: +e.target.value })} className="input-field !py-2.5 text-[15px]" />
               </div>
               <div>
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Method</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('w.method')}</label>
                 <select value={editPaymentForm.method} onChange={(e) => setEditPaymentForm({ ...editPaymentForm, method: e.target.value as typeof editPaymentForm.method })} className="input-field !py-2.5 text-[15px]">
-                  <option value="cash">Cash</option>
-                  <option value="jazzcash">JazzCash</option>
-                  <option value="easypaisa">Easypaisa</option>
-                  <option value="bank">Bank Transfer</option>
+                  <option value="cash">{t('w.cash')}</option>
+                  <option value="jazzcash">{t('w.jazzcash')}</option>
+                  <option value="easypaisa">{t('w.easypaisa')}</option>
+                  <option value="bank">{t('w.bankTransfer')}</option>
                 </select>
               </div>
               <div>
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Date</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('w.date')}</label>
                 <input type="date" value={editPaymentForm.date} onChange={(e) => setEditPaymentForm({ ...editPaymentForm, date: e.target.value })} className="input-field !py-2.5 text-[15px]" />
               </div>
               <div>
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Note (optional)</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('a.noteOptional')}</label>
                 <input value={editPaymentForm.note} onChange={(e) => setEditPaymentForm({ ...editPaymentForm, note: e.target.value })} className="input-field !py-2.5 text-[15px]" />
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setEditPaymentTarget(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+              <button onClick={() => setEditPaymentTarget(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
               <button disabled={editPaymentSaving} onClick={saveEditPayment} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">{editPaymentSaving ? 'Saving...' : 'Save'}</button>
             </div>
           </div>

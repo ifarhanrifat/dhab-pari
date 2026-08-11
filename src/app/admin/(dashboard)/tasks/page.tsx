@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ClipboardList, UserPlus2, PlayCircle, CheckCircle2, Phone, Pencil, RefreshCw } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface ConnectionTask {
   id: string; request_number: string | null
@@ -31,6 +32,7 @@ const stageStyles: Record<ConnectionTask['task_status'], string> = {
 }
 
 export default function TasksPage() {
+  const { t: tr } = useLocale()
   const supabase = createClient()
   const [tasks, setTasks] = useState<ConnectionTask[]>([])
   const [inchargeOptions, setInchargeOptions] = useState<InchargeOpt[]>([])
@@ -134,7 +136,7 @@ export default function TasksPage() {
         </p>
         {t.incharge_user_id && (
           <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">
-            Incharge: <span className="font-semibold text-dp-on-surface">{inchargeName(t.incharge_user_id) ?? 'Unknown'}</span>
+            {tr('a.incharge')} <span className="font-semibold text-dp-on-surface">{inchargeName(t.incharge_user_id) ?? 'Unknown'}</span>
             {t.assignee_name && ` · Plumber: ${t.assignee_name}`}
             {t.assignee_phone && ` (${t.assignee_phone})`}
             {t.task_due_date && ` · Due ${new Date(t.task_due_date).toLocaleDateString('en-GB')}`}
@@ -183,7 +185,7 @@ export default function TasksPage() {
       </div>
 
       {loading ? (
-        <p className="font-sans text-dp-on-surface-variant py-8 text-center">Loading...</p>
+        <p className="font-sans text-dp-on-surface-variant py-8 text-center">{tr('action.loading')}</p>
       ) : active.length === 0 && done.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">No installation jobs waiting. New ones appear here after Cash Receive on a connection request.</p>
@@ -265,12 +267,12 @@ export default function TasksPage() {
                 <input type="date" value={assignForm.task_due_date} onChange={(e) => setAssignForm({ ...assignForm, task_due_date: e.target.value })} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Notes (optional)</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{tr('a.notesOptional')}</label>
                 <input value={assignForm.task_notes} onChange={(e) => setAssignForm({ ...assignForm, task_notes: e.target.value })} className="input-field" />
               </div>
             </div>
             <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
-              <button onClick={() => setAssignTarget(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+              <button onClick={() => setAssignTarget(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{tr('action.cancel')}</button>
               <button disabled={saving} onClick={saveAssign} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
                 {saving ? 'Saving...' : 'Save'}
               </button>

@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { CheckCircle, XCircle, Image as ImageIcon } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Claim {
   id: string; bill_id: string; amount_pkr: number; payment_method: string; payment_proof_url: string
@@ -20,6 +21,7 @@ function fmt(n: number) {
 }
 
 export default function AdminPaymentClaimsPage() {
+  const { t } = useLocale()
   const access = useSystemAccess()
   const [claims, setClaims] = useState<Claim[]>([])
   const [loading, setLoading] = useState(true)
@@ -62,7 +64,7 @@ export default function AdminPaymentClaimsPage() {
     load()
   }
 
-  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
   if (!access.canWaterSupply) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
@@ -79,7 +81,7 @@ export default function AdminPaymentClaimsPage() {
       </div>
 
       {loading ? (
-        <p className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</p>
+        <p className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</p>
       ) : claims.length === 0 ? (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">No pending payment claims.</p>

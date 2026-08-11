@@ -14,6 +14,7 @@ import {
   getPreferredFormat, setPreferredFormat, nodeToPdfBlob, nodeToPngBlob,
   downloadBlob, shareReceipt, printBlob, normalizePakPhone, type ReceiptFormat,
 } from '@/lib/receiptExport'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 const systemLabels: Record<string, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects' }
 
@@ -36,6 +37,7 @@ function fmtAmount(n: number) {
 }
 
 export default function BillInvoicePage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useLocale()
   const { id } = usePromise(params)
   const supabase = createClient()
   const router = useRouter()
@@ -229,7 +231,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
             onClick={() => setConfirmDelete(true)}
             className="flex items-center gap-1.5 px-3 py-2 border border-dp-error/30 text-dp-error rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-error/10 transition-all cursor-pointer"
           >
-            <Trash2 size={14} /> Delete
+            <Trash2 size={14} /> {t('action.delete')}
           </button>
           <div className="flex items-center gap-1 bg-dp-surface-container-low rounded-lg p-1">
             <button onClick={() => chooseFormat('pdf')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${format === 'pdf' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>PDF</button>
@@ -250,13 +252,13 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
 
       <div className="flex items-center gap-2 mt-5 print:hidden">
         <button disabled={busy} onClick={handlePrint} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
-          <Printer size={16} /> Print
+          <Printer size={16} /> {t('a.print')}
         </button>
         <button disabled={busy} onClick={handleDownload} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
           <Download size={16} /> Download {format.toUpperCase()}
         </button>
         <button disabled={busy} onClick={handleEmail} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
-          <Mail size={16} /> Email
+          <Mail size={16} /> {t('a.email')}
         </button>
         <button disabled={busy} onClick={handleWhatsApp} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
           <Share2 size={16} /> {whatsappPhone ? `WhatsApp (${normalizePakPhone(whatsappPhone) ?? whatsappPhone})` : 'WhatsApp'}
@@ -274,9 +276,9 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
             <table className="w-full text-start min-w-[500px]">
               <thead>
                 <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant">
-                  <th className="px-4 py-2">Date</th>
+                  <th className="px-4 py-2">{t('w.date')}</th>
                   <th className="px-4 py-2">Account</th>
-                  <th className="px-4 py-2">Particular</th>
+                  <th className="px-4 py-2">{t('w.particular')}</th>
                   <th className="px-4 py-2">Receipt #</th>
                   <th className="px-4 py-2 text-end">Debit</th>
                   <th className="px-4 py-2 text-end">Credit</th>

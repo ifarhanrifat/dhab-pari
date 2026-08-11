@@ -13,6 +13,7 @@ import { FileAttachment } from '@/components/admin/FileAttachment'
 import { VoiceRecorder } from '@/components/admin/VoiceRecorder'
 import { normalizePakPhone } from '@/lib/receiptExport'
 import { SITE } from '@/lib/constants'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Complaint {
   id: string; complaint_number: string; system: string; complainant_name: string | null
@@ -48,6 +49,7 @@ function deadlineText(deadline: string, status: string) {
 }
 
 export default function ComplaintDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useLocale()
   const { id } = usePromise(params)
   const supabase = createClient()
 
@@ -238,7 +240,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
     window.open(`https://wa.me/${intl}?text=${msg}`, '_blank')
   }
 
-  if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
   if (!complaint) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Complaint not found.</div>
 
   const canVerify = me && (me.role === 'super_admin' || me.can_verify_complaints)

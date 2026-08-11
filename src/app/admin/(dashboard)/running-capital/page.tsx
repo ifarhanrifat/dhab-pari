@@ -18,6 +18,7 @@ import {
 } from '@/lib/monthlyClosingNarrative'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import { printNodeInPopup } from '@/lib/receiptExport'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 interface ClosingRow extends ClosingReportData { id: string }
@@ -47,14 +48,15 @@ function StatCard({ icon, label, value, tone = 'default' }: { icon: React.ReactN
 // Shared by both systems — a voucher/purchase's real approver trail (or a clear
 // "No approval required" / "Auto-posted" fallback) instead of a bare description.
 function ExpenseTable({ lines }: { lines: ExpenseLine[] }) {
+  const { t } = useLocale()
   return (
     <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
       <table className="w-full text-start">
         <thead>
           <tr className="text-dp-on-surface-variant text-[11px] font-sans font-bold uppercase tracking-[0.04em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-            <th className="px-4 py-2.5">Description</th>
+            <th className="px-4 py-2.5">{t('a.description')}</th>
             <th className="px-4 py-2.5">Approved By</th>
-            <th className="px-4 py-2.5 text-end">Amount</th>
+            <th className="px-4 py-2.5 text-end">{t('w.amount')}</th>
           </tr>
         </thead>
         <tbody>
@@ -66,7 +68,7 @@ function ExpenseTable({ lines }: { lines: ExpenseLine[] }) {
                 {(e.approved_by ?? []).length > 0 ? (
                   <span className="flex items-center gap-1.5 text-dp-on-surface-variant"><UserCheck size={13} className="text-emerald-600 shrink-0" /> {e.approved_by.join(', ')}</span>
                 ) : e.auto_posted ? (
-                  <span className="text-amber-700 font-semibold">Auto-posted</span>
+                  <span className="text-amber-700 font-semibold">{t('a.autoPosted')}</span>
                 ) : (
                   <span className="text-dp-on-surface-variant">No approval required</span>
                 )}
@@ -263,6 +265,7 @@ const complaintStatusMeta: Record<ComplaintEntry['status'], { label: string; cls
 // higher management already verified looked identical to a brand new one
 // before this (migration 112 added status/incharge/resolved-by to the data).
 function ComplaintList({ complaints }: { complaints: ComplaintEntry[] }) {
+  const { t } = useLocale()
   return (
     <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
       {complaints.map((c, i) => {
@@ -279,7 +282,7 @@ function ComplaintList({ complaints }: { complaints: ComplaintEntry[] }) {
               <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">
                 {c.status === 'verified'
                   ? <>Resolved by <span className="font-semibold">{c.resolved_by_name ?? 'Unknown'}</span>{c.resolved_at ? ` on ${new Date(c.resolved_at).toLocaleDateString('en-GB')}` : ''}</>
-                  : <>Incharge: <span className="font-semibold">{c.incharge_name ?? 'Not yet assigned'}</span></>}
+                  : <>{t('a.incharge')} <span className="font-semibold">{c.incharge_name ?? 'Not yet assigned'}</span></>}
               </p>
             </div>
           </div>
@@ -312,6 +315,7 @@ function OtherOutgoingPayments({ breakdown }: { breakdown: CashCategoryAmount[] 
 }
 
 export default function RunningCapitalPage() {
+  const { t } = useLocale()
   const access = useSystemAccess()
   const [system, setSystem] = useState<SystemTab>('water_supply')
   useEffect(() => { if (!access.loading) setSystem(access.defaultSystem) }, [access.loading, access.defaultSystem])
@@ -429,7 +433,7 @@ export default function RunningCapitalPage() {
         {!access.loading && (access.canWaterSupply || access.canDonorsProjects) && (
           <div className="flex items-center gap-1 bg-dp-surface-container-low rounded-lg p-1">
             {access.canWaterSupply && (
-              <button onClick={() => setSystem('water_supply')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'water_supply' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>Water Supply</button>
+              <button onClick={() => setSystem('water_supply')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'water_supply' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>{t('a.waterSupply')}</button>
             )}
             {access.canDonorsProjects && (
               <button onClick={() => setSystem('donors_projects')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'donors_projects' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>Donors &amp; Projects</button>
@@ -452,7 +456,7 @@ export default function RunningCapitalPage() {
       )}
 
       {loadingLive ? (
-        <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">Loading...</div>
+        <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
       ) : !live ? (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">Could not load figures.</div>
       ) : system === 'water_supply' ? (
@@ -557,10 +561,10 @@ export default function RunningCapitalPage() {
                 <table className="w-full text-start">
                   <thead>
                     <tr className="text-dp-on-surface-variant text-[11px] font-sans font-bold uppercase tracking-[0.04em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                      <th className="px-4 py-2.5">Consumer</th>
-                      <th className="px-4 py-2.5">Sector</th>
+                      <th className="px-4 py-2.5">{t('a.consumer')}</th>
+                      <th className="px-4 py-2.5">{t('w.sector')}</th>
                       <th className="px-4 py-2.5"><ClipboardList size={12} className="inline me-1" />Incharge</th>
-                      <th className="px-4 py-2.5">Status</th>
+                      <th className="px-4 py-2.5">{t('w.status')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -622,8 +626,8 @@ export default function RunningCapitalPage() {
               <table className="w-full text-start">
                 <thead>
                   <tr className="text-dp-on-surface-variant text-[11px] font-sans font-bold uppercase tracking-[0.04em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                    <th className="px-4 py-2.5"><FolderKanban size={12} className="inline me-1" />Project</th>
-                    <th className="px-4 py-2.5">Status</th>
+                    <th className="px-4 py-2.5"><FolderKanban size={12} className="inline me-1" />{t('w.project')}</th>
+                    <th className="px-4 py-2.5">{t('w.status')}</th>
                     <th className="px-4 py-2.5">Progress</th>
                     <th className="px-4 py-2.5 text-end">Budget</th>
                     <th className="px-4 py-2.5 text-end">Spent</th>
@@ -664,7 +668,7 @@ export default function RunningCapitalPage() {
       {/* Monthly Closing Reports archive */}
       <SectionHeading>{dt(lang, 'monthlyClosingReports')}</SectionHeading>
       {loadingReports ? (
-        <p className="font-sans text-dp-on-surface-variant text-[13.5px]">Loading...</p>
+        <p className="font-sans text-dp-on-surface-variant text-[13.5px]">{t('action.loading')}</p>
       ) : reports.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">
           <p className="font-sans text-[13.5px] text-dp-on-surface-variant">{dt(lang, 'noReportsYet')}</p>
@@ -696,7 +700,7 @@ export default function RunningCapitalPage() {
                     <RefreshCw size={13} className={regenerating ? 'animate-spin' : ''} /> {regenerating ? 'Regenerating...' : 'Regenerate'}
                   </button>
                 )}
-                <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={13} /> Print</button>
+                <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={13} /> {t('a.print')}</button>
                 <button onClick={() => setViewTarget(null)} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
               </div>
             </div>

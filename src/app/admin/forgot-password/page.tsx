@@ -5,8 +5,10 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Lock, Mail, CheckCircle, AlertTriangle } from 'lucide-react'
 import { SITE } from '@/lib/constants'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 export default function ForgotPasswordPage() {
+  const { t } = useLocale()
   const supabase = createClient()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
@@ -70,7 +72,7 @@ export default function ForgotPasswordPage() {
 
               <form onSubmit={submit} className="space-y-5">
                 <div>
-                  <label htmlFor="email" className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">Email</label>
+                  <label htmlFor="email" className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('a.email')}</label>
                   <input
                     id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="username"
                     disabled={loading}

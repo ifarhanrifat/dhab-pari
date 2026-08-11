@@ -13,6 +13,7 @@ import { voucherTypeLabels, voucherReceiptKind } from '@/lib/ledgerLabels'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { donorReceiptTotals } from '@/lib/donorReceiptTotals'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 
@@ -57,6 +58,7 @@ const yearStart = (y: number) => `${y}-01-01`
 const yearEnd = (y: number) => `${y}-12-31`
 
 export default function AllTransactionsPage() {
+  const { t } = useLocale()
   const access = useSystemAccess()
   const [system, setSystem] = useState<SystemTab>('water_supply')
   const [systemOverride] = useState<SystemTab | null>(() => {
@@ -337,7 +339,7 @@ export default function AllTransactionsPage() {
         {!access.loading && (access.canWaterSupply || access.canDonorsProjects) && (
           <div className="flex items-center gap-1 bg-dp-surface-container-low rounded-lg p-1">
             {access.canWaterSupply && (
-              <button onClick={() => setSystem('water_supply')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'water_supply' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>Water Supply</button>
+              <button onClick={() => setSystem('water_supply')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'water_supply' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>{t('a.waterSupply')}</button>
             )}
             {access.canDonorsProjects && (
               <button onClick={() => setSystem('donors_projects')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'donors_projects' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>Donors &amp; Projects</button>
@@ -349,7 +351,7 @@ export default function AllTransactionsPage() {
       <div className="bg-white rounded-lg border border-dp-outline-variant p-4 mb-4 space-y-3">
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">From</label>
+            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('a.from')}</label>
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="input-field !py-2 text-[14px]" />
           </div>
           <div>
@@ -357,7 +359,7 @@ export default function AllTransactionsPage() {
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="input-field !py-2 text-[14px]" />
           </div>
           <div>
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Year</label>
+            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('a.year')}</label>
             <select onChange={(e) => applyYear(e.target.value)} defaultValue="" className="input-field !py-2 text-[14px]">
               <option value="">Jump to year...</option>
               {years.map((y) => <option key={y} value={y}>{y}</option>)}
@@ -367,17 +369,17 @@ export default function AllTransactionsPage() {
             This Month
           </button>
           <div>
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Status</label>
+            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('w.status')}</label>
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} className="input-field !py-2 text-[14px]">
               <option value="all">All statuses</option>
-              <option value="paid">Paid</option>
+              <option value="paid">{t('w.paid')}</option>
               <option value="partial">Partial</option>
               <option value="pending">Pending</option>
               <option value="overdue">Overdue</option>
             </select>
           </div>
           <div>
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Type</label>
+            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('a.type')}</label>
             <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} className="input-field !py-2 text-[14px]">
               <option value="all">All types</option>
               <option value="bill">Bills</option>
@@ -420,7 +422,7 @@ export default function AllTransactionsPage() {
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-        {loading && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">Loading...</p>}
+        {loading && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">{t('action.loading')}</p>}
         {!loading && filteredRows.length === 0 && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">No transactions match these filters.</p>}
         <div className="divide-y divide-dp-outline-variant">
           {!loading && filteredRows.map((r) => (
@@ -432,12 +434,12 @@ export default function AllTransactionsPage() {
                     <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{r.partyName}</p>
                     {r.isRecurring && (
                       <span className="inline-block mt-0.5 me-1 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700" title="Generated automatically by a recurring schedule, not entered by hand">
-                        Recurring
+                        {t('a.recurring')}
                       </span>
                     )}
                     {r.autoPosted && (
                       <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800" title="Posted after 24 hours without every approver confirming">
-                        Auto-posted
+                        {t('a.autoPosted')}
                       </span>
                     )}
                     {r.fullyApproved && (

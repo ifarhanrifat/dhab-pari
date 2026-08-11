@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Droplet } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface BloodDonor {
   id: string; blood_group: string; is_available: boolean; sector: string | null
@@ -12,6 +13,7 @@ interface BloodDonor {
 const GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 
 export default function AdminBloodDonorsPage() {
+  const { t } = useLocale()
   const [donors, setDonors] = useState<BloodDonor[]>([])
   const [loading, setLoading] = useState(true)
   const [groupFilter, setGroupFilter] = useState('')
@@ -48,10 +50,10 @@ export default function AdminBloodDonorsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]">
-              <th className="p-4">Name</th><th className="p-4">Group</th><th className="p-4">Sector</th><th className="p-4">Mobile</th><th className="p-4">WhatsApp</th><th className="p-4">Status</th>
+              <th className="p-4">{t('a.name')}</th><th className="p-4">Group</th><th className="p-4">{t('w.sector')}</th><th className="p-4">Mobile</th><th className="p-4">{t('w.whatsapp')}</th><th className="p-4">{t('w.status')}</th>
             </tr></thead>
             <tbody className="font-sans text-[16px]">
-              {loading && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">Loading...</td></tr>}
+              {loading && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}
               {!loading && filtered.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">No matching blood donors.</td></tr>}
               {!loading && filtered.map((d, i) => (
                 <tr key={d.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''}`}>

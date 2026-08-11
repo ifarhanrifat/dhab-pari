@@ -11,6 +11,7 @@ import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { billBadge, billBadgeClass } from '@/lib/billStatus'
 import { normalizePakPhone } from '@/lib/receiptExport'
 import { SITE } from '@/lib/constants'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Me { id: string; full_name: string; can_collect_payments: boolean; assigned_sectors: string[] | null }
 interface Consumer { consumer_id: string; name: string; mobile: string | null; sector: string | null; status: string }
@@ -37,6 +38,7 @@ const complaintCategories = [
 ]
 
 export default function CollectPaymentPage() {
+  const { t } = useLocale()
   const supabase = createClient()
   const [me, setMe] = useState<Me | null | 'loading'>('loading')
   const [consumers, setConsumers] = useState<Consumer[]>([])
@@ -202,7 +204,7 @@ export default function CollectPaymentPage() {
     window.open(`https://wa.me/${intl}?text=${msg}`, '_blank')
   }
 
-  if (me === 'loading') return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (me === 'loading') return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
   if (!me || !me.can_collect_payments) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
@@ -224,7 +226,7 @@ export default function CollectPaymentPage() {
 
       <div className="bg-white rounded-lg border border-dp-outline-variant p-5 max-w-xl space-y-4">
         <div>
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Consumer</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.consumer')}</label>
           <SearchableField
             value={selectedConsumerId}
             onChange={pickConsumer}
@@ -241,7 +243,7 @@ export default function CollectPaymentPage() {
             <div className="flex gap-2">
               <input value={phoneInput} onChange={(e) => setPhoneInput(e.target.value)} placeholder="0300-1234567" className="input-field !py-2 flex-1" />
               <button disabled={savingPhone} onClick={savePhone} className="flex items-center gap-1.5 px-3 py-2 bg-amber-600 text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-amber-700 transition-all cursor-pointer disabled:opacity-50 shrink-0">
-                <Save size={13} /> Save
+                <Save size={13} /> {t('action.save')}
               </button>
             </div>
           </div>
@@ -279,20 +281,20 @@ export default function CollectPaymentPage() {
               <>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Amount (PKR)</label>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
                     <input type="number" min={1} value={amount || ''} onChange={(e) => setAmount(+e.target.value)} className="input-field" />
                   </div>
                   <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Method</label>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.method')}</label>
                     <select value={method} onChange={(e) => setMethod(e.target.value)} className="input-field">
-                      <option value="cash">Cash</option>
-                      <option value="jazzcash">JazzCash</option>
-                      <option value="easypaisa">Easypaisa</option>
+                      <option value="cash">{t('w.cash')}</option>
+                      <option value="jazzcash">{t('w.jazzcash')}</option>
+                      <option value="easypaisa">{t('w.easypaisa')}</option>
                     </select>
                   </div>
                 </div>
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Note (optional)</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.noteOptional')}</label>
                   <input value={note} onChange={(e) => setNote(e.target.value)} className="input-field" placeholder="e.g. paid at doorstep" />
                 </div>
                 <button disabled={saving} onClick={submit} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
@@ -329,7 +331,7 @@ export default function CollectPaymentPage() {
                   <Save size={14} /> {savingComplaint ? 'Saving...' : 'Save Complaint'}
                 </button>
                 <button onClick={() => { setShowComplaintForm(false); setComplaintCategory(''); setComplaintText('') }} className="px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">
-                  Cancel
+                  {t('action.cancel')}
                 </button>
               </div>
             </div>

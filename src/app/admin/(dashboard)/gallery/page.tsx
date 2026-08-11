@@ -8,12 +8,14 @@ import { ImageUpload } from '@/components/admin/ImageUpload'
 import { MultiImageUpload } from '@/components/admin/MultiImageUpload'
 import { BulkActionsBar } from '@/components/admin/BulkActionsBar'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Album { id: string; title: string; title_ur: string | null; category: string | null; display_order: number }
 interface Item { id: string; album_id: string; url: string; caption: string | null; display_order: number }
 const albumCategories = ['projects', 'sports', 'kids', 'events', 'weddings', 'interviews']
 
 export default function AdminGalleryPage() {
+  const { t } = useLocale()
   const [albums, setAlbums] = useState<Album[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
@@ -167,8 +169,8 @@ export default function AdminGalleryPage() {
             <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">New Album</h2><button onClick={() => setShowAlbumForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Title</label><input value={albumForm.title} onChange={(e) => setAlbumForm({ ...albumForm, title: e.target.value })} className="input-field" /></div>
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Title (UR)</label><input value={albumForm.title_ur} onChange={(e) => setAlbumForm({ ...albumForm, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Category</label><select value={albumForm.category} onChange={(e) => setAlbumForm({ ...albumForm, category: e.target.value })} className="input-field">{albumCategories.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.titleUr')}</label><input value={albumForm.title_ur} onChange={(e) => setAlbumForm({ ...albumForm, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.category')}</label><select value={albumForm.category} onChange={(e) => setAlbumForm({ ...albumForm, category: e.target.value })} className="input-field">{albumCategories.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
               <button onClick={saveAlbum} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">Create Album</button>
             </div>
           </div>

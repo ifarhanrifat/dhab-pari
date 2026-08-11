@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 type Frequency = 'every_minute' | 'daily' | 'weekly' | 'monthly' | 'semi_annual' | 'yearly'
@@ -30,6 +31,7 @@ function fmtAmount(n: number) {
 }
 
 export default function RecurringPage() {
+  const { t } = useLocale()
   const access = useSystemAccess()
   const [system, setSystem] = useState<SystemTab>('water_supply')
   const [systemOverride] = useState<SystemTab | null>(() => {
@@ -139,12 +141,12 @@ export default function RecurringPage() {
     <>
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
-          <Repeat size={26} /> Recurring
+          <Repeat size={26} /> {t('a.recurring')}
         </h1>
         {!access.loading && (access.canWaterSupply || access.canDonorsProjects) && (
           <div className="flex items-center gap-1 bg-dp-surface-container-low rounded-lg p-1">
             {access.canWaterSupply && (
-              <button onClick={() => setSystem('water_supply')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'water_supply' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>Water Supply</button>
+              <button onClick={() => setSystem('water_supply')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'water_supply' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>{t('a.waterSupply')}</button>
             )}
             {access.canDonorsProjects && (
               <button onClick={() => setSystem('donors_projects')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'donors_projects' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>Donors &amp; Projects</button>
@@ -172,17 +174,17 @@ export default function RecurringPage() {
               <thead>
                 <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                   <th className="px-4 py-2.5">For</th>
-                  <th className="px-4 py-2.5">Type</th>
-                  <th className="px-4 py-2.5">Frequency</th>
-                  <th className="px-4 py-2.5 text-end">Amount</th>
+                  <th className="px-4 py-2.5">{t('a.type')}</th>
+                  <th className="px-4 py-2.5">{t('w.frequency')}</th>
+                  <th className="px-4 py-2.5 text-end">{t('w.amount')}</th>
                   <th className="px-4 py-2.5">Next Run</th>
                   <th className="px-4 py-2.5">Last Run</th>
-                  <th className="px-4 py-2.5">Status</th>
-                  <th className="px-4 py-2.5 text-end">Actions</th>
+                  <th className="px-4 py-2.5">{t('w.status')}</th>
+                  <th className="px-4 py-2.5 text-end">{t('a.actions')}</th>
                 </tr>
               </thead>
               <tbody>
-                {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">Loading...</td></tr>}
+                {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</td></tr>}
                 {!loading && schedules.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">No recurring schedules set up yet.</td></tr>}
                 {!loading && schedules.map((s) => (
                   <tr key={s.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${!s.is_active ? 'opacity-50' : ''}`}>
@@ -213,7 +215,7 @@ export default function RecurringPage() {
         <>
           <div className="bg-white rounded-lg border border-dp-outline-variant p-4 mb-4 flex flex-wrap items-end gap-3">
             <div>
-              <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Type</label>
+              <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('a.type')}</label>
               <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as ScheduleType)} className="input-field !py-2 text-[14px]">
                 {system === 'water_supply' && <option value="bill">Bill</option>}
                 {system === 'donors_projects' && <option value="donation">Donation</option>}
@@ -221,7 +223,7 @@ export default function RecurringPage() {
               </select>
             </div>
             <div>
-              <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Date</label>
+              <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('w.date')}</label>
               <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="input-field !py-2 text-[14px]" />
             </div>
             {dateFilter && (
@@ -247,13 +249,13 @@ export default function RecurringPage() {
               <table className="w-full text-start min-w-[500px]">
                 <thead>
                   <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                    <th className="px-4 py-2.5">Date</th>
+                    <th className="px-4 py-2.5">{t('w.date')}</th>
                     <th className="px-4 py-2.5">Transaction</th>
-                    <th className="px-4 py-2.5 text-end">Amount</th>
+                    <th className="px-4 py-2.5 text-end">{t('w.amount')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {txnLoading && <tr><td colSpan={3} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">Loading...</td></tr>}
+                  {txnLoading && <tr><td colSpan={3} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</td></tr>}
                   {!txnLoading && txnRows.length === 0 && <tr><td colSpan={3} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">No recurring transactions of this type yet.</td></tr>}
                   {!txnLoading && txnRows.map((r) => (
                     <tr key={r.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">

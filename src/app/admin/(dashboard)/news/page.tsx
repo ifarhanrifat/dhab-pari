@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { BulkActionsBar } from '@/components/admin/BulkActionsBar'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Post { id: string; title: string; title_ur: string | null; content: string; content_ur: string | null; category: string | null; cover_image_url: string | null; author: string; is_published: boolean; views: number; published_at: string | null }
 
@@ -15,6 +16,7 @@ interface PostCategory { key: string; label_en: string; label_ur: string; icon: 
 const empty = { title: '', title_ur: '', content: '', content_ur: '', category: 'announcement', author: 'Committee', is_published: false, cover_image_url: '' }
 
 export default function AdminNewsPage() {
+  const { t } = useLocale()
   const [posts, setPosts] = useState<Post[]>([])
   const [categories, setCategories] = useState<PostCategory[]>([])
   const [loading, setLoading] = useState(true)
@@ -118,7 +120,7 @@ export default function AdminNewsPage() {
       )}
 
       <div className="space-y-4">
-        {loading && <div className="text-center py-12 text-dp-on-surface-variant">Loading...</div>}
+        {loading && <div className="text-center py-12 text-dp-on-surface-variant">{t('action.loading')}</div>}
         {!loading && posts.map((p) => (
           <div key={p.id} className={`bg-white border rounded-lg p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-dp-secondary transition-all ${selected.has(p.id) ? 'border-dp-secondary bg-dp-secondary-container/10' : 'border-dp-outline-variant'}`}>
             <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -154,13 +156,13 @@ export default function AdminNewsPage() {
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">{editing ? 'Edit Post' : 'New Post'}</h2><button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Title (EN)</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" /></div>
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Title (UR)</label><input value={form.title_ur} onChange={(e) => setForm({ ...form, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.titleEn')}</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" /></div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.titleUr')}</label><input value={form.title_ur} onChange={(e) => setForm({ ...form, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Content (EN)</label><textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} rows={6} className="input-field resize-none" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Content (UR)</label><textarea value={form.content_ur} onChange={(e) => setForm({ ...form, content_ur: e.target.value })} rows={4} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <ImageUpload bucket="images" currentUrl={form.cover_image_url} onUpload={(url) => setForm({ ...form, cover_image_url: url })} label="Cover Image" />
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Category</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">{categories.map((c) => <option key={c.key} value={c.key}>{c.icon ? `${c.icon} ` : ''}{c.label_en} — {c.label_ur}</option>)}</select></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.category')}</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">{categories.map((c) => <option key={c.key} value={c.key}>{c.icon ? `${c.icon} ` : ''}{c.label_en} — {c.label_ur}</option>)}</select></div>
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Author</label><input value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} className="input-field" /></div>
               </div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_published} onChange={(e) => setForm({ ...form, is_published: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">Publish immediately</span></label>

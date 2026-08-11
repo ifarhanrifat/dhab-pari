@@ -17,6 +17,7 @@ import {
   Siren, Copy, MessageSquareWarning, Vote, Activity, Briefcase, HandHeart, HeartHandshake, Lock, Send, Ban,
 } from 'lucide-react'
 import { SITE } from '@/lib/constants'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface ActivityEntry { event_type: string; title: string; detail: string | null; actor_name: string | null; created_at: string }
 interface ProjectCommentEntry { id: string; username: string | null; content: string; comment_type: string; created_at: string }
@@ -81,6 +82,7 @@ const emptyTaskForm = { text_ur: '', due_date: '', committee_member_ids: [] as s
 const emptySuggestionForm = { text_ur: '', raised_by_committee_member_id: '' }
 
 export default function MeetingsAgendaPage() {
+  const { t } = useLocale()
   const supabase = createClient()
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [members, setMembers] = useState<CommitteeMember[]>([])
@@ -673,7 +675,7 @@ export default function MeetingsAgendaPage() {
                       <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">
                         {c.status === 'verified'
                           ? <>Resolved by <span className="font-semibold">{c.resolved_by_name ?? 'Unknown'}</span>{c.resolved_at ? ` on ${new Date(c.resolved_at).toLocaleDateString('en-GB')}` : ''}</>
-                          : <>Incharge: <span className="font-semibold">{c.incharge_name ?? 'Not yet assigned'}</span></>}
+                          : <>{t('a.incharge')} <span className="font-semibold">{c.incharge_name ?? 'Not yet assigned'}</span></>}
                       </p>
                     </div>
                   ))
@@ -812,7 +814,7 @@ export default function MeetingsAgendaPage() {
       )}
 
       {loading ? (
-        <p className="font-sans text-dp-on-surface-variant py-8 text-center">Loading...</p>
+        <p className="font-sans text-dp-on-surface-variant py-8 text-center">{t('action.loading')}</p>
       ) : meetings.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">No meetings logged yet. Start with "New Meeting" after your next committee sitting.</p>
@@ -1022,7 +1024,7 @@ export default function MeetingsAgendaPage() {
                                       onClick={() => saveReply(s, replyDrafts[s.id] ?? s.reply_text ?? '')}
                                       className="px-2.5 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[11.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50"
                                     >
-                                      <Reply size={12} className="inline me-1" />Save
+                                      <Reply size={12} className="inline me-1" />{t('action.save')}
                                     </button>
                                     {s.reply_text && (
                                       <button
@@ -1031,7 +1033,7 @@ export default function MeetingsAgendaPage() {
                                         title={phone ? 'Send via WhatsApp' : 'No phone number on file'}
                                         className="px-2.5 py-1.5 border border-green-600/40 text-green-700 rounded-lg font-sans text-[11.5px] font-semibold hover:bg-green-50 transition-all cursor-pointer disabled:opacity-40"
                                       >
-                                        <MessageCircle size={12} className="inline me-1" />WhatsApp
+                                        <MessageCircle size={12} className="inline me-1" />{t('w.whatsapp')}
                                       </button>
                                     )}
                                   </div>
@@ -1136,7 +1138,7 @@ export default function MeetingsAgendaPage() {
               <div>
                 <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Run By</label>
                 <select value={meetingForm.run_by_admin_user_id} onChange={(e) => setMeetingForm({ ...meetingForm, run_by_admin_user_id: e.target.value })} className="input-field">
-                  <option value="">Select...</option>
+                  <option value="">{t('a.select')}</option>
                   {adminUsers.map((a) => <option key={a.id} value={a.id}>{a.full_name}</option>)}
                 </select>
                 <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">Default fallback assignee for members with no login or proxy set.</p>
@@ -1144,7 +1146,7 @@ export default function MeetingsAgendaPage() {
               <MultiImageUpload bucket="attachments" label="Agenda Scan (reference photo, optional)" max={4} currentUrls={meetingForm.agenda_photo_urls} onUpload={(urls) => setMeetingForm({ ...meetingForm, agenda_photo_urls: urls })} />
             </div>
             <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
-              <button onClick={() => setShowMeetingForm(false)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+              <button onClick={() => setShowMeetingForm(false)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
               <button disabled={savingMeeting} onClick={saveMeeting} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
                 {savingMeeting ? 'Creating...' : 'Create Meeting'}
               </button>
@@ -1167,7 +1169,7 @@ export default function MeetingsAgendaPage() {
                 <textarea value={taskForm.text_ur} onChange={(e) => setTaskForm({ ...taskForm, text_ur: e.target.value })} rows={3} className="input-field resize-none" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }} />
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Category</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('w.category')}</label>
                 <select value={taskForm.category} onChange={(e) => setTaskForm({ ...taskForm, category: e.target.value as Category })} className="input-field">
                   {CATEGORY_ORDER.map((c) => <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>)}
                 </select>
@@ -1201,7 +1203,7 @@ export default function MeetingsAgendaPage() {
               </div>
             </div>
             <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
-              <button onClick={() => setTaskMeetingId(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+              <button onClick={() => setTaskMeetingId(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
               <button disabled={savingTask} onClick={saveTask} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
                 {savingTask ? 'Saving...' : 'Allocate'}
               </button>
@@ -1232,7 +1234,7 @@ export default function MeetingsAgendaPage() {
               </div>
             </div>
             <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
-              <button onClick={() => setSuggestionMeetingId(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+              <button onClick={() => setSuggestionMeetingId(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
               <button disabled={savingSuggestion} onClick={saveSuggestion} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
                 {savingSuggestion ? 'Saving...' : 'Add'}
               </button>
@@ -1315,7 +1317,7 @@ export default function MeetingsAgendaPage() {
             </div>
             {!extracting && (
               <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
-                <button onClick={() => setExtractMeetingId(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+                <button onClick={() => setExtractMeetingId(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
                 <button disabled={savingExtracted} onClick={saveExtractedPoints} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
                   {savingExtracted ? 'Saving...' : 'Save Selected'}
                 </button>
@@ -1349,7 +1351,7 @@ export default function MeetingsAgendaPage() {
             )}
             <div className="p-5 space-y-2.5">
               {loadingSuggestions ? (
-                <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-6">Loading...</p>
+                <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-6">{t('action.loading')}</p>
               ) : websiteSuggestions.length === 0 ? (
                 <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-6">No new suggestions from the website to import.</p>
               ) : (
@@ -1386,7 +1388,7 @@ export default function MeetingsAgendaPage() {
               </div>
             </div>
             <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
-              <button onClick={() => setEmergencyMeetingId(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+              <button onClick={() => setEmergencyMeetingId(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
               <button disabled={savingEmergency} onClick={raiseEmergencyJob} className="flex-1 px-4 py-3 bg-red-600 text-white rounded-full font-sans text-[14px] font-bold hover:bg-red-700 transition-all cursor-pointer disabled:opacity-50">
                 {savingEmergency ? 'Broadcasting...' : 'Broadcast to All'}
               </button>
@@ -1461,7 +1463,7 @@ export default function MeetingsAgendaPage() {
                   <option value="pdf">PDF</option>
                   <option value="png">PNG</option>
                 </select>
-                <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={14} /> Print</button>
+                <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={14} /> {t('a.print')}</button>
                 <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto"><Download size={14} /> Download</button>
               </div>
             </div>

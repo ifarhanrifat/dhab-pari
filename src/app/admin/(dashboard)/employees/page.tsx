@@ -14,6 +14,7 @@ import { HiringRequestDocument, type HiringRequestData } from '@/components/admi
 import { PayslipDocument, type PayslipData } from '@/components/admin/PayslipDocument'
 import { ReceiptDocument, type ReceiptData } from '@/components/admin/ReceiptDocument'
 import type { SlipFormat } from '@/components/admin/UniversalSlip'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 const slipMonthName = (m: number) => new Date(2000, m - 1, 1).toLocaleString('en', { month: 'long' })
 
@@ -33,6 +34,7 @@ const today = () => new Date().toISOString().slice(0, 10)
 const slugify = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
 
 export default function EmployeesPage() {
+  const { t } = useLocale()
   const supabase = createClient()
   const [employees, setEmployees] = useState<Employee[]>([])
   const [employeeRoles, setEmployeeRoles] = useState<EmployeeRole[]>([])
@@ -263,7 +265,7 @@ export default function EmployeesPage() {
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mb-8">
         {loading ? (
-          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">Loading...</p>
+          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('action.loading')}</p>
         ) : employees.length === 0 ? (
           <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No employees added yet.</p>
         ) : (
@@ -314,7 +316,7 @@ export default function EmployeesPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Name</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.name')}</label>
                 <input autoFocus value={form.name} onChange={(ev) => setForm({ ...form, name: ev.target.value })} className="input-field" />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -378,17 +380,17 @@ export default function EmployeesPage() {
                 <div>
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Paid From</label>
                   <select value={advanceForm.method} onChange={(ev) => setAdvanceForm({ ...advanceForm, method: ev.target.value })} className="input-field">
-                    <option value="cash">Cash</option>
-                    <option value="bank">Bank</option>
+                    <option value="cash">{t('w.cash')}</option>
+                    <option value="bank">{t('a.bank')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Date</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.date')}</label>
                   <input type="date" value={advanceForm.date} onChange={(ev) => setAdvanceForm({ ...advanceForm, date: ev.target.value })} className="input-field" />
                 </div>
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Note (optional)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.noteOptional')}</label>
                 <input value={advanceForm.note} onChange={(ev) => setAdvanceForm({ ...advanceForm, note: ev.target.value })} className="input-field" />
               </div>
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant">Reduces this employee's account balance immediately — it nets against whatever they earn going forward, shown live on their row and on their next payslip.</p>
@@ -441,6 +443,7 @@ const templateKeys = (role: string) => ({
 })
 
 function HiringRequestGenerator({ employees, employeeRoles, branding }: { employees: Employee[]; employeeRoles: EmployeeRole[]; branding: Partial<BrandingSettings> }) {
+  const { t } = useLocale()
   const supabase = createClient()
   const [role, setRole] = useState('')
   const [bodies, setBodies] = useState({ requirements: '', procedure: '', skills: '' })
@@ -515,7 +518,7 @@ function HiringRequestGenerator({ employees, employeeRoles, branding }: { employ
       </div>
 
       {loadingTemplates ? (
-        <p className="font-sans text-[13.5px] text-dp-on-surface-variant py-4">Loading...</p>
+        <p className="font-sans text-[13.5px] text-dp-on-surface-variant py-4">{t('action.loading')}</p>
       ) : (
         <div className="space-y-4">
           <div>
@@ -561,7 +564,7 @@ function HiringRequestGenerator({ employees, employeeRoles, branding }: { employ
                 <option value="pdf">PDF</option>
                 <option value="png">PNG</option>
               </select>
-              <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={14} /> Print</button>
+              <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={14} /> {t('a.print')}</button>
               <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto"><Download size={14} /> Download</button>
             </div>
           </div>
@@ -587,6 +590,7 @@ function PayslipButton({
   employee: Employee; roleLabelEn: (key: string) => string; accountsByCode: Record<string, string>
   employeeAccountId: string | undefined; branding: Partial<BrandingSettings>; onSettled: () => void
 }) {
+  const { t } = useLocale()
   const supabase = createClient()
   const now = new Date()
   const [open, setOpen] = useState(false)
@@ -814,19 +818,19 @@ function PayslipButton({
             <div className="p-5 space-y-4">
               <div className="grid grid-cols-2 gap-3 max-w-xs">
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Month</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.month')}</label>
                   <select value={month} onChange={(e) => setMonth(+e.target.value)} className="input-field">
                     {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{new Date(2000, m - 1, 1).toLocaleString('en', { month: 'long' })}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Year</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.year')}</label>
                   <input type="number" value={year} onChange={(e) => setYear(+e.target.value)} className="input-field" />
                 </div>
               </div>
 
               {loadingPeriod ? (
-                <p className="font-sans text-[13.5px] text-dp-on-surface-variant py-4">Loading...</p>
+                <p className="font-sans text-[13.5px] text-dp-on-surface-variant py-4">{t('action.loading')}</p>
               ) : (
                 <>
                   {existing?.recognition_voucher_id && (
@@ -878,10 +882,10 @@ function PayslipButton({
                         <input type="number" min={0} max={Math.max(balance, 0)} value={payAmount || ''} onChange={(e) => setPayAmount(+e.target.value)} className="input-field" />
                       </div>
                       <div>
-                        <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">From</label>
+                        <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.from')}</label>
                         <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className="input-field">
-                          <option value="cash">Cash</option>
-                          <option value="bank">Bank</option>
+                          <option value="cash">{t('w.cash')}</option>
+                          <option value="bank">{t('a.bank')}</option>
                         </select>
                       </div>
                       <button disabled={paying || balance <= 0} onClick={payNow} className="flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
@@ -915,7 +919,7 @@ function PayslipButton({
                       <option value="thermal">Thermal</option>
                     </select>
                   )}
-                  <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={14} /> Print</button>
+                  <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={14} /> {t('a.print')}</button>
                   <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto"><Download size={14} /> Download</button>
                 </div>
               </>

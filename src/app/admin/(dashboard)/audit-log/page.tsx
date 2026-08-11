@@ -6,6 +6,7 @@ import { History, RotateCcw, ShieldAlert, ArrowUpDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type TableName = 'bills' | 'payments' | 'donors' | 'vouchers' | 'accounts' | 'consumers'
 type Action = 'insert' | 'update' | 'delete'
@@ -41,6 +42,7 @@ function fmtDateTime(d: string) {
 }
 
 export default function AuditLogPage() {
+  const { t } = useLocale()
   const [authorized, setAuthorized] = useState<boolean | null>(null)
   const [canRestore, setCanRestore] = useState(false)
   const [rows, setRows] = useState<AuditRow[]>([])
@@ -93,7 +95,7 @@ export default function AuditLogPage() {
   }
 
   if (loading) {
-    return <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">Loading...</div>
+    return <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
   }
 
   if (!authorized) {
@@ -125,7 +127,7 @@ export default function AuditLogPage() {
           </select>
         </div>
         <div>
-          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">Action</label>
+          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.action')}</label>
           <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value as 'all' | Action)} className="input-field">
             <option value="all">All actions</option>
             <option value="insert">Created</option>
@@ -144,13 +146,13 @@ export default function AuditLogPage() {
           <table className="w-full text-start min-w-[820px]">
             <thead>
               <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                <th className="px-4 py-2.5">Type</th>
-                <th className="px-4 py-2.5">Action</th>
+                <th className="px-4 py-2.5">{t('a.type')}</th>
+                <th className="px-4 py-2.5">{t('w.action')}</th>
                 <th className="px-4 py-2.5">Summary</th>
                 <th className="px-4 py-2.5">User</th>
                 <th className="px-4 py-2.5">When</th>
-                <th className="px-4 py-2.5">Status</th>
-                <th className="px-4 py-2.5 text-end">Actions</th>
+                <th className="px-4 py-2.5">{t('w.status')}</th>
+                <th className="px-4 py-2.5 text-end">{t('a.actions')}</th>
               </tr>
             </thead>
             <tbody>

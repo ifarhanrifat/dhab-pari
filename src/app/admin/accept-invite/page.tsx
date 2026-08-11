@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, ShieldCheck, Lock, AlertTriangle } from 'lucide-react'
 import { SITE } from '@/lib/constants'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 export default function AcceptInvitePage() {
+  const { t } = useLocale()
   const [checking, setChecking] = useState(true)
   const [validSession, setValidSession] = useState(false)
   const [password, setPassword] = useState('')
@@ -97,7 +99,7 @@ export default function AcceptInvitePage() {
 
               <form onSubmit={submit} className="space-y-5">
                 <div>
-                  <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">Password</label>
+                  <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('w.password')}</label>
                   <div className="relative">
                     <input
                       type={showPw ? 'text' : 'password'}

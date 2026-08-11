@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { MessageSquare, EyeOff, Eye } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Comment {
   id: string; project_id: string; content: string; is_hidden: boolean; created_at: string
@@ -17,6 +18,7 @@ interface Comment {
 // users only ever get a "Flag" action (routes to Complaints) — hiding a
 // comment is a staff-only decision, made here.
 export default function AdminCommentsPage() {
+  const { t } = useLocale()
   const access = useSystemAccess()
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(true)
@@ -39,7 +41,7 @@ export default function AdminCommentsPage() {
     load()
   }
 
-  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
   if (!access.canDonorsProjects) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
@@ -62,7 +64,7 @@ export default function AdminCommentsPage() {
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         {loading ? (
-          <p className="p-8 text-center font-sans text-[14px] text-dp-on-surface-variant">Loading...</p>
+          <p className="p-8 text-center font-sans text-[14px] text-dp-on-surface-variant">{t('action.loading')}</p>
         ) : visible.length === 0 ? (
           <p className="p-8 text-center font-sans text-[14px] text-dp-on-surface-variant">No comments yet.</p>
         ) : (

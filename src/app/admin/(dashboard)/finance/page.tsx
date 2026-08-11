@@ -2,8 +2,10 @@
 
 import Link from 'next/link'
 import { Droplets, Heart, ChevronRight } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 export default function TransactionsPickerPage() {
+  const { t } = useLocale()
   return (
     <>
       <div className="mb-8">
@@ -21,7 +23,7 @@ export default function TransactionsPickerPage() {
               <Droplets size={22} className="text-dp-on-primary-container" />
             </div>
             <div>
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">Water Supply System</h2>
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('a.waterSupplySystem')}</h2>
               <p className="font-sans text-[13px] text-dp-on-surface-variant">Expenses, income, bills, cash &amp; bank vouchers</p>
             </div>
           </div>

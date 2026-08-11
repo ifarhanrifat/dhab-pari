@@ -5,6 +5,7 @@ import { Send, MessageCircle, Megaphone, AlertTriangle, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { SITE } from '@/lib/constants'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface LogEntry { id: string; type: string; recipient: string | null; message: string | null; status: string; sent_at: string | null; created_at: string }
 interface HistoryRow {
@@ -42,6 +43,7 @@ const KINDS: [string, string][] = [
 ]
 
 export default function AdminNotificationsPage() {
+  const { t } = useLocale()
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
@@ -398,10 +400,10 @@ export default function AdminNotificationsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]">
-              <th className="p-4">Date</th><th className="p-4">Type</th><th className="p-4">Recipient</th><th className="p-4">Message</th><th className="p-4">Status</th>
+              <th className="p-4">{t('w.date')}</th><th className="p-4">{t('a.type')}</th><th className="p-4">Recipient</th><th className="p-4">Message</th><th className="p-4">{t('w.status')}</th>
             </tr></thead>
             <tbody className="font-sans text-[16px]">
-              {loading && <tr><td colSpan={5} className="p-8 text-center text-dp-on-surface-variant">Loading...</td></tr>}
+              {loading && <tr><td colSpan={5} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}
               {!loading && logs.map((log, i) => (
                 <tr key={log.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''}`}>
                   <td className="p-4 border-b border-dp-outline-variant text-[14px] text-dp-on-surface-variant">{new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>

@@ -7,6 +7,7 @@ import { MessageSquareWarning, PlusCircle, X, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 type StatusFilter = 'all' | 'open' | 'awaiting_verification' | 'verified'
@@ -35,6 +36,7 @@ function deadlineText(deadline: string, status: string) {
 const emptyForm = { complainant_name: '', phone: '', sector: '', complaint_text: '', consumer_id: '' }
 
 export default function ComplaintsPage() {
+  const { t } = useLocale()
   const supabase = createClient()
   const access = useSystemAccess()
   const [system, setSystem] = useState<SystemTab>('water_supply')
@@ -115,7 +117,7 @@ export default function ComplaintsPage() {
           {!access.loading && (access.canWaterSupply || access.canDonorsProjects) && (
             <div className="flex items-center gap-1 bg-dp-surface-container-low rounded-lg p-1">
               {access.canWaterSupply && (
-                <button onClick={() => setSystem('water_supply')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'water_supply' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>Water Supply</button>
+                <button onClick={() => setSystem('water_supply')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'water_supply' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>{t('a.waterSupply')}</button>
               )}
               {access.canDonorsProjects && (
                 <button onClick={() => setSystem('donors_projects')} className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'donors_projects' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>Donors &amp; Projects</button>
@@ -142,7 +144,7 @@ export default function ComplaintsPage() {
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         {loading ? (
-          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">Loading...</p>
+          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('action.loading')}</p>
         ) : filtered.length === 0 ? (
           <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No complaints match this filter.</p>
         ) : (

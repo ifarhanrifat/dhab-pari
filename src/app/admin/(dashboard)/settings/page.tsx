@@ -12,6 +12,7 @@ import { SITE } from '@/lib/constants'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { MODULES } from '@/lib/constants'
 import { LanguageSettings } from '@/components/admin/LanguageSettings'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Setting { id: string; key: string; value: string | null; description: string | null }
 interface Sector { id: string; name: string; display_order: number }
@@ -173,6 +174,7 @@ function SettingsSection({
 }
 
 export default function AdminSettingsPage() {
+  const { t } = useLocale()
   const [settings, setSettings] = useState<Setting[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -1020,7 +1022,7 @@ export default function AdminSettingsPage() {
                           </label>
                           <label className="flex items-center gap-1.5 cursor-pointer">
                             <input type="checkbox" checked={p.whatsapp_enabled} onChange={() => toggleNotifChannel(p.event_type, 'whatsapp_enabled', p.whatsapp_enabled)} className="accent-[#25d366]" />
-                            <span className="font-sans text-[12.5px] text-dp-on-surface-variant flex items-center gap-1"><MessageCircle size={12} /> WhatsApp</span>
+                            <span className="font-sans text-[12.5px] text-dp-on-surface-variant flex items-center gap-1"><MessageCircle size={12} /> {t('w.whatsapp')}</span>
                           </label>
                         </div>
                       </div>
@@ -1059,14 +1061,14 @@ export default function AdminSettingsPage() {
                     {resetSystem === sys && (
                       <div className="mt-3 space-y-2 bg-dp-error-container/30 rounded-lg p-3">
                         <p className="font-sans text-[12.5px] text-dp-on-surface">
-                          Type <span className="font-mono font-bold">{resetLabel(sys)}</span> to confirm.
+                          {t('a.type')} <span className="font-mono font-bold">{resetLabel(sys)}</span> to confirm.
                         </p>
                         <input
                           autoFocus value={resetConfirmText} onChange={(e) => setResetConfirmText(e.target.value)}
                           placeholder="Type to confirm" className="input-field !py-2 text-[14px]"
                         />
                         <div className="flex gap-2">
-                          <button onClick={() => setResetSystem(null)} className="flex-1 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+                          <button onClick={() => setResetSystem(null)} className="flex-1 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
                           <button
                             disabled={resetConfirmText !== resetLabel(sys) || resetting}
                             onClick={() => handleReset(sys)}

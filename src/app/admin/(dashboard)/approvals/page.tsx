@@ -6,6 +6,7 @@ import { ShieldCheck, Check, X, Clock, ShoppingCart, Wallet, UserCog, Paperclip 
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface ApprovalRequest {
   id: string; system: string; kind: string; particular: string; amount_pkr: number
@@ -30,6 +31,7 @@ function hoursLeft(deadline: string) {
 }
 
 export default function ApprovalsPage() {
+  const { t } = useLocale()
   const supabase = createClient()
   const [adminUserId, setAdminUserId] = useState<string | null>(null)
   const [mine, setMine] = useState<MyConfirmation[]>([])
@@ -155,7 +157,7 @@ export default function ApprovalsPage() {
 
   const otherPending = useMemo(() => allPending.filter((r) => !mine.some((m) => m.approval_request_id === r.id)), [allPending, mine])
 
-  if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
   return (
     <>
@@ -251,8 +253,8 @@ export default function ApprovalsPage() {
               <table className="w-full text-start min-w-[600px]">
                 <thead>
                   <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                    <th className="px-5 py-2.5">Particular</th>
-                    <th className="px-5 py-2.5 text-end">Amount</th>
+                    <th className="px-5 py-2.5">{t('w.particular')}</th>
+                    <th className="px-5 py-2.5 text-end">{t('w.amount')}</th>
                     <th className="px-5 py-2.5">Waiting On</th>
                     <th className="px-5 py-2.5">Deadline</th>
                   </tr>

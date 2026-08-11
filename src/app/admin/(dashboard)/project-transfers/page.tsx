@@ -7,6 +7,7 @@ import { friendlyError } from '@/lib/errors'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import { ArrowRightLeft } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Project { id: string; title: string; status: string }
 interface AccountBalance { project_id: string; balance: number }
@@ -22,6 +23,7 @@ function fmt(n: number) {
 // move — the actual approval decision happens at the meeting, this just
 // records and posts it.
 export default function ProjectTransfersPage() {
+  const { t } = useLocale()
   const access = useSystemAccess()
   const [projects, setProjects] = useState<Project[]>([])
   const [balances, setBalances] = useState<Record<string, number>>({})
@@ -62,7 +64,7 @@ export default function ProjectTransfersPage() {
     load()
   }
 
-  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
   if (!access.canDonorsProjects) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
@@ -88,7 +90,7 @@ export default function ProjectTransfersPage() {
           items={projects.map((p) => ({ id: p.id, label: p.title }))}
         />
         <div>
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Amount (PKR)</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
           <input type="number" min={1} value={amount || ''} onChange={(e) => setAmount(+e.target.value)} className="input-field" />
         </div>
         <div>

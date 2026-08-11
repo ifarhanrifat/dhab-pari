@@ -14,6 +14,7 @@ import { fetchBrandingSettings } from '@/lib/branding'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { entryTypeLabel } from '@/lib/ledgerLabels'
 import { dt } from '@/lib/docTranslations'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Account {
   id: string; code: string; name: string; name_ur: string | null
@@ -41,6 +42,7 @@ function fmtDate(d: string) {
 }
 
 export default function ViewAccountPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useLocale()
   const { id } = usePromise(params)
   const [account, setAccount] = useState<Account | null>(null)
   const [consumerInfo, setConsumerInfo] = useState<ConsumerInfo | null>(null)
@@ -381,7 +383,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                   </>
                 )}
                 <th className="px-4 py-2.5 text-end">{account.type === 'donor' ? dt(lang, 'total') : dt(lang, 'balance')}</th>
-                <th className="no-export px-4 py-2.5 text-end print:hidden">Actions</th>
+                <th className="no-export px-4 py-2.5 text-end print:hidden">{t('a.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -414,7 +416,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                       {row.reference_type === 'bill' && row.reference_id && (
                         <>
                           {billStatusMap[row.reference_id]?.status === 'paid' ? (
-                            <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 whitespace-nowrap">Paid</span>
+                            <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 whitespace-nowrap">{t('w.paid')}</span>
                           ) : (
                             <>
                               {billStatusMap[row.reference_id]?.status === 'partial' && (
@@ -488,16 +490,16 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Month</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.month')}</label>
                   <input type="number" min={1} max={12} value={billForm.month || ''} onChange={(e) => setBillForm({ ...billForm, month: +e.target.value })} className="input-field" />
                 </div>
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Year</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.year')}</label>
                   <input type="number" value={billForm.year || ''} onChange={(e) => setBillForm({ ...billForm, year: +e.target.value })} className="input-field" />
                 </div>
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Amount (PKR)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
                 <input type="number" value={billForm.amount_pkr || ''} onChange={(e) => setBillForm({ ...billForm, amount_pkr: +e.target.value })} className="input-field" />
               </div>
               <button onClick={saveBillEdit} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">
@@ -518,7 +520,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{payBillRow.particular} · Outstanding: Rs. {fmtAmount(payOutstanding)}</p>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Amount (PKR)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
                 <input type="number" value={payForm.amount || ''} onChange={(e) => setPayForm({ ...payForm, amount: +e.target.value })} className="input-field" />
                 {payForm.amount > payOutstanding && (
                   <p className="text-[12px] font-sans text-dp-secondary mt-1.5">
@@ -527,16 +529,16 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                 )}
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Method</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.method')}</label>
                 <select value={payForm.method} onChange={(e) => setPayForm({ ...payForm, method: e.target.value })} className="input-field">
-                  <option value="cash">Cash</option>
-                  <option value="jazzcash">JazzCash</option>
-                  <option value="easypaisa">Easypaisa</option>
-                  <option value="bank">Bank Transfer</option>
+                  <option value="cash">{t('w.cash')}</option>
+                  <option value="jazzcash">{t('w.jazzcash')}</option>
+                  <option value="easypaisa">{t('w.easypaisa')}</option>
+                  <option value="bank">{t('w.bankTransfer')}</option>
                 </select>
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Note (optional)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.noteOptional')}</label>
                 <input value={payForm.note} onChange={(e) => setPayForm({ ...payForm, note: e.target.value })} className="input-field" />
               </div>
               <button disabled={paying} onClick={savePayment} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
@@ -556,11 +558,11 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Date</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.date')}</label>
                 <input type="date" value={manualForm.entry_date} onChange={(e) => setManualForm({ ...manualForm, entry_date: e.target.value })} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Particular</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.particular')}</label>
                 <input value={manualForm.particular} onChange={(e) => setManualForm({ ...manualForm, particular: e.target.value })} className="input-field" placeholder="e.g. Cash deposit" />
               </div>
               <div className="grid grid-cols-2 gap-3">

@@ -6,6 +6,7 @@ import { PlusCircle, X, Save, ShieldCheck, UserCircle2, Clock, CheckCircle2, Tru
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface AdminUser {
   id: string
@@ -168,6 +169,7 @@ const emptyCollectorForm = {
 }
 
 export default function AdminUsersPage() {
+  const { t } = useLocale()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -471,16 +473,16 @@ export default function AdminUsersPage() {
           <table className="w-full text-start border-collapse">
             <thead>
               <tr className="bg-dp-surface-container-low text-dp-outline text-[13px] font-sans font-bold tracking-[0.05em]">
-                <th className="p-4">Name</th>
-                <th className="p-4">Email</th>
+                <th className="p-4">{t('a.name')}</th>
+                <th className="p-4">{t('a.email')}</th>
                 <th className="p-4">Role</th>
                 <th className="p-4">Invite Status</th>
-                <th className="p-4">Status</th>
-                <th className="p-4 text-end">Actions</th>
+                <th className="p-4">{t('w.status')}</th>
+                <th className="p-4 text-end">{t('a.actions')}</th>
               </tr>
             </thead>
             <tbody className="font-sans text-[14px]">
-              {loading && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">Loading...</td></tr>}
+              {loading && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}
               {!loading && visibleUsers.length === 0 && (
                 <tr><td colSpan={6} className="p-8 text-center">
                   <UserCircle2 size={40} className="text-dp-on-surface-variant mx-auto mb-3 opacity-40" />
@@ -509,7 +511,7 @@ export default function AdminUsersPage() {
                     )}
                     {u.can_collect_payments && (
                       <span className="ms-1.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-teal-700 bg-teal-100 px-1.5 py-0.5 rounded-full" title={`Field collector — ${(u.assigned_sectors ?? []).join(', ') || 'no sectors assigned'}`}>
-                        <Truck size={10} /> Collector
+                        <Truck size={10} /> {t('a.collector')}
                       </span>
                     )}
                   </td>
@@ -619,7 +621,7 @@ export default function AdminUsersPage() {
                   <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Which books can they open?</p>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={form.access_water_supply} onChange={(e) => setForm({ ...form, access_water_supply: e.target.checked })} className="accent-dp-secondary" />
-                    <span className="font-sans text-[13.5px]">Water Supply System</span>
+                    <span className="font-sans text-[13.5px]">{t('a.waterSupplySystem')}</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={form.access_donors_projects} onChange={(e) => setForm({ ...form, access_donors_projects: e.target.checked })} className="accent-dp-secondary" />
@@ -735,12 +737,12 @@ export default function AdminUsersPage() {
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPasswordTarget(null)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary flex items-center gap-2"><Key size={18} /> Password</h2>
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary flex items-center gap-2"><Key size={18} /> {t('w.password')}</h2>
               <button onClick={() => setPasswordTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{passwordTarget.full_name} · {passwordTarget.email}</p>
             {loadingPassword ? (
-              <p className="font-sans text-[13px] text-dp-on-surface-variant text-center py-4">Loading...</p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant text-center py-4">{t('action.loading')}</p>
             ) : (
               <>
                 {!passwordValue && (
@@ -849,7 +851,7 @@ export default function AdminUsersPage() {
                     <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Which books can they open?</p>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={collectorForm.access_water_supply} onChange={(e) => setCollectorForm({ ...collectorForm, access_water_supply: e.target.checked })} className="accent-dp-secondary" />
-                      <span className="font-sans text-[13.5px]">Water Supply</span>
+                      <span className="font-sans text-[13.5px]">{t('a.waterSupply')}</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={collectorForm.access_donors_projects} onChange={(e) => setCollectorForm({ ...collectorForm, access_donors_projects: e.target.checked })} className="accent-dp-secondary" />

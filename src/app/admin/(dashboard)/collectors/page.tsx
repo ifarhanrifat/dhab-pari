@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface FieldCollector { id: string; full_name: string; mobile: string | null; assigned_sectors: string[] | null }
 interface Account { id: string; name: string; type: string; collector_id: string | null; opening_balance: number }
@@ -18,6 +19,7 @@ function fmt(n: number) {
 }
 
 export default function CollectorsPage() {
+  const { t } = useLocale()
   const access = useSystemAccess()
   const supabase = createClient()
   const [collectors, setCollectors] = useState<FieldCollector[]>([])
@@ -95,7 +97,7 @@ export default function CollectorsPage() {
     load()
   }
 
-  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
   if (!access.canWaterSupply) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
@@ -124,7 +126,7 @@ export default function CollectorsPage() {
           <span className="font-sans text-[14px] font-bold text-dp-on-surface">Current Holdings</span>
         </div>
         {loading ? (
-          <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">Loading...</p>
+          <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('action.loading')}</p>
         ) : rows.length === 0 ? (
           <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No field collectors set up yet — grant collector access from User Management.</p>
         ) : (
@@ -132,10 +134,10 @@ export default function CollectorsPage() {
             <table className="w-full text-start min-w-[550px]">
               <thead>
                 <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                  <th className="px-5 py-2.5">Collector</th>
+                  <th className="px-5 py-2.5">{t('a.collector')}</th>
                   <th className="px-5 py-2.5">Sectors</th>
                   <th className="px-5 py-2.5 text-end">Holding</th>
-                  <th className="px-5 py-2.5 text-end">Action</th>
+                  <th className="px-5 py-2.5 text-end">{t('w.action')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -147,7 +149,7 @@ export default function CollectorsPage() {
                     <td className="px-5 py-3 text-end">
                       {canSettle && r.balance > 0 && (
                         <button onClick={() => openSettle(r)} className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-                          Settle
+                          {t('a.settle')}
                         </button>
                       )}
                     </td>
@@ -171,11 +173,11 @@ export default function CollectorsPage() {
             <table className="w-full text-start min-w-[500px]">
               <thead>
                 <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                  <th className="px-5 py-2.5">Date</th>
-                  <th className="px-5 py-2.5">Collector</th>
-                  <th className="px-5 py-2.5">Method</th>
-                  <th className="px-5 py-2.5 text-end">Amount</th>
-                  <th className="px-5 py-2.5">Note</th>
+                  <th className="px-5 py-2.5">{t('w.date')}</th>
+                  <th className="px-5 py-2.5">{t('a.collector')}</th>
+                  <th className="px-5 py-2.5">{t('w.method')}</th>
+                  <th className="px-5 py-2.5 text-end">{t('w.amount')}</th>
+                  <th className="px-5 py-2.5">{t('a.note')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -212,14 +214,14 @@ export default function CollectorsPage() {
                 items={cashBankAccounts.map((a) => ({ id: a.id, label: a.name }))}
               />
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Method</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.method')}</label>
                 <select value={settleMethod} onChange={(e) => setSettleMethod(e.target.value)} className="input-field">
-                  <option value="cash">Cash</option>
-                  <option value="bank">Bank</option>
+                  <option value="cash">{t('w.cash')}</option>
+                  <option value="bank">{t('a.bank')}</option>
                 </select>
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Note (optional)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.noteOptional')}</label>
                 <input value={settleNote} onChange={(e) => setSettleNote(e.target.value)} className="input-field" />
               </div>
               <button disabled={saving} onClick={saveSettlement} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">

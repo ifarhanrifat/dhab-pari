@@ -9,6 +9,7 @@ import { HandCoins, PlusCircle, X, Trash2, CheckCircle2, Plus, Paperclip, Eye, P
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { FileAttachment } from '@/components/admin/FileAttachment'
 import { QuickAddAccountModal, type NewAccount } from '@/components/admin/QuickAddAccountModal'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface AdvanceVoucher {
   id: string; voucher_no: string | null; voucher_date: string; particular: string
@@ -25,6 +26,7 @@ function fmt(n: number) {
 }
 
 export default function AdvancesPage() {
+  const { t } = useLocale()
   const supabase = createClient()
   const [advances, setAdvances] = useState<AdvanceVoucher[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -182,7 +184,7 @@ export default function AdvancesPage() {
       </p>
 
       {loading ? (
-        <p className="font-sans text-dp-on-surface-variant py-8 text-center">Loading...</p>
+        <p className="font-sans text-dp-on-surface-variant py-8 text-center">{t('action.loading')}</p>
       ) : advances.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">No advances recorded yet.</p>
@@ -208,7 +210,7 @@ export default function AdvancesPage() {
                 <button onClick={() => openView(a)} title="View" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Eye size={15} /></button>
                 {canManage && !a.settled_at && a.status === 'posted' && (
                   <button onClick={() => openSettle(a)} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-                    <CheckCircle2 size={13} /> Settle
+                    <CheckCircle2 size={13} /> {t('a.settle')}
                   </button>
                 )}
                 {canManage && !a.settled_at && (
@@ -286,7 +288,7 @@ export default function AdvancesPage() {
               </div>
             </div>
             <div className="flex gap-2 p-4 border-t border-dp-outline-variant shrink-0">
-              <button onClick={() => setSettleTarget(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+              <button onClick={() => setSettleTarget(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
               <button disabled={settling} onClick={saveSettlement} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
                 {settling ? 'Settling...' : 'Confirm Settlement'}
               </button>
@@ -306,14 +308,14 @@ export default function AdvancesPage() {
             <div className="p-5 space-y-3 font-sans text-[13.5px]">
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">Paid To</span><span className="font-semibold">{viewTarget.party_name || 'Unnamed'}</span></div>
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">Voucher #</span><span className="font-semibold">{viewTarget.voucher_no || 'Pending'}</span></div>
-              <div className="flex justify-between"><span className="text-dp-on-surface-variant">Date</span><span className="font-semibold">{new Date(viewTarget.voucher_date).toLocaleDateString('en-GB')}</span></div>
-              <div className="flex justify-between"><span className="text-dp-on-surface-variant">Amount</span><span className="font-bold">Rs. {fmt(viewTarget.amount_pkr)}</span></div>
-              <div className="flex justify-between"><span className="text-dp-on-surface-variant">Note</span><span className="text-end">{viewTarget.particular}</span></div>
-              <div className="flex justify-between"><span className="text-dp-on-surface-variant">Status</span><span className="font-semibold">{viewTarget.settled_at ? 'Settled' : viewTarget.status === 'pending' ? 'Pending Approval' : 'Outstanding'}</span></div>
+              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.date')}</span><span className="font-semibold">{new Date(viewTarget.voucher_date).toLocaleDateString('en-GB')}</span></div>
+              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.amount')}</span><span className="font-bold">Rs. {fmt(viewTarget.amount_pkr)}</span></div>
+              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('a.note')}</span><span className="text-end">{viewTarget.particular}</span></div>
+              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.status')}</span><span className="font-semibold">{viewTarget.settled_at ? 'Settled' : viewTarget.status === 'pending' ? 'Pending Approval' : 'Outstanding'}</span></div>
               {viewSettlement && (
                 <div className="bg-dp-surface-container-low rounded-lg p-3 space-y-2 mt-2">
                   <p className="font-bold text-dp-on-surface-variant uppercase text-[11px] tracking-[0.05em]">Settlement</p>
-                  <div className="flex justify-between"><span className="text-dp-on-surface-variant">Date</span><span>{new Date(viewSettlement.voucher_date).toLocaleDateString('en-GB')}</span></div>
+                  <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.date')}</span><span>{new Date(viewSettlement.voucher_date).toLocaleDateString('en-GB')}</span></div>
                   <div className="flex justify-between"><span className="text-dp-on-surface-variant">Real Bill Total</span><span className="font-semibold">Rs. {fmt(viewSettlement.amount_pkr)}</span></div>
                   {viewSettlement.attachment_url && (
                     <a href={viewSettlement.attachment_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-dp-secondary font-semibold hover:underline">
@@ -344,7 +346,7 @@ export default function AdvancesPage() {
                 <input value={editForm.party_name} onChange={(e) => setEditForm({ ...editForm, party_name: e.target.value })} placeholder="Worker / contractor name" className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Amount</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('w.amount')}</label>
                 <input type="number" min={0} value={editForm.amount || ''} onChange={(e) => setEditForm({ ...editForm, amount: +e.target.value })} className="input-field" />
               </div>
               <div>
@@ -356,16 +358,16 @@ export default function AdvancesPage() {
                 <button type="button" onClick={() => setQuickAddFor({ types: ['cash', 'bank'], onPick: (a) => handleAccountCreated(a, (acc) => setEditForm({ ...editForm, from_account_id: acc.id })) })} className="text-[12px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer mt-1">+ New Account</button>
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Date</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('w.date')}</label>
                 <input type="date" value={editForm.voucher_date} onChange={(e) => setEditForm({ ...editForm, voucher_date: e.target.value })} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Note (optional)</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('a.noteOptional')}</label>
                 <input value={editForm.particular} onChange={(e) => setEditForm({ ...editForm, particular: e.target.value })} placeholder="e.g. pipe repair, sector 4" className="input-field" />
               </div>
             </div>
             <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
-              <button onClick={() => setEditTarget(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+              <button onClick={() => setEditTarget(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
               <button disabled={editing} onClick={saveEdit} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
                 {editing ? 'Saving...' : 'Save Changes'}
               </button>

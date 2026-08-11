@@ -10,6 +10,7 @@ import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import { useRef } from 'react'
 import { fetchBrandingSettings } from '@/lib/branding'
 import { dt, type Lang } from '@/lib/docTranslations'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface ConsumerRow { consumer_id: string; name: string; mobile: string | null; sector: string | null; status: string }
 interface BillRow {
@@ -29,6 +30,7 @@ function outstanding(bill: BillRow) {
 const monthName = (m: number) => new Date(2000, m - 1, 1).toLocaleDateString('en-US', { month: 'long' })
 
 export default function NonPaymentReportPage() {
+  const { t } = useLocale()
   const [consumers, setConsumers] = useState<ConsumerRow[]>([])
   const [bills, setBills] = useState<BillRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -130,7 +132,7 @@ export default function NonPaymentReportPage() {
           onClick={handlePrint}
           className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"
         >
-          <Printer size={15} /> Print
+          <Printer size={15} /> {t('a.print')}
         </button>
       </div>
 
@@ -156,7 +158,7 @@ export default function NonPaymentReportPage() {
         </select>
       </div>
 
-      {loading && <p className="text-center py-12 text-dp-on-surface-variant font-sans text-[13.5px]">Loading...</p>}
+      {loading && <p className="text-center py-12 text-dp-on-surface-variant font-sans text-[13.5px]">{t('action.loading')}</p>}
       {!loading && filtered.length === 0 && (
         <p className="text-center py-12 text-dp-on-surface-variant font-sans text-[13.5px]">
           {dt(lang, 'noConsumersFailedToPay')}

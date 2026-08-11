@@ -7,6 +7,7 @@ import { Droplet, Plus, X, Search, MessageCircle, Megaphone, Pause, Play, Ban, C
 import { friendlyError } from '@/lib/errors'
 import { normalizePakPhone } from '@/lib/receiptExport'
 import { SITE } from '@/lib/constants'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 const GROUPS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']
 
@@ -66,6 +67,7 @@ const emptyForm = {
 // request reaching forty villagers at 2am is the failure this screen guards
 // against, so the taker, the approver and the call are all recorded.
 export default function AdminBloodRequestsPage() {
+  const { t } = useLocale()
   const supabase = createClient()
   const [requests, setRequests] = useState<BloodRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -249,7 +251,7 @@ export default function AdminBloodRequestsPage() {
         ))}
       </div>
 
-      {loading && <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>}
+      {loading && <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}
       {!loading && visible.length === 0 && (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">No requests here.</p>
@@ -311,7 +313,7 @@ export default function AdminBloodRequestsPage() {
                 )}
                 {!['cancelled', 'fulfilled'].includes(r.status) && (
                   <button onClick={() => { setCancelFor(r.id); setCancelReason('') }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-error cursor-pointer hover:bg-dp-surface-container-low transition-all">
-                    <Ban size={14} /> Cancel
+                    <Ban size={14} /> {t('action.cancel')}
                   </button>
                 )}
                 {r.status === 'fulfilled' && !r.thanks_ticker_id && (
@@ -349,7 +351,7 @@ export default function AdminBloodRequestsPage() {
                         </span>
                       </label>
                       <button onClick={() => whatsappDonor(d, r)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[12.5px] font-semibold text-dp-secondary cursor-pointer hover:bg-dp-surface-container-low transition-all shrink-0">
-                        <MessageCircle size={13} /> WhatsApp
+                        <MessageCircle size={13} /> {t('w.whatsapp')}
                       </button>
                     </div>
                   ))}
@@ -451,12 +453,12 @@ export default function AdminBloodRequestsPage() {
                 </div>
               </div>
               <div>
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Notes (optional)</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('a.notesOptional')}</label>
                 <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className="input-field resize-none !py-2.5 text-[15px]" />
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setShowForm(false)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+              <button onClick={() => setShowForm(false)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
               <button disabled={saving} onClick={saveRequest} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">{saving ? 'Saving...' : 'Record'}</button>
             </div>
           </div>
@@ -488,7 +490,7 @@ export default function AdminBloodRequestsPage() {
                 </a>
                 <a href={`https://wa.me/${normalizePakPhone(verifyFor.requester_whatsapp)}`} target="_blank" rel="noopener noreferrer"
                   className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#25D366] text-white font-sans text-[13px] font-semibold hover:opacity-90 transition-all">
-                  <MessageCircle size={14} /> WhatsApp
+                  <MessageCircle size={14} /> {t('w.whatsapp')}
                 </a>
               </div>
             </div>

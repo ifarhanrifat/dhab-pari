@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react'
 import { DailyRegisterView } from '@/components/admin/DailyRegisterView'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 
 export default function RegisterPage() {
+  const { t } = useLocale()
   const access = useSystemAccess()
   const [system, setSystem] = useState<SystemTab>('water_supply')
   const [systemOverride] = useState<SystemTab | null>(() => {
@@ -32,7 +34,7 @@ export default function RegisterPage() {
                 onClick={() => setSystem('water_supply')}
                 className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'water_supply' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}
               >
-                Water Supply
+                {t('a.waterSupply')}
               </button>
             )}
             {access.canDonorsProjects && (

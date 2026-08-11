@@ -10,6 +10,7 @@ import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import { fetchBrandingSettings } from '@/lib/branding'
 import { dt, type Lang, type DocStringKey } from '@/lib/docTranslations'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 type ReportType = 'trial_balance' | 'balance_sheet' | 'income_expense' | 'consumer_outstanding' | 'donor_report' | 'account_statement'
@@ -57,14 +58,16 @@ function fmtAmount(n: number) {
 const creditNormal = (type: string) => type === 'donor' || type === 'income' || type === 'liability'
 
 export default function ReportsPage() {
+  const { t } = useLocale()
   return (
-    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}>
       <ReportsPageInner />
     </Suspense>
   )
 }
 
 function ReportsPageInner() {
+  const { t } = useLocale()
   const searchParams = useSearchParams()
   const access = useSystemAccess()
   const initialReport = (searchParams.get('report') as ReportType) || 'trial_balance'
@@ -277,7 +280,7 @@ function ReportsPageInner() {
       <div className="flex items-center justify-between gap-3 flex-wrap mb-6 print:hidden">
         <h1 className="font-heading text-[26px] sm:text-[32px] font-bold leading-[34px] sm:leading-[40px] text-dp-primary">Reports</h1>
         <button onClick={handlePrint} className="filter-btn border border-dp-outline-variant text-dp-on-surface hover:bg-dp-surface-container-low shrink-0">
-          <Printer size={15} /> Print
+          <Printer size={15} /> {t('a.print')}
         </button>
       </div>
 
@@ -288,7 +291,7 @@ function ReportsPageInner() {
         <div className="flex-1 min-w-[160px]">
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">System</label>
           <select value={system} onChange={(e) => setSystem(e.target.value as SystemTab)} className="filter-field">
-            {access.canWaterSupply && <option value="water_supply">Water Supply System</option>}
+            {access.canWaterSupply && <option value="water_supply">{t('a.waterSupplySystem')}</option>}
             {access.canDonorsProjects && <option value="donors_projects">Donors &amp; Projects</option>}
           </select>
         </div>
@@ -306,7 +309,7 @@ function ReportsPageInner() {
         {(reportType === 'income_expense' || reportType === 'donor_report' || reportType === 'account_statement') && (
           <>
             <div className="flex-1 min-w-[140px]">
-              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">From</label>
+              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.from')}</label>
               <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="filter-field" />
             </div>
             <div className="flex-1 min-w-[140px]">
@@ -317,7 +320,7 @@ function ReportsPageInner() {
         )}
         {reportType === 'donor_report' && (
           <div className="flex-1 min-w-[170px]">
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Project</label>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.project')}</label>
             <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="filter-field">
               <option value="">All projects</option>
               {Object.entries(projects).map(([id, title]) => <option key={id} value={id}>{title}</option>)}
@@ -326,7 +329,7 @@ function ReportsPageInner() {
         )}
         {reportType === 'consumer_outstanding' && (
           <div className="flex-1 min-w-[150px]">
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Sector</label>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.sector')}</label>
             <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)} className="filter-field">
               <option value="">All sectors</option>
               {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -352,7 +355,7 @@ function ReportsPageInner() {
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">Loading...</div>
+        <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
       ) : (
         <div ref={printRef} dir={lang === 'ur' ? 'rtl' : 'ltr'} style={lang === 'ur' ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
           <DocumentHeader title={`${dt(lang, reportTypeDocKeys[reportType])} — ${dt(lang, systemLabelKeys[system])}`} className="hidden print:block" />

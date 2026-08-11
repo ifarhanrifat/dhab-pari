@@ -6,6 +6,7 @@ import { PlusCircle, X, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ImageUpload } from '@/components/admin/ImageUpload'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Member {
   id: string; name: string; name_ur: string | null; position: string; position_ur: string | null; phone: string | null
@@ -19,6 +20,7 @@ const empty = {
 }
 
 export default function AdminMembersPage() {
+  const { t } = useLocale()
   const [members, setMembers] = useState<Member[]>([])
   const [adminUsers, setAdminUsers] = useState<AdminUserOpt[]>([])
   const [loading, setLoading] = useState(true)
@@ -72,7 +74,7 @@ export default function AdminMembersPage() {
         <button onClick={() => { setForm(empty); setEditing(null); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> Add Member</button>
       </div>
       <div className="space-y-4">
-        {loading && <div className="text-center py-12 text-dp-on-surface-variant">Loading...</div>}
+        {loading && <div className="text-center py-12 text-dp-on-surface-variant">{t('action.loading')}</div>}
         {!loading && members.map((m) => (
           <div key={m.id} className="bg-white border border-dp-outline-variant rounded-lg p-5 flex items-center justify-between gap-4 hover:border-dp-secondary transition-all">
             <div className="flex items-center gap-4">
@@ -119,7 +121,7 @@ export default function AdminMembersPage() {
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Position (EN)</label><input value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} className="input-field" /></div>
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Position (UR)</label><input value={form.position_ur} onChange={(e) => setForm({ ...form, position_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               </div>
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Phone</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input-field" /></div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.phone')}</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input-field" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Bio</label><textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} rows={3} className="input-field resize-none" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Bio (UR)</label><textarea value={form.bio_ur} onChange={(e) => setForm({ ...form, bio_ur: e.target.value })} rows={3} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Display Order</label><input type="number" value={form.display_order || ''} onChange={(e) => setForm({ ...form, display_order: +e.target.value })} className="input-field" /></div>

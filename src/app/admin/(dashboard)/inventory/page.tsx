@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { StockValueTrendChart } from '@/components/admin/DashboardCharts'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type Tab = 'items' | 'services' | 'templates' | 'movements' | 'analytics'
 type TopSellingPeriod = 'month' | '90d' | 'all'
@@ -41,6 +42,7 @@ const emptyServiceForm = { name: '', charge_amount: 0, description: '' }
 const emptyPurchaseForm = { quantity: 0, unit_cost_at_time: 0, method: 'cash', note: '' }
 
 export default function InventoryPage() {
+  const { t: tr } = useLocale()
   const access = useSystemAccess()
   const [tab, setTab] = useState<Tab>(() => {
     if (typeof window === 'undefined') return 'items'
@@ -282,7 +284,7 @@ export default function InventoryPage() {
   const itemName = (id: string | null) => items.find((i) => i.id === id)?.name ?? '—'
   const serviceName = (id: string | null) => services.find((s) => s.id === id)?.name ?? '—'
 
-  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{tr('action.loading')}</div>
   if (!access.canWaterSupply) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
@@ -329,7 +331,7 @@ export default function InventoryPage() {
               <p className="font-sans text-[11px] text-dp-on-surface-variant">Should match the Inventory Stock account balance on the Trial Balance</p>
             </div>
             <button onClick={() => { setItemForm(emptyItemForm); setShowItemForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-              <PlusCircle size={15} /> Add Item
+              <PlusCircle size={15} /> {tr('a.addItem')}
             </button>
           </div>
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
@@ -338,18 +340,18 @@ export default function InventoryPage() {
                 <thead>
                   <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                     <th className="px-4 py-2.5">Code</th>
-                    <th className="px-4 py-2.5">Name</th>
+                    <th className="px-4 py-2.5">{tr('a.name')}</th>
                     <th className="px-4 py-2.5 text-end">Unit Cost</th>
                     <th className="px-4 py-2.5 text-end">Unit Price</th>
                     <th className="px-4 py-2.5 text-end">Stock</th>
-                    <th className="px-4 py-2.5">Status</th>
+                    <th className="px-4 py-2.5">{tr('w.status')}</th>
                     <th className="px-4 py-2.5 text-center">New Connection</th>
-                    <th className="px-4 py-2.5 text-end">Actions</th>
+                    <th className="px-4 py-2.5 text-end">{tr('a.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">Loading...</td></tr>}
-                  {!loading && items.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">No inventory items yet.</td></tr>}
+                  {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{tr('action.loading')}</td></tr>}
+                  {!loading && items.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{tr('a.noInventory')}</td></tr>}
                   {!loading && items.map((i) => (
                     <tr key={i.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${!i.is_active ? 'opacity-50' : ''}`}>
                       <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant">{i.item_code}</td>
@@ -400,14 +402,14 @@ export default function InventoryPage() {
                 <thead>
                   <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                     <th className="px-4 py-2.5">Code</th>
-                    <th className="px-4 py-2.5">Name</th>
+                    <th className="px-4 py-2.5">{tr('a.name')}</th>
                     <th className="px-4 py-2.5 text-end">Charge</th>
-                    <th className="px-4 py-2.5">Status</th>
-                    <th className="px-4 py-2.5 text-end">Actions</th>
+                    <th className="px-4 py-2.5">{tr('w.status')}</th>
+                    <th className="px-4 py-2.5 text-end">{tr('a.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {loading && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">Loading...</td></tr>}
+                  {loading && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{tr('action.loading')}</td></tr>}
                   {!loading && services.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">No services yet.</td></tr>}
                   {!loading && services.map((s) => (
                     <tr key={s.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${!s.is_active ? 'opacity-50' : ''}`}>
@@ -481,7 +483,7 @@ export default function InventoryPage() {
                           <option value="service">Service</option>
                         </select>
                         <select value={addLineForm.ref_id} onChange={(e) => setAddLineForm({ ...addLineForm, ref_id: e.target.value })} className="input-field !py-2">
-                          <option value="">Select...</option>
+                          <option value="">{tr('a.select')}</option>
                           {(addLineForm.item_type === 'inventory' ? items : services).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
                         </select>
                         <input type="number" min={1} value={addLineForm.quantity || ''} onChange={(e) => setAddLineForm({ ...addLineForm, quantity: +e.target.value })} className="input-field !py-2 w-20" placeholder="Qty" />
@@ -509,13 +511,13 @@ export default function InventoryPage() {
               <table className="w-full text-start min-w-[650px]">
                 <thead>
                   <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                    <th className="px-4 py-2.5">Date</th>
+                    <th className="px-4 py-2.5">{tr('w.date')}</th>
                     <th className="px-4 py-2.5">Item</th>
-                    <th className="px-4 py-2.5">Type</th>
+                    <th className="px-4 py-2.5">{tr('a.type')}</th>
                     <th className="px-4 py-2.5 text-end">Qty</th>
                     <th className="px-4 py-2.5 text-end">Cost/Unit</th>
                     <th className="px-4 py-2.5 text-end">Value</th>
-                    <th className="px-4 py-2.5">Note</th>
+                    <th className="px-4 py-2.5">{tr('a.note')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -552,7 +554,7 @@ export default function InventoryPage() {
             <h3 className="font-sans text-[15px] font-bold text-dp-on-surface mb-1 flex items-center gap-2"><LineChartIcon size={16} className="text-dp-secondary" /> Stock Value Trend — Last 6 Months</h3>
             <p className="font-sans text-[12px] text-dp-on-surface-variant mb-2">Reconstructed from the Inventory Stock ledger account balance at each month end.</p>
             {analyticsLoading ? (
-              <div className="h-[220px] flex items-center justify-center font-sans text-[13px] text-dp-on-surface-variant">Loading...</div>
+              <div className="h-[220px] flex items-center justify-center font-sans text-[13px] text-dp-on-surface-variant">{tr('action.loading')}</div>
             ) : (
               <StockValueTrendChart data={stockTrend} />
             )}
@@ -573,7 +575,7 @@ export default function InventoryPage() {
                       <th className="px-5 py-2.5">Item</th>
                       <th className="px-5 py-2.5 text-end">In Stock</th>
                       <th className="px-5 py-2.5 text-end">Reorder Level</th>
-                      <th className="px-5 py-2.5 text-end">Action</th>
+                      <th className="px-5 py-2.5 text-end">{tr('w.action')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -611,7 +613,7 @@ export default function InventoryPage() {
               </div>
             </div>
             {analyticsLoading ? (
-              <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">Loading...</p>
+              <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{tr('action.loading')}</p>
             ) : topSelling.length === 0 ? (
               <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No inventory sales in this period yet.</p>
             ) : (
@@ -659,7 +661,7 @@ export default function InventoryPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Name</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{tr('a.name')}</label>
                 <input value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} className="input-field" placeholder="e.g. Water Meter" />
               </div>
               <div>
@@ -697,7 +699,7 @@ export default function InventoryPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Name</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{tr('a.name')}</label>
                 <input value={serviceForm.name} onChange={(e) => setServiceForm({ ...serviceForm, name: e.target.value })} className="input-field" placeholder="e.g. New Connection Installation" />
               </div>
               <div>
@@ -705,7 +707,7 @@ export default function InventoryPage() {
                 <input type="number" value={serviceForm.charge_amount || ''} onChange={(e) => setServiceForm({ ...serviceForm, charge_amount: +e.target.value })} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Description (optional)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{tr('a.descriptionOptional')}</label>
                 <input value={serviceForm.description} onChange={(e) => setServiceForm({ ...serviceForm, description: e.target.value })} className="input-field" />
               </div>
               <button onClick={saveService} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">
@@ -727,7 +729,7 @@ export default function InventoryPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Quantity</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{tr('a.quantity')}</label>
                   <input type="number" value={purchaseForm.quantity || ''} onChange={(e) => setPurchaseForm({ ...purchaseForm, quantity: +e.target.value })} className="input-field" />
                 </div>
                 <div>
@@ -738,12 +740,12 @@ export default function InventoryPage() {
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Paid Via</label>
                 <select value={purchaseForm.method} onChange={(e) => setPurchaseForm({ ...purchaseForm, method: e.target.value })} className="input-field">
-                  <option value="cash">Cash</option>
-                  <option value="bank">Bank</option>
+                  <option value="cash">{tr('w.cash')}</option>
+                  <option value="bank">{tr('a.bank')}</option>
                 </select>
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Note (optional)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{tr('a.noteOptional')}</label>
                 <input value={purchaseForm.note} onChange={(e) => setPurchaseForm({ ...purchaseForm, note: e.target.value })} className="input-field" />
               </div>
               <p className="font-sans text-[12.5px] text-dp-on-surface-variant">Total: Rs. {fmt(purchaseForm.quantity * purchaseForm.unit_cost_at_time)}</p>
@@ -764,7 +766,7 @@ export default function InventoryPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Name</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{tr('a.name')}</label>
                 <input value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)} className="input-field" placeholder="e.g. Commercial Connection" />
               </div>
               <button onClick={addTemplate} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">

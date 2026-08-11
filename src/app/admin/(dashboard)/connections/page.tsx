@@ -14,6 +14,7 @@ import { nodeToPdfBlob, printBlob } from '@/lib/receiptExport'
 import { renderTemplate } from '@/lib/messageTemplates'
 import { findDuplicate, type DuplicateCandidate } from '@/lib/duplicateCheck'
 import { SITE } from '@/lib/constants'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface ConnectionRequest {
   id: string; request_number: string | null; status: 'draft' | 'pending_payment' | 'processing' | 'installed'
@@ -71,6 +72,7 @@ function normalizePakPhoneLocal(raw: string): string | null {
 }
 
 export default function ConnectionsPage() {
+  const { t } = useLocale()
   const supabase = createClient()
   const [requests, setRequests] = useState<ConnectionRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -501,7 +503,7 @@ export default function ConnectionsPage() {
       </div>
 
       {loading ? (
-        <p className="font-sans text-dp-on-surface-variant py-8 text-center">Loading...</p>
+        <p className="font-sans text-dp-on-surface-variant py-8 text-center">{t('action.loading')}</p>
       ) : requests.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">No connection requests yet.</p>
@@ -599,7 +601,7 @@ export default function ConnectionsPage() {
                   <input value={form.house_no} onChange={(e) => setForm({ ...form, house_no: e.target.value })} className="input-field" />
                 </div>
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Sector</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.sector')}</label>
                   <select value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} className="input-field">
                     <option value="">Select sector...</option>
                     {sectors.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
@@ -619,7 +621,7 @@ export default function ConnectionsPage() {
                 <input type="number" min={1} value={form.connections || ''} onChange={(e) => setForm({ ...form, connections: +e.target.value })} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Description (optional)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.descriptionOptional')}</label>
                 <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input-field" />
               </div>
 
@@ -670,7 +672,7 @@ export default function ConnectionsPage() {
                       onClick={() => { setCatalogSearch(''); refetchCatalog(); setItemModalStep('picker') }}
                       className="w-full flex items-center justify-center gap-2 py-2.5 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer"
                     >
-                      <Plus size={16} /> Add Item
+                      <Plus size={16} /> {t('a.addItem')}
                     </button>
                   </div>
                 </div>
@@ -706,7 +708,7 @@ export default function ConnectionsPage() {
               </div>
 
               <div className="bg-white border border-dp-outline-variant rounded-xl p-5 flex items-center justify-between">
-                <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.06em]">Total</span>
+                <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.06em]">{t('a.total')}</span>
                 <span className="font-heading text-[24px] font-bold text-dp-primary">Rs. {fmtAmount(total)}</span>
               </div>
             </div>
@@ -728,7 +730,7 @@ export default function ConnectionsPage() {
         <div className="fixed inset-0 bg-black/50 z-[160] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setItemModalStep('closed')}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant shrink-0">
-              <h2 className="font-heading text-[19px] font-bold text-dp-primary">Add Item</h2>
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('a.addItem')}</h2>
               <button onClick={() => setItemModalStep('closed')} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
             </div>
             <div className="px-5 pt-4 shrink-0">
@@ -748,7 +750,7 @@ export default function ConnectionsPage() {
                   )}
                 </button>
               ))}
-              {inventoryItems.length === 0 && <p className="px-3.5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No inventory items yet.</p>}
+              {inventoryItems.length === 0 && <p className="px-3.5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('a.noInventory')}</p>}
             </div>
           </div>
         </div>
@@ -765,7 +767,7 @@ export default function ConnectionsPage() {
             <div className="p-5 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Quantity</label>
+                  <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('a.quantity')}</label>
                   <input autoFocus type="number" min={0.01} step="0.01" value={newItemLine.quantity} onChange={(e) => setNewItemLine({ ...newItemLine, quantity: +e.target.value })} className="input-field text-[16px] font-semibold" />
                 </div>
                 <div>
@@ -774,7 +776,7 @@ export default function ConnectionsPage() {
                 </div>
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-dp-outline-variant">
-                <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Total</span>
+                <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('a.total')}</span>
                 <span className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmtAmount(itemTotal)}</span>
               </div>
             </div>
@@ -782,7 +784,7 @@ export default function ConnectionsPage() {
               {editingItemIndex === null && (
                 <button onClick={saveItemAndNew} className="flex-1 px-4 py-3 border-2 border-dp-secondary rounded-full font-sans text-[14px] font-bold text-dp-secondary hover:bg-dp-secondary/5 transition-all cursor-pointer">Save & New</button>
               )}
-              <button onClick={saveItemAndClose} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer">Save</button>
+              <button onClick={saveItemAndClose} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer">{t('action.save')}</button>
             </div>
           </div>
         </div>
@@ -826,7 +828,7 @@ export default function ConnectionsPage() {
                     <thead>
                       <tr className="border-b border-dp-outline-variant text-start text-dp-on-surface-variant">
                         <th className="py-1.5">Item</th><th className="py-1.5 text-end">Qty</th>
-                        {form.wants_inventory_from_us && (<><th className="py-1.5 text-end">Rate</th><th className="py-1.5 text-end">Amount</th></>)}
+                        {form.wants_inventory_from_us && (<><th className="py-1.5 text-end">Rate</th><th className="py-1.5 text-end">{t('w.amount')}</th></>)}
                       </tr>
                     </thead>
                     <tbody>
@@ -857,7 +859,7 @@ export default function ConnectionsPage() {
                   {form.plumber_charge > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">Plumber Charge</span><span>Rs. {fmtAmount(form.plumber_charge)}</span></div>}
                   {form.digging_charge > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">Digging Charge</span><span>Rs. {fmtAmount(form.digging_charge)}</span></div>}
                   {form.security_deposit_amount > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">Security Deposit (refundable)</span><span>Rs. {fmtAmount(form.security_deposit_amount)}</span></div>}
-                  <div className="flex justify-between font-bold text-[15px] border-t border-dp-outline-variant pt-2 mt-2"><span>Total</span><span>Rs. {fmtAmount(total)}</span></div>
+                  <div className="flex justify-between font-bold text-[15px] border-t border-dp-outline-variant pt-2 mt-2"><span>{t('a.total')}</span><span>Rs. {fmtAmount(total)}</span></div>
                 </div>
 
                 <div className="border-t border-dp-outline-variant pt-4 mt-4" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', textAlign: 'right' }}>
@@ -890,7 +892,7 @@ export default function ConnectionsPage() {
               {cashReceiveTarget.consumer_name} — Rs. {fmtAmount(cashReceiveTarget.total_amount)}. This will create the consumer (if new), generate a bill, and record the payment as cash.
             </p>
             <div className="flex gap-2">
-              <button onClick={() => setCashReceiveTarget(null)} className="flex-1 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+              <button onClick={() => setCashReceiveTarget(null)} className="flex-1 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
               <button disabled={receivingCash} onClick={doCashReceive} className="flex-1 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
                 {receivingCash ? 'Processing...' : 'Confirm Receive'}
               </button>
@@ -934,7 +936,7 @@ export default function ConnectionsPage() {
                 </p>
               )}
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Description (optional)</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('a.descriptionOptional')}</label>
                 <input value={activationForm.description} onChange={(e) => setActivationForm({ ...activationForm, description: e.target.value })} className="input-field" />
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
@@ -943,7 +945,7 @@ export default function ConnectionsPage() {
               </label>
             </div>
             <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
-              <button onClick={() => setActivationTarget(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
+              <button onClick={() => setActivationTarget(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
               <button disabled={activating || !activationForm.whatsapp_number.trim()} onClick={doActivate} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5">
                 <Wrench size={14} /> {activating ? 'Activating...' : 'Activate'}
               </button>

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { MessageSquare, X, Send, CheckCircle, Clock, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { renderTemplate } from '@/lib/messageTemplates'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Suggestion {
   id: string
@@ -32,6 +33,7 @@ const typeColors: Record<string, string> = {
 }
 
 export default function AdminSuggestionsPage() {
+  const { t } = useLocale()
   const [items, setItems] = useState<Suggestion[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
@@ -156,7 +158,7 @@ export default function AdminSuggestionsPage() {
       <div className="flex gap-6">
         {/* List */}
         <div className="flex-1 space-y-3">
-          {loading && <div className="text-center py-12 text-dp-on-surface-variant">Loading...</div>}
+          {loading && <div className="text-center py-12 text-dp-on-surface-variant">{t('action.loading')}</div>}
           {!loading && filtered.map((s) => (
             <div
               key={s.id}
