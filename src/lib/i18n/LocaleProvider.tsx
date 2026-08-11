@@ -22,12 +22,17 @@ const LocaleContext = createContext<LocaleContextValue | null>(null)
 
 const STORAGE_KEY = 'dp_locale'
 
-// The direction-specific CSS across the app has been converted to logical
-// properties (ms-/me-/ps-/pe-/text-start/text-end/border-s/border-e/start-/end-),
-// so the whole layout can mirror from the <html> element. Verified: 0 physical
-// direction classes remain outside the print/document helper, where the paper
-// layout is fixed regardless of interface language.
-const RTL_READY = true
+// Whether Urdu also MIRRORS the layout, as opposed to only changing the words.
+//
+// Deliberately off. Mirroring works — every direction class was converted to a
+// logical property so `dir="rtl"` on <html> flips the entire app correctly —
+// but flipping moves the sidebar to the right and the content to the left, and
+// people who already know where things are should not have to relearn the
+// screen just because they switched language. Same layout, Urdu words.
+//
+// The conversion was not wasted: it is what makes turning this on a one-line
+// change if the committee later decides they want a fully mirrored interface.
+const RTL_READY = false
 
 /**
  * One place that knows what language this person reads, and every word the

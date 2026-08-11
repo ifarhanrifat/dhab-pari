@@ -40,10 +40,9 @@ export function LocaleDir({
   children: React.ReactNode
   className?: string
 }) {
-  const { locale } = useLocale()
-  return (
-    <div dir={locale === 'ur' ? 'rtl' : 'ltr'} className={className}>
-      {children}
-    </div>
-  )
+  // Currently a passthrough: the committee wants Urdu wording without the
+  // layout moving, so nothing here sets a direction. Kept as the single seam
+  // where per-section mirroring would go if that changes — better one place to
+  // edit than hunting the wrapper back through every public page.
+  return <div className={className}>{children}</div>
 }

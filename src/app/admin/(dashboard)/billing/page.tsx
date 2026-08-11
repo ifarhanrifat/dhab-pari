@@ -112,7 +112,7 @@ export default function BillingPage() {
 }
 
 function BillingPageInner() {
-  const { t, locale } = useLocale()
+  const { t } = useLocale()
   const searchParams = useSearchParams()
   const [consumers, setConsumers] = useState<Consumer[]>([])
   const [bills, setBills] = useState<Bill[]>([])
@@ -583,7 +583,7 @@ function BillingPageInner() {
     // Redundant now that <html> carries the direction for the whole app, but
     // harmless — a nested dir that agrees with its parent changes nothing, and
     // unpicking it from this deeply nested tree risks more than it tidies.
-    <div dir={locale === 'ur' ? 'rtl' : 'ltr'}>
+    <div>
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
