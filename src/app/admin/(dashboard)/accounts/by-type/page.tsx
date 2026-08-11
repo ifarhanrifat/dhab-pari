@@ -102,7 +102,7 @@ function AccountsByTypePageInner() {
           <table className="w-full text-start min-w-[650px]">
             <thead>
               <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                <th className="px-4 py-2.5">Code</th>
+                <th className="px-4 py-2.5">{t('iv.code')}</th>
                 <th className="px-4 py-2.5">{t('a.name')}</th>
                 <th className="px-4 py-2.5 text-end">Balance</th>
                 <th className="px-4 py-2.5">{t('w.status')}</th>

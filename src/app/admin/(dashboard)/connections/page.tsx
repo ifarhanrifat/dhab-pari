@@ -490,14 +490,14 @@ export default function ConnectionsPage() {
     <div className="txn-form">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-[26px] sm:text-[32px] font-bold text-dp-primary flex items-center gap-2.5">
-          <UserPlus size={28} /> New Connections
+          <UserPlus size={28} /> {t('cn.title')}
         </h1>
         <div className="flex items-center gap-2">
           <button onClick={load} title="Refresh" className="p-2.5 border border-dp-outline-variant rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container-low cursor-pointer transition-all">
             <RefreshCw size={16} />
           </button>
           <button onClick={openNewRequest} className="flex items-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
-            <PlusCircle size={16} /> New Connection Request
+            <PlusCircle size={16} /> {t('cn.newRequest')}
           </button>
         </div>
       </div>
@@ -506,7 +506,7 @@ export default function ConnectionsPage() {
         <p className="font-sans text-dp-on-surface-variant py-8 text-center">{t('action.loading')}</p>
       ) : requests.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center">
-          <p className="font-sans text-[14px] text-dp-on-surface-variant">No connection requests yet.</p>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('cn.noRequests')}</p>
         </div>
       ) : (
         <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden divide-y divide-dp-outline-variant">
@@ -535,7 +535,7 @@ export default function ConnectionsPage() {
                 <div className="flex items-center gap-1 shrink-0">
                   {r.status === 'pending_payment' && (
                     <button onClick={() => setCashReceiveTarget(r)} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-                      <Banknote size={13} /> Cash Receive
+                      <Banknote size={13} /> {t('cn.cashReceive')}
                     </button>
                   )}
                   <button onClick={() => openPreview(r)} title="Preview / Print Challan" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Eye size={15} /></button>
@@ -564,17 +564,17 @@ export default function ConnectionsPage() {
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Consumer Name</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cn.consumerName')}</label>
                   <input value={form.consumer_name} onChange={(e) => setForm({ ...form, consumer_name: e.target.value })} className="input-field" />
                 </div>
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Father / Husband Name</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cn.fatherHusband')}</label>
                   <input value={form.father_husband_name} onChange={(e) => setForm({ ...form, father_husband_name: e.target.value })} className="input-field" />
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Contact Number</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cn.contactNumber')}</label>
                   <input
                     value={form.consumer_phone}
                     onChange={(e) => setForm({ ...form, consumer_phone: e.target.value, whatsapp_number: form.whatsapp_same_as_mobile ? e.target.value : form.whatsapp_number })}
@@ -582,7 +582,7 @@ export default function ConnectionsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">WhatsApp Number</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cn.whatsappNumber')}</label>
                   <input
                     value={form.whatsapp_same_as_mobile ? form.consumer_phone : form.whatsapp_number}
                     disabled={form.whatsapp_same_as_mobile}
@@ -591,13 +591,13 @@ export default function ConnectionsPage() {
                   />
                   <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer">
                     <input type="checkbox" checked={form.whatsapp_same_as_mobile} onChange={(e) => setForm({ ...form, whatsapp_same_as_mobile: e.target.checked })} className="accent-dp-secondary w-3.5 h-3.5" />
-                    <span className="font-sans text-[12px] text-dp-on-surface-variant">Same as contact number</span>
+                    <span className="font-sans text-[12px] text-dp-on-surface-variant">{t('cn.sameAsContact')}</span>
                   </label>
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">House No.</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cn.houseNo')}</label>
                   <input value={form.house_no} onChange={(e) => setForm({ ...form, house_no: e.target.value })} className="input-field" />
                 </div>
                 <div>
@@ -609,15 +609,15 @@ export default function ConnectionsPage() {
                 </div>
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Area</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cn.area')}</label>
                 <input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Full Address</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cn.fullAddress')}</label>
                 <input value={form.consumer_address} onChange={(e) => setForm({ ...form, consumer_address: e.target.value })} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Number of Connections</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cn.numConnections')}</label>
                 <input type="number" min={1} value={form.connections || ''} onChange={(e) => setForm({ ...form, connections: +e.target.value })} className="input-field" />
               </div>
               <div>
@@ -655,7 +655,7 @@ export default function ConnectionsPage() {
                               available ? (
                                 <p className="text-end shrink-0 font-sans text-[14.5px] font-bold text-dp-on-surface">Rs. {fmtAmount(l.quantity * l.unit_price)}</p>
                               ) : (
-                                <p className="text-end shrink-0 font-sans text-[12px] font-bold text-dp-error">Not available</p>
+                                <p className="text-end shrink-0 font-sans text-[12px] font-bold text-dp-error">{t('cn.notAvailable')}</p>
                               )
                             )}
                             <div className="flex items-center gap-1 shrink-0">
@@ -679,29 +679,29 @@ export default function ConnectionsPage() {
               </div>
 
               <div className="flex items-center justify-between mb-1">
-                <p className="font-sans text-[13px] font-semibold text-dp-on-surface-variant">Fixed Charges</p>
+                <p className="font-sans text-[13px] font-semibold text-dp-on-surface-variant">{t('cn.fixedCharges')}</p>
                 <button
                   type="button"
                   onClick={() => setChargesLocked(!chargesLocked)}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full font-sans text-[11.5px] font-bold uppercase tracking-wide cursor-pointer transition-all ${chargesLocked ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-amber-100 text-amber-800 hover:bg-amber-200'}`}
                   title={chargesLocked ? 'Unlock to override for this job' : 'Lock these charges again'}
                 >
-                  {chargesLocked ? <><Lock size={12} /> Locked</> : <><Unlock size={12} /> Unlocked</>}
+                  {chargesLocked ? <><Lock size={12} /> {t('cn.locked')}</> : <><Unlock size={12} /> {t('cn.unlocked')}</>}
                 </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Plumber Charge</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cn.plumberCharge')}</label>
                   <input type="number" min={0} disabled={chargesLocked} value={form.plumber_charge || ''} onChange={(e) => setForm({ ...form, plumber_charge: +e.target.value })} placeholder="0" className="input-field disabled:opacity-60 disabled:cursor-not-allowed" />
                   <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">Defaults from Settings — unlock to raise it for an unusual job.</p>
                 </div>
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Digging Charge</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cn.diggingCharge')}</label>
                   <input type="number" min={0} disabled={chargesLocked} value={form.digging_charge || ''} onChange={(e) => setForm({ ...form, digging_charge: +e.target.value })} placeholder="0" className="input-field disabled:opacity-60 disabled:cursor-not-allowed" />
                   <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">Defaults from Settings — unlock to raise it for an unusual job.</p>
                 </div>
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Security Deposit</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cn.securityDeposit')}</label>
                   <input type="number" min={0} disabled={chargesLocked} value={form.security_deposit_amount || ''} onChange={(e) => setForm({ ...form, security_deposit_amount: +e.target.value })} placeholder="0" className="input-field disabled:opacity-60 disabled:cursor-not-allowed" />
                   <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">Defaults from Settings — unlock to raise it for an unusual job.</p>
                 </div>
@@ -715,7 +715,7 @@ export default function ConnectionsPage() {
 
             <div className="flex flex-col sm:flex-row gap-2 p-4 border-t border-dp-outline-variant shrink-0">
               <button onClick={() => setPreviewOpen(true)} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dp-secondary rounded-full font-sans text-[14px] font-bold text-dp-secondary hover:bg-dp-secondary/5 transition-all cursor-pointer">
-                <Eye size={16} /> Preview
+                <Eye size={16} /> {t('cn.preview')}
               </button>
               <button disabled={saving} onClick={confirmRequest} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
                 {saving ? 'Saving...' : 'Confirm'}
@@ -746,7 +746,7 @@ export default function ConnectionsPage() {
                   {it.quantity_on_hand > 0 ? (
                     <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface-variant shrink-0">Rs. {fmtAmount(it.unit_price)}</span>
                   ) : (
-                    <span className="font-sans text-[12px] font-bold text-dp-error shrink-0">Not in stock</span>
+                    <span className="font-sans text-[12px] font-bold text-dp-error shrink-0">{t('cn.notInStock')}</span>
                   )}
                 </button>
               ))}
@@ -827,7 +827,7 @@ export default function ConnectionsPage() {
                   <table className="w-full text-[12.5px] font-sans mb-2">
                     <thead>
                       <tr className="border-b border-dp-outline-variant text-start text-dp-on-surface-variant">
-                        <th className="py-1.5">Item</th><th className="py-1.5 text-end">Qty</th>
+                        <th className="py-1.5">{t('iv.item')}</th><th className="py-1.5 text-end">Qty</th>
                         {form.wants_inventory_from_us && (<><th className="py-1.5 text-end">{t('f.rate')}</th><th className="py-1.5 text-end">{t('w.amount')}</th></>)}
                       </tr>
                     </thead>
@@ -843,7 +843,7 @@ export default function ConnectionsPage() {
                                 <td className="py-1.5 text-end font-semibold">{fmtAmount(l.quantity * l.unit_price)}</td>
                               </>
                             ) : (
-                              <td className="py-1.5 text-end font-semibold text-dp-error" colSpan={2}>Not available</td>
+                              <td className="py-1.5 text-end font-semibold text-dp-error" colSpan={2}>{t('cn.notAvailable')}</td>
                             )
                           )}
                         </tr>
@@ -856,8 +856,8 @@ export default function ConnectionsPage() {
                 )}
 
                 <div className="space-y-1 text-[13px] font-sans mb-5">
-                  {form.plumber_charge > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">Plumber Charge</span><span>Rs. {fmtAmount(form.plumber_charge)}</span></div>}
-                  {form.digging_charge > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">Digging Charge</span><span>Rs. {fmtAmount(form.digging_charge)}</span></div>}
+                  {form.plumber_charge > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('cn.plumberCharge')}</span><span>Rs. {fmtAmount(form.plumber_charge)}</span></div>}
+                  {form.digging_charge > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('cn.diggingCharge')}</span><span>Rs. {fmtAmount(form.digging_charge)}</span></div>}
                   {form.security_deposit_amount > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">Security Deposit (refundable)</span><span>Rs. {fmtAmount(form.security_deposit_amount)}</span></div>}
                   <div className="flex justify-between font-bold text-[15px] border-t border-dp-outline-variant pt-2 mt-2"><span>{t('a.total')}</span><span>Rs. {fmtAmount(total)}</span></div>
                 </div>
@@ -887,7 +887,7 @@ export default function ConnectionsPage() {
       {cashReceiveTarget && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-center justify-center p-4" onClick={() => setCashReceiveTarget(null)}>
           <div className="bg-white rounded-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-1">Receive Cash</h2>
+            <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-1">{t('cn.receiveCash')}</h2>
             <p className="font-sans text-[13.5px] text-dp-on-surface-variant mb-4">
               {cashReceiveTarget.consumer_name} — Rs. {fmtAmount(cashReceiveTarget.total_amount)}. This will create the consumer (if new), generate a bill, and record the payment as cash.
             </p>
@@ -907,7 +907,7 @@ export default function ConnectionsPage() {
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 px-5 py-4 border-b border-dp-outline-variant">
               <CheckCircle2 size={20} className="text-dp-secondary" />
-              <h2 className="font-heading text-[18px] font-bold text-dp-primary">Activate Account</h2>
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('cn.activateAccount')}</h2>
             </div>
             <div className="p-5 space-y-4">
               <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3">
@@ -918,12 +918,12 @@ export default function ConnectionsPage() {
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{activationTarget.consumer_id}</p>
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">WhatsApp Number</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('cn.whatsappNumber')}</label>
                 <input value={activationForm.whatsapp_number} onChange={(e) => setActivationForm({ ...activationForm, whatsapp_number: e.target.value })} placeholder="03xx-xxxxxxx" className="input-field" />
                 <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">The activation message sends here.</p>
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Monthly Bill Price</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('cn.monthlyBillPrice')}</label>
                 <input type="number" min={0} value={activationForm.monthly_amount || ''} onChange={(e) => setActivationForm({ ...activationForm, monthly_amount: +e.target.value })} placeholder="0" className="input-field" />
               </div>
               <div>
@@ -941,7 +941,7 @@ export default function ConnectionsPage() {
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={activationForm.recurring_enabled} onChange={(e) => setActivationForm({ ...activationForm, recurring_enabled: e.target.checked })} className="accent-dp-secondary w-4 h-4" />
-                <span className="font-sans text-[14px] font-semibold text-dp-on-surface flex items-center gap-1.5"><Clock size={14} /> Recurring Monthly Bill</span>
+                <span className="font-sans text-[14px] font-semibold text-dp-on-surface flex items-center gap-1.5"><Clock size={14} /> {t('cn.recurringMonthly')}</span>
               </label>
             </div>
             <div className="flex gap-2 p-4 border-t border-dp-outline-variant">

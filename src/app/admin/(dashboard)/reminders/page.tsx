@@ -89,7 +89,7 @@ export default function RemindersPage() {
                 <Icon size={16} /> {meta.title} <span className="font-normal text-dp-on-surface-variant text-[12.5px]">({rows.length})</span>
                 {type === 'meeting_due' && (
                   <button onClick={() => copyForGroup(rows[0].message)} className="flex items-center gap-1 px-2 py-1 border border-dp-outline-variant rounded-full font-sans text-[11px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">
-                    <Copy size={11} /> Copy for Group
+                    <Copy size={11} /> {t('mt.copyForGroup')}
                   </button>
                 )}
               </h2>

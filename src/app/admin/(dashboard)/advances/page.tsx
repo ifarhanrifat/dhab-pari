@@ -350,7 +350,7 @@ export default function AdvancesPage() {
                 <input type="number" min={0} value={editForm.amount || ''} onChange={(e) => setEditForm({ ...editForm, amount: +e.target.value })} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Paid From</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('em.paidFrom')}</label>
                 <select value={editForm.from_account_id} onChange={(e) => setEditForm({ ...editForm, from_account_id: e.target.value })} className="input-field">
                   <option value="">{t('rp.selectAccount')}</option>
                   {cashBankAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}

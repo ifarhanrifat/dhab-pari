@@ -393,11 +393,11 @@ export default function AdminUsersPage() {
     <>
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">User Management</h1>
+          <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('us.title')}</h1>
           <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Invite users and control exactly what they can access.</p>
         </div>
         <button onClick={() => { setForm(emptyInvite); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-          <PlusCircle size={16} /> Invite User
+          <PlusCircle size={16} /> {t('us.inviteUser')}
         </button>
       </div>
 
@@ -413,7 +413,7 @@ export default function AdminUsersPage() {
             ))}
           </div>
           <span className="flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-secondary shrink-0">
-            {showRoleDetails ? <>Hide details <ChevronUp size={14} /></> : <>Show details <ChevronDown size={14} /></>}
+            {showRoleDetails ? <>{t('us.hideDetails')} <ChevronUp size={14} /></> : <>{t('us.showDetails')} <ChevronDown size={14} /></>}
           </span>
         </button>
 
@@ -437,7 +437,7 @@ export default function AdminUsersPage() {
             <div className="bg-dp-primary-container/40 border border-dp-primary/20 rounded-lg p-4">
               <p className="font-sans text-[13px] font-bold text-dp-primary mb-1">Setting up &quot;Management&quot; (view everything, reply, verify complaints)</p>
               <p className="font-sans text-[12px] text-dp-on-surface-variant leading-[1.5]">
-                There&apos;s no separate &quot;Management&quot; role — it&apos;s a recipe: give them <strong>Viewer</strong> (full read access to both systems already, plus the ability to comment on complaints and reply to Suggestions with no extra grant), then check <strong>Complaint Verifier</strong> for them in the pencil-icon menu so they can give final sign-off on resolved complaints. If they also need to actually post transactions or approve things themselves, give them a <strong>secondary role</strong> below instead of switching their primary role away from Viewer.
+                There&apos;s no separate &quot;Management&quot; role — it&apos;s a recipe: give them <strong>{t('us.viewer')}</strong> (full read access to both systems already, plus the ability to comment on complaints and reply to Suggestions with no extra grant), then check <strong>{t('us.complaintVerifier')}</strong> for them in the pencil-icon menu so they can give final sign-off on resolved complaints. If they also need to actually post transactions or approve things themselves, give them a <strong>secondary role</strong> below instead of switching their primary role away from Viewer.
               </p>
             </div>
           </div>
@@ -461,7 +461,7 @@ export default function AdminUsersPage() {
         </div>
         <label className="flex items-center gap-2 cursor-pointer shrink-0">
           <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} className="accent-dp-secondary" />
-          <span className="font-sans text-[13px] text-dp-on-surface-variant">Show deactivated</span>
+          <span className="font-sans text-[13px] text-dp-on-surface-variant">{t('us.showDeactivated')}</span>
         </label>
         <span className="font-sans text-[12.5px] text-dp-on-surface-variant shrink-0">
           {visibleUsers.length} of {users.length}{hiddenCount > 0 ? ` · ${hiddenCount} hidden` : ''}
@@ -475,8 +475,8 @@ export default function AdminUsersPage() {
               <tr className="bg-dp-surface-container-low text-dp-outline text-[13px] font-sans font-bold tracking-[0.05em]">
                 <th className="p-4">{t('a.name')}</th>
                 <th className="p-4">{t('a.email')}</th>
-                <th className="p-4">Role</th>
-                <th className="p-4">Invite Status</th>
+                <th className="p-4">{t('us.role')}</th>
+                <th className="p-4">{t('us.inviteStatus')}</th>
                 <th className="p-4">{t('w.status')}</th>
                 <th className="p-4 text-end">{t('a.actions')}</th>
               </tr>
@@ -486,7 +486,7 @@ export default function AdminUsersPage() {
               {!loading && visibleUsers.length === 0 && (
                 <tr><td colSpan={6} className="p-8 text-center">
                   <UserCircle2 size={40} className="text-dp-on-surface-variant mx-auto mb-3 opacity-40" />
-                  <p className="font-sans text-[16px] text-dp-on-surface-variant">No users yet.</p>
+                  <p className="font-sans text-[16px] text-dp-on-surface-variant">{t('us.noUsers')}</p>
                 </td></tr>
               )}
               {!loading && visibleUsers.map((u, i) => (
@@ -519,7 +519,7 @@ export default function AdminUsersPage() {
                     {!u.invited_at ? (
                       <span className="text-[11px] text-dp-on-surface-variant">—</span>
                     ) : u.invite_accepted_at ? (
-                      <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700"><CheckCircle2 size={12} /> Accepted</span>
+                      <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700"><CheckCircle2 size={12} /> {t('us.accepted')}</span>
                     ) : (
                       <span className="flex items-center gap-1 text-[11px] font-bold text-amber-700"><Clock size={12} /> {t('tx.pending')}</span>
                     )}
@@ -531,7 +531,7 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="p-4 border-b border-dp-outline-variant text-end">
                     {u.auth_user_id === currentAuthUserId ? (
-                      <span className="text-[11px] text-dp-on-surface-variant italic">This is you</span>
+                      <span className="text-[11px] text-dp-on-surface-variant italic">{t('us.thisIsYou')}</span>
                     ) : (
                       <div className="flex items-center justify-end gap-1.5">
                         <select
@@ -583,7 +583,7 @@ export default function AdminUsersPage() {
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[24px] font-bold text-dp-primary">Invite User</h2>
+              <h2 className="font-heading text-[24px] font-bold text-dp-primary">{t('us.inviteUser')}</h2>
               <button onClick={() => setShowForm(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <div className="space-y-4">
@@ -605,7 +605,7 @@ export default function AdminUsersPage() {
               <div>
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Secondary Role (optional)</label>
                 <select value={form.secondary_role} onChange={(e) => setForm({ ...form, secondary_role: e.target.value })} className="input-field">
-                  <option value="">None</option>
+                  <option value="">{t('us.none')}</option>
                   {availableRoles.filter((r) => r !== form.role).map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
                 </select>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">Grants this role&apos;s access <em>in addition to</em> the primary role above — e.g. a Water Accountant with Donor Accountant as secondary can access both books.</p>
@@ -618,7 +618,7 @@ export default function AdminUsersPage() {
                   undo a scoping mistake out of undoing it. */}
               {form.role !== 'super_admin' && form.role !== 'admin' && (
                 <div className="bg-dp-surface-container-low rounded-lg p-4 space-y-2.5">
-                  <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Which books can they open?</p>
+                  <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">{t('us.whichBooks')}</p>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={form.access_water_supply} onChange={(e) => setForm({ ...form, access_water_supply: e.target.checked })} className="accent-dp-secondary" />
                     <span className="font-sans text-[13.5px]">{t('a.waterSupplySystem')}</span>
@@ -642,7 +642,7 @@ export default function AdminUsersPage() {
                   grant is what the database checks on write. */}
               {(form.role === 'publisher' || form.secondary_role === 'publisher') && (
                 <div className="bg-dp-surface-container-low rounded-lg p-4 space-y-2.5">
-                  <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">What can they publish?</p>
+                  <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">{t('us.whatPublish')}</p>
                   {publishFields.map((f) => (
                     <label key={f.key} className="flex items-start gap-2 cursor-pointer">
                       <input
@@ -666,7 +666,7 @@ export default function AdminUsersPage() {
               )}
               {showPermissions && (
                 <div className="bg-dp-surface-container-low rounded-lg p-4 space-y-2.5">
-                  <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Permissions</p>
+                  <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">{t('us.permissions')}</p>
                   {permissionFields.map((f) => (
                     <label key={f.key} className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -682,7 +682,7 @@ export default function AdminUsersPage() {
               )}
               {form.role === 'admin' && (
                 <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 space-y-2.5">
-                  <p className="font-sans text-[13px] font-bold text-indigo-900 uppercase tracking-[0.05em] mb-1">Admin Capabilities</p>
+                  <p className="font-sans text-[13px] font-bold text-indigo-900 uppercase tracking-[0.05em] mb-1">{t('us.adminCapabilities')}</p>
                   {adminPermissionFields.map((f) => (
                     <label key={f.key} className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -708,7 +708,7 @@ export default function AdminUsersPage() {
 
               {currentRole === 'super_admin' && (
                 <div className="border-t border-dp-outline-variant pt-4 mt-2">
-                  <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">Or Create Directly</p>
+                  <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">{t('us.orCreateDirectly')}</p>
                   <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">If invite/reset-password emails aren&apos;t reaching people, set a password here and give it to them yourself. Remove this once email is fixed.</p>
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Password *</label>
                   <div className="flex gap-2">
@@ -792,7 +792,7 @@ export default function AdminUsersPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Mobile Number</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('us.mobileNumber')}</label>
                 <input
                   value={collectorForm.mobile}
                   onChange={(e) => setCollectorForm({ ...collectorForm, mobile: e.target.value })}
@@ -802,9 +802,9 @@ export default function AdminUsersPage() {
                 <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Used for WhatsApp notifications (e.g. a field collector's payment alert).</p>
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Secondary Role</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('us.secondaryRole')}</label>
                 <select value={collectorForm.secondary_role} onChange={(e) => setCollectorForm({ ...collectorForm, secondary_role: e.target.value })} className="input-field">
-                  <option value="">None</option>
+                  <option value="">{t('us.none')}</option>
                   {(currentRole === 'super_admin' ? availableRoles : availableRoles.filter((r) => r !== 'super_admin'))
                     .filter((r) => r !== editingUser.role)
                     .map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
@@ -824,7 +824,7 @@ export default function AdminUsersPage() {
                   </label>
                   {collectorForm.can_collect_payments && (
                     <div>
-                      <p className="font-sans text-[12.5px] font-semibold text-teal-900 mb-1.5">Assigned Sectors</p>
+                      <p className="font-sans text-[12.5px] font-semibold text-teal-900 mb-1.5">{t('us.assignedSectors')}</p>
                       {sectorOptions.length === 0 ? (
                         <p className="font-sans text-[12px] text-teal-800">No sectors defined yet.</p>
                       ) : (
@@ -848,7 +848,7 @@ export default function AdminUsersPage() {
                     deleting and recreating them. */}
                 {editingUser.role !== 'super_admin' && editingUser.role !== 'admin' && (
                   <div className="bg-dp-surface-container-low rounded-lg p-3 space-y-2 mb-3">
-                    <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Which books can they open?</p>
+                    <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('us.whichBooks')}</p>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={collectorForm.access_water_supply} onChange={(e) => setCollectorForm({ ...collectorForm, access_water_supply: e.target.checked })} className="accent-dp-secondary" />
                       <span className="font-sans text-[13.5px]">{t('a.waterSupply')}</span>
@@ -862,7 +862,7 @@ export default function AdminUsersPage() {
 
                 {(editingUser.role === 'publisher' || collectorForm.secondary_role === 'publisher') && (
                   <div className="bg-dp-surface-container-low rounded-lg p-3 space-y-2 mb-3">
-                    <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">What can they publish?</p>
+                    <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('us.whatPublish')}</p>
                     {publishFields.map((f) => (
                       <label key={f.key} className="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" checked={!!collectorForm[f.key as keyof typeof collectorForm]} onChange={(e) => setCollectorForm({ ...collectorForm, [f.key]: e.target.checked })} className="accent-dp-secondary" />

@@ -249,16 +249,16 @@ export default function EmployeesPage() {
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
-            <HardHat size={26} /> Employees
+            <HardHat size={26} /> {t('em.title')}
           </h1>
           <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">Each employee has their own ledger account (see Chart of Accounts → Employees Payable). Salary accrues automatically; overtime, bonus, emergency pay, and job earnings are recognized via the monthly payslip.</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowManageRoles(true)} className="flex items-center gap-2 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[14px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
-            <Settings2 size={16} /> Manage Roles
+            <Settings2 size={16} /> {t('em.manageRoles')}
           </button>
           <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-            <PlusCircle size={16} /> Add Employee
+            <PlusCircle size={16} /> {t('em.addEmployee')}
           </button>
         </div>
       </div>
@@ -267,7 +267,7 @@ export default function EmployeesPage() {
         {loading ? (
           <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('action.loading')}</p>
         ) : employees.length === 0 ? (
-          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No employees added yet.</p>
+          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('em.noEmployees')}</p>
         ) : (
           <div className="divide-y divide-dp-outline-variant">
             {employees.map((e) => {
@@ -279,7 +279,7 @@ export default function EmployeesPage() {
                       <p className="font-sans text-[14.5px] font-bold text-dp-on-surface">{e.name}</p>
                       <span className="px-2 py-0.5 rounded-full bg-dp-primary-container text-dp-secondary text-[10.5px] font-bold uppercase tracking-wide">{roleLabelEn(e.primary_role)}</span>
                       {e.secondary_role && <span className="px-2 py-0.5 rounded-full bg-dp-surface-container-low text-dp-on-surface-variant text-[10.5px] font-bold uppercase tracking-wide">{roleLabelEn(e.secondary_role)}</span>}
-                      {!e.is_active && <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10.5px] font-bold uppercase tracking-wide">Inactive</span>}
+                      {!e.is_active && <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10.5px] font-bold uppercase tracking-wide">{t('em.inactive')}</span>}
                       {balance > 0 && <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10.5px] font-bold uppercase tracking-wide">Owed: Rs. {balance.toLocaleString()}</span>}
                       {balance < 0 && <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10.5px] font-bold uppercase tracking-wide">Owes committee: Rs. {Math.abs(balance).toLocaleString()}</span>}
                     </div>
@@ -288,7 +288,7 @@ export default function EmployeesPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
-                    <button onClick={() => openAdvance(e)} title="Give Advance" className="flex items-center gap-1 px-2.5 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><HandCoins size={13} /> Advance</button>
+                    <button onClick={() => openAdvance(e)} title="Give Advance" className="flex items-center gap-1 px-2.5 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><HandCoins size={13} /> {t('em.advance')}</button>
                     <PayslipButton
                       employee={e} roleLabelEn={roleLabelEn} accountsByCode={accountsByCode}
                       employeeAccountId={employeeAccountIds[e.id]} branding={branding} onSettled={load}
@@ -331,16 +331,16 @@ export default function EmployeesPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Primary Role</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('em.primaryRole')}</label>
                   <select value={form.primary_role} onChange={(ev) => setForm({ ...form, primary_role: ev.target.value })} className="input-field">
-                    <option value="">Select role...</option>
+                    <option value="">{t('em.selectRole')}</option>
                     {activeRoles.map((r) => <option key={r.key} value={r.key}>{r.label_en}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Secondary Role (optional)</label>
                   <select value={form.secondary_role} onChange={(ev) => setForm({ ...form, secondary_role: ev.target.value })} className="input-field">
-                    <option value="">None</option>
+                    <option value="">{t('us.none')}</option>
                     {activeRoles.filter((r) => r.key !== form.primary_role).map((r) => <option key={r.key} value={r.key}>{r.label_en}</option>)}
                   </select>
                 </div>
@@ -352,7 +352,7 @@ export default function EmployeesPage() {
               </div>
               {formTarget !== 'new' && (
                 <label className="flex items-center gap-2 font-sans text-[13px] text-dp-on-surface cursor-pointer">
-                  <input type="checkbox" checked={form.is_active} onChange={(ev) => setForm({ ...form, is_active: ev.target.checked })} /> Active
+                  <input type="checkbox" checked={form.is_active} onChange={(ev) => setForm({ ...form, is_active: ev.target.checked })} /> {t('em.active')}
                 </label>
               )}
               <button disabled={saving} onClick={saveEmployee} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
@@ -367,18 +367,18 @@ export default function EmployeesPage() {
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setAdvanceTarget(null)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-heading text-[18px] font-bold text-dp-primary flex items-center gap-2"><HandCoins size={18} /> Give Advance</h2>
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary flex items-center gap-2"><HandCoins size={18} /> {t('em.giveAdvance')}</h2>
               <button onClick={() => setAdvanceTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <p className="font-sans text-[13.5px] text-dp-on-surface-variant mb-4">{advanceTarget.name}</p>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Amount (Rs.)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('em.amountRs')}</label>
                 <input autoFocus type="number" min={1} value={advanceForm.amount || ''} onChange={(ev) => setAdvanceForm({ ...advanceForm, amount: +ev.target.value })} className="input-field" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Paid From</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('em.paidFrom')}</label>
                   <select value={advanceForm.method} onChange={(ev) => setAdvanceForm({ ...advanceForm, method: ev.target.value })} className="input-field">
                     <option value="cash">{t('w.cash')}</option>
                     <option value="bank">{t('a.bank')}</option>
@@ -406,7 +406,7 @@ export default function EmployeesPage() {
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowManageRoles(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">Manage Roles</h2>
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('em.manageRoles')}</h2>
               <button onClick={() => setShowManageRoles(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <div className="space-y-2 mb-5 max-h-56 overflow-y-auto">
@@ -423,7 +423,7 @@ export default function EmployeesPage() {
               ))}
             </div>
             <div className="border-t border-dp-outline-variant pt-4 space-y-3">
-              <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Add Role</p>
+              <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('em.addRole')}</p>
               <input value={newRole.label_en} onChange={(e) => setNewRole({ ...newRole, label_en: e.target.value })} placeholder="English label, e.g. Meter Reader" className="input-field" />
               <input value={newRole.label_ur} onChange={(e) => setNewRole({ ...newRole, label_ur: e.target.value })} placeholder="اردو لیبل" dir="rtl" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} />
               <button disabled={savingRole} onClick={addRole} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
@@ -511,7 +511,7 @@ function HiringRequestGenerator({ employees, employeeRoles, branding }: { employ
       <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">Urdu-only printable hiring notice on behalf of the Water &amp; Welfare Committee. Text below is editable and saves as the new default for this role.</p>
 
       <div className="mb-4 max-w-xs">
-        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Role</label>
+        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('us.role')}</label>
         <select value={role} onChange={(e) => setRole(e.target.value)} className="input-field">
           {employeeRoles.map((r) => <option key={r.key} value={r.key}>{r.label_en} — {r.label_ur}</option>)}
         </select>
@@ -804,7 +804,7 @@ function PayslipButton({
   return (
     <>
       <button onClick={() => { setShowDoc(false); setOpen(true) }} title="Generate Payslip" className="flex items-center gap-1 px-2.5 py-1.5 border border-dp-secondary/40 text-dp-secondary rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-secondary/5 transition-all cursor-pointer">
-        <Receipt size={13} /> Payslip
+        <Receipt size={13} /> {t('em.payslip')}
       </button>
 
       {open && (
@@ -916,7 +916,7 @@ function PayslipButton({
                   {useUniversal && (
                     <select value={slipFormat} onChange={(e) => { setSlipFormat(e.target.value as SlipFormat); setPreferredSlipTarget(e.target.value as SlipFormat) }} className="input-field !py-1.5 !text-[13px] max-w-[130px]">
                       <option value="a4">A4</option>
-                      <option value="thermal">Thermal</option>
+                      <option value="thermal">{t('em.thermal')}</option>
                     </select>
                   )}
                   <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={14} /> {t('a.print')}</button>

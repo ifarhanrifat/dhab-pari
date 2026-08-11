@@ -630,11 +630,11 @@ export default function MeetingsAgendaPage() {
         <div className="flex items-center gap-2">
           {meetings.length > 0 && (
             <button onClick={openEmergencyJob} className="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-red-700 transition-all cursor-pointer">
-              <Siren size={16} /> Raise Emergency Job
+              <Siren size={16} /> {t('mt.raiseEmergency')}
             </button>
           )}
           <button onClick={openNewMeeting} className="flex items-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-            <PlusCircle size={16} /> New Meeting
+            <PlusCircle size={16} /> {t('mt.newMeeting')}
           </button>
         </div>
       </div>
@@ -649,7 +649,7 @@ export default function MeetingsAgendaPage() {
           <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-4">
             <button onClick={() => setComplaintsOpen(!complaintsOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-start cursor-pointer hover:bg-dp-surface-container-low transition-all">
               <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-2">
-                <MessageSquareWarning size={16} className="text-amber-600" /> Complaints Status
+                <MessageSquareWarning size={16} className="text-amber-600" /> {t('mt.complaintsStatus')}
                 <span className="font-normal text-dp-on-surface-variant text-[12.5px]">({visible.length}{!showResolvedComplaints ? ' open/pending' : ''})</span>
               </p>
               {complaintsOpen ? <ChevronUp size={18} className="shrink-0 text-dp-on-surface-variant" /> : <ChevronDown size={18} className="shrink-0 text-dp-on-surface-variant" />}
@@ -674,7 +674,7 @@ export default function MeetingsAgendaPage() {
                       <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">{c.complaint_text}</p>
                       <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">
                         {c.status === 'verified'
-                          ? <>Resolved by <span className="font-semibold">{c.resolved_by_name ?? 'Unknown'}</span>{c.resolved_at ? ` on ${new Date(c.resolved_at).toLocaleDateString('en-GB')}` : ''}</>
+                          ? <>{t('mt.resolvedBy')} <span className="font-semibold">{c.resolved_by_name ?? 'Unknown'}</span>{c.resolved_at ? ` on ${new Date(c.resolved_at).toLocaleDateString('en-GB')}` : ''}</>
                           : <>{t('a.incharge')} <span className="font-semibold">{c.incharge_name ?? 'Not yet assigned'}</span></>}
                       </p>
                     </div>
@@ -710,7 +710,7 @@ export default function MeetingsAgendaPage() {
                     </span>
                   </div>
                   {p.comments.length === 0 ? (
-                    <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1.5">No comments yet.</p>
+                    <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1.5">{t('mt.noComments')}</p>
                   ) : (
                     <div className="mt-1.5 space-y-1">
                       {p.comments.map((c, i) => (
@@ -745,7 +745,7 @@ export default function MeetingsAgendaPage() {
           </button>
           {activityOpen && (
             <div className="border-t border-dp-outline-variant p-4 space-y-2">
-              {activity.length === 0 && <p className="font-sans text-[12.5px] text-dp-on-surface-variant">Nothing new since the last meeting.</p>}
+              {activity.length === 0 && <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('mt.nothingNew')}</p>}
               {activity.map((a, i) => {
                 const Icon = ACTIVITY_ICON[a.event_type] ?? Activity
                 return (
@@ -800,7 +800,7 @@ export default function MeetingsAgendaPage() {
                           </div>
                         ) : (
                           <button onClick={() => { setReplyOpenFor(c.id); setReplyDraft('') }} className="mt-1.5 flex items-center gap-1 text-[11.5px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer">
-                            <Reply size={12} /> Post Committee Reply
+                            <Reply size={12} /> {t('mt.postReply')}
                           </button>
                         )}
                       </div>
@@ -837,9 +837,9 @@ export default function MeetingsAgendaPage() {
                         {new Date(meeting.meeting_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                         {meeting.title ? ` — ${meeting.title}` : ''}
                       </p>
-                      {isLatest && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-dp-secondary-container text-dp-on-secondary-container">Current</span>}
-                      {meeting.status === 'finalized' && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-dp-surface-container-high text-dp-on-surface-variant flex items-center gap-1"><Lock size={10} /> Finalized</span>}
-                      {meeting.status === 'cancelled' && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 flex items-center gap-1"><Ban size={10} /> Cancelled</span>}
+                      {isLatest && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-dp-secondary-container text-dp-on-secondary-container">{t('mt.current')}</span>}
+                      {meeting.status === 'finalized' && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-dp-surface-container-high text-dp-on-surface-variant flex items-center gap-1"><Lock size={10} /> {t('mt.finalized')}</span>}
+                      {meeting.status === 'cancelled' && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 flex items-center gap-1"><Ban size={10} /> {t('mt.cancelled')}</span>}
                     </div>
                     <p className={`font-sans text-[12.5px] text-dp-on-surface-variant ${meeting.status === 'cancelled' ? 'line-through' : ''}`}>
                       Run by {adminName(meeting.run_by_admin_user_id) ?? 'Unknown'} · {tasks.filter((t) => t.status === 'done').length}/{tasks.length} tasks done · {suggestions.length} suggestion(s)
@@ -854,11 +854,11 @@ export default function MeetingsAgendaPage() {
                       </span>
                     )}
                     {meeting.status === 'finalized' ? (
-                      <span onClick={(e) => { e.stopPropagation(); setPrintMeetingId(meeting.id) }} className="px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-secondary hover:bg-dp-surface-container-low transition-all cursor-pointer">View Minutes</span>
+                      <span onClick={(e) => { e.stopPropagation(); setPrintMeetingId(meeting.id) }} className="px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-secondary hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('mt.viewMinutes')}</span>
                     ) : meeting.status === 'open' ? (
                       <>
-                        <span onClick={(e) => { e.stopPropagation(); setConfirmCancel(meeting.id) }} className="px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-red-700 hover:bg-red-50 transition-all cursor-pointer">Cancel Meeting</span>
-                        <span onClick={(e) => { e.stopPropagation(); setConfirmFinalize(meeting.id) }} className="px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Finalize Meeting</span>
+                        <span onClick={(e) => { e.stopPropagation(); setConfirmCancel(meeting.id) }} className="px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-red-700 hover:bg-red-50 transition-all cursor-pointer">{t('mt.cancelMeeting')}</span>
+                        <span onClick={(e) => { e.stopPropagation(); setConfirmFinalize(meeting.id) }} className="px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('mt.finalize')}</span>
                       </>
                     ) : null}
                     {isOpen ? <ChevronUp size={18} className="shrink-0 text-dp-on-surface-variant" /> : <ChevronDown size={18} className="shrink-0 text-dp-on-surface-variant" />}
@@ -893,11 +893,11 @@ export default function MeetingsAgendaPage() {
                     {/* Tasks */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] flex items-center gap-1.5"><ListChecks size={14} /> Tasks</p>
+                        <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] flex items-center gap-1.5"><ListChecks size={14} /> {t('mt.tasks')}</p>
                         <div className="flex items-center gap-3">
                           {meeting.status === 'open' && meeting.agenda_photo_urls && meeting.agenda_photo_urls.length > 0 && (
                             <button onClick={() => openExtract(meeting)} className="flex items-center gap-1 text-[12.5px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer">
-                              <Sparkles size={13} /> Extract with AI
+                              <Sparkles size={13} /> {t('mt.extractAI')}
                             </button>
                           )}
                           {meeting.status === 'open' && (
@@ -906,7 +906,7 @@ export default function MeetingsAgendaPage() {
                         </div>
                       </div>
                       {tasks.length === 0 ? (
-                        <p className="font-sans text-[13px] text-dp-on-surface-variant">No tasks yet.</p>
+                        <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('mt.noTasks')}</p>
                       ) : (
                         <div className="space-y-4">
                           {CATEGORY_ORDER.map((cat) => {
@@ -952,7 +952,7 @@ export default function MeetingsAgendaPage() {
                                         <div className="mt-2 flex items-center gap-3 flex-wrap">
                                           {currentUserId && canMarkDone(item, meeting) ? (
                                             <button onClick={() => markDone(item, !!privateChecks[item.id])} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
-                                              <CheckCircle2 size={13} /> Mark Done
+                                              <CheckCircle2 size={13} /> {t('mt.markDone')}
                                             </button>
                                           ) : (
                                             <button onClick={() => markDone(item, !!privateChecks[item.id])} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-surface-container-low transition-all cursor-pointer">
@@ -984,13 +984,13 @@ export default function MeetingsAgendaPage() {
                         <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] flex items-center gap-1.5"><Lightbulb size={14} /> Suggestions</p>
                         <div className="flex items-center gap-3">
                           <button onClick={() => openImportSuggestions(meeting.id)} className="flex items-center gap-1 text-[12.5px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer">
-                            <Globe2 size={13} /> Import from Website
+                            <Globe2 size={13} /> {t('mt.importWebsite')}
                           </button>
                           <button onClick={() => openAddSuggestion(meeting.id)} className="text-[12.5px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer">+ Add Suggestion</button>
                         </div>
                       </div>
                       {suggestions.length === 0 ? (
-                        <p className="font-sans text-[13px] text-dp-on-surface-variant">No suggestions recorded for this meeting.</p>
+                        <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('mt.noSuggestions')}</p>
                       ) : (
                         <div className="space-y-2">
                           {[...suggestions].sort((a, b) => (a.raised_by_committee_member_id ? 0 : 1) - (b.raised_by_committee_member_id ? 0 : 1)).map((s) => {
@@ -1048,7 +1048,7 @@ export default function MeetingsAgendaPage() {
                     {/* Emergency Jobs */}
                     {emergencyJobs.length > 0 && (
                       <div>
-                        <p className="font-sans text-[13px] font-bold text-red-700 uppercase tracking-[0.05em] flex items-center gap-1.5 mb-2"><Siren size={14} /> Emergency Jobs</p>
+                        <p className="font-sans text-[13px] font-bold text-red-700 uppercase tracking-[0.05em] flex items-center gap-1.5 mb-2"><Siren size={14} /> {t('mt.emergencyJobs')}</p>
                         <div className="space-y-2">
                           {emergencyJobs.slice().sort((a, b) => (a.status === 'done' ? 0 : 1) - (b.status === 'done' ? 0 : 1)).map((item) => (
                             <div key={item.id} className={`border border-red-200 bg-red-50/40 rounded-lg p-3 ${item.status === 'done' ? 'opacity-70' : ''}`}>
@@ -1068,14 +1068,14 @@ export default function MeetingsAgendaPage() {
                                   </div>
                                 ))}
                                 <button onClick={() => copyEmergencyMessage(item)} className="flex items-center gap-1 px-2 py-1 border border-dp-outline-variant rounded-full font-sans text-[11px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">
-                                  <Copy size={11} /> Copy for Group
+                                  <Copy size={11} /> {t('mt.copyForGroup')}
                                 </button>
                               </div>
                               {item.status !== 'done' && meeting.status === 'open' && (
                                 <div className="mt-2 flex items-center gap-3 flex-wrap">
                                   {currentUserId && canMarkDone(item, meeting) ? (
                                     <button onClick={() => markDone(item, !!privateChecks[item.id])} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
-                                      <CheckCircle2 size={13} /> Mark Done
+                                      <CheckCircle2 size={13} /> {t('mt.markDone')}
                                     </button>
                                   ) : (
                                     <button onClick={() => markDone(item, !!privateChecks[item.id])} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-surface-container-low transition-all cursor-pointer">
@@ -1098,7 +1098,7 @@ export default function MeetingsAgendaPage() {
                     )}
 
                     <button onClick={() => setPrintMeetingId(meeting.id)} className="inline-flex items-center gap-2 text-[12.5px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer">
-                      <FileText size={14} /> View / Print Minutes
+                      <FileText size={14} /> {t('mt.viewPrintMinutes')}
                     </button>
                   </div>
                 )}
@@ -1113,30 +1113,30 @@ export default function MeetingsAgendaPage() {
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setShowMeetingForm(false)}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant">
-              <h2 className="font-heading text-[18px] font-bold text-dp-primary">New Meeting</h2>
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('mt.newMeeting')}</h2>
               <button onClick={() => setShowMeetingForm(false)} className="cursor-pointer"><X size={20} /></button>
             </div>
             <div className="p-5 space-y-4">
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Meeting Date</label>
+                  <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.meetingDate')}</label>
                   <input type="date" value={meetingForm.meeting_date} onChange={(e) => setMeetingForm({ ...meetingForm, meeting_date: e.target.value })} className="input-field" />
                 </div>
                 <div className="flex-1">
-                  <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Time (optional)</label>
+                  <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.timeOptional')}</label>
                   <input type="time" value={meetingForm.meeting_time} onChange={(e) => setMeetingForm({ ...meetingForm, meeting_time: e.target.value })} className="input-field" />
                 </div>
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Place (optional)</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.placeOptional')}</label>
                 <input value={meetingForm.location} onChange={(e) => setMeetingForm({ ...meetingForm, location: e.target.value })} className="input-field" placeholder="e.g. Committee Office" />
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Title (optional)</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.titleOptional')}</label>
                 <input value={meetingForm.title} onChange={(e) => setMeetingForm({ ...meetingForm, title: e.target.value })} className="input-field" placeholder="e.g. Monthly Committee Meeting" />
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Run By</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.runBy')}</label>
                 <select value={meetingForm.run_by_admin_user_id} onChange={(e) => setMeetingForm({ ...meetingForm, run_by_admin_user_id: e.target.value })} className="input-field">
                   <option value="">{t('a.select')}</option>
                   {adminUsers.map((a) => <option key={a.id} value={a.id}>{a.full_name}</option>)}
@@ -1160,12 +1160,12 @@ export default function MeetingsAgendaPage() {
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setTaskMeetingId(null)}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant">
-              <h2 className="font-heading text-[18px] font-bold text-dp-primary">Add Agenda Point</h2>
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('mt.addPoint')}</h2>
               <button onClick={() => setTaskMeetingId(null)} className="cursor-pointer"><X size={20} /></button>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Point (Urdu)</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.pointUr')}</label>
                 <textarea value={taskForm.text_ur} onChange={(e) => setTaskForm({ ...taskForm, text_ur: e.target.value })} rows={3} className="input-field resize-none" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }} />
               </div>
               <div>
@@ -1175,11 +1175,11 @@ export default function MeetingsAgendaPage() {
                 </select>
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Due Date (optional)</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.dueDateOptional')}</label>
                 <input type="date" value={taskForm.due_date} onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Assign To</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.assignTo')}</label>
                 <div className="space-y-1.5 max-h-48 overflow-y-auto border border-dp-outline-variant rounded-lg p-2">
                   {members.map((m) => (
                     <label key={m.id} className="flex items-center gap-2 cursor-pointer px-1.5 py-1 rounded hover:bg-dp-surface-container-low">
@@ -1217,18 +1217,18 @@ export default function MeetingsAgendaPage() {
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setSuggestionMeetingId(null)}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant">
-              <h2 className="font-heading text-[18px] font-bold text-dp-primary">Add Suggestion</h2>
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('mt.addSuggestion')}</h2>
               <button onClick={() => setSuggestionMeetingId(null)} className="cursor-pointer"><X size={20} /></button>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Suggestion (Urdu)</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.suggestionUr')}</label>
                 <textarea value={suggestionForm.text_ur} onChange={(e) => setSuggestionForm({ ...suggestionForm, text_ur: e.target.value })} rows={3} className="input-field resize-none" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }} />
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Raised By (optional)</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.raisedBy')}</label>
                 <select value={suggestionForm.raised_by_committee_member_id} onChange={(e) => setSuggestionForm({ ...suggestionForm, raised_by_committee_member_id: e.target.value })} className="input-field">
-                  <option value="">Not specified</option>
+                  <option value="">{t('mt.notSpecified')}</option>
                   {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
               </div>
@@ -1248,7 +1248,7 @@ export default function MeetingsAgendaPage() {
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => !savingExtracted && setExtractMeetingId(null)}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant">
-              <h2 className="font-heading text-[18px] font-bold text-dp-primary flex items-center gap-2"><Sparkles size={18} className="text-dp-secondary" /> AI Extracted Points</h2>
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary flex items-center gap-2"><Sparkles size={18} className="text-dp-secondary" /> {t('mt.aiPoints')}</h2>
               <button onClick={() => setExtractMeetingId(null)} className="cursor-pointer"><X size={20} /></button>
             </div>
             <div className="p-5 space-y-3">
@@ -1276,7 +1276,7 @@ export default function MeetingsAgendaPage() {
                     <div key={i} className={`border rounded-lg p-3 ${p.include ? 'border-dp-outline-variant' : 'border-dp-outline-variant opacity-50'}`}>
                       <label className="flex items-center gap-2 mb-2 cursor-pointer">
                         <input type="checkbox" checked={p.include} onChange={(e) => updateExtracted(i, { include: e.target.checked })} className="accent-dp-secondary" />
-                        <span className="font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Include</span>
+                        <span className="font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('mt.include')}</span>
                       </label>
                       <textarea
                         value={p.text} onChange={(e) => updateExtracted(i, { text: e.target.value })} rows={2}
@@ -1332,12 +1332,12 @@ export default function MeetingsAgendaPage() {
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setImportMeetingId(null)}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant">
-              <h2 className="font-heading text-[18px] font-bold text-dp-primary flex items-center gap-2"><Globe2 size={18} className="text-dp-secondary" /> Import from Website</h2>
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary flex items-center gap-2"><Globe2 size={18} className="text-dp-secondary" /> {t('mt.importWebsite')}</h2>
               <button onClick={() => setImportMeetingId(null)} className="cursor-pointer"><X size={20} /></button>
             </div>
             {!loadingSuggestions && readyProposals.length > 0 && (
               <div className="px-5 pt-4 space-y-2.5">
-                <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-wide">Proposals Ready for Decision</p>
+                <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-wide">{t('mt.proposalsReady')}</p>
                 {readyProposals.map((p) => (
                   <div key={p.id} className="border border-blue-200 bg-blue-50/50 rounded-lg p-3">
                     <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{p.title}</p>
@@ -1376,14 +1376,14 @@ export default function MeetingsAgendaPage() {
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 px-5 py-4 border-b border-dp-outline-variant">
               <Siren size={20} className="text-red-600" />
-              <h2 className="font-heading text-[18px] font-bold text-dp-primary">Raise Emergency Job</h2>
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('mt.raiseEmergency')}</h2>
             </div>
             <div className="p-5 space-y-4">
               <p className="font-sans text-[12px] text-dp-on-surface-variant">
                 This broadcasts to every committee member's WhatsApp (tap-to-send, same as everywhere else) and any of them can mark it done. It's recorded on {meetings.find((m) => m.id === emergencyMeetingId)?.title || 'the current meeting'}'s agenda.
               </p>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Job Description (Urdu)</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.jobDescUr')}</label>
                 <textarea value={emergencyText} onChange={(e) => setEmergencyText(e.target.value)} rows={3} className="input-field resize-none" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }} autoFocus />
               </div>
             </div>
@@ -1452,7 +1452,7 @@ export default function MeetingsAgendaPage() {
           <div className="fixed inset-0 bg-black/50 z-[160] flex items-center justify-center p-4" onClick={() => setPrintMeetingId(null)}>
             <div className="bg-white rounded-lg max-h-[92vh] overflow-y-auto w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between px-4 py-3 border-b border-dp-outline-variant">
-                <span className="font-sans text-[14px] font-bold text-dp-primary">Meeting Minutes</span>
+                <span className="font-sans text-[14px] font-bold text-dp-primary">{t('mt.minutes')}</span>
                 <button onClick={() => setPrintMeetingId(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
               </div>
               <div className="p-4 flex justify-center bg-dp-surface-container-low/40">
@@ -1476,11 +1476,11 @@ export default function MeetingsAgendaPage() {
         <div className="fixed inset-0 bg-black/50 z-[160] flex items-center justify-center p-4" onClick={() => setNoticeFor(null)}>
           <div className="bg-white rounded-lg max-h-[92vh] overflow-y-auto w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-dp-outline-variant">
-              <span className="font-sans text-[14px] font-bold text-dp-primary">Send Meeting Notice</span>
+              <span className="font-sans text-[14px] font-bold text-dp-primary">{t('mt.sendNotice')}</span>
               <button onClick={() => setNoticeFor(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <div className="px-4 pt-4">
-              <p className="font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Message Preview</p>
+              <p className="font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.messagePreview')}</p>
               <pre
                 className="whitespace-pre-wrap bg-dp-surface-container-low/60 border border-dp-outline-variant rounded-lg p-3 text-[13.5px] font-sans max-h-64 overflow-y-auto"
                 dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}

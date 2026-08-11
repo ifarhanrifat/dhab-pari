@@ -281,7 +281,7 @@ function ComplaintList({ complaints }: { complaints: ComplaintEntry[] }) {
               <p className="font-sans text-[13px] text-dp-on-surface-variant">{c.text}</p>
               <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">
                 {c.status === 'verified'
-                  ? <>Resolved by <span className="font-semibold">{c.resolved_by_name ?? 'Unknown'}</span>{c.resolved_at ? ` on ${new Date(c.resolved_at).toLocaleDateString('en-GB')}` : ''}</>
+                  ? <>{t('mt.resolvedBy')} <span className="font-semibold">{c.resolved_by_name ?? 'Unknown'}</span>{c.resolved_at ? ` on ${new Date(c.resolved_at).toLocaleDateString('en-GB')}` : ''}</>
                   : <>{t('a.incharge')} <span className="font-semibold">{c.incharge_name ?? 'Not yet assigned'}</span></>}
               </p>
             </div>

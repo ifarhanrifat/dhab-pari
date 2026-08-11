@@ -66,7 +66,7 @@ export default function AdminCommentsPage() {
         {loading ? (
           <p className="p-8 text-center font-sans text-[14px] text-dp-on-surface-variant">{t('action.loading')}</p>
         ) : visible.length === 0 ? (
-          <p className="p-8 text-center font-sans text-[14px] text-dp-on-surface-variant">No comments yet.</p>
+          <p className="p-8 text-center font-sans text-[14px] text-dp-on-surface-variant">{t('mt.noComments')}</p>
         ) : (
           visible.map((c) => (
             <div key={c.id} className={`flex items-start justify-between gap-4 px-5 py-4 border-b border-dp-outline-variant last:border-b-0 ${c.is_hidden ? 'bg-dp-surface-container-low/60' : ''}`}>

@@ -162,7 +162,7 @@ export default function TasksPage() {
           <>
             <button onClick={() => openAssign(t)} title="Edit assignment" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Pencil size={15} /></button>
             <button onClick={() => markDone(t)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
-              <CheckCircle2 size={13} /> Mark Done
+              <CheckCircle2 size={13} /> {tr('mt.markDone')}
             </button>
           </>
         )}
