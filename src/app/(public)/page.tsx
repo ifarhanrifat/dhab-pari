@@ -31,6 +31,7 @@ import {
 import { HomeHero } from '@/components/home/HomeHero'
 import { HomeMobileQuickActions } from '@/components/home/HomeMobileQuickActions'
 import { HomeMobileUrduCta } from '@/components/home/HomeMobileUrduCta'
+import { T, LocaleDir } from '@/components/i18n/T'
 
 function fmtPKR(n: number) {
   return Math.round(n).toLocaleString()
@@ -122,7 +123,11 @@ export default async function HomePage() {
   }
 
   return (
-    <>
+    // Direction is per-reader and this page is cached and shared, so it cannot
+    // be decided on the server. LocaleDir is a client island that applies it
+    // after hydration; the CSS on this page is all logical properties now, so
+    // everything inside mirrors from here.
+    <LocaleDir>
       {/* ========== HERO ========== */}
       <HomeHero />
 
@@ -141,7 +146,7 @@ export default async function HomePage() {
               </span>
             </div>
             <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">PKR {fmtPKR(stats.available_funds)}</div>
-            <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]">Available Funds</div>
+            <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]"><T k="home.availableFunds" /></div>
           </div>
 
           <div className="bg-white border border-dp-outline-variant p-4 lg:p-6 rounded-lg hover:bg-dp-surface-container-low transition-colors">
@@ -149,10 +154,10 @@ export default async function HomePage() {
               <span className="p-2 bg-dp-primary-fixed text-dp-primary rounded-lg">
                 <GitBranch size={20} />
               </span>
-              <span className="bg-dp-secondary-container text-dp-on-secondary-container px-2 py-0.5 rounded text-[10px] font-bold">ACTIVE</span>
+              <span className="bg-dp-secondary-container text-dp-on-secondary-container px-2 py-0.5 rounded text-[10px] font-bold"><T k="home.active" /></span>
             </div>
             <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">{stats.active_projects} Projects</div>
-            <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]">Active Community Drives</div>
+            <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]"><T k="home.activeDrives" /></div>
           </div>
 
           <div className="bg-white border border-dp-outline-variant p-4 lg:p-6 rounded-lg hover:bg-dp-surface-container-low transition-colors">
@@ -160,10 +165,10 @@ export default async function HomePage() {
               <span className="p-2 bg-dp-primary-fixed text-dp-primary rounded-lg">
                 <Heart size={20} />
               </span>
-              <span className="text-dp-primary-container font-bold text-[14px] font-sans tracking-[0.05em]">This Month</span>
+              <span className="text-dp-primary-container font-bold text-[14px] font-sans tracking-[0.05em]"><T k="home.thisMonth" /></span>
             </div>
             <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">PKR {fmtPKR(stats.donations_this_month)}</div>
-            <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]">Total Donations</div>
+            <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]"><T k="home.totalDonations" /></div>
           </div>
 
           <div className="bg-white border border-dp-outline-variant p-4 lg:p-6 rounded-lg hover:bg-dp-surface-container-low transition-colors">
@@ -176,7 +181,7 @@ export default async function HomePage() {
               </span>
             </div>
             <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">{stats.registered_households} Consumers</div>
-            <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]">Registered Households</div>
+            <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]"><T k="home.registeredHouseholds" /></div>
           </div>
         </div>
       </div>
@@ -193,9 +198,9 @@ export default async function HomePage() {
           {/* --- Ongoing Projects --- */}
           <section>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title">Ongoing Projects</h2>
+              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title"><T k="home.ongoingProjects" /></h2>
               <Link href="/projects" className="text-dp-secondary font-bold hover:underline flex items-center text-[14px] font-sans tracking-[0.05em]">
-                View All <ArrowRight size={16} className="ml-1" />
+                <T k="home.viewAll" /> <ArrowRight size={16} className="ms-1" />
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -219,7 +224,7 @@ export default async function HomePage() {
                     </h3>
                     <div className="mt-4 space-y-2">
                       <div className="flex justify-between text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-on-surface-variant">
-                        <span>Progress</span>
+                        <span><T k="home.progress" /></span>
                         <span>{project.progress_percent}%</span>
                       </div>
                       <div className="w-full bg-dp-surface-container-high h-2 rounded-full overflow-hidden">
@@ -231,13 +236,13 @@ export default async function HomePage() {
                     </div>
                     <div className="flex justify-between mt-6 pt-4 border-t border-dp-outline-variant text-[14px] font-sans font-semibold tracking-[0.05em]">
                       <div>
-                        <p className="text-dp-on-surface-variant">Budget</p>
+                        <p className="text-dp-on-surface-variant"><T k="home.budget" /></p>
                         <p className="font-bold text-dp-primary">
                           PKR {(project.budget_pkr ?? 0).toLocaleString()}
                         </p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-dp-on-surface-variant">Spent</p>
+                      <div className="text-end">
+                        <p className="text-dp-on-surface-variant"><T k="home.spent" /></p>
                         <p className="font-bold text-dp-primary">
                           PKR {(project.spent_pkr ?? 0).toLocaleString()}
                         </p>
@@ -248,7 +253,7 @@ export default async function HomePage() {
               ))}
               {projects.length === 0 && (
                 <div className="col-span-2 text-center py-12 text-dp-on-surface-variant">
-                  No ongoing projects at the moment.
+                  <T k="home.noProjects" />
                 </div>
               )}
             </div>
@@ -257,9 +262,9 @@ export default async function HomePage() {
           {/* --- Latest News --- */}
           <section>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title">Latest News</h2>
+              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title"><T k="home.latestNews" /></h2>
               <Link href="/news" className="text-dp-secondary font-bold hover:underline text-[14px] font-sans tracking-[0.05em]">
-                Full Archive
+                <T k="home.fullArchive" />
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -287,7 +292,7 @@ export default async function HomePage() {
               ))}
               {news.length === 0 && (
                 <div className="col-span-2 text-center py-12 text-dp-on-surface-variant">
-                  No news posts yet.
+                  <T k="home.noNews" />
                 </div>
               )}
             </div>
@@ -296,7 +301,7 @@ export default async function HomePage() {
           {/* --- Featured Videos --- */}
           <section>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title">Featured Videos</h2>
+              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title"><T k="home.featuredVideos" /></h2>
             </div>
             <div className="grid grid-cols-2 gap-4">
               {videos.map((video) => (
@@ -308,7 +313,7 @@ export default async function HomePage() {
                   <div className="w-full h-full bg-gradient-to-br from-dp-primary to-dp-tertiary-container opacity-60 group-hover:opacity-40 transition-opacity" />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <Play size={24} className="text-white ml-1" fill="white" />
+                      <Play size={24} className="text-white ms-1" fill="white" />
                     </div>
                   </div>
                   <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded font-sans">
@@ -323,7 +328,7 @@ export default async function HomePage() {
               ))}
               {videos.length === 0 && (
                 <div className="col-span-2 text-center py-12 text-dp-on-surface-variant">
-                  No videos yet.
+                  <T k="home.noVideos" />
                 </div>
               )}
             </div>
@@ -332,9 +337,9 @@ export default async function HomePage() {
           {/* --- Village Job Board --- */}
           <section>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title flex items-center gap-3"><Briefcase size={26} /> Village Job Board</h2>
+              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title flex items-center gap-3"><Briefcase size={26} /> <T k="home.jobBoard" /></h2>
               <Link href="/jobs" className="text-dp-secondary font-bold hover:underline flex items-center text-[14px] font-sans tracking-[0.05em]">
-                View All <ArrowRight size={16} className="ml-1" />
+                <T k="home.viewAll" /> <ArrowRight size={16} className="ms-1" />
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -354,7 +359,7 @@ export default async function HomePage() {
               ))}
               {jobs.length === 0 && (
                 <div className="col-span-3 text-center py-12 text-dp-on-surface-variant">
-                  No listings yet — <Link href="/portal/post-job" className="text-dp-secondary font-semibold hover:underline">post the first one</Link>.
+                  <T k="home.noListings" /> <Link href="/portal/post-job" className="text-dp-secondary font-semibold hover:underline">post the first one</Link>.
                 </div>
               )}
             </div>
@@ -363,9 +368,9 @@ export default async function HomePage() {
           {/* --- Our Achievements --- */}
           <section>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title flex items-center gap-3"><Trophy size={26} /> Our Achievements</h2>
+              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title flex items-center gap-3"><Trophy size={26} /> <T k="home.achievements" /></h2>
               <Link href="/achievements" className="text-dp-secondary font-bold hover:underline flex items-center text-[14px] font-sans tracking-[0.05em]">
-                View All <ArrowRight size={16} className="ml-1" />
+                <T k="home.viewAll" /> <ArrowRight size={16} className="ms-1" />
               </Link>
             </div>
             <div className="space-y-3">
@@ -373,7 +378,7 @@ export default async function HomePage() {
                 <div key={a.id} className="p-4 bg-white border border-dp-outline-variant rounded-lg flex items-start gap-3">
                   {a.is_private ? <Lock size={16} className="text-dp-on-surface-variant shrink-0 mt-0.5" /> : <Trophy size={16} className="text-dp-secondary shrink-0 mt-0.5" />}
                   {a.is_private ? (
-                    <p className="text-[14px] font-sans text-dp-on-surface-variant italic">Private task completed by <span className="font-semibold not-italic">{a.done_by_name ?? 'a committee member'}</span></p>
+                    <p className="text-[14px] font-sans text-dp-on-surface-variant italic"><T k="home.privateTask" /> <span className="font-semibold not-italic">{a.done_by_name ?? 'a committee member'}</span></p>
                   ) : (
                     <p className="text-[14px] font-sans text-dp-on-surface" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{a.text_ur}</p>
                   )}
@@ -381,7 +386,7 @@ export default async function HomePage() {
               ))}
               {achievements.length === 0 && (
                 <div className="text-center py-12 text-dp-on-surface-variant">
-                  Nothing completed yet.
+                  <T k="home.nothingCompleted" />
                 </div>
               )}
             </div>
@@ -394,21 +399,21 @@ export default async function HomePage() {
           {/* Cash Position */}
           <div className="bg-dp-primary text-white rounded-lg p-6 border border-dp-primary-container">
             <h3 className="text-[14px] font-sans font-semibold tracking-[0.05em] uppercase opacity-80 mb-4">
-              Cash Position
+              <T k="home.cashPosition" />
             </h3>
             <div className="space-y-4">
               <div>
                 <div className="text-[28px] font-bold font-sans">PKR {fmtPKR(stats.available_funds)}</div>
-                <div className="text-[12px] opacity-70 font-sans">Total Liquid Balance</div>
+                <div className="text-[12px] opacity-70 font-sans"><T k="home.totalLiquid" /></div>
               </div>
               <div className="h-px bg-white/20 w-full" />
               <div className="grid grid-cols-2 gap-2 text-[14px] font-sans font-semibold tracking-[0.05em]">
                 <div>
-                  <p className="opacity-60">Revenue (This Month)</p>
+                  <p className="opacity-60"><T k="home.revenueMonth" /></p>
                   <p className="font-bold">+{fmtPKR(stats.revenue_this_month)}</p>
                 </div>
-                <div className="text-right">
-                  <p className="opacity-60">Expenses (This Month)</p>
+                <div className="text-end">
+                  <p className="opacity-60"><T k="home.expensesMonth" /></p>
                   <p className="font-bold text-red-300">-{fmtPKR(stats.expenses_this_month)}</p>
                 </div>
               </div>
@@ -416,7 +421,7 @@ export default async function HomePage() {
                 href="/accounts"
                 className="block w-full py-2 bg-white/10 hover:bg-white/20 rounded text-center font-bold text-[14px] font-sans tracking-[0.05em] transition-colors"
               >
-                Financial Report
+                <T k="home.financialReport" />
               </Link>
             </div>
           </div>
@@ -425,7 +430,7 @@ export default async function HomePage() {
           <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
             <div className="p-4 bg-dp-surface-container-low border-b border-dp-outline-variant flex items-center justify-between">
               <h3 className="font-bold text-dp-primary text-[14px] font-sans tracking-[0.05em]">
-                Donors - Transparency
+                <T k="home.donorsTransparency" />
               </h3>
               <Eye size={16} className="text-dp-primary" />
             </div>
@@ -443,14 +448,14 @@ export default async function HomePage() {
                       {timeAgo(donor.date)}
                     </p>
                   </div>
-                  <div className="text-dp-secondary font-bold text-[14px] font-sans tracking-[0.05em] shrink-0 ml-2">
+                  <div className="text-dp-secondary font-bold text-[14px] font-sans tracking-[0.05em] shrink-0 ms-2">
                     PKR {donor.amount_pkr.toLocaleString()}
                   </div>
                 </div>
               ))}
               {donors.length === 0 && (
                 <div className="p-4 text-center text-dp-on-surface-variant text-[14px]">
-                  No donors yet.
+                  <T k="home.noDonors" />
                 </div>
               )}
             </div>
@@ -458,7 +463,7 @@ export default async function HomePage() {
               href="/donate"
               className="block p-3 text-center text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-secondary font-bold bg-dp-surface-container-low border-t border-dp-outline-variant hover:bg-dp-surface-container transition-colors"
             >
-              View Full List
+              <T k="home.viewFullList" />
             </Link>
           </div>
 
@@ -466,7 +471,7 @@ export default async function HomePage() {
           <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
             <div className="p-4 bg-dp-surface-container-low border-b border-dp-outline-variant flex items-center justify-between">
               <h3 className="font-bold text-dp-primary text-[14px] font-sans tracking-[0.05em] flex items-center gap-2">
-                <HandHeart size={16} /> Volunteers
+                <HandHeart size={16} /> <T k="home.volunteers" />
               </h3>
             </div>
             <div className="divide-y divide-dp-outline-variant max-h-[300px] overflow-y-auto hide-scrollbar">
@@ -482,7 +487,7 @@ export default async function HomePage() {
               ))}
               {volunteers.length === 0 && (
                 <div className="p-4 text-center text-dp-on-surface-variant text-[14px]">
-                  No volunteers yet.
+                  <T k="home.noVolunteers" />
                 </div>
               )}
             </div>
@@ -490,7 +495,7 @@ export default async function HomePage() {
               href="/volunteer"
               className="block p-3 text-center text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-secondary font-bold bg-dp-surface-container-low border-t border-dp-outline-variant hover:bg-dp-surface-container transition-colors"
             >
-              Join as a Volunteer
+              <T k="home.joinVolunteer" />
             </Link>
           </div>
 
@@ -502,39 +507,33 @@ export default async function HomePage() {
           <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
             <div className="p-4 bg-dp-surface-container-low border-b border-dp-outline-variant flex items-center justify-between">
               <h3 className="font-bold text-dp-primary text-[14px] font-sans tracking-[0.05em] flex items-center gap-2">
-                <Droplet size={16} className="text-dp-error" /> Blood Donor Registry
+                <Droplet size={16} className="text-dp-error" /> <T k="home.bloodRegistry" />
               </h3>
-              <span className="text-[12px] font-sans font-bold text-dp-on-surface-variant">{bloodTotal} registered</span>
+              <span className="text-[12px] font-sans font-bold text-dp-on-surface-variant">{bloodTotal} <T k="home.registered" /></span>
             </div>
             <div className="p-4 grid grid-cols-4 gap-2">
               {bloodGroups.map((g) => (
                 <div key={g.blood_group} className="text-center border border-dp-outline-variant rounded-lg py-2">
                   <p className="font-heading text-[15px] font-bold text-dp-error leading-none">{g.blood_group}</p>
                   <p className="font-sans text-[17px] font-bold text-dp-on-surface leading-tight mt-1">{g.registered}</p>
-                  <p className="font-sans text-[9.5px] text-dp-on-surface-variant leading-none">{g.available_now} ready</p>
+                  <p className="font-sans text-[9.5px] text-dp-on-surface-variant leading-none">{g.available_now} <T k="home.ready" /></p>
                 </div>
               ))}
             </div>
             <div className="px-4 pb-3">
-              <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-snug">
-                Donor names and numbers are never published. Submit a request and the committee
-                phones you to confirm before contacting any donor.
-              </p>
-              <p dir="rtl" className="font-urdu text-[12.5px] text-dp-on-surface-variant leading-relaxed mt-1.5">
-                خون کے عطیہ دہندگان کے نام اور نمبر ظاہر نہیں کیے جاتے۔ درخواست جمع کرائیں، کمیٹی تصدیق کے لیے آپ کو فون کرے گی۔
-              </p>
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-snug"><T k="home.bloodNote" /></p>
             </div>
             <Link
               href="/blood"
               className="block p-3 text-center text-[14px] font-sans font-bold tracking-[0.05em] text-white bg-dp-error hover:opacity-90 transition-opacity"
             >
-              Request Blood
+              <T k="home.requestBlood" />
             </Link>
             <Link
               href="/portal/blood-donor"
               className="block p-3 text-center text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-secondary font-bold bg-dp-surface-container-low border-t border-dp-outline-variant hover:bg-dp-surface-container transition-colors"
             >
-              Register as a Blood Donor
+              <T k="home.registerBloodDonor" />
             </Link>
           </div>
           )}
@@ -542,13 +541,13 @@ export default async function HomePage() {
           {/* Donate Now Card */}
           <div className="bg-dp-secondary text-white rounded-lg p-6 relative overflow-hidden">
             <div className="relative z-10">
-              <h3 className="text-[20px] font-sans font-semibold leading-[28px] mb-2">Donate Now</h3>
+              <h3 className="text-[20px] font-sans font-semibold leading-[28px] mb-2"><T k="home.donateNow" /></h3>
               <p className="text-[14px] font-sans font-semibold tracking-[0.05em] opacity-90 mb-6">
-                Support your village&apos;s growth and clean water initiatives.
+                <T k="home.donateBlurb" />
               </p>
               <div className="space-y-4">
                 <div className="bg-white/10 p-3 rounded border border-white/20">
-                  <p className="text-[10px] uppercase font-bold opacity-60 font-sans">JazzCash / EasyPaisa</p>
+                  <p className="text-[10px] uppercase font-bold opacity-60 font-sans"><T k="home.jazzcashEasypaisa" /></p>
                   <p className="font-mono text-[18px]">{SITE.jazzcash}</p>
                 </div>
                 <div className="bg-white/10 p-3 rounded border border-white/20">
@@ -561,7 +560,7 @@ export default async function HomePage() {
                 href="/donate"
                 className="block w-full mt-6 py-3 bg-white text-dp-secondary rounded-lg text-center font-bold font-sans hover:bg-dp-secondary-container transition-all"
               >
-                Submit Receipt
+                <T k="home.submitReceipt" />
               </Link>
             </div>
             <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
@@ -571,6 +570,6 @@ export default async function HomePage() {
 
       {/* ========== MOBILE: Urdu CTA ========== */}
       <HomeMobileUrduCta />
-    </>
+    </LocaleDir>
   )
 }

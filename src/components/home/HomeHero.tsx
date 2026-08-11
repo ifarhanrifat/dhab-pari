@@ -1,5 +1,8 @@
+'use client'
+
 import Link from 'next/link'
 import { SITE } from '@/lib/constants'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 // Was `motion`-animated (a JS animation library) for two one-shot fade-ins
 // on the homepage's above-the-fold hero — the single heaviest page for a
@@ -9,6 +12,7 @@ import { SITE } from '@/lib/constants'
 // all. motion is still used as-is on Gallery/Projects (their interactivity
 // is genuinely motion-driven, not just decorative), just not here.
 export function HomeHero() {
+  const { t } = useLocale()
   return (
     <section className="bg-dp-primary-container relative overflow-hidden">
       {/* Desktop Hero */}
@@ -46,13 +50,13 @@ export function HomeHero() {
               href="/water"
               className="px-8 py-3 bg-dp-secondary-fixed text-dp-on-secondary-fixed rounded-lg font-bold font-sans shadow-lg hover:brightness-110 transition-all"
             >
-              Pay Water Bill
+              {t('home.payWaterBill')}
             </Link>
             <Link
               href="/about"
               className="px-8 py-3 border-2 border-dp-secondary-fixed text-dp-secondary-fixed rounded-lg font-bold font-sans hover:bg-dp-secondary-fixed/10 transition-all"
             >
-              Join Committee
+              {t('home.joinCommittee')}
             </Link>
           </div>
         </div>
@@ -77,7 +81,7 @@ export function HomeHero() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-[1]" />
           <div className="relative z-10 text-white">
             <h2 className="font-heading text-[24px] font-bold leading-tight mb-2">
-              Building a Sustainable Village Together
+              {t('home.heroTagline')}
             </h2>
             <p className="text-[16px] font-sans text-white/90 leading-[24px]">
               Official portal for the {SITE.committee} of {SITE.name} village.
