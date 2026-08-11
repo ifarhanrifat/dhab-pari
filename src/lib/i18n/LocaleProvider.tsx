@@ -42,16 +42,23 @@ const RTL_READY = false
  * my_language() so the answer is the same everywhere.
  */
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  // Start from the last known choice so the first paint is not the wrong
-  // language for an Urdu reader, then reconcile with the server.
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    if (typeof window === 'undefined') return 'en'
-    const saved = window.localStorage.getItem(STORAGE_KEY)
-    return saved === 'ur' ? 'ur' : 'en'
-  })
+  // Always starts English, even when localStorage says Urdu.
+  //
+  // Reading the stored choice here instead produced a hydration error: the
+  // server has no localStorage, so it renders English, while the client renders
+  // Urdu — React sees two different trees and throws the whole thing away.
+  // The stored language is applied immediately after mount below, which costs a
+  // brief flash of English and is the price of the markup matching.
+  const [locale, setLocaleState] = useState<Locale>('en')
   const [terms, setTerms] = useState<Record<string, TermEntry>>({})
   const [overrides, setOverrides] = useState<Record<string, string>>({})
   const [ready, setReady] = useState(false)
+
+  // Runs after hydration, so it cannot disagree with the server-rendered HTML.
+  useEffect(() => {
+    const saved = window.localStorage.getItem(STORAGE_KEY)
+    if (saved === 'ur') setLocaleState('ur')
+  }, [])
 
   useEffect(() => {
     const supabase = createClient()

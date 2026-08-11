@@ -17,6 +17,7 @@ import { billBadge, billBadgeClass } from '@/lib/billStatus'
 import { renderTemplate } from '@/lib/messageTemplates'
 import { findDuplicate, type DuplicateCandidate } from '@/lib/duplicateCheck'
 import { SITE } from '@/lib/constants'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Consumer {
   consumer_id: string
@@ -102,14 +103,16 @@ function StatusBadge({ bill }: { bill: Bill }) {
 }
 
 export default function BillingPage() {
+  const { t } = useLocale()
   return (
-    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}>
       <BillingPageInner />
     </Suspense>
   )
 }
 
 function BillingPageInner() {
+  const { t, locale } = useLocale()
   const searchParams = useSearchParams()
   const [consumers, setConsumers] = useState<Consumer[]>([])
   const [bills, setBills] = useState<Bill[]>([])
@@ -334,7 +337,7 @@ function BillingPageInner() {
     // the consumer's ledger, so their overall balance correctly shows a credit rather
     // than silently discarding the extra money the accountant actually received.
     const entered = paymentForm.amount
-    if (entered <= 0) { toast.error('Invalid amount'); return }
+    if (entered <= 0) { toast.error(t('billing.err.invalidAmount')); return }
 
     const { error } = await supabase.from('payments').insert({
       bill_id: paymentForm.billId,
@@ -357,8 +360,8 @@ function BillingPageInner() {
   }
 
   const addConsumer = async () => {
-    if (!newConsumer.name.trim()) { toast.error('Name is required'); return }
-    if (!newConsumer.sector) { toast.error('Select a sector'); return }
+    if (!newConsumer.name.trim()) { toast.error(t('billing.err.nameRequired')); return }
+    if (!newConsumer.sector) { toast.error(t('billing.err.selectSector')); return }
 
     const whatsapp = newConsumer.whatsapp_same_as_mobile ? newConsumer.mobile : newConsumer.whatsapp_number
     const duplicate = findDuplicate(
@@ -422,7 +425,7 @@ function BillingPageInner() {
         particular: billingSetupForm.description || null,
       })
       if (schedErr) toast.error(schedErr.code === '23505' ? 'This consumer already has an active recurring bill' : `Recurring schedule could not be created: ${schedErr.message}`)
-      else toast.success('Recurring billing set up')
+      else toast.success(t('billing.ok.recurringSetUp'))
     }
     setSettingUpBilling(false)
     setBillingSetupTarget(null)
@@ -446,7 +449,7 @@ function BillingPageInner() {
   const pauseSchedule = async (scheduleId: string) => {
     const { error } = await supabase.from('recurring_schedules').update({ is_active: false }).eq('id', scheduleId)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Recurring billing paused')
+    toast.success(t('billing.ok.recurringPaused'))
     loadData()
   }
 
@@ -462,7 +465,7 @@ function BillingPageInner() {
 
   const saveEditConsumer = async () => {
     if (!editConsumerTarget) return
-    if (!editForm.name.trim() || !editForm.mobile.trim()) { toast.error('Name and mobile are required'); return }
+    if (!editForm.name.trim() || !editForm.mobile.trim()) { toast.error(t('billing.err.nameMobileRequired')); return }
 
     const editWhatsapp = editForm.whatsapp_same_as_mobile ? editForm.mobile : editForm.whatsapp_number
     const editDuplicate = findDuplicate(
@@ -482,7 +485,7 @@ function BillingPageInner() {
     }).eq('consumer_id', editConsumerTarget.consumer_id)
     setSavingEdit(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Consumer updated')
+    toast.success(t('billing.ok.consumerUpdated'))
     setEditConsumerTarget(null)
     loadData()
   }
@@ -540,7 +543,7 @@ function BillingPageInner() {
     if (!confirmDeleteBill) return
     const { error } = await supabase.from('bills').delete().eq('id', confirmDeleteBill)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Bill deleted')
+    toast.success(t('billing.ok.billDeleted'))
     setConfirmDeleteBill(null)
     loadData()
   }
@@ -559,7 +562,7 @@ function BillingPageInner() {
 
   const sendWhatsApp = (consumer: Consumer) => {
     const stats = consumerStats[consumer.consumer_id]
-    if (!consumer.mobile) { toast.error('No mobile number for this consumer'); return }
+    if (!consumer.mobile) { toast.error(t('billing.err.noMobile')); return }
     const template = messageTemplates.consumer_outstanding_notify
       ?? `*${SITE.name} Water Committee*\n\nDear %%name%%, your outstanding water bill is Rs. %%outstanding%% (%%pending_count%% bill(s) pending). Consumer No: %%consumer_id%%. Please pay at your earliest convenience. Thank you.`
     const msg = encodeURIComponent(renderTemplate(template, {
@@ -577,17 +580,21 @@ function BillingPageInner() {
   }
 
   return (
-    <>
+    // This page has had its direction-specific CSS converted to logical
+    // properties (ms-/me-/ps-/pe-/text-start/text-end), so it can carry its own
+    // dir. Everything inside mirrors from this one attribute; the rest of the
+    // app stays left-to-right until it gets the same treatment.
+    <div dir={locale === 'ur' ? 'rtl' : 'ltr'}>
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Billing Management</h1>
+        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('billing.title')}</h1>
         <div className="flex gap-3">
           <button onClick={() => setShowAddConsumer(true)} className="flex items-center gap-2 px-4 py-2 border-2 border-dp-secondary text-dp-secondary rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
-            <PlusCircle size={16} /> Add Consumer
+            <PlusCircle size={16} /> {t('billing.addConsumer')}
           </button>
           <Link href="/admin/finance/water_supply?action=generate_bill" className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-            <PlusCircle size={16} /> Generate Bill
+            <PlusCircle size={16} /> {t('billing.generateBill')}
           </Link>
         </div>
       </div>
@@ -596,54 +603,54 @@ function BillingPageInner() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         <button
           onClick={() => toggleQuickFilter('billed_this_month')}
-          className={`text-left bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'billed_this_month' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
-          title="Click to view only consumers billed this month"
+          className={`text-start bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'billed_this_month' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
+          title={t('billing.tip.billedThisMonth')}
         >
-          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><Receipt size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">Billed This Month</span></div>
+          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><Receipt size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">{t('billing.billedThisMonth')}</span></div>
           <p className="font-sans text-[18px] font-bold text-dp-primary">Rs. {monthlyStats.billTotal.toLocaleString()}</p>
           <p className="font-sans text-[11px] text-dp-on-surface-variant">{monthlyStats.billCount} bill{monthlyStats.billCount === 1 ? '' : 's'}</p>
         </button>
         <button
           onClick={() => toggleQuickFilter('active')}
-          className={`text-left bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'active' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
-          title="Click to view only active connections"
+          className={`text-start bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'active' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
+          title={t('billing.tip.active')}
         >
-          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><UserCheck size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">Active Connections</span></div>
+          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><UserCheck size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">{t('billing.activeConnections')}</span></div>
           <p className="font-sans text-[18px] font-bold text-emerald-700">{monthlyStats.activeConnections}</p>
         </button>
         <button
           onClick={() => toggleQuickFilter('inactive')}
-          className={`text-left bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'inactive' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
-          title="Click to view only deactivated connections"
+          className={`text-start bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'inactive' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
+          title={t('billing.tip.deactivated')}
         >
-          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><UserX size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">Deactivated</span></div>
+          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><UserX size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">{t('billing.deactivated')}</span></div>
           <p className="font-sans text-[18px] font-bold text-dp-error">{monthlyStats.inactiveConnections}</p>
           <p className="font-sans text-[11px] text-dp-on-surface-variant">{deactivatedThisMonth} this month</p>
         </button>
         <button
           onClick={() => toggleQuickFilter('with_discount')}
-          className={`text-left bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'with_discount' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
+          className={`text-start bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'with_discount' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
           title="Click to view only consumers with a discounted bill this month"
         >
-          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><Tag size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">With Discount</span></div>
+          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><Tag size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">{t('billing.withDiscount')}</span></div>
           <p className="font-sans text-[18px] font-bold text-dp-primary">{monthlyStats.withDiscountCount}</p>
           <p className="font-sans text-[11px] text-dp-on-surface-variant">Rs. {monthlyStats.withDiscountTotal.toLocaleString()}</p>
         </button>
         <button
           onClick={() => toggleQuickFilter('without_discount')}
-          className={`text-left bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'without_discount' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
+          className={`text-start bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'without_discount' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
           title="Click to view consumers who were not given a discount this month (includes those not yet billed)"
         >
-          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><Users size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">Without Discount</span></div>
+          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><Users size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">{t('billing.withoutDiscount')}</span></div>
           <p className="font-sans text-[18px] font-bold text-dp-primary">{monthlyStats.withoutDiscountCount}</p>
           <p className="font-sans text-[11px] text-dp-on-surface-variant">Rs. {monthlyStats.withoutDiscountTotal.toLocaleString()}</p>
         </button>
         <button
           onClick={() => toggleQuickFilter('new_this_month')}
-          className={`text-left bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'new_this_month' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
-          title="Click to view only consumers added this month"
+          className={`text-start bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'new_this_month' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
+          title={t('billing.tip.newThisMonth')}
         >
-          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><UserPlus size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">New This Month</span></div>
+          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><UserPlus size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">{t('billing.newThisMonth')}</span></div>
           <p className="font-sans text-[18px] font-bold text-dp-secondary">{monthlyStats.newThisMonth}</p>
         </button>
       </div>
@@ -663,7 +670,7 @@ function BillingPageInner() {
             onClick={() => setQuickFilter('none')}
             className="text-dp-secondary font-sans text-[13px] font-semibold hover:underline cursor-pointer whitespace-nowrap"
           >
-            Clear
+            {t('billing.clear')}
           </button>
         </div>
       )}
@@ -671,17 +678,17 @@ function BillingPageInner() {
       {/* Filters */}
       <div className="flex flex-col md:flex-row gap-3 mb-6">
         <div className="relative flex-1 max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-outline" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, consumer no, mobile..." className="w-full pl-10 pr-4 py-2 border-2 border-dp-outline-variant rounded-lg focus:border-dp-primary focus:ring-0 text-[14px] font-sans bg-white" />
+          <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-outline" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('billing.searchPlaceholder')} className="w-full ps-10 pe-4 py-2 border-2 border-dp-outline-variant rounded-lg focus:border-dp-primary focus:ring-0 text-[14px] font-sans bg-white" />
         </div>
         <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)} className="px-3 py-2 border-2 border-dp-outline-variant rounded-lg text-[14px] font-sans bg-white focus:border-dp-primary focus:ring-0">
-          <option value="">All Sectors</option>
+          <option value="">{t('billing.allSectors')}</option>
           {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 border-2 border-dp-outline-variant rounded-lg text-[14px] font-sans bg-white focus:border-dp-primary focus:ring-0">
-          <option value="">All Status</option>
-          <option value="pending">Has Outstanding Bills</option>
-          <option value="clear">Fully Paid Up</option>
+          <option value="">{t('billing.allStatus')}</option>
+          <option value="pending">{t('billing.hasOutstanding')}</option>
+          <option value="clear">{t('billing.fullyPaid')}</option>
         </select>
       </div>
 
@@ -692,9 +699,9 @@ function BillingPageInner() {
         <div className={`${selectedConsumer ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[340px] md:flex-shrink-0 min-h-0`}>
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden flex flex-col flex-1 min-h-0">
             {loading ? (
-              <div className="p-8 text-center text-dp-on-surface-variant font-sans">Loading...</div>
+              <div className="p-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
             ) : filteredConsumers.length === 0 ? (
-              <div className="p-8 text-center text-dp-on-surface-variant font-sans">No consumers found.</div>
+              <div className="p-8 text-center text-dp-on-surface-variant font-sans">{t('billing.noConsumers')}</div>
             ) : (
               <div className="overflow-y-auto hide-scrollbar flex-1 min-h-0">
                 {filteredConsumers.map((c, i) => {
@@ -704,22 +711,22 @@ function BillingPageInner() {
                     <button
                       key={c.consumer_id}
                       onClick={() => setSelectedConsumer(c)}
-                      className={`w-full text-left px-4 py-3 flex items-center justify-between gap-3 transition-colors ${i > 0 ? 'border-t border-dp-outline-variant' : ''} ${isSelected ? 'bg-dp-primary-container/30 border-l-4 border-l-dp-secondary' : 'hover:bg-dp-surface-container-low'}`}
+                      className={`w-full text-start px-4 py-3 flex items-center justify-between gap-3 transition-colors ${i > 0 ? 'border-t border-dp-outline-variant' : ''} ${isSelected ? 'bg-dp-primary-container/30 border-s-4 border-s-dp-secondary' : 'hover:bg-dp-surface-container-low'}`}
                     >
                       <div className="min-w-0">
                         {c.status === 'disconnected' && (
                           <span className="inline-flex items-center gap-1 mb-1 px-1.5 py-0.5 rounded-full text-[9.5px] font-bold uppercase tracking-wide bg-gray-200 text-gray-700">
-                            <Ban size={9} /> Disconnected
+                            <Ban size={9} /> {t('billing.disconnected')}
                           </span>
                         )}
                         {c.status === 'inactive' && (
                           <span className="inline-flex items-center gap-1 mb-1 px-1.5 py-0.5 rounded-full text-[9.5px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800">
-                            <Power size={9} /> Inactive
+                            <Power size={9} /> {t('billing.inactive')}
                           </span>
                         )}
                         {inProcessConsumerIds.has(c.consumer_id) && (
                           <span className="inline-flex items-center gap-1 mb-1 px-1.5 py-0.5 rounded-full text-[9.5px] font-bold uppercase tracking-wide bg-dp-secondary/15 text-dp-secondary">
-                            <UserPlus size={9} /> New Connection In Process
+                            <UserPlus size={9} /> {t('billing.newConnectionInProcess')}
                           </span>
                         )}
                         {complaintsByConsumer[c.consumer_id] && (
@@ -731,12 +738,12 @@ function BillingPageInner() {
                           <span className="font-sans text-[11px] font-bold text-dp-secondary">{c.consumer_id}</span>
                           {c.sector && <span className="text-[10px] text-dp-on-surface-variant font-sans">{c.sector}</span>}
                           {recurringSchedules[c.consumer_id] ? (
-                            <span className="flex items-center gap-0.5 text-[9.5px] font-bold uppercase tracking-wide text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full" title="Has an active recurring bill">
-                              <Repeat size={9} /> Recurring
+                            <span className="flex items-center gap-0.5 text-[9.5px] font-bold uppercase tracking-wide text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full" title={t('billing.tip.hasRecurring')}>
+                              <Repeat size={9} /> {t('billing.recurring')}
                             </span>
                           ) : (
-                            <span className="text-[9.5px] font-bold uppercase tracking-wide text-dp-on-surface-variant bg-dp-surface-container-low px-1.5 py-0.5 rounded-full" title="No recurring bill set up yet">
-                              Not Recurring
+                            <span className="text-[9.5px] font-bold uppercase tracking-wide text-dp-on-surface-variant bg-dp-surface-container-low px-1.5 py-0.5 rounded-full" title={t('billing.tip.noRecurring')}>
+                              {t('billing.notRecurring')}
                             </span>
                           )}
                         </div>
@@ -745,7 +752,7 @@ function BillingPageInner() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {stats.pendingCount > 0 ? (
-                          <div className="text-right">
+                          <div className="text-end">
                             <p className="font-sans text-[13px] font-bold text-dp-error">Rs. {stats.outstanding.toLocaleString()}</p>
                             <p className="font-sans text-[10px] text-dp-error/70">{stats.pendingCount} pending</p>
                             <p className="font-sans text-[9.5px] text-dp-error/60 max-w-[110px] truncate" title={stats.pendingMonths.join(', ')}>{stats.pendingMonths.join(', ')}</p>
@@ -779,10 +786,10 @@ function BillingPageInner() {
                       <span className="font-sans text-[12px] text-dp-on-surface-variant flex items-center gap-1"><MapPin size={12} />{selectedConsumer.sector}</span>
                     )}
                     {selectedConsumer.status === 'disconnected' && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wide bg-gray-200 text-gray-700"><Ban size={10} /> Disconnected</span>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wide bg-gray-200 text-gray-700"><Ban size={10} /> {t('billing.disconnected')}</span>
                     )}
                     {selectedConsumer.status === 'inactive' && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800"><Power size={10} /> Inactive</span>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800"><Power size={10} /> {t('billing.inactive')}</span>
                     )}
                   </div>
                   <h2 className="font-heading text-[22px] font-bold text-dp-primary">{selectedConsumer.name}</h2>
@@ -800,9 +807,9 @@ function BillingPageInner() {
                     <button
                       onClick={() => sendWhatsApp(selectedConsumer)}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-[#25d366] text-white rounded-lg font-sans text-[13px] font-semibold hover:opacity-90 transition-all cursor-pointer"
-                      title="Send WhatsApp notification"
+                      title={t('billing.tip.sendWhatsapp')}
                     >
-                      <MessageCircle size={15} /> Notify
+                      <MessageCircle size={15} /> {t('billing.notify')}
                     </button>
                   )}
                   <button onClick={() => setSelectedConsumer(null)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer md:hidden">
@@ -840,7 +847,7 @@ function BillingPageInner() {
               {/* Lifecycle actions */}
               <div className="mt-3 flex flex-wrap gap-2">
                 <button onClick={() => openEditConsumer(selectedConsumer)} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
-                  <Pencil size={13} /> Edit
+                  <Pencil size={13} /> {t('action.edit')}
                 </button>
                 {selectedConsumer.status !== 'disconnected' && (
                   <button onClick={() => toggleConsumerActive(selectedConsumer)} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
@@ -848,12 +855,11 @@ function BillingPageInner() {
                   </button>
                 )}
                 {selectedConsumer.status === 'disconnected' ? (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-sans text-[12.5px] font-bold bg-gray-100 text-gray-600" title="Reconnects automatically once dues are fully cleared">
-                    <Ban size={13} /> Disconnected — reconnects automatically once dues clear
-                  </span>
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-sans text-[12.5px] font-bold bg-gray-100 text-gray-600" title={t('billing.tip.reconnects')}>
+                    <Ban size={13} />{t('billing.disconnectedNote')}</span>
                 ) : (
                   <button onClick={() => openDisconnect(selectedConsumer)} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-error/40 text-dp-error rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-error/5 transition-all cursor-pointer">
-                    <Ban size={13} /> Permanent Disconnection
+                    <Ban size={13} /> {t('billing.permanentDisconnection')}
                   </button>
                 )}
               </div>
@@ -865,7 +871,7 @@ function BillingPageInner() {
             <div className="px-6 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/40">
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Repeat size={14} className="text-dp-secondary" />
-                <span className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Recurring Billing</span>
+                <span className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('billing.recurringBilling')}</span>
               </div>
               {recurringSchedules[selectedConsumer.consumer_id] ? (
                 <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -877,15 +883,15 @@ function BillingPageInner() {
                     <span className="text-dp-on-surface-variant"> · Next: {new Date(recurringSchedules[selectedConsumer.consumer_id].next_run_date).toLocaleDateString('en-GB')}</span>
                   </p>
                   <div className="flex items-center gap-1 shrink-0">
-                    <button onClick={() => openRecurringSetup(selectedConsumer)} title="Edit recurring billing" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Pencil size={14} /></button>
-                    <button onClick={() => pauseSchedule(recurringSchedules[selectedConsumer.consumer_id].id)} title="Pause recurring billing" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><PauseCircle size={15} /></button>
+                    <button onClick={() => openRecurringSetup(selectedConsumer)} title={t('billing.tip.editRecurring')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Pencil size={14} /></button>
+                    <button onClick={() => pauseSchedule(recurringSchedules[selectedConsumer.consumer_id].id)} title={t('billing.tip.pauseRecurring')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><PauseCircle size={15} /></button>
                   </div>
                 </div>
               ) : (
                 <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <p className="font-sans text-[13px] text-dp-on-surface-variant">No recurring bill set up.</p>
+                  <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('billing.noRecurring')}</p>
                   <button onClick={() => openRecurringSetup(selectedConsumer)} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-                    <Repeat size={13} /> Set Up Recurring
+                    <Repeat size={13} /> {t('billing.setUpRecurring')}
                   </button>
                 </div>
               )}
@@ -894,17 +900,17 @@ function BillingPageInner() {
             {/* Bills list */}
             <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-3">
               <div className="flex items-center justify-between mb-1">
-                <h3 className="font-sans text-[14px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Bills History</h3>
+                <h3 className="font-sans text-[14px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('billing.billsHistory')}</h3>
                 <Link
                   href={`/admin/finance/water_supply?action=generate_bill&consumer=${selectedConsumer.consumer_id}`}
                   className="flex items-center gap-1 text-dp-secondary font-sans text-[13px] font-semibold hover:underline cursor-pointer"
                 >
-                  <PlusCircle size={14} /> Generate Bill
+                  <PlusCircle size={14} /> {t('billing.generateBill')}
                 </Link>
               </div>
 
               {selectedBills.length === 0 && (
-                <div className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">No bills yet for this consumer.</div>
+                <div className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('billing.noBills')}</div>
               )}
 
               {selectedBills.map((bill) => {
@@ -921,11 +927,11 @@ function BillingPageInner() {
                         </div>
                         <div className="font-sans text-[13px] text-dp-on-surface-variant">
                           Total: Rs. {bill.amount_pkr.toLocaleString()}
-                          {(bill.discount_amount ?? 0) > 0 && <span className="ml-2 text-emerald-700">Discount: − Rs. {(bill.discount_amount ?? 0).toLocaleString()}</span>}
-                          {(bill.paid_amount ?? 0) > 0 && <span className="ml-2 text-emerald-600">Paid: Rs. {(bill.paid_amount ?? 0).toLocaleString()}</span>}
-                          {rem > 0 && <span className="ml-2 text-dp-error">Due: Rs. {rem.toLocaleString()}</span>}
+                          {(bill.discount_amount ?? 0) > 0 && <span className="ms-2 text-emerald-700">Discount: − Rs. {(bill.discount_amount ?? 0).toLocaleString()}</span>}
+                          {(bill.paid_amount ?? 0) > 0 && <span className="ms-2 text-emerald-600">Paid: Rs. {(bill.paid_amount ?? 0).toLocaleString()}</span>}
+                          {rem > 0 && <span className="ms-2 text-dp-error">Due: Rs. {rem.toLocaleString()}</span>}
                           {bill.waiver_voucher_id && (
-                            <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10.5px] font-bold uppercase tracking-wide">
+                            <span className="ms-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10.5px] font-bold uppercase tracking-wide">
                               {waiverVoucherStatus[bill.waiver_voucher_id] === 'pending'
                                 ? 'Waiver Pending Approval'
                                 : `Committee Waived ${bill.waiver_type === 'full' ? '(Full)' : `(${bill.waiver_percent}%)`}`}
@@ -947,16 +953,16 @@ function BillingPageInner() {
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"
                           >
                             <Banknote size={15} />
-                            Receive Now
+                            {t('billing.receiveNow')}
                           </button>
                         )}
-                        <Link href={`/admin/invoice/bill/${bill.id}`} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer" title="View invoice">
+                        <Link href={`/admin/invoice/bill/${bill.id}`} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer" title={t('billing.tip.viewInvoice')}>
                           <FileText size={15} />
                         </Link>
-                        <Link href={`/admin/finance/water_supply?action=generate_bill&bill=${bill.id}&consumer=${bill.consumer_id}`} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer" title="Edit bill">
+                        <Link href={`/admin/finance/water_supply?action=generate_bill&bill=${bill.id}&consumer=${bill.consumer_id}`} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer" title={t('billing.tip.editBill')}>
                           <Pencil size={15} />
                         </Link>
-                        <button onClick={() => setConfirmDeleteBill(bill.id)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer" title="Delete bill">
+                        <button onClick={() => setConfirmDeleteBill(bill.id)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer" title={t('billing.tip.deleteBill')}>
                           <Trash2 size={15} />
                         </button>
                       </div>
@@ -967,12 +973,12 @@ function BillingPageInner() {
                       <div className="bg-dp-surface-container-low border-t border-dp-outline-variant px-4 py-3 space-y-3">
                         <div className="flex items-center gap-2 mb-1">
                           <CreditCard size={15} className="text-dp-secondary" />
-                          <span className="font-sans text-[13px] font-semibold text-dp-on-surface">Record Payment</span>
+                          <span className="font-sans text-[13px] font-semibold text-dp-on-surface">{t('billing.recordPayment')}</span>
                           <span className="font-sans text-[12px] text-dp-on-surface-variant ml-auto">Outstanding: Rs. {rem.toLocaleString()}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Amount (PKR)</label>
+                            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('billing.amountPkr')}</label>
                             <input
                               type="number"
                               min={1}
@@ -982,21 +988,21 @@ function BillingPageInner() {
                             />
                           </div>
                           <div>
-                            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Method</label>
+                            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('billing.method')}</label>
                             <select
                               value={paymentForm.method}
                               onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
                               className="w-full px-3 py-2 bg-white border-2 border-dp-outline-variant rounded-lg text-[14px] font-sans focus:border-dp-secondary focus:ring-0"
                             >
-                              <option value="cash">Cash</option>
-                              <option value="jazzcash">JazzCash</option>
-                              <option value="easypaisa">Easypaisa</option>
-                              <option value="bank">Bank Transfer</option>
+                              <option value="cash">{t('billing.methodCash')}</option>
+                              <option value="jazzcash">{t('billing.methodJazzcash')}</option>
+                              <option value="easypaisa">{t('billing.methodEasypaisa')}</option>
+                              <option value="bank">{t('billing.methodBank')}</option>
                             </select>
                           </div>
                         </div>
                         <div>
-                          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Note (optional)</label>
+                          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('billing.noteOptional')}</label>
                           <input
                             type="text"
                             value={paymentForm.description}
@@ -1012,11 +1018,9 @@ function BillingPageInner() {
                           </div>
                         )}
                         <div className="flex gap-2">
-                          <button onClick={recordPayment} className="flex-1 bg-dp-secondary text-white py-2 rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-                            Record Payment
-                          </button>
+                          <button onClick={recordPayment} className="flex-1 bg-dp-secondary text-white py-2 rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">{t('billing.recordPayment')}</button>
                           <button onClick={() => setPaymentForm(null)} className="px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[14px] text-dp-on-surface-variant hover:bg-dp-surface-container cursor-pointer">
-                            Cancel
+                            {t('action.cancel')}
                           </button>
                         </div>
                       </div>
@@ -1030,7 +1034,7 @@ function BillingPageInner() {
           <div className="hidden md:flex flex-1 bg-white rounded-lg border border-dp-outline-variant items-center justify-center">
             <div className="text-center text-dp-on-surface-variant">
               <ChevronRight size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="font-sans text-[16px]">Select a consumer to view details</p>
+              <p className="font-sans text-[16px]">{t('billing.selectConsumer')}</p>
             </div>
           </div>
         )}
@@ -1064,7 +1068,7 @@ function BillingPageInner() {
             <div>
               <label className="flex items-center gap-2 cursor-pointer mb-2">
                 <input type="checkbox" checked={newConsumer.whatsapp_same_as_mobile} onChange={(e) => setNewConsumer({ ...newConsumer, whatsapp_same_as_mobile: e.target.checked })} className="accent-dp-secondary" />
-                <span className="font-sans text-[13.5px] text-dp-on-surface-variant">WhatsApp number is the same as contact number</span>
+                <span className="font-sans text-[13.5px] text-dp-on-surface-variant">{t('billing.whatsappSame')}</span>
               </label>
               {!newConsumer.whatsapp_same_as_mobile && (
                 <input type="text" value={newConsumer.whatsapp_number} onChange={(e) => setNewConsumer({ ...newConsumer, whatsapp_number: e.target.value })} placeholder="0300-1234567" className="input-field" />
@@ -1076,7 +1080,7 @@ function BillingPageInner() {
               </Field>
               <Field label="Sector">
                 <select value={newConsumer.sector} onChange={(e) => setNewConsumer({ ...newConsumer, sector: e.target.value })} className="input-field">
-                  <option value="">Select sector...</option>
+                  <option value="">{t('billing.selectSector')}</option>
                   {sectorOptions.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
               </Field>
@@ -1095,7 +1099,7 @@ function BillingPageInner() {
                 <input type="number" value={newConsumer.monthly_rate || ''} onChange={(e) => setNewConsumer({ ...newConsumer, monthly_rate: +e.target.value })} className="input-field" />
               </Field>
             </div>
-            <button onClick={addConsumer} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">Add Consumer</button>
+            <button onClick={addConsumer} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">{t('billing.addConsumer')}</button>
           </div>
         </Modal>
       )}
@@ -1116,7 +1120,7 @@ function BillingPageInner() {
             <div>
               <label className="flex items-center gap-2 cursor-pointer mb-2">
                 <input type="checkbox" checked={editForm.whatsapp_same_as_mobile} onChange={(e) => setEditForm({ ...editForm, whatsapp_same_as_mobile: e.target.checked })} className="accent-dp-secondary" />
-                <span className="font-sans text-[13.5px] text-dp-on-surface-variant">WhatsApp number is the same as contact number</span>
+                <span className="font-sans text-[13.5px] text-dp-on-surface-variant">{t('billing.whatsappSame')}</span>
               </label>
               {!editForm.whatsapp_same_as_mobile && (
                 <input type="text" value={editForm.whatsapp_number} onChange={(e) => setEditForm({ ...editForm, whatsapp_number: e.target.value })} placeholder="0300-1234567" className="input-field" />
@@ -1128,7 +1132,7 @@ function BillingPageInner() {
               </Field>
               <Field label="Sector">
                 <select value={editForm.sector} onChange={(e) => setEditForm({ ...editForm, sector: e.target.value })} className="input-field">
-                  <option value="">Select sector...</option>
+                  <option value="">{t('billing.selectSector')}</option>
                   {sectorOptions.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
               </Field>
@@ -1163,13 +1167,13 @@ function BillingPageInner() {
               <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{disconnectTarget.consumer_id}</p>
             </div>
             {!disconnectPreview ? (
-              <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-4">Calculating settlement...</p>
+              <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-4">{t('billing.calculatingSettlement')}</p>
             ) : (
               <div className="space-y-1.5 font-sans text-[13.5px]">
-                <div className="flex justify-between"><span className="text-dp-on-surface-variant">Security deposit held</span><span className="font-semibold">Rs. {disconnectPreview.deposit_on_hand.toLocaleString()}</span></div>
-                <div className="flex justify-between"><span className="text-dp-on-surface-variant">Pending bill balance</span><span className="font-semibold">Rs. {Math.max(disconnectPreview.pending_balance, 0).toLocaleString()}</span></div>
+                <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('billing.securityHeld')}</span><span className="font-semibold">Rs. {disconnectPreview.deposit_on_hand.toLocaleString()}</span></div>
+                <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('billing.pendingBalance')}</span><span className="font-semibold">Rs. {Math.max(disconnectPreview.pending_balance, 0).toLocaleString()}</span></div>
                 {disconnectPreview.applied > 0 && (
-                  <div className="flex justify-between text-dp-on-surface-variant"><span>Applied to pending balance</span><span>− Rs. {disconnectPreview.applied.toLocaleString()}</span></div>
+                  <div className="flex justify-between text-dp-on-surface-variant"><span>{t('billing.appliedToPending')}</span><span>− Rs. {disconnectPreview.applied.toLocaleString()}</span></div>
                 )}
                 <div className="flex justify-between border-t border-dp-outline-variant pt-2 mt-1 font-bold text-[14.5px]">
                   <span>{disconnectPreview.refund > 0 ? 'Refund due to consumer' : 'Still owed by consumer'}</span>
@@ -1206,7 +1210,7 @@ function BillingPageInner() {
             </Field>
             {billingSetupForm.discount_amount > 0 && (
               <p className="font-sans text-[12.5px] text-dp-on-surface-variant -mt-2">
-                Net monthly bill: <span className="font-bold text-dp-on-surface">Rs. {Math.max(billingSetupForm.monthly_amount - billingSetupForm.discount_amount, 0).toLocaleString()}</span>
+                {t('billing.netMonthly')} <span className="font-bold text-dp-on-surface">Rs. {Math.max(billingSetupForm.monthly_amount - billingSetupForm.discount_amount, 0).toLocaleString()}</span>
               </p>
             )}
             <Field label="Description (optional)">
@@ -1214,15 +1218,15 @@ function BillingPageInner() {
             </Field>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={billingSetupForm.recurring_enabled} onChange={(e) => setBillingSetupForm({ ...billingSetupForm, recurring_enabled: e.target.checked })} className="accent-dp-secondary w-4 h-4" />
-              <span className="font-sans text-[14px] font-semibold text-dp-on-surface flex items-center gap-1.5"><Clock size={14} /> Set Recurring Monthly Bill</span>
+              <span className="font-sans text-[14px] font-semibold text-dp-on-surface flex items-center gap-1.5"><Clock size={14} /> {t('billing.setRecurringMonthly')}</span>
             </label>
             {billingSetupForm.recurring_enabled && (
               <select value={billingSetupForm.recurring_frequency} onChange={(e) => setBillingSetupForm({ ...billingSetupForm, recurring_frequency: e.target.value })} className="input-field">
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="semi_annual">Every 6 Months</option>
-                <option value="yearly">Yearly</option>
+                <option value="daily">{t('billing.freqDaily')}</option>
+                <option value="weekly">{t('billing.freqWeekly')}</option>
+                <option value="monthly">{t('billing.freqMonthly')}</option>
+                <option value="semi_annual">{t('billing.freqSemiAnnual')}</option>
+                <option value="yearly">{t('billing.freqYearly')}</option>
               </select>
             )}
             <button disabled={settingUpBilling} onClick={saveBillingSetup} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
@@ -1231,7 +1235,7 @@ function BillingPageInner() {
           </div>
         </Modal>
       )}
-    </>
+    </div>
   )
 }
 
