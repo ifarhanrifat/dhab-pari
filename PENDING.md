@@ -222,3 +222,56 @@ purpose.
 - **Stray macOS duplicate files** in the working tree (`.next 2/`,
   `Header 2.tsx`, `docTranslations 2.ts`) — stale copies, deliberately not
   committed, safe to delete.
+
+## `REVOKE ... FROM PUBLIC` has never kept `anon` out (codebase-wide)
+
+**37 migrations** end their function definitions with
+
+```sql
+REVOKE ALL ON FUNCTION some_fn(...) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION some_fn(...) TO authenticated;
+```
+
+and **none** of them revoke from `anon`. This does not do what it reads as.
+Supabase ships
+
+```sql
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role;
+```
+
+so every new function is granted to `anon` **explicitly, by name**, and
+revoking from `PUBLIC` does not remove an explicit role grant. Confirmed
+empirically with the anon key: functions "revoked from PUBLIC" are still
+callable by a signed-out visitor.
+
+**This is not currently a breach.** Every one of these functions guards itself
+internally, and `auth.uid()` is NULL for anon, so the permission checks refuse
+and the SECURITY DEFINER bodies return nothing. The defence in depth is what is
+actually holding. But the grant is not the barrier it was written to be, so the
+internal guard is the *only* barrier — and migration 192 exists precisely
+because one of those internal guards was silently broken for a day.
+
+Migration 193 fixed the ten blood/badge functions by naming `anon` in the
+REVOKE. The remaining ~36 migrations have not been swept.
+
+**The sweep is safe to do** — the full set of functions a signed-out visitor
+legitimately needs is only eight, derived by grepping every `.rpc(` call
+reachable without a login:
+
+| Function | Used by |
+|---|---|
+| `blood_group_counts` | home page panel, `/blood` |
+| `submit_blood_request` | `/blood` request form |
+| `homepage_stats` | home page stat cards |
+| `public_bill_lookup` | `/water` bill lookup |
+| `check_donor_duplicate` | public donation submission |
+| `flag_project_comment` | public project pages |
+| `project_donation_channels_pkr` | public project pages |
+| `project_monthly_sponsorship_pkr` | public project pages |
+
+Everything else in `public` can be revoked from `anon`. Do it as
+`REVOKE ... FROM anon` per function (or a `DO` loop over `pg_proc` with the
+eight above as an allowlist), then smoke-test all 21 routes under
+`src/app/(public)/` — a miss shows up immediately as a broken public page,
+not as a silent hole.
