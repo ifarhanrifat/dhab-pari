@@ -99,7 +99,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     // So Urdu reads in the normal start-to-right layout until that sweep is
     // done, which is legible and honest. Flip this to RTL_READY once the
     // conversion lands, and the whole app mirrors from this one line.
-    el.dir = RTL_READY && locale === 'ur' ? 'rtl' : 'ltr'
+    if (RTL_READY) el.dir = locale === 'ur' ? 'rtl' : 'ltr'
   }, [locale])
 
   const t = useCallback((key: string, fallback?: string) => {

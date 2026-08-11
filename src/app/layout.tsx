@@ -86,6 +86,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      // Written on the server so the very first paint is left-to-right. The
+      // locale provider updates `lang` for the font, but no longer touches
+      // `dir` — an earlier build did, and a browser holding that bundle could
+      // leave the shell rotated with the sidebar stranded on the right.
+      dir="ltr"
       className={`${sourceSans.variable} ${playfair.variable} ${notoNastaliq.variable} ${notoNaskhArabic.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
