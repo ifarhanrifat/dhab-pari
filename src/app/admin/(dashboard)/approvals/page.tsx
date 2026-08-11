@@ -163,7 +163,7 @@ export default function ApprovalsPage() {
     <>
       <div className="mb-6">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
-          <ShieldCheck size={26} /> Approvals
+          <ShieldCheck size={26} /> {t('ap.title')}
         </h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">
           Every configured approver must confirm before a transaction posts — or it auto-posts 24 hours after it was created.
@@ -174,7 +174,7 @@ export default function ApprovalsPage() {
         <h2 className="font-sans text-[15px] font-bold text-dp-on-surface mb-3">Needs Your Confirmation ({mine.length})</h2>
         {mine.length === 0 ? (
           <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">
-            Nothing waiting on you right now.
+            {t('ap.nothingWaiting')}
           </div>
         ) : (
           <div className="space-y-3">
@@ -213,7 +213,7 @@ export default function ApprovalsPage() {
                       <p className="font-sans text-[16px] font-bold text-dp-primary mt-1">Rs. {fmt(r.amount_pkr)}</p>
                       {attachmentUrl && (
                         <a href={attachmentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[12.5px] font-semibold hover:underline mt-1">
-                          <Paperclip size={13} /> View Attached Bill
+                          <Paperclip size={13} /> {t('ap.viewAttachedBill')}
                         </a>
                       )}
                     </div>
@@ -223,14 +223,14 @@ export default function ApprovalsPage() {
                         onClick={() => decide(c, true)}
                         className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-50"
                       >
-                        <Check size={14} /> Confirm
+                        <Check size={14} /> {t('ap.confirm')}
                       </button>
                       <button
                         disabled={busyId === c.id}
                         onClick={() => setConfirmReject(c)}
                         className="flex items-center gap-1.5 px-3.5 py-2 border border-dp-error text-dp-error rounded-lg font-sans text-[13px] font-semibold hover:bg-red-50 transition-all cursor-pointer disabled:opacity-50"
                       >
-                        <X size={14} /> Reject
+                        <X size={14} /> {t('ap.reject')}
                       </button>
                     </div>
                   </div>
@@ -245,7 +245,7 @@ export default function ApprovalsPage() {
         <h2 className="font-sans text-[15px] font-bold text-dp-on-surface mb-3">All Pending Approvals ({otherPending.length})</h2>
         {otherPending.length === 0 ? (
           <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">
-            Nothing else pending.
+            {t('ap.nothingElse')}
           </div>
         ) : (
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
@@ -255,8 +255,8 @@ export default function ApprovalsPage() {
                   <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                     <th className="px-5 py-2.5">{t('w.particular')}</th>
                     <th className="px-5 py-2.5 text-end">{t('w.amount')}</th>
-                    <th className="px-5 py-2.5">Waiting On</th>
-                    <th className="px-5 py-2.5">Deadline</th>
+                    <th className="px-5 py-2.5">{t('ap.waitingOn')}</th>
+                    <th className="px-5 py-2.5">{t('ap.deadline')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -294,7 +294,7 @@ export default function ApprovalsPage() {
                                         title="Approve on their behalf"
                                         className="flex items-center gap-1 px-1.5 py-0.5 border border-dp-outline-variant rounded font-sans text-[10.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-40"
                                       >
-                                        <UserCog size={10} /> Approve for them
+                                        <UserCog size={10} /> {t('ap.approveForThem')}
                                       </button>
                                     )}
                                   </span>

@@ -26,7 +26,7 @@ export default function RegisterPage() {
   return (
     <>
       <div className="flex items-center justify-between mb-6 print:hidden gap-4 flex-wrap">
-        <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary">Daily Register</h1>
+        <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary">{t('f.dailyRegister')}</h1>
         {!access.loading && (access.canWaterSupply || access.canDonorsProjects) && (
           <div className="flex items-center gap-1 bg-dp-surface-container-low rounded-lg p-1">
             {access.canWaterSupply && (

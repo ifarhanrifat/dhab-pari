@@ -112,7 +112,7 @@ export default function AdminPaymentClaimsPage() {
                     <CheckCircle size={14} /> Approve &amp; Post
                   </button>
                   <button onClick={() => reject(c.id)} disabled={busyId === c.id} className="flex items-center gap-1.5 px-4 py-2 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container transition-all disabled:opacity-50">
-                    <XCircle size={14} /> Reject
+                    <XCircle size={14} /> {t('ap.reject')}
                   </button>
                   {!signedUrls[c.id] && <span className="flex items-center gap-1 text-[12px] text-dp-on-surface-variant"><ImageIcon size={13} /> No preview</span>}
                 </div>

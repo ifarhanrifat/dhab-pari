@@ -521,7 +521,7 @@ export default function AdminUsersPage() {
                     ) : u.invite_accepted_at ? (
                       <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700"><CheckCircle2 size={12} /> Accepted</span>
                     ) : (
-                      <span className="flex items-center gap-1 text-[11px] font-bold text-amber-700"><Clock size={12} /> Pending</span>
+                      <span className="flex items-center gap-1 text-[11px] font-bold text-amber-700"><Clock size={12} /> {t('tx.pending')}</span>
                     )}
                   </td>
                   <td className="p-4 border-b border-dp-outline-variant">

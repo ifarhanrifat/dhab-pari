@@ -561,6 +561,69 @@ export const messages: Record<Locale, Record<string, string>> = {
     'a.recurring': 'Recurring',
     'a.addItem': 'Add Item',
     'a.noInventory': 'No inventory items yet.',
+    // ── Admin: transactions workspace ────────────────────────────────────
+    'f.addCharge': 'Add Charge', 'f.addDiscount': 'Add Discount', 'f.addItemService': 'Add Item / Service',
+    'f.addLine': 'Add Line', 'f.addNewItem': 'Add New Item', 'f.addOtherCharge': 'Add Other Charge',
+    'f.advancePrepayment': 'Advance / Prepayment', 'f.anonymousDonor': 'Anonymous Donor',
+    'f.approved': 'Approved', 'f.back': 'Back', 'f.billNumber': 'Bill Number', 'f.billingItems': 'Billing Items',
+    'f.billingPeriod': 'Billing Period', 'f.cashReceipt': 'Cash Receipt', 'f.customCharge': 'Custom Charge',
+    'f.dailyRegister': 'Daily Register', 'f.descriptionReq': 'Description *', 'f.discount': 'Discount',
+    'f.discountPct': 'Discount %', 'f.discountTax': 'Discount & Tax', 'f.discountValue': 'Discount Value',
+    'f.donorType': 'Donor Type', 'f.dueDate': 'Due Date', 'f.editPayment': 'Edit Payment', 'f.editVoucher': 'Edit Voucher',
+    'f.expenseLines': 'Expense Lines', 'f.gotIt': 'Got it', 'f.items': 'Items', 'f.itemsPurchased': 'Items Purchased',
+    'f.loadingBill': 'Loading bill...', 'f.netPayable': 'Net Payable', 'f.newChargeAccount': 'New Charge Account',
+    'f.noItems': 'No items yet — add one below.',
+    'f.noItemsConsumer': 'No items yet — choose a consumer or add one below.',
+    'f.noOutstanding': 'No outstanding bills for this consumer.', 'f.notProjectSpecific': 'Not project-specific',
+    'f.otherCharges': 'Other Charges', 'f.paidVia': 'Paid Via', 'f.partyOptional': 'Party (optional)',
+    'f.purchaseBill': 'Purchase Bill', 'f.purchasedFrom': 'Purchased From (optional)', 'f.rate': 'Rate',
+    'f.receiptTotal': 'Receipt Total', 'f.receiveDepositNow': 'Receive Deposit Now', 'f.receivePayment': 'Receive Payment',
+    'f.receivePaymentNow': 'Receive Payment Now', 'f.recentTransactions': 'Recent Transactions',
+    'f.recordDonation': 'Record Donation', 'f.recurringSchedules': 'Recurring Schedules', 'f.saveNew': 'Save & New',
+    'f.saveCashReceipt': 'Save Cash Receipt', 'f.savePurchaseBill': 'Save Purchase Bill',
+    'f.securityDeposit': 'Security Deposit / Advance (optional, refundable)', 'f.services': 'Services',
+    'f.splitAccounts': 'Split across multiple accounts', 'f.subtotal': 'Subtotal', 'f.unitCost': 'Unit Cost',
+    'f.viewSendInvoice': 'View & Send Invoice', 'f.viewBillLedger': 'View Bill & Ledger Postings',
+    'f.viewAll': 'View all', 'f.villager': 'Villager',
+
+    // ── Admin: all transactions ──────────────────────────────────────────
+    'tx.title': 'All Transactions', 'tx.allStatuses': 'All statuses', 'tx.allTypes': 'All types',
+    'tx.autoPostedOnly': 'Auto-posted only', 'tx.bankTransfers': 'Bank Transfers', 'tx.bills': 'Bills',
+    'tx.cashDeposits': 'Cash Deposits', 'tx.cashWithdrawals': 'Cash Withdrawals', 'tx.donations': 'Donations',
+    'tx.expenseVouchers': 'Expense Vouchers', 'tx.incomeVouchers': 'Income Vouchers', 'tx.jumpYear': 'Jump to year...',
+    'tx.noMatch': 'No transactions match these filters.', 'tx.overdue': 'Overdue', 'tx.partial': 'Partial',
+    'tx.paymentsReceipts': 'Payments / Receipts', 'tx.pending': 'Pending', 'tx.purchases': 'Purchases',
+    'tx.depositRefunds': 'Security Deposit Refunds', 'tx.securityDeposits': 'Security Deposits',
+    'tx.thisMonth': 'This Month', 'tx.advancePayments': 'Advance Payments',
+
+    // ── Admin: chart of accounts ─────────────────────────────────────────
+    'ac.title': 'Chart of Accounts', 'ac.accountHeader': 'Account Header *',
+    'ac.nameEn': 'Account Name (English) *', 'ac.nameUr': 'Account Name (Urdu)', 'ac.addNew': 'Add New Account',
+    'ac.codePrefix': 'Code Prefix (for auto serial numbers) *', 'ac.createFirst': 'Create First Account',
+    'ac.createHeader': 'Create Header', 'ac.editFromBilling': 'Edit / Activate / Deactivate from Billing',
+    'ac.editAccount': 'Edit Account', 'ac.labelEn': 'Label (English) *', 'ac.labelUr': 'Label (Urdu)',
+    'ac.loading': 'Loading accounts...', 'ac.newHeader': 'New Account Header',
+    'ac.openingBalance': 'Opening Balance (PKR)', 'ac.selectHeader': 'Select a header...',
+    'ac.shortCode': 'Short Code *', 'ac.system': 'System', 'ac.viewAccount': 'View Account',
+    'ac.viewReceivable': 'View Receivable Ledger', 'ac.donorsSystem': 'Donors & Projects System',
+
+    // ── Admin: reports ───────────────────────────────────────────────────
+    'rp.title': 'Reports', 'rp.account': 'Account', 'rp.statementLookup': 'Account Statement Lookup',
+    'rp.allProjects': 'All projects', 'rp.allSectors': 'All sectors', 'rp.balanceSheet': 'Balance Sheet',
+    'rp.consumerOutstanding': 'Consumer Outstanding Report', 'rp.donorReport': 'Donor Report',
+    'rp.openInChart': 'Open in Chart of Accounts', 'rp.profitLoss': 'Profit & Loss Statement',
+    'rp.report': 'Report', 'rp.selectAccount': 'Select account...', 'rp.trialBalance': 'Trial Balance',
+
+    // ── Admin: recurring & approvals ─────────────────────────────────────
+    'rc.bill': 'Bill', 'rc.clearDate': 'Clear date', 'rc.donation': 'Donation', 'rc.expense': 'Expense',
+    'rc.lastRun': 'Last Run', 'rc.nextRun': 'Next Run', 'rc.transaction': 'Transaction',
+    'rc.noSchedules': 'No recurring schedules set up yet.',
+    'rc.noneOfType': 'No recurring transactions of this type yet.',
+    'ap.title': 'Approvals', 'ap.approveForThem': 'Approve for them', 'ap.confirm': 'Confirm',
+    'ap.deadline': 'Deadline', 'ap.nothingElse': 'Nothing else pending.',
+    'ap.nothingWaiting': 'Nothing waiting on you right now.', 'ap.reject': 'Reject',
+    'ap.viewAttachedBill': 'View Attached Bill', 'ap.waitingOn': 'Waiting On',
+
 
 
 
@@ -1110,6 +1173,71 @@ export const messages: Record<Locale, Record<string, string>> = {
     'a.recurring': 'مستقل',
     'a.addItem': 'آئٹم شامل کریں',
     'a.noInventory': 'ابھی کوئی انوینٹری آئٹم نہیں۔',
+    // ── Admin: transactions workspace ────────────────────────────────────
+    'f.addCharge': 'چارج شامل کریں', 'f.addDiscount': 'رعایت شامل کریں', 'f.addItemService': 'آئٹم / خدمت شامل کریں',
+    'f.addLine': 'سطر شامل کریں', 'f.addNewItem': 'نیا آئٹم شامل کریں', 'f.addOtherCharge': 'دیگر چارج شامل کریں',
+    'f.advancePrepayment': 'پیشگی رقم', 'f.anonymousDonor': 'گمنام عطیہ دہندہ',
+    'f.approved': 'منظور شدہ', 'f.back': 'واپس', 'f.billNumber': 'بل نمبر', 'f.billingItems': 'بل کی اشیاء',
+    'f.billingPeriod': 'بلنگ کی مدت', 'f.cashReceipt': 'نقد رسید', 'f.customCharge': 'اپنی مرضی کا چارج',
+    'f.dailyRegister': 'روزنامچہ', 'f.descriptionReq': 'تفصیل *', 'f.discount': 'رعایت',
+    'f.discountPct': 'رعایت فیصد', 'f.discountTax': 'رعایت و ٹیکس', 'f.discountValue': 'رعایت کی رقم',
+    'f.donorType': 'عطیہ دہندہ کی قسم', 'f.dueDate': 'آخری تاریخ', 'f.editPayment': 'ادائیگی میں ترمیم',
+    'f.editVoucher': 'واؤچر میں ترمیم', 'f.expenseLines': 'اخراجات کی سطریں', 'f.gotIt': 'سمجھ گیا',
+    'f.items': 'اشیاء', 'f.itemsPurchased': 'خریدی گئی اشیاء', 'f.loadingBill': 'بل لوڈ ہو رہا ہے...',
+    'f.netPayable': 'قابلِ ادائیگی', 'f.newChargeAccount': 'نیا چارج اکاؤنٹ',
+    'f.noItems': 'ابھی کوئی آئٹم نہیں — نیچے شامل کریں۔',
+    'f.noItemsConsumer': 'ابھی کوئی آئٹم نہیں — صارف منتخب کریں یا نیچے شامل کریں۔',
+    'f.noOutstanding': 'اس صارف کا کوئی واجب الادا بل نہیں۔', 'f.notProjectSpecific': 'کسی مخصوص منصوبے سے نہیں',
+    'f.otherCharges': 'دیگر چارجز', 'f.paidVia': 'ادائیگی بذریعہ', 'f.partyOptional': 'فریق (اختیاری)',
+    'f.purchaseBill': 'خریداری کا بل', 'f.purchasedFrom': 'کہاں سے خریدا (اختیاری)', 'f.rate': 'ریٹ',
+    'f.receiptTotal': 'رسید کا کل', 'f.receiveDepositNow': 'ابھی ضمانتی رقم وصول کریں',
+    'f.receivePayment': 'ادائیگی وصول کریں', 'f.receivePaymentNow': 'ابھی ادائیگی وصول کریں',
+    'f.recentTransactions': 'حالیہ لین دین', 'f.recordDonation': 'عطیہ درج کریں',
+    'f.recurringSchedules': 'مستقل شیڈول', 'f.saveNew': 'محفوظ کر کے نیا',
+    'f.saveCashReceipt': 'نقد رسید محفوظ کریں', 'f.savePurchaseBill': 'خریداری کا بل محفوظ کریں',
+    'f.securityDeposit': 'ضمانتی رقم / پیشگی (اختیاری، قابلِ واپسی)', 'f.services': 'خدمات',
+    'f.splitAccounts': 'متعدد اکاؤنٹس میں تقسیم', 'f.subtotal': 'ذیلی میزان', 'f.unitCost': 'فی یونٹ لاگت',
+    'f.viewSendInvoice': 'بل دیکھیں و بھیجیں', 'f.viewBillLedger': 'بل و لیجر اندراجات دیکھیں',
+    'f.viewAll': 'سب دیکھیں', 'f.villager': 'گاؤں کا رہائشی',
+
+    // ── Admin: all transactions ──────────────────────────────────────────
+    'tx.title': 'تمام لین دین', 'tx.allStatuses': 'تمام حالتیں', 'tx.allTypes': 'تمام اقسام',
+    'tx.autoPostedOnly': 'صرف خودکار درج شدہ', 'tx.bankTransfers': 'بینک ٹرانسفر', 'tx.bills': 'بل',
+    'tx.cashDeposits': 'نقد جمع', 'tx.cashWithdrawals': 'نقد نکلوائی', 'tx.donations': 'عطیات',
+    'tx.expenseVouchers': 'اخراجات کے واؤچر', 'tx.incomeVouchers': 'آمدنی کے واؤچر', 'tx.jumpYear': 'سال منتخب کریں...',
+    'tx.noMatch': 'ان شرائط پر کوئی لین دین نہیں ملا۔', 'tx.overdue': 'تاخیر شدہ', 'tx.partial': 'جزوی',
+    'tx.paymentsReceipts': 'ادائیگیاں / رسیدیں', 'tx.pending': 'زیرِ التوا', 'tx.purchases': 'خریداری',
+    'tx.depositRefunds': 'ضمانتی رقم کی واپسی', 'tx.securityDeposits': 'ضمانتی رقوم',
+    'tx.thisMonth': 'اس ماہ', 'tx.advancePayments': 'پیشگی ادائیگیاں',
+
+    // ── Admin: chart of accounts ─────────────────────────────────────────
+    'ac.title': 'اکاؤنٹس کا چارٹ', 'ac.accountHeader': 'اکاؤنٹ ہیڈر *',
+    'ac.nameEn': 'اکاؤنٹ کا نام (انگریزی) *', 'ac.nameUr': 'اکاؤنٹ کا نام (اردو)', 'ac.addNew': 'نیا اکاؤنٹ',
+    'ac.codePrefix': 'کوڈ سابقہ (خودکار نمبر کے لیے) *', 'ac.createFirst': 'پہلا اکاؤنٹ بنائیں',
+    'ac.createHeader': 'ہیڈر بنائیں', 'ac.editFromBilling': 'بلنگ سے ترمیم / فعال / غیر فعال کریں',
+    'ac.editAccount': 'اکاؤنٹ میں ترمیم', 'ac.labelEn': 'عنوان (انگریزی) *', 'ac.labelUr': 'عنوان (اردو)',
+    'ac.loading': 'اکاؤنٹس لوڈ ہو رہے ہیں...', 'ac.newHeader': 'نیا اکاؤنٹ ہیڈر',
+    'ac.openingBalance': 'ابتدائی بیلنس (روپے)', 'ac.selectHeader': 'ہیڈر منتخب کریں...',
+    'ac.shortCode': 'مختصر کوڈ *', 'ac.system': 'سسٹم', 'ac.viewAccount': 'اکاؤنٹ دیکھیں',
+    'ac.viewReceivable': 'واجب الوصول لیجر دیکھیں', 'ac.donorsSystem': 'عطیات و منصوبہ جات سسٹم',
+
+    // ── Admin: reports ───────────────────────────────────────────────────
+    'rp.title': 'رپورٹس', 'rp.account': 'اکاؤنٹ', 'rp.statementLookup': 'اکاؤنٹ گوشوارہ تلاش',
+    'rp.allProjects': 'تمام منصوبے', 'rp.allSectors': 'تمام سیکٹر', 'rp.balanceSheet': 'بیلنس شیٹ',
+    'rp.consumerOutstanding': 'صارفین کے واجبات کی رپورٹ', 'rp.donorReport': 'عطیہ دہندگان کی رپورٹ',
+    'rp.openInChart': 'چارٹ آف اکاؤنٹس میں کھولیں', 'rp.profitLoss': 'نفع و نقصان کا گوشوارہ',
+    'rp.report': 'رپورٹ', 'rp.selectAccount': 'اکاؤنٹ منتخب کریں...', 'rp.trialBalance': 'ٹرائل بیلنس',
+
+    // ── Admin: recurring & approvals ─────────────────────────────────────
+    'rc.bill': 'بل', 'rc.clearDate': 'تاریخ صاف کریں', 'rc.donation': 'عطیہ', 'rc.expense': 'اخراجات',
+    'rc.lastRun': 'آخری بار', 'rc.nextRun': 'اگلی بار', 'rc.transaction': 'لین دین',
+    'rc.noSchedules': 'ابھی کوئی مستقل شیڈول مقرر نہیں۔',
+    'rc.noneOfType': 'اس قسم کا کوئی مستقل لین دین ابھی نہیں۔',
+    'ap.title': 'منظوریاں', 'ap.approveForThem': 'ان کی طرف سے منظور کریں', 'ap.confirm': 'تصدیق کریں',
+    'ap.deadline': 'آخری تاریخ', 'ap.nothingElse': 'اور کچھ زیرِ التوا نہیں۔',
+    'ap.nothingWaiting': 'اس وقت آپ پر کچھ زیرِ التوا نہیں۔', 'ap.reject': 'مسترد کریں',
+    'ap.viewAttachedBill': 'منسلک بل دیکھیں', 'ap.waitingOn': 'کس کا انتظار',
+
 
 
 

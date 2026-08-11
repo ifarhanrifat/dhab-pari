@@ -405,7 +405,7 @@ function AdminDonorsPageInner() {
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Name (Urdu)</label><input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder="اردو میں نام" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.phone')}</label><input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0300-1234567" className="input-field" /></div>
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Donor Type</label><select value={form.donor_type} onChange={(e) => setForm({ ...form, donor_type: e.target.value })} className="input-field"><option value="villager">Villager (مقامی)</option><option value="overseas">Overseas (بیرون ملک)</option></select></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('f.donorType')}</label><select value={form.donor_type} onChange={(e) => setForm({ ...form, donor_type: e.target.value })} className="input-field"><option value="villager">Villager (مقامی)</option><option value="overseas">Overseas (بیرون ملک)</option></select></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.amountPkr')}</label><input type="number" value={form.amount_pkr || ''} onChange={(e) => setForm({ ...form, amount_pkr: +e.target.value })} className="input-field" /></div>
@@ -423,7 +423,7 @@ function AdminDonorsPageInner() {
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.notesOptional')}</label>
                 <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} placeholder="Any additional notes..." className="input-field resize-none" />
               </div>
-              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_anonymous} onChange={(e) => setForm({ ...form, is_anonymous: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">Anonymous Donor</span></label>
+              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_anonymous} onChange={(e) => setForm({ ...form, is_anonymous: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('f.anonymousDonor')}</span></label>
               <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">Add Donor</button>
             </div>
           </div>
@@ -452,7 +452,7 @@ function AdminDonorsPageInner() {
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.name')}</label><input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="input-field" /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Father&apos;s / Husband&apos;s Name</label><input value={editForm.father_husband_name} onChange={(e) => setEditForm({ ...editForm, father_husband_name: e.target.value })} className="input-field" /></div>
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Donor Type</label><select value={editForm.donor_type} onChange={(e) => setEditForm({ ...editForm, donor_type: e.target.value })} className="input-field"><option value="villager">Villager</option><option value="overseas">Overseas</option></select></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('f.donorType')}</label><select value={editForm.donor_type} onChange={(e) => setEditForm({ ...editForm, donor_type: e.target.value })} className="input-field"><option value="villager">{t('f.villager')}</option><option value="overseas">Overseas</option></select></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.phone')}</label><input type="tel" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} className="input-field" /></div>
@@ -474,7 +474,7 @@ function AdminDonorsPageInner() {
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Notes</label>
                 <textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} rows={2} className="input-field resize-none" />
               </div>
-              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={editForm.is_anonymous} onChange={(e) => setEditForm({ ...editForm, is_anonymous: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">Anonymous Donor</span></label>
+              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={editForm.is_anonymous} onChange={(e) => setEditForm({ ...editForm, is_anonymous: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('f.anonymousDonor')}</span></label>
 
               {editTarget.is_verified ? (
                 <button onClick={saveEdits} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">Save Changes</button>

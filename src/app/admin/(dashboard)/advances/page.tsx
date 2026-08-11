@@ -171,7 +171,7 @@ export default function AdvancesPage() {
     <div>
       <div className="flex items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-[26px] sm:text-[32px] font-bold text-dp-primary flex items-center gap-2.5">
-          <HandCoins size={28} /> Advance Payments
+          <HandCoins size={28} /> {t('tx.advancePayments')}
         </h1>
         {canManage && (
           <Link href="/admin/finance/water_supply" className="flex items-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
@@ -249,7 +249,7 @@ export default function AdvancesPage() {
                 <div key={i} className="flex items-end gap-2 border border-dp-outline-variant rounded-lg p-3">
                   <div className="flex-1 space-y-2">
                     <select value={line.account_id} onChange={(e) => updateSettleLine(i, { account_id: e.target.value })} className="input-field">
-                      <option value="">Select account...</option>
+                      <option value="">{t('rp.selectAccount')}</option>
                       {expenseAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                     </select>
                     <button type="button" onClick={() => setQuickAddFor({ types: ['expense'], onPick: (a) => handleAccountCreated(a, (acc) => updateSettleLine(i, { account_id: acc.id })) })} className="text-[12px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer">+ New Account</button>
@@ -264,13 +264,13 @@ export default function AdvancesPage() {
                 </div>
               ))}
               <button onClick={addSettleLine} className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dp-secondary text-dp-secondary rounded-full font-sans text-[13.5px] font-bold hover:bg-dp-secondary/5 transition-all cursor-pointer">
-                <Plus size={15} /> Add Line
+                <Plus size={15} /> {t('f.addLine')}
               </button>
 
               <div>
                 <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Cash/Bank Account (for any refund or top-up)</label>
                 <select value={settleFromAccount} onChange={(e) => setSettleFromAccount(e.target.value)} className="input-field">
-                  <option value="">Select account...</option>
+                  <option value="">{t('rp.selectAccount')}</option>
                   {cashBankAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
                 <button type="button" onClick={() => setQuickAddFor({ types: ['cash', 'bank'], onPick: (a) => handleAccountCreated(a, (acc) => setSettleFromAccount(acc.id)) })} className="text-[12px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer mt-1">+ New Account</button>
@@ -319,7 +319,7 @@ export default function AdvancesPage() {
                   <div className="flex justify-between"><span className="text-dp-on-surface-variant">Real Bill Total</span><span className="font-semibold">Rs. {fmt(viewSettlement.amount_pkr)}</span></div>
                   {viewSettlement.attachment_url && (
                     <a href={viewSettlement.attachment_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-dp-secondary font-semibold hover:underline">
-                      <Paperclip size={13} /> View Attached Bill
+                      <Paperclip size={13} /> {t('ap.viewAttachedBill')}
                     </a>
                   )}
                 </div>
@@ -352,7 +352,7 @@ export default function AdvancesPage() {
               <div>
                 <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Paid From</label>
                 <select value={editForm.from_account_id} onChange={(e) => setEditForm({ ...editForm, from_account_id: e.target.value })} className="input-field">
-                  <option value="">Select account...</option>
+                  <option value="">{t('rp.selectAccount')}</option>
                   {cashBankAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
                 <button type="button" onClick={() => setQuickAddFor({ types: ['cash', 'bank'], onPick: (a) => handleAccountCreated(a, (acc) => setEditForm({ ...editForm, from_account_id: acc.id })) })} className="text-[12px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer mt-1">+ New Account</button>

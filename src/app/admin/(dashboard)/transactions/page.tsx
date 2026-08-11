@@ -335,7 +335,7 @@ export default function AllTransactionsPage() {
   return (
     <>
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
-        <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary">All Transactions</h1>
+        <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary">{t('tx.title')}</h1>
         {!access.loading && (access.canWaterSupply || access.canDonorsProjects) && (
           <div className="flex items-center gap-1 bg-dp-surface-container-low rounded-lg p-1">
             {access.canWaterSupply && (
@@ -361,39 +361,39 @@ export default function AllTransactionsPage() {
           <div>
             <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('a.year')}</label>
             <select onChange={(e) => applyYear(e.target.value)} defaultValue="" className="input-field !py-2 text-[14px]">
-              <option value="">Jump to year...</option>
+              <option value="">{t('tx.jumpYear')}</option>
               {years.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
           <button onClick={setCurrentMonth} className="px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
-            This Month
+            {t('tx.thisMonth')}
           </button>
           <div>
             <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('w.status')}</label>
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} className="input-field !py-2 text-[14px]">
-              <option value="all">All statuses</option>
+              <option value="all">{t('tx.allStatuses')}</option>
               <option value="paid">{t('w.paid')}</option>
-              <option value="partial">Partial</option>
-              <option value="pending">Pending</option>
-              <option value="overdue">Overdue</option>
+              <option value="partial">{t('tx.partial')}</option>
+              <option value="pending">{t('tx.pending')}</option>
+              <option value="overdue">{t('tx.overdue')}</option>
             </select>
           </div>
           <div>
             <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('a.type')}</label>
             <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} className="input-field !py-2 text-[14px]">
-              <option value="all">All types</option>
-              <option value="bill">Bills</option>
-              <option value="payment">Payments / Receipts</option>
-              {system === 'donors_projects' && <option value="donation">Donations</option>}
-              {system === 'water_supply' && <option value="purchase">Purchases</option>}
-              <option value="voucher:expense">Expense Vouchers</option>
-              <option value="voucher:income">Income Vouchers</option>
-              <option value="voucher:contra">Bank Transfers</option>
-              <option value="voucher:withdrawal">Cash Withdrawals</option>
-              <option value="voucher:deposit">Cash Deposits</option>
-              <option value="voucher:advance">Advance Payments</option>
-              <option value="voucher:security_deposit">Security Deposits</option>
-              <option value="voucher:security_deposit_refund">Security Deposit Refunds</option>
+              <option value="all">{t('tx.allTypes')}</option>
+              <option value="bill">{t('tx.bills')}</option>
+              <option value="payment">{t('tx.paymentsReceipts')}</option>
+              {system === 'donors_projects' && <option value="donation">{t('tx.donations')}</option>}
+              {system === 'water_supply' && <option value="purchase">{t('tx.purchases')}</option>}
+              <option value="voucher:expense">{t('tx.expenseVouchers')}</option>
+              <option value="voucher:income">{t('tx.incomeVouchers')}</option>
+              <option value="voucher:contra">{t('tx.bankTransfers')}</option>
+              <option value="voucher:withdrawal">{t('tx.cashWithdrawals')}</option>
+              <option value="voucher:deposit">{t('tx.cashDeposits')}</option>
+              <option value="voucher:advance">{t('tx.advancePayments')}</option>
+              <option value="voucher:security_deposit">{t('tx.securityDeposits')}</option>
+              <option value="voucher:security_deposit_refund">{t('tx.depositRefunds')}</option>
             </select>
           </div>
           <div>
@@ -403,7 +403,7 @@ export default function AllTransactionsPage() {
               title="Vouchers/purchases that posted after 24 hours without every approver confirming"
               className={`px-3 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all cursor-pointer border ${autoPostedOnly ? 'bg-amber-100 border-amber-400 text-amber-900' : 'border-dp-outline-variant text-dp-on-surface hover:bg-dp-surface-container-low'}`}
             >
-              Auto-posted only
+              {t('tx.autoPostedOnly')}
             </button>
           </div>
           <div className="flex-1 min-w-[220px]">
@@ -423,7 +423,7 @@ export default function AllTransactionsPage() {
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         {loading && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">{t('action.loading')}</p>}
-        {!loading && filteredRows.length === 0 && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">No transactions match these filters.</p>}
+        {!loading && filteredRows.length === 0 && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">{t('tx.noMatch')}</p>}
         <div className="divide-y divide-dp-outline-variant">
           {!loading && filteredRows.map((r) => (
             <div key={r.id} className={`flex border-s-[3px] ${r.borderColor}`}>
@@ -444,7 +444,7 @@ export default function AllTransactionsPage() {
                     )}
                     {r.fullyApproved && (
                       <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-800" title="Confirmed by every configured approver">
-                        Approved
+                        {t('f.approved')}
                       </span>
                     )}
                   </div>

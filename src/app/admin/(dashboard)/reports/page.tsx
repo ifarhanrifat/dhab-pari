@@ -278,7 +278,7 @@ function ReportsPageInner() {
   return (
     <>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-6 print:hidden">
-        <h1 className="font-heading text-[26px] sm:text-[32px] font-bold leading-[34px] sm:leading-[40px] text-dp-primary">Reports</h1>
+        <h1 className="font-heading text-[26px] sm:text-[32px] font-bold leading-[34px] sm:leading-[40px] text-dp-primary">{t('rp.title')}</h1>
         <button onClick={handlePrint} className="filter-btn border border-dp-outline-variant text-dp-on-surface hover:bg-dp-surface-container-low shrink-0">
           <Printer size={15} /> {t('a.print')}
         </button>
@@ -289,21 +289,21 @@ function ReportsPageInner() {
           instead of shrinking to content and stair-stepping. */}
       <div className="bg-white rounded-lg border border-dp-outline-variant p-4 mb-4 flex flex-wrap items-end gap-3 print:hidden">
         <div className="flex-1 min-w-[160px]">
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">System</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ac.system')}</label>
           <select value={system} onChange={(e) => setSystem(e.target.value as SystemTab)} className="filter-field">
             {access.canWaterSupply && <option value="water_supply">{t('a.waterSupplySystem')}</option>}
             {access.canDonorsProjects && <option value="donors_projects">Donors &amp; Projects</option>}
           </select>
         </div>
         <div className="flex-1 min-w-[190px]">
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Report</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('rp.report')}</label>
           <select value={reportType} onChange={(e) => setReportType(e.target.value as ReportType)} className="filter-field">
-            <option value="trial_balance">Trial Balance</option>
-            <option value="balance_sheet">Balance Sheet</option>
+            <option value="trial_balance">{t('rp.trialBalance')}</option>
+            <option value="balance_sheet">{t('rp.balanceSheet')}</option>
             <option value="income_expense">Profit &amp; Loss Statement</option>
-            {system === 'water_supply' && <option value="consumer_outstanding">Consumer Outstanding Report</option>}
-            {system === 'donors_projects' && <option value="donor_report">Donor Report</option>}
-            <option value="account_statement">Account Statement Lookup</option>
+            {system === 'water_supply' && <option value="consumer_outstanding">{t('rp.consumerOutstanding')}</option>}
+            {system === 'donors_projects' && <option value="donor_report">{t('rp.donorReport')}</option>}
+            <option value="account_statement">{t('rp.statementLookup')}</option>
           </select>
         </div>
         {(reportType === 'income_expense' || reportType === 'donor_report' || reportType === 'account_statement') && (
@@ -322,7 +322,7 @@ function ReportsPageInner() {
           <div className="flex-1 min-w-[170px]">
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.project')}</label>
             <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="filter-field">
-              <option value="">All projects</option>
+              <option value="">{t('rp.allProjects')}</option>
               {Object.entries(projects).map(([id, title]) => <option key={id} value={id}>{title}</option>)}
             </select>
           </div>
@@ -331,7 +331,7 @@ function ReportsPageInner() {
           <div className="flex-1 min-w-[150px]">
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.sector')}</label>
             <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)} className="filter-field">
-              <option value="">All sectors</option>
+              <option value="">{t('rp.allSectors')}</option>
               {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
@@ -339,15 +339,15 @@ function ReportsPageInner() {
         {reportType === 'account_statement' && (
           <div className="flex items-end gap-2 flex-1 min-w-[220px] flex-wrap">
             <div className="flex-1 min-w-[200px]">
-              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Account</label>
+              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('rp.account')}</label>
               <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)} className="filter-field">
-                <option value="">Select account...</option>
+                <option value="">{t('rp.selectAccount')}</option>
                 {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
             {selectedAccountId && (
               <Link href={`/admin/accounts/${selectedAccountId}`} className="filter-btn text-dp-secondary hover:underline px-0 sm:px-2">
-                <ExternalLink size={13} /> Open in Chart of Accounts
+                <ExternalLink size={13} /> {t('rp.openInChart')}
               </Link>
             )}
           </div>

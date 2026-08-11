@@ -1364,13 +1364,13 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link href="/admin/finance" className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold mb-3">
-            <ArrowLeft size={16} /> Back
+            <ArrowLeft size={16} /> {t('f.back')}
           </Link>
           <h1 className="font-heading text-[22px] sm:text-[28px] font-bold leading-[28px] sm:leading-[36px] text-dp-primary">{systemLabels[system]} — Transactions</h1>
         </div>
         <div className="shrink-0 flex items-center gap-2">
           <Link href={`/admin/finance/${system}/register`} className="flex items-center gap-2 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all">
-            <BookOpen size={15} /> Daily Register
+            <BookOpen size={15} /> {t('f.dailyRegister')}
           </Link>
         </div>
       </div>
@@ -1443,7 +1443,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   {activeType === 'expense' && (
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={multiLineExpense} onChange={(e) => setMultiLineExpense(e.target.checked)} className="accent-dp-secondary w-4 h-4" />
-                      <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">Split across multiple accounts</span>
+                      <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{t('f.splitAccounts')}</span>
                     </label>
                   )}
 
@@ -1468,7 +1468,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         onChange={(id) => setVoucherForm({ ...voucherForm, fromId: id })}
                       />
                       {newAccountLink(voucherAccountTypes[activeType as VoucherType].from, (a) => handleAccountCreated(a, (acc) => setVoucherForm((f) => ({ ...f, fromId: acc.id }))))}
-                      <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Expense Lines</p>
+                      <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('f.expenseLines')}</p>
                       {voucherLines.map((line, i) => (
                         <div key={i} className="flex items-end gap-2 border border-dp-outline-variant rounded-lg p-3">
                           <div className="flex-1 space-y-2">
@@ -1489,7 +1489,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         </div>
                       ))}
                       <button onClick={() => setVoucherLines([...voucherLines, { account_id: '', amount: 0, description: '' }])} className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dp-secondary text-dp-secondary rounded-full font-sans text-[13.5px] font-bold hover:bg-dp-secondary/5 transition-all cursor-pointer">
-                        <Plus size={15} /> Add Line
+                        <Plus size={15} /> {t('f.addLine')}
                       </button>
                       <div className="bg-dp-surface-container-low rounded-lg px-4 py-3 flex items-center justify-between">
                         <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('a.total')}</span>
@@ -1524,14 +1524,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     </div>
                   )}
                   <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Description *</label>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('f.descriptionReq')}</label>
                     <input value={voucherForm.particular} onChange={(e) => setVoucherForm({ ...voucherForm, particular: e.target.value })} className="input-field" placeholder="What is this transaction for?" />
                   </div>
                   {system === 'donors_projects' && activeType === 'expense' && (
                     <div>
                       <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Project (optional)</label>
                       <select value={voucherForm.projectId} onChange={(e) => setVoucherForm({ ...voucherForm, projectId: e.target.value })} className="input-field">
-                        <option value="">Not project-specific</option>
+                        <option value="">{t('f.notProjectSpecific')}</option>
                         {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
                       </select>
                     </div>
@@ -1548,7 +1548,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
             {activeType === 'cash_receipt' && (
               <div className="space-y-4">
-                <h2 className="font-heading text-[20px] font-bold text-dp-primary">Cash Receipt</h2>
+                <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('f.cashReceipt')}</h2>
                 <p className="font-sans text-[13px] text-dp-on-surface-variant -mt-2">Pick a consumer, then settle one or several of their outstanding bills in a single receipt.</p>
                 <SearchableField
                   label="Consumer" value={cashReceiptConsumerId} placeholder="Select consumer..."
@@ -1575,7 +1575,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
                     <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Outstanding Invoice{cashReceiptBills.length === 1 ? '' : 's'}</p>
                     {cashReceiptBills.length === 0 ? (
-                      <p className="font-sans text-[13.5px] text-dp-on-surface-variant py-4 text-center">No outstanding bills for this consumer.</p>
+                      <p className="font-sans text-[13.5px] text-dp-on-surface-variant py-4 text-center">{t('f.noOutstanding')}</p>
                     ) : (
                       <div className="space-y-2">
                         {cashReceiptBills.map((b, i) => (
@@ -1598,7 +1598,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     <label className="flex items-center gap-3 border border-dp-outline-variant rounded-lg p-3 cursor-pointer">
                       <input type="checkbox" checked={cashReceiptAdvance} onChange={(e) => { setCashReceiptAdvance(e.target.checked); if (!e.target.checked) setCashReceiptAdvanceAmount(0) }} className="accent-dp-secondary w-4 h-4 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">Advance / Prepayment</p>
+                        <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{t('f.advancePrepayment')}</p>
                         <p className="font-sans text-[12px] text-dp-on-surface-variant">Cash received beyond what&apos;s currently owed — credited to the consumer&apos;s account, netted against a future bill.</p>
                       </div>
                       {cashReceiptAdvance && (
@@ -1612,11 +1612,11 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     </label>
 
                     <div className="bg-dp-surface-container-low rounded-lg px-4 py-3 flex items-center justify-between">
-                      <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Receipt Total</span>
+                      <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('f.receiptTotal')}</span>
                       <span className="font-heading text-[20px] font-bold text-dp-primary">Rs. {fmtAmount(cashReceiptBills.filter((b) => b.selected).reduce((s, b) => s + (b.amount || 0), 0) + (cashReceiptAdvance ? cashReceiptAdvanceAmount : 0))}</span>
                     </div>
                     <button disabled={savingCashReceipt} onClick={saveCashReceipt} className="flex items-center gap-2 px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                      <Save size={16} /> Save Cash Receipt
+                      <Save size={16} /> {t('f.saveCashReceipt')}
                     </button>
                   </>
                 )}
@@ -1624,7 +1624,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
             )}
 
             {activeType === 'bill' && editLoading && (
-              <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading bill...</div>
+              <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('f.loadingBill')}</div>
             )}
 
             {activeType === 'bill' && !editLoading && editingBill && editingBill.paid_amount > 0 && (
@@ -1643,7 +1643,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     </div>
                   )}
                   <Link href={`/admin/invoice/bill/${editingBill.id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-                    <FileText size={13} /> View Bill & Ledger Postings
+                    <FileText size={13} /> {t('f.viewBillLedger')}
                   </Link>
                 </div>
               </div>
@@ -1664,7 +1664,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   <div className="flex items-center justify-between gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
                     <p className="font-sans text-[13.5px] font-semibold text-emerald-900">Bill {savedBill.bill_number} generated successfully</p>
                     <Link href={`/admin/invoice/bill/${savedBill.id}`} className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-                      <FileText size={13} /> View & Send Invoice
+                      <FileText size={13} /> {t('f.viewSendInvoice')}
                     </Link>
                   </div>
                 )}
@@ -1681,14 +1681,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 />
 
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Bill Number</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('f.billNumber')}</label>
                   <p className="input-field !py-3 bg-dp-surface-container-low text-dp-on-surface-variant">
                     {editingBill ? editingBill.bill_number : 'Auto-generated when saved'}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Billing Period</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('f.billingPeriod')}</label>
                   <input
                     type="date"
                     required
@@ -1708,7 +1708,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     never as raw inputs sitting on the main page. */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant">Billing Items</label>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant">{t('f.billingItems')}</label>
                     <button
                       onClick={() => setShowDiscountModePicker(true)}
                       className="flex items-center gap-1.5 px-2.5 py-1 border border-dp-outline-variant rounded-lg font-sans text-[12px] font-semibold text-dp-secondary hover:bg-dp-surface-container-low transition-all cursor-pointer"
@@ -1718,7 +1718,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   </div>
                   <div className="border border-dp-outline-variant rounded-xl overflow-hidden bg-white">
                     {billLines.length === 0 ? (
-                      <p className="px-4 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No items yet — choose a consumer or add one below.</p>
+                      <p className="px-4 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('f.noItemsConsumer')}</p>
                     ) : (
                       <div className="divide-y divide-dp-outline-variant">
                         {billLines.map((l, i) => {
@@ -1752,7 +1752,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         onClick={() => { setCatalogSearch(''); setBillPickerTab('items'); setEditingLineIndex(null); setNewLine(emptyNewLine); refetchCatalog(); setBillModalStep('picker') }}
                         className="w-full flex items-center justify-center gap-2 py-3.5 bg-dp-secondary text-white rounded-full font-sans text-[15.5px] font-bold hover:bg-dp-primary transition-all cursor-pointer shadow-sm"
                       >
-                        <Plus size={19} /> Add Item / Service
+                        <Plus size={19} /> {t('f.addItemService')}
                       </button>
                     </div>
                   </div>
@@ -1761,7 +1761,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 <div className="border border-dp-outline-variant rounded-lg p-3.5">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={showOtherCharge} onChange={(e) => setShowOtherCharge(e.target.checked)} className="accent-dp-secondary w-4 h-4" />
-                    <span className="font-sans text-[14px] font-semibold text-dp-on-surface">Add Other Charge</span>
+                    <span className="font-sans text-[14px] font-semibold text-dp-on-surface">{t('f.addOtherCharge')}</span>
                   </label>
                   {showOtherCharge && (
                     <div className="mt-3 space-y-3">
@@ -1782,10 +1782,10 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                           <input type="number" min={0} value={otherChargeAmount || ''} onChange={(e) => setOtherChargeAmount(+e.target.value)} className="input-field !py-2.5 text-[15px]" />
                         </div>
                       </div>
-                      <button onClick={addOtherChargeLine} className="flex items-center gap-1.5 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"><Plus size={14} /> Add Charge</button>
+                      <button onClick={addOtherChargeLine} className="flex items-center gap-1.5 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"><Plus size={14} /> {t('f.addCharge')}</button>
 
                       <div className="pt-1">
-                        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Security Deposit / Advance (optional, refundable)</label>
+                        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('f.securityDeposit')}</label>
                         {editingBill?.security_deposit_voucher_id ? (
                           <p className="input-field !py-3 bg-dp-surface-container-low text-dp-on-surface-variant">Rs. {fmtAmount(billForm.security_deposit_amount)} — already recorded</p>
                         ) : (
@@ -1804,7 +1804,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         <div className="border border-dp-outline-variant rounded-lg p-3.5">
                           <label className="flex items-center gap-2 cursor-pointer mb-2">
                             <input type="checkbox" checked={receiveDepositNow} onChange={(e) => setReceiveDepositNow(e.target.checked)} className="accent-dp-secondary" />
-                            <span className="font-sans text-[14px] font-semibold flex items-center gap-1.5"><Banknote size={14} /> Receive Deposit Now</span>
+                            <span className="font-sans text-[14px] font-semibold flex items-center gap-1.5"><Banknote size={14} /> {t('f.receiveDepositNow')}</span>
                           </label>
                           {receiveDepositNow ? (
                             <SearchableField
@@ -1829,12 +1829,12 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         onChange={(e) => { setShowDiscountOnTotal(e.target.checked); if (!e.target.checked) { setDiscountPercent(0); setBillForm({ ...billForm, discount_amount: 0 }) } }}
                         className="accent-dp-secondary w-4 h-4"
                       />
-                      <span className="font-sans text-[14px] font-semibold text-dp-on-surface">Add Discount</span>
+                      <span className="font-sans text-[14px] font-semibold text-dp-on-surface">{t('f.addDiscount')}</span>
                     </label>
                     {showDiscountOnTotal && (
                       <div className="mt-3 flex items-end gap-3">
                         <div className="flex-1">
-                          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Discount %</label>
+                          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('f.discountPct')}</label>
                           <input
                             type="number" min={0} max={100} step="0.01" value={discountPercent || ''}
                             onChange={(e) => {
@@ -1852,7 +1852,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 )}
 
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Due Date</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('f.dueDate')}</label>
                   <input type="date" value={billForm.due_date} onChange={(e) => setBillForm({ ...billForm, due_date: e.target.value })} className="input-field" />
                 </div>
 
@@ -1867,11 +1867,11 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 />
 
                 <div className="w-full sm:w-1/2 bg-white border border-dp-outline-variant rounded-xl p-5 space-y-2 text-[14px] font-sans">
-                  <div className="flex justify-between"><span className="text-dp-on-surface-variant">Subtotal</span><span className="font-semibold">Rs. {fmtAmount(itemsSubtotal)}</span></div>
-                  {otherChargeLinesTotal > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">Other Charges</span><span className="font-semibold">Rs. {fmtAmount(otherChargeLinesTotal)}</span></div>}
-                  {billForm.discount_amount > 0 && <div className="flex justify-between text-emerald-700"><span>Discount</span><span className="font-semibold">− Rs. {fmtAmount(billForm.discount_amount)}</span></div>}
+                  <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('f.subtotal')}</span><span className="font-semibold">Rs. {fmtAmount(itemsSubtotal)}</span></div>
+                  {otherChargeLinesTotal > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('f.otherCharges')}</span><span className="font-semibold">Rs. {fmtAmount(otherChargeLinesTotal)}</span></div>}
+                  {billForm.discount_amount > 0 && <div className="flex justify-between text-emerald-700"><span>{t('f.discount')}</span><span className="font-semibold">− Rs. {fmtAmount(billForm.discount_amount)}</span></div>}
                   <div className="flex justify-between items-center border-t border-dp-outline-variant pt-3 mt-1">
-                    <span className="font-bold text-[13px] uppercase tracking-[0.06em] text-dp-on-surface-variant">Net Payable</span>
+                    <span className="font-bold text-[13px] uppercase tracking-[0.06em] text-dp-on-surface-variant">{t('f.netPayable')}</span>
                     <span className="font-heading text-[24px] font-bold text-dp-primary">Rs. {fmtAmount(billNet)}</span>
                   </div>
                   {billForm.security_deposit_amount > 0 && <div className="flex justify-between text-dp-on-surface-variant text-[13px] pt-1 border-t border-dp-outline-variant/60"><span>+ Security Deposit (refundable, separate)</span><span className="font-semibold">Rs. {fmtAmount(billForm.security_deposit_amount)}</span></div>}
@@ -1880,7 +1880,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 {editingBill?.recurring_schedule_id && (
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-surface-container-low rounded-lg px-3 py-2.5">
                     This bill has a recurring schedule attached — manage its frequency or amount from{' '}
-                    <Link href={`/admin/finance/${system}/recurring`} className="text-dp-secondary font-semibold hover:underline">Recurring Schedules</Link>.
+                    <Link href={`/admin/finance/${system}/recurring`} className="text-dp-secondary font-semibold hover:underline">{t('f.recurringSchedules')}</Link>.
                   </p>
                 )}
 
@@ -1890,7 +1890,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 <div className="border border-dp-outline-variant rounded-lg p-3.5">
                   <label className="flex items-center gap-2 cursor-pointer mb-2">
                     <input type="checkbox" checked={receivePaymentNow} onChange={(e) => { setReceivePaymentNow(e.target.checked); if (e.target.checked && !paymentAmount) setPaymentAmount(billNet) }} className="accent-dp-secondary" />
-                    <span className="font-sans text-[14px] font-semibold flex items-center gap-1.5"><Banknote size={14} /> Receive Payment Now</span>
+                    <span className="font-sans text-[14px] font-semibold flex items-center gap-1.5"><Banknote size={14} /> {t('f.receivePaymentNow')}</span>
                   </label>
                   {receivePaymentNow && (
                     <div className="grid grid-cols-2 gap-3">
@@ -1919,7 +1919,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
             {activeType === 'purchase' && (
               <div className="space-y-4">
-                <h2 className="font-heading text-[20px] font-bold text-dp-primary">Purchase Bill</h2>
+                <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('f.purchaseBill')}</h2>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1927,16 +1927,16 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     <input type="date" value={purchaseForm.date} onChange={(e) => setPurchaseForm({ ...purchaseForm, date: e.target.value })} className="input-field" />
                   </div>
                   <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Purchased From (optional)</label>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('f.purchasedFrom')}</label>
                     <input value={purchaseForm.vendor} onChange={(e) => setPurchaseForm({ ...purchaseForm, vendor: e.target.value })} placeholder="Vendor / supplier name" className="input-field" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Items Purchased</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('f.itemsPurchased')}</label>
                   <div className="border border-dp-outline-variant rounded-xl overflow-hidden bg-white">
                     {purchaseLines.length === 0 ? (
-                      <p className="px-4 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No items yet — add one below.</p>
+                      <p className="px-4 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('f.noItems')}</p>
                     ) : (
                       <div className="divide-y divide-dp-outline-variant">
                         {purchaseLines.map((l, i) => (
@@ -1966,7 +1966,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 </div>
 
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Paid Via</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('f.paidVia')}</label>
                   <select value={purchaseForm.method} onChange={(e) => setPurchaseForm({ ...purchaseForm, method: e.target.value as 'cash' | 'bank' })} className="input-field">
                     <option value="cash">{t('w.cash')}</option>
                     <option value="bank">{t('a.bank')}</option>
@@ -1989,14 +1989,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 </div>
 
                 <button disabled={saving} onClick={savePurchaseBill} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                  <Save size={16} /> Save Purchase Bill
+                  <Save size={16} /> {t('f.savePurchaseBill')}
                 </button>
               </div>
             )}
 
             {activeType === 'donation' && (
               <div className="space-y-4">
-                <h2 className="font-heading text-[20px] font-bold text-dp-primary">Record Donation</h2>
+                <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('f.recordDonation')}</h2>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.name')}</label>
@@ -2013,9 +2013,9 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     <input value={donationForm.phone} onChange={(e) => setDonationForm({ ...donationForm, phone: e.target.value })} placeholder="0300-1234567" className="input-field" />
                   </div>
                   <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Donor Type</label>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('f.donorType')}</label>
                     <select value={donationForm.donor_type} onChange={(e) => setDonationForm({ ...donationForm, donor_type: e.target.value })} className="input-field">
-                      <option value="villager">Villager</option>
+                      <option value="villager">{t('f.villager')}</option>
                       <option value="overseas">Overseas</option>
                     </select>
                   </div>
@@ -2048,10 +2048,10 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={donationForm.is_anonymous} onChange={(e) => setDonationForm({ ...donationForm, is_anonymous: e.target.checked })} className="accent-dp-secondary" />
-                  <span className="font-sans text-[14px]">Anonymous Donor</span>
+                  <span className="font-sans text-[14px]">{t('f.anonymousDonor')}</span>
                 </label>
                 <button disabled={saving} onClick={saveDonation} className="flex items-center gap-2 px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                  <Save size={16} /> Record Donation
+                  <Save size={16} /> {t('f.recordDonation')}
                 </button>
               </div>
             )}
@@ -2066,7 +2066,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   <Clock size={15} className="text-amber-700" />
                   <span className="font-sans text-[14px] font-bold text-amber-900">Pending Approval ({pendingApprovals.length})</span>
                 </span>
-                <Link href="/admin/approvals" className="font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline">View all</Link>
+                <Link href="/admin/approvals" className="font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline">{t('f.viewAll')}</Link>
               </div>
               <div>
                 {pendingApprovals.map((v) => (
@@ -2085,7 +2085,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
           {/* Recent transactions log */}
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
             <div className="px-4 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/60 flex items-center justify-between flex-wrap gap-2">
-              <span className="font-sans text-[14px] font-bold text-dp-on-surface">Recent Transactions</span>
+              <span className="font-sans text-[14px] font-bold text-dp-on-surface">{t('f.recentTransactions')}</span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setFilterLogByType(!filterLogByType)}
@@ -2125,7 +2125,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         )}
                         {c.fullyApproved && (
                           <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-800" title="Confirmed by every configured approver">
-                            Approved
+                            {t('f.approved')}
                           </span>
                         )}
                       </div>
@@ -2239,7 +2239,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 <span key={r} className="px-2.5 py-1 bg-red-50 border border-red-200 rounded-full font-sans text-[12.5px] font-semibold text-dp-error">Receipt #{r}</span>
               ))}
             </div>
-            <button onClick={() => setBillDeleteBlock(null)} className="w-full px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">Got it</button>
+            <button onClick={() => setBillDeleteBlock(null)} className="w-full px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">{t('f.gotIt')}</button>
           </div>
         </div>
       )}
@@ -2248,7 +2248,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => { setBillModalStep('closed'); setEditingLineIndex(null) }}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant shrink-0">
-              <h2 className="font-heading text-[19px] font-bold text-dp-primary">Add Item / Service</h2>
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('f.addItemService')}</h2>
               <button onClick={() => { setBillModalStep('closed'); setEditingLineIndex(null) }} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
             </div>
 
@@ -2258,15 +2258,15 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 <input autoFocus value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} placeholder="Search..." className="input-field !ps-10 text-[15px]" />
               </div>
               <div className="flex gap-1.5 bg-dp-surface-container-low rounded-lg p-1">
-                <button onClick={() => setBillPickerTab('items')} className={`flex-1 py-2 rounded-md font-sans text-[13.5px] font-bold transition-all cursor-pointer ${billPickerTab === 'items' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}>Items</button>
-                <button onClick={() => setBillPickerTab('services')} className={`flex-1 py-2 rounded-md font-sans text-[13.5px] font-bold transition-all cursor-pointer ${billPickerTab === 'services' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}>Services</button>
+                <button onClick={() => setBillPickerTab('items')} className={`flex-1 py-2 rounded-md font-sans text-[13.5px] font-bold transition-all cursor-pointer ${billPickerTab === 'items' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}>{t('f.items')}</button>
+                <button onClick={() => setBillPickerTab('services')} className={`flex-1 py-2 rounded-md font-sans text-[13.5px] font-bold transition-all cursor-pointer ${billPickerTab === 'services' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}>{t('f.services')}</button>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto px-2 py-1 min-h-[200px]">
               <button onClick={selectCustomCharge} className="w-full flex items-center gap-3 px-3.5 py-3 rounded-lg hover:bg-dp-surface-container-low transition-all cursor-pointer text-start">
                 <span className="w-8 h-8 rounded-full bg-dp-secondary/10 flex items-center justify-center shrink-0"><Plus size={16} className="text-dp-secondary" /></span>
-                <span className="font-sans text-[14.5px] font-bold text-dp-secondary">Custom Charge</span>
+                <span className="font-sans text-[14.5px] font-bold text-dp-secondary">{t('f.customCharge')}</span>
               </button>
               {(billPickerTab === 'items' ? inventoryItems : serviceItems)
                 .filter((it) => it.name.toLowerCase().includes(catalogSearch.trim().toLowerCase()))
@@ -2313,18 +2313,18 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     <input type="number" min={0.01} step="0.01" value={newLine.quantity} onChange={(e) => setNewLine({ ...newLine, quantity: +e.target.value })} className="input-field text-[16px] font-semibold" />
                   </div>
                   <div>
-                    <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Rate</label>
+                    <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('f.rate')}</label>
                     <input type="number" min={0} step="0.01" value={newLine.unit_price || ''} onChange={(e) => setNewLine({ ...newLine, unit_price: +e.target.value })} placeholder="0" className="input-field text-[16px] font-semibold" />
                   </div>
                 </div>
                 {discountMode === 'per_item' && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Discount %</label>
+                      <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('f.discountPct')}</label>
                       <input type="number" min={0} max={100} step="0.01" value={newLine.discount_pct || ''} onChange={(e) => setNewLine({ ...newLine, discount_pct: +e.target.value })} placeholder="0" className="input-field text-[16px] font-semibold" />
                     </div>
                     <div>
-                      <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Discount Value</label>
+                      <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('f.discountValue')}</label>
                       <p className="input-field text-[16px] font-semibold bg-dp-surface-container-low text-dp-on-surface-variant">Rs. {fmtAmount(disc)}</p>
                     </div>
                   </div>
@@ -2336,7 +2336,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
               </div>
               <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
                 {editingLineIndex === null && (
-                  <button onClick={saveDetailAndNew} className="flex-1 px-4 py-3 border-2 border-dp-secondary rounded-full font-sans text-[14px] font-bold text-dp-secondary hover:bg-dp-secondary/5 transition-all cursor-pointer">Save & New</button>
+                  <button onClick={saveDetailAndNew} className="flex-1 px-4 py-3 border-2 border-dp-secondary rounded-full font-sans text-[14px] font-bold text-dp-secondary hover:bg-dp-secondary/5 transition-all cursor-pointer">{t('f.saveNew')}</button>
                 )}
                 <button onClick={saveDetailAndClose} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer">{t('action.save')}</button>
               </div>
@@ -2369,7 +2369,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
             </div>
             <div className="border-t border-dp-outline-variant p-3 shrink-0">
               <a href="/admin/inventory" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1.5 py-2.5 font-sans text-[13.5px] font-bold text-dp-secondary hover:underline cursor-pointer">
-                <PlusCircle size={15} /> Add New Item
+                <PlusCircle size={15} /> {t('f.addNewItem')}
               </a>
             </div>
           </div>
@@ -2394,7 +2394,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     <input autoFocus type="number" min={0.01} step="0.01" value={newPurchaseLine.quantity} onChange={(e) => setNewPurchaseLine({ ...newPurchaseLine, quantity: +e.target.value })} className="input-field text-[16px] font-semibold" />
                   </div>
                   <div>
-                    <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Unit Cost</label>
+                    <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('f.unitCost')}</label>
                     <input type="number" min={0} step="0.01" value={newPurchaseLine.unit_cost || ''} onChange={(e) => setNewPurchaseLine({ ...newPurchaseLine, unit_cost: +e.target.value })} className="input-field text-[16px] font-semibold" />
                   </div>
                 </div>
@@ -2405,7 +2405,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
               </div>
               <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
                 {editingPurchaseLineIndex === null && (
-                  <button onClick={savePurchaseDetailAndNew} className="flex-1 px-4 py-3 border-2 border-dp-secondary rounded-full font-sans text-[14px] font-bold text-dp-secondary hover:bg-dp-secondary/5 transition-all cursor-pointer">Save & New</button>
+                  <button onClick={savePurchaseDetailAndNew} className="flex-1 px-4 py-3 border-2 border-dp-secondary rounded-full font-sans text-[14px] font-bold text-dp-secondary hover:bg-dp-secondary/5 transition-all cursor-pointer">{t('f.saveNew')}</button>
                 )}
                 <button onClick={savePurchaseDetailAndClose} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer">{t('action.save')}</button>
               </div>
@@ -2417,7 +2417,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       {showDiscountModePicker && (
         <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4" onClick={() => setShowDiscountModePicker(false)}>
           <div className="bg-white rounded-lg p-5 w-full max-w-xs" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-4">Discount & Tax</h2>
+            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-4">{t('f.discountTax')}</h2>
             <div className="space-y-1">
               {(['per_item', 'on_total'] as const).map((mode) => (
                 <button
@@ -2440,7 +2440,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       {showAddChargeAccount && (
         <div className="fixed inset-0 bg-black/50 z-[140] flex items-center justify-center p-4" onClick={() => setShowAddChargeAccount(false)}>
           <div className="bg-white rounded-lg p-5 w-full max-w-xs" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-3">New Charge Account</h2>
+            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-3">{t('f.newChargeAccount')}</h2>
             <input
               autoFocus value={newChargeAccountName} onChange={(e) => setNewChargeAccountName(e.target.value)}
               placeholder="e.g. Late Payment Surcharge" className="input-field mb-3"
@@ -2456,7 +2456,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       {receivePaymentTarget && (
         <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4" onClick={() => setReceivePaymentTarget(null)}>
           <div className="bg-white rounded-lg p-5 w-full max-w-xs" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">Receive Payment</h2>
+            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">{t('f.receivePayment')}</h2>
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{receivePaymentTarget.billNumber} — Rs. {fmtAmount(receivePaymentTarget.outstanding)} outstanding</p>
             <div className="space-y-3">
               <div>
@@ -2493,7 +2493,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       {editVoucherTarget && (
         <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4" onClick={() => setEditVoucherTarget(null)}>
           <div className="bg-white rounded-lg p-5 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">Edit Voucher</h2>
+            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">{t('f.editVoucher')}</h2>
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
               {editVoucherTarget.voucherNo ?? 'Voucher'} — number and approval history stay the same
             </p>
@@ -2511,7 +2511,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 <input value={editVoucherForm.particular} onChange={(e) => setEditVoucherForm({ ...editVoucherForm, particular: e.target.value })} className="input-field !py-2.5 text-[15px]" />
               </div>
               <div>
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Party (optional)</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('f.partyOptional')}</label>
                 <input value={editVoucherForm.party_name} onChange={(e) => setEditVoucherForm({ ...editVoucherForm, party_name: e.target.value })} className="input-field !py-2.5 text-[15px]" />
               </div>
               <div>
@@ -2540,7 +2540,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       {editPaymentTarget && (
         <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4" onClick={() => setEditPaymentTarget(null)}>
           <div className="bg-white rounded-lg p-5 w-full max-w-xs" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">Edit Payment</h2>
+            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">{t('f.editPayment')}</h2>
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{editPaymentTarget.receiptNo ? `Receipt #${editPaymentTarget.receiptNo}` : 'Receipt'} — number stays the same</p>
             <div className="space-y-3">
               <div>

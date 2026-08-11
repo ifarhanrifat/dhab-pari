@@ -153,7 +153,7 @@ export default function NonPaymentReportPage() {
 
       <div className="flex items-center gap-3 mb-4 print:hidden">
         <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)} className="input-field max-w-xs">
-          <option value="">All sectors</option>
+          <option value="">{t('rp.allSectors')}</option>
           {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>

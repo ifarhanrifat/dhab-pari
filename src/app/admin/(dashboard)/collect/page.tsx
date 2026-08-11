@@ -252,10 +252,10 @@ export default function CollectPaymentPage() {
         {selectedConsumer && (
           <>
             {consumerBills.length === 0 ? (
-              <p className="font-sans text-[13.5px] text-dp-on-surface-variant bg-dp-surface-container-low rounded-lg px-3 py-2">No outstanding bills for this consumer.</p>
+              <p className="font-sans text-[13.5px] text-dp-on-surface-variant bg-dp-surface-container-low rounded-lg px-3 py-2">{t('f.noOutstanding')}</p>
             ) : (
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Bill</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('rc.bill')}</label>
                 <div className="space-y-1.5">
                   {consumerBills.map((b) => {
                     const badge = billBadge(b)

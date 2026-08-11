@@ -177,15 +177,15 @@ export default function RecurringPage() {
                   <th className="px-4 py-2.5">{t('a.type')}</th>
                   <th className="px-4 py-2.5">{t('w.frequency')}</th>
                   <th className="px-4 py-2.5 text-end">{t('w.amount')}</th>
-                  <th className="px-4 py-2.5">Next Run</th>
-                  <th className="px-4 py-2.5">Last Run</th>
+                  <th className="px-4 py-2.5">{t('rc.nextRun')}</th>
+                  <th className="px-4 py-2.5">{t('rc.lastRun')}</th>
                   <th className="px-4 py-2.5">{t('w.status')}</th>
                   <th className="px-4 py-2.5 text-end">{t('a.actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</td></tr>}
-                {!loading && schedules.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">No recurring schedules set up yet.</td></tr>}
+                {!loading && schedules.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('rc.noSchedules')}</td></tr>}
                 {!loading && schedules.map((s) => (
                   <tr key={s.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${!s.is_active ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-3 font-semibold">{scheduleLabel(s)}</td>
@@ -217,9 +217,9 @@ export default function RecurringPage() {
             <div>
               <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('a.type')}</label>
               <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as ScheduleType)} className="input-field !py-2 text-[14px]">
-                {system === 'water_supply' && <option value="bill">Bill</option>}
-                {system === 'donors_projects' && <option value="donation">Donation</option>}
-                <option value="expense">Expense</option>
+                {system === 'water_supply' && <option value="bill">{t('rc.bill')}</option>}
+                {system === 'donors_projects' && <option value="donation">{t('rc.donation')}</option>}
+                <option value="expense">{t('rc.expense')}</option>
               </select>
             </div>
             <div>
@@ -228,7 +228,7 @@ export default function RecurringPage() {
             </div>
             {dateFilter && (
               <button onClick={() => setDateFilter('')} className="px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
-                Clear date
+                {t('rc.clearDate')}
               </button>
             )}
           </div>
@@ -250,13 +250,13 @@ export default function RecurringPage() {
                 <thead>
                   <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                     <th className="px-4 py-2.5">{t('w.date')}</th>
-                    <th className="px-4 py-2.5">Transaction</th>
+                    <th className="px-4 py-2.5">{t('rc.transaction')}</th>
                     <th className="px-4 py-2.5 text-end">{t('w.amount')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {txnLoading && <tr><td colSpan={3} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</td></tr>}
-                  {!txnLoading && txnRows.length === 0 && <tr><td colSpan={3} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">No recurring transactions of this type yet.</td></tr>}
+                  {!txnLoading && txnRows.length === 0 && <tr><td colSpan={3} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('rc.noneOfType')}</td></tr>}
                   {!txnLoading && txnRows.map((r) => (
                     <tr key={r.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
                       <td className="px-4 py-3 whitespace-nowrap">{new Date(r.date).toLocaleDateString('en-GB')}</td>

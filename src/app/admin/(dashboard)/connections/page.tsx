@@ -771,7 +771,7 @@ export default function ConnectionsPage() {
                   <input autoFocus type="number" min={0.01} step="0.01" value={newItemLine.quantity} onChange={(e) => setNewItemLine({ ...newItemLine, quantity: +e.target.value })} className="input-field text-[16px] font-semibold" />
                 </div>
                 <div>
-                  <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Rate</label>
+                  <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('f.rate')}</label>
                   <input type="number" min={0} step="0.01" value={newItemLine.unit_price || ''} onChange={(e) => setNewItemLine({ ...newItemLine, unit_price: +e.target.value })} className="input-field text-[16px] font-semibold" />
                 </div>
               </div>
@@ -782,7 +782,7 @@ export default function ConnectionsPage() {
             </div>
             <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
               {editingItemIndex === null && (
-                <button onClick={saveItemAndNew} className="flex-1 px-4 py-3 border-2 border-dp-secondary rounded-full font-sans text-[14px] font-bold text-dp-secondary hover:bg-dp-secondary/5 transition-all cursor-pointer">Save & New</button>
+                <button onClick={saveItemAndNew} className="flex-1 px-4 py-3 border-2 border-dp-secondary rounded-full font-sans text-[14px] font-bold text-dp-secondary hover:bg-dp-secondary/5 transition-all cursor-pointer">{t('f.saveNew')}</button>
               )}
               <button onClick={saveItemAndClose} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer">{t('action.save')}</button>
             </div>
@@ -828,7 +828,7 @@ export default function ConnectionsPage() {
                     <thead>
                       <tr className="border-b border-dp-outline-variant text-start text-dp-on-surface-variant">
                         <th className="py-1.5">Item</th><th className="py-1.5 text-end">Qty</th>
-                        {form.wants_inventory_from_us && (<><th className="py-1.5 text-end">Rate</th><th className="py-1.5 text-end">{t('w.amount')}</th></>)}
+                        {form.wants_inventory_from_us && (<><th className="py-1.5 text-end">{t('f.rate')}</th><th className="py-1.5 text-end">{t('w.amount')}</th></>)}
                       </tr>
                     </thead>
                     <tbody>

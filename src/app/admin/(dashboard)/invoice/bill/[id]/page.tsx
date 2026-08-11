@@ -277,7 +277,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
               <thead>
                 <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant">
                   <th className="px-4 py-2">{t('w.date')}</th>
-                  <th className="px-4 py-2">Account</th>
+                  <th className="px-4 py-2">{t('rp.account')}</th>
                   <th className="px-4 py-2">{t('w.particular')}</th>
                   <th className="px-4 py-2">Receipt #</th>
                   <th className="px-4 py-2 text-end">Debit</th>

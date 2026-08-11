@@ -504,7 +504,7 @@ export default function AdminBloodRequestsPage() {
             </label>
 
             <div className="flex gap-2">
-              <button onClick={() => setVerifyFor(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant cursor-pointer">Back</button>
+              <button onClick={() => setVerifyFor(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant cursor-pointer">{t('f.back')}</button>
               <button disabled={busy || !verifyChecked} onClick={() => approve(verifyFor.id, true)}
                 className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer disabled:opacity-50">
                 Approve &amp; notify donors
@@ -523,7 +523,7 @@ export default function AdminBloodRequestsPage() {
             </p>
             <input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Fake call / arranged elsewhere / family cancelled" className="input-field !py-2.5 text-[15px]" />
             <div className="flex gap-2 mt-4">
-              <button onClick={() => setCancelFor(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant cursor-pointer">Back</button>
+              <button onClick={() => setCancelFor(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant cursor-pointer">{t('f.back')}</button>
               <button disabled={busy || !cancelReason.trim()} onClick={doCancel} className="flex-1 px-4 py-2 bg-dp-error text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer disabled:opacity-50">Cancel request</button>
             </div>
           </div>
@@ -567,7 +567,7 @@ export default function AdminBloodRequestsPage() {
               </span>
             </label>
             <div className="flex gap-2 mt-4">
-              <button onClick={() => { setTickerFor(null); setTickerNumber('') }} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant cursor-pointer">Back</button>
+              <button onClick={() => { setTickerFor(null); setTickerNumber('') }} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant cursor-pointer">{t('f.back')}</button>
               <button disabled={!tickerNumber.trim()} onClick={postTicker} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer disabled:opacity-50">Post appeal</button>
             </div>
           </div>

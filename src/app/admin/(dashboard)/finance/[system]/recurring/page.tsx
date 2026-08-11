@@ -305,7 +305,7 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
                 <th className="px-4 py-2.5">For</th>
                 <th className="px-4 py-2.5">{t('w.frequency')}</th>
                 <th className="px-4 py-2.5 text-end">{t('w.amount')}</th>
-                <th className="px-4 py-2.5">Next Run</th>
+                <th className="px-4 py-2.5">{t('rc.nextRun')}</th>
                 <th className="px-4 py-2.5">{t('w.status')}</th>
                 <th className="px-4 py-2.5 text-end">{t('a.actions')}</th>
               </tr>
@@ -416,8 +416,8 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.type')}</label>
                 <select value={form.schedule_type} onChange={(e) => setForm({ ...form, schedule_type: e.target.value as ScheduleType })} className="input-field">
                   {system === 'water_supply' && <option value="bill">Water Bill</option>}
-                  {system === 'donors_projects' && <option value="donation">Donation</option>}
-                  <option value="expense">Expense</option>
+                  {system === 'donors_projects' && <option value="donation">{t('rc.donation')}</option>}
+                  <option value="expense">{t('rc.expense')}</option>
                 </select>
               </div>
 

@@ -352,14 +352,14 @@ export default function AccountsPage() {
                 className="absolute right-0 top-7 z-20 w-44 bg-white rounded-lg shadow-lg border border-dp-outline-variant py-1"
               >
                 <button onClick={() => viewAccount(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
-                  <Eye size={14} /> View Account
+                  <Eye size={14} /> {t('ac.viewAccount')}
                 </button>
                 {a.type === 'consumer' ? (
-                  <p className="px-3 py-2 text-[12px] font-sans text-dp-on-surface-variant">Edit / Activate / Deactivate from Billing</p>
+                  <p className="px-3 py-2 text-[12px] font-sans text-dp-on-surface-variant">{t('ac.editFromBilling')}</p>
                 ) : (
                   <>
                     <button onClick={() => openEdit(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
-                      <Pencil size={14} /> Edit Account
+                      <Pencil size={14} /> {t('ac.editAccount')}
                     </button>
                     <button onClick={() => toggleActive(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
                       <Power size={14} /> {a.is_active ? 'Disable Account' : 'Enable Account'}
@@ -377,7 +377,7 @@ export default function AccountsPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Chart of Accounts</h1>
+        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('ac.title')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Manage expense accounts, cash accounts, and income accounts for each system.</p>
       </div>
 
@@ -426,7 +426,7 @@ export default function AccountsPage() {
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">Loading accounts...</div>
+        <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">{t('ac.loading')}</div>
       ) : (
         <div className="space-y-4 pb-24">
           {partyAccounts.length > 0 && (
@@ -445,7 +445,7 @@ export default function AccountsPage() {
                     onClick={() => router.push('/admin/reports?report=consumer_outstanding&system=water_supply')}
                     className="shrink-0 text-[12.5px] font-sans font-semibold text-dp-secondary hover:text-dp-primary cursor-pointer"
                   >
-                    View Receivable Ledger
+                    {t('ac.viewReceivable')}
                   </button>
                 )}
               </div>
@@ -488,7 +488,7 @@ export default function AccountsPage() {
               <p className="font-sans text-[16px] text-dp-on-surface-variant mb-4">{search ? 'No accounts or bills match your search.' : 'No accounts yet for this system.'}</p>
               {!search && (
                 <button onClick={openAdd} className="flex items-center gap-2 px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer mx-auto">
-                  <PlusCircle size={16} /> Create First Account
+                  <PlusCircle size={16} /> {t('ac.createFirst')}
                 </button>
               )}
             </div>
@@ -502,7 +502,7 @@ export default function AccountsPage() {
         onClick={openAdd}
         className="fixed bottom-8 right-8 z-30 flex items-center gap-2 px-5 py-3.5 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold shadow-lg hover:bg-dp-primary transition-all cursor-pointer"
       >
-        <PlusCircle size={18} /> Add New Account
+        <PlusCircle size={18} /> {t('ac.addNew')}
       </button>
 
       {/* Add/Edit generic account Modal */}
@@ -520,7 +520,7 @@ export default function AccountsPage() {
                 </p>
               )}
               <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">System</label>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ac.system')}</label>
                 <select
                   value={form.system}
                   onChange={(e) => {
@@ -537,29 +537,29 @@ export default function AccountsPage() {
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant">Account Header *</label>
+                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant">{t('ac.accountHeader')}</label>
                   <button onClick={() => setShowHeaderForm(true)} className="text-[12.5px] font-sans font-semibold text-dp-secondary hover:text-dp-primary cursor-pointer">+ New Header</button>
                 </div>
                 <select value={form.headerId} onChange={(e) => setForm({ ...form, headerId: e.target.value })} className="input-field">
-                  <option value="" disabled>Select a header...</option>
+                  <option value="" disabled>{t('ac.selectHeader')}</option>
                   {headers.filter((h) => h.system === form.system && h.code !== (form.system === 'water_supply' ? 'consumer' : 'donor')).sort((a, b) => a.display_order - b.display_order).map((h) => (
                     <option key={h.id} value={h.id}>{h.label} ({h.code_prefix})</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Account Name (English) *</label>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ac.nameEn')}</label>
                 <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Account Name (Urdu)</label>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ac.nameUr')}</label>
                 <input value={form.name_ur ?? ''} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder="اردو میں نام" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
                 {!form.name_ur?.trim() && (
                   <p className="text-[12px] font-sans text-amber-700 mt-1.5">Not set — this account will show in English even when Urdu is selected.</p>
                 )}
               </div>
               <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Opening Balance (PKR)</label>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ac.openingBalance')}</label>
                 <input type="number" value={form.opening_balance || ''} onChange={(e) => setForm({ ...form, opening_balance: +e.target.value })} className="input-field" />
               </div>
               <div>
@@ -579,28 +579,28 @@ export default function AccountsPage() {
         <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4" onClick={() => setShowHeaderForm(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">New Account Header</h2>
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('ac.newHeader')}</h2>
               <button onClick={() => setShowHeaderForm(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Label (English) *</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ac.labelEn')}</label>
                 <input value={headerForm.label} onChange={(e) => setHeaderForm({ ...headerForm, label: e.target.value })} placeholder="e.g. Inventory" className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Label (Urdu)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ac.labelUr')}</label>
                 <input value={headerForm.label_ur} onChange={(e) => setHeaderForm({ ...headerForm, label_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Short Code *</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ac.shortCode')}</label>
                 <input value={headerForm.code} onChange={(e) => setHeaderForm({ ...headerForm, code: e.target.value })} placeholder="e.g. inventory" className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Code Prefix (for auto serial numbers) *</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ac.codePrefix')}</label>
                 <input value={headerForm.code_prefix} onChange={(e) => setHeaderForm({ ...headerForm, code_prefix: e.target.value.toUpperCase() })} placeholder={`e.g. ${form.system === 'water_supply' ? 'WS' : 'DP'}-INV`} className="input-field" />
               </div>
               <button onClick={saveHeader} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-                <Save size={16} /> Create Header
+                <Save size={16} /> {t('ac.createHeader')}
               </button>
             </div>
           </div>

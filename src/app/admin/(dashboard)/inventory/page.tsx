@@ -42,6 +42,7 @@ const emptyServiceForm = { name: '', charge_amount: 0, description: '' }
 const emptyPurchaseForm = { quantity: 0, unit_cost_at_time: 0, method: 'cash', note: '' }
 
 export default function InventoryPage() {
+  const { t } = useLocale()
   const { t: tr } = useLocale()
   const access = useSystemAccess()
   const [tab, setTab] = useState<Tab>(() => {
@@ -341,7 +342,7 @@ export default function InventoryPage() {
                   <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                     <th className="px-4 py-2.5">Code</th>
                     <th className="px-4 py-2.5">{tr('a.name')}</th>
-                    <th className="px-4 py-2.5 text-end">Unit Cost</th>
+                    <th className="px-4 py-2.5 text-end">{t('f.unitCost')}</th>
                     <th className="px-4 py-2.5 text-end">Unit Price</th>
                     <th className="px-4 py-2.5 text-end">Stock</th>
                     <th className="px-4 py-2.5">{tr('w.status')}</th>
@@ -670,7 +671,7 @@ export default function InventoryPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Unit Cost</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('f.unitCost')}</label>
                   <input type="number" value={itemForm.unit_cost || ''} onChange={(e) => setItemForm({ ...itemForm, unit_cost: +e.target.value })} className="input-field" />
                 </div>
                 <div>
@@ -733,12 +734,12 @@ export default function InventoryPage() {
                   <input type="number" value={purchaseForm.quantity || ''} onChange={(e) => setPurchaseForm({ ...purchaseForm, quantity: +e.target.value })} className="input-field" />
                 </div>
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Unit Cost</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('f.unitCost')}</label>
                   <input type="number" value={purchaseForm.unit_cost_at_time || ''} onChange={(e) => setPurchaseForm({ ...purchaseForm, unit_cost_at_time: +e.target.value })} className="input-field" />
                 </div>
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Paid Via</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('f.paidVia')}</label>
                 <select value={purchaseForm.method} onChange={(e) => setPurchaseForm({ ...purchaseForm, method: e.target.value })} className="input-field">
                   <option value="cash">{tr('w.cash')}</option>
                   <option value="bank">{tr('a.bank')}</option>
