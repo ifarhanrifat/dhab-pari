@@ -282,7 +282,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'site.gallery': 'Gallery',
     'site.committee': 'Committee',
     'site.myPortal': 'My Portal',
-    'site.login': 'Login',
+    'site.login': 'Log In',
+    'site.joinGroup': 'Join our Group',
   },
 
   ur: {
@@ -551,6 +552,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'site.committee': 'کمیٹی',
     'site.myPortal': 'میرا پورٹل',
     'site.login': 'لاگ اِن',
+    'site.joinGroup': 'ہمارے گروپ میں شامل ہوں',
   },
 }
 

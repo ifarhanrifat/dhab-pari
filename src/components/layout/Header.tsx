@@ -99,10 +99,6 @@ export function Header() {
 
           {/* Right Actions */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* A visitor who reads Urdu needs this on the page they land on,
-                not only after signing in. Hidden on the narrowest phones where
-                the row is already tight — the mobile drawer carries one too. */}
-            <span className="hidden sm:block"><LanguageToggle compact /></span>
             {isPortalUser ? (
               <Link
                 href="/portal"
@@ -116,7 +112,7 @@ export function Header() {
                 href="/portal/login"
                 className="hidden md:flex items-center gap-2 text-white/80 hover:text-white text-[13px] font-sans font-semibold tracking-[0.02em] transition-colors whitespace-nowrap"
               >
-                Log In
+                {t('site.login')}
               </Link>
             )}
             {/* WhatsApp's own brand green (#25D366) — deliberately distinct
@@ -131,7 +127,7 @@ export function Header() {
               className="hidden md:flex items-center gap-1.5 bg-[#25D366] text-white px-3 py-1.5 rounded-lg font-sans text-[13px] font-semibold tracking-[0.02em] hover:bg-[#1ebe5a] transition-all active:scale-95 whitespace-nowrap"
             >
               <MessageCircle size={16} />
-              Join our Group
+              {t('site.joinGroup')}
             </a>
             {/* Facebook's own brand blue, icon-only — lucide dropped brand
                 icons, so this is the official mark as inline SVG. Kept
@@ -150,9 +146,11 @@ export function Header() {
                 <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.412c0-3.025 1.792-4.696 4.533-4.696 1.313 0 2.686.236 2.686.236v2.971H15.83c-1.491 0-1.956.93-1.956 1.886v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z" />
               </svg>
             </a>
-            <button className="text-white/80 hover:text-white border border-dp-outline-variant px-2 py-1 rounded text-[12.5px] font-sans font-semibold tracking-[0.02em] hidden md:block transition-colors">
-              EN/UR
-            </button>
+            {/* Sits where the old dead "EN/UR" placeholder was, so the
+                control is where people were already looking for it — that one
+                had no handler and never switched anything. Hidden on the
+                narrowest phones, where the mobile drawer carries its own. */}
+            <span className="hidden sm:block"><LanguageToggle compact /></span>
           </div>
         </div>
       </header>
