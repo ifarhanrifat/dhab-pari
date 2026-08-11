@@ -8,7 +8,7 @@ import { friendlyError } from '@/lib/errors'
 interface LogEntry { id: string; type: string; recipient: string | null; message: string | null; status: string; sent_at: string | null; created_at: string }
 interface Appeal {
   id: string; kind: string; title_ur: string | null; body_ur: string; body_en: string
-  audience: string; audience_countries: string[]; is_public: boolean
+  audience: string; audience_countries: string[]; is_public: boolean; severity: string
   contact_number: string | null; created_at: string; expires_at: string | null
 }
 
@@ -18,6 +18,11 @@ const AUDIENCES: [string, string][] = [
   ['consumers', 'Water consumers'],
   ['donors', 'Donors only'],
   ['overseas', 'Overseas only'],
+]
+const SEVERITIES: [string, string][] = [
+  ['emergency', 'Emergency  ہنگامی'],
+  ['important', 'Important announcement  اہم اعلان'],
+  ['appeal', 'Appeal  اپیل'],
 ]
 const KINDS: [string, string][] = [
   ['medical', 'Medical emergency'],
@@ -37,6 +42,7 @@ export default function AdminNotificationsPage() {
 
   const [appeals, setAppeals] = useState<Appeal[]>([])
   const [aKind, setAKind] = useState('medical')
+  const [aSeverity, setASeverity] = useState('emergency')
   const [aTitleUr, setATitleUr] = useState('')
   const [aBodyUr, setABodyUr] = useState('')
   const [aBodyEn, setABodyEn] = useState('')
@@ -82,6 +88,7 @@ export default function AdminNotificationsPage() {
       p_project_id: null,
       p_expires_at: aExpires ? new Date(aExpires).toISOString() : null,
       p_notify: aNotify,
+      p_severity: aSeverity,
     })
     setPosting(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -127,6 +134,20 @@ export default function AdminNotificationsPage() {
           website if you make it public. Use it for a medical emergency, a project, running costs —
           anything the village needs to hear about now.
         </p>
+
+        {/* Sets the word shown in front of the scrolling text, and the order
+            appeals appear in when more than one is live. */}
+        <div className="mb-4">
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">How it is announced</label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {SEVERITIES.map(([v, l]) => (
+              <button key={v} type="button" onClick={() => setASeverity(v)}
+                className={`py-2 rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer transition-all ${aSeverity === v ? 'bg-dp-error text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-error'}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
@@ -215,6 +236,7 @@ export default function AdminNotificationsPage() {
               <div key={a.id} className="p-4 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                    <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-dp-error text-white font-sans">{a.severity}</span>
                     <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-dp-error/10 text-dp-error font-sans">{a.kind}</span>
                     <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-dp-surface-container text-dp-on-surface-variant font-sans">
                       {AUDIENCES.find(([v]) => v === a.audience)?.[1] ?? a.audience}

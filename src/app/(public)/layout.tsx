@@ -1,5 +1,4 @@
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar'
-import { AppealBar } from '@/components/layout/AppealBar'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { BottomNav } from '@/components/layout/BottomNav'
@@ -14,10 +13,6 @@ export default function PublicLayout({
     <MobileNavProvider>
       <AnnouncementBar />
       <Header />
-      {/* Below the header, not above it: an appeal should sit against the page
-          content it interrupts, and the announcement ticker keeps the top slot
-          it has always had. */}
-      <AppealBar source="public" />
       <main className="flex-1">{children}</main>
       <Footer />
       <BottomNav />
