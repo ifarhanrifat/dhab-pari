@@ -22,6 +22,9 @@ const LocaleContext = createContext<LocaleContextValue | null>(null)
 
 const STORAGE_KEY = 'dp_locale'
 
+// Phase 3 gate — see the comment where it is used.
+const RTL_READY = false
+
 /**
  * One place that knows what language this person reads, and every word the
  * interface needs to say in it.
@@ -67,14 +70,20 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true }
   }, [])
 
-  // The <html> element carries the direction, so logical CSS properties
-  // (ms-, me-, ps-, pe-, text-start, text-end) mirror the entire app without
-  // any component knowing about it.
   useEffect(() => {
     if (typeof document === 'undefined') return
     const el = document.documentElement
     el.lang = locale
-    el.dir = locale === 'ur' ? 'rtl' : 'ltr'
+    // Direction is deliberately NOT flipped yet. Turning on dir="rtl" mirrors
+    // the page, but only elements using logical CSS properties follow it —
+    // and this app still has ~470 physical ones (ml-, pl-, text-left, left-)
+    // across 132 files. Flipping before converting them produced exactly what
+    // you would expect: Urdu text in a layout torn in half.
+    //
+    // So Urdu reads in the normal left-to-right layout until that sweep is
+    // done, which is legible and honest. Flip this to RTL_READY once the
+    // conversion lands, and the whole app mirrors from this one line.
+    el.dir = RTL_READY && locale === 'ur' ? 'rtl' : 'ltr'
   }, [locale])
 
   const t = useCallback((key: string, fallback?: string) => {
@@ -106,7 +115,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<LocaleContextValue>(() => ({
     locale,
     isUrdu: locale === 'ur',
-    dir: locale === 'ur' ? 'rtl' : 'ltr',
+    dir: RTL_READY && locale === 'ur' ? 'rtl' : 'ltr',
     t, term, setLocale, ready,
   }), [locale, t, term, setLocale, ready])
 
