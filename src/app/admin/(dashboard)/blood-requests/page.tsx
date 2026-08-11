@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Droplet, Plus, X, Search, MessageCircle, Megaphone, Pause, Play, Ban, CheckCircle2, Heart } from 'lucide-react'
+import { Droplet, Plus, X, Search, MessageCircle, Megaphone, Pause, Play, Ban, CheckCircle2, Heart, Phone } from 'lucide-react'
 import { friendlyError } from '@/lib/errors'
 import { normalizePakPhone } from '@/lib/receiptExport'
 
@@ -17,6 +17,7 @@ interface BloodRequest {
   taken_at: string; approved_at: string | null; cancelled_at: string | null
   cancel_reason: string | null; fulfilled_at: string | null
   ticker_id: string | null; thanks_ticker_id: string | null
+  source: 'phone_call' | 'public_form'; verified_by_call: boolean
 }
 interface Eligible {
   blood_donor_id: string; full_name: string; mobile: string; whatsapp_number: string | null
@@ -44,10 +45,12 @@ const emptyForm = {
   needed_on: new Date().toISOString().slice(0, 10), needed_time: '', notes: '',
 }
 
-// Requests are never self-served. Every one is written down here from a phone
-// call, then approved by someone holding the blood permission — a fake request
-// reaching forty villagers at 2am is the failure this whole screen guards
-// against, so the caller-taker and the approver are both recorded.
+// Requests arrive two ways — typed up here from a phone call, or submitted by
+// anyone from the website — and neither reaches a donor until someone holding
+// the blood permission approves it. A website request additionally cannot be
+// approved until the approver confirms they phoned the requester back. A fake
+// request reaching forty villagers at 2am is the failure this screen guards
+// against, so the taker, the approver and the call are all recorded.
 export default function AdminBloodRequestsPage() {
   const supabase = createClient()
   const [requests, setRequests] = useState<BloodRequest[]>([])
@@ -61,6 +64,8 @@ export default function AdminBloodRequestsPage() {
   const [eligible, setEligible] = useState<Eligible[]>([])
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [cancelFor, setCancelFor] = useState<string | null>(null)
+  const [verifyFor, setVerifyFor] = useState<BloodRequest | null>(null)
+  const [verifyChecked, setVerifyChecked] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [tickerFor, setTickerFor] = useState<string | null>(null)
   const [tickerNumber, setTickerNumber] = useState('')
@@ -112,11 +117,17 @@ export default function AdminBloodRequestsPage() {
     load()
   }
 
-  const approve = async (id: string) => {
+  // A request the committee took by phone is already verified by definition.
+  // One that arrived from the website is not, so it goes through the call
+  // modal — the database refuses it otherwise.
+  const approve = async (id: string, calledRequester = false) => {
     setBusy(true)
-    const { data, error } = await supabase.rpc('approve_blood_request', { p_request_id: id })
+    const { data, error } = await supabase.rpc('approve_blood_request', {
+      p_request_id: id, p_called_requester: calledRequester,
+    })
     setBusy(false)
     if (error) { toast.error(friendlyError(error)); return }
+    setVerifyFor(null)
     toast.success(`Approved — ${data ?? 0} matching donor(s) notified in their portal`)
     load(); if (openId === id) loadEligible(id)
   }
@@ -236,8 +247,13 @@ export default function AdminBloodRequestsPage() {
                     {r.hospital}, {r.city} · {new Date(r.needed_on).toLocaleDateString('en-GB')}{r.needed_time ? ` at ${r.needed_time}` : ''}
                   </p>
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">
-                    Caller: {r.requester_name}{r.requester_relation ? ` (${r.requester_relation})` : ''} · {r.requester_whatsapp}
+                    {r.source === 'public_form' ? 'Requested by' : 'Caller'}: {r.requester_name}{r.requester_relation ? ` (${r.requester_relation})` : ''} · {r.requester_whatsapp}
                   </p>
+                  {r.source === 'public_form' && r.status === 'pending_approval' && (
+                    <p className="font-sans text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-1.5 inline-block">
+                      Submitted from the website — nobody has spoken to them yet. Phone before approving.
+                    </p>
+                  )}
                   {r.notes && <p className="font-sans text-[13px] text-dp-on-surface mt-1">{r.notes}</p>}
                   {r.cancel_reason && <p className="font-sans text-[12.5px] text-dp-error mt-1">Cancelled: {r.cancel_reason}</p>}
                 </div>
@@ -246,9 +262,15 @@ export default function AdminBloodRequestsPage() {
 
               <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-dp-outline-variant/60">
                 {r.status === 'pending_approval' && (
-                  <button disabled={busy} onClick={() => approve(r.id)} className="px-3 py-1.5 rounded-lg bg-dp-secondary text-white font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-                    Approve &amp; notify donors
-                  </button>
+                  r.source === 'public_form' ? (
+                    <button disabled={busy} onClick={() => { setVerifyFor(r); setVerifyChecked(false) }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dp-secondary text-white font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+                      <Phone size={14} /> Verify by phone &amp; approve
+                    </button>
+                  ) : (
+                    <button disabled={busy} onClick={() => approve(r.id)} className="px-3 py-1.5 rounded-lg bg-dp-secondary text-white font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+                      Approve &amp; notify donors
+                    </button>
+                  )
                 )}
                 {(r.status === 'open' || r.status === 'paused') && (
                   <>
@@ -392,6 +414,55 @@ export default function AdminBloodRequestsPage() {
             <div className="flex gap-2 mt-5">
               <button onClick={() => setShowForm(false)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">Cancel</button>
               <button disabled={saving} onClick={saveRequest} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">{saving ? 'Saving...' : 'Record'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* The gate on the whole open-form idea. Approving sends this to every
+          compatible donor at once, so the one thing that cannot be skipped is
+          hearing a human confirm it. */}
+      {verifyFor && (
+        <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4" onClick={() => setVerifyFor(null)}>
+          <div className="bg-white rounded-lg p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">Verify before approving</h2>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">
+              This request came from the website. Approving it notifies every compatible donor
+              at once, so speak to the person who sent it first.
+            </p>
+
+            <div className="bg-dp-surface-container-low rounded-lg p-3 mb-4">
+              <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{verifyFor.requester_name}</p>
+              {verifyFor.requester_relation && (
+                <p className="font-sans text-[12px] text-dp-on-surface-variant">{verifyFor.requester_relation} of {verifyFor.patient_name}</p>
+              )}
+              <p dir="ltr" className="font-mono text-[16px] font-bold text-dp-primary mt-1">{verifyFor.requester_whatsapp}</p>
+              <div className="flex gap-2 mt-3">
+                <a href={`tel:${normalizePakPhone(verifyFor.requester_whatsapp)}`}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-dp-primary text-white font-sans text-[13px] font-semibold hover:opacity-90 transition-all">
+                  <Phone size={14} /> Call
+                </a>
+                <a href={`https://wa.me/${normalizePakPhone(verifyFor.requester_whatsapp)}`} target="_blank" rel="noopener noreferrer"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#25D366] text-white font-sans text-[13px] font-semibold hover:opacity-90 transition-all">
+                  <MessageCircle size={14} /> WhatsApp
+                </a>
+              </div>
+            </div>
+
+            <label className="flex items-start gap-2 cursor-pointer mb-4">
+              <input type="checkbox" checked={verifyChecked} onChange={(e) => setVerifyChecked(e.target.checked)} className="accent-dp-secondary mt-0.5" />
+              <span className="font-sans text-[13px] text-dp-on-surface">
+                I have spoken to {verifyFor.requester_name} and this request is genuine.
+                <span className="block text-[11.5px] text-dp-on-surface-variant">Recorded against your name.</span>
+              </span>
+            </label>
+
+            <div className="flex gap-2">
+              <button onClick={() => setVerifyFor(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant cursor-pointer">Back</button>
+              <button disabled={busy || !verifyChecked} onClick={() => approve(verifyFor.id, true)}
+                className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer disabled:opacity-50">
+                Approve &amp; notify donors
+              </button>
             </div>
           </div>
         </div>

@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
@@ -40,6 +41,22 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+  const [badges, setBadges] = useState<Record<string, number>>({})
+
+  // Keyed by the last segment of each href, because the server buckets unread
+  // notifications by the page their link points at — so a tab gets a badge by
+  // having its notifications link to it, with nothing to wire up here.
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    const refresh = async () => {
+      const { data } = await supabase.rpc('portal_sidebar_badges')
+      if (!cancelled && data) setBadges(data as Record<string, number>)
+    }
+    refresh()
+    const id = setInterval(refresh, 120000)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [supabase, user, pathname])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -65,13 +82,22 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
         {visibleMenuItems.map((item) => {
           const Icon = item.icon
           const isActive = item.href === activeHref
+          const count = badges[item.href.split('/')[2] ?? ''] ?? 0
           return (
             <Link key={item.href} href={item.href} onClick={onMobileClose}
               className={`flex items-center px-4 py-3 mx-2 rounded-lg transition-all text-[14px] font-sans ${
                 isActive ? 'bg-[#1D9E75] text-white font-bold' : 'text-white/80 hover:bg-dp-primary-container hover:text-white'
               }`}>
               <Icon size={18} className="mr-3 shrink-0" />
-              <span>{item.label}</span>
+              <span className="min-w-0 truncate">{item.label}</span>
+              {count > 0 && (
+                <span
+                  className="ml-auto shrink-0 bg-dp-error text-white text-[11px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center"
+                  aria-label={`${count} new`}
+                >
+                  {count > 99 ? '99+' : count}
+                </span>
+              )}
             </Link>
           )
         })}

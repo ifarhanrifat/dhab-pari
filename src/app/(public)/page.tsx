@@ -517,14 +517,19 @@ export default async function HomePage() {
             </div>
             <div className="px-4 pb-3">
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-snug">
-                Donor names and numbers are never published. To request blood, call{' '}
-                <a href={`tel:${SITE.whatsapp.replace(/-/g, '')}`} className="text-dp-secondary font-semibold">{SITE.whatsapp}</a>{' '}
-                — the committee verifies the request by phone before contacting any donor.
+                Donor names and numbers are never published. Submit a request and the committee
+                phones you to confirm before contacting any donor.
               </p>
               <p dir="rtl" className="font-urdu text-[12.5px] text-dp-on-surface-variant leading-relaxed mt-1.5">
-                خون کے عطیہ دہندگان کے نام اور نمبر ظاہر نہیں کیے جاتے۔ خون کی ضرورت ہو تو کمیٹی کو فون کریں۔
+                خون کے عطیہ دہندگان کے نام اور نمبر ظاہر نہیں کیے جاتے۔ درخواست جمع کرائیں، کمیٹی تصدیق کے لیے آپ کو فون کرے گی۔
               </p>
             </div>
+            <Link
+              href="/blood"
+              className="block p-3 text-center text-[14px] font-sans font-bold tracking-[0.05em] text-white bg-dp-error hover:opacity-90 transition-opacity"
+            >
+              Request Blood
+            </Link>
             <Link
               href="/portal/blood-donor"
               className="block p-3 text-center text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-secondary font-bold bg-dp-surface-container-low border-t border-dp-outline-variant hover:bg-dp-surface-container transition-colors"

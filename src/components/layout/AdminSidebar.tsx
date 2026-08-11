@@ -50,7 +50,7 @@ import { createClient } from '@/lib/supabase/client'
 const menuItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/billing', label: 'Billing', icon: Receipt, system: 'water_supply' },
-  { href: '/admin/connections', label: 'New Connections', icon: UserPlus, system: 'water_supply' },
+  { href: '/admin/connections', label: 'New Connections', icon: UserPlus, system: 'water_supply', badge: 'connections' },
   { href: '/admin/tasks', label: 'Task Todo', icon: ClipboardList, system: 'water_supply' },
   { href: '/admin/tasks/meetings', label: 'Meetings & Agenda', icon: CalendarClock },
   { href: '/admin/reminders', label: 'Reminders', icon: BellRing },
@@ -62,27 +62,27 @@ const menuItems = [
   { href: '/admin/transactions', label: 'All Transactions', icon: ListFilter },
   { href: '/admin/register', label: 'Daily Register', icon: CalendarDays },
   { href: '/admin/recurring', label: 'Recurring', icon: Repeat },
-  { href: '/admin/approvals', label: 'Approvals', icon: ShieldCheck },
+  { href: '/admin/approvals', label: 'Approvals', icon: ShieldCheck, badge: 'approvals' },
   { href: '/admin/inventory', label: 'Inventory & Services', icon: Boxes, system: 'water_supply' },
   { href: '/admin/reports/non-payment', label: 'Non-Payment Report', icon: AlertTriangle, system: 'water_supply' },
   { href: '/admin/collect', label: 'Collect Payment', icon: Truck, collectorOnly: true },
-  { href: '/admin/payment-claims', label: 'Payment Claims', icon: UploadCloud, system: 'water_supply' },
+  { href: '/admin/payment-claims', label: 'Payment Claims', icon: UploadCloud, system: 'water_supply', badge: 'payment_claims' },
   { href: '/admin/collectors', label: 'Collectors', icon: Coins, system: 'water_supply' },
   { href: '/admin/employees', label: 'Employees', icon: HardHat, system: 'water_supply' },
   { href: '/admin/news', label: 'News', icon: Newspaper },
   { href: '/admin/videos', label: 'Videos', icon: Video },
-  { href: '/admin/donors', label: 'Donors', icon: Heart, system: 'donors_projects' },
+  { href: '/admin/donors', label: 'Donors', icon: Heart, system: 'donors_projects', badge: 'donors' },
   { href: '/admin/donors/collectors', label: 'Donor Collectors', icon: Coins, system: 'donors_projects' },
   { href: '/admin/gallery', label: 'Gallery', icon: Image },
-  { href: '/admin/suggestions', label: 'Suggestions', icon: MessageSquare },
-  { href: '/admin/volunteers', label: 'Volunteers', icon: HandHeart, system: 'donors_projects' },
+  { href: '/admin/suggestions', label: 'Suggestions', icon: MessageSquare, badge: 'suggestions' },
+  { href: '/admin/volunteers', label: 'Volunteers', icon: HandHeart, system: 'donors_projects', badge: 'volunteers' },
   { href: '/admin/comments', label: 'Project Comments', icon: MessageSquare, system: 'donors_projects' },
   { href: '/admin/project-transfers', label: 'Project Transfers', icon: ArrowRightLeft, system: 'donors_projects' },
-  { href: '/admin/complaints', label: 'Complaints', icon: MessageSquareWarning },
+  { href: '/admin/complaints', label: 'Complaints', icon: MessageSquareWarning, badge: 'complaints' },
   { href: '/admin/ticker', label: 'Ticker', icon: TicketSlash },
-  { href: '/admin/notifications', label: 'Alerts', icon: Bell },
+  { href: '/admin/notifications', label: 'Alerts', icon: Bell, badge: 'alerts' },
   { href: '/admin/blood-donors', label: 'Blood Donors', icon: Droplet },
-  { href: '/admin/blood-requests', label: 'Blood Requests', icon: Droplet },
+  { href: '/admin/blood-requests', label: 'Blood Requests', icon: Droplet, badge: 'blood_requests' },
   { href: '/admin/jobs', label: 'Job Listings', icon: Briefcase },
   { href: '/admin/reports', label: 'Reports', icon: FileText },
   { href: '/admin/running-capital', label: 'Running Capital', icon: LineChart },
@@ -109,6 +109,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
   const router = useRouter()
   const supabase = createClient()
   const [profile, setProfile] = useState<{ full_name: string; role: string; can_collect_payments: boolean } | null>(null)
+  const [badges, setBadges] = useState<Record<string, number>>({})
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -117,6 +118,20 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
       if (data) setProfile(data)
     })
   }, [supabase])
+
+  // One RPC for every count. Re-run on navigation so a badge clears as soon as
+  // the work behind it is done, and every two minutes so someone parked on one
+  // screen still sees a request that came in while they sat there.
+  useEffect(() => {
+    let cancelled = false
+    const refresh = async () => {
+      const { data } = await supabase.rpc('admin_sidebar_badges')
+      if (!cancelled && data) setBadges(data as Record<string, number>)
+    }
+    refresh()
+    const id = setInterval(refresh, 120000)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [supabase, pathname])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -155,6 +170,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
         {visibleMenuItems.map((item) => {
           const Icon = item.icon
           const isActive = item.href === activeHref
+          const count = item.badge ? (badges[item.badge] ?? 0) : 0
           return (
             <Link
               key={item.href}
@@ -167,7 +183,15 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
               }`}
             >
               <Icon size={18} className="mr-3 shrink-0" />
-              <span>{item.label}</span>
+              <span className="min-w-0 truncate">{item.label}</span>
+              {count > 0 && (
+                <span
+                  className="ml-auto shrink-0 bg-dp-error text-white text-[11px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center"
+                  aria-label={`${count} awaiting action`}
+                >
+                  {count > 99 ? '99+' : count}
+                </span>
+              )}
             </Link>
           )
         })}
