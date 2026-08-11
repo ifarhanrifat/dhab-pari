@@ -9,24 +9,26 @@ import { MobileNav } from './MobileNav'
 import { useMobileNav } from './MobileNavContext'
 import { createClient } from '@/lib/supabase/client'
 import { LanguageToggle } from '@/components/layout/LanguageToggle'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
-const navLinks = [
-  { href: '/', label: 'Home' },
-  { href: '/water', label: 'Water Bill' },
+const navLinks: { href: string; label: string; tKey: string }[] = [
+  { href: '/', label: 'Home', tKey: 'site.home' },
+  { href: '/water', label: 'Water Bill', tKey: 'site.waterBill' },
   // High in the list on purpose: someone looking for this is looking for it in
   // an emergency, and will not hunt through a sidebar card to find it.
-  { href: '/blood', label: 'Blood' },
-  { href: '/projects', label: 'Projects' },
-  { href: '/jobs', label: 'Jobs' },
-  { href: '/accounts', label: 'Accounts' },
-  { href: '/donate', label: 'Donate' },
-  { href: '/news', label: 'News' },
-  { href: '/videos', label: 'Videos' },
-  { href: '/gallery', label: 'Gallery' },
-  { href: '/about', label: 'Committee' },
+  { href: '/blood', label: 'Blood', tKey: 'site.blood' },
+  { href: '/projects', label: 'Projects', tKey: 'site.projects' },
+  { href: '/jobs', label: 'Jobs', tKey: 'site.jobs' },
+  { href: '/accounts', label: 'Accounts', tKey: 'site.accounts' },
+  { href: '/donate', label: 'Donate', tKey: 'site.donate' },
+  { href: '/news', label: 'News', tKey: 'site.news' },
+  { href: '/videos', label: 'Videos', tKey: 'site.videos' },
+  { href: '/gallery', label: 'Gallery', tKey: 'site.gallery' },
+  { href: '/about', label: 'Committee', tKey: 'site.committee' },
 ]
 
 export function Header() {
+  const { t } = useLocale()
   const pathname = usePathname()
   const { open: mobileOpen, setOpen: setMobileOpen } = useMobileNav()
   const [isPortalUser, setIsPortalUser] = useState(false)
@@ -60,7 +62,7 @@ export function Header() {
             </button>
             {/* Logo — tagline only shows once there's room to spare (xl+),
                 so it never competes with the nav for space at lg. */}
-            <div className="shrink-0">
+            <div className="shrink-0 relative z-10 bg-dp-primary pe-2">
               <Link href="/" className="font-heading text-[28px] font-bold leading-[34px] text-white tracking-tight">
                 {SITE.name}
               </Link>
@@ -76,7 +78,7 @@ export function Header() {
               shrink-0 the nav ran underneath it — "Home" disappeared behind
               "Dhab Pari". Now the nav takes the space that is left and scrolls
               inside itself rather than overlapping its neighbours. */}
-          <nav className="hidden lg:flex flex-1 min-w-0 justify-end items-center gap-3.5 xl:gap-5 overflow-x-auto hide-scrollbar">
+          <nav className="hidden lg:flex flex-1 min-w-0 justify-end items-center gap-3.5 xl:gap-5 overflow-x-auto hide-scrollbar relative z-0 ps-3">
             {navLinks.map((link) => {
               const isActive = pathname === link.href
               return (
@@ -89,7 +91,7 @@ export function Header() {
                       : 'text-white/80 hover:text-white transition-colors text-[13.5px] font-sans tracking-[0.02em] whitespace-nowrap'
                   }
                 >
-                  {link.label}
+                  {t(link.tKey, link.label)}
                 </Link>
               )
             })}
@@ -107,7 +109,7 @@ export function Header() {
                 className="hidden md:flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1.5 rounded-lg font-sans text-[13px] font-semibold tracking-[0.02em] hover:bg-amber-600 transition-all active:scale-95 whitespace-nowrap"
               >
                 <UserCircle2 size={16} />
-                My Portal
+                {t('site.myPortal')}
               </Link>
             ) : (
               <Link

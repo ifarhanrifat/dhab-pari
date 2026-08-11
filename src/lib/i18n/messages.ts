@@ -269,6 +269,20 @@ export const messages: Record<Locale, Record<string, string>> = {
     'home.quickActions': 'Quick Actions',
     'home.villageNews': 'Village News',
     'home.suggest': 'Suggest',
+    // ── Public site navigation ───────────────────────────────────────────
+    'site.home': 'Home',
+    'site.waterBill': 'Water Bill',
+    'site.blood': 'Blood',
+    'site.projects': 'Projects',
+    'site.jobs': 'Jobs',
+    'site.accounts': 'Accounts',
+    'site.donate': 'Donate',
+    'site.news': 'News',
+    'site.videos': 'Videos',
+    'site.gallery': 'Gallery',
+    'site.committee': 'Committee',
+    'site.myPortal': 'My Portal',
+    'site.login': 'Login',
   },
 
   ur: {
@@ -523,6 +537,20 @@ export const messages: Record<Locale, Record<string, string>> = {
     'home.quickActions': 'فوری اقدامات',
     'home.villageNews': 'گاؤں کی خبریں',
     'home.suggest': 'تجویز دیں',
+    // ── Public site navigation ───────────────────────────────────────────
+    'site.home': 'صفحۂ اول',
+    'site.waterBill': 'پانی کا بل',
+    'site.blood': 'خون',
+    'site.projects': 'منصوبے',
+    'site.jobs': 'روزگار',
+    'site.accounts': 'حسابات',
+    'site.donate': 'عطیہ',
+    'site.news': 'خبریں',
+    'site.videos': 'ویڈیوز',
+    'site.gallery': 'گیلری',
+    'site.committee': 'کمیٹی',
+    'site.myPortal': 'میرا پورٹل',
+    'site.login': 'لاگ اِن',
   },
 }
 
