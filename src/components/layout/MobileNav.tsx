@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { X, UserCircle2, ShieldCheck } from 'lucide-react'
 import { SITE } from '@/lib/constants'
+import { LanguageToggle } from '@/components/layout/LanguageToggle'
 
 interface MobileNavProps {
   open: boolean
@@ -51,6 +52,7 @@ export function MobileNav({ open, onClose, navLinks, isPortalUser }: MobileNavPr
 
         {/* Links */}
         <nav className="flex flex-col py-4">
+          <div className="px-4 pb-3"><LanguageToggle compact /></div>
           {navLinks.map((link) => {
             const isActive = pathname === link.href
             return (

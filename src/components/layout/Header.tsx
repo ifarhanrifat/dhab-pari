@@ -8,6 +8,7 @@ import { SITE } from '@/lib/constants'
 import { MobileNav } from './MobileNav'
 import { useMobileNav } from './MobileNavContext'
 import { createClient } from '@/lib/supabase/client'
+import { LanguageToggle } from '@/components/layout/LanguageToggle'
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -96,6 +97,10 @@ export function Header() {
 
           {/* Right Actions */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* A visitor who reads Urdu needs this on the page they land on,
+                not only after signing in. Hidden on the narrowest phones where
+                the row is already tight — the mobile drawer carries one too. */}
+            <span className="hidden sm:block"><LanguageToggle compact /></span>
             {isPortalUser ? (
               <Link
                 href="/portal"
