@@ -4,6 +4,7 @@ import { Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { FloatingWhatsAppButton } from "@/components/layout/FloatingWhatsAppButton";
 import { PwaProvider } from "@/components/layout/PwaProvider";
+import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
 import { SITE } from "@/lib/constants";
 import "./globals.css";
 
@@ -88,7 +89,13 @@ export default function RootLayout({
       className={`${sourceSans.variable} ${playfair.variable} ${notoNastaliq.variable} ${notoNaskhArabic.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        {/* Wraps everything — public site, portal and admin — so a committee
+            member who reads Urdu gets Urdu wherever they are, not only on the
+            public pages. The provider also sets lang/dir on <html>, which is
+            what makes the logical CSS properties mirror the whole layout. */}
+        <LocaleProvider>
         {children}
+        </LocaleProvider>
         <PwaProvider />
         <FloatingWhatsAppButton />
         <Toaster

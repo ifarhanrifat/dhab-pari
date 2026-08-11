@@ -332,3 +332,48 @@
 .txn-form .input-field {
   border-color: var(--color-dp-primary);
 }
+
+/* --- Urdu as the interface language ---------------------------------------
+   When the whole app is in Urdu it uses the same Nastaliq face as the company
+   name on documents, so the interface and the printed paperwork read as one
+   system rather than two.
+
+   Nastaliq's calligraphic baseline descends much further than a Latin face, so
+   it needs noticeably more line height — at Latin spacing the descenders of one
+   line collide with the next. The larger min-heights keep buttons and inputs
+   from clipping the descenders. */
+html[lang='ur'] body {
+  font-family: var(--font-urdu), serif;
+  line-height: 2.1;
+}
+
+html[lang='ur'] .font-sans,
+html[lang='ur'] .font-heading {
+  font-family: var(--font-urdu), serif;
+}
+
+html[lang='ur'] button,
+html[lang='ur'] input,
+html[lang='ur'] select,
+html[lang='ur'] textarea,
+html[lang='ur'] label {
+  line-height: 2;
+}
+
+html[lang='ur'] th,
+html[lang='ur'] td {
+  line-height: 2.1;
+}
+
+/* Numbers, money, account codes, voucher numbers, phone numbers and dates stay
+   left-to-right and in a Latin face even inside Urdu text. Pakistani banking
+   uses Latin digits, and a bare "+92…" reorders to "…92+" under RTL — the bug
+   that put the plus sign at the wrong end of the helpline on every receipt. */
+html[lang='ur'] .ltr-num,
+html[lang='ur'] .font-mono {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  direction: ltr;
+  unicode-bidi: embed;
+  display: inline-block;
+  line-height: 1.4;
+}

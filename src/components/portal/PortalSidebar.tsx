@@ -6,6 +6,8 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LanguageToggle } from '@/components/layout/LanguageToggle'
 import {
   LayoutDashboard, HeartHandshake, Droplets, Repeat, MessageSquare,
   MessageSquareWarning, Droplet, LogOut, X, UserCog, ArrowLeftCircle, HandHeart, Vote, Briefcase,
@@ -17,19 +19,19 @@ import { SITE } from '@/lib/constants'
 // nav was a top bar before; a registered user's identity should stay
 // visible the whole time they're in the portal, same as staff in /admin.
 const menuItems = [
-  { href: '/portal', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/portal/donate', label: 'Donate', icon: HeartHandshake },
-  { href: '/portal/statement', label: 'My Giving', icon: HeartHandshake },
-  { href: '/portal/water', label: 'Water Bills', icon: Droplets, requiresConsumer: true },
-  { href: '/portal/recurring', label: 'Recurring Donations', icon: Repeat },
-  { href: '/portal/propose-project', label: 'Propose a Project', icon: Vote },
-  { href: '/portal/suggestions', label: 'Suggestions', icon: MessageSquare },
-  { href: '/portal/complaints', label: 'Complaints', icon: MessageSquareWarning },
-  { href: '/portal/blood-donor', label: 'Blood Donor', icon: Droplet },
-  { href: '/portal/post-job', label: 'My Job Listings', icon: Briefcase },
-  { href: '/portal/my-volunteering', label: 'My Volunteering', icon: HeartHandshake },
-  { href: '/portal/get-involved', label: 'Get Involved', icon: HandHeart },
-  { href: '/portal/profile', label: 'My Profile', icon: UserCog },
+  { href: '/portal', label: 'Dashboard', tKey: 'portal.dashboard', icon: LayoutDashboard },
+  { href: '/portal/donate', label: 'Donate', tKey: 'portal.donate', icon: HeartHandshake },
+  { href: '/portal/statement', label: 'My Giving', tKey: 'portal.statement', icon: HeartHandshake },
+  { href: '/portal/water', label: 'Water Bills', tKey: 'portal.water', icon: Droplets, requiresConsumer: true },
+  { href: '/portal/recurring', label: 'Recurring Donations', tKey: 'portal.recurring', icon: Repeat },
+  { href: '/portal/propose-project', label: 'Propose a Project', tKey: 'portal.proposeProject', icon: Vote },
+  { href: '/portal/suggestions', label: 'Suggestions', tKey: 'portal.suggestions', icon: MessageSquare },
+  { href: '/portal/complaints', label: 'Complaints', tKey: 'portal.complaints', icon: MessageSquareWarning },
+  { href: '/portal/blood-donor', label: 'Blood Donor', tKey: 'portal.bloodDonor', icon: Droplet },
+  { href: '/portal/post-job', label: 'My Job Listings', tKey: 'portal.postJob', icon: Briefcase },
+  { href: '/portal/my-volunteering', label: 'My Volunteering', tKey: 'portal.myVolunteering', icon: HeartHandshake },
+  { href: '/portal/get-involved', label: 'Get Involved', tKey: 'portal.getInvolved', icon: HandHeart },
+  { href: '/portal/profile', label: 'My Profile', tKey: 'portal.profile', icon: UserCog },
 ]
 
 interface PortalSidebarProps {
@@ -42,6 +44,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+  const { t } = useLocale()
   const [badges, setBadges] = useState<Record<string, number>>({})
 
   // Keyed by the last segment of each href, because the server buckets unread
@@ -90,7 +93,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
                 isActive ? 'bg-[#1D9E75] text-white font-bold' : 'text-white/80 hover:bg-dp-primary-container hover:text-white'
               }`}>
               <Icon size={18} className="mr-3 shrink-0" />
-              <span className="min-w-0 truncate">{item.label}</span>
+              <span className="min-w-0 truncate">{item.tKey ? t(item.tKey, item.label) : item.label}</span>
               {count > 0 && (
                 <span
                   className="ml-auto shrink-0 bg-dp-error text-white text-[11px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center"
@@ -106,8 +109,12 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
 
       <div className="px-2 pt-2 shrink-0">
         <a href="/" className="flex items-center px-2 py-2.5 rounded-lg text-white/70 hover:bg-dp-primary-container hover:text-white transition-all text-[13.5px] font-sans">
-          <ArrowLeftCircle size={17} className="mr-3 shrink-0" /> Back to Website
+          <ArrowLeftCircle size={17} className="mr-3 shrink-0" /> {t('nav.backToWebsite')}
         </a>
+      </div>
+
+      <div className="px-4 pt-3 shrink-0">
+        <LanguageToggle compact />
       </div>
 
       {/* Persistent profile — a registered user's identity stays visible
@@ -127,7 +134,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
           </div>
         </Link>
         <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2 bg-dp-error text-white rounded-lg text-[14px] font-sans font-semibold hover:opacity-90 transition-opacity cursor-pointer">
-          <LogOut size={16} /> Log Out
+          <LogOut size={16} /> {t('nav.logout')}
         </button>
       </div>
     </>
@@ -137,7 +144,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
     <>
       <aside className="hidden md:flex flex-col h-screen fixed left-0 top-0 py-6 bg-dp-primary border-r border-dp-outline-variant w-[210px] z-50 print:hidden">
         <div className="px-4 mb-8">
-          <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">Donor Portal</h2>
+          <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">{t('portal.title')}</h2>
           <p className="text-[12px] font-sans text-white/60 mt-1">{SITE.shortCommittee}</p>
         </div>
         {sidebarContent}
@@ -148,7 +155,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
       <aside className={`fixed left-0 top-0 h-screen w-[260px] bg-dp-primary z-[100] md:hidden flex flex-col py-6 transform transition-transform duration-300 ease-in-out ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="px-4 mb-8 flex items-center justify-between">
           <div>
-            <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">Donor Portal</h2>
+            <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">{t('portal.title')}</h2>
             <p className="text-[12px] font-sans text-white/60 mt-1">{SITE.shortCommittee}</p>
           </div>
           <button onClick={onMobileClose} className="text-white/80 hover:text-white p-1 cursor-pointer" aria-label="Close menu"><X size={22} /></button>

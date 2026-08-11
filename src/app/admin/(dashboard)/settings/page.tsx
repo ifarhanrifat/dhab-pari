@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Save, PlusCircle, Trash2, Pencil, X, Check, Bell, MessageCircle, ShieldCheck, MessageSquareWarning, AlertTriangle, Copy, MessageSquareText, Building2, Wallet, FileText, MapPin, Heart, ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react'
+import { Save, PlusCircle, Trash2, Pencil, X, Check, Bell, MessageCircle, ShieldCheck, MessageSquareWarning, AlertTriangle, Copy, MessageSquareText, Building2, Wallet, FileText, MapPin, Heart, ChevronDown, ChevronRight, ChevronLeft, Languages } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ImageUpload } from '@/components/admin/ImageUpload'
@@ -11,6 +11,7 @@ import { TEMPLATE_KEYS } from '@/lib/messageTemplates'
 import { SITE } from '@/lib/constants'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { MODULES } from '@/lib/constants'
+import { LanguageSettings } from '@/components/admin/LanguageSettings'
 
 interface Setting { id: string; key: string; value: string | null; description: string | null }
 interface Sector { id: string; name: string; display_order: number }
@@ -44,7 +45,7 @@ const invoiceTemplates: { id: string; label: string; blurb: string }[] = [
   { id: 'statement', label: 'Statement', blurb: 'Slate-blue, striped statement-style table' },
 ]
 
-type SettingsCategory = 'general' | 'payments' | 'documents' | 'donorTemplates' | 'connections' | 'approvals' | 'danger'
+type SettingsCategory = 'general' | 'payments' | 'language' | 'documents' | 'donorTemplates' | 'connections' | 'approvals' | 'danger'
 
 // Grouped by which part of the system each one belongs to, so a village that
 // runs only water supply — or only donations — sees a settings screen with
@@ -62,6 +63,8 @@ const CATEGORIES: {
     blurb: 'Name, display language, about text and office hours' },
   { id: 'payments', label: 'Payment Methods', icon: Wallet, group: 'Committee',
     blurb: 'WhatsApp, JazzCash, Easypaisa and bank details' },
+  { id: 'language', label: 'Language & Wording', icon: Languages, group: 'Committee',
+    blurb: 'Urdu and English wording, voucher types and report column headings' },
 
   { id: 'connections', label: 'Connections & Billing', icon: MapPin, group: 'Water Supply', system: 'water_supply',
     blurb: 'Sectors, new connection charges and reminder fees' },
@@ -688,6 +691,8 @@ export default function AdminSettingsPage() {
           )}
 
           {activeCategory === 'payments' && renderSettingGroups('payments')}
+
+          {activeCategory === 'language' && <LanguageSettings />}
 
           {activeCategory === 'documents' && (
             <>

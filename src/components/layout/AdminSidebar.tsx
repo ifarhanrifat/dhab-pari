@@ -48,6 +48,8 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LanguageToggle } from '@/components/layout/LanguageToggle'
 import { MODULES } from '@/lib/constants'
 import { SITE } from '@/lib/constants'
 
@@ -56,50 +58,51 @@ const menuItems: {
   system?: 'water_supply' | 'donors_projects'
   module?: 'business'
   publish?: 'news' | 'videos' | 'gallery' | 'ticker' | 'jobs'
+  tKey?: string
   badge?: string
   collectorOnly?: boolean; adminAndAbove?: boolean; superAdminOnly?: boolean
 }[] = [
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/billing', label: 'Billing', icon: Receipt, system: 'water_supply' },
-  { href: '/admin/connections', label: 'New Connections', icon: UserPlus, system: 'water_supply', badge: 'connections' },
-  { href: '/admin/tasks', label: 'Task Todo', icon: ClipboardList, system: 'water_supply' },
-  { href: '/admin/tasks/meetings', label: 'Meetings & Agenda', icon: CalendarClock },
-  { href: '/admin/reminders', label: 'Reminders', icon: BellRing },
-  { href: '/admin/advances', label: 'Advance Payments', icon: HandCoins, system: 'water_supply' },
-  { href: '/admin/projects', label: 'Projects', icon: FolderKanban, system: 'donors_projects' },
-  { href: '/admin/members', label: 'Members', icon: Users },
-  { href: '/admin/accounts', label: 'Accounts', icon: BookOpen },
-  { href: '/admin/finance', label: 'Transactions', icon: BarChart3 },
-  { href: '/admin/transactions', label: 'All Transactions', icon: ListFilter },
-  { href: '/admin/register', label: 'Daily Register', icon: CalendarDays },
-  { href: '/admin/recurring', label: 'Recurring', icon: Repeat },
-  { href: '/admin/approvals', label: 'Approvals', icon: ShieldCheck, badge: 'approvals' },
-  { href: '/admin/inventory', label: 'Inventory & Services', icon: Boxes, system: 'water_supply' },
-  { href: '/admin/reports/non-payment', label: 'Non-Payment Report', icon: AlertTriangle, system: 'water_supply' },
-  { href: '/admin/collect', label: 'Collect Payment', icon: Truck, collectorOnly: true },
-  { href: '/admin/payment-claims', label: 'Payment Claims', icon: UploadCloud, system: 'water_supply', badge: 'payment_claims' },
-  { href: '/admin/collectors', label: 'Collectors', icon: Coins, system: 'water_supply' },
-  { href: '/admin/employees', label: 'Employees', icon: HardHat, system: 'water_supply' },
-  { href: '/admin/news', label: 'News', icon: Newspaper, publish: 'news' },
-  { href: '/admin/videos', label: 'Videos', icon: Video, publish: 'videos' },
-  { href: '/admin/donors', label: 'Donors', icon: Heart, system: 'donors_projects', badge: 'donors' },
-  { href: '/admin/donors/collectors', label: 'Donor Collectors', icon: Coins, system: 'donors_projects' },
-  { href: '/admin/gallery', label: 'Gallery', icon: Image, publish: 'gallery' },
-  { href: '/admin/suggestions', label: 'Suggestions', icon: MessageSquare, badge: 'suggestions' },
-  { href: '/admin/volunteers', label: 'Volunteers', icon: HandHeart, system: 'donors_projects', badge: 'volunteers' },
-  { href: '/admin/comments', label: 'Project Comments', icon: MessageSquare, system: 'donors_projects' },
-  { href: '/admin/project-transfers', label: 'Project Transfers', icon: ArrowRightLeft, system: 'donors_projects' },
-  { href: '/admin/complaints', label: 'Complaints', icon: MessageSquareWarning, badge: 'complaints' },
-  { href: '/admin/ticker', label: 'Ticker', icon: TicketSlash, publish: 'ticker' },
-  { href: '/admin/notifications', label: 'Alerts & Appeals', icon: Bell, badge: 'alerts' },
-  { href: '/admin/blood-donors', label: 'Blood Donors', icon: Droplet },
-  { href: '/admin/blood-requests', label: 'Blood Requests', icon: Droplet, badge: 'blood_requests' },
-  { href: '/admin/jobs', label: 'Job Listings', icon: Briefcase, publish: 'jobs' },
-  { href: '/admin/reports', label: 'Reports', icon: FileText },
-  { href: '/admin/running-capital', label: 'Running Capital', icon: LineChart },
-  { href: '/admin/users', label: 'Users', icon: UserCog, adminAndAbove: true },
-  { href: '/admin/audit-log', label: 'Audit Log', icon: History, adminAndAbove: true },
-  { href: '/admin/settings', label: 'Settings', icon: Settings, superAdminOnly: true },
+  { href: '/admin', label: 'Dashboard', tKey: 'nav.dashboard', icon: LayoutDashboard },
+  { href: '/admin/billing', label: 'Billing', tKey: 'nav.billing', icon: Receipt, system: 'water_supply' },
+  { href: '/admin/connections', label: 'New Connections', tKey: 'nav.connections', icon: UserPlus, system: 'water_supply', badge: 'connections' },
+  { href: '/admin/tasks', label: 'Task Todo', tKey: 'nav.tasks', icon: ClipboardList, system: 'water_supply' },
+  { href: '/admin/tasks/meetings', label: 'Meetings & Agenda', tKey: 'nav.meetings', icon: CalendarClock },
+  { href: '/admin/reminders', label: 'Reminders', tKey: 'nav.reminders', icon: BellRing },
+  { href: '/admin/advances', label: 'Advance Payments', tKey: 'nav.advances', icon: HandCoins, system: 'water_supply' },
+  { href: '/admin/projects', label: 'Projects', tKey: 'nav.projects', icon: FolderKanban, system: 'donors_projects' },
+  { href: '/admin/members', label: 'Members', tKey: 'nav.members', icon: Users },
+  { href: '/admin/accounts', label: 'Accounts', tKey: 'nav.accounts', icon: BookOpen },
+  { href: '/admin/finance', label: 'Transactions', tKey: 'nav.finance', icon: BarChart3 },
+  { href: '/admin/transactions', label: 'All Transactions', tKey: 'nav.transactions', icon: ListFilter },
+  { href: '/admin/register', label: 'Daily Register', tKey: 'nav.register', icon: CalendarDays },
+  { href: '/admin/recurring', label: 'Recurring', tKey: 'nav.recurring', icon: Repeat },
+  { href: '/admin/approvals', label: 'Approvals', tKey: 'nav.approvals', icon: ShieldCheck, badge: 'approvals' },
+  { href: '/admin/inventory', label: 'Inventory & Services', tKey: 'nav.inventory', icon: Boxes, system: 'water_supply' },
+  { href: '/admin/reports/non-payment', label: 'Non-Payment Report', tKey: 'nav.nonPayment', icon: AlertTriangle, system: 'water_supply' },
+  { href: '/admin/collect', label: 'Collect Payment', tKey: 'nav.collect', icon: Truck, collectorOnly: true },
+  { href: '/admin/payment-claims', label: 'Payment Claims', tKey: 'nav.paymentClaims', icon: UploadCloud, system: 'water_supply', badge: 'payment_claims' },
+  { href: '/admin/collectors', label: 'Collectors', tKey: 'nav.collectors', icon: Coins, system: 'water_supply' },
+  { href: '/admin/employees', label: 'Employees', tKey: 'nav.employees', icon: HardHat, system: 'water_supply' },
+  { href: '/admin/news', label: 'News', tKey: 'nav.news', icon: Newspaper, publish: 'news' },
+  { href: '/admin/videos', label: 'Videos', tKey: 'nav.videos', icon: Video, publish: 'videos' },
+  { href: '/admin/donors', label: 'Donors', tKey: 'nav.donors', icon: Heart, system: 'donors_projects', badge: 'donors' },
+  { href: '/admin/donors/collectors', label: 'Donor Collectors', tKey: 'nav.donorCollectors', icon: Coins, system: 'donors_projects' },
+  { href: '/admin/gallery', label: 'Gallery', tKey: 'nav.gallery', icon: Image, publish: 'gallery' },
+  { href: '/admin/suggestions', label: 'Suggestions', tKey: 'nav.suggestions', icon: MessageSquare, badge: 'suggestions' },
+  { href: '/admin/volunteers', label: 'Volunteers', tKey: 'nav.volunteers', icon: HandHeart, system: 'donors_projects', badge: 'volunteers' },
+  { href: '/admin/comments', label: 'Project Comments', tKey: 'nav.comments', icon: MessageSquare, system: 'donors_projects' },
+  { href: '/admin/project-transfers', label: 'Project Transfers', tKey: 'nav.projectTransfers', icon: ArrowRightLeft, system: 'donors_projects' },
+  { href: '/admin/complaints', label: 'Complaints', tKey: 'nav.complaints', icon: MessageSquareWarning, badge: 'complaints' },
+  { href: '/admin/ticker', label: 'Ticker', tKey: 'nav.ticker', icon: TicketSlash, publish: 'ticker' },
+  { href: '/admin/notifications', label: 'Alerts & Appeals', tKey: 'nav.alerts', icon: Bell, badge: 'alerts' },
+  { href: '/admin/blood-donors', label: 'Blood Donors', tKey: 'nav.bloodDonors', icon: Droplet },
+  { href: '/admin/blood-requests', label: 'Blood Requests', tKey: 'nav.bloodRequests', icon: Droplet, badge: 'blood_requests' },
+  { href: '/admin/jobs', label: 'Job Listings', tKey: 'nav.jobs', icon: Briefcase, publish: 'jobs' },
+  { href: '/admin/reports', label: 'Reports', tKey: 'nav.reports', icon: FileText },
+  { href: '/admin/running-capital', label: 'Running Capital', tKey: 'nav.runningCapital', icon: LineChart },
+  { href: '/admin/users', label: 'Users', tKey: 'nav.users', icon: UserCog, adminAndAbove: true },
+  { href: '/admin/audit-log', label: 'Audit Log', tKey: 'nav.auditLog', icon: History, adminAndAbove: true },
+  { href: '/admin/settings', label: 'Settings', tKey: 'nav.settings', icon: Settings, superAdminOnly: true },
 ]
 
 const roleLabels: Record<string, string> = {
@@ -130,6 +133,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
   // system still saw the other one's whole menu, and a secondary role was
   // ignored entirely.
   const access = useSystemAccess()
+  const { t } = useLocale()
   const [badges, setBadges] = useState<Record<string, number>>({})
 
   useEffect(() => {
@@ -235,7 +239,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
               }`}
             >
               <Icon size={18} className="mr-3 shrink-0" />
-              <span className="min-w-0 truncate">{item.label}</span>
+              <span className="min-w-0 truncate">{item.tKey ? t(item.tKey, item.label) : item.label}</span>
               {count > 0 && (
                 <span
                   className="ml-auto shrink-0 bg-dp-error text-white text-[11px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center"
@@ -248,6 +252,13 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
           )
         })}
       </nav>
+
+      {/* Language sits with the profile, not in a settings page — a member who
+          opens the app in the wrong language must be able to fix it without
+          reading their way through a menu first. */}
+      <div className="px-4 pt-3 shrink-0">
+        <LanguageToggle compact />
+      </div>
 
       {/* Current User + Logout */}
       <div className="px-4 pt-4 mt-auto border-t border-white/10 shrink-0">
@@ -271,7 +282,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
           className="w-full flex items-center justify-center gap-2 py-2 bg-dp-error text-white rounded-lg text-[14px] font-sans font-semibold hover:opacity-90 transition-opacity cursor-pointer"
         >
           <LogOut size={16} />
-          Log Out
+          {t('nav.logout')}
         </button>
       </div>
     </>
