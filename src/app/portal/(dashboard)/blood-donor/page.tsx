@@ -9,6 +9,25 @@ import { Droplet, ShieldCheck } from 'lucide-react'
 
 const GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 
+interface MyRequest {
+  id: string; patient_name: string; blood_group: string; units_needed: number
+  city: string; hospital: string; needed_on: string; needed_hour: number | null
+  needed_period: string | null; status: string; created_at: string
+  cancel_reason: string | null; donors_contacted: number; donors_said_yes: number
+}
+
+const MY_STATUS: Record<string, { label: string; cls: string }> = {
+  pending_approval: { label: 'Waiting for the committee to call you', cls: 'bg-amber-100 text-amber-800' },
+  open: { label: 'Approved — donors notified', cls: 'bg-rose-100 text-rose-700' },
+  paused: { label: 'Paused by the committee', cls: 'bg-dp-surface-container-high text-dp-on-surface-variant' },
+  fulfilled: { label: 'Completed', cls: 'bg-emerald-100 text-emerald-700' },
+  cancelled: { label: 'Cancelled', cls: 'bg-dp-surface-container-high text-dp-on-surface-variant' },
+  expired: { label: 'Expired', cls: 'bg-dp-surface-container-high text-dp-on-surface-variant' },
+}
+const PERIOD_LABEL: Record<string, string> = {
+  subha: 'morning', dopahar: 'afternoon', shaam: 'evening', raat: 'night',
+}
+
 interface OpenRequest {
   id: string; blood_group: string; units_needed: number; hospital: string; city: string
   needed_on: string; needed_time: string | null; status: string; response: string
@@ -36,6 +55,7 @@ export default function PortalBloodDonorPage() {
   const [lastDonation, setLastDonation] = useState<string | null>(null)
   const [availableFrom, setAvailableFrom] = useState<string | null>(null)
   const [openRequests, setOpenRequests] = useState<OpenRequest[]>([])
+  const [myRequests, setMyRequests] = useState<MyRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -43,6 +63,11 @@ export default function PortalBloodDonorPage() {
     if (!user) return
     const supabase = createClient()
     ;(async () => {
+      // Runs whether or not they are a registered donor: anyone with an account
+      // can raise a request, and the answer belongs to them either way.
+      const { data: mine } = await supabase.rpc('my_blood_requests')
+      setMyRequests((mine ?? []) as MyRequest[])
+
       const { data } = await supabase
         .from('blood_donors')
         .select('id, blood_group, sector, is_available, gender, city, allow_public_thanks, last_donation_date')
@@ -126,6 +151,63 @@ export default function PortalBloodDonorPage() {
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Droplet size={22} className="text-dp-error" /> Blood Donor Registration</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Help the community in an emergency. Your details are visible only to committee staff — never public.</p>
       </div>
+
+      {/* Requests this user raised themselves. Separate from the matched-donor
+          list below: one is "can you help?", this is "what happened to mine?" */}
+      {myRequests.length > 0 && (
+        <div className="mb-6 max-w-md">
+          <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-2">My Blood Requests</h2>
+          <div className="space-y-3">
+            {myRequests.map((r) => {
+              const st = MY_STATUS[r.status] ?? { label: r.status, cls: 'bg-dp-surface-container text-dp-on-surface-variant' }
+              return (
+                <div key={r.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <span className="font-heading text-[16px] font-bold text-dp-on-surface">
+                      {r.blood_group} · {r.units_needed} unit{r.units_needed > 1 ? 's' : ''}
+                    </span>
+                    <span className={`text-[10.5px] font-bold uppercase px-2 py-1 rounded-full font-sans shrink-0 ${st.cls}`}>{st.label}</span>
+                  </div>
+                  <p className="font-sans text-[13px] text-dp-on-surface-variant">
+                    For {r.patient_name} · {r.hospital}, {r.city}
+                  </p>
+                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                    {fmtDay(r.needed_on)}
+                    {r.needed_hour && r.needed_period ? ` at ${r.needed_hour} in the ${PERIOD_LABEL[r.needed_period] ?? ''}` : ''}
+                  </p>
+
+                  {r.status === 'pending_approval' && (
+                    <p className="font-sans text-[12.5px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 mt-2">
+                      A committee member will phone you to confirm before any donor is contacted.
+                      If it is urgent, ring the committee rather than waiting.
+                    </p>
+                  )}
+
+                  {/* Counts only — who was asked and who declined is not the
+                      requester's business, but "11 contacted, 3 said yes" is
+                      what stops them panicking. */}
+                  {['open', 'paused', 'fulfilled'].includes(r.status) && (
+                    <div className="flex gap-4 mt-2 pt-2 border-t border-dp-outline-variant/60">
+                      <div>
+                        <p className="font-sans text-[18px] font-bold text-dp-on-surface leading-none">{r.donors_contacted}</p>
+                        <p className="font-sans text-[11px] text-dp-on-surface-variant">donors contacted</p>
+                      </div>
+                      <div>
+                        <p className="font-sans text-[18px] font-bold text-dp-secondary leading-none">{r.donors_said_yes}</p>
+                        <p className="font-sans text-[11px] text-dp-on-surface-variant">said yes</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {r.status === 'cancelled' && r.cancel_reason && (
+                    <p className="font-sans text-[12.5px] text-dp-error mt-2">Reason: {r.cancel_reason}</p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Requests the committee has matched to this donor. Nothing about the
           patient is shown — only what a donor needs to answer yes or no. */}

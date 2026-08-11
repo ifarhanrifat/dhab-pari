@@ -80,7 +80,7 @@ const menuItems = [
   { href: '/admin/project-transfers', label: 'Project Transfers', icon: ArrowRightLeft, system: 'donors_projects' },
   { href: '/admin/complaints', label: 'Complaints', icon: MessageSquareWarning, badge: 'complaints' },
   { href: '/admin/ticker', label: 'Ticker', icon: TicketSlash },
-  { href: '/admin/notifications', label: 'Alerts', icon: Bell, badge: 'alerts' },
+  { href: '/admin/notifications', label: 'Alerts & Appeals', icon: Bell, badge: 'alerts' },
   { href: '/admin/blood-donors', label: 'Blood Donors', icon: Droplet },
   { href: '/admin/blood-requests', label: 'Blood Requests', icon: Droplet, badge: 'blood_requests' },
   { href: '/admin/jobs', label: 'Job Listings', icon: Briefcase },

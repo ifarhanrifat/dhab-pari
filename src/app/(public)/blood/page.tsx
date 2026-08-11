@@ -50,6 +50,7 @@ const t: Record<string, { en: string; ur: string }> = {
     en: 'The public appeal never shows the patient\u2019s name — it says "a villager (woman)" instead, so people know who they are helping without the family losing their privacy.',
     ur: 'عوامی اپیل میں مریض کا نام کبھی ظاہر نہیں کیا جاتا — اس کی جگہ "ایک مریض (خاتون)" لکھا جاتا ہے، تاکہ لوگوں کو معلوم ہو کہ وہ کس کی مدد کر رہے ہیں اور خاندان کی نجی معلومات محفوظ رہیں۔',
   },
+  hourLabel: { en: 'Hour', ur: 'گھنٹہ' },
   periodSubha: { en: 'Morning', ur: 'صبح' },
   periodDopahar: { en: 'Afternoon', ur: 'دوپہر' },
   periodShaam: { en: 'Evening', ur: 'شام' },
@@ -282,14 +283,17 @@ export default function PublicBloodPage() {
                 form asks for and what every message repeats back. */}
             <div className="mb-4">
               <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{dt('neededTime')} *</label>
-              <div className="flex gap-2">
-                <select name="neededHour" value={form.neededHour} onChange={handleChange} className="input-field w-24" dir="ltr">
-                  <option value="">--</option>
+              <div className="flex flex-wrap gap-2">
+                {/* A bare "--" read as a broken field. The select carries its
+                    own label instead, and stays LTR because a number does. */}
+                <select name="neededHour" value={form.neededHour} onChange={handleChange}
+                  className={`input-field w-28 shrink-0 ${form.neededHour ? '' : 'text-dp-on-surface-variant'}`} dir="ltr">
+                  <option value="">{dt('hourLabel')}</option>
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
                     <option key={h} value={h}>{h}</option>
                   ))}
                 </select>
-                <div className="grid grid-cols-4 gap-2 flex-1">
+                <div className="grid grid-cols-4 gap-2 flex-1 min-w-0">
                   {([['subha', 'periodSubha'], ['dopahar', 'periodDopahar'], ['shaam', 'periodShaam'], ['raat', 'periodRaat']] as const).map(([v, k]) => (
                     <button key={v} type="button" onClick={() => setForm((p) => ({ ...p, neededPeriod: v }))}
                       className={`py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer transition-all ${form.neededPeriod === v ? 'bg-dp-error text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-error'}`}>

@@ -69,8 +69,13 @@ export function Header() {
             </div>
           </div>
 
-          {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-4 xl:gap-5">
+          {/* Desktop Nav
+              flex-1 + min-w-0 + scroll: adding an 11th link (Blood) pushed the
+              row past the 1200px container at lg, and because the logo block is
+              shrink-0 the nav ran underneath it — "Home" disappeared behind
+              "Dhab Pari". Now the nav takes the space that is left and scrolls
+              inside itself rather than overlapping its neighbours. */}
+          <nav className="hidden lg:flex flex-1 min-w-0 justify-end items-center gap-3.5 xl:gap-5 overflow-x-auto hide-scrollbar">
             {navLinks.map((link) => {
               const isActive = pathname === link.href
               return (
