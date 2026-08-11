@@ -7,6 +7,7 @@ export const metadata: Metadata = {
 }
 import Link from 'next/link'
 import { SITE } from '@/lib/constants'
+import { T } from '@/components/i18n/T'
 
 export default function EducationPage() {
   return (
@@ -17,7 +18,7 @@ export default function EducationPage() {
           <GraduationCap size={32} />
         </div>
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary mb-2">
-          Education Corner
+          <T k="x.educationCorner" />
         </h1>
         <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px]">
           Supporting the next generation of {SITE.name} through scholarships,
@@ -28,7 +29,7 @@ export default function EducationPage() {
       {/* Scholarship Info Cards */}
       <section className="mb-16">
         <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mb-6">
-          Scholarship Programs
+          <T k="x.scholarshipPrograms" />
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white border border-dp-outline-variant rounded-lg p-6 hover:border-dp-secondary transition-all">
@@ -36,7 +37,7 @@ export default function EducationPage() {
               <BookOpen size={24} />
             </div>
             <h3 className="font-sans text-[18px] font-bold leading-[28px] text-dp-on-surface mb-2">
-              Primary Education Fund
+              <T k="x.primaryEducationFund" />
             </h3>
             <p className="text-dp-on-surface-variant font-sans text-[14px] mb-4">
               Covers school fees, books, and uniforms for underprivileged
@@ -53,7 +54,7 @@ export default function EducationPage() {
               <Award size={24} />
             </div>
             <h3 className="font-sans text-[18px] font-bold leading-[28px] text-dp-on-surface mb-2">
-              Merit Scholarship
+              <T k="x.meritScholarship" />
             </h3>
             <p className="text-dp-on-surface-variant font-sans text-[14px] mb-4">
               Annual scholarship for top-performing students in Matric and
@@ -70,7 +71,7 @@ export default function EducationPage() {
               <GraduationCap size={24} />
             </div>
             <h3 className="font-sans text-[18px] font-bold leading-[28px] text-dp-on-surface mb-2">
-              Higher Education Support
+              <T k="x.higherEducation" />
             </h3>
             <p className="text-dp-on-surface-variant font-sans text-[14px] mb-4">
               Partial funding for village students admitted to public
@@ -87,7 +88,7 @@ export default function EducationPage() {
       {/* Student Achievements */}
       <section className="mb-16">
         <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mb-6">
-          Student Achievements
+          <T k="x.studentAchievements" />
         </h2>
         <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
           {[
@@ -116,7 +117,7 @@ export default function EducationPage() {
       {/* CTA */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center">
         <h3 className="font-heading text-[24px] font-bold leading-[32px] text-blue-900 mb-2">
-          Want to Support Education?
+          <T k="x.supportEducation" />
         </h3>
         <p className="text-blue-700 font-sans text-[16px] mb-6">
           Your donation can help a child attend school, buy books, or pursue higher education.
@@ -125,7 +126,7 @@ export default function EducationPage() {
           href="/donate"
           className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-sans font-semibold hover:bg-blue-700 transition-all"
         >
-          Donate for Education
+          <T k="x.donateForEducation" />
         </Link>
       </div>
     </div>

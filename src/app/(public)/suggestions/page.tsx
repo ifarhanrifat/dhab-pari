@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Send, CheckCircle } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 const tabs = [
   { key: 'suggestion', label: 'Suggestion', labelUr: 'تجویز' },
@@ -12,6 +13,7 @@ const tabs = [
 ]
 
 export default function SuggestionsPage() {
+  const { t } = useLocale()
   const [activeTab, setActiveTab] = useState('suggestion')
   const [name, setName] = useState('')
   const [mobile, setMobile] = useState('')
@@ -67,7 +69,7 @@ export default function SuggestionsPage() {
         {/* Header */}
         <div className="text-center mb-10">
           <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary mb-2">
-            Community Input
+            {t('x.communityInput')}
           </h1>
           <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px]">
             Share your suggestions, complaints, or volunteer for village initiatives.
@@ -102,7 +104,7 @@ export default function SuggestionsPage() {
           <div className="bg-white border border-dp-outline-variant rounded-lg p-12 text-center">
             <CheckCircle size={48} className="text-dp-secondary mx-auto mb-4" />
             <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mb-2">
-              Thank You!
+              {t('p.thankYou')}
             </h2>
             <p className="text-dp-on-surface-variant font-sans text-[16px] mb-2">
               Your {activeTab} has been submitted successfully.
@@ -117,7 +119,7 @@ export default function SuggestionsPage() {
               onClick={reset}
               className="bg-dp-secondary text-white px-8 py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer"
             >
-              Submit Another
+              {t('x.submitAnother')}
             </button>
           </div>
         )}
@@ -151,7 +153,7 @@ export default function SuggestionsPage() {
                   placeholder="0300-1234567"
                   className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px] text-dp-on-surface"
                 />
-                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">So the committee can send you a reply.</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">{t('x.soCommitteeReply')}</p>
               </div>
 
               <div>

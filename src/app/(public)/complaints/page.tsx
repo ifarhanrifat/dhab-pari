@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Send, CheckCircle } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 const systems = [
   { key: 'water_supply', label: 'Water Supply', labelUr: 'واٹر سپلائی' },
@@ -11,6 +12,7 @@ const systems = [
 ]
 
 export default function ComplaintsPage() {
+  const { t } = useLocale()
   const supabase = createClient()
   const [system, setSystem] = useState<'water_supply' | 'donors_projects'>('water_supply')
   const [name, setName] = useState('')
@@ -59,7 +61,7 @@ export default function ComplaintsPage() {
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-10">
           <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary mb-2">
-            File a Complaint
+            {t('x.fileComplaint')}
           </h1>
           <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px]">
             Tell us what went wrong — a committee member will be assigned to look into it.
@@ -68,22 +70,22 @@ export default function ComplaintsPage() {
             اپنی شکایت درج کروائیں — کمیٹی کا ایک رکن اس پر کام کرے گا
           </p>
           <p className="font-sans text-[13px] text-dp-on-surface-variant mt-3">
-            Have a general suggestion instead? <Link href="/suggestions" className="text-dp-secondary hover:underline">Go to Community Input</Link>
+            {t('x.generalSuggestion')} <Link href="/suggestions" className="text-dp-secondary hover:underline">{t('x.goCommunityInput')}</Link>
           </p>
         </div>
 
         {submitted ? (
           <div className="bg-white border border-dp-outline-variant rounded-lg p-12 text-center">
             <CheckCircle size={48} className="text-dp-secondary mx-auto mb-4" />
-            <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mb-2">Complaint Registered</h2>
+            <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mb-2">{t('x.complaintRegistered')}</h2>
             <p className="text-dp-on-surface-variant font-sans text-[16px] mb-1">
-              Your complaint number is <span className="font-bold text-dp-primary">{complaintNumber}</span> — keep it for reference.
+              {t('x.yourComplaintNumber')} <span className="font-bold text-dp-primary">{complaintNumber}</span> — keep it for reference.
             </p>
             <p className="text-dp-on-surface-variant font-sans text-[15px] mb-6">
               We&apos;ll follow up on the number you provided once it&apos;s resolved.
             </p>
             <button onClick={reset} className="bg-dp-secondary text-white px-8 py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-              File Another Complaint
+              {t('x.fileAnother')}
             </button>
           </div>
         ) : (
@@ -114,7 +116,7 @@ export default function ComplaintsPage() {
                 <div>
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">SECTOR (Optional) / سیکٹر</label>
                   <select value={sector} onChange={(e) => setSector(e.target.value)} className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px] text-dp-on-surface">
-                    <option value="">Select your sector...</option>
+                    <option value="">{t('w.selectSector')}</option>
                     {sectors.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
                   </select>
                 </div>

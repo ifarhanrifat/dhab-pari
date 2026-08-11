@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 // visit's full server render + DB round trip into one shared cached page.
 export const revalidate = 300
 import { Phone, Eye, Target } from 'lucide-react'
+import { T } from '@/components/i18n/T'
 
 const initialsColors = [
   'bg-dp-primary-container text-dp-on-primary-container',
@@ -64,7 +65,7 @@ export default async function AboutPage() {
       <section className="mb-16">
         <div className="bg-white border border-dp-outline-variant rounded-lg p-8 md:p-12">
           <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mb-6">
-            Village History
+            <T k="x.villageHistory" />
           </h2>
           <div className="prose max-w-none">
             <p className="font-sans text-[18px] leading-[28px] text-dp-on-surface-variant mb-4">
@@ -92,7 +93,7 @@ export default async function AboutPage() {
             <div className="flex items-center gap-3 mb-4">
               <Eye size={24} className="text-dp-secondary-fixed" />
               <h2 className="font-heading text-[24px] font-bold leading-[32px]">
-                Our Vision
+                <T k="x.ourVision" />
               </h2>
             </div>
             <p className="font-sans text-[18px] leading-[28px] opacity-90">
@@ -107,7 +108,7 @@ export default async function AboutPage() {
             <div className="flex items-center gap-3 mb-4">
               <Target size={24} className="text-dp-secondary" />
               <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary section-title">
-                Our Mission
+                <T k="x.ourMission" />
               </h2>
             </div>
             <p className="font-sans text-[18px] leading-[28px] text-dp-on-surface-variant">
@@ -121,10 +122,10 @@ export default async function AboutPage() {
       <section>
         <div className="text-center mb-10">
           <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary mb-2">
-            Committee Members
+            <T k="x.committeeMembers" />
           </h2>
           <p className="text-dp-on-surface-variant font-sans text-[16px]">
-            The people driving change in our village
+            <T k="x.peopleDrivingChange" />
           </p>
         </div>
 
@@ -191,7 +192,7 @@ export default async function AboutPage() {
 
         {allMembers.length === 0 && (
           <div className="text-center py-16 text-dp-on-surface-variant font-sans">
-            No committee members found.
+            <T k="x.noCommitteeMembers" />
           </div>
         )}
       </section>

@@ -18,6 +18,7 @@ import {
   HandHeart,
 } from 'lucide-react'
 import { SITE } from '@/lib/constants'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Project {
   id: string
@@ -119,6 +120,7 @@ function categoryLabel(category: string | null, isUrdu: boolean) {
 }
 
 export default function ProjectsPage() {
+  const { t: tr } = useLocale()
   const [projects, setProjects] = useState<Project[]>([])
   const [voteCounts, setVoteCounts] = useState<Record<string, number>>({})
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
@@ -287,6 +289,7 @@ function HotBadge() {
 const urduStyle = { fontFamily: 'var(--font-urdu), serif' } as const
 
 function OngoingCard({ project, isHot, commentCount, dt, isUrdu }: { project: Project; isHot: boolean; commentCount: number; dt: Dt; isUrdu: boolean }) {
+  const { t: tr } = useLocale()
   return (
     <div className="relative bg-white border border-dp-outline-variant rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 hover:border-dp-secondary transition-all">
       {isHot && <HotBadge />}
@@ -402,6 +405,7 @@ function OngoingCard({ project, isHot, commentCount, dt, isUrdu }: { project: Pr
 
 /* ========== COMPLETED CARD ========== */
 function CompletedCard({ project, isHot, dt, isUrdu }: { project: Project; isHot: boolean; dt: Dt; isUrdu: boolean }) {
+  const { t: tr } = useLocale()
   return (
     <div className="relative bg-white border border-dp-outline-variant rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 hover:border-dp-secondary transition-all">
       {isHot && <HotBadge />}
@@ -491,6 +495,7 @@ function CompletedCard({ project, isHot, dt, isUrdu }: { project: Project; isHot
 
 /* ========== UPCOMING CARD ========== */
 function UpcomingCard({ project, voteCount, isHot, dt, isUrdu }: { project: Project; voteCount: number; isHot: boolean; dt: Dt; isUrdu: boolean }) {
+  const { t: tr } = useLocale()
   const share = async () => {
     const url = typeof window !== 'undefined' ? `${window.location.origin}/projects/${project.id}` : ''
     const text = `${project.title} — ${url}`
@@ -610,6 +615,7 @@ function UpcomingCard({ project, voteCount, isHot, dt, isUrdu }: { project: Proj
 // is paid and staff-confirmed (migration 141) — greyed out on purpose, no
 // vote/donate actions yet, just the "waiting" label from the detail page.
 function AnnouncedCard({ project, dt, isUrdu }: { project: Project; dt: Dt; isUrdu: boolean }) {
+  const { t: tr } = useLocale()
   return (
     <div className="relative bg-dp-surface-container-low border-2 border-dashed border-dp-outline-variant rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 opacity-90">
       <div className="relative bg-slate-100 flex items-center justify-center min-h-[220px] md:min-h-[300px]">

@@ -18,6 +18,7 @@ import {
   Building2,
 } from 'lucide-react'
 import { SITE } from '@/lib/constants'
+import { T } from '@/components/i18n/T'
 
 export default async function AccountsPage() {
   const supabase = await createClient()
@@ -58,7 +59,7 @@ export default async function AccountsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title">
-            Accounts & Transparency
+            <T k="x.accountsTransparency" />
           </h1>
           <p
             className="text-dp-on-surface-variant text-[20px] mt-1"
@@ -77,7 +78,7 @@ export default async function AccountsPage() {
           </div>
           <div>
             <p className="font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant uppercase">
-              Total Income
+              <T k="x.totalIncome" />
             </p>
             <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-secondary">
               Rs. {totalIncome.toLocaleString()}
@@ -94,13 +95,13 @@ export default async function AccountsPage() {
           </div>
           <div>
             <p className="font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant uppercase">
-              Total Expenses
+              <T k="x.totalExpenses" />
             </p>
             <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-error">
               Rs. {totalExpense.toLocaleString()}
             </h2>
             <p className="text-[12px] text-dp-error font-semibold font-sans mt-1">
-              Within budget
+              <T k="x.withinBudget" />
             </p>
           </div>
         </div>
@@ -111,13 +112,13 @@ export default async function AccountsPage() {
           </div>
           <div>
             <p className="font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant uppercase">
-              Net Balance
+              <T k="x.netBalance" />
             </p>
             <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-tertiary-container">
               Rs. {netBalance.toLocaleString()}
             </h2>
             <p className="text-[12px] text-dp-tertiary-container font-semibold font-sans mt-1">
-              Village Fund Reserve
+              <T k="x.villageFundReserve" />
             </p>
           </div>
         </div>
@@ -130,18 +131,18 @@ export default async function AccountsPage() {
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
             <div className="px-6 py-5 border-b border-dp-outline-variant">
               <h3 className="font-sans text-[20px] font-semibold leading-[28px]">
-                Recent Transactions
+                <T k="x.recentTransactions" />
               </h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-start">
                 <thead className="bg-dp-surface-container text-dp-on-surface-variant font-sans text-[14px] font-semibold tracking-[0.05em]">
                   <tr>
-                    <th className="px-6 py-4">Date</th>
-                    <th className="px-6 py-4">Description</th>
-                    <th className="px-6 py-4">Category</th>
-                    <th className="px-6 py-4">Type</th>
-                    <th className="px-6 py-4 text-end">Amount</th>
+                    <th className="px-6 py-4"><T k="w.date" /></th>
+                    <th className="px-6 py-4"><T k="x.description" /></th>
+                    <th className="px-6 py-4"><T k="w.category" /></th>
+                    <th className="px-6 py-4"><T k="x.type" /></th>
+                    <th className="px-6 py-4 text-end"><T k="w.amount" /></th>
                   </tr>
                 </thead>
                 <tbody className="font-sans text-[16px]">
@@ -158,11 +159,11 @@ export default async function AccountsPage() {
                       <td className="px-6 py-4">
                         {txn.type === 'income' ? (
                           <span className="bg-dp-secondary text-white px-3 py-1 rounded-full text-[12px] font-bold uppercase tracking-wider font-sans">
-                            Income
+                            <T k="x.income" />
                           </span>
                         ) : (
                           <span className="bg-dp-error text-white px-3 py-1 rounded-full text-[12px] font-bold uppercase tracking-wider font-sans">
-                            Expense
+                            <T k="x.expense" />
                           </span>
                         )}
                       </td>
@@ -182,10 +183,10 @@ export default async function AccountsPage() {
               </span>
               <div className="flex gap-2">
                 <button className="px-3 py-1 border border-dp-outline-variant rounded hover:bg-dp-surface-container transition-colors font-sans text-[14px] disabled:opacity-30 cursor-pointer">
-                  Prev
+                  <T k="x.prev" />
                 </button>
                 <button className="px-3 py-1 bg-dp-primary text-white rounded hover:opacity-90 transition-opacity font-sans text-[14px] cursor-pointer">
-                  Next
+                  <T k="x.next" />
                 </button>
               </div>
             </div>
@@ -203,7 +204,7 @@ export default async function AccountsPage() {
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between text-[14px] mb-1 font-sans">
-                  <span className="text-dp-on-surface-variant">Reserve Goal</span>
+                  <span className="text-dp-on-surface-variant"><T k="x.reserveGoal" /></span>
                   <span className="font-semibold text-dp-secondary">85%</span>
                 </div>
                 <div className="w-full h-3 bg-dp-surface-container-high rounded-full overflow-hidden">
@@ -213,13 +214,13 @@ export default async function AccountsPage() {
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div className="p-3 bg-dp-surface-container rounded-lg">
                   <p className="text-[10px] uppercase text-dp-on-surface-variant tracking-wider font-sans">
-                    Cash in Hand
+                    <T k="x.cashInHand" />
                   </p>
                   <p className="font-bold text-dp-on-surface font-sans">Rs. 12,450</p>
                 </div>
                 <div className="p-3 bg-dp-surface-container rounded-lg">
                   <p className="text-[10px] uppercase text-dp-on-surface-variant tracking-wider font-sans">
-                    Bank Balance
+                    <T k="x.bankBalance" />
                   </p>
                   <p className="font-bold text-dp-on-surface font-sans">Rs. 123,710</p>
                 </div>
@@ -230,10 +231,10 @@ export default async function AccountsPage() {
           {/* Monthly Growth */}
           <div className="bg-dp-primary p-6 rounded-lg text-white relative overflow-hidden h-64">
             <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-2 relative z-10">
-              Monthly Growth
+              <T k="x.monthlyGrowth" />
             </h3>
             <p className="text-[14px] opacity-70 mb-6 relative z-10 font-sans">
-              Contribution trends over the last 6 months.
+              <T k="x.contributionTrends" />
             </p>
             <div className="flex items-end justify-between h-24 gap-2 relative z-10">
               {[40, 60, 45, 80, 65, 95].map((h, i) => (
@@ -257,7 +258,7 @@ export default async function AccountsPage() {
             <div className="flex gap-4">
               <Info size={20} className="text-dp-primary shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-bold text-[14px] font-sans">Audit Certificate</h4>
+                <h4 className="font-bold text-[14px] font-sans"><T k="x.auditCertificate" /></h4>
                 <p className="text-[12px] text-dp-on-surface-variant mt-1 leading-relaxed font-sans">
                   All accounts are audited monthly by the Village Finance
                   Sub-Committee. For detailed ledgers from previous years,

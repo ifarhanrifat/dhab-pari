@@ -19,6 +19,7 @@ import {
   MessageCircle,
 } from 'lucide-react'
 import { DonateCTAButton } from '@/components/public/DonateCTAButton'
+import { T } from '@/components/i18n/T'
 
 export default async function DonatePage() {
   const supabase = await createClient()
@@ -64,7 +65,7 @@ export default async function DonatePage() {
             <Heart size={32} />
           </div>
           <h1 className="font-heading text-[24px] md:text-[32px] font-bold leading-[32px] md:leading-[40px] mb-6 text-dp-primary section-title">
-            Support Village Growth
+            <T k="x.supportVillageGrowth" />
           </h1>
           <div className="relative px-8 py-4 border-s-4 border-dp-secondary">
             <p className="font-sans text-[18px] leading-[28px] italic text-dp-on-surface-variant">
@@ -79,7 +80,7 @@ export default async function DonatePage() {
       {/* Payment Channels */}
       <section className="mb-10">
         <h2 className="font-heading text-[20px] font-bold leading-[28px] mb-8 text-dp-primary border-b border-dp-outline-variant pb-4">
-          Secure Payment Channels
+          <T k="x.securePayment" />
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* JazzCash */}
@@ -87,9 +88,9 @@ export default async function DonatePage() {
             <div className="w-16 h-16 mb-6 flex items-center justify-center bg-red-500/10 rounded-lg">
               <Smartphone size={32} className="text-red-500" />
             </div>
-            <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-2">JazzCash</h3>
+            <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-2"><T k="w.jazzcash" /></h3>
             <p className="text-dp-on-surface-variant mb-6 font-sans text-[16px]">
-              Instant mobile transfer
+              <T k="x.instantMobile" />
             </p>
             <div className="w-full bg-dp-surface-container p-4 rounded-lg flex items-center justify-between mb-4">
               <span className="font-bold text-dp-primary font-sans text-[18px] tracking-wider">
@@ -107,9 +108,9 @@ export default async function DonatePage() {
             <div className="w-16 h-16 mb-6 flex items-center justify-center bg-emerald-500/10 rounded-lg">
               <Wallet size={32} className="text-emerald-500" />
             </div>
-            <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-2">Easypaisa</h3>
+            <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-2"><T k="w.easypaisa" /></h3>
             <p className="text-dp-on-surface-variant mb-6 font-sans text-[16px]">
-              Easy and accessible payments
+              <T k="x.easyAccessible" />
             </p>
             <div className="w-full bg-dp-surface-container p-4 rounded-lg flex items-center justify-between mb-4">
               <span className="font-bold text-dp-primary font-sans text-[18px] tracking-wider">
@@ -131,7 +132,7 @@ export default async function DonatePage() {
               Bank {SITE.bankName}
             </h3>
             <p className="text-dp-on-surface-variant mb-6 font-sans text-[16px]">
-              Direct bank wire transfer
+              <T k="x.directWire" />
             </p>
             <div className="w-full bg-dp-surface-container p-4 rounded-lg flex items-center justify-between mb-4">
               <span className="font-bold text-dp-primary font-sans text-[14px]">
@@ -150,7 +151,7 @@ export default async function DonatePage() {
       <section className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-12 items-center bg-dp-surface-container-low p-8 md:p-12 rounded-lg">
         <div>
           <h2 className="font-heading text-[20px] font-bold leading-[28px] mb-6 text-dp-primary">
-            How to Contribute?
+            <T k="x.howToContribute" />
           </h2>
           <div className="space-y-8">
             {[
@@ -178,7 +179,7 @@ export default async function DonatePage() {
               className="inline-flex items-center gap-2 border border-dp-outline-variant text-dp-primary px-8 py-3 rounded-lg font-bold font-sans hover:bg-dp-surface-container transition-all"
             >
               <MessageCircle size={18} />
-              Contact via WhatsApp
+              <T k="x.contactWhatsapp" />
             </a>
           </div>
         </div>
@@ -192,10 +193,10 @@ export default async function DonatePage() {
         <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
           <div>
             <h2 className="font-heading text-[20px] font-bold leading-[28px] text-dp-primary">
-              Donors Honor Wall
+              <T k="x.donorsHonorWall" />
             </h2>
             <p className="text-dp-on-surface-variant font-sans text-[16px]">
-              Transparent record of all contributions to our community.
+              <T k="x.transparentRecord" />
             </p>
           </div>
           <span className="px-4 py-1 bg-dp-secondary-container text-dp-on-secondary-container rounded-full text-[14px] font-sans font-bold tracking-[0.05em] shrink-0">
@@ -207,11 +208,11 @@ export default async function DonatePage() {
           <table className="w-full text-start border-collapse">
             <thead className="bg-dp-primary text-white">
               <tr>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">Rank</th>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">Name</th>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">Amount (PKR)</th>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">Date</th>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">Project</th>
+                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="x.rank" /></th>
+                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="x.name" /></th>
+                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="w.amountPkr" /></th>
+                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="w.date" /></th>
+                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="w.project" /></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-dp-outline-variant">
@@ -246,7 +247,7 @@ export default async function DonatePage() {
                         </span>
                       ) : (
                         <span className="bg-dp-surface-container px-3 py-1 rounded text-[14px] font-sans text-dp-on-surface-variant">
-                          General Fund
+                          <T k="w.generalFund" />
                         </span>
                       )}
                     </td>
@@ -268,20 +269,20 @@ export default async function DonatePage() {
         <section className="mb-10">
           <div className="mb-6">
             <h2 className="font-heading text-[20px] font-bold leading-[28px] text-dp-primary">
-              Announced Funds
+              <T k="x.announcedFunds" />
             </h2>
             <p className="text-dp-on-surface-variant font-sans text-[16px]">
-              Submitted by donors, pending verification against the payment record.
+              <T k="x.pendingVerification" />
             </p>
           </div>
           <div className="overflow-x-auto rounded-lg border border-dp-outline-variant bg-white">
             <table className="w-full text-start border-collapse">
               <thead className="bg-dp-surface-container-low">
                 <tr>
-                  <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-dp-on-surface-variant">Name</th>
-                  <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-dp-on-surface-variant">Amount (PKR)</th>
-                  <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-dp-on-surface-variant">Project</th>
-                  <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-dp-on-surface-variant">Status</th>
+                  <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-dp-on-surface-variant"><T k="x.name" /></th>
+                  <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-dp-on-surface-variant"><T k="w.amountPkr" /></th>
+                  <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-dp-on-surface-variant"><T k="w.project" /></th>
+                  <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-dp-on-surface-variant"><T k="w.status" /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-dp-outline-variant">
@@ -291,7 +292,7 @@ export default async function DonatePage() {
                     <td className="px-6 py-4 font-bold font-sans">Rs. {Number(donor.amount_pkr).toLocaleString()}</td>
                     <td className="px-6 py-4 font-sans text-dp-on-surface-variant">{donor.project_id ? (projectTitleById.get(donor.project_id) ?? 'Project') : 'General Fund'}</td>
                     <td className="px-6 py-4">
-                      <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded text-[12px] font-sans font-bold tracking-[0.05em]">Announced</span>
+                      <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded text-[12px] font-sans font-bold tracking-[0.05em]"><T k="x.announced" /></span>
                     </td>
                   </tr>
                 ))}

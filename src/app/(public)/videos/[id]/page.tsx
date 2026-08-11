@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Eye, Calendar, Tag } from 'lucide-react'
 import { VideoPlayer } from '@/components/VideoPlayer'
+import { T } from '@/components/i18n/T'
 
 // A published video rarely changes and isn't per-visitor (view count here is
 // a display-only column, not incremented by this render).
@@ -32,7 +33,7 @@ export default async function VideoDetailPage({
         className="inline-flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold tracking-[0.05em] hover:underline mb-8"
       >
         <ArrowLeft size={16} />
-        Back to Videos
+        <T k="x.backToVideos" />
       </Link>
 
       <div className="max-w-4xl mx-auto">

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Droplets, CheckCircle, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type Lang = 'en' | 'ur'
 
@@ -36,6 +37,7 @@ const t: Record<string, { en: string; ur: string }> = {
 }
 
 export default function WaterApplyPage() {
+  const { t: tr } = useLocale()
   const [lang, setLang] = useState<Lang>('en')
   const [form, setForm] = useState({
     name: '',

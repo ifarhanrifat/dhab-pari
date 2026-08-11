@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'motion/react'
 import { X, Image as ImageIcon, ChevronLeft, ChevronRight, PlayCircle } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Album {
   id: string
@@ -33,6 +34,7 @@ const categoryColors: Record<string, string> = {
 }
 
 export default function GalleryPage() {
+  const { t } = useLocale()
   const [albums, setAlbums] = useState<Album[]>([])
   const [items, setItems] = useState<GalleryItem[]>([])
   const [selectedAlbum, setSelectedAlbum] = useState<string | null>(null)
@@ -76,7 +78,7 @@ export default function GalleryPage() {
       {/* Header */}
       <div className="mb-10">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title">
-          Photo & Video Gallery
+          {t('x.photoVideoGallery')}
         </h1>
         <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px] mt-2">
           Browse through moments captured from village events, projects, and celebrations.
@@ -129,7 +131,7 @@ export default function GalleryPage() {
           })}
           {albums.length === 0 && !loading && (
             <div className="col-span-3 text-center py-16 text-dp-on-surface-variant font-sans">
-              No albums yet.
+              {t('x.noAlbums')}
             </div>
           )}
         </div>
@@ -145,7 +147,7 @@ export default function GalleryPage() {
               className="flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold tracking-[0.05em] hover:underline cursor-pointer"
             >
               <ChevronLeft size={16} />
-              Back to Albums
+              {t('x.backToAlbums')}
             </button>
             <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary section-title">
               {selectedAlbumData.title}
@@ -190,7 +192,7 @@ export default function GalleryPage() {
 
           {albumItems.length === 0 && (
             <div className="text-center py-16 text-dp-on-surface-variant font-sans">
-              No items in this album yet.
+              {t('x.noItemsAlbum')}
             </div>
           )}
         </div>

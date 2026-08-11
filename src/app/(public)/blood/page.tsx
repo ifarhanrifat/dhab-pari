@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { SITE } from '@/lib/constants'
 import { Droplet, CheckCircle, Phone, MessageCircle, ShieldCheck, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type Lang = 'en' | 'ur'
 
@@ -87,6 +88,7 @@ const t: Record<string, { en: string; ur: string }> = {
 interface GroupCount { blood_group: string; registered: number; available_now: number }
 
 export default function PublicBloodPage() {
+  const { t: tr } = useLocale()
   const [lang, setLang] = useState<Lang>('en')
   const [counts, setCounts] = useState<GroupCount[]>([])
   const [form, setForm] = useState({

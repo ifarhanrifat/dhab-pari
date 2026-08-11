@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og'
 import { createClient } from '@/lib/supabase/server'
 import { SITE } from '@/lib/constants'
+import { T } from '@/components/i18n/T'
 
 export const alt = `${SITE.name} Project`
 export const size = { width: 1200, height: 630 }

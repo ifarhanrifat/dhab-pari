@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Briefcase, MapPin, Phone, MessageCircle } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Listing {
   id: string; category: string; headline: string; description: string | null; sector: string | null
@@ -18,6 +19,7 @@ function normalizePakPhone(raw: string) {
 }
 
 export default function JobsPage() {
+  const { t } = useLocale()
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
   const [category, setCategory] = useState('')
@@ -40,25 +42,25 @@ export default function JobsPage() {
   return (
     <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-10 min-h-screen">
       <div className="mb-8">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-on-surface flex items-center gap-3"><Briefcase size={28} className="text-dp-secondary" /> Village Job Board</h1>
+        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-on-surface flex items-center gap-3"><Briefcase size={28} className="text-dp-secondary" /> {t('home.jobBoard')}</h1>
         <p className="text-dp-on-surface-variant font-sans text-[16px] leading-[26px] max-w-2xl mt-2">
           Local plumbers, masons, electricians, laborers, and more — find and contact someone directly. Have a skill to offer?{' '}
-          <Link href="/portal/post-job" className="text-dp-secondary font-semibold hover:underline">Post your own listing</Link>.
+          <Link href="/portal/post-job" className="text-dp-secondary font-semibold hover:underline">{t('x.postOwnListing')}</Link>.
         </p>
       </div>
 
       <div className="flex flex-wrap gap-3 mb-8">
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search listings..." className="input-field flex-1 min-w-[200px]" />
         <select value={category} onChange={(e) => setCategory(e.target.value)} className="input-field w-auto">
-          <option value="">All Categories</option>
+          <option value="">{t('x.allCategories')}</option>
           {CATEGORIES.map((c) => <option key={c} value={c}>{c[0].toUpperCase() + c.slice(1)}</option>)}
         </select>
       </div>
 
       {loading ? (
-        <p className="font-sans text-[14px] text-dp-on-surface-variant text-center py-16">Loading...</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant text-center py-16">{t('action.loading')}</p>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-dp-on-surface-variant font-sans text-[16px]">No listings found.</div>
+        <div className="text-center py-16 text-dp-on-surface-variant font-sans text-[16px]">{t('x.noListingsFound')}</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map((l) => (
@@ -71,11 +73,11 @@ export default function JobsPage() {
               )}</p>
               <div className="flex gap-2 mt-4">
                 <a href={`tel:${l.contact_mobile}`} className="flex-1 flex items-center justify-center gap-2 border-2 border-dp-primary text-dp-primary px-4 py-2 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary hover:text-white transition-all">
-                  <Phone size={14} /> Call
+                  <Phone size={14} /> {t('x.call')}
                 </a>
                 {l.contact_whatsapp && (
                   <a href={`https://wa.me/${normalizePakPhone(l.contact_whatsapp)}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-dp-secondary text-white px-4 py-2 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all">
-                    <MessageCircle size={14} /> WhatsApp
+                    <MessageCircle size={14} /> {t('w.whatsapp')}
                   </a>
                 )}
               </div>

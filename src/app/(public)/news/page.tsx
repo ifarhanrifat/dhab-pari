@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Calendar, User, Eye } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface NewsPost {
   id: string
@@ -54,6 +55,7 @@ function formatDate(dateStr: string | null) {
 }
 
 export default function NewsPage() {
+  const { t } = useLocale()
   const [posts, setPosts] = useState<NewsPost[]>([])
   const [activeFilter, setActiveFilter] = useState('All')
   const [categories, setCategories] = useState<PostCategory[]>([])
@@ -89,7 +91,7 @@ export default function NewsPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title">
-          Village News & Updates
+          {t('x.villageNewsUpdates')}
         </h1>
         <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px] mt-2">
           Stay informed about community events, announcements, and village development.
@@ -127,7 +129,7 @@ export default function NewsPage() {
 
       {!loading && filtered.length === 0 && (
         <div className="text-center py-16 text-dp-on-surface-variant font-sans text-[16px]">
-          No news posts found for this category.
+          {t('x.noNewsCategory')}
         </div>
       )}
 

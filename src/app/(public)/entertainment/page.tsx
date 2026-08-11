@@ -7,6 +7,7 @@ export const metadata: Metadata = {
 }
 import Link from 'next/link'
 import { SITE } from '@/lib/constants'
+import { T } from '@/components/i18n/T'
 
 export default function EntertainmentPage() {
   return (
@@ -14,7 +15,7 @@ export default function EntertainmentPage() {
       {/* Header */}
       <div className="text-center mb-12 max-w-3xl mx-auto">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary mb-2">
-          Community Corner
+          <T k="x.communityCorner" />
         </h1>
         <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px]">
           Poetry, sports updates, and kids activities from the village.
@@ -74,7 +75,7 @@ export default function EntertainmentPage() {
         <div className="flex items-center gap-3 mb-6">
           <Trophy size={24} className="text-amber-600" />
           <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary section-title">
-            Sports Updates
+            <T k="x.sportsUpdates" />
           </h2>
         </div>
         <div className="space-y-4">
@@ -110,7 +111,7 @@ export default function EntertainmentPage() {
         <div className="flex items-center gap-3 mb-6">
           <Smile size={24} className="text-pink-500" />
           <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary section-title">
-            Kids Corner
+            <T k="x.kidsCorner" />
           </h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -134,7 +135,7 @@ export default function EntertainmentPage() {
       {/* CTA */}
       <div className="bg-dp-primary-container text-white rounded-lg p-8 text-center">
         <h3 className="font-heading text-[24px] font-bold leading-[32px] mb-2">
-          Got a talent or event to share?
+          <T k="x.talentToShare" />
         </h3>
         <p className="opacity-90 font-sans text-[16px] mb-6">
           Submit your poetry, sports results, or kids&apos; activities for the community page.
@@ -143,7 +144,7 @@ export default function EntertainmentPage() {
           href="/suggestions"
           className="inline-block bg-dp-secondary-fixed text-dp-on-secondary-fixed px-8 py-3 rounded-lg font-sans font-semibold hover:scale-105 transition-transform"
         >
-          Submit Content
+          <T k="x.submitContent" />
         </Link>
       </div>
     </div>

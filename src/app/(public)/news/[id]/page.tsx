@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation'
 export const revalidate = 300
 import Link from 'next/link'
 import { Calendar, User, Eye, ArrowLeft } from 'lucide-react'
+import { T } from '@/components/i18n/T'
 
 const categoryColors: Record<string, { bg: string; text: string }> = {
   sports: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
@@ -67,7 +68,7 @@ export default async function NewsDetailPage({
         className="inline-flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold tracking-[0.05em] hover:underline mb-8"
       >
         <ArrowLeft size={16} />
-        Back to News
+        <T k="x.backToNews" />
       </Link>
 
       <article className="max-w-3xl mx-auto">

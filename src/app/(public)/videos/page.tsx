@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Play, Eye } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Video {
   id: string
@@ -46,6 +47,7 @@ function formatDuration(seconds: number | null) {
 }
 
 export default function VideosPage() {
+  const { t } = useLocale()
   const [videos, setVideos] = useState<Video[]>([])
   const [activeTab, setActiveTab] = useState('All')
   const [loading, setLoading] = useState(true)
@@ -79,7 +81,7 @@ export default function VideosPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title">
-          Video Library
+          {t('x.videoLibrary')}
         </h1>
         <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px] mt-2">
           Watch village events, interviews, sports highlights, and project progress updates.
@@ -117,7 +119,7 @@ export default function VideosPage() {
 
       {!loading && filtered.length === 0 && (
         <div className="text-center py-16 text-dp-on-surface-variant font-sans text-[16px]">
-          No videos found for this category.
+          {t('x.noVideosCategory')}
         </div>
       )}
 
@@ -128,7 +130,7 @@ export default function VideosPage() {
           {activeTab === 'All' && featured.length > 0 && (
             <section>
               <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mb-6">
-                Featured
+                {t('x.featured')}
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {featured.map((video) => (
@@ -142,7 +144,7 @@ export default function VideosPage() {
           {interviews.length > 0 && (
             <section>
               <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mb-6">
-                Interviews
+                {t('x.interviews')}
               </h2>
               <div className="space-y-4">
                 {interviews.map((video) => (

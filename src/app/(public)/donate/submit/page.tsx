@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { HeartHandshake, CheckCircle, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type Lang = 'en' | 'ur'
 
@@ -39,14 +40,16 @@ const t: Record<string, { en: string; ur: string }> = {
 interface Project { id: string; title: string }
 
 export default function DonateSubmitPage() {
+  const { t: tr } = useLocale()
   return (
-    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">{tr('action.loading')}</div>}>
       <DonateSubmitPageInner />
     </Suspense>
   )
 }
 
 function DonateSubmitPageInner() {
+  const { t: tr } = useLocale()
   const searchParams = useSearchParams()
   const [lang, setLang] = useState<Lang>('en')
   const [projects, setProjects] = useState<Project[]>([])
@@ -204,10 +207,10 @@ function DonateSubmitPageInner() {
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{dt('paymentMethod')}</label>
                   <select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
                     className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px]">
-                    <option value="jazzcash">JazzCash</option>
-                    <option value="easypaisa">Easypaisa</option>
-                    <option value="bank">Bank Transfer</option>
-                    <option value="cash">Cash</option>
+                    <option value="jazzcash">{tr('w.jazzcash')}</option>
+                    <option value="easypaisa">{tr('w.easypaisa')}</option>
+                    <option value="bank">{tr('w.bankTransfer')}</option>
+                    <option value="cash">{tr('w.cash')}</option>
                   </select>
                 </div>
                 <div>

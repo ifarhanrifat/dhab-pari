@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ArrowLeft, MapPin, HeartHandshake, Megaphone, Receipt, CheckCircle, Vote, ThumbsUp, Flag, Share2, Clock, Users, HandHeart, X } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Project {
   id: string; title: string; description: string | null; status: string
@@ -55,6 +56,7 @@ const t: Record<string, { en: string; ur: string }> = {
 // via the already-public donors_public view and the already-public
 // ledger_entries table.
 export default function ProjectDetailPage() {
+  const { t: tr } = useLocale()
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [project, setProject] = useState<Project | null>(null)
@@ -257,12 +259,12 @@ export default function ProjectDetailPage() {
     toast.success('Flagged for staff review')
   }
 
-  if (loading) return <div className="text-center py-20 text-dp-on-surface-variant font-sans">Loading...</div>
-  if (!project) return <div className="text-center py-20 text-dp-on-surface-variant font-sans">Project not found.</div>
+  if (loading) return <div className="text-center py-20 text-dp-on-surface-variant font-sans">{tr('action.loading')}</div>
+  if (!project) return <div className="text-center py-20 text-dp-on-surface-variant font-sans">{tr('x.projectNotFound')}</div>
 
   return (
     <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-10 min-h-screen">
-      <Link href="/projects" className="inline-flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold hover:underline mb-6"><ArrowLeft size={16} /> All Projects</Link>
+      <Link href="/projects" className="inline-flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold hover:underline mb-6"><ArrowLeft size={16} /> {tr('x.allProjects')}</Link>
 
       <div className="mb-8">
         <span className="bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded font-sans text-[12px] font-semibold uppercase tracking-[0.05em]">{project.category}</span>
@@ -273,19 +275,19 @@ export default function ProjectDetailPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
-          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">Budget</p>
+          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{tr('home.budget')}</p>
           <p className="font-heading text-[20px] font-bold text-dp-primary">Rs. {fmt(project.budget_pkr ?? 0)}</p>
         </div>
         <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
-          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">Verified Raised</p>
+          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{tr('x.verifiedRaised')}</p>
           <p className="font-heading text-[20px] font-bold text-dp-secondary">Rs. {fmt(totalVerified)}</p>
         </div>
         <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
-          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">Announced</p>
+          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{tr('x.announced')}</p>
           <p className="font-heading text-[20px] font-bold text-amber-600">Rs. {fmt(totalAnnounced)}</p>
         </div>
         <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
-          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">Spent</p>
+          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{tr('home.spent')}</p>
           <p className="font-heading text-[20px] font-bold text-dp-error">Rs. {fmt(totalExpenses)}</p>
         </div>
       </div>
@@ -307,7 +309,7 @@ export default function ProjectDetailPage() {
         <div className="bg-slate-100 border border-slate-300 rounded-lg p-6 mb-8 flex items-center gap-3">
           <Clock size={22} className="text-slate-500 shrink-0" />
           <div>
-            <p className="font-heading text-[17px] font-bold text-slate-700">Waiting for the announced payment confirmation</p>
+            <p className="font-heading text-[17px] font-bold text-slate-700">{tr('x.awaitingPledgeConfirm')}</p>
             <p className="font-sans text-[13px] text-slate-600 mt-0.5">
               The proposer's self-commitment hasn't been confirmed yet — voting, donations, and pledges open automatically once staff confirm the payment.
             </p>
@@ -324,7 +326,7 @@ export default function ProjectDetailPage() {
             </div>
             <div className="flex items-center gap-2">
               <button onClick={shareProject} className="flex items-center gap-2 border-2 border-blue-600 text-blue-700 px-4 py-3 rounded-lg font-sans font-semibold hover:bg-blue-600 hover:text-white transition-all cursor-pointer">
-                <Share2 size={16} /> Share to get votes
+                <Share2 size={16} /> {tr('x.shareForVotes')}
               </button>
               <button onClick={castVote} disabled={voting || !!myVoteId} className={`flex items-center gap-2 px-6 py-3 rounded-lg font-sans font-semibold transition-all disabled:opacity-100 ${myVoteId ? 'bg-blue-100 text-blue-700 border-2 border-blue-600 cursor-default' : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer disabled:opacity-50'}`}>
                 <Vote size={16} /> {myVoteId ? '✓ Voted' : 'Vote for Project'}
@@ -345,13 +347,13 @@ export default function ProjectDetailPage() {
       ) : (
         <div className="flex flex-wrap gap-3 mb-8">
           <Link href={portalUser ? `/portal/donate?project=${id}` : `/donate/submit?project=${id}`} className="flex items-center gap-2 bg-dp-secondary text-white px-6 py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all">
-            <HeartHandshake size={16} /> Donate Now
+            <HeartHandshake size={16} /> {tr('x.donateNowBtn')}
           </Link>
           <button onClick={() => (portalUser ? setShowAnnounce(true) : router.push(`/portal/login?next=/projects/${id}`))} className="flex items-center gap-2 border-2 border-dp-primary text-dp-primary px-6 py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary hover:text-white transition-all cursor-pointer">
-            <Megaphone size={16} /> Announce a Pledge
+            <Megaphone size={16} /> {tr('x.announcePledge')}
           </button>
           <button onClick={() => (portalUser ? setShowVolunteer(true) : router.push(`/portal/login?next=/projects/${id}`))} className="flex items-center gap-2 border-2 border-dp-secondary text-dp-secondary px-6 py-3 rounded-lg font-sans font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
-            <HandHeart size={16} /> Volunteer for this Project
+            <HandHeart size={16} /> {tr('x.volunteerForProject')}
           </button>
         </div>
       )}
@@ -359,7 +361,7 @@ export default function ProjectDetailPage() {
       {project.funding_model === 'recurring_support' && project.status !== 'announced' && (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-8">
           <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-            <p className="font-sans text-[13.5px] font-bold text-dp-primary flex items-center gap-2"><Users size={16} className="text-dp-secondary" /> Monthly Sponsorship (ongoing support)</p>
+            <p className="font-sans text-[13.5px] font-bold text-dp-primary flex items-center gap-2"><Users size={16} className="text-dp-secondary" /> {tr('x.monthlySponsorship')}</p>
             <span className={`text-[10.5px] font-bold px-2.5 py-1 rounded-full uppercase ${project.monthly_operating_cost_pkr && monthlySponsored >= project.monthly_operating_cost_pkr ? 'bg-dp-secondary text-white' : 'bg-amber-100 text-amber-700'}`}>
               {project.monthly_operating_cost_pkr && monthlySponsored >= project.monthly_operating_cost_pkr ? 'Fully Sponsored' : 'Needs More Monthly Sponsors'}
             </span>
@@ -438,14 +440,14 @@ export default function ProjectDetailPage() {
           </button>
         </div>
         <div className="space-y-3">
-          {comments.length === 0 && <p className="text-center font-sans text-[14px] text-dp-on-surface-variant py-6">No comments yet — be the first to discuss this project.</p>}
+          {comments.length === 0 && <p className="text-center font-sans text-[14px] text-dp-on-surface-variant py-6">{tr('x.noComments')}</p>}
           {comments.filter((c) => !c.parent_comment_id).map((c) => (
             <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
               <CommentBody c={c} myLikes={myLikes} toggleLike={toggleLike} flagComment={flagComment} onReply={() => setReplyingTo(replyingTo === c.id ? null : c.id)} />
               {replyingTo === c.id && (
                 <div className="mt-3 ps-11 flex gap-2">
                   <input value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Write a reply..." className="input-field flex-1" />
-                  <button onClick={() => postComment(c.id)} disabled={postingComment} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">Reply</button>
+                  <button onClick={() => postComment(c.id)} disabled={postingComment} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{tr('x.reply')}</button>
                 </div>
               )}
               {comments.filter((r) => r.parent_comment_id === c.id).map((r) => (
@@ -463,7 +465,7 @@ export default function ProjectDetailPage() {
       {showAnnounce && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowAnnounce(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[20px] font-bold text-dp-primary mb-4">Announce a Pledge</h2>
+            <h2 className="font-heading text-[20px] font-bold text-dp-primary mb-4">{tr('x.announcePledge')}</h2>
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">No payment needed now — your name shows in Announced until you pay. Pay anytime from your portal.</p>
             <input type="number" min={1} value={announceAmount || ''} onChange={(e) => setAnnounceAmount(+e.target.value)} placeholder="Amount (PKR)" className="input-field mb-4" />
             <button onClick={submitAnnounce} disabled={announcing} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
@@ -477,7 +479,7 @@ export default function ProjectDetailPage() {
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowVolunteer(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">Volunteer for this Project</h2>
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{tr('x.volunteerForProject')}</h2>
               <button onClick={() => setShowVolunteer(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">Your name shows publicly as a volunteer for this project. The committee will reach out with details.</p>
@@ -495,6 +497,7 @@ export default function ProjectDetailPage() {
 function CommentBody({ c, myLikes, toggleLike, flagComment, onReply }: {
   c: CommentRow; myLikes: Set<string>; toggleLike: (id: string) => void; flagComment: (id: string) => void; onReply?: () => void
 }) {
+  const { t: tr } = useLocale()
   if (c.comment_type === 'system') {
     return (
       <p className="font-sans text-[13px] text-dp-on-surface-variant italic flex items-center gap-2">
@@ -518,10 +521,10 @@ function CommentBody({ c, myLikes, toggleLike, flagComment, onReply }: {
             <ThumbsUp size={13} /> {c.like_count > 0 ? c.like_count : ''} Like
           </button>
           {onReply && (
-            <button onClick={onReply} className="text-[12px] font-sans font-semibold text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">Reply</button>
+            <button onClick={onReply} className="text-[12px] font-sans font-semibold text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">{tr('x.reply')}</button>
           )}
           <button onClick={() => flagComment(c.id)} className="flex items-center gap-1 text-[12px] font-sans font-semibold text-dp-on-surface-variant hover:text-dp-error cursor-pointer">
-            <Flag size={12} /> Flag
+            <Flag size={12} /> {tr('x.flag')}
           </button>
         </div>
       </div>

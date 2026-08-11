@@ -13,6 +13,7 @@ import {
   Mail,
   Download,
 } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Consumer {
   consumer_id: string
@@ -39,6 +40,7 @@ const monthNames = [
 ]
 
 export default function WaterBillPage() {
+  const { t } = useLocale()
   const [query, setQuery] = useState('')
   const [verify, setVerify] = useState('')
   const [loading, setLoading] = useState(false)
@@ -115,7 +117,7 @@ export default function WaterBillPage() {
             </span>
           </h1>
           <p className="text-dp-on-surface-variant font-sans text-[16px] leading-[24px]">
-            Enter your Consumer ID to view your current status and payment history.
+            {t('x.enterConsumerId')}
           </p>
         </div>
 
@@ -149,7 +151,7 @@ export default function WaterBillPage() {
                 anyone could walk the range and read every household's details. */}
             <div>
               <label htmlFor="verify" className="block font-sans text-[16px] font-semibold text-dp-on-surface mb-2">
-                Last 4 digits of your mobile, or your house number
+                {t('x.lastFourDigits')}
                 <span className="block font-normal text-[14px] text-dp-on-surface-variant" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>
                   اپنے موبائل نمبر کے آخری 4 ہندسے، یا اپنا مکان نمبر
                 </span>
@@ -246,7 +248,7 @@ export default function WaterBillPage() {
                 <div className="space-y-4">
                   <div>
                     <h3 className="font-sans text-[20px] font-semibold leading-[28px] text-amber-900">
-                      Immediate Payment Required
+                      {t('x.immediatePayment')}
                     </h3>
                     <p className="text-amber-800 font-sans text-[16px]">
                       Total Outstanding:{' '}
@@ -262,11 +264,11 @@ export default function WaterBillPage() {
                       <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center font-bold text-[10px] text-center font-sans leading-tight">
                         Jazz
                         <br />
-                        Cash
+                        {t('w.cash')}
                       </div>
                       <div>
                         <p className="font-sans text-[14px] font-semibold tracking-[0.05em]">
-                          JazzCash
+                          {t('w.jazzcash')}
                         </p>
                         <p className="font-bold text-dp-primary font-sans">
                           {SITE.jazzcash}
@@ -281,7 +283,7 @@ export default function WaterBillPage() {
                       </div>
                       <div>
                         <p className="font-sans text-[14px] font-semibold tracking-[0.05em]">
-                          Easypaisa
+                          {t('w.easypaisa')}
                         </p>
                         <p className="font-bold text-dp-primary font-sans">
                           {SITE.easypaisa}
@@ -306,16 +308,16 @@ export default function WaterBillPage() {
                   <thead>
                     <tr className="bg-dp-surface-container text-dp-on-surface font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">
                       <th className="px-6 py-4 border-b border-dp-outline-variant">
-                        Month/Year
+                        {t('x.monthYear')}
                       </th>
                       <th className="px-6 py-4 border-b border-dp-outline-variant">
-                        Amount
+                        {t('w.amount')}
                       </th>
                       <th className="px-6 py-4 border-b border-dp-outline-variant">
-                        Status
+                        {t('w.status')}
                       </th>
                       <th className="px-6 py-4 border-b border-dp-outline-variant text-end">
-                        Action
+                        {t('w.action')}
                       </th>
                     </tr>
                   </thead>
@@ -339,7 +341,7 @@ export default function WaterBillPage() {
                         <td className="px-6 py-4 text-end">
                           <button className="text-dp-secondary font-sans text-[14px] font-semibold tracking-[0.05em] hover:underline inline-flex items-center gap-1 cursor-pointer">
                             <Download size={14} />
-                            Download PDF
+                            {t('x.downloadPdf')}
                           </button>
                         </td>
                       </tr>
@@ -350,7 +352,7 @@ export default function WaterBillPage() {
                           colSpan={4}
                           className="px-6 py-8 text-center text-dp-on-surface-variant font-sans"
                         >
-                          No billing history found.
+                          {t('x.noBillingHistory')}
                         </td>
                       </tr>
                     )}
@@ -369,20 +371,20 @@ export default function WaterBillPage() {
         <div className="bg-white border border-dp-outline-variant rounded-lg p-6 shadow-sm">
           <h4 className="font-sans text-[20px] font-semibold leading-[28px] text-dp-primary mb-4 flex items-center gap-2">
             <Building2 size={20} className="text-dp-secondary" />
-            How to Pay?
+            {t('x.howToPay')}
           </h4>
           <div className="space-y-4 font-sans text-dp-on-surface-variant text-[16px]">
             <div className="flex gap-3">
               <Building2 size={20} className="text-dp-secondary shrink-0 mt-0.5" />
               <p>
-                <span className="font-bold">Bank Transfer:</span> {SITE.bankName},{' '}
+                <span className="font-bold">{t('x.bankTransferColon')}</span> {SITE.bankName},{' '}
                 {SITE.bankBranch}, Acc: {SITE.bankAccount}
               </p>
             </div>
             <div className="flex gap-3">
               <MapPin size={20} className="text-dp-secondary shrink-0 mt-0.5" />
               <p>
-                <span className="font-bold">Walk-in:</span> Visit Welfare Office
+                <span className="font-bold">{t('x.walkIn')}</span> Visit Welfare Office
                 near Central Mosque from 9 AM to 2 PM.
               </p>
             </div>
@@ -399,23 +401,23 @@ export default function WaterBillPage() {
             }}
           />
           <h4 className="font-sans text-[20px] font-semibold leading-[28px] mb-2 relative z-10">
-            New Connection?
+            {t('x.newConnection')}
           </h4>
           <p className="font-sans text-[16px] mb-6 opacity-90 relative z-10">
-            Apply online for a new water connection for your home or shop.
+            {t('x.applyOnline')}
           </p>
           <Link
             href="/water/apply"
             className="block w-full text-center bg-dp-secondary-container text-dp-on-secondary-container py-3 rounded-lg font-bold font-sans hover:bg-dp-secondary-fixed transition-colors active:scale-95 relative z-10"
           >
-            Submit Application
+            {t('x.submitApplication')}
           </Link>
         </div>
 
         {/* Help Contact */}
         <div className="bg-dp-surface-container-high rounded-lg p-6">
           <h4 className="font-sans text-[14px] font-semibold tracking-[0.05em] uppercase text-dp-on-surface mb-3">
-            Need Help?
+            {t('x.needHelp')}
           </h4>
           <div className="space-y-3">
             <a
