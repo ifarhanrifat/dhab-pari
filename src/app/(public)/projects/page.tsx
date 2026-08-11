@@ -279,9 +279,10 @@ type Dt = (key: keyof typeof t) => string
 
 /* ========== ONGOING CARD ========== */
 function HotBadge() {
+  const { t: tr } = useLocale()
   return (
     <span className="absolute top-2 right-2 z-20 bg-red-500 text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded-full font-sans flex items-center gap-1">
-      <Flame size={11} /> Hot
+      <Flame size={11} /> {tr('y.hot')}
     </span>
   )
 }

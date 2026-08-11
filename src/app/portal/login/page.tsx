@@ -89,14 +89,14 @@ export default function PortalLoginPage() {
         <div className="w-14 h-14 rounded-full bg-dp-primary flex items-center justify-center text-white mb-4">
           <HeartHandshake size={26} />
         </div>
-        <h1 className="font-heading text-[24px] font-bold text-dp-primary">Donor &amp; Consumer Portal</h1>
+        <h1 className="font-heading text-[24px] font-bold text-dp-primary">{t('p.portalTitle')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{SITE.shortCommittee}</p>
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant p-6 md:p-8 w-full max-w-sm">
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label htmlFor="username" className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">Username</label>
+            <label htmlFor="username" className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('w.username')}</label>
             <input id="username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} required
               autoComplete="username" disabled={isLocked || loading}
               className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[16px] font-sans disabled:opacity-50"

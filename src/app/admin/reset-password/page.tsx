@@ -64,7 +64,7 @@ export default function ResetPasswordPage() {
           </div>
           <div>
             <h1 className="font-heading text-[24px] font-bold leading-[32px] text-white">{SITE.name}</h1>
-            <p className="text-white/60 text-[12px] font-sans">Admin Portal — Reset Password</p>
+            <p className="text-white/60 text-[12px] font-sans">{t('y.resetTitle')}</p>
           </div>
         </div>
       </header>
@@ -72,12 +72,12 @@ export default function ResetPasswordPage() {
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-[420px] bg-white border border-dp-outline-variant rounded-lg p-6 md:p-8 shadow-sm">
           {checking ? (
-            <p className="text-center font-sans text-dp-on-surface-variant py-8">Checking your reset link...</p>
+            <p className="text-center font-sans text-dp-on-surface-variant py-8">{t('y.checkingReset')}</p>
           ) : !validSession ? (
             <div className="text-center py-8">
               <AlertTriangle size={40} className="text-dp-error mx-auto mb-3" />
               <p className="font-sans font-semibold text-dp-on-surface mb-2">{t('g.resetLinkInvalid')}</p>
-              <p className="font-sans text-[13px] text-dp-on-surface-variant">Request a new one from the sign-in page.</p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('y.requestNewOne')}</p>
             </div>
           ) : (
             <>
@@ -85,13 +85,13 @@ export default function ResetPasswordPage() {
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-dp-primary-container rounded-full mb-3">
                   <ShieldCheck size={22} className="text-dp-on-primary-container" />
                 </div>
-                <h2 className="font-heading text-[24px] font-bold text-dp-primary mb-1">Choose a New Password</h2>
-                <p className="text-dp-on-surface-variant text-[13px] font-sans">This will replace your current password</p>
+                <h2 className="font-heading text-[24px] font-bold text-dp-primary mb-1">{t('y.chooseNewPassword')}</h2>
+                <p className="text-dp-on-surface-variant text-[13px] font-sans">{t('y.replaceCurrent')}</p>
               </div>
 
               <form onSubmit={submit} className="space-y-5">
                 <div>
-                  <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">New Password</label>
+                  <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('g.confirmNewPassword')}</label>
                   <div className="relative">
                     <input
                       type={showPw ? 'text' : 'password'}

@@ -108,7 +108,7 @@ export default function PostJobPage() {
         <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('action.loading')}</p>
       ) : listings.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center max-w-xl">
-          <p className="font-sans text-[14px] text-dp-on-surface-variant">You haven&apos;t posted any listings yet.</p>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('p.noListings')}</p>
         </div>
       ) : (
         <div className="space-y-3 max-w-xl">
@@ -149,7 +149,7 @@ export default function PostJobPage() {
                 </select>
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Headline *</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('p.headline')}</label>
                 <input value={form.headline} onChange={(e) => setForm({ ...form, headline: e.target.value })} placeholder="e.g. Experienced plumber, all repairs" className="input-field" />
               </div>
               <div>
@@ -164,7 +164,7 @@ export default function PostJobPage() {
                 <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-wide mb-3">{t('p.publicContactInfo')}</p>
                 <div className="space-y-3">
                   <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Contact Name *</label>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('p.contactName')}</label>
                     <input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} className="input-field" />
                   </div>
                   <div>
@@ -172,7 +172,7 @@ export default function PostJobPage() {
                     <input value={form.contact_mobile} onChange={(e) => setForm({ ...form, contact_mobile: e.target.value })} className="input-field" />
                   </div>
                   <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">WhatsApp (optional)</label>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.whatsapp')}</label>
                     <input value={form.contact_whatsapp} onChange={(e) => setForm({ ...form, contact_whatsapp: e.target.value })} className="input-field" />
                   </div>
                 </div>

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { ShieldAlert } from 'lucide-react'
 import { friendlyError } from '@/lib/errors'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 // A publisher can point a camera at the whole village on the committee's behalf.
 // The rules about that — no video of women, consent before filming, nothing from
@@ -16,6 +17,7 @@ import { friendlyError } from '@/lib/errors'
 // re-prompts everyone, which is the only way an edited rule reaches the people
 // it binds.
 export function PublisherGuidelinesGate() {
+  const { t } = useLocale()
   const [needed, setNeeded] = useState(false)
   const [version, setVersion] = useState('1')
   const [textEn, setTextEn] = useState('')
@@ -64,7 +66,7 @@ export function PublisherGuidelinesGate() {
         <div className="px-6 py-4 border-b border-dp-outline-variant flex items-start gap-3">
           <ShieldAlert size={24} className="text-dp-primary shrink-0 mt-0.5" />
           <div>
-            <h2 className="font-heading text-[20px] font-bold text-dp-primary">Before you publish</h2>
+            <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('y.beforeYouPublish')}</h2>
             <p className="font-sans text-[13px] text-dp-on-surface-variant">Please read these rules. They protect the people of the village, and they protect you.</p>
           </div>
         </div>

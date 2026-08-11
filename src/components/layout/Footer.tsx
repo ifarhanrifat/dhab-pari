@@ -1,7 +1,11 @@
+'use client'
+
 import Link from 'next/link'
 import { SITE } from '@/lib/constants'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 export function Footer() {
+  const { t } = useLocale()
   return (
     <footer className="bg-dp-surface-container-highest w-full py-12 px-6 md:px-12 border-t border-dp-outline-variant">
       <div className="max-w-[1200px] mx-auto">
@@ -21,7 +25,7 @@ export function Footer() {
           {/* Quick Links */}
           <div>
             <h4 className="font-sans font-bold text-dp-on-surface mb-4 text-[16px]">
-              Quick Links
+              {t('y.quickLinks')}
             </h4>
             <ul className="space-y-2">
               {[
@@ -45,14 +49,14 @@ export function Footer() {
           {/* Contact / Office */}
           <div>
             <h4 className="font-sans font-bold text-dp-on-surface mb-4 text-[16px]">
-              Office
+              {t('y.office')}
             </h4>
             <p className="text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-on-surface-variant leading-relaxed">
               Main Market, {SITE.name}
               <br />
-              District Chakwal, Punjab
+              {t('y.district')}
               <br />
-              Pakistan
+              {t('y.pakistan')}
             </p>
             <p className="text-[14px] font-sans text-dp-on-surface-variant mt-3">
               {SITE.officeHours}
@@ -68,16 +72,16 @@ export function Footer() {
           </p>
           <div className="flex gap-6 text-[14px] font-sans text-dp-on-surface-variant">
             <Link href="/privacy" className="hover:text-dp-primary transition-all">
-              Privacy Policy
+              {t('y.privacyPolicy')}
             </Link>
             <Link href="/terms" className="hover:text-dp-primary transition-all">
-              Terms of Service
+              {t('y.termsService')}
             </Link>
             {/* Deliberately understated — this is for the handful of committee
                 staff, not villagers — but it has to exist somewhere on the
                 public site, because nothing linked to /admin at all. */}
             <Link href="/admin" className="hover:text-dp-primary transition-all">
-              Staff Log In
+              {t('y.staffLogIn')}
             </Link>
           </div>
         </div>

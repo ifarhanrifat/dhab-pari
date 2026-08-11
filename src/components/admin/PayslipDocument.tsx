@@ -3,6 +3,7 @@
 import { forwardRef } from 'react'
 import type { BrandingSettings } from '@/lib/branding'
 import { SITE } from '@/lib/constants'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 export interface PayslipJobLine { label: string; amount: number }
 export interface PayslipData {
@@ -35,6 +36,7 @@ const monthName = (m: number) => new Date(2000, m - 1, 1).toLocaleString('en', {
 // own account, every payment debits it — "Balance Owed" is that account's
 // live balance, not a computed diff against a settled advance voucher.
 export const PayslipDocument = forwardRef<HTMLDivElement, Props>(function PayslipDocument({ data, branding }, ref) {
+  const { t } = useLocale()
   const companyNameEn = branding.companyNameEn || SITE.name
 
   return (
@@ -44,7 +46,7 @@ export const PayslipDocument = forwardRef<HTMLDivElement, Props>(function Paysli
           <img src={branding.logoUrl} alt="Logo" className="absolute left-0 top-0 object-contain" style={{ width: branding.logoWidth ?? 48, height: branding.logoWidth ?? 48 }} />
         )}
         <p className="text-[18px] font-bold">{companyNameEn}</p>
-        <p className="text-[13px] text-dp-on-surface-variant mt-0.5">Payslip / Salary Slip</p>
+        <p className="text-[13px] text-dp-on-surface-variant mt-0.5">{t('y.payslipTitle')}</p>
       </div>
 
       <div className="flex justify-between items-start mb-5 text-[13px]">
@@ -53,12 +55,12 @@ export const PayslipDocument = forwardRef<HTMLDivElement, Props>(function Paysli
           <p className="text-dp-on-surface-variant">{data.roleEn}</p>
         </div>
         <div className="text-end">
-          <p className="text-dp-on-surface-variant">Period</p>
+          <p className="text-dp-on-surface-variant">{t('y.period')}</p>
           <p className="font-bold">{monthName(data.month)} {data.year}</p>
         </div>
       </div>
 
-      <p className="text-[12px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-1.5">Earnings This Cycle</p>
+      <p className="text-[12px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-1.5">{t('y.earningsCycle')}</p>
       <table className="w-full text-[13px] mb-4">
         <tbody>
           <Row label="Salary Accrued This Month" amount={data.salaryAccrued} />
@@ -71,19 +73,19 @@ export const PayslipDocument = forwardRef<HTMLDivElement, Props>(function Paysli
 
       <div className="rounded-lg border border-dp-primary/30 bg-dp-primary/5 px-4 py-3 mb-6 space-y-1.5">
         <div className="flex justify-between text-[15px] font-bold text-dp-primary">
-          <span>Balance Owed</span><span>Rs. {fmt(data.balanceOwed)}</span>
+          <span>{t('y.balanceOwed')}</span><span>Rs. {fmt(data.balanceOwed)}</span>
         </div>
         <div className="flex justify-between text-[13px] border-t border-dp-primary/20 pt-1.5">
-          <span>Paid Now</span><span>− Rs. {fmt(data.amountPaidNow)}</span>
+          <span>{t('y.paidNow')}</span><span>− Rs. {fmt(data.amountPaidNow)}</span>
         </div>
         <div className="flex justify-between text-[14px] font-bold">
-          <span>Balance Carried Forward</span><span>Rs. {fmt(data.balanceCarriedForward)}</span>
+          <span>{t('y.balanceCarried')}</span><span>Rs. {fmt(data.balanceCarriedForward)}</span>
         </div>
       </div>
 
       <div className="flex justify-end mt-10">
         <div className="text-end text-[12px]">
-          <div className="w-40 border-t border-dp-outline-variant pt-1">Authorized Signatory</div>
+          <div className="w-40 border-t border-dp-outline-variant pt-1">{t('y.authSignatory')}</div>
         </div>
       </div>
     </div>

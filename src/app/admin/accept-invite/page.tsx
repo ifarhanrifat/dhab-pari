@@ -72,7 +72,7 @@ export default function AcceptInvitePage() {
           </div>
           <div>
             <h1 className="font-heading text-[24px] font-bold leading-[32px] text-white">{SITE.name}</h1>
-            <p className="text-white/60 text-[12px] font-sans">Admin Portal — Accept Invitation</p>
+            <p className="text-white/60 text-[12px] font-sans">{t('y.acceptInvite')}</p>
           </div>
         </div>
       </header>
@@ -80,12 +80,12 @@ export default function AcceptInvitePage() {
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-[420px] bg-white border border-dp-outline-variant rounded-lg p-6 md:p-8 shadow-sm">
           {checking ? (
-            <p className="text-center font-sans text-dp-on-surface-variant py-8">Checking your invitation...</p>
+            <p className="text-center font-sans text-dp-on-surface-variant py-8">{t('y.checkingInvite')}</p>
           ) : !validSession ? (
             <div className="text-center py-8">
               <AlertTriangle size={40} className="text-dp-error mx-auto mb-3" />
-              <p className="font-sans font-semibold text-dp-on-surface mb-2">This invitation link is invalid or has expired.</p>
-              <p className="font-sans text-[13px] text-dp-on-surface-variant">Ask your administrator to send a new invitation.</p>
+              <p className="font-sans font-semibold text-dp-on-surface mb-2">{t('y.inviteInvalid')}</p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('y.askAdminInvite')}</p>
             </div>
           ) : (
             <>
@@ -93,8 +93,8 @@ export default function AcceptInvitePage() {
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-dp-primary-container rounded-full mb-3">
                   <ShieldCheck size={22} className="text-dp-on-primary-container" />
                 </div>
-                <h2 className="font-heading text-[24px] font-bold text-dp-primary mb-1">Set Your Password</h2>
-                <p className="text-dp-on-surface-variant text-[13px] font-sans">Choose a password to activate your account</p>
+                <h2 className="font-heading text-[24px] font-bold text-dp-primary mb-1">{t('y.setYourPassword')}</h2>
+                <p className="text-dp-on-surface-variant text-[13px] font-sans">{t('y.choosePassword')}</p>
               </div>
 
               <form onSubmit={submit} className="space-y-5">
@@ -118,7 +118,7 @@ export default function AcceptInvitePage() {
                 </div>
 
                 <div>
-                  <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">Confirm Password</label>
+                  <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('y.confirmPassword')}</label>
                   <input
                     type={showPw ? 'text' : 'password'}
                     value={confirmPassword}

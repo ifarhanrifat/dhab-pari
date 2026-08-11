@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Download, X, Share } from 'lucide-react'
 import { SITE } from '@/lib/constants'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 // Chrome/Edge/Android fire this so the site can show its own install button.
 // Not in TypeScript's DOM lib yet, hence the local shape.
@@ -15,6 +16,7 @@ interface BeforeInstallPromptEvent extends Event {
 const DISMISS_KEY = 'dp_install_dismissed'
 
 export function PwaProvider() {
+  const { t } = useLocale()
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
   const [showIosHint, setShowIosHint] = useState(false)
   const [iosNeedsSafari, setIosNeedsSafari] = useState(false)
@@ -124,15 +126,15 @@ export function PwaProvider() {
           {showIosHint ? (
             iosNeedsSafari ? (
               <p className="font-sans text-[12.5px] text-white/75 leading-[18px] mt-1">
-                On iPhone only <span className="font-semibold text-white">Safari</span> can install apps.
+                {t('y.iphoneOnly')} <span className="font-semibold text-white">{t('y.safari')}</span> can install apps.
                 Open <span className="font-semibold text-white">dhabpari.com</span> in Safari, then tap{' '}
                 <Share size={12} className="inline align-[-1px]" /> Share →{' '}
-                <span className="font-semibold text-white">Add to Home Screen</span>.
+                <span className="font-semibold text-white">{t('y.addHomeScreen')}</span>.
               </p>
             ) : (
               <p className="font-sans text-[12.5px] text-white/75 leading-[18px] mt-1">
-                Tap <Share size={12} className="inline align-[-1px]" /> Share at the bottom, then{' '}
-                <span className="font-semibold text-white">Add to Home Screen</span>.
+                {t('y.tap')} <Share size={12} className="inline align-[-1px]" /> Share at the bottom, then{' '}
+                <span className="font-semibold text-white">{t('y.addHomeScreen')}</span>.
               </p>
             )
           ) : (
@@ -144,7 +146,7 @@ export function PwaProvider() {
                 onClick={install}
                 className="mt-2.5 inline-flex items-center gap-1.5 bg-[#1D9E75] hover:bg-[#17835f] text-white px-3.5 py-1.5 rounded-lg font-sans text-[13px] font-semibold transition-all active:scale-95 cursor-pointer"
               >
-                <Download size={14} /> Install
+                <Download size={14} /> {t('y.install')}
               </button>
             </>
           )}

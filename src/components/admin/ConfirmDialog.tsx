@@ -1,6 +1,7 @@
 'use client'
 
 import { AlertTriangle } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -12,6 +13,7 @@ interface ConfirmDialogProps {
 }
 
 export function ConfirmDialog({ open, title, message, confirmLabel = 'Delete', onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useLocale()
   if (!open) return null
 
   return (
@@ -29,7 +31,7 @@ export function ConfirmDialog({ open, title, message, confirmLabel = 'Delete', o
             onClick={onCancel}
             className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container transition-all cursor-pointer"
           >
-            Cancel
+            {t('action.cancel')}
           </button>
           <button
             onClick={onConfirm}

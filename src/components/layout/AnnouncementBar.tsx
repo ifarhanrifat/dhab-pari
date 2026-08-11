@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { AlertTriangle } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface TickerMessage {
   id: string
@@ -44,6 +45,7 @@ const SEVERITY_LABEL: Record<string, string> = {
  * someone has the page open reaches them without a reload.
  */
 export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'portal' }) {
+  const { t } = useLocale()
   const [messages, setMessages] = useState<TickerMessage[]>([])
   const [appeals, setAppeals] = useState<Appeal[]>([])
 
@@ -87,7 +89,7 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
             even mid-message. */}
         <span className="shrink-0 flex items-center gap-1.5 h-full px-3 bg-black/20 font-sans text-[12px] font-bold tracking-[0.06em]">
           <AlertTriangle size={14} className="shrink-0" />
-          <span className="hidden sm:inline">URGENT</span>
+          <span className="hidden sm:inline">{t('y.urgent')}</span>
         </span>
 
         <div className="flex-1 min-w-0 overflow-hidden">

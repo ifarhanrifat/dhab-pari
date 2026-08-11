@@ -1,4 +1,5 @@
 'use client'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface VideoPlayerProps {
   url: string
@@ -11,6 +12,7 @@ function getYouTubeId(url: string): string | null {
 }
 
 export function VideoPlayer({ url, title }: VideoPlayerProps) {
+  const { t } = useLocale()
   const ytId = getYouTubeId(url)
 
   if (ytId) {
@@ -31,7 +33,7 @@ export function VideoPlayer({ url, title }: VideoPlayerProps) {
     <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black">
       <video controls className="w-full h-full" preload="metadata">
         <source src={url} />
-        Your browser does not support the video tag.
+        {t('y.videoUnsupported')}
       </video>
     </div>
   )

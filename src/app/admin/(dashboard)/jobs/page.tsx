@@ -48,7 +48,7 @@ export default function AdminJobsPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5"><Briefcase size={26} className="text-dp-secondary" /> Job Listings</h1>
+        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5"><Briefcase size={26} className="text-dp-secondary" /> {t('y.jobListings')}</h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">Public village job board — deactivate a listing here if it needs to come down.</p>
       </div>
 
@@ -59,7 +59,7 @@ export default function AdminJobsPage() {
         </select>
         <label className="flex items-center gap-2 cursor-pointer font-sans text-[14px]">
           <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} className="accent-dp-secondary" />
-          Active only
+          {t('y.activeOnly')}
         </label>
       </div>
 
@@ -67,11 +67,11 @@ export default function AdminJobsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]">
-              <th className="p-4">Headline</th><th className="p-4">{t('w.category')}</th><th className="p-4">Contact</th><th className="p-4">{t('w.sector')}</th><th className="p-4">{t('w.status')}</th><th className="p-4"></th>
+              <th className="p-4">{t('y.headline')}</th><th className="p-4">{t('w.category')}</th><th className="p-4">{t('y.contact')}</th><th className="p-4">{t('w.sector')}</th><th className="p-4">{t('w.status')}</th><th className="p-4"></th>
             </tr></thead>
             <tbody className="font-sans text-[15px]">
               {loading && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}
-              {!loading && filtered.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">No matching listings.</td></tr>}
+              {!loading && filtered.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">{t('y.noMatchingListings')}</td></tr>}
               {!loading && filtered.map((l, i) => (
                 <tr key={l.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''} ${!l.is_active ? 'opacity-60' : ''}`}>
                   <td className="p-4 border-b border-dp-outline-variant font-semibold">{l.headline}</td>

@@ -67,7 +67,7 @@ export function Header() {
                 {SITE.name}
               </Link>
               <p className="text-white/60 text-[12px] font-sans hidden xl:block">
-                Village Transparency Portal
+                {t('y.villageTransparency')}
               </p>
             </div>
           </div>

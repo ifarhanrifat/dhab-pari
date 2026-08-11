@@ -217,7 +217,7 @@ export default function CollectPaymentPage() {
     <>
       <div className="mb-6">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
-          <Truck size={26} /> Collect Payment
+          <Truck size={26} /> {t('y.collectPayment')}
         </h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1 flex items-center gap-1.5">
           <MapPin size={13} /> Assigned sectors: {(me.assigned_sectors ?? []).join(', ') || 'None — ask an administrator to assign you a sector'}
@@ -314,16 +314,16 @@ export default function CollectPaymentPage() {
             </button>
           ) : (
             <div className="space-y-3">
-              <p className="font-sans text-[13.5px] font-bold text-dp-on-surface flex items-center gap-2"><MessageSquareWarning size={15} /> Log an Issue</p>
+              <p className="font-sans text-[13.5px] font-bold text-dp-on-surface flex items-center gap-2"><MessageSquareWarning size={15} /> {t('y.logIssue')}</p>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Issue Type</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('y.issueType')}</label>
                 <select value={complaintCategory} onChange={(e) => setComplaintCategory(e.target.value)} className="input-field">
-                  <option value="">Select an issue...</option>
+                  <option value="">{t('y.selectIssue')}</option>
                   {complaintCategories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Details (optional, editable)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('y.detailsEditable')}</label>
                 <textarea value={complaintText} onChange={(e) => setComplaintText(e.target.value)} rows={3} className="input-field resize-none" placeholder="Add any details the consumer mentioned..." />
               </div>
               <div className="flex gap-2">
@@ -345,15 +345,15 @@ export default function CollectPaymentPage() {
           <div className="fixed bottom-4 right-4 bg-white border border-dp-outline-variant rounded-lg shadow-lg p-4 max-w-xs z-[110] space-y-3">
             {lastConsumerMobile && (
               <div>
-                <p className="font-sans text-[12.5px] font-bold text-dp-on-surface mb-2">Send receipt to consumer</p>
+                <p className="font-sans text-[12.5px] font-bold text-dp-on-surface mb-2">{t('y.sendReceiptConsumer')}</p>
                 <button onClick={notifyConsumerViaWhatsApp} className="w-full flex items-center gap-1.5 px-2.5 py-1.5 bg-[#25d366] text-white rounded-lg font-sans text-[12px] font-semibold hover:opacity-90 transition-all cursor-pointer">
-                  <MessageCircle size={13} /> Send Receipt via WhatsApp
+                  <MessageCircle size={13} /> {t('y.sendReceiptWa')}
                 </button>
               </div>
             )}
             {whatsappEnabled && notifyTargets.length > 0 && (
               <div>
-                <p className="font-sans text-[12.5px] font-bold text-dp-on-surface mb-2">Notify the accountant via WhatsApp</p>
+                <p className="font-sans text-[12.5px] font-bold text-dp-on-surface mb-2">{t('y.notifyAccountant')}</p>
                 <div className="flex flex-col gap-1.5">
                   {notifyTargets.map((t) => (
                     <button key={t.id} onClick={() => notifyViaWhatsApp(t)} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#25d366] text-white rounded-lg font-sans text-[12px] font-semibold hover:opacity-90 transition-all cursor-pointer">

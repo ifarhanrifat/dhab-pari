@@ -288,13 +288,13 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
   }
 
   if (loading) {
-    return <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">Loading account...</div>
+    return <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">{t('y.loadingAccount')}</div>
   }
   if (!account) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center">
-        <p className="font-sans text-dp-on-surface-variant mb-4">Account not found.</p>
-        <Link href="/admin/accounts" className="text-dp-secondary font-sans font-semibold">Back to Chart of Accounts</Link>
+        <p className="font-sans text-dp-on-surface-variant mb-4">{t('y.accountNotFound')}</p>
+        <Link href="/admin/accounts" className="text-dp-secondary font-sans font-semibold">{t('y.backToChart')}</Link>
       </div>
     )
   }
@@ -309,16 +309,16 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
 
       <div className="flex items-center justify-between mb-6 print:hidden">
         <Link href="/admin/accounts" className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold">
-          <ArrowLeft size={16} /> Back to Chart of Accounts
+          <ArrowLeft size={16} /> {t('y.backToChart')}
         </Link>
         <div className="flex items-center gap-2">
           {!isParty && (
             <button onClick={() => setShowManualForm(true)} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-              <PlusCircle size={15} /> Add Manual Entry
+              <PlusCircle size={15} /> {t('y.addManualEntry')}
             </button>
           )}
           <button disabled={printing} onClick={handlePrintStatement} className="flex items-center gap-2 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
-            <Printer size={15} /> Print Statement
+            <Printer size={15} /> {t('y.printStatement')}
           </button>
         </div>
       </div>
@@ -553,7 +553,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowManualForm(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">Add Manual Entry</h2>
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('y.addManualEntry')}</h2>
               <button onClick={() => setShowManualForm(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <div className="space-y-4">
@@ -576,7 +576,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                 </div>
               </div>
               <button onClick={saveManualEntry} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-                <Save size={16} /> Add Entry
+                <Save size={16} /> {t('y.addEntry')}
               </button>
             </div>
           </div>

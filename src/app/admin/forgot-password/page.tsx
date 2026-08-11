@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
           </div>
           <div>
             <h1 className="font-heading text-[24px] font-bold leading-[32px] text-white">{SITE.name}</h1>
-            <p className="text-white/60 text-[12px] font-sans">Admin Portal — Reset Password</p>
+            <p className="text-white/60 text-[12px] font-sans">{t('y.resetTitle')}</p>
           </div>
         </div>
       </header>

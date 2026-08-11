@@ -90,7 +90,7 @@ export default function PortalWaterPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary">Water Bills &amp; Payments</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('p.waterBillsPayments')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Consumer #{user.consumer_id}</p>
       </div>
 

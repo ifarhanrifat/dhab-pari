@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 // Routes a logged-in portal user straight to the prefilled /portal/donate
 // flow (skips re-entering name/father's name/WhatsApp, already known from
 // their session); everyone else gets the anonymous /donate/submit form.
 export function DonateCTAButton({ className }: { className?: string }) {
+  const { t } = useLocale()
   const [href, setHref] = useState('/donate/submit')
 
   useEffect(() => {
@@ -21,7 +23,7 @@ export function DonateCTAButton({ className }: { className?: string }) {
 
   return (
     <Link href={href} className={className}>
-      Submit Your Donation
+      {t('y.submitDonation')}
     </Link>
   )
 }

@@ -31,18 +31,18 @@ export default function AdminBloodDonorsPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5"><Droplet size={26} className="text-dp-error" /> Blood Donors</h1>
+        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5"><Droplet size={26} className="text-dp-error" /> {t('y.bloodDonors')}</h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">Registered by portal users. Contact info shown here is staff-only — never public.</p>
       </div>
 
       <div className="flex flex-wrap gap-3 mb-5">
         <select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} className="input-field w-auto">
-          <option value="">All Blood Groups</option>
+          <option value="">{t('y.allBloodGroups')}</option>
           {GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
         </select>
         <label className="flex items-center gap-2 cursor-pointer font-sans text-[14px]">
           <input type="checkbox" checked={availableOnly} onChange={(e) => setAvailableOnly(e.target.checked)} className="accent-dp-secondary" />
-          Available only
+          {t('y.availableOnly')}
         </label>
       </div>
 
@@ -50,11 +50,11 @@ export default function AdminBloodDonorsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]">
-              <th className="p-4">{t('a.name')}</th><th className="p-4">Group</th><th className="p-4">{t('w.sector')}</th><th className="p-4">Mobile</th><th className="p-4">{t('w.whatsapp')}</th><th className="p-4">{t('w.status')}</th>
+              <th className="p-4">{t('a.name')}</th><th className="p-4">{t('y.group')}</th><th className="p-4">{t('w.sector')}</th><th className="p-4">Mobile</th><th className="p-4">{t('w.whatsapp')}</th><th className="p-4">{t('w.status')}</th>
             </tr></thead>
             <tbody className="font-sans text-[16px]">
               {loading && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}
-              {!loading && filtered.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">No matching blood donors.</td></tr>}
+              {!loading && filtered.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">{t('y.noMatchingDonors')}</td></tr>}
               {!loading && filtered.map((d, i) => (
                 <tr key={d.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''}`}>
                   <td className="p-4 border-b border-dp-outline-variant font-semibold">{d.full_name}</td>

@@ -76,7 +76,7 @@ export default function ProjectTransfersPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5"><ArrowRightLeft size={26} /> Transfer Project Funds</h1>
+        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5"><ArrowRightLeft size={26} /> {t('y.transferFunds')}</h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">Move raised funds from one project to another — requires the committee&apos;s agenda approval reference.</p>
       </div>
 
@@ -94,7 +94,7 @@ export default function ProjectTransfersPage() {
           <input type="number" min={1} value={amount || ''} onChange={(e) => setAmount(+e.target.value)} className="input-field" />
         </div>
         <div>
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Committee Agenda Approval Reference</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('y.agendaApprovalRef')}</label>
           <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. Meeting 04 Aug 2026 — item #3" className="input-field" />
         </div>
         <button onClick={submit} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">

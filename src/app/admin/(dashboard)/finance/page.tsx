@@ -10,7 +10,7 @@ export default function TransactionsPickerPage() {
     <>
       <div className="mb-8">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Transactions</h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Choose which system you want to record a transaction in.</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('y.chooseSystem')}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl">
@@ -24,7 +24,7 @@ export default function TransactionsPickerPage() {
             </div>
             <div>
               <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('a.waterSupplySystem')}</h2>
-              <p className="font-sans text-[13px] text-dp-on-surface-variant">Expenses, income, bills, cash &amp; bank vouchers</p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('y.waterVouchers')}</p>
             </div>
           </div>
           <ChevronRight size={20} className="text-dp-on-surface-variant group-hover:text-dp-primary transition-colors shrink-0" />
@@ -40,7 +40,7 @@ export default function TransactionsPickerPage() {
             </div>
             <div>
               <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('a.donorsProjects')}</h2>
-              <p className="font-sans text-[13px] text-dp-on-surface-variant">Expenses, donations, cash &amp; bank vouchers</p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('y.donorVouchers')}</p>
             </div>
           </div>
           <ChevronRight size={20} className="text-dp-on-surface-variant group-hover:text-dp-primary transition-colors shrink-0" />

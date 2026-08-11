@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { X, Save } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 export interface NewAccount { id: string; code: string; name: string; type: string }
 
@@ -23,6 +24,7 @@ const typeLabels: Record<string, string> = {
 // form — resolves the matching account_headers row for the chosen type so the
 // user never has to leave the transaction to set one up in Chart of Accounts first.
 export function QuickAddAccountModal({ system, allowedTypes, onClose, onCreated }: Props) {
+  const { t } = useLocale()
   const supabase = createClient()
   const [type, setType] = useState(allowedTypes[0])
   const [name, setName] = useState('')
@@ -54,24 +56,24 @@ export function QuickAddAccountModal({ system, allowedTypes, onClose, onCreated 
     <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-heading text-[18px] font-bold text-dp-primary">New Account</h2>
+          <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('y.newAccount')}</h2>
           <button onClick={onClose} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
         </div>
         <div className="space-y-4">
           {allowedTypes.length > 1 && (
             <div>
-              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Account Type</label>
+              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('y.accountType')}</label>
               <select value={type} onChange={(e) => setType(e.target.value)} className="input-field">
                 {allowedTypes.map((t) => <option key={t} value={t}>{typeLabels[t] ?? t}</option>)}
               </select>
             </div>
           )}
           <div>
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Name</label>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.name')}</label>
             <input autoFocus value={name} onChange={(e) => setName(e.target.value)} className="input-field" placeholder="e.g. Fuel &amp; Transport" />
           </div>
           <div>
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Opening Balance (optional)</label>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('y.openingOptional')}</label>
             <input type="number" value={openingBalance || ''} onChange={(e) => setOpeningBalance(+e.target.value)} className="input-field" />
           </div>
           <button disabled={saving} onClick={save} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">

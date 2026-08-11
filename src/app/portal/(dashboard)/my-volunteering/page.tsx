@@ -38,6 +38,7 @@ const AVAILABILITY: { id: string; en: string; ur: string }[] = [
 ]
 
 export default function PortalMyVolunteeringPage() {
+  const { t } = useLocale()
   const { t: tr } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [signups, setSignups] = useState<Signup[]>([])
@@ -136,7 +137,7 @@ export default function PortalMyVolunteeringPage() {
         <p className="font-sans text-[14px] text-dp-on-surface-variant">{tr('action.loading')}</p>
       ) : signups.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center max-w-xl">
-          <p className="font-sans text-[14px] text-dp-on-surface-variant">You haven&apos;t signed up to volunteer yet.</p>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('p.noSignups')}</p>
         </div>
       ) : (
         <div className="space-y-3 max-w-xl">

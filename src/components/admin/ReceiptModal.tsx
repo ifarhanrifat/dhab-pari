@@ -134,7 +134,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
                   <FileText size={14} /> A4
                 </button>
                 <button onClick={() => chooseSlipFormat('thermal')} title="58/80mm Bluetooth thermal printer" className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${slipFormat === 'thermal' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant'}`}>
-                  <Receipt size={14} /> Thermal
+                  <Receipt size={14} /> {t('y.thermal')}
                 </button>
               </div>
             )}
@@ -158,7 +158,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
             <Download size={16} /> Download {format.toUpperCase()}
           </button>
           <button disabled={busy} onClick={handleShare} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-            <Share2 size={16} /> Share via WhatsApp
+            <Share2 size={16} /> {t('y.shareWhatsapp')}
           </button>
         </div>
       </div>

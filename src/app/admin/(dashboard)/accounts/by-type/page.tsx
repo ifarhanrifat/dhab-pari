@@ -104,14 +104,14 @@ function AccountsByTypePageInner() {
               <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                 <th className="px-4 py-2.5">{t('iv.code')}</th>
                 <th className="px-4 py-2.5">{t('a.name')}</th>
-                <th className="px-4 py-2.5 text-end">Balance</th>
+                <th className="px-4 py-2.5 text-end">{t('y.balance')}</th>
                 <th className="px-4 py-2.5">{t('w.status')}</th>
                 <th className="px-4 py-2.5 text-end">{t('a.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {loading && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</td></tr>}
-              {!loading && accounts.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">No accounts under this header yet.</td></tr>}
+              {!loading && accounts.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('y.noAccountsHeader')}</td></tr>}
               {!loading && accounts.map((a) => (
                 <tr key={a.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${!a.is_active ? 'opacity-50' : ''}`}>
                   <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant whitespace-nowrap">{a.code}</td>

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, FolderKanban, Heart, Video, MoreHorizontal } from 'lucide-react'
 import { useMobileNav } from './MobileNavContext'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 const tabs = [
   { href: '/', label: 'Home', icon: Home },
@@ -13,6 +14,7 @@ const tabs = [
 ]
 
 export function BottomNav() {
+  const { t } = useLocale()
   const pathname = usePathname()
   const { setOpen } = useMobileNav()
 
@@ -48,7 +50,7 @@ export function BottomNav() {
         className="flex flex-col items-center justify-center text-white/70 transition-transform active:scale-95 cursor-pointer"
       >
         <MoreHorizontal size={20} />
-        <span className="text-[10px] font-sans font-semibold tracking-[0.05em] mt-0.5">More</span>
+        <span className="text-[10px] font-sans font-semibold tracking-[0.05em] mt-0.5">{t('y.more')}</span>
       </button>
     </nav>
   )

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { X, UserCircle2, ShieldCheck } from 'lucide-react'
 import { SITE } from '@/lib/constants'
 import { LanguageToggle } from '@/components/layout/LanguageToggle'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface MobileNavProps {
   open: boolean
@@ -14,6 +15,7 @@ interface MobileNavProps {
 }
 
 export function MobileNav({ open, onClose, navLinks, isPortalUser }: MobileNavProps) {
+  const { t } = useLocale()
   const pathname = usePathname()
 
   return (
@@ -100,7 +102,7 @@ export function MobileNav({ open, onClose, navLinks, isPortalUser }: MobileNavPr
             className="flex items-center gap-2 border border-white/25 text-white/85 px-4 py-2.5 rounded-lg font-sans text-[13.5px] font-semibold justify-center hover:bg-white/10 transition-colors"
           >
             <ShieldCheck size={16} />
-            Committee / Staff Log In
+            {t('y.committeeStaffLogin')}
           </Link>
         </div>
 

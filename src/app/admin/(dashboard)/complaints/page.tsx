@@ -125,7 +125,7 @@ export default function ComplaintsPage() {
             </div>
           )}
           <button onClick={() => { setForm(emptyForm); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-            <PlusCircle size={16} /> Register Complaint
+            <PlusCircle size={16} /> {t('y.registerComplaint')}
           </button>
         </div>
       </div>
@@ -146,7 +146,7 @@ export default function ComplaintsPage() {
         {loading ? (
           <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('action.loading')}</p>
         ) : filtered.length === 0 ? (
-          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No complaints match this filter.</p>
+          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('y.noComplaintsFilter')}</p>
         ) : (
           <div className="divide-y divide-dp-outline-variant">
             {filtered.map((c) => {
@@ -179,12 +179,12 @@ export default function ComplaintsPage() {
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">Register Complaint</h2>
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('y.registerComplaint')}</h2>
               <button onClick={() => setShowForm(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Complainant Name (optional)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('y.complainantName')}</label>
                 <input value={form.complainant_name} onChange={(e) => setForm({ ...form, complainant_name: e.target.value })} className="input-field" />
               </div>
               <div>
@@ -203,7 +203,7 @@ export default function ComplaintsPage() {
               {system === 'water_supply' && (
                 <div className="relative">
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">
-                    Link to Consumer (optional) <span className="font-normal opacity-70">— required to waive bill dues later</span>
+                    {t('y.linkConsumer')} <span className="font-normal opacity-70">— required to waive bill dues later</span>
                   </label>
                   {selectedConsumerOption ? (
                     <div className="flex items-center justify-between px-3 py-2 border border-dp-outline-variant rounded-lg bg-dp-surface-container-low">
@@ -234,7 +234,7 @@ export default function ComplaintsPage() {
                 </div>
               )}
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Complaint</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('y.complaint')}</label>
                 <textarea value={form.complaint_text} onChange={(e) => setForm({ ...form, complaint_text: e.target.value })} rows={4} className="input-field resize-none" />
               </div>
               <button disabled={saving} onClick={createComplaint} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">

@@ -65,7 +65,7 @@ export default function RemindersPage() {
   return (
     <div>
       <h1 className="font-heading text-[26px] sm:text-[32px] font-bold text-dp-primary flex items-center gap-2.5 mb-2">
-        <BellRing size={28} /> Reminders
+        <BellRing size={28} /> {t('y.reminders')}
       </h1>
       <p className="font-sans text-[13px] text-dp-on-surface-variant mb-6">
         Every Sunday the system automatically figures out who needs a reminder. Tap Send to open WhatsApp with the message pre-filled — no message goes out on its own.
@@ -75,7 +75,7 @@ export default function RemindersPage() {
         <p className="font-sans text-dp-on-surface-variant py-8 text-center">{t('action.loading')}</p>
       ) : reminders.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center">
-          <p className="font-sans text-[14px] text-dp-on-surface-variant">Nothing pending — check back after the next Sunday sweep.</p>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('y.nothingPending')}</p>
         </div>
       ) : (
         (Object.keys(sectionMeta) as (keyof typeof sectionMeta)[]).map((type) => {

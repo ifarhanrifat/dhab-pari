@@ -32,7 +32,7 @@ export function SystemGuard({ system, children }: { system: SystemTab; children:
   const access = useSystemAccess()
 
   if (access.loading) {
-    return <div className="text-center py-16 font-sans text-[14px] text-dp-on-surface-variant">Loading…</div>
+    return <div className="text-center py-16 font-sans text-[14px] text-dp-on-surface-variant">{t('y.loadingDots')}</div>
   }
 
   const allowed = system === 'water_supply' ? access.canWaterSupply : access.canDonorsProjects

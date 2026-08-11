@@ -5,6 +5,7 @@ import NextImage from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { Upload, X, Loader2, Image as ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface MultiImageUploadProps {
   bucket: 'images' | 'thumbnails' | 'attachments'
@@ -18,6 +19,7 @@ const MAX_SIZE = 5 * 1024 * 1024
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
 export function MultiImageUpload({ bucket, onUpload, currentUrls = [], label = 'Upload Images', max = 10 }: MultiImageUploadProps) {
+  const { t } = useLocale()
   const [urls, setUrls] = useState<string[]>(currentUrls)
   const [uploading, setUploading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -102,7 +104,7 @@ export function MultiImageUpload({ bucket, onUpload, currentUrls = [], label = '
           <p className="font-sans text-[14px] text-dp-on-surface-variant">
             {uploading ? 'Uploading...' : 'Drop images or click to browse (multiple)'}
           </p>
-          <p className="font-sans text-[12px] text-dp-outline mt-1">JPG, PNG, WebP, GIF · Max 5MB each</p>
+          <p className="font-sans text-[12px] text-dp-outline mt-1">{t('y.imageTypesEach')}</p>
         </div>
       )}
 

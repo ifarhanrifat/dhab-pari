@@ -115,7 +115,7 @@ export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) 
 
       <div className="bg-white rounded-lg border border-dp-outline-variant p-4 mb-4 flex flex-wrap items-end gap-4 print:hidden">
         <div>
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">From</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.from')}</label>
           <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="input-field" />
         </div>
         <div>
@@ -123,7 +123,7 @@ export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) 
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="input-field" />
         </div>
         <button onClick={() => { setFrom(today()); setTo(today()) }} className="px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
-          Today
+          {t('y.today')}
         </button>
       </div>
 
@@ -161,7 +161,7 @@ export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) 
                 </tr>
               </thead>
               <tbody>
-                {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">Loading...</td></tr>}
+                {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</td></tr>}
                 {!loading && rows.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{dt(lang, 'noCashBankTransactions')}</td></tr>}
                 {!loading && rows.map((r) => (
                   <tr key={r.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">

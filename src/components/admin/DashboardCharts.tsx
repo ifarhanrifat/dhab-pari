@@ -1,6 +1,7 @@
 'use client'
 
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface TrendPoint { month: string; income: number; expense: number }
 
@@ -52,9 +53,10 @@ interface FundSlice { name: string; value: number }
 const PIE_COLORS = ['#0d9488', '#2563eb', '#d97706', '#7c3aed']
 
 export function FundPieChart({ data }: { data: FundSlice[] }) {
+  const { t } = useLocale()
   const nonZero = data.filter((d) => d.value > 0)
   if (nonZero.length === 0) {
-    return <div className="h-[220px] flex items-center justify-center font-sans text-[13px] text-dp-on-surface-variant">No fund data yet</div>
+    return <div className="h-[220px] flex items-center justify-center font-sans text-[13px] text-dp-on-surface-variant">{t('y.noFundData')}</div>
   }
   return (
     <ResponsiveContainer width="100%" height={220}>

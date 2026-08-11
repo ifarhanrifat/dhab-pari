@@ -294,7 +294,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
       <aside style={{ position: "fixed", top: 0, left: 0, right: "auto" }} className="hidden md:flex flex-col h-screen py-6 bg-dp-primary border-e border-dp-outline-variant w-[210px] z-50 print:hidden">
         <div className="px-4 mb-8">
           <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">
-            Admin Portal
+            {t('y.adminPortal')}
           </h2>
           <p className="text-[12px] font-sans text-white/60 mt-1">
             {SITE.shortCommittee}
@@ -329,7 +329,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
         <div className="px-4 mb-8 flex items-center justify-between">
           <div>
             <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">
-              Admin Portal
+              {t('y.adminPortal')}
             </h2>
             <p className="text-[12px] font-sans text-white/60 mt-1">
               {SITE.shortCommittee}

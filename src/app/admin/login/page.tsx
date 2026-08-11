@@ -118,7 +118,7 @@ export default function AdminLoginPage() {
               {SITE.name}
             </h1>
             <p className="text-white/60 text-[12px] font-sans">
-              Admin Portal — Restricted Access
+              {t('y.restrictedAccess')}
             </p>
           </div>
         </div>
@@ -132,10 +132,10 @@ export default function AdminLoginPage() {
               <ShieldAlert size={22} className="text-dp-on-primary-container" />
             </div>
             <h2 className="font-heading text-[24px] font-bold text-dp-primary mb-1">
-              Admin Login
+              {t('y.adminLogin')}
             </h2>
             <p className="text-dp-on-surface-variant text-[13px] font-sans">
-              Authorised personnel only
+              {t('y.authorisedOnly')}
             </p>
           </div>
 
@@ -144,7 +144,7 @@ export default function AdminLoginPage() {
             <div className="mb-6 bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-start gap-3">
               <AlertTriangle size={18} className="text-red-600 shrink-0 mt-0.5" />
               <div>
-                <p className="font-sans text-[14px] font-bold text-red-700">Account temporarily locked</p>
+                <p className="font-sans text-[14px] font-bold text-red-700">{t('y.accountLocked')}</p>
                 <p className="font-sans text-[13px] text-red-600 mt-0.5">
                   Too many failed attempts. Try again in{' '}
                   <span className="font-bold tabular-nums">
@@ -187,7 +187,7 @@ export default function AdminLoginPage() {
                   {t('w.password')}
                 </label>
                 <Link href="/admin/forgot-password" className="font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline">
-                  Forgot password?
+                  {t('y.forgotPassword')}
                 </Link>
               </div>
               <div className="relative">

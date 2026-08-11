@@ -55,10 +55,10 @@ export default function AdminCommentsPage() {
   return (
     <>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5"><MessageSquare size={26} /> Project Comments</h1>
+        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5"><MessageSquare size={26} /> {t('y.projectComments')}</h1>
         <label className="flex items-center gap-2 cursor-pointer font-sans text-[14px]">
           <input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} className="accent-dp-secondary" />
-          Show hidden
+          {t('y.showHidden')}
         </label>
       </div>
 
@@ -76,7 +76,7 @@ export default function AdminCommentsPage() {
                 <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{new Date(c.created_at).toLocaleString('en-GB')}</p>
               </div>
               <button onClick={() => setHidden(c.id, !c.is_hidden)} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12px] font-semibold cursor-pointer hover:bg-dp-surface-container transition-all shrink-0">
-                {c.is_hidden ? <><Eye size={13} /> {t('g.restore')}</> : <><EyeOff size={13} /> Hide</>}
+                {c.is_hidden ? <><Eye size={13} /> {t('g.restore')}</> : <><EyeOff size={13} /> {t('y.hide')}</>}
               </button>
             </div>
           ))

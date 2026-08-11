@@ -76,7 +76,7 @@ export default function AdminPaymentClaimsPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Payment Claims</h1>
+        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('y.paymentClaims')}</h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">Bill payments submitted by consumers via the portal, awaiting verification.</p>
       </div>
 
@@ -84,7 +84,7 @@ export default function AdminPaymentClaimsPage() {
         <p className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</p>
       ) : claims.length === 0 ? (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
-          <p className="font-sans text-[14px] text-dp-on-surface-variant">No pending payment claims.</p>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('y.noPendingClaims')}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -109,12 +109,12 @@ export default function AdminPaymentClaimsPage() {
                 <p className="font-sans text-[11.5px] text-dp-on-surface-variant/70 mt-1">Submitted {new Date(c.created_at).toLocaleDateString('en-GB')}</p>
                 <div className="flex gap-2 mt-3">
                   <button onClick={() => approve(c.id)} disabled={busyId === c.id} className="flex items-center gap-1.5 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-                    <CheckCircle size={14} /> Approve &amp; Post
+                    <CheckCircle size={14} /> {t('y.approvePost')}
                   </button>
                   <button onClick={() => reject(c.id)} disabled={busyId === c.id} className="flex items-center gap-1.5 px-4 py-2 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container transition-all disabled:opacity-50">
                     <XCircle size={14} /> {t('ap.reject')}
                   </button>
-                  {!signedUrls[c.id] && <span className="flex items-center gap-1 text-[12px] text-dp-on-surface-variant"><ImageIcon size={13} /> No preview</span>}
+                  {!signedUrls[c.id] && <span className="flex items-center gap-1 text-[12px] text-dp-on-surface-variant"><ImageIcon size={13} /> {t('y.noPreview')}</span>}
                 </div>
               </div>
             </div>

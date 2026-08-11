@@ -94,7 +94,7 @@ export function ImageUpload({ bucket, onUpload, currentUrl, label = 'Upload Imag
                 onClick={() => inputRef.current?.click()}
                 className="bg-white/90 text-dp-on-surface px-2 py-1 rounded text-[12px] font-sans font-semibold hover:bg-white cursor-pointer"
               >
-                Change
+                {t('y.change')}
               </button>
               <button
                 type="button"

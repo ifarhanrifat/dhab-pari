@@ -102,10 +102,10 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
 
   useEffect(() => { load() }, [load])
 
-  if (loading) return <div className="text-center py-16 text-dp-on-surface-variant font-sans">Loading invoice...</div>
+  if (loading) return <div className="text-center py-16 text-dp-on-surface-variant font-sans">{t('y.loadingInvoice')}</div>
   if (notFound || !bill) return (
     <div className="text-center py-16">
-      <p className="font-sans text-dp-on-surface-variant mb-4">This bill could not be found.</p>
+      <p className="font-sans text-dp-on-surface-variant mb-4">{t('y.billNotFound')}</p>
       <Link href="/admin/billing" className="text-dp-secondary font-sans font-semibold">← Back to Billing</Link>
     </div>
   )
@@ -217,7 +217,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
     <>
       <div className="mb-6 flex items-center justify-between gap-4 print:hidden">
         <Link href="/admin/billing" className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold">
-          <ArrowLeft size={16} /> Back to Billing
+          <ArrowLeft size={16} /> {t('y.backToBilling')}
         </Link>
         <div className="flex items-center gap-2">
           <Link
@@ -285,7 +285,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
                 </tr>
               </thead>
               <tbody>
-                {ledgerRows.length === 0 && <tr><td colSpan={6} className="px-4 py-6 text-center text-dp-on-surface-variant font-sans text-[13px]">No ledger postings found.</td></tr>}
+                {ledgerRows.length === 0 && <tr><td colSpan={6} className="px-4 py-6 text-center text-dp-on-surface-variant font-sans text-[13px]">{t('y.noLedgerPostings')}</td></tr>}
                 {ledgerRows.map((r) => (
                   <tr key={r.id} className="font-sans text-[13px] border-b border-dp-outline-variant last:border-b-0">
                     <td className="px-4 py-2 whitespace-nowrap">{new Date(r.entry_date).toLocaleDateString('en-GB')}</td>

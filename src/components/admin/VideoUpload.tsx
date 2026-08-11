@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Upload, Link as LinkIcon, Loader2, X, Film } from 'lucide-react'
 import { toast } from 'sonner'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface VideoUploadProps {
   onUpload: (url: string) => void
@@ -14,6 +15,7 @@ const MAX_SIZE = 100 * 1024 * 1024
 const ACCEPTED_VIDEO = ['video/mp4', 'video/webm', 'video/ogg']
 
 export function VideoUpload({ onUpload, currentUrl }: VideoUploadProps) {
+  const { t } = useLocale()
   const [tab, setTab] = useState<'upload' | 'url'>(currentUrl && isYouTube(currentUrl) ? 'url' : 'upload')
   const [uploading, setUploading] = useState(false)
   const [urlInput, setUrlInput] = useState(currentUrl && isYouTube(currentUrl) ? currentUrl : '')
@@ -57,7 +59,7 @@ export function VideoUpload({ onUpload, currentUrl }: VideoUploadProps) {
   return (
     <div>
       <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">
-        Video Source
+        {t('y.videoSource')}
       </label>
 
       {/* Tabs */}
@@ -67,14 +69,14 @@ export function VideoUpload({ onUpload, currentUrl }: VideoUploadProps) {
           onClick={() => setTab('upload')}
           className={`flex-1 py-2 font-sans text-[14px] font-semibold text-center cursor-pointer transition-all ${tab === 'upload' ? 'bg-dp-primary text-white' : 'bg-white text-dp-on-surface-variant hover:bg-dp-surface-container'}`}
         >
-          <Upload size={14} className="inline me-1" /> Upload File
+          <Upload size={14} className="inline me-1" /> {t('y.uploadFile')}
         </button>
         <button
           type="button"
           onClick={() => setTab('url')}
           className={`flex-1 py-2 font-sans text-[14px] font-semibold text-center cursor-pointer transition-all ${tab === 'url' ? 'bg-dp-primary text-white' : 'bg-white text-dp-on-surface-variant hover:bg-dp-surface-container'}`}
         >
-          <LinkIcon size={14} className="inline me-1" /> YouTube URL
+          <LinkIcon size={14} className="inline me-1" /> {t('y.youtubeUrl')}
         </button>
       </div>
 
@@ -99,7 +101,7 @@ export function VideoUpload({ onUpload, currentUrl }: VideoUploadProps) {
               <p className="font-sans text-[14px] text-dp-on-surface-variant">
                 {uploading ? 'Uploading...' : 'Drop video or click to browse'}
               </p>
-              <p className="font-sans text-[12px] text-dp-outline mt-1">MP4, WebM, OGG · Max 100MB</p>
+              <p className="font-sans text-[12px] text-dp-outline mt-1">{t('y.videoTypes')}</p>
             </div>
           )}
           <input ref={inputRef} type="file" accept={ACCEPTED_VIDEO.join(',')} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }} className="hidden" />
@@ -116,7 +118,7 @@ export function VideoUpload({ onUpload, currentUrl }: VideoUploadProps) {
             className="input-field flex-1"
           />
           <button type="button" onClick={applyUrl} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all shrink-0">
-            Set
+            {t('y.set')}
           </button>
         </div>
       )}

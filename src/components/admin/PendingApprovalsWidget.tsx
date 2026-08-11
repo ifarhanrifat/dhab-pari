@@ -6,6 +6,7 @@ import { ShieldCheck, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { createClient } from '@/lib/supabase/client'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Request { id: string; system: string; kind: string; particular: string; amount_pkr: number; created_at: string }
 interface RosterName { id: string; full_name: string }
@@ -17,6 +18,7 @@ function fmt(n: number) {
 }
 
 export function PendingApprovalsWidget() {
+  const { t } = useLocale()
   const supabase = createClient()
   const [requests, setRequests] = useState<Request[]>([])
   const [waitingOn, setWaitingOn] = useState<Record<string, string[]>>({})
@@ -63,7 +65,7 @@ export function PendingApprovalsWidget() {
         <span className="flex items-center gap-2 font-sans text-[14px] font-bold text-amber-900">
           <ShieldCheck size={16} /> Awaiting Approval ({requests.length})
         </span>
-        <Link href="/admin/approvals" className="font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline">Open Approvals</Link>
+        <Link href="/admin/approvals" className="font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline">{t('y.openApprovals')}</Link>
       </div>
       <div>
         {requests.map((r) => {
@@ -81,7 +83,7 @@ export function PendingApprovalsWidget() {
                 onClick={() => resend(r.id)}
                 className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-40"
               >
-                <Send size={12} /> Resend
+                <Send size={12} /> {t('y.resend')}
               </button>
             </div>
           )

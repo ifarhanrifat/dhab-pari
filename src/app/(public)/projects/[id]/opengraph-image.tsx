@@ -44,7 +44,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         )}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, position: 'relative' }}>
           <div style={{ fontSize: 30, fontWeight: 700 }}>{SITE.name}</div>
-          <div style={{ fontSize: 18, opacity: 0.7 }}>Water &amp; Welfare Committee</div>
+          <div style={{ fontSize: 18, opacity: 0.7 }}>{SITE.committee}</div>
         </div>
         <div style={{ display: 'flex', marginTop: 'auto', flexDirection: 'column', position: 'relative' }}>
           <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>

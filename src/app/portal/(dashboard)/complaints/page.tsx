@@ -78,7 +78,7 @@ export default function PortalComplaintsPage() {
           {user?.consumer_id && (
             <button type="button" onClick={() => setSystem('water_supply')}
               className={`px-4 py-2 rounded-full font-sans text-[13.5px] font-semibold cursor-pointer transition-all ${system === 'water_supply' ? 'bg-dp-primary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
-              Water Supply
+              {t('a.waterSupply')}
             </button>
           )}
         </div>

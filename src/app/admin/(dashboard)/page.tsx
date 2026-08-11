@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { IncomeExpenseChart, FundPieChart } from '@/components/admin/DashboardCharts'
 import { PendingApprovalsWidget } from '@/components/admin/PendingApprovalsWidget'
+import { T } from '@/components/i18n/T'
 
 const systemLabels: Record<string, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects System' }
 const creditNormal = (type: string) => type === 'donor' || type === 'income' || type === 'liability'
@@ -129,7 +130,7 @@ export default async function AdminDashboardPage() {
             Welcome back, {displayName}
           </h1>
           <p className="text-dp-on-surface-variant font-sans text-[15px] mt-1">
-            Here is the current financial position of the committee.
+            <T k="y.currentPosition" />
           </p>
         </div>
         <span className="text-[13px] font-sans font-semibold tracking-[0.05em] text-dp-outline px-3 py-1 border border-dp-outline-variant rounded-full shrink-0">
@@ -167,11 +168,11 @@ export default async function AdminDashboardPage() {
           <QuickLinks system="water_supply" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <div className="lg:col-span-2 bg-white rounded-lg border border-dp-outline-variant p-5">
-              <h3 className="font-sans text-[15px] font-bold text-dp-on-surface mb-2">Income vs Expense — Last 6 Months</h3>
+              <h3 className="font-sans text-[15px] font-bold text-dp-on-surface mb-2"><T k="y.incomeVsExpense" /></h3>
               <IncomeExpenseChart data={waterTrend} />
             </div>
             <div className="bg-white rounded-lg border border-dp-outline-variant p-5">
-              <h3 className="font-sans text-[15px] font-bold text-dp-on-surface mb-2">Fund Position</h3>
+              <h3 className="font-sans text-[15px] font-bold text-dp-on-surface mb-2"><T k="y.fundPosition" /></h3>
               <FundPieChart data={[{ name: 'Cash', value: Math.max(waterStats.cash, 0) }, { name: 'Bank', value: Math.max(waterStats.bank, 0) }, { name: 'Receivable', value: Math.max(waterStats.receivable, 0) }]} />
             </div>
           </div>
@@ -197,11 +198,11 @@ export default async function AdminDashboardPage() {
           <QuickLinks system="donors_projects" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <div className="lg:col-span-2 bg-white rounded-lg border border-dp-outline-variant p-5">
-              <h3 className="font-sans text-[15px] font-bold text-dp-on-surface mb-2">Income vs Expense — Last 6 Months</h3>
+              <h3 className="font-sans text-[15px] font-bold text-dp-on-surface mb-2"><T k="y.incomeVsExpense" /></h3>
               <IncomeExpenseChart data={donorTrend} incomeColor="#7c3aed" expenseColor="#dc2626" />
             </div>
             <div className="bg-white rounded-lg border border-dp-outline-variant p-5">
-              <h3 className="font-sans text-[15px] font-bold text-dp-on-surface mb-2">Fund Position</h3>
+              <h3 className="font-sans text-[15px] font-bold text-dp-on-surface mb-2"><T k="y.fundPosition" /></h3>
               <FundPieChart data={[{ name: 'Cash', value: Math.max(donorStats.cash, 0) }, { name: 'Bank', value: Math.max(donorStats.bank, 0) }]} />
             </div>
           </div>

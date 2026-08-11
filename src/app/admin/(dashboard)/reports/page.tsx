@@ -300,7 +300,7 @@ function ReportsPageInner() {
           <select value={reportType} onChange={(e) => setReportType(e.target.value as ReportType)} className="filter-field">
             <option value="trial_balance">{t('rp.trialBalance')}</option>
             <option value="balance_sheet">{t('rp.balanceSheet')}</option>
-            <option value="income_expense">Profit &amp; Loss Statement</option>
+            <option value="income_expense">{t('rp.profitLoss')}</option>
             {system === 'water_supply' && <option value="consumer_outstanding">{t('rp.consumerOutstanding')}</option>}
             {system === 'donors_projects' && <option value="donor_report">{t('rp.donorReport')}</option>}
             <option value="account_statement">{t('rp.statementLookup')}</option>

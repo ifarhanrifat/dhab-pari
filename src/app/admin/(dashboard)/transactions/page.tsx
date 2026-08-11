@@ -407,7 +407,7 @@ export default function AllTransactionsPage() {
             </button>
           </div>
           <div className="flex-1 min-w-[220px]">
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Search</label>
+            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('y.search')}</label>
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
               <input
