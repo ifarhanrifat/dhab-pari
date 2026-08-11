@@ -70,8 +70,8 @@ export default function AdminMembersPage() {
   return (
     <>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Committee Members</h1>
-        <button onClick={() => { setForm(empty); setEditing(null); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> Add Member</button>
+        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('z.committeeMembers')}</h1>
+        <button onClick={() => { setForm(empty); setEditing(null); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('z.addMember')}</button>
       </div>
       <div className="space-y-4">
         {loading && <div className="text-center py-12 text-dp-on-surface-variant">{t('action.loading')}</div>}
@@ -114,33 +114,33 @@ export default function AdminMembersPage() {
             <div className="space-y-4">
               <ImageUpload bucket="images" label="Photo (optional)" currentUrl={form.photo_url} onUpload={(url) => setForm({ ...form, photo_url: url })} />
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Name (EN)</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" /></div>
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Name (UR)</label><input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.nameEn')}</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.nameUr')}</label><input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Position (EN)</label><input value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} className="input-field" /></div>
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Position (UR)</label><input value={form.position_ur} onChange={(e) => setForm({ ...form, position_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.positionEn')}</label><input value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} className="input-field" /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.positionUr')}</label><input value={form.position_ur} onChange={(e) => setForm({ ...form, position_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               </div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.phone')}</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input-field" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Bio</label><textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} rows={3} className="input-field resize-none" /></div>
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Bio (UR)</label><textarea value={form.bio_ur} onChange={(e) => setForm({ ...form, bio_ur: e.target.value })} rows={3} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.bioUr')}</label><textarea value={form.bio_ur} onChange={(e) => setForm({ ...form, bio_ur: e.target.value })} rows={3} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('g.displayOrder')}</label><input type="number" value={form.display_order || ''} onChange={(e) => setForm({ ...form, display_order: +e.target.value })} className="input-field" /></div>
-              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">Active Member</span></label>
+              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('z.activeMember')}</span></label>
 
               <div className="border-t border-dp-outline-variant pt-4 mt-2">
                 <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-3">{t('mt.title')}</p>
                 <label className="flex items-center gap-2 cursor-pointer mb-3">
                   <input type="checkbox" checked={form.uses_smartphone} onChange={(e) => setForm({ ...form, uses_smartphone: e.target.checked })} className="accent-dp-secondary" />
-                  <span className="font-sans text-[14px]">Uses a smartphone (can receive reminders directly)</span>
+                  <span className="font-sans text-[14px]">{t('z.usesSmartphone')}</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer mb-3">
                   <input type="checkbox" checked={form.handles_non_whatsapp_notice} onChange={(e) => setForm({ ...form, handles_non_whatsapp_notice: e.target.checked })} className="accent-dp-secondary" />
                   <span className="font-sans text-[14px]">Personally informs members without WhatsApp (named in the meeting notice)</span>
                 </label>
                 <div className="mb-3">
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Software Login (if this member is also a user)</label>
+                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.softwareLogin')}</label>
                   <select value={form.admin_user_id} onChange={(e) => setForm({ ...form, admin_user_id: e.target.value })} className="input-field">
-                    <option value="">Not linked to a login</option>
+                    <option value="">{t('z.notLinked')}</option>
                     {adminUsers.map((a) => <option key={a.id} value={a.id}>{a.full_name}</option>)}
                   </select>
                 </div>
@@ -148,7 +148,7 @@ export default function AdminMembersPage() {
                   <div>
                     <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Standing Proxy (receives reminders and marks tasks done on their behalf)</label>
                     <select value={form.proxy_admin_user_id} onChange={(e) => setForm({ ...form, proxy_admin_user_id: e.target.value })} className="input-field">
-                      <option value="">No proxy set — falls back to whoever runs the meeting</option>
+                      <option value="">{t('z.noProxy')}</option>
                       {adminUsers.map((a) => <option key={a.id} value={a.id}>{a.full_name}</option>)}
                     </select>
                   </div>

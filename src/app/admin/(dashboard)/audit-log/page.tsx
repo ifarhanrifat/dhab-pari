@@ -102,7 +102,7 @@ export default function AuditLogPage() {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center">
         <ShieldAlert size={32} className="mx-auto mb-3 text-dp-error" />
-        <p className="font-sans text-dp-on-surface-variant">Only a Super Admin or Admin can view the audit log.</p>
+        <p className="font-sans text-dp-on-surface-variant">{t('z.auditRestricted')}</p>
       </div>
     )
   }
@@ -111,7 +111,7 @@ export default function AuditLogPage() {
     <>
       <div className="mb-6">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
-          <History size={26} /> Audit Log
+          <History size={26} /> {t('z.auditLog')}
         </h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">
           Every record created, edited, or deleted by every user — deleted records can be restored.
@@ -120,19 +120,19 @@ export default function AuditLogPage() {
 
       <div className="bg-white rounded-lg border border-dp-outline-variant p-4 mb-4 flex flex-wrap items-end gap-4">
         <div>
-          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">User</label>
+          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">{t('z.user')}</label>
           <select value={actorFilter} onChange={(e) => setActorFilter(e.target.value)} className="input-field">
-            <option value="">All users</option>
+            <option value="">{t('z.allUsers')}</option>
             {actors.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
         </div>
         <div>
           <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.action')}</label>
           <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value as 'all' | Action)} className="input-field">
-            <option value="all">All actions</option>
-            <option value="insert">Created</option>
-            <option value="update">Updated</option>
-            <option value="delete">Deleted</option>
+            <option value="all">{t('z.allActions')}</option>
+            <option value="insert">{t('z.created')}</option>
+            <option value="update">{t('z.updated')}</option>
+            <option value="delete">{t('z.deleted')}</option>
           </select>
         </div>
         <button onClick={() => setSortAsc((s) => !s)} className="flex items-center gap-2 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
@@ -148,16 +148,16 @@ export default function AuditLogPage() {
               <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                 <th className="px-4 py-2.5">{t('a.type')}</th>
                 <th className="px-4 py-2.5">{t('w.action')}</th>
-                <th className="px-4 py-2.5">Summary</th>
-                <th className="px-4 py-2.5">User</th>
-                <th className="px-4 py-2.5">When</th>
+                <th className="px-4 py-2.5">{t('z.summary')}</th>
+                <th className="px-4 py-2.5">{t('z.user')}</th>
+                <th className="px-4 py-2.5">{t('z.when')}</th>
                 <th className="px-4 py-2.5">{t('w.status')}</th>
                 <th className="px-4 py-2.5 text-end">{t('a.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {filteredRows.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-dp-on-surface-variant font-sans">No activity recorded yet.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-dp-on-surface-variant font-sans">{t('z.noActivity')}</td></tr>
               )}
               {filteredRows.map((r) => (
                 <tr key={r.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${r.restored_at ? 'opacity-50' : ''}`}>
@@ -174,9 +174,9 @@ export default function AuditLogPage() {
                     {r.action !== 'delete' ? (
                       <span className="text-[11px] text-dp-on-surface-variant">—</span>
                     ) : r.restored_at ? (
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">Restored</span>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{t('z.restored')}</span>
                     ) : (
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">Deleted</span>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">{t('z.deleted')}</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-end">

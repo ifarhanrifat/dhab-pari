@@ -93,8 +93,8 @@ export default function AdminGalleryPage() {
       {!selectedAlbum ? (
         <>
           <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
-            <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Gallery Albums</h1>
-            <button onClick={() => setShowAlbumForm(true)} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> New Album</button>
+            <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('z.galleryAlbums')}</h1>
+            <button onClick={() => setShowAlbumForm(true)} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('z.newAlbum')}</button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {loading && [1,2,3].map((i) => <div key={i} className="aspect-[4/3] bg-dp-surface-container rounded-lg animate-pulse" />)}
@@ -117,9 +117,9 @@ export default function AdminGalleryPage() {
       ) : (
         <>
           <div className="flex items-center gap-4 mb-6">
-            <button onClick={() => { setSelectedAlbum(null); setItems([]) }} className="flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold hover:underline cursor-pointer"><ArrowLeft size={16} /> Albums</button>
+            <button onClick={() => { setSelectedAlbum(null); setItems([]) }} className="flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold hover:underline cursor-pointer"><ArrowLeft size={16} /> {t('z.albums')}</button>
             <h1 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary">{selectedAlbumData?.title}</h1>
-            <button onClick={() => setShowItemForm(true)} className="ms-auto flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> Add Photo</button>
+            <button onClick={() => setShowItemForm(true)} className="ms-auto flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('z.addPhoto')}</button>
           </div>
           <BulkActionsBar
             count={selectedItems.size}
@@ -150,7 +150,7 @@ export default function AdminGalleryPage() {
                 <button onClick={() => deleteItem(item.id)} className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"><Trash2 size={14} /></button>
               </div>
             ))}
-            {items.length === 0 && <div className="col-span-4 text-center py-12 text-dp-on-surface-variant font-sans">No items yet. Add photos above.</div>}
+            {items.length === 0 && <div className="col-span-4 text-center py-12 text-dp-on-surface-variant font-sans">{t('z.noItemsAddPhotos')}</div>}
           </div>
 
           <ConfirmDialog
@@ -166,12 +166,12 @@ export default function AdminGalleryPage() {
       {showAlbumForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowAlbumForm(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">New Album</h2><button onClick={() => setShowAlbumForm(false)} className="cursor-pointer"><X size={20} /></button></div>
+            <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">{t('z.newAlbum')}</h2><button onClick={() => setShowAlbumForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Title</label><input value={albumForm.title} onChange={(e) => setAlbumForm({ ...albumForm, title: e.target.value })} className="input-field" /></div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.title')}</label><input value={albumForm.title} onChange={(e) => setAlbumForm({ ...albumForm, title: e.target.value })} className="input-field" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.titleUr')}</label><input value={albumForm.title_ur} onChange={(e) => setAlbumForm({ ...albumForm, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.category')}</label><select value={albumForm.category} onChange={(e) => setAlbumForm({ ...albumForm, category: e.target.value })} className="input-field">{albumCategories.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
-              <button onClick={saveAlbum} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">Create Album</button>
+              <button onClick={saveAlbum} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{t('z.createAlbum')}</button>
             </div>
           </div>
         </div>
@@ -180,11 +180,11 @@ export default function AdminGalleryPage() {
       {showItemForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowItemForm(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">Add Photo</h2><button onClick={() => setShowItemForm(false)} className="cursor-pointer"><X size={20} /></button></div>
+            <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">{t('z.addPhoto')}</h2><button onClick={() => setShowItemForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
               <MultiImageUpload bucket="images" currentUrls={[]} onUpload={(urls) => setItemForm({ ...itemForm, url: urls[urls.length - 1] ?? '', _multiUrls: urls })} label="Photos (select multiple)" max={20} />
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Caption (applied to all)</label><input value={itemForm.caption} onChange={(e) => setItemForm({ ...itemForm, caption: e.target.value })} className="input-field" /></div>
-              <button onClick={addMultiItems} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">Add Photos</button>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.captionAll')}</label><input value={itemForm.caption} onChange={(e) => setItemForm({ ...itemForm, caption: e.target.value })} className="input-field" /></div>
+              <button onClick={addMultiItems} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{t('z.addPhotos')}</button>
             </div>
           </div>
         </div>

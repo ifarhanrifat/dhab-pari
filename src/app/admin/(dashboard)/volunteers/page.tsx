@@ -181,7 +181,7 @@ export default function AdminVolunteersPage() {
       <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
         <div>
           <h1 className="font-heading text-[24px] sm:text-[32px] font-bold leading-[32px] sm:leading-[40px] text-dp-primary flex items-center gap-2">
-            <HandHeart size={26} /> Volunteers
+            <HandHeart size={26} /> {t('z.volunteers')}
           </h1>
           {offeredCount > 0 && (
             <p className="font-sans text-[13px] text-amber-700 mt-1">{offeredCount} offer(s) waiting for a decision</p>
@@ -192,7 +192,7 @@ export default function AdminVolunteersPage() {
           onChange={(e) => e.target.value && setCloseProjectId(e.target.value)}
           className="input-field max-w-[280px]"
         >
-          <option value="">Close out a finished project…</option>
+          <option value="">{t('z.closeOut')}</option>
           {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
         </select>
       </div>
@@ -229,7 +229,7 @@ export default function AdminVolunteersPage() {
               <div className="min-w-0">
                 <p className="font-sans text-[15px] font-bold text-dp-on-surface">{v.full_name ?? 'Unnamed'}</p>
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{v.mobile ?? 'No number'} · offered {new Date(v.created_at).toLocaleDateString('en-GB')}</p>
-                {v.skills && <p className="font-sans text-[13px] text-dp-on-surface mt-1.5"><span className="text-dp-on-surface-variant">Skills:</span> <strong>{v.skills}</strong></p>}
+                {v.skills && <p className="font-sans text-[13px] text-dp-on-surface mt-1.5"><span className="text-dp-on-surface-variant">{t('z.skills')}</span> <strong>{v.skills}</strong></p>}
                 {v.message && <p className="font-sans text-[13.5px] text-dp-on-surface mt-1">{v.message}</p>}
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {(v.help_types ?? []).map((h) => (
@@ -239,7 +239,7 @@ export default function AdminVolunteersPage() {
                     <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full font-sans bg-dp-surface-container-high text-dp-on-surface-variant">{AVAILABILITY_LABEL[v.availability] ?? v.availability}</span>
                   )}
                   {v.can_travel && (
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full font-sans bg-blue-100 text-blue-700">Can travel</span>
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full font-sans bg-blue-100 text-blue-700">{t('z.canTravel')}</span>
                   )}
                 </div>
               </div>
@@ -253,7 +253,7 @@ export default function AdminVolunteersPage() {
                 disabled={v.status === 'completed'}
                 className="input-field !py-1.5 !text-[13px] max-w-[240px] disabled:opacity-60"
               >
-                <option value="">No project yet</option>
+                <option value="">{t('z.noProjectYet')}</option>
                 {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
               </select>
 
@@ -262,8 +262,8 @@ export default function AdminVolunteersPage() {
               )}
               {v.status === 'assigned' && (
                 <>
-                  <button onClick={() => setTaskFor(v)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low transition-all"><Plus size={14} /> Give task</button>
-                  <button onClick={() => setStatus(v, 'completed')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low transition-all"><CheckCircle2 size={14} /> Mark done</button>
+                  <button onClick={() => setTaskFor(v)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low transition-all"><Plus size={14} /> {t('z.giveTask')}</button>
+                  <button onClick={() => setStatus(v, 'completed')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low transition-all"><CheckCircle2 size={14} /> {t('z.markDone')}</button>
                 </>
               )}
               <button onClick={() => whatsapp(v)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-secondary cursor-pointer hover:bg-dp-surface-container-low transition-all"><MessageCircle size={14} /> {t('w.whatsapp')}</button>
@@ -291,26 +291,26 @@ export default function AdminVolunteersPage() {
           <div className="bg-white rounded-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
-                <h2 className="font-heading text-[17px] font-bold text-dp-primary">Give a task</h2>
+                <h2 className="font-heading text-[17px] font-bold text-dp-primary">{t('z.giveATask')}</h2>
                 <p className="font-sans text-[13px] text-dp-on-surface-variant">{taskFor.full_name} · {projectTitle(taskFor.project_id)}</p>
               </div>
               <button onClick={() => setTaskFor(null)} className="text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={18} /></button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">What needs doing</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('z.whatNeedsDoing')}</label>
                 <input value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} placeholder="e.g. Collect pipe fittings from the market" className="input-field !py-2.5 text-[15px]" />
               </div>
               <div>
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">In Urdu (optional)</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('z.inUrduOptional')}</label>
                 <input value={taskForm.title_ur} onChange={(e) => setTaskForm({ ...taskForm, title_ur: e.target.value })} dir="rtl" className="input-field !py-2.5 text-[15px]" />
               </div>
               <div>
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Details (optional)</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('z.detailsOptional')}</label>
                 <textarea value={taskForm.detail} onChange={(e) => setTaskForm({ ...taskForm, detail: e.target.value })} rows={3} className="input-field resize-none !py-2.5 text-[15px]" />
               </div>
               <div>
-                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Due date (optional)</label>
+                <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('z.dueDateOptional')}</label>
                 <input type="date" value={taskForm.due_date} onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })} className="input-field !py-2.5 text-[15px]" />
               </div>
             </div>

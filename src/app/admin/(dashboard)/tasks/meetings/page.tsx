@@ -658,10 +658,10 @@ export default function MeetingsAgendaPage() {
               <div className="border-t border-dp-outline-variant p-4 space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer mb-2">
                   <input type="checkbox" checked={showResolvedComplaints} onChange={(e) => setShowResolvedComplaints(e.target.checked)} className="accent-dp-secondary" />
-                  <span className="font-sans text-[12.5px] text-dp-on-surface-variant">Show resolved &amp; verified too</span>
+                  <span className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('mt.showResolved')}</span>
                 </label>
                 {visible.length === 0 ? (
-                  <p className="font-sans text-[13px] text-dp-on-surface-variant">Nothing open — all complaints are resolved and verified.</p>
+                  <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('z.nothingOpen')}</p>
                 ) : (
                   visible.map((c) => (
                     <div key={c.id} className="border border-dp-outline-variant rounded-lg p-3">
@@ -694,7 +694,7 @@ export default function MeetingsAgendaPage() {
         <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-4">
           <button onClick={() => setProjectDiscussionsOpen(!projectDiscussionsOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-start cursor-pointer hover:bg-dp-surface-container-low transition-all">
             <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-2">
-              <Vote size={16} className="text-dp-secondary" /> Project Proposals &amp; Discussions
+              <Vote size={16} className="text-dp-secondary" /> {t('mt.proposalsDiscussions')}
               <span className="font-normal text-dp-on-surface-variant text-[12.5px]">({projectDiscussions.length})</span>
             </p>
             {projectDiscussionsOpen ? <ChevronUp size={18} className="shrink-0 text-dp-on-surface-variant" /> : <ChevronDown size={18} className="shrink-0 text-dp-on-surface-variant" />}
@@ -736,7 +736,7 @@ export default function MeetingsAgendaPage() {
         <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-4">
           <button onClick={() => setActivityOpen(!activityOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-start cursor-pointer hover:bg-dp-surface-container-low transition-all">
             <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-2">
-              <Activity size={16} className="text-dp-secondary" /> Recent Activity Since Last Meeting
+              <Activity size={16} className="text-dp-secondary" /> {t('z.recentActivity')}
               <span className="font-normal text-dp-on-surface-variant text-[12.5px]">
                 ({activity.length}{activitySince ? ` · since ${new Date(activitySince).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}` : ''})
               </span>
@@ -774,7 +774,7 @@ export default function MeetingsAgendaPage() {
         <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-4">
           <button onClick={() => setProjectCommentsOpen(!projectCommentsOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-start cursor-pointer hover:bg-dp-surface-container-low transition-all">
             <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-2">
-              <MessageCircle size={16} className="text-dp-secondary" /> Project Comments Since Last Meeting
+              <MessageCircle size={16} className="text-dp-secondary" /> {t('z.commentsSince')}
               <span className="font-normal text-dp-on-surface-variant text-[12.5px]">({projectComments.reduce((n, g) => n + g.comments.length, 0)})</span>
             </p>
             {projectCommentsOpen ? <ChevronUp size={18} className="shrink-0 text-dp-on-surface-variant" /> : <ChevronDown size={18} className="shrink-0 text-dp-on-surface-variant" />}
@@ -956,12 +956,12 @@ export default function MeetingsAgendaPage() {
                                             </button>
                                           ) : (
                                             <button onClick={() => markDone(item, !!privateChecks[item.id])} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-surface-container-low transition-all cursor-pointer">
-                                              <CheckCircle2 size={13} /> Mark Done (admin override)
+                                              <CheckCircle2 size={13} /> {t('z.markDoneOverride')}
                                             </button>
                                           )}
                                           <label className="flex items-center gap-1.5 cursor-pointer">
                                             <input type="checkbox" checked={!!privateChecks[item.id]} onChange={(e) => setPrivateChecks({ ...privateChecks, [item.id]: e.target.checked })} className="accent-dp-secondary" />
-                                            <span className="font-sans text-[11.5px] text-dp-on-surface-variant">Private (don&apos;t show details on Achievements)</span>
+                                            <span className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('mt.private')}</span>
                                           </label>
                                         </div>
                                       )}
@@ -1079,12 +1079,12 @@ export default function MeetingsAgendaPage() {
                                     </button>
                                   ) : (
                                     <button onClick={() => markDone(item, !!privateChecks[item.id])} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-surface-container-low transition-all cursor-pointer">
-                                      <CheckCircle2 size={13} /> Mark Done (admin override)
+                                      <CheckCircle2 size={13} /> {t('z.markDoneOverride')}
                                     </button>
                                   )}
                                   <label className="flex items-center gap-1.5 cursor-pointer">
                                     <input type="checkbox" checked={!!privateChecks[item.id]} onChange={(e) => setPrivateChecks({ ...privateChecks, [item.id]: e.target.checked })} className="accent-dp-secondary" />
-                                    <span className="font-sans text-[11.5px] text-dp-on-surface-variant">Private (don&apos;t show details on Achievements)</span>
+                                    <span className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('mt.private')}</span>
                                   </label>
                                 </div>
                               )}
@@ -1254,7 +1254,7 @@ export default function MeetingsAgendaPage() {
             <div className="p-5 space-y-3">
               {extracting ? (
                 <div className="flex items-center justify-center gap-2 py-10 text-dp-on-surface-variant">
-                  <Loader2 size={18} className="animate-spin" /> <span className="font-sans text-[13.5px]">Reading the agenda photo(s)...</span>
+                  <Loader2 size={18} className="animate-spin" /> <span className="font-sans text-[13.5px]">{t('z.readingPhotos')}</span>
                 </div>
               ) : (
                 <>
@@ -1353,7 +1353,7 @@ export default function MeetingsAgendaPage() {
               {loadingSuggestions ? (
                 <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-6">{t('action.loading')}</p>
               ) : websiteSuggestions.length === 0 ? (
-                <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-6">No new suggestions from the website to import.</p>
+                <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-6">{t('z.noNewSuggestions')}</p>
               ) : (
                 websiteSuggestions.map((s) => (
                   <div key={s.id} className="border border-dp-outline-variant rounded-lg p-3">

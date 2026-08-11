@@ -394,7 +394,7 @@ export default function AdminUsersPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('us.title')}</h1>
-          <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Invite users and control exactly what they can access.</p>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('z.usersBlurb')}</p>
         </div>
         <button onClick={() => { setForm(emptyInvite); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
           <PlusCircle size={16} /> {t('us.inviteUser')}
@@ -407,7 +407,7 @@ export default function AdminUsersPage() {
           className="w-full flex items-center justify-between gap-3 px-4 py-3 cursor-pointer hover:bg-dp-surface-container-low/50 transition-all"
         >
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant">Roles &amp; Permissions</span>
+            <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant">{t('us.rolesPermissions')}</span>
             {Object.entries(roleLabels).map(([key, label]) => (
               <span key={key} className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans ${roleColors[key]}`}>{label}</span>
             ))}
@@ -592,11 +592,11 @@ export default function AdminUsersPage() {
                 <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Email *</label>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.emailReq')}</label>
                 <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="user@example.com" className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Role *</label>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.roleReq')}</label>
                 <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="input-field">
                   {availableRoles.map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
                 </select>
@@ -608,7 +608,7 @@ export default function AdminUsersPage() {
                   <option value="">{t('us.none')}</option>
                   {availableRoles.filter((r) => r !== form.role).map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
                 </select>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">Grants this role&apos;s access <em>in addition to</em> the primary role above — e.g. a Water Accountant with Donor Accountant as secondary can access both books.</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">{t('us.grantsAccess')} <em>in addition to</em> the primary role above — e.g. a Water Accountant with Donor Accountant as secondary can access both books.</p>
               </div>
               {/* Which books, asked for every role rather than only for
                   'accountant'. That restriction is why "a viewer for the water
@@ -699,7 +699,7 @@ export default function AdminUsersPage() {
               {form.role === 'publisher' && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-start gap-2">
                   <ShieldCheck size={16} className="text-amber-700 shrink-0 mt-0.5" />
-                  <p className="font-sans text-[13px] text-amber-800">Publisher posts will appear as <strong>drafts</strong> and must be approved by a Super Admin before going live on the website.</p>
+                  <p className="font-sans text-[13px] text-amber-800">{t('z.publisherAppearAs')} <strong>drafts</strong> and must be approved by a Super Admin before going live on the website.</p>
                 </div>
               )}
               <button disabled={inviting} onClick={sendInvite} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
@@ -820,13 +820,13 @@ export default function AdminUsersPage() {
                       onChange={(e) => setCollectorForm({ ...collectorForm, can_collect_payments: e.target.checked })}
                       className="accent-teal-700"
                     />
-                    <span className="font-sans text-[13.5px] font-semibold text-teal-900 flex items-center gap-1.5"><Truck size={14} /> Field Collector — can collect payments on the spot</span>
+                    <span className="font-sans text-[13.5px] font-semibold text-teal-900 flex items-center gap-1.5"><Truck size={14} /> {t('z.collectorBlurb')}</span>
                   </label>
                   {collectorForm.can_collect_payments && (
                     <div>
                       <p className="font-sans text-[12.5px] font-semibold text-teal-900 mb-1.5">{t('us.assignedSectors')}</p>
                       {sectorOptions.length === 0 ? (
-                        <p className="font-sans text-[12px] text-teal-800">No sectors defined yet.</p>
+                        <p className="font-sans text-[12px] text-teal-800">{t('z.noSectorsDefined')}</p>
                       ) : (
                         <div className="grid grid-cols-2 gap-1.5 max-h-40 overflow-y-auto">
                           {sectorOptions.map((s) => (
@@ -879,7 +879,7 @@ export default function AdminUsersPage() {
                     onChange={(e) => setCollectorForm({ ...collectorForm, can_verify_complaints: e.target.checked })}
                     className="accent-indigo-600"
                   />
-                  <span className="font-sans text-[13.5px] font-semibold text-indigo-900 flex items-center gap-1.5"><ShieldCheck size={14} /> Complaint Verifier — final higher-management sign-off</span>
+                  <span className="font-sans text-[13.5px] font-semibold text-indigo-900 flex items-center gap-1.5"><ShieldCheck size={14} /> {t('z.verifierBlurb')}</span>
                 </label>
                 <p className="font-sans text-[11.5px] text-indigo-800 mt-1.5">Not tied to role — any user can be a verifier. They&apos;ll be notified when a handler marks a complaint resolved, and can verify &amp; close it or send it back.</p>
               </div>

@@ -628,7 +628,7 @@ export default function ConnectionsPage() {
               <div className="border border-dp-outline-variant rounded-lg p-3.5">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={form.wants_inventory_from_us} onChange={(e) => setForm({ ...form, wants_inventory_from_us: e.target.checked })} className="accent-dp-secondary w-4 h-4" />
-                  <span className="font-sans text-[14px] font-semibold text-dp-on-surface">Consumer is purchasing this equipment from us</span>
+                  <span className="font-sans text-[14px] font-semibold text-dp-on-surface">{t('z.purchasingEquipment')}</span>
                 </label>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">
                   {form.wants_inventory_from_us
@@ -638,7 +638,7 @@ export default function ConnectionsPage() {
 
                 <div className="mt-3 border border-dp-outline-variant rounded-xl overflow-hidden bg-white">
                   {items.length === 0 ? (
-                    <p className="px-4 py-6 text-center font-sans text-[13px] text-dp-on-surface-variant">No equipment items — add one below.</p>
+                    <p className="px-4 py-6 text-center font-sans text-[13px] text-dp-on-surface-variant">{t('z.noEquipment')}</p>
                   ) : (
                     <div className="divide-y divide-dp-outline-variant">
                       {items.map((l, i) => {
@@ -795,7 +795,7 @@ export default function ConnectionsPage() {
         <div className="fixed inset-0 bg-black/60 z-[170] flex items-center justify-center p-4 overflow-y-auto" onClick={() => setPreviewOpen(false)}>
           <div className="bg-white rounded-lg max-w-2xl w-full my-8" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant">
-              <h2 className="font-heading text-[18px] font-bold text-dp-primary">Challan Preview</h2>
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('z.challanPreview')}</h2>
               <div className="flex items-center gap-2">
                 <button disabled={printing} onClick={printChallan} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-surface-container-low transition-all cursor-pointer">
                   <Printer size={14} /> {printing ? 'Preparing...' : 'Print'}
@@ -811,16 +811,16 @@ export default function ConnectionsPage() {
                     {branding?.companyEmail && <p className="text-[12px] text-dp-on-surface-variant">{branding.companyEmail}</p>}
                   </div>
                   <div className="text-end">
-                    <p className="font-sans text-[13px] font-bold text-dp-primary uppercase tracking-wide">New Connection Challan</p>
+                    <p className="font-sans text-[13px] font-bold text-dp-primary uppercase tracking-wide">{t('z.newChallan')}</p>
                     <p className="font-sans text-[12px] text-dp-on-surface-variant">Date: {new Date(today()).toLocaleDateString('en-GB')}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mb-5 text-[13px] font-sans">
-                  <div><span className="text-dp-on-surface-variant">Consumer Name:</span> <span className="font-semibold">{form.consumer_name || '—'}</span></div>
-                  <div><span className="text-dp-on-surface-variant">Phone:</span> <span className="font-semibold">{form.consumer_phone || '—'}</span></div>
-                  <div><span className="text-dp-on-surface-variant">Address:</span> <span className="font-semibold">{form.consumer_address || '—'}</span></div>
-                  <div><span className="text-dp-on-surface-variant">Sector:</span> <span className="font-semibold">{form.sector || '—'}</span></div>
+                  <div><span className="text-dp-on-surface-variant">{t('z.consumerNameColon')}</span> <span className="font-semibold">{form.consumer_name || '—'}</span></div>
+                  <div><span className="text-dp-on-surface-variant">{t('z.phoneColon')}</span> <span className="font-semibold">{form.consumer_phone || '—'}</span></div>
+                  <div><span className="text-dp-on-surface-variant">{t('z.addressColon')}</span> <span className="font-semibold">{form.consumer_address || '—'}</span></div>
+                  <div><span className="text-dp-on-surface-variant">{t('z.sectorColon')}</span> <span className="font-semibold">{form.sector || '—'}</span></div>
                 </div>
 
                 {items.length > 0 && (
@@ -852,13 +852,13 @@ export default function ConnectionsPage() {
                   </table>
                 )}
                 {!form.wants_inventory_from_us && items.length > 0 && (
-                  <p className="text-[11.5px] font-sans text-dp-on-surface-variant mb-4">Equipment listed above must be arranged by the consumer.</p>
+                  <p className="text-[11.5px] font-sans text-dp-on-surface-variant mb-4">{t('z.equipmentByConsumer')}</p>
                 )}
 
                 <div className="space-y-1 text-[13px] font-sans mb-5">
                   {form.plumber_charge > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('cn.plumberCharge')}</span><span>Rs. {fmtAmount(form.plumber_charge)}</span></div>}
                   {form.digging_charge > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('cn.diggingCharge')}</span><span>Rs. {fmtAmount(form.digging_charge)}</span></div>}
-                  {form.security_deposit_amount > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">Security Deposit (refundable)</span><span>Rs. {fmtAmount(form.security_deposit_amount)}</span></div>}
+                  {form.security_deposit_amount > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('z.securityRefundable')}</span><span>Rs. {fmtAmount(form.security_deposit_amount)}</span></div>}
                   <div className="flex justify-between font-bold text-[15px] border-t border-dp-outline-variant pt-2 mt-2"><span>{t('a.total')}</span><span>Rs. {fmtAmount(total)}</span></div>
                 </div>
 
@@ -920,19 +920,19 @@ export default function ConnectionsPage() {
               <div>
                 <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('cn.whatsappNumber')}</label>
                 <input value={activationForm.whatsapp_number} onChange={(e) => setActivationForm({ ...activationForm, whatsapp_number: e.target.value })} placeholder="03xx-xxxxxxx" className="input-field" />
-                <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">The activation message sends here.</p>
+                <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('z.activationSendsHere')}</p>
               </div>
               <div>
                 <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('cn.monthlyBillPrice')}</label>
                 <input type="number" min={0} value={activationForm.monthly_amount || ''} onChange={(e) => setActivationForm({ ...activationForm, monthly_amount: +e.target.value })} placeholder="0" className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Discount (optional)</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('z.discountOptional')}</label>
                 <input type="number" min={0} value={activationForm.discount_amount || ''} onChange={(e) => setActivationForm({ ...activationForm, discount_amount: +e.target.value })} placeholder="0" className="input-field" />
               </div>
               {activationForm.discount_amount > 0 && (
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant -mt-2">
-                  Net monthly bill: <span className="font-bold text-dp-on-surface">Rs. {fmtAmount(Math.max(activationForm.monthly_amount - activationForm.discount_amount, 0))}</span>
+                  {t('z.netMonthly')} <span className="font-bold text-dp-on-surface">Rs. {fmtAmount(Math.max(activationForm.monthly_amount - activationForm.discount_amount, 0))}</span>
                 </p>
               )}
               <div>

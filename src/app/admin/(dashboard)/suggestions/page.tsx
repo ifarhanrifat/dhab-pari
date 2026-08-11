@@ -131,7 +131,7 @@ export default function AdminSuggestionsPage() {
     <>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-[24px] sm:text-[32px] font-bold leading-[32px] sm:leading-[40px] text-dp-primary">
-          Suggestions & Complaints
+          {t('z.suggestionsComplaints')}
         </h1>
         <span className="text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-on-surface-variant">
           {items.filter((s) => s.status === 'new').length} new
@@ -186,7 +186,7 @@ export default function AdminSuggestionsPage() {
             </div>
           ))}
           {!loading && filtered.length === 0 && (
-            <div className="text-center py-12 text-dp-on-surface-variant font-sans">No submissions found.</div>
+            <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('z.noSubmissions')}</div>
           )}
         </div>
 
@@ -196,7 +196,7 @@ export default function AdminSuggestionsPage() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <MessageSquare size={18} className="text-dp-primary" />
-                <h3 className="font-sans text-[18px] font-bold text-dp-primary">Details</h3>
+                <h3 className="font-sans text-[18px] font-bold text-dp-primary">{t('z.details')}</h3>
               </div>
               <button onClick={() => setSelected(null)} className="cursor-pointer text-dp-on-surface-variant">
                 <X size={18} />
@@ -206,21 +206,21 @@ export default function AdminSuggestionsPage() {
             {/* Meta */}
             <div className="space-y-2 mb-4 pb-4 border-b border-dp-outline-variant">
               <div className="flex justify-between text-[14px] font-sans">
-                <span className="text-dp-on-surface-variant">From:</span>
+                <span className="text-dp-on-surface-variant">{t('z.fromColon')}</span>
                 <span className="font-semibold">{selected.name || 'Anonymous'}</span>
               </div>
               {selected.mobile && (
                 <div className="flex justify-between text-[14px] font-sans">
-                  <span className="text-dp-on-surface-variant">Mobile:</span>
+                  <span className="text-dp-on-surface-variant">{t('z.mobileColon')}</span>
                   <span className="font-semibold">{selected.mobile}</span>
                 </div>
               )}
               <div className="flex justify-between text-[14px] font-sans">
-                <span className="text-dp-on-surface-variant">Type:</span>
+                <span className="text-dp-on-surface-variant">{t('z.typeColon')}</span>
                 <span className={`text-[12px] font-bold uppercase px-2 py-0.5 rounded-full ${typeColors[selected.type]}`}>{selected.type}</span>
               </div>
               <div className="flex justify-between text-[14px] font-sans">
-                <span className="text-dp-on-surface-variant">Date:</span>
+                <span className="text-dp-on-surface-variant">{t('z.dateColon')}</span>
                 <span>{new Date(selected.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
               </div>
             </div>
@@ -234,7 +234,7 @@ export default function AdminSuggestionsPage() {
             {/* Admin Notes / Previous Replies */}
             {selected.admin_notes && (
               <div className="mb-4 pb-4 border-b border-dp-outline-variant">
-                <h4 className="font-sans text-[14px] font-semibold text-dp-on-surface-variant mb-2">Admin Notes</h4>
+                <h4 className="font-sans text-[14px] font-semibold text-dp-on-surface-variant mb-2">{t('z.adminNotes')}</h4>
                 <div className="bg-dp-surface-container-low p-3 rounded-lg">
                   <p className="font-sans text-[14px] text-dp-on-surface whitespace-pre-wrap">{selected.admin_notes}</p>
                 </div>
@@ -247,19 +247,19 @@ export default function AdminSuggestionsPage() {
                 onClick={() => updateStatus(selected.id, 'reviewed')}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12px] font-sans font-semibold cursor-pointer transition-all ${selected.status === 'reviewed' ? 'bg-amber-100 text-amber-800' : 'border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container'}`}
               >
-                <Eye size={12} /> Reviewed
+                <Eye size={12} /> {t('z.reviewed')}
               </button>
               <button
                 onClick={() => updateStatus(selected.id, 'actioned')}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12px] font-sans font-semibold cursor-pointer transition-all ${selected.status === 'actioned' ? 'bg-dp-secondary-container text-dp-on-secondary-container' : 'border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container'}`}
               >
-                <CheckCircle size={12} /> Actioned
+                <CheckCircle size={12} /> {t('z.actioned')}
               </button>
             </div>
 
             {(selected.type === 'role_request' || selected.type === 'volunteer') && (
               <div className="mb-4 pb-4 border-b border-dp-outline-variant">
-                <h4 className="font-sans text-[14px] font-semibold text-dp-on-surface-variant mb-2">Decision</h4>
+                <h4 className="font-sans text-[14px] font-semibold text-dp-on-surface-variant mb-2">{t('z.decision')}</h4>
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => useTemplate(selected.type === 'role_request' ? 'role_request_accepted' : 'volunteer_accepted')}
@@ -272,7 +272,7 @@ export default function AdminSuggestionsPage() {
                       onClick={() => useTemplate('role_request_declined')}
                       className="px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low transition-all"
                     >
-                      Decline kindly
+                      {t('z.declineKindly')}
                     </button>
                   )}
                 </div>

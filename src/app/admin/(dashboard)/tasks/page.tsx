@@ -32,7 +32,6 @@ const stageStyles: Record<ConnectionTask['task_status'], string> = {
 }
 
 export default function TasksPage() {
-  const { t } = useLocale()
   const { t: tr } = useLocale()
   const supabase = createClient()
   const [tasks, setTasks] = useState<ConnectionTask[]>([])
@@ -148,14 +147,14 @@ export default function TasksPage() {
       <div className="flex items-center gap-1.5 shrink-0">
         {t.task_status === 'unassigned' && (
           <button onClick={() => openAssign(t)} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-            <UserPlus2 size={13} /> Assign Incharge
+            <UserPlus2 size={13} /> {tr('z.assignIncharge')}
           </button>
         )}
         {t.task_status === 'assigned' && (
           <>
             <button onClick={() => openAssign(t)} title="Edit assignment" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Pencil size={15} /></button>
             <button onClick={() => markInProgress(t)} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-              <PlayCircle size={13} /> Mark In Progress
+              <PlayCircle size={13} /> {tr('z.markInProgress')}
             </button>
           </>
         )}
@@ -168,7 +167,7 @@ export default function TasksPage() {
           </>
         )}
         {t.task_status === 'done' && (
-          <span className="font-sans text-[12px] font-semibold text-emerald-700">Ready to activate — see New Connections</span>
+          <span className="font-sans text-[12px] font-semibold text-emerald-700">{tr('z.readyActivate')}</span>
         )}
       </div>
     </div>
@@ -178,7 +177,7 @@ export default function TasksPage() {
     <div>
       <div className="flex items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-[26px] sm:text-[32px] font-bold text-dp-primary flex items-center gap-2.5">
-          <ClipboardList size={28} /> Task Todo
+          <ClipboardList size={28} /> {tr('z.taskTodo')}
         </h1>
         <button onClick={load} title="Refresh" className="p-2.5 border border-dp-outline-variant rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container-low cursor-pointer transition-all">
           <RefreshCw size={16} />
@@ -200,7 +199,7 @@ export default function TasksPage() {
           )}
           {done.length > 0 && (
             <>
-              <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2">Done</p>
+              <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2">{tr('z.done')}</p>
               <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden divide-y divide-dp-outline-variant opacity-70">
                 {done.map(renderRow)}
               </div>
@@ -214,7 +213,7 @@ export default function TasksPage() {
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 px-5 py-4 border-b border-dp-outline-variant">
               <UserPlus2 size={20} className="text-dp-secondary" />
-              <h2 className="font-heading text-[18px] font-bold text-dp-primary">Assign Incharge</h2>
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{tr('z.assignIncharge')}</h2>
             </div>
             <div className="p-5 space-y-4">
               <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3">
@@ -222,19 +221,19 @@ export default function TasksPage() {
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{assignTarget.request_number}</p>
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('g.incharge')}</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{tr('g.incharge')}</label>
                 <select autoFocus value={assignForm.incharge_user_id} onChange={(e) => setAssignForm({ ...assignForm, incharge_user_id: e.target.value })} className="input-field">
-                  <option value="">Select incharge...</option>
+                  <option value="">{tr('z.selectIncharge')}</option>
                   {inchargeOptions.map((o) => <option key={o.id} value={o.id}>{o.full_name}</option>)}
                 </select>
                 {inchargeOptions.length === 0 && (
-                  <p className="font-sans text-[11.5px] text-dp-error mt-1">No viewer-role users found — add one on the Users page first.</p>
+                  <p className="font-sans text-[11.5px] text-dp-error mt-1">{tr('z.noViewerUsers')}</p>
                 )}
                 <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">This person contacts the plumber directly and updates progress here.</p>
               </div>
               {plumbers.length > 0 && (
                 <div>
-                  <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Staff Plumber (optional)</label>
+                  <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{tr('z.staffPlumber')}</label>
                   <select
                     value={assignForm.assignee_employee_id}
                     onChange={(e) => {
@@ -246,25 +245,25 @@ export default function TasksPage() {
                     }}
                     className="input-field"
                   >
-                    <option value="">Not on staff / choose manually below...</option>
+                    <option value="">{tr('z.notOnStaff')}</option>
                     {plumbers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                   <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">Picking one fills the name/phone below and links this job to them on the Employees page.</p>
                 </div>
               )}
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Plumber Name (optional, for your reference)</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{tr('z.plumberName')}</label>
                 <input value={assignForm.assignee_name} onChange={(e) => setAssignForm({ ...assignForm, assignee_name: e.target.value, assignee_employee_id: '' })} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Plumber Phone (optional)</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{tr('z.plumberPhone')}</label>
                 <div className="relative">
                   <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
                   <input value={assignForm.assignee_phone} onChange={(e) => setAssignForm({ ...assignForm, assignee_phone: e.target.value })} className="input-field !ps-10" />
                 </div>
               </div>
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Target Completion Date (optional)</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{tr('z.targetDate')}</label>
                 <input type="date" value={assignForm.task_due_date} onChange={(e) => setAssignForm({ ...assignForm, task_due_date: e.target.value })} className="input-field" />
               </div>
               <div>

@@ -325,7 +325,7 @@ export default function EmployeesPage() {
                   <input value={form.phone} onChange={(ev) => setForm({ ...form, phone: ev.target.value })} className="input-field" />
                 </div>
                 <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">CNIC (optional)</label>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('z.cnicOptional')}</label>
                   <input value={form.cnic} onChange={(ev) => setForm({ ...form, cnic: ev.target.value })} className="input-field" />
                 </div>
               </div>
@@ -346,7 +346,7 @@ export default function EmployeesPage() {
                 </div>
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Monthly Salary (Rs.)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('z.monthlySalary')}</label>
                 <input type="number" min={0} value={form.monthly_salary || ''} onChange={(ev) => setForm({ ...form, monthly_salary: +ev.target.value })} className="input-field" />
                 <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Accrues automatically each month against this employee's own account — actual cash goes out via their payslip.</p>
               </div>
@@ -506,7 +506,7 @@ function HiringRequestGenerator({ employees, employeeRoles, branding }: { employ
   return (
     <div className="bg-white rounded-lg border border-dp-outline-variant p-6">
       <h2 className="font-sans text-[18px] font-bold text-dp-on-surface flex items-center gap-2 mb-1">
-        <FileText size={18} /> Generate Hiring Request
+        <FileText size={18} /> {t('z.generateHiring')}
       </h2>
       <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">Urdu-only printable hiring notice on behalf of the Water &amp; Welfare Committee. Text below is editable and saves as the new default for this role.</p>
 
@@ -535,7 +535,7 @@ function HiringRequestGenerator({ employees, employeeRoles, branding }: { employ
           </div>
           <div className="flex items-end gap-3">
             <div className="max-w-[180px]">
-              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Salary (Rs.)</label>
+              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('z.salaryRs')}</label>
               <input type="number" min={0} value={salary || ''} onChange={(e) => setSalary(+e.target.value)} className="input-field" />
               <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">Defaults to the average of active {currentRole?.label_en ?? role}s (Rs. {roleAverage.toLocaleString()})</p>
             </div>
@@ -543,7 +543,7 @@ function HiringRequestGenerator({ employees, employeeRoles, branding }: { employ
               {savingTemplates ? 'Saving...' : 'Save as Default'}
             </button>
             <button onClick={() => setShowPreview(true)} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto">
-              <FileText size={15} /> Generate Document
+              <FileText size={15} /> {t('z.generateDocument')}
             </button>
           </div>
         </div>
@@ -553,7 +553,7 @@ function HiringRequestGenerator({ employees, employeeRoles, branding }: { employ
         <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4" onClick={() => setShowPreview(false)}>
           <div className="bg-white rounded-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-dp-outline-variant">
-              <span className="font-sans text-[14px] font-bold text-dp-primary">Hiring Request Preview</span>
+              <span className="font-sans text-[14px] font-bold text-dp-primary">{t('z.hiringPreview')}</span>
               <button onClick={() => setShowPreview(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <div className="p-4 flex justify-center bg-dp-surface-container-low/40">
@@ -838,26 +838,26 @@ function PayslipButton({
                       Already run for this period — editing below updates the same voucher, it won&apos;t create a duplicate.
                     </p>
                   )}
-                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant">Salary accrued this month: <span className="font-semibold text-dp-on-surface">Rs. {salaryAccrued.toLocaleString()}</span></p>
+                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('z.salaryAccrued')} <span className="font-semibold text-dp-on-surface">Rs. {salaryAccrued.toLocaleString()}</span></p>
 
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Overtime (Rs.)</label>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('z.overtimeRs')}</label>
                       <input type="number" min={0} value={form.overtime || ''} onChange={(e) => setForm({ ...form, overtime: +e.target.value })} className="input-field" />
                     </div>
                     <div>
-                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Eid Bonus (Rs.)</label>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('z.eidBonus')}</label>
                       <input type="number" min={0} value={form.bonus || ''} onChange={(e) => setForm({ ...form, bonus: +e.target.value })} className="input-field" />
                     </div>
                     <div>
-                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Emergency (Rs.)</label>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('z.emergencyRs')}</label>
                       <input type="number" min={0} value={form.emergency || ''} onChange={(e) => setForm({ ...form, emergency: +e.target.value })} className="input-field" />
                     </div>
                   </div>
 
                   {jobLines.length > 0 && (
                     <div>
-                      <p className="font-sans text-[12px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-1.5">Plumber/Digging Job Earnings (auto-included)</p>
+                      <p className="font-sans text-[12px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-1.5">{t('z.jobEarnings')}</p>
                       <div className="space-y-1">
                         {jobLines.map((j) => (
                           <div key={j.id} className="flex justify-between font-sans text-[13px] px-3 py-1.5 bg-dp-surface-container-low/50 rounded">
@@ -878,7 +878,7 @@ function PayslipButton({
                     </div>
                     <div className="grid grid-cols-3 gap-3 items-end">
                       <div>
-                        <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">Pay Now (Rs.)</label>
+                        <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">{t('z.payNowRs')}</label>
                         <input type="number" min={0} max={Math.max(balance, 0)} value={payAmount || ''} onChange={(e) => setPayAmount(+e.target.value)} className="input-field" />
                       </div>
                       <div>
@@ -895,7 +895,7 @@ function PayslipButton({
                   </div>
 
                   <button onClick={() => setShowDoc(true)} className="flex items-center gap-2 text-dp-secondary font-sans text-[13px] font-semibold hover:underline cursor-pointer">
-                    <FileText size={15} /> View / Print Payslip Document
+                    <FileText size={15} /> {t('z.viewPayslip')}
                   </button>
                 </>
               )}

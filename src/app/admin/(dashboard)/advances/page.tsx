@@ -175,7 +175,7 @@ export default function AdvancesPage() {
         </h1>
         {canManage && (
           <Link href="/admin/finance/water_supply" className="flex items-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
-            <PlusCircle size={16} /> New Advance
+            <PlusCircle size={16} /> {t('z.newAdvance')}
           </Link>
         )}
       </div>
@@ -187,7 +187,7 @@ export default function AdvancesPage() {
         <p className="font-sans text-dp-on-surface-variant py-8 text-center">{t('action.loading')}</p>
       ) : advances.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center">
-          <p className="font-sans text-[14px] text-dp-on-surface-variant">No advances recorded yet.</p>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('z.noAdvances')}</p>
         </div>
       ) : (
         <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden divide-y divide-dp-outline-variant">
@@ -232,7 +232,7 @@ export default function AdvancesPage() {
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setSettleTarget(null)}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant shrink-0">
-              <h2 className="font-heading text-[18px] font-bold text-dp-primary">Settle Advance</h2>
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('z.settleAdvance')}</h2>
               <button onClick={() => setSettleTarget(null)} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -244,7 +244,7 @@ export default function AdvancesPage() {
                 <p className="font-sans text-[15px] font-bold text-dp-on-surface">Advance: Rs. {fmt(settleTarget.amount_pkr)}</p>
               </div>
 
-              <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">Real Bill — Itemized</p>
+              <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('z.realBillItemized')}</p>
               {settleLines.map((line, i) => (
                 <div key={i} className="flex items-end gap-2 border border-dp-outline-variant rounded-lg p-3">
                   <div className="flex-1 space-y-2">
@@ -268,7 +268,7 @@ export default function AdvancesPage() {
               </button>
 
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Cash/Bank Account (for any refund or top-up)</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('z.cashBankAccount')}</label>
                 <select value={settleFromAccount} onChange={(e) => setSettleFromAccount(e.target.value)} className="input-field">
                   <option value="">{t('rp.selectAccount')}</option>
                   {cashBankAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -279,8 +279,8 @@ export default function AdvancesPage() {
               <FileAttachment label="Attach Bill (optional)" currentUrl={settleAttachment} onUpload={setSettleAttachment} />
 
               <div className="bg-dp-surface-container-low rounded-lg p-4 space-y-1.5">
-                <div className="flex justify-between font-sans text-[13.5px]"><span className="text-dp-on-surface-variant">Bill Total</span><span className="font-semibold">Rs. {fmt(settleBillTotal)}</span></div>
-                <div className="flex justify-between font-sans text-[13.5px]"><span className="text-dp-on-surface-variant">Advance Given</span><span className="font-semibold">Rs. {fmt(settleTarget.amount_pkr)}</span></div>
+                <div className="flex justify-between font-sans text-[13.5px]"><span className="text-dp-on-surface-variant">{t('z.billTotal')}</span><span className="font-semibold">Rs. {fmt(settleBillTotal)}</span></div>
+                <div className="flex justify-between font-sans text-[13.5px]"><span className="text-dp-on-surface-variant">{t('z.advanceGiven')}</span><span className="font-semibold">Rs. {fmt(settleTarget.amount_pkr)}</span></div>
                 <div className="flex justify-between font-bold text-[14.5px] border-t border-dp-outline-variant pt-1.5 mt-1.5">
                   <span>{settleDiff > 0 ? 'Refund Due Back' : settleDiff < 0 ? 'Extra To Pay' : 'Fully Settled'}</span>
                   <span className={settleDiff > 0 ? 'text-emerald-700' : settleDiff < 0 ? 'text-dp-error' : 'text-dp-on-surface'}>Rs. {fmt(Math.abs(settleDiff))}</span>
@@ -302,21 +302,21 @@ export default function AdvancesPage() {
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setViewTarget(null)}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant">
-              <h2 className="font-heading text-[18px] font-bold text-dp-primary">Advance Details</h2>
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('z.advanceDetails')}</h2>
               <button onClick={() => setViewTarget(null)} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
             </div>
             <div className="p-5 space-y-3 font-sans text-[13.5px]">
-              <div className="flex justify-between"><span className="text-dp-on-surface-variant">Paid To</span><span className="font-semibold">{viewTarget.party_name || 'Unnamed'}</span></div>
-              <div className="flex justify-between"><span className="text-dp-on-surface-variant">Voucher #</span><span className="font-semibold">{viewTarget.voucher_no || 'Pending'}</span></div>
+              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('z.paidTo')}</span><span className="font-semibold">{viewTarget.party_name || 'Unnamed'}</span></div>
+              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('z.voucherNo')}</span><span className="font-semibold">{viewTarget.voucher_no || 'Pending'}</span></div>
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.date')}</span><span className="font-semibold">{new Date(viewTarget.voucher_date).toLocaleDateString('en-GB')}</span></div>
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.amount')}</span><span className="font-bold">Rs. {fmt(viewTarget.amount_pkr)}</span></div>
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('a.note')}</span><span className="text-end">{viewTarget.particular}</span></div>
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.status')}</span><span className="font-semibold">{viewTarget.settled_at ? 'Settled' : viewTarget.status === 'pending' ? 'Pending Approval' : 'Outstanding'}</span></div>
               {viewSettlement && (
                 <div className="bg-dp-surface-container-low rounded-lg p-3 space-y-2 mt-2">
-                  <p className="font-bold text-dp-on-surface-variant uppercase text-[11px] tracking-[0.05em]">Settlement</p>
+                  <p className="font-bold text-dp-on-surface-variant uppercase text-[11px] tracking-[0.05em]">{t('z.settlement')}</p>
                   <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.date')}</span><span>{new Date(viewSettlement.voucher_date).toLocaleDateString('en-GB')}</span></div>
-                  <div className="flex justify-between"><span className="text-dp-on-surface-variant">Real Bill Total</span><span className="font-semibold">Rs. {fmt(viewSettlement.amount_pkr)}</span></div>
+                  <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('z.realBillTotal')}</span><span className="font-semibold">Rs. {fmt(viewSettlement.amount_pkr)}</span></div>
                   {viewSettlement.attachment_url && (
                     <a href={viewSettlement.attachment_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-dp-secondary font-semibold hover:underline">
                       <Paperclip size={13} /> {t('ap.viewAttachedBill')}
@@ -337,12 +337,12 @@ export default function AdvancesPage() {
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setEditTarget(null)}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant">
-              <h2 className="font-heading text-[18px] font-bold text-dp-primary">Edit Advance</h2>
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('z.editAdvance')}</h2>
               <button onClick={() => setEditTarget(null)} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Paid To</label>
+                <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('z.paidTo')}</label>
                 <input value={editForm.party_name} onChange={(e) => setEditForm({ ...editForm, party_name: e.target.value })} placeholder="Worker / contractor name" className="input-field" />
               </div>
               <div>
