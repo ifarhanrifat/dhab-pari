@@ -36,7 +36,7 @@ export const HiringRequestDocument = forwardRef<HTMLDivElement, Props>(function 
         {branding.logoUrl && (
           <img
             src={branding.logoUrl} alt="Logo"
-            className="absolute right-0 top-0 object-contain"
+            className="absolute end-0 top-0 object-contain"
             style={{ width: branding.logoWidth ?? 56, height: branding.logoWidth ?? 56, marginTop: branding.logoOffsetY ?? 0 }}
           />
         )}
@@ -72,7 +72,7 @@ export const HiringRequestDocument = forwardRef<HTMLDivElement, Props>(function 
 function Section({ title, body }: { title: string; body: string }) {
   return (
     <div className="mb-6">
-      <p className="text-[15px] font-bold text-dp-primary border-r-4 border-dp-primary pr-3 mb-2">{title}</p>
+      <p className="text-[15px] font-bold text-dp-primary border-e-4 border-dp-primary pe-3 mb-2">{title}</p>
       <p className="text-[13.5px] leading-[1.9] whitespace-pre-wrap">{body}</p>
     </div>
   )

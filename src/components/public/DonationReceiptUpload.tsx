@@ -92,7 +92,7 @@ export function DonationReceiptUpload({ onUpload, label = 'Upload Payment Screen
             </div>
           )}
           {!uploading && (
-            <div className="absolute top-2 right-2 flex items-center gap-2">
+            <div className="absolute top-2 end-2 flex items-center gap-2">
               {fileName && <span className="bg-white/90 px-2 py-1 rounded text-[11px] font-sans truncate max-w-[140px]">{fileName}</span>}
               <button type="button" onClick={clear} className="bg-white/90 text-dp-error p-1 rounded hover:bg-white cursor-pointer">
                 <X size={14} />
@@ -112,7 +112,7 @@ export function DonationReceiptUpload({ onUpload, label = 'Upload Payment Screen
         >
           <FileImage size={24} className="mx-auto text-dp-on-surface-variant mb-2" />
           <p className="font-sans text-[14px] text-dp-on-surface-variant">
-            <Upload size={14} className="inline mr-1" />
+            <Upload size={14} className="inline me-1" />
             Drag & drop or <span className="text-dp-secondary font-semibold">click to browse</span>
           </p>
           <p className="font-sans text-[12px] text-dp-outline mt-1">JPG, PNG, WebP, GIF · Max 5MB</p>

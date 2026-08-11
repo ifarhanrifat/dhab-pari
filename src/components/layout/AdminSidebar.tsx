@@ -238,11 +238,11 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
                   : 'text-white/80 hover:bg-dp-primary-container hover:text-white'
               }`}
             >
-              <Icon size={18} className="mr-3 shrink-0" />
+              <Icon size={18} className="me-3 shrink-0" />
               <span className="min-w-0 truncate">{item.tKey ? t(item.tKey, item.label) : item.label}</span>
               {count > 0 && (
                 <span
-                  className="ml-auto shrink-0 bg-dp-error text-white text-[11px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center"
+                  className="ms-auto shrink-0 bg-dp-error text-white text-[11px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center"
                   aria-label={`${count} awaiting action`}
                 >
                   {count > 99 ? '99+' : count}
@@ -264,7 +264,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
       <div className="px-4 pt-4 mt-auto border-t border-white/10 shrink-0">
         <div className="bg-dp-primary-container p-3 rounded-lg mb-3">
           <div className="flex items-center">
-            <div className="w-8 h-8 rounded-full bg-[#5bc8a3] text-dp-primary flex items-center justify-center font-bold text-[12px] font-sans mr-2 shrink-0">
+            <div className="w-8 h-8 rounded-full bg-[#5bc8a3] text-dp-primary flex items-center justify-center font-bold text-[12px] font-sans me-2 shrink-0">
               {(profile?.full_name ?? '?').charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
@@ -291,7 +291,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col h-screen fixed left-0 top-0 py-6 bg-dp-primary border-r border-dp-outline-variant w-[210px] z-50 print:hidden">
+      <aside className="hidden md:flex flex-col h-screen fixed start-0 top-0 py-6 bg-dp-primary border-e border-dp-outline-variant w-[210px] z-50 print:hidden">
         <div className="px-4 mb-8">
           <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">
             Admin Portal
@@ -313,8 +313,8 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
 
       {/* Mobile drawer */}
       <aside
-        className={`fixed left-0 top-0 h-screen w-[260px] bg-dp-primary z-[100] md:hidden flex flex-col py-6 transform transition-transform duration-300 ease-in-out ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed start-0 top-0 h-screen w-[260px] bg-dp-primary z-[100] md:hidden flex flex-col py-6 transform transition-transform duration-300 ease-in-out ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full'
         }`}
       >
         <div className="px-4 mb-8 flex items-center justify-between">

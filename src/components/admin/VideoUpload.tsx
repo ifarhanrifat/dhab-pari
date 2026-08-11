@@ -67,14 +67,14 @@ export function VideoUpload({ onUpload, currentUrl }: VideoUploadProps) {
           onClick={() => setTab('upload')}
           className={`flex-1 py-2 font-sans text-[14px] font-semibold text-center cursor-pointer transition-all ${tab === 'upload' ? 'bg-dp-primary text-white' : 'bg-white text-dp-on-surface-variant hover:bg-dp-surface-container'}`}
         >
-          <Upload size={14} className="inline mr-1" /> Upload File
+          <Upload size={14} className="inline me-1" /> Upload File
         </button>
         <button
           type="button"
           onClick={() => setTab('url')}
           className={`flex-1 py-2 font-sans text-[14px] font-semibold text-center cursor-pointer transition-all ${tab === 'url' ? 'bg-dp-primary text-white' : 'bg-white text-dp-on-surface-variant hover:bg-dp-surface-container'}`}
         >
-          <LinkIcon size={14} className="inline mr-1" /> YouTube URL
+          <LinkIcon size={14} className="inline me-1" /> YouTube URL
         </button>
       </div>
 

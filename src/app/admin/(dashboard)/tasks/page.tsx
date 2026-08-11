@@ -256,8 +256,8 @@ export default function TasksPage() {
               <div>
                 <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">Plumber Phone (optional)</label>
                 <div className="relative">
-                  <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
-                  <input value={assignForm.assignee_phone} onChange={(e) => setAssignForm({ ...assignForm, assignee_phone: e.target.value })} className="input-field !pl-10" />
+                  <Phone size={15} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+                  <input value={assignForm.assignee_phone} onChange={(e) => setAssignForm({ ...assignForm, assignee_phone: e.target.value })} className="input-field !ps-10" />
                 </div>
               </div>
               <div>

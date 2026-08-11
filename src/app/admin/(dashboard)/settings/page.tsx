@@ -154,7 +154,7 @@ function SettingsSection({
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="w-full flex items-center justify-between gap-3 px-5 sm:px-6 py-4 text-left cursor-pointer hover:bg-dp-surface-container-low/60 transition-colors"
+        className="w-full flex items-center justify-between gap-3 px-5 sm:px-6 py-4 text-start cursor-pointer hover:bg-dp-surface-container-low/60 transition-colors"
       >
         <span className="flex items-center gap-2.5 min-w-0">
           {Icon && <Icon size={17} className="text-dp-secondary shrink-0" />}
@@ -481,7 +481,7 @@ export default function AdminSettingsPage() {
                 <div key={key}>
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">
                     {key.replace(/_/g, ' ').toUpperCase()}
-                    {setting?.description && <span className="font-normal text-[12px] ml-2 opacity-70">— {setting.description}</span>}
+                    {setting?.description && <span className="font-normal text-[12px] ms-2 opacity-70">— {setting.description}</span>}
                   </label>
                   {key === 'slip_display_mode' ? (
                     <>
@@ -596,7 +596,7 @@ export default function AdminSettingsPage() {
                     <button
                       key={cat.id}
                       onClick={() => { setActiveCategory(cat.id); setMobileMenuOpen(false) }}
-                      className={`w-full flex items-start gap-2.5 px-3.5 py-3 md:py-2.5 rounded-lg font-sans cursor-pointer transition-all text-left ${
+                      className={`w-full flex items-start gap-2.5 px-3.5 py-3 md:py-2.5 rounded-lg font-sans cursor-pointer transition-all text-start ${
                         active
                           ? danger ? 'bg-dp-error/10 text-dp-error' : 'bg-dp-secondary text-white'
                           : danger ? 'text-dp-error hover:bg-dp-error/5' : 'text-dp-on-surface-variant hover:bg-dp-surface-container-low'
@@ -611,7 +611,7 @@ export default function AdminSettingsPage() {
                           {cat.blurb}
                         </span>
                       </span>
-                      <ChevronRight size={16} className={`shrink-0 ml-auto mt-0.5 md:hidden ${active ? 'text-white/70' : 'text-dp-outline'}`} />
+                      <ChevronRight size={16} className={`shrink-0 ms-auto mt-0.5 md:hidden ${active ? 'text-white/70' : 'text-dp-outline'}`} />
                     </button>
                   )
                 })}
@@ -675,7 +675,7 @@ export default function AdminSettingsPage() {
                       <img
                         src={values.invoice_logo_url} alt="Logo preview"
                         style={{ width: +(values.invoice_logo_width || 56), height: +(values.invoice_logo_width || 56), marginTop: +(values.invoice_logo_offset_y || 0) }}
-                        className="absolute left-4 top-4 object-contain"
+                        className="absolute start-4 top-4 object-contain"
                       />
                       {values.display_language === 'ur' && (
                         <p className="text-[16px] font-bold mb-1.5" style={{ fontFamily: 'var(--font-urdu), serif' }}>واٹر اینڈ ویلفئیر کمیٹی</p>
@@ -749,7 +749,7 @@ export default function AdminSettingsPage() {
                       <button
                         key={t.id}
                         onClick={() => setValues({ ...values, invoice_template: t.id })}
-                        className={`text-left p-4 rounded-lg border-2 cursor-pointer transition-all ${selected ? 'border-dp-secondary bg-dp-secondary/5' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
+                        className={`text-start p-4 rounded-lg border-2 cursor-pointer transition-all ${selected ? 'border-dp-secondary bg-dp-secondary/5' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
                       >
                         <p className={`font-sans text-[14px] font-bold mb-1 ${selected ? 'text-dp-secondary' : 'text-dp-on-surface'}`}>{t.label}</p>
                         <p className="font-sans text-[12px] text-dp-on-surface-variant">{t.blurb}</p>
@@ -817,7 +817,7 @@ export default function AdminSettingsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                   <button
                     onClick={() => setValues({ ...values, donor_invoice_template: '' })}
-                    className={`text-left p-4 rounded-lg border-2 cursor-pointer transition-all ${!values.donor_invoice_template ? 'border-dp-secondary bg-dp-secondary/5' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
+                    className={`text-start p-4 rounded-lg border-2 cursor-pointer transition-all ${!values.donor_invoice_template ? 'border-dp-secondary bg-dp-secondary/5' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
                   >
                     <p className={`font-sans text-[14px] font-bold mb-1 ${!values.donor_invoice_template ? 'text-dp-secondary' : 'text-dp-on-surface'}`}>Same as Water Supply</p>
                     <p className="font-sans text-[12px] text-dp-on-surface-variant">Uses whichever template is picked under Documents &amp; Templates</p>
@@ -828,7 +828,7 @@ export default function AdminSettingsPage() {
                       <button
                         key={t.id}
                         onClick={() => setValues({ ...values, donor_invoice_template: t.id })}
-                        className={`text-left p-4 rounded-lg border-2 cursor-pointer transition-all ${selected ? 'border-dp-secondary bg-dp-secondary/5' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
+                        className={`text-start p-4 rounded-lg border-2 cursor-pointer transition-all ${selected ? 'border-dp-secondary bg-dp-secondary/5' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
                       >
                         <p className={`font-sans text-[14px] font-bold mb-1 ${selected ? 'text-dp-secondary' : 'text-dp-on-surface'}`}>{t.label}</p>
                         <p className="font-sans text-[12px] text-dp-on-surface-variant">{t.blurb}</p>

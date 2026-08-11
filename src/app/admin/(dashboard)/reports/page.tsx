@@ -360,13 +360,13 @@ function ReportsPageInner() {
           {reportType === 'trial_balance' && (
             <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left min-w-[600px]">
+                <table className="w-full text-start min-w-[600px]">
                   <thead>
                     <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                       <th className="px-4 py-2.5">{dt(lang, 'account')}</th>
                       <th className="px-4 py-2.5">{dt(lang, 'header')}</th>
-                      <th className="px-4 py-2.5 text-right">{dt(lang, 'debit')}</th>
-                      <th className="px-4 py-2.5 text-right">{dt(lang, 'credit')}</th>
+                      <th className="px-4 py-2.5 text-end">{dt(lang, 'debit')}</th>
+                      <th className="px-4 py-2.5 text-end">{dt(lang, 'credit')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -374,16 +374,16 @@ function ReportsPageInner() {
                       <tr key={account.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
                         <td className="px-4 py-3 font-semibold">{account.name}</td>
                         <td className="px-4 py-3 text-dp-on-surface-variant">{headerLabel(account.type)}</td>
-                        <td className="px-4 py-3 text-right">{debitCol > 0 ? fmtAmount(debitCol) : '—'}</td>
-                        <td className="px-4 py-3 text-right">{creditCol > 0 ? fmtAmount(creditCol) : '—'}</td>
+                        <td className="px-4 py-3 text-end">{debitCol > 0 ? fmtAmount(debitCol) : '—'}</td>
+                        <td className="px-4 py-3 text-end">{creditCol > 0 ? fmtAmount(creditCol) : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr className="font-sans text-[13.5px] font-bold bg-dp-surface-container-low/60 border-t-2 border-dp-outline-variant">
                       <td className="px-4 py-3" colSpan={2}>{dt(lang, 'total')}</td>
-                      <td className="px-4 py-3 text-right">{fmtAmount(totalDebitCol)}</td>
-                      <td className="px-4 py-3 text-right">{fmtAmount(totalCreditCol)}</td>
+                      <td className="px-4 py-3 text-end">{fmtAmount(totalDebitCol)}</td>
+                      <td className="px-4 py-3 text-end">{fmtAmount(totalCreditCol)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -449,14 +449,14 @@ function ReportsPageInner() {
           {reportType === 'consumer_outstanding' && (
             <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left min-w-[500px]">
+                <table className="w-full text-start min-w-[500px]">
                   <thead>
                     <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                       <th className="px-4 py-2.5">{dt(lang, 'consumer')}</th>
                       <th className="px-4 py-2.5">{dt(lang, 'sector')}</th>
                       <th className="px-4 py-2.5">{dt(lang, 'mobile')}</th>
-                      <th className="px-4 py-2.5 text-right">{dt(lang, 'outstanding')}</th>
-                      <th className="px-4 py-2.5 text-right print:hidden">{dt(lang, 'statement')}</th>
+                      <th className="px-4 py-2.5 text-end">{dt(lang, 'outstanding')}</th>
+                      <th className="px-4 py-2.5 text-end print:hidden">{dt(lang, 'statement')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -466,8 +466,8 @@ function ReportsPageInner() {
                         <td className="px-4 py-3 font-semibold">{account.name}</td>
                         <td className="px-4 py-3 text-dp-on-surface-variant">{info?.sector ?? '—'}</td>
                         <td className="px-4 py-3 text-dp-on-surface-variant">{info?.mobile ?? '—'}</td>
-                        <td className="px-4 py-3 text-right font-bold text-dp-error">{fmtAmount(balance)}</td>
-                        <td className="px-4 py-3 text-right print:hidden">
+                        <td className="px-4 py-3 text-end font-bold text-dp-error">{fmtAmount(balance)}</td>
+                        <td className="px-4 py-3 text-end print:hidden">
                           <Link href={`/admin/accounts/${account.id}`} className="inline-flex items-center gap-1 text-dp-secondary font-semibold hover:underline">
                             <ExternalLink size={13} /> {dt(lang, 'view')}
                           </Link>
@@ -479,7 +479,7 @@ function ReportsPageInner() {
                     <tfoot>
                       <tr className="font-sans text-[13.5px] font-bold bg-dp-surface-container-low/60 border-t-2 border-dp-outline-variant">
                         <td className="px-4 py-3" colSpan={3}>{dt(lang, 'totalOutstanding')}</td>
-                        <td className="px-4 py-3 text-right">{fmtAmount(consumerOutstanding.reduce((s, r) => s + r.balance, 0))}</td>
+                        <td className="px-4 py-3 text-end">{fmtAmount(consumerOutstanding.reduce((s, r) => s + r.balance, 0))}</td>
                         <td className="px-4 py-3 print:hidden"></td>
                       </tr>
                     </tfoot>
@@ -492,14 +492,14 @@ function ReportsPageInner() {
           {reportType === 'donor_report' && (
             <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left min-w-[600px]">
+                <table className="w-full text-start min-w-[600px]">
                   <thead>
                     <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                       <th className="px-4 py-2.5">{dt(lang, 'date')}</th>
                       <th className="px-4 py-2.5">{dt(lang, 'donor')}</th>
                       <th className="px-4 py-2.5">{dt(lang, 'project')}</th>
                       <th className="px-4 py-2.5">{dt(lang, 'method')}</th>
-                      <th className="px-4 py-2.5 text-right">{dt(lang, 'amount')}</th>
+                      <th className="px-4 py-2.5 text-end">{dt(lang, 'amount')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -510,7 +510,7 @@ function ReportsPageInner() {
                         <td className="px-4 py-3 font-semibold">{d.name}</td>
                         <td className="px-4 py-3 text-dp-on-surface-variant">{d.project_id ? projects[d.project_id] ?? '—' : '—'}</td>
                         <td className="px-4 py-3 text-dp-on-surface-variant">{d.payment_method ?? '—'}</td>
-                        <td className="px-4 py-3 text-right font-bold">{fmtAmount(d.amount_pkr)}</td>
+                        <td className="px-4 py-3 text-end font-bold">{fmtAmount(d.amount_pkr)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -518,7 +518,7 @@ function ReportsPageInner() {
                     <tfoot>
                       <tr className="font-sans text-[13.5px] font-bold bg-dp-surface-container-low/60 border-t-2 border-dp-outline-variant">
                         <td className="px-4 py-3" colSpan={4}>{dt(lang, 'total')}</td>
-                        <td className="px-4 py-3 text-right">{fmtAmount(filteredDonations.reduce((s, d) => s + Number(d.amount_pkr), 0))}</td>
+                        <td className="px-4 py-3 text-end">{fmtAmount(filteredDonations.reduce((s, d) => s + Number(d.amount_pkr), 0))}</td>
                       </tr>
                     </tfoot>
                   )}
@@ -533,21 +533,21 @@ function ReportsPageInner() {
                 <div className="px-4 py-12 text-center text-dp-on-surface-variant font-sans">{dt(lang, 'selectAccountToView')}</div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left min-w-[550px]">
+                  <table className="w-full text-start min-w-[550px]">
                     <thead>
                       <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                         <th className="px-4 py-2.5">{dt(lang, 'date')}</th>
                         <th className="px-4 py-2.5">{dt(lang, 'particular')}</th>
                         <th className="px-4 py-2.5">{dt(lang, 'billHash')}</th>
-                        <th className="px-4 py-2.5 text-right">{dt(lang, 'debit')}</th>
-                        <th className="px-4 py-2.5 text-right">{dt(lang, 'credit')}</th>
-                        <th className="px-4 py-2.5 text-right">{dt(lang, 'balance')}</th>
+                        <th className="px-4 py-2.5 text-end">{dt(lang, 'debit')}</th>
+                        <th className="px-4 py-2.5 text-end">{dt(lang, 'credit')}</th>
+                        <th className="px-4 py-2.5 text-end">{dt(lang, 'balance')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr className="font-sans text-[13.5px] bg-dp-surface-container-low/30">
                         <td className="px-4 py-2.5" colSpan={5}>{dt(lang, 'openingBalance')}</td>
-                        <td className="px-4 py-2.5 text-right font-bold">{fmtAmount(statementOpening)}</td>
+                        <td className="px-4 py-2.5 text-end font-bold">{fmtAmount(statementOpening)}</td>
                       </tr>
                       {(() => {
                         const acc = accounts.find((a) => a.id === selectedAccountId)
@@ -563,9 +563,9 @@ function ReportsPageInner() {
                                 {r.bill_number ?? '—'}
                                 {r.receipt_no && <span className="block text-dp-secondary">{dt(lang, 'receiptHash')}{r.receipt_no}</span>}
                               </td>
-                              <td className="px-4 py-3 text-right">{r.debit > 0 ? fmtAmount(r.debit) : '—'}</td>
-                              <td className="px-4 py-3 text-right">{r.credit > 0 ? fmtAmount(r.credit) : '—'}</td>
-                              <td className="px-4 py-3 text-right font-bold">{fmtAmount(running)}</td>
+                              <td className="px-4 py-3 text-end">{r.debit > 0 ? fmtAmount(r.debit) : '—'}</td>
+                              <td className="px-4 py-3 text-end">{r.credit > 0 ? fmtAmount(r.credit) : '—'}</td>
+                              <td className="px-4 py-3 text-end font-bold">{fmtAmount(running)}</td>
                             </tr>
                           )
                         })
@@ -582,9 +582,9 @@ function ReportsPageInner() {
                         <tfoot>
                           <tr className="font-sans text-[13.5px] font-bold bg-dp-surface-container-low/60 border-t-2 border-dp-outline-variant">
                             <td className="px-4 py-3" colSpan={3}>{dt(lang, 'total')} / {dt(lang, 'closingBalance')}</td>
-                            <td className="px-4 py-3 text-right">{fmtAmount(totalDebit)}</td>
-                            <td className="px-4 py-3 text-right">{fmtAmount(totalCredit)}</td>
-                            <td className="px-4 py-3 text-right">{fmtAmount(closingBalance)}</td>
+                            <td className="px-4 py-3 text-end">{fmtAmount(totalDebit)}</td>
+                            <td className="px-4 py-3 text-end">{fmtAmount(totalCredit)}</td>
+                            <td className="px-4 py-3 text-end">{fmtAmount(closingBalance)}</td>
                           </tr>
                         </tfoot>
                       )

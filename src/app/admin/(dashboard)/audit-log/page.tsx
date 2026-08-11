@@ -136,12 +136,12 @@ export default function AuditLogPage() {
         <button onClick={() => setSortAsc((s) => !s)} className="flex items-center gap-2 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
           <ArrowUpDown size={15} /> {sortAsc ? 'Oldest First' : 'Newest First'}
         </button>
-        <span className="font-sans text-[12.5px] text-dp-on-surface-variant ml-auto">{filteredRows.length} of {rows.length} records</span>
+        <span className="font-sans text-[12.5px] text-dp-on-surface-variant ms-auto">{filteredRows.length} of {rows.length} records</span>
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[820px]">
+          <table className="w-full text-start min-w-[820px]">
             <thead>
               <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                 <th className="px-4 py-2.5">Type</th>
@@ -150,7 +150,7 @@ export default function AuditLogPage() {
                 <th className="px-4 py-2.5">User</th>
                 <th className="px-4 py-2.5">When</th>
                 <th className="px-4 py-2.5">Status</th>
-                <th className="px-4 py-2.5 text-right">Actions</th>
+                <th className="px-4 py-2.5 text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -177,9 +177,9 @@ export default function AuditLogPage() {
                       <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">Deleted</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-end">
                     {r.action === 'delete' && !r.restored_at && canRestore && (
-                      <button onClick={() => setConfirmRestore(r)} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ml-auto">
+                      <button onClick={() => setConfirmRestore(r)} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto">
                         <RotateCcw size={13} /> Restore
                       </button>
                     )}

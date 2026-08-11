@@ -22,8 +22,12 @@ const LocaleContext = createContext<LocaleContextValue | null>(null)
 
 const STORAGE_KEY = 'dp_locale'
 
-// Phase 3 gate — see the comment where it is used.
-const RTL_READY = false
+// The direction-specific CSS across the app has been converted to logical
+// properties (ms-/me-/ps-/pe-/text-start/text-end/border-s/border-e/start-/end-),
+// so the whole layout can mirror from the <html> element. Verified: 0 physical
+// direction classes remain outside the print/document helper, where the paper
+// layout is fixed regardless of interface language.
+const RTL_READY = true
 
 /**
  * One place that knows what language this person reads, and every word the
@@ -83,11 +87,11 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     el.lang = locale
     // Direction is deliberately NOT flipped yet. Turning on dir="rtl" mirrors
     // the page, but only elements using logical CSS properties follow it —
-    // and this app still has ~470 physical ones (ml-, pl-, text-left, left-)
+    // and this app still has ~470 physical ones (ml-, pl-, text-start, left-)
     // across 132 files. Flipping before converting them produced exactly what
     // you would expect: Urdu text in a layout torn in half.
     //
-    // So Urdu reads in the normal left-to-right layout until that sweep is
+    // So Urdu reads in the normal start-to-right layout until that sweep is
     // done, which is legible and honest. Flip this to RTL_READY once the
     // conversion lands, and the whole app mirrors from this one line.
     el.dir = RTL_READY && locale === 'ur' ? 'rtl' : 'ltr'

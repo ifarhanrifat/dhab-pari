@@ -105,9 +105,9 @@ export default function PortalLoginPage() {
             <div className="relative">
               <input id="password" type={showPw ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required
                 autoComplete="current-password" disabled={isLocked || loading}
-                className="w-full px-4 py-3 pr-12 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[16px] font-sans disabled:opacity-50"
+                className="w-full px-4 py-3 pe-12 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[16px] font-sans disabled:opacity-50"
                 placeholder="••••••••" />
-              <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant cursor-pointer p-1" tabIndex={-1}>
+              <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute end-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant cursor-pointer p-1" tabIndex={-1}>
                 {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>

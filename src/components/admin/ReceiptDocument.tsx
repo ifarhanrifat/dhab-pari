@@ -138,7 +138,7 @@ function Signature({ data }: { data: ReceiptData }) {
 // Laid out as label→value rows rather than a bare list of link words: someone
 // holding a printed receipt should be told what each address is FOR ("Join our
 // WhatsApp group"), with the address itself on the same line. Renders
-// right-to-left in Urdu font when the site's display language is Urdu.
+// end-to-left in Urdu font when the site's display language is Urdu.
 //
 // Real anchors throughout, so they're clickable wherever the receipt is viewed
 // as HTML (on-screen preview, print popup). The PDF/PNG download path

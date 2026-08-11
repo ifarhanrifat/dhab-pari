@@ -1389,7 +1389,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         {mobileTypeMenuOpen && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setMobileTypeMenuOpen(false)} />
-            <div className="absolute z-50 top-full left-0 right-0 mt-1.5 bg-white rounded-lg border border-dp-outline-variant shadow-lg overflow-hidden max-h-[60vh] overflow-y-auto">
+            <div className="absolute z-50 top-full start-0 end-0 mt-1.5 bg-white rounded-lg border border-dp-outline-variant shadow-lg overflow-hidden max-h-[60vh] overflow-y-auto">
               {types.map((t) => {
                 const Icon = t.icon
                 const isActive = activeType === t.key
@@ -1397,7 +1397,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   <button
                     key={t.key}
                     onClick={() => { selectType(t.key); setMobileTypeMenuOpen(false) }}
-                    className={`w-full flex items-center gap-2.5 px-4 py-3.5 text-left font-sans text-[15px] font-bold border-b border-dp-outline-variant last:border-b-0 cursor-pointer transition-colors ${isActive ? 'bg-dp-primary text-white' : 'text-dp-on-surface hover:bg-dp-surface-container-low'}`}
+                    className={`w-full flex items-center gap-2.5 px-4 py-3.5 text-start font-sans text-[15px] font-bold border-b border-dp-outline-variant last:border-b-0 cursor-pointer transition-colors ${isActive ? 'bg-dp-primary text-white' : 'text-dp-on-surface hover:bg-dp-surface-container-low'}`}
                   >
                     <Icon size={18} className="shrink-0" /> {t.label}
                   </button>
@@ -1419,7 +1419,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 <button
                   key={t.key}
                   onClick={() => selectType(t.key)}
-                  className={`w-full flex items-center gap-2.5 px-4 py-3 text-left font-sans text-[14px] font-semibold border-b border-dp-outline-variant last:border-b-0 cursor-pointer transition-colors ${isActive ? 'bg-dp-primary text-white' : 'text-dp-on-surface hover:bg-dp-surface-container-low'}`}
+                  className={`w-full flex items-center gap-2.5 px-4 py-3 text-start font-sans text-[14px] font-semibold border-b border-dp-outline-variant last:border-b-0 cursor-pointer transition-colors ${isActive ? 'bg-dp-primary text-white' : 'text-dp-on-surface hover:bg-dp-surface-container-low'}`}
                 >
                   <Icon size={16} className="shrink-0" /> {t.label}
                 </button>
@@ -1722,14 +1722,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                           const lineGross = l.quantity * l.unit_price
                           const lineDiscount = discountMode === 'per_item' ? (lineGross * (l.discount_pct || 0)) / 100 : 0
                           return (
-                            <div key={i} className="flex items-center gap-3 pl-3 pr-4 py-3 border-l-[3px] border-dp-secondary hover:bg-dp-surface-container-low/40 transition-colors">
+                            <div key={i} className="flex items-center gap-3 ps-3 pe-4 py-3 border-s-[3px] border-dp-secondary hover:bg-dp-surface-container-low/40 transition-colors">
                               <div className="min-w-0 flex-1">
                                 <p className="font-sans text-[14.5px] font-bold text-dp-on-surface truncate">{l.description}</p>
                                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
                                   {l.quantity} × Rs. {fmtAmount(l.unit_price)}{l.is_recurring ? ' · Recurring' : ''}
                                 </p>
                               </div>
-                              <div className="text-right shrink-0">
+                              <div className="text-end shrink-0">
                                 <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">Rs. {fmtAmount(lineGross - lineDiscount)}</p>
                                 {lineDiscount > 0 && <p className="font-sans text-[11px] text-emerald-700">− {fmtAmount(lineDiscount)}</p>}
                               </div>
@@ -1937,12 +1937,12 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     ) : (
                       <div className="divide-y divide-dp-outline-variant">
                         {purchaseLines.map((l, i) => (
-                          <div key={i} className="flex items-center gap-3 pl-3 pr-4 py-3 border-l-[3px] border-dp-secondary hover:bg-dp-surface-container-low/40 transition-colors">
+                          <div key={i} className="flex items-center gap-3 ps-3 pe-4 py-3 border-s-[3px] border-dp-secondary hover:bg-dp-surface-container-low/40 transition-colors">
                             <div className="min-w-0 flex-1">
                               <p className="font-sans text-[14.5px] font-bold text-dp-on-surface truncate">{l.description}</p>
                               <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{l.quantity} × Rs. {fmtAmount(l.unit_cost)}</p>
                             </div>
-                            <p className="text-right shrink-0 font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">Rs. {fmtAmount(l.quantity * l.unit_cost)}</p>
+                            <p className="text-end shrink-0 font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">Rs. {fmtAmount(l.quantity * l.unit_cost)}</p>
                             <div className="flex items-center gap-1 shrink-0">
                               <button onClick={() => openEditPurchaseLine(i)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Pencil size={14} /></button>
                               <button onClick={() => removePurchaseLine(i)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={14} /></button>
@@ -2104,14 +2104,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
             {!loading && visibleTxnCards.length === 0 && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">{filterLogByType ? `No ${activeTypeLabel.toLowerCase()} transactions yet.` : 'No transactions yet.'}</p>}
             <div className="divide-y divide-dp-outline-variant">
               {!loading && visibleTxnCards.map((c) => (
-                <div key={c.id} className={`flex border-l-[3px] ${c.borderColor}`}>
+                <div key={c.id} className={`flex border-s-[3px] ${c.borderColor}`}>
                   <div className="flex-1 min-w-0 p-3.5">
                     <div className="flex justify-between items-start gap-3">
                       <div className="min-w-0">
                         {c.typeLabel && <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-tight">{c.typeLabel}</p>}
                         <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{c.partyName}</p>
                         {c.isRecurring && (
-                          <span className="inline-block mt-0.5 mr-1 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700" title="Generated automatically by a recurring schedule, not entered by hand">
+                          <span className="inline-block mt-0.5 me-1 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700" title="Generated automatically by a recurring schedule, not entered by hand">
                             Recurring
                           </span>
                         )}
@@ -2126,14 +2126,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                           </span>
                         )}
                       </div>
-                      <div className="text-right shrink-0">
+                      <div className="text-end shrink-0">
                         <p className="font-sans text-[13px] font-bold text-dp-on-surface whitespace-nowrap">{c.docLabel}</p>
                         <p className="font-sans text-[12px] text-dp-on-surface-variant whitespace-nowrap">{new Date(c.date).toLocaleDateString('en-GB')}</p>
                       </div>
                     </div>
                     <div className="flex justify-between items-end gap-3 mt-1.5">
                       <p className="font-sans text-[13px] text-dp-on-surface-variant truncate">{c.description}</p>
-                      <div className="text-right shrink-0">
+                      <div className="text-end shrink-0">
                         <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">Rs {fmtAmount(c.amount)}</p>
                         {c.badge && (
                           <span className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide ${billBadgeClass[c.badge.tone]}`}>
@@ -2251,8 +2251,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
             <div className="px-5 pt-4 shrink-0">
               <div className="relative mb-3">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
-                <input autoFocus value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} placeholder="Search..." className="input-field !pl-10 text-[15px]" />
+                <Search size={16} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+                <input autoFocus value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} placeholder="Search..." className="input-field !ps-10 text-[15px]" />
               </div>
               <div className="flex gap-1.5 bg-dp-surface-container-low rounded-lg p-1">
                 <button onClick={() => setBillPickerTab('items')} className={`flex-1 py-2 rounded-md font-sans text-[13.5px] font-bold transition-all cursor-pointer ${billPickerTab === 'items' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}>Items</button>
@@ -2261,14 +2261,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
             </div>
 
             <div className="flex-1 overflow-y-auto px-2 py-1 min-h-[200px]">
-              <button onClick={selectCustomCharge} className="w-full flex items-center gap-3 px-3.5 py-3 rounded-lg hover:bg-dp-surface-container-low transition-all cursor-pointer text-left">
+              <button onClick={selectCustomCharge} className="w-full flex items-center gap-3 px-3.5 py-3 rounded-lg hover:bg-dp-surface-container-low transition-all cursor-pointer text-start">
                 <span className="w-8 h-8 rounded-full bg-dp-secondary/10 flex items-center justify-center shrink-0"><Plus size={16} className="text-dp-secondary" /></span>
                 <span className="font-sans text-[14.5px] font-bold text-dp-secondary">Custom Charge</span>
               </button>
               {(billPickerTab === 'items' ? inventoryItems : serviceItems)
                 .filter((it) => it.name.toLowerCase().includes(catalogSearch.trim().toLowerCase()))
                 .map((it) => (
-                  <button key={it.id} onClick={() => selectCatalogItem(billPickerTab === 'items' ? 'inventory' : 'service', it.id)} className="w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-lg hover:bg-dp-surface-container-low transition-all cursor-pointer text-left">
+                  <button key={it.id} onClick={() => selectCatalogItem(billPickerTab === 'items' ? 'inventory' : 'service', it.id)} className="w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-lg hover:bg-dp-surface-container-low transition-all cursor-pointer text-start">
                     <span className="font-sans text-[14.5px] font-semibold text-dp-on-surface truncate">{it.name}</span>
                     <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface-variant shrink-0">Rs. {fmtAmount('unit_price' in it ? it.unit_price : it.charge_amount)}</span>
                   </button>
@@ -2296,7 +2296,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
           <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={closeModal}>
             <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center gap-2 px-5 py-4 border-b border-dp-outline-variant">
-                <button onClick={() => setBillModalStep('picker')} className="p-1 -ml-1 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer"><ChevronLeft size={20} /></button>
+                <button onClick={() => setBillModalStep('picker')} className="p-1 -ms-1 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer"><ChevronLeft size={20} /></button>
                 <h2 className="font-heading text-[18px] font-bold text-dp-primary truncate">{editingLineIndex !== null ? 'Edit Item' : (newLine.kind === 'custom' ? 'Custom Charge' : (newLine.description || 'Item'))}</h2>
               </div>
               <div className="p-5 space-y-4">
@@ -2351,13 +2351,13 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
             </div>
             <div className="px-5 pt-4 shrink-0">
               <div className="relative">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
-                <input autoFocus value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} placeholder="Search items..." className="input-field !pl-10 text-[15px]" />
+                <Search size={16} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+                <input autoFocus value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} placeholder="Search items..." className="input-field !ps-10 text-[15px]" />
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-2 py-1 mt-2 min-h-[200px]">
               {inventoryItems.filter((it) => it.name.toLowerCase().includes(catalogSearch.trim().toLowerCase())).map((it) => (
-                <button key={it.id} onClick={() => selectPurchaseItem(it.id)} className="w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-lg hover:bg-dp-surface-container-low transition-all cursor-pointer text-left">
+                <button key={it.id} onClick={() => selectPurchaseItem(it.id)} className="w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-lg hover:bg-dp-surface-container-low transition-all cursor-pointer text-start">
                   <span className="font-sans text-[14.5px] font-semibold text-dp-on-surface truncate">{it.name}</span>
                   <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface-variant shrink-0">Rs. {fmtAmount(it.unit_cost)}</span>
                 </button>
@@ -2381,7 +2381,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
           <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={closeModal}>
             <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center gap-2 px-5 py-4 border-b border-dp-outline-variant">
-                <button onClick={() => setPurchaseModalStep('picker')} className="p-1 -ml-1 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer"><ChevronLeft size={20} /></button>
+                <button onClick={() => setPurchaseModalStep('picker')} className="p-1 -ms-1 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer"><ChevronLeft size={20} /></button>
                 <h2 className="font-heading text-[18px] font-bold text-dp-primary truncate">{editingPurchaseLineIndex !== null ? 'Edit Item' : (item?.name ?? 'Item')}</h2>
               </div>
               <div className="p-5 space-y-4">
@@ -2420,7 +2420,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 <button
                   key={mode}
                   onClick={() => switchDiscountMode(mode)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-dp-surface-container-low transition-all cursor-pointer text-left"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-dp-surface-container-low transition-all cursor-pointer text-start"
                 >
                   <span className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${discountMode === mode ? 'border-dp-secondary' : 'border-dp-outline-variant'}`}>
                     {discountMode === mode && <span className="w-2 h-2 rounded-full bg-dp-secondary" />}

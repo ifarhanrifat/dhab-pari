@@ -128,10 +128,10 @@ export default function PortalStatementPage() {
 
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-start border-collapse">
                 <thead>
                   <tr className="bg-dp-surface-container-low text-dp-outline text-[12px] font-sans font-bold tracking-[0.05em]">
-                    <th className="p-3">Date</th><th className="p-3">Particular</th><th className="p-3 text-right">Amount</th><th className="p-3 text-right">Running Total</th>
+                    <th className="p-3">Date</th><th className="p-3">Particular</th><th className="p-3 text-end">Amount</th><th className="p-3 text-end">Running Total</th>
                   </tr>
                 </thead>
                 <tbody className="font-sans text-[14px]">
@@ -140,8 +140,8 @@ export default function PortalStatementPage() {
                     <tr key={r.id} className="border-b border-dp-outline-variant last:border-b-0">
                       <td className="p-3 whitespace-nowrap">{new Date(r.entry_date).toLocaleDateString('en-GB')}</td>
                       <td className="p-3">{r.particular}</td>
-                      <td className="p-3 text-right font-semibold">{Number(r.credit) > 0 ? `Rs. ${fmt(r.credit)}` : '—'}</td>
-                      <td className="p-3 text-right font-bold text-dp-secondary">Rs. {fmt(r.balance)}</td>
+                      <td className="p-3 text-end font-semibold">{Number(r.credit) > 0 ? `Rs. ${fmt(r.credit)}` : '—'}</td>
+                      <td className="p-3 text-end font-bold text-dp-secondary">Rs. {fmt(r.balance)}</td>
                     </tr>
                   ))}
                 </tbody>

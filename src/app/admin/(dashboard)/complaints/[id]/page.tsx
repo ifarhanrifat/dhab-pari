@@ -334,7 +334,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
                   {matchingLinkConsumers.map((c) => (
                     <button
                       key={c.consumer_id} type="button" onClick={() => linkConsumer(c.consumer_id)}
-                      className="w-full text-left px-3 py-2 hover:bg-dp-surface-container-low font-sans text-[13px] cursor-pointer"
+                      className="w-full text-start px-3 py-2 hover:bg-dp-surface-container-low font-sans text-[13px] cursor-pointer"
                     >
                       <strong>{c.consumer_id}</strong> — {c.name} {c.mobile && <span className="text-dp-on-surface-variant">· {c.mobile}</span>}
                     </button>
@@ -349,7 +349,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
                   <p className="font-sans text-[14.5px] font-bold text-dp-on-surface">{consumerInfo.consumer_id} — {consumerInfo.name}</p>
                   {consumerInfo.mobile && <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{consumerInfo.mobile}</p>}
                 </div>
-                <div className="text-right">
+                <div className="text-end">
                   <p className="font-sans text-[11px] uppercase tracking-wide text-dp-on-surface-variant">Outstanding</p>
                   <p className={`font-sans text-[16px] font-bold ${outstanding > 0 ? 'text-dp-error' : 'text-emerald-700'}`}>Rs. {outstanding.toLocaleString()}</p>
                 </div>

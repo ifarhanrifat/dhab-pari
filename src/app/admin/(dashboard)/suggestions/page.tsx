@@ -172,7 +172,7 @@ export default function AdminSuggestionsPage() {
                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full font-sans ${statusColors[s.status]}`}>
                   {s.status}
                 </span>
-                <span className="text-[12px] font-sans text-dp-on-surface-variant ml-auto">
+                <span className="text-[12px] font-sans text-dp-on-surface-variant ms-auto">
                   {new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 </span>
               </div>

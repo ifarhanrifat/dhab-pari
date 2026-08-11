@@ -407,11 +407,11 @@ export default function AllTransactionsPage() {
           <div className="flex-1 min-w-[220px]">
             <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Search</label>
             <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+              <Search size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
               <input
                 value={search} onChange={(e) => setSearch(e.target.value)}
                 placeholder="Name, account ID, phone, receipt/voucher #, method..."
-                className="input-field !py-2 !pl-9 text-[14px]"
+                className="input-field !py-2 !ps-9 text-[14px]"
               />
             </div>
           </div>
@@ -424,14 +424,14 @@ export default function AllTransactionsPage() {
         {!loading && filteredRows.length === 0 && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">No transactions match these filters.</p>}
         <div className="divide-y divide-dp-outline-variant">
           {!loading && filteredRows.map((r) => (
-            <div key={r.id} className={`flex border-l-[3px] ${r.borderColor}`}>
+            <div key={r.id} className={`flex border-s-[3px] ${r.borderColor}`}>
               <div className="flex-1 min-w-0 p-3.5">
                 <div className="flex justify-between items-start gap-3">
                   <div className="min-w-0">
                     {r.typeLabel && <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-tight">{r.typeLabel}</p>}
                     <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{r.partyName}</p>
                     {r.isRecurring && (
-                      <span className="inline-block mt-0.5 mr-1 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700" title="Generated automatically by a recurring schedule, not entered by hand">
+                      <span className="inline-block mt-0.5 me-1 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700" title="Generated automatically by a recurring schedule, not entered by hand">
                         Recurring
                       </span>
                     )}
@@ -446,14 +446,14 @@ export default function AllTransactionsPage() {
                       </span>
                     )}
                   </div>
-                  <div className="text-right shrink-0">
+                  <div className="text-end shrink-0">
                     <p className="font-sans text-[13px] font-bold text-dp-on-surface whitespace-nowrap">{r.docLabel}</p>
                     <p className="font-sans text-[12px] text-dp-on-surface-variant whitespace-nowrap">{new Date(r.date).toLocaleDateString('en-GB')}</p>
                   </div>
                 </div>
                 <div className="flex justify-between items-end gap-3 mt-1.5">
                   <p className="font-sans text-[13px] text-dp-on-surface-variant truncate">{r.description}</p>
-                  <div className="text-right shrink-0">
+                  <div className="text-end shrink-0">
                     {r.amount > 0 && <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">Rs {fmtAmount(r.amount)}</p>}
                     {r.badge && (
                       <span className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide ${billBadgeClass[r.badge.tone]}`}>{r.badge.text}</span>

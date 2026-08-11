@@ -248,11 +248,11 @@ export default function ApprovalsPage() {
         ) : (
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left min-w-[600px]">
+              <table className="w-full text-start min-w-[600px]">
                 <thead>
                   <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                     <th className="px-5 py-2.5">Particular</th>
-                    <th className="px-5 py-2.5 text-right">Amount</th>
+                    <th className="px-5 py-2.5 text-end">Amount</th>
                     <th className="px-5 py-2.5">Waiting On</th>
                     <th className="px-5 py-2.5">Deadline</th>
                   </tr>
@@ -278,7 +278,7 @@ export default function ApprovalsPage() {
                               {systemLabels[r.system]} · {r.kind}{hasDetail ? (expanded ? ' · hide detail' : ' · click to view detail') : ''}
                             </p>
                           </td>
-                          <td className="px-5 py-3 text-right font-bold">Rs. {fmt(r.amount_pkr)}</td>
+                          <td className="px-5 py-3 text-end font-bold">Rs. {fmt(r.amount_pkr)}</td>
                           <td className="px-5 py-3 text-dp-on-surface-variant">
                             {waiting.length === 0 ? 'All confirmed' : (
                               <div className="flex flex-col gap-1">

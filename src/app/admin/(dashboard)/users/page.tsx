@@ -423,7 +423,7 @@ export default function AdminUsersPage() {
                   <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans ${roleColors[key]}`}>{label}</span>
                   <ul className="mt-2 space-y-1">
                     {(rolePermissions[key] ?? []).map((line, i) => (
-                      <li key={i} className="font-sans text-[11px] text-dp-on-surface-variant leading-[1.4] pl-3 relative before:content-['•'] before:absolute before:left-0 before:text-dp-outline">
+                      <li key={i} className="font-sans text-[11px] text-dp-on-surface-variant leading-[1.4] ps-3 relative before:content-['•'] before:absolute before:start-0 before:text-dp-outline">
                         {line}
                       </li>
                     ))}
@@ -444,15 +444,15 @@ export default function AdminUsersPage() {
 
       <div className="bg-white rounded-lg border border-dp-outline-variant p-3 mb-4 flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[220px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+          <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, email or mobile..."
-            className="filter-field !pl-9"
+            className="filter-field !ps-9"
           />
           {search && (
-            <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer">
+            <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute end-2.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer">
               <X size={15} />
             </button>
           )}
@@ -468,7 +468,7 @@ export default function AdminUsersPage() {
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-start border-collapse">
             <thead>
               <tr className="bg-dp-surface-container-low text-dp-outline text-[13px] font-sans font-bold tracking-[0.05em]">
                 <th className="p-4">Name</th>
@@ -476,7 +476,7 @@ export default function AdminUsersPage() {
                 <th className="p-4">Role</th>
                 <th className="p-4">Invite Status</th>
                 <th className="p-4">Status</th>
-                <th className="p-4 text-right">Actions</th>
+                <th className="p-4 text-end">Actions</th>
               </tr>
             </thead>
             <tbody className="font-sans text-[14px]">
@@ -503,12 +503,12 @@ export default function AdminUsersPage() {
                       {roleLabels[u.role] ?? u.role}
                     </span>
                     {u.secondary_role && (
-                      <span className={`ml-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans border ${roleColors[u.secondary_role] ?? 'bg-gray-100 text-gray-600'}`} title="Secondary role">
+                      <span className={`ms-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans border ${roleColors[u.secondary_role] ?? 'bg-gray-100 text-gray-600'}`} title="Secondary role">
                         + {roleLabels[u.secondary_role] ?? u.secondary_role}
                       </span>
                     )}
                     {u.can_collect_payments && (
-                      <span className="ml-1.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-teal-700 bg-teal-100 px-1.5 py-0.5 rounded-full" title={`Field collector — ${(u.assigned_sectors ?? []).join(', ') || 'no sectors assigned'}`}>
+                      <span className="ms-1.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-teal-700 bg-teal-100 px-1.5 py-0.5 rounded-full" title={`Field collector — ${(u.assigned_sectors ?? []).join(', ') || 'no sectors assigned'}`}>
                         <Truck size={10} /> Collector
                       </span>
                     )}
@@ -527,7 +527,7 @@ export default function AdminUsersPage() {
                       {u.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td className="p-4 border-b border-dp-outline-variant text-right">
+                  <td className="p-4 border-b border-dp-outline-variant text-end">
                     {u.auth_user_id === currentAuthUserId ? (
                       <span className="text-[11px] text-dp-on-surface-variant italic">This is you</span>
                     ) : (

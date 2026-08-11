@@ -316,10 +316,10 @@ export default async function HomePage() {
                       <Play size={24} className="text-white ms-1" fill="white" />
                     </div>
                   </div>
-                  <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded font-sans">
+                  <div className="absolute bottom-2 end-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded font-sans">
                     {formatDuration(video.duration_seconds)}
                   </div>
-                  <div className="absolute bottom-4 left-4 right-4">
+                  <div className="absolute bottom-4 start-4 end-4">
                     <p className="text-white font-bold text-[14px] font-sans tracking-[0.05em] truncate">
                       {video.title}
                     </p>
@@ -563,7 +563,7 @@ export default async function HomePage() {
                 <T k="home.submitReceipt" />
               </Link>
             </div>
-            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+            <div className="absolute -bottom-10 -end-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
           </div>
         </aside>
       </div>

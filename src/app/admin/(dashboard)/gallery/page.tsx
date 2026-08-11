@@ -117,7 +117,7 @@ export default function AdminGalleryPage() {
           <div className="flex items-center gap-4 mb-6">
             <button onClick={() => { setSelectedAlbum(null); setItems([]) }} className="flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold hover:underline cursor-pointer"><ArrowLeft size={16} /> Albums</button>
             <h1 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary">{selectedAlbumData?.title}</h1>
-            <button onClick={() => setShowItemForm(true)} className="ml-auto flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> Add Photo</button>
+            <button onClick={() => setShowItemForm(true)} className="ms-auto flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> Add Photo</button>
           </div>
           <BulkActionsBar
             count={selectedItems.size}
@@ -141,11 +141,11 @@ export default function AdminGalleryPage() {
                   type="checkbox"
                   checked={selectedItems.has(item.id)}
                   onChange={() => toggleSelectItem(item.id)}
-                  className="absolute top-2 left-2 z-10 accent-dp-secondary cursor-pointer w-4 h-4"
+                  className="absolute top-2 start-2 z-10 accent-dp-secondary cursor-pointer w-4 h-4"
                 />
                 <div className="aspect-square bg-gradient-to-br from-dp-surface-container-high to-dp-surface-container flex items-center justify-center"><ImageIcon size={24} className="text-dp-on-surface-variant/30" /></div>
                 {item.caption && <p className="p-2 text-[12px] font-sans text-dp-on-surface-variant">{item.caption}</p>}
-                <button onClick={() => deleteItem(item.id)} className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"><Trash2 size={14} /></button>
+                <button onClick={() => deleteItem(item.id)} className="absolute top-2 end-2 bg-black/50 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"><Trash2 size={14} /></button>
               </div>
             ))}
             {items.length === 0 && <div className="col-span-4 text-center py-12 text-dp-on-surface-variant font-sans">No items yet. Add photos above.</div>}

@@ -642,7 +642,7 @@ export default function ConnectionsPage() {
                       {items.map((l, i) => {
                         const available = isLineAvailable(l)
                         return (
-                          <div key={i} className="flex items-center gap-3 pl-3 pr-4 py-3 border-l-[3px] border-dp-secondary">
+                          <div key={i} className="flex items-center gap-3 ps-3 pe-4 py-3 border-s-[3px] border-dp-secondary">
                             <div className="min-w-0 flex-1">
                               <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{l.description}</p>
                               <p className="font-sans text-[12px] text-dp-on-surface-variant">
@@ -651,9 +651,9 @@ export default function ConnectionsPage() {
                             </div>
                             {form.wants_inventory_from_us && (
                               available ? (
-                                <p className="text-right shrink-0 font-sans text-[14.5px] font-bold text-dp-on-surface">Rs. {fmtAmount(l.quantity * l.unit_price)}</p>
+                                <p className="text-end shrink-0 font-sans text-[14.5px] font-bold text-dp-on-surface">Rs. {fmtAmount(l.quantity * l.unit_price)}</p>
                               ) : (
-                                <p className="text-right shrink-0 font-sans text-[12px] font-bold text-dp-error">Not available</p>
+                                <p className="text-end shrink-0 font-sans text-[12px] font-bold text-dp-error">Not available</p>
                               )
                             )}
                             <div className="flex items-center gap-1 shrink-0">
@@ -733,13 +733,13 @@ export default function ConnectionsPage() {
             </div>
             <div className="px-5 pt-4 shrink-0">
               <div className="relative">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
-                <input autoFocus value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} placeholder="Search items..." className="input-field !pl-10 text-[15px]" />
+                <Search size={16} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+                <input autoFocus value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} placeholder="Search items..." className="input-field !ps-10 text-[15px]" />
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-2 py-1 mt-2 min-h-[200px]">
               {inventoryItems.filter((it) => it.name.toLowerCase().includes(catalogSearch.trim().toLowerCase())).map((it) => (
-                <button key={it.id} onClick={() => selectCatalogItem(it.id)} className="w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-lg hover:bg-dp-surface-container-low transition-all cursor-pointer text-left">
+                <button key={it.id} onClick={() => selectCatalogItem(it.id)} className="w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-lg hover:bg-dp-surface-container-low transition-all cursor-pointer text-start">
                   <span className="font-sans text-[14.5px] font-semibold text-dp-on-surface truncate">{it.name}</span>
                   {it.quantity_on_hand > 0 ? (
                     <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface-variant shrink-0">Rs. {fmtAmount(it.unit_price)}</span>
@@ -759,7 +759,7 @@ export default function ConnectionsPage() {
         <div className="fixed inset-0 bg-black/50 z-[160] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setItemModalStep('closed')}>
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 px-5 py-4 border-b border-dp-outline-variant">
-              <button onClick={() => setItemModalStep('picker')} className="p-1 -ml-1 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer"><ChevronLeft size={20} /></button>
+              <button onClick={() => setItemModalStep('picker')} className="p-1 -ms-1 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer"><ChevronLeft size={20} /></button>
               <h2 className="font-heading text-[18px] font-bold text-dp-primary truncate">{editingItemIndex !== null ? 'Edit Item' : (activeItem?.name ?? 'Item')}</h2>
             </div>
             <div className="p-5 space-y-4">
@@ -808,7 +808,7 @@ export default function ConnectionsPage() {
                     <h1 className="font-heading text-[22px] font-bold text-dp-primary">{branding?.companyNameEn || SITE.fullName}</h1>
                     {branding?.companyEmail && <p className="text-[12px] text-dp-on-surface-variant">{branding.companyEmail}</p>}
                   </div>
-                  <div className="text-right">
+                  <div className="text-end">
                     <p className="font-sans text-[13px] font-bold text-dp-primary uppercase tracking-wide">New Connection Challan</p>
                     <p className="font-sans text-[12px] text-dp-on-surface-variant">Date: {new Date(today()).toLocaleDateString('en-GB')}</p>
                   </div>
@@ -824,24 +824,24 @@ export default function ConnectionsPage() {
                 {items.length > 0 && (
                   <table className="w-full text-[12.5px] font-sans mb-2">
                     <thead>
-                      <tr className="border-b border-dp-outline-variant text-left text-dp-on-surface-variant">
-                        <th className="py-1.5">Item</th><th className="py-1.5 text-right">Qty</th>
-                        {form.wants_inventory_from_us && (<><th className="py-1.5 text-right">Rate</th><th className="py-1.5 text-right">Amount</th></>)}
+                      <tr className="border-b border-dp-outline-variant text-start text-dp-on-surface-variant">
+                        <th className="py-1.5">Item</th><th className="py-1.5 text-end">Qty</th>
+                        {form.wants_inventory_from_us && (<><th className="py-1.5 text-end">Rate</th><th className="py-1.5 text-end">Amount</th></>)}
                       </tr>
                     </thead>
                     <tbody>
                       {items.map((l, i) => (
                         <tr key={i} className="border-b border-dp-outline-variant/50">
                           <td className="py-1.5">{l.description}</td>
-                          <td className="py-1.5 text-right">{l.quantity}</td>
+                          <td className="py-1.5 text-end">{l.quantity}</td>
                           {form.wants_inventory_from_us && (
                             isLineAvailable(l) ? (
                               <>
-                                <td className="py-1.5 text-right">{fmtAmount(l.unit_price)}</td>
-                                <td className="py-1.5 text-right font-semibold">{fmtAmount(l.quantity * l.unit_price)}</td>
+                                <td className="py-1.5 text-end">{fmtAmount(l.unit_price)}</td>
+                                <td className="py-1.5 text-end font-semibold">{fmtAmount(l.quantity * l.unit_price)}</td>
                               </>
                             ) : (
-                              <td className="py-1.5 text-right font-semibold text-dp-error" colSpan={2}>Not available</td>
+                              <td className="py-1.5 text-end font-semibold text-dp-error" colSpan={2}>Not available</td>
                             )
                           )}
                         </tr>

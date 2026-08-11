@@ -132,7 +132,7 @@ export default function WaterBillPage() {
               <div className="relative">
                 <Search
                   size={18}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-dp-outline"
+                  className="absolute start-4 top-1/2 -translate-y-1/2 text-dp-outline"
                 />
                 <input
                   id="consumer_id"
@@ -140,7 +140,7 @@ export default function WaterBillPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="e.g. DP-1001"
-                  className="w-full pl-12 pr-4 py-4 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[18px] leading-[28px] text-dp-on-surface"
+                  className="w-full ps-12 pe-4 py-4 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[18px] leading-[28px] text-dp-on-surface"
                 />
               </div>
             </div>
@@ -239,7 +239,7 @@ export default function WaterBillPage() {
 
             {/* Unpaid Warning */}
             {hasUnpaidBills && (
-              <div className="bg-amber-50 border-l-4 border-amber-500 p-6 rounded-r-lg flex flex-col md:flex-row gap-6">
+              <div className="bg-amber-50 border-s-4 border-amber-500 p-6 rounded-e-lg flex flex-col md:flex-row gap-6">
                 <div className="shrink-0 text-amber-600">
                   <AlertTriangle size={48} />
                 </div>
@@ -302,7 +302,7 @@ export default function WaterBillPage() {
                 </span>
               </h3>
               <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden shadow-sm">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-start border-collapse">
                   <thead>
                     <tr className="bg-dp-surface-container text-dp-on-surface font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">
                       <th className="px-6 py-4 border-b border-dp-outline-variant">
@@ -314,7 +314,7 @@ export default function WaterBillPage() {
                       <th className="px-6 py-4 border-b border-dp-outline-variant">
                         Status
                       </th>
-                      <th className="px-6 py-4 border-b border-dp-outline-variant text-right">
+                      <th className="px-6 py-4 border-b border-dp-outline-variant text-end">
                         Action
                       </th>
                     </tr>
@@ -336,7 +336,7 @@ export default function WaterBillPage() {
                         <td className="px-6 py-4">
                           <StatusBadge status={bill.status} />
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4 text-end">
                           <button className="text-dp-secondary font-sans text-[14px] font-semibold tracking-[0.05em] hover:underline inline-flex items-center gap-1 cursor-pointer">
                             <Download size={14} />
                             Download PDF

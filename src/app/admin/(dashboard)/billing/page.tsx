@@ -580,10 +580,9 @@ function BillingPageInner() {
   }
 
   return (
-    // This page has had its direction-specific CSS converted to logical
-    // properties (ms-/me-/ps-/pe-/text-start/text-end), so it can carry its own
-    // dir. Everything inside mirrors from this one attribute; the rest of the
-    // app stays left-to-right until it gets the same treatment.
+    // Redundant now that <html> carries the direction for the whole app, but
+    // harmless — a nested dir that agrees with its parent changes nothing, and
+    // unpicking it from this deeply nested tree risks more than it tidies.
     <div dir={locale === 'ur' ? 'rtl' : 'ltr'}>
 
       {/* Header */}

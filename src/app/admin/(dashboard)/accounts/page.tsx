@@ -307,8 +307,8 @@ export default function AccountsPage() {
     // One language at a time (Urdu when set and selected, else English) —
     // matches the single-language convention used everywhere else in this
     // app (e.g. /water/apply), rather than always showing both lines, which
-    // used to misalign (Urdu line right-aligned, English line under it
-    // left-aligned). The Urdu name replaces the English one in the exact
+    // used to misalign (Urdu line end-aligned, English line under it
+    // start-aligned). The Urdu name replaces the English one in the exact
     // same spot/alignment/size — just the correct font-family for legible
     // Urdu glyphs — not re-anchored to the right, so rows don't jump
     // position depending on which account happens to have a translation.
@@ -319,7 +319,7 @@ export default function AccountsPage() {
       <div
         key={a.id}
         onClick={() => viewAccount(a)}
-        className={`flex items-center justify-between gap-3 px-4 py-3.5 border-t border-dp-outline-variant hover:bg-dp-surface-container-low/50 cursor-pointer transition-colors ${!a.is_active ? 'opacity-50' : ''} ${indented ? 'pl-10 bg-dp-surface-container-low/30' : ''}`}
+        className={`flex items-center justify-between gap-3 px-4 py-3.5 border-t border-dp-outline-variant hover:bg-dp-surface-container-low/50 cursor-pointer transition-colors ${!a.is_active ? 'opacity-50' : ''} ${indented ? 'ps-10 bg-dp-surface-container-low/30' : ''}`}
       >
         <div className="min-w-0 flex-1">
           <p className={`font-sans font-semibold text-dp-on-surface truncate ${isUrduLine ? 'text-[13px]' : 'text-[14.5px]'}`} style={isUrduLine ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
@@ -347,7 +347,7 @@ export default function AccountsPage() {
             {menuId === a.id && (
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="absolute right-0 top-7 z-20 w-44 bg-white rounded-lg shadow-lg border border-dp-outline-variant py-1"
+                className="absolute end-0 top-7 z-20 w-44 bg-white rounded-lg shadow-lg border border-dp-outline-variant py-1"
               >
                 <button onClick={() => viewAccount(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
                   <Eye size={14} /> View Account
@@ -406,12 +406,12 @@ export default function AccountsPage() {
           {tab === 'donors_projects' ? 'Donor' : 'Consumer'}
         </button>
         <div className="flex-1 relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+          <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by account name, code, or bill/receipt no..."
-            className="w-full pl-9 pr-3 py-2 rounded-lg border border-dp-outline-variant text-[13.5px] font-sans focus:outline-none focus:border-dp-primary"
+            className="w-full ps-9 pe-3 py-2 rounded-lg border border-dp-outline-variant text-[13.5px] font-sans focus:outline-none focus:border-dp-primary"
           />
         </div>
         <button
@@ -498,7 +498,7 @@ export default function AccountsPage() {
 
       <button
         onClick={openAdd}
-        className="fixed bottom-8 right-8 z-30 flex items-center gap-2 px-5 py-3.5 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold shadow-lg hover:bg-dp-primary transition-all cursor-pointer"
+        className="fixed bottom-8 end-8 z-30 flex items-center gap-2 px-5 py-3.5 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold shadow-lg hover:bg-dp-primary transition-all cursor-pointer"
       >
         <PlusCircle size={18} /> Add New Account
       </button>

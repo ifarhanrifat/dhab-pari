@@ -26,7 +26,7 @@ export function BulkActionsBar({ count, onClear, actions }: BulkActionsBarProps)
   return (
     <div className="sticky top-0 z-30 mb-4 bg-dp-primary text-white rounded-lg px-4 py-3 flex items-center gap-4 shadow-md">
       <span className="font-sans text-[14px] font-semibold">{count} selected</span>
-      <div className="flex items-center gap-2 ml-auto">
+      <div className="flex items-center gap-2 ms-auto">
         {actions.map((action) => (
           <button
             key={action.label}

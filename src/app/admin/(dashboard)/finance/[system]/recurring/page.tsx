@@ -296,16 +296,16 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[650px]">
+          <table className="w-full text-start min-w-[650px]">
             <thead>
               <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                 <th className="px-4 py-2.5">Type</th>
                 <th className="px-4 py-2.5">For</th>
                 <th className="px-4 py-2.5">Frequency</th>
-                <th className="px-4 py-2.5 text-right">Amount</th>
+                <th className="px-4 py-2.5 text-end">Amount</th>
                 <th className="px-4 py-2.5">Next Run</th>
                 <th className="px-4 py-2.5">Status</th>
-                <th className="px-4 py-2.5 text-right">Actions</th>
+                <th className="px-4 py-2.5 text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -316,7 +316,7 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
                   <td className="px-4 py-3 flex items-center gap-1.5"><Repeat size={13} className="text-dp-secondary" /> {scheduleTypeLabels[s.schedule_type]}</td>
                   <td className="px-4 py-3">{scheduleLabel(s)}</td>
                   <td className="px-4 py-3">{frequencyLabels[s.frequency]}</td>
-                  <td className="px-4 py-3 text-right font-semibold">{fmtAmount(s.amount_pkr)}</td>
+                  <td className="px-4 py-3 text-end font-semibold">{fmtAmount(s.amount_pkr)}</td>
                   <td className="px-4 py-3">
                     {s.frequency === 'every_minute'
                       ? new Date(s.next_run_date).toLocaleString('en-GB')
@@ -327,7 +327,7 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
                       {s.is_active ? 'Active' : 'Paused'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-end">
                     <div className="flex items-center justify-end gap-1.5">
                       <button onClick={() => openHistory(s)} title="Recurring History" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><History size={15} /></button>
                       <button onClick={() => toggleActive(s)} title={s.is_active ? 'Pause' : 'Resume'} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer">

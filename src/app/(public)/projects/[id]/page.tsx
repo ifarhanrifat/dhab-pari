@@ -334,7 +334,7 @@ export default function ProjectDetailPage() {
           {votes.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {votes.map((v) => (
-                <div key={v.id} title={v.username ?? undefined} className="flex items-center gap-1.5 bg-white border border-blue-100 rounded-full pl-1 pr-3 py-1">
+                <div key={v.id} title={v.username ?? undefined} className="flex items-center gap-1.5 bg-white border border-blue-100 rounded-full ps-1 pe-3 py-1">
                   {v.avatar_url ? <Image src={v.avatar_url} alt="" width={24} height={24} className="w-6 h-6 rounded-full object-cover" /> : <div className="w-6 h-6 rounded-full bg-blue-200 flex items-center justify-center text-[10px] font-bold text-blue-800">{(v.username ?? '?').charAt(0).toUpperCase()}</div>}
                   <span className="font-sans text-[12px] font-semibold text-blue-900">{v.username}</span>
                 </div>
@@ -389,7 +389,7 @@ export default function ProjectDetailPage() {
               <div key={d.id} className="flex items-center justify-between px-5 py-3.5">
                 <div>
                   <span className="font-sans text-[14px] font-semibold">{d.name}</span>
-                  <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase">{d.payment_status === 'pledged' ? 'Pledged' : 'Awaiting Verification'}</span>
+                  <span className="ms-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase">{d.payment_status === 'pledged' ? 'Pledged' : 'Awaiting Verification'}</span>
                 </div>
                 <span className="font-sans text-[14px] font-bold text-amber-600">Rs. {fmt(d.amount_pkr)}</span>
               </div>
@@ -418,7 +418,7 @@ export default function ProjectDetailPage() {
           {expenses.map((e) => (
             <div key={e.id} className="flex items-center justify-between px-5 py-3.5">
               <span className="font-sans text-[14px] flex items-center gap-2"><Receipt size={14} className="text-dp-error" /> {e.particular}</span>
-              <div className="text-right">
+              <div className="text-end">
                 <p className="font-sans text-[14px] font-bold text-dp-error">Rs. {fmt(e.debit)}</p>
                 <p className="font-sans text-[11px] text-dp-on-surface-variant">{new Date(e.entry_date).toLocaleDateString('en-GB')}</p>
               </div>
@@ -443,14 +443,14 @@ export default function ProjectDetailPage() {
             <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
               <CommentBody c={c} myLikes={myLikes} toggleLike={toggleLike} flagComment={flagComment} onReply={() => setReplyingTo(replyingTo === c.id ? null : c.id)} />
               {replyingTo === c.id && (
-                <div className="mt-3 pl-11 flex gap-2">
+                <div className="mt-3 ps-11 flex gap-2">
                   <input value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Write a reply..." className="input-field flex-1" />
                   <button onClick={() => postComment(c.id)} disabled={postingComment} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">Reply</button>
                 </div>
               )}
               {comments.filter((r) => r.parent_comment_id === c.id).map((r) => (
-                <div key={r.id} className="mt-3 pl-11 border-l-2 border-dp-outline-variant">
-                  <div className="pl-3">
+                <div key={r.id} className="mt-3 ps-11 border-s-2 border-dp-outline-variant">
+                  <div className="ps-3">
                     <CommentBody c={r} myLikes={myLikes} toggleLike={toggleLike} flagComment={flagComment} />
                   </div>
                 </div>

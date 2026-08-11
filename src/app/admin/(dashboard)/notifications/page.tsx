@@ -396,7 +396,7 @@ export default function AdminNotificationsPage() {
           <h3 className="font-sans text-[20px] font-semibold leading-[28px]">Message History</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]">
               <th className="p-4">Date</th><th className="p-4">Type</th><th className="p-4">Recipient</th><th className="p-4">Message</th><th className="p-4">Status</th>
             </tr></thead>

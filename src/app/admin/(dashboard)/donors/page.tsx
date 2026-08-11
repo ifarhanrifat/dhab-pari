@@ -301,12 +301,12 @@ function AdminDonorsPageInner() {
         <button onClick={() => { setForm(empty); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> Add Donor</button>
       </div>
       <div className="relative mb-4">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+        <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
         <input
           value={donorSearch}
           onChange={(e) => setDonorSearch(e.target.value)}
           placeholder="Search donors by name, phone, account number or amount..."
-          className="input-field !pl-9"
+          className="input-field !ps-9"
         />
       </div>
 
@@ -321,8 +321,8 @@ function AdminDonorsPageInner() {
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]"><th className="p-4 w-10"><input type="checkbox" checked={donors.length > 0 && selected.size === donors.length} onChange={toggleSelectAll} className="accent-dp-secondary cursor-pointer" /></th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('name')}>Name{sortArrow('name')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('account')}>Account #{sortArrow('account')}</th><th className="p-4">Phone</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('amount')}>Amount{sortArrow('amount')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('date')}>Date{sortArrow('date')}</th><th className="p-4">Source</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('status')}>Status{sortArrow('status')}</th><th className="p-4 text-right">Actions</th></tr></thead>
+          <table className="w-full text-start border-collapse">
+            <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]"><th className="p-4 w-10"><input type="checkbox" checked={donors.length > 0 && selected.size === donors.length} onChange={toggleSelectAll} className="accent-dp-secondary cursor-pointer" /></th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('name')}>Name{sortArrow('name')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('account')}>Account #{sortArrow('account')}</th><th className="p-4">Phone</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('amount')}>Amount{sortArrow('amount')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('date')}>Date{sortArrow('date')}</th><th className="p-4">Source</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('status')}>Status{sortArrow('status')}</th><th className="p-4 text-end">Actions</th></tr></thead>
             <tbody className="font-sans text-[16px]">
               {loading && <tr><td colSpan={9} className="p-8 text-center text-dp-on-surface-variant">Loading...</td></tr>}
               {!loading && visibleDonors.length === 0 && (
@@ -336,7 +336,7 @@ function AdminDonorsPageInner() {
                     {d.is_anonymous && (
                       <span
                         title="Shown as “Anonymous” on the public website — the committee still sees the real name for verification"
-                        className="ml-2 align-middle text-[10.5px] font-bold uppercase px-2 py-0.5 rounded-full font-sans bg-dp-surface-container-high text-dp-on-surface-variant"
+                        className="ms-2 align-middle text-[10.5px] font-bold uppercase px-2 py-0.5 rounded-full font-sans bg-dp-surface-container-high text-dp-on-surface-variant"
                       >
                         Anonymous publicly
                       </span>
@@ -360,18 +360,18 @@ function AdminDonorsPageInner() {
                     {donorStatus(d) === 'announced' && <span className="inline-flex items-center gap-1 text-amber-700 text-[12px] font-bold" title="Donor has promised this — no money sent yet"><XCircle size={14} /> Announced</span>}
                     {donorStatus(d) === 'awaiting' && <span className="inline-flex items-center gap-1 text-dp-on-surface-variant text-[12px] font-bold" title="Donor has paid — waiting on the committee to confirm"><Clock size={14} /> Awaiting confirmation</span>}
                   </td>
-                  <td className="p-4 border-b border-dp-outline-variant text-right whitespace-nowrap">
+                  <td className="p-4 border-b border-dp-outline-variant text-end whitespace-nowrap">
                     {d.payment_proof_url && (
                       <button
                         onClick={() => openProof(d)}
                         disabled={proofLoadingId === d.id}
                         title="View the payment screenshot the donor sent"
-                        className="inline-flex items-center gap-1 px-2 py-1 mr-2 rounded text-[13px] font-sans font-semibold cursor-pointer transition-all border border-dp-outline-variant text-dp-secondary hover:bg-dp-surface-container disabled:opacity-50"
+                        className="inline-flex items-center gap-1 px-2 py-1 me-2 rounded text-[13px] font-sans font-semibold cursor-pointer transition-all border border-dp-outline-variant text-dp-secondary hover:bg-dp-surface-container disabled:opacity-50"
                       >
                         <Paperclip size={13} /> {proofLoadingId === d.id ? '...' : 'Proof'}
                       </button>
                     )}
-                    <button onClick={() => openEdit(d)} className="px-3 py-1 rounded text-[14px] font-sans font-semibold cursor-pointer transition-all border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container mr-2">
+                    <button onClick={() => openEdit(d)} className="px-3 py-1 rounded text-[14px] font-sans font-semibold cursor-pointer transition-all border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container me-2">
                       {d.is_verified ? 'Edit' : 'Review'}
                     </button>
                     {d.is_verified && (
@@ -489,7 +489,7 @@ function AdminDonorsPageInner() {
         <ReceiptModal data={viewReceipt} system="donors_projects" onClose={() => { setViewReceipt(null); setConfirmedWhatsapp(null); setThankYouMessage(null) }} />
       )}
       {viewReceipt && confirmedWhatsapp && (
-        <div className="fixed bottom-6 right-6 z-[130]">
+        <div className="fixed bottom-6 end-6 z-[130]">
           <button onClick={sendThankYou} className="px-4 py-3 bg-emerald-600 text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-emerald-700 transition-all shadow-lg">
             Send Thank You via WhatsApp
           </button>

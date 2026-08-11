@@ -134,21 +134,21 @@ export default async function AccountsPage() {
               </h3>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="w-full text-start">
                 <thead className="bg-dp-surface-container text-dp-on-surface-variant font-sans text-[14px] font-semibold tracking-[0.05em]">
                   <tr>
                     <th className="px-6 py-4">Date</th>
                     <th className="px-6 py-4">Description</th>
                     <th className="px-6 py-4">Category</th>
                     <th className="px-6 py-4">Type</th>
-                    <th className="px-6 py-4 text-right">Amount</th>
+                    <th className="px-6 py-4 text-end">Amount</th>
                   </tr>
                 </thead>
                 <tbody className="font-sans text-[16px]">
                   {allTxns.map((txn, i) => (
                     <tr
                       key={txn.id}
-                      className={`border-l-4 ${txn.type === 'income' ? 'border-l-dp-secondary' : 'border-l-dp-error'} ${i % 2 === 1 ? 'bg-dp-surface-container' : ''} hover:bg-dp-surface-container-low transition-colors`}
+                      className={`border-s-4 ${txn.type === 'income' ? 'border-s-dp-secondary' : 'border-s-dp-error'} ${i % 2 === 1 ? 'bg-dp-surface-container' : ''} hover:bg-dp-surface-container-low transition-colors`}
                     >
                       <td className="px-6 py-4 text-dp-on-surface-variant text-[14px]">
                         {formatDate(txn.date)}
@@ -167,7 +167,7 @@ export default async function AccountsPage() {
                         )}
                       </td>
                       <td
-                        className={`px-6 py-4 text-right font-bold ${txn.type === 'income' ? 'text-dp-secondary' : 'text-dp-error'}`}
+                        className={`px-6 py-4 text-end font-bold ${txn.type === 'income' ? 'text-dp-secondary' : 'text-dp-error'}`}
                       >
                         Rs. {Number(txn.amount_pkr).toLocaleString()}
                       </td>
@@ -249,11 +249,11 @@ export default async function AccountsPage() {
                 <span key={m}>{m}</span>
               ))}
             </div>
-            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-dp-secondary opacity-20 rounded-full blur-3xl" />
+            <div className="absolute -end-8 -bottom-8 w-32 h-32 bg-dp-secondary opacity-20 rounded-full blur-3xl" />
           </div>
 
           {/* Audit Certificate */}
-          <div className="bg-dp-surface-container-high p-6 rounded-lg border-l-4 border-dp-primary">
+          <div className="bg-dp-surface-container-high p-6 rounded-lg border-s-4 border-dp-primary">
             <div className="flex gap-4">
               <Info size={20} className="text-dp-primary shrink-0 mt-0.5" />
               <div>

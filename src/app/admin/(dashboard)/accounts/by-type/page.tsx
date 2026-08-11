@@ -95,14 +95,14 @@ function AccountsByTypePageInner() {
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[650px]">
+          <table className="w-full text-start min-w-[650px]">
             <thead>
               <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                 <th className="px-4 py-2.5">Code</th>
                 <th className="px-4 py-2.5">Name</th>
-                <th className="px-4 py-2.5 text-right">Balance</th>
+                <th className="px-4 py-2.5 text-end">Balance</th>
                 <th className="px-4 py-2.5">Status</th>
-                <th className="px-4 py-2.5 text-right">Actions</th>
+                <th className="px-4 py-2.5 text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -112,13 +112,13 @@ function AccountsByTypePageInner() {
                 <tr key={a.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${!a.is_active ? 'opacity-50' : ''}`}>
                   <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant whitespace-nowrap">{a.code}</td>
                   <td className="px-4 py-3 font-semibold text-dp-on-surface">{a.name}</td>
-                  <td className="px-4 py-3 text-right font-bold">{fmtAmount(balanceOf(a))}</td>
+                  <td className="px-4 py-3 text-end font-bold">{fmtAmount(balanceOf(a))}</td>
                   <td className="px-4 py-3">
                     <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${a.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
                       {a.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-end">
                     <div className="flex items-center justify-end gap-1.5">
                       <Link href={`/admin/accounts/${a.id}`} title="View" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Eye size={15} /></Link>
                       <button onClick={() => toggleActive(a)} title={a.is_active ? 'Deactivate' : 'Activate'} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Power size={15} /></button>
@@ -131,7 +131,7 @@ function AccountsByTypePageInner() {
               <tfoot>
                 <tr className="font-sans text-[14px] font-bold bg-dp-surface-container-low/60 border-t-2 border-dp-outline-variant">
                   <td className="px-4 py-3" colSpan={2}>Total</td>
-                  <td className="px-4 py-3 text-right">{fmtAmount(total)}</td>
+                  <td className="px-4 py-3 text-end">{fmtAmount(total)}</td>
                   <td colSpan={2}></td>
                 </tr>
               </tfoot>

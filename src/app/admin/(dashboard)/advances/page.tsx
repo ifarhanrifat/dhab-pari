@@ -308,7 +308,7 @@ export default function AdvancesPage() {
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">Voucher #</span><span className="font-semibold">{viewTarget.voucher_no || 'Pending'}</span></div>
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">Date</span><span className="font-semibold">{new Date(viewTarget.voucher_date).toLocaleDateString('en-GB')}</span></div>
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">Amount</span><span className="font-bold">Rs. {fmt(viewTarget.amount_pkr)}</span></div>
-              <div className="flex justify-between"><span className="text-dp-on-surface-variant">Note</span><span className="text-right">{viewTarget.particular}</span></div>
+              <div className="flex justify-between"><span className="text-dp-on-surface-variant">Note</span><span className="text-end">{viewTarget.particular}</span></div>
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">Status</span><span className="font-semibold">{viewTarget.settled_at ? 'Settled' : viewTarget.status === 'pending' ? 'Pending Approval' : 'Outstanding'}</span></div>
               {viewSettlement && (
                 <div className="bg-dp-surface-container-low rounded-lg p-3 space-y-2 mt-2">

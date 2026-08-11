@@ -15,7 +15,7 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
     <header className="md:hidden bg-dp-primary px-4 py-4 flex items-center gap-2.5 sticky top-0 z-50">
       <button
         onClick={onMenuToggle}
-        className="text-white p-1.5 -ml-1.5 shrink-0"
+        className="text-white p-1.5 -ms-1.5 shrink-0"
         aria-label="Toggle menu"
       >
         <Menu size={26} />

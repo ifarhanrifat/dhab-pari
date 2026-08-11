@@ -239,8 +239,8 @@ export default function AdminBloodRequestsPage() {
 
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="relative flex-1 min-w-[220px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search patient, caller, hospital, city or group..." className="input-field !pl-9" />
+          <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search patient, caller, hospital, city or group..." className="input-field !ps-9" />
         </div>
         {(['active', 'fulfilled', 'cancelled', 'all'] as const).map((f) => (
           <button key={f} onClick={() => setStatusFilter(f)} className={`px-4 py-1.5 rounded-full font-sans text-[13.5px] font-semibold cursor-pointer transition-all ${statusFilter === f ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-primary'}`}>

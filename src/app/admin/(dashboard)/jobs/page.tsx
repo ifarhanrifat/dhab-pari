@@ -63,7 +63,7 @@ export default function AdminJobsPage() {
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]">
               <th className="p-4">Headline</th><th className="p-4">Category</th><th className="p-4">Contact</th><th className="p-4">Sector</th><th className="p-4">Status</th><th className="p-4"></th>
             </tr></thead>

@@ -129,13 +129,13 @@ export default function CollectorsPage() {
           <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No field collectors set up yet — grant collector access from User Management.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left min-w-[550px]">
+            <table className="w-full text-start min-w-[550px]">
               <thead>
                 <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                   <th className="px-5 py-2.5">Collector</th>
                   <th className="px-5 py-2.5">Sectors</th>
-                  <th className="px-5 py-2.5 text-right">Holding</th>
-                  <th className="px-5 py-2.5 text-right">Action</th>
+                  <th className="px-5 py-2.5 text-end">Holding</th>
+                  <th className="px-5 py-2.5 text-end">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -143,8 +143,8 @@ export default function CollectorsPage() {
                   <tr key={r.collector.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
                     <td className="px-5 py-3 font-semibold">{r.collector.full_name}</td>
                     <td className="px-5 py-3 text-dp-on-surface-variant">{(r.collector.assigned_sectors ?? []).join(', ') || '—'}</td>
-                    <td className={`px-5 py-3 text-right font-bold ${r.balance > 0 ? 'text-dp-error' : 'text-dp-on-surface-variant'}`}>Rs. {fmt(r.balance)}</td>
-                    <td className="px-5 py-3 text-right">
+                    <td className={`px-5 py-3 text-end font-bold ${r.balance > 0 ? 'text-dp-error' : 'text-dp-on-surface-variant'}`}>Rs. {fmt(r.balance)}</td>
+                    <td className="px-5 py-3 text-end">
                       {canSettle && r.balance > 0 && (
                         <button onClick={() => openSettle(r)} className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
                           Settle
@@ -168,13 +168,13 @@ export default function CollectorsPage() {
           <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No settlements recorded yet.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left min-w-[500px]">
+            <table className="w-full text-start min-w-[500px]">
               <thead>
                 <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                   <th className="px-5 py-2.5">Date</th>
                   <th className="px-5 py-2.5">Collector</th>
                   <th className="px-5 py-2.5">Method</th>
-                  <th className="px-5 py-2.5 text-right">Amount</th>
+                  <th className="px-5 py-2.5 text-end">Amount</th>
                   <th className="px-5 py-2.5">Note</th>
                 </tr>
               </thead>
@@ -184,7 +184,7 @@ export default function CollectorsPage() {
                     <td className="px-5 py-3 whitespace-nowrap">{new Date(s.settled_date).toLocaleDateString('en-GB')}</td>
                     <td className="px-5 py-3 font-semibold">{collectors.find((c) => c.id === s.collector_id)?.full_name ?? '—'}</td>
                     <td className="px-5 py-3 capitalize text-dp-on-surface-variant">{s.method}</td>
-                    <td className="px-5 py-3 text-right font-bold">Rs. {fmt(s.amount_pkr)}</td>
+                    <td className="px-5 py-3 text-end font-bold">Rs. {fmt(s.amount_pkr)}</td>
                     <td className="px-5 py-3 text-dp-on-surface-variant">{s.note ?? '—'}</td>
                   </tr>
                 ))}

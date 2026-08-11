@@ -49,12 +49,12 @@ function StatCard({ icon, label, value, tone = 'default' }: { icon: React.ReactN
 function ExpenseTable({ lines }: { lines: ExpenseLine[] }) {
   return (
     <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-      <table className="w-full text-left">
+      <table className="w-full text-start">
         <thead>
           <tr className="text-dp-on-surface-variant text-[11px] font-sans font-bold uppercase tracking-[0.04em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
             <th className="px-4 py-2.5">Description</th>
             <th className="px-4 py-2.5">Approved By</th>
-            <th className="px-4 py-2.5 text-right">Amount</th>
+            <th className="px-4 py-2.5 text-end">Amount</th>
           </tr>
         </thead>
         <tbody>
@@ -71,7 +71,7 @@ function ExpenseTable({ lines }: { lines: ExpenseLine[] }) {
                   <span className="text-dp-on-surface-variant">No approval required</span>
                 )}
               </td>
-              <td className={`px-4 py-2.5 text-right font-semibold whitespace-nowrap ${e.amount < 0 ? 'text-emerald-600' : ''}`}>Rs. {fmtAmount(e.amount)}</td>
+              <td className={`px-4 py-2.5 text-end font-semibold whitespace-nowrap ${e.amount < 0 ? 'text-emerald-600' : ''}`}>Rs. {fmtAmount(e.amount)}</td>
             </tr>
           ))}
         </tbody>
@@ -89,12 +89,12 @@ function ExpenseTable({ lines }: { lines: ExpenseLine[] }) {
 function UrduExpenseTable({ lines }: { lines: ExpenseLine[] }) {
   return (
     <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden w-fit" style={{ fontFamily: 'var(--font-urdu), serif' }}>
-      <table className="text-right">
+      <table className="text-end">
         <thead>
           <tr className="text-dp-on-surface-variant text-[9.5px] font-sans font-bold border-b border-dp-outline-variant bg-dp-surface-container-low/60">
             <th className="px-2 py-1">تفصیل</th>
             <th className="px-2 py-1">منظوری</th>
-            <th className="px-2 py-1 text-left">رقم</th>
+            <th className="px-2 py-1 text-start">رقم</th>
           </tr>
         </thead>
         <tbody>
@@ -111,7 +111,7 @@ function UrduExpenseTable({ lines }: { lines: ExpenseLine[] }) {
                   <span className="text-dp-on-surface-variant">کوئی منظوری درکار نہیں</span>
                 )}
               </td>
-              <td className={`px-2 py-0.5 text-left font-semibold whitespace-nowrap ${e.amount < 0 ? 'text-emerald-600' : ''}`}>روپے {fmtAmount(e.amount)}</td>
+              <td className={`px-2 py-0.5 text-start font-semibold whitespace-nowrap ${e.amount < 0 ? 'text-emerald-600' : ''}`}>روپے {fmtAmount(e.amount)}</td>
             </tr>
           ))}
         </tbody>
@@ -138,18 +138,18 @@ function UrduDiscountTable({ lines }: { lines: { consumer_name: string; amount: 
   if (lines.length === 0) return null
   return (
     <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden w-fit" style={{ fontFamily: 'var(--font-urdu), serif' }}>
-      <table className="text-right">
+      <table className="text-end">
         <thead>
           <tr className="text-dp-on-surface-variant text-[9.5px] font-sans font-bold border-b border-dp-outline-variant bg-dp-surface-container-low/60">
             <th className="px-2 py-1">صارف</th>
-            <th className="px-2 py-1 text-left">رعایت</th>
+            <th className="px-2 py-1 text-start">رعایت</th>
           </tr>
         </thead>
         <tbody>
           {lines.map((d, i) => (
             <tr key={i} className="border-b border-dp-outline-variant last:border-0 font-sans text-[10px]">
               <td className="px-2 py-0.5" style={{ direction: 'ltr', textAlign: 'right' }}>{d.consumer_name}</td>
-              <td className="px-2 py-0.5 text-left font-semibold whitespace-nowrap">روپے {fmtAmount(d.amount)}</td>
+              <td className="px-2 py-0.5 text-start font-semibold whitespace-nowrap">روپے {fmtAmount(d.amount)}</td>
             </tr>
           ))}
         </tbody>
@@ -174,12 +174,12 @@ function UrduPendingBillsBySectorTable({ consumers }: { consumers: PendingBillCo
               <span className="font-sans text-[9.5px] font-bold text-dp-primary">{sector}</span>
               <span className="font-sans text-[9.5px] font-semibold">روپے {fmtAmount(total)}</span>
             </div>
-            <table className="text-right">
+            <table className="text-end">
               <tbody>
                 {rows.map((c, i) => (
                   <tr key={i} className="border-b border-dp-outline-variant last:border-0 font-sans text-[10px]">
                     <td className="px-2 py-0.5" style={{ direction: 'ltr', textAlign: 'right' }}>{c.consumer_name}</td>
-                    <td className="px-2 py-0.5 text-left font-semibold whitespace-nowrap w-20">روپے {fmtAmount(c.amount)}</td>
+                    <td className="px-2 py-0.5 text-start font-semibold whitespace-nowrap w-20">روپے {fmtAmount(c.amount)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -197,12 +197,12 @@ function UrduTwoMonthDefaultersTable({ defaulters }: { defaulters: TwoMonthDefau
   if (defaulters.length === 0) return null
   return (
     <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden w-fit" style={{ fontFamily: 'var(--font-urdu), serif' }}>
-      <table className="text-right">
+      <table className="text-end">
         <thead>
           <tr className="text-dp-on-surface-variant text-[9.5px] font-sans font-bold border-b border-dp-outline-variant bg-dp-surface-container-low/60">
             <th className="px-2 py-1">صارف</th>
             <th className="px-2 py-1">سیکٹر</th>
-            <th className="px-2 py-1 text-left">بقایا</th>
+            <th className="px-2 py-1 text-start">بقایا</th>
           </tr>
         </thead>
         <tbody>
@@ -210,7 +210,7 @@ function UrduTwoMonthDefaultersTable({ defaulters }: { defaulters: TwoMonthDefau
             <tr key={i} className="border-b border-dp-outline-variant last:border-0 font-sans text-[10px]">
               <td className="px-2 py-0.5" style={{ direction: 'ltr', textAlign: 'right' }}>{d.consumer_name}</td>
               <td className="px-2 py-0.5 text-dp-on-surface-variant">{d.sector ?? '—'}</td>
-              <td className="px-2 py-0.5 text-left font-semibold whitespace-nowrap">روپے {fmtAmount(d.outstanding)}</td>
+              <td className="px-2 py-0.5 text-start font-semibold whitespace-nowrap">روپے {fmtAmount(d.outstanding)}</td>
             </tr>
           ))}
         </tbody>
@@ -226,13 +226,13 @@ function UrduNonPayersDueToComplaintTable({ entries, opinions }: { entries: NonP
   if (entries.length === 0) return null
   return (
     <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden w-fit" style={{ fontFamily: 'var(--font-urdu), serif' }}>
-      <table className="text-right">
+      <table className="text-end">
         <thead>
           <tr className="text-dp-on-surface-variant text-[9.5px] font-sans font-bold border-b border-dp-outline-variant bg-dp-surface-container-low/60">
             <th className="px-2 py-1">صارف</th>
             <th className="px-2 py-1">شکایت</th>
             <th className="px-2 py-1">عدم ادائیگی</th>
-            <th className="px-2 py-1 text-left">بقایا</th>
+            <th className="px-2 py-1 text-start">بقایا</th>
             <th className="px-2 py-1">رائے</th>
           </tr>
         </thead>
@@ -242,7 +242,7 @@ function UrduNonPayersDueToComplaintTable({ entries, opinions }: { entries: NonP
               <td className="px-2 py-0.5" style={{ direction: 'ltr', textAlign: 'right' }}>{n.name}{n.sector ? ` (${n.sector})` : ''}</td>
               <td className="px-2 py-0.5 text-dp-on-surface-variant whitespace-nowrap">{urduDate(n.complaint_since)}</td>
               <td className="px-2 py-0.5 text-dp-on-surface-variant whitespace-nowrap">{urduDate(n.unpaid_since)}</td>
-              <td className="px-2 py-0.5 text-left font-semibold whitespace-nowrap">روپے {fmtAmount(n.outstanding)}</td>
+              <td className="px-2 py-0.5 text-start font-semibold whitespace-nowrap">روپے {fmtAmount(n.outstanding)}</td>
               <td className="px-2 py-0.5 text-dp-on-surface-variant">{opinions.find((o) => o.consumer_id === n.consumer_id)?.opinion?.trim() || 'ابھی زیر غور'}</td>
             </tr>
           ))}
@@ -480,12 +480,12 @@ export default function RunningCapitalPage() {
               </button>
               {showDiscountDetail && (
                 <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mt-2">
-                  <table className="w-full text-left">
+                  <table className="w-full text-start">
                     <tbody>
                       {live.discount_by_consumer.map((d, i) => (
                         <tr key={i} className="border-b border-dp-outline-variant last:border-0 font-sans text-[13.5px]">
                           <td className="px-4 py-2">{d.consumer_name}</td>
-                          <td className="px-4 py-2 text-right font-semibold">Rs. {fmtAmount(d.amount)}</td>
+                          <td className="px-4 py-2 text-end font-semibold">Rs. {fmtAmount(d.amount)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -554,12 +554,12 @@ export default function RunningCapitalPage() {
             <>
               <SectionHeading>Installation Task Progress</SectionHeading>
               <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-                <table className="w-full text-left">
+                <table className="w-full text-start">
                   <thead>
                     <tr className="text-dp-on-surface-variant text-[11px] font-sans font-bold uppercase tracking-[0.04em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                       <th className="px-4 py-2.5">Consumer</th>
                       <th className="px-4 py-2.5">Sector</th>
-                      <th className="px-4 py-2.5"><ClipboardList size={12} className="inline mr-1" />Incharge</th>
+                      <th className="px-4 py-2.5"><ClipboardList size={12} className="inline me-1" />Incharge</th>
                       <th className="px-4 py-2.5">Status</th>
                     </tr>
                   </thead>
@@ -619,14 +619,14 @@ export default function RunningCapitalPage() {
             <p className="font-sans text-[13.5px] text-dp-on-surface-variant">No projects yet.</p>
           ) : (
             <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-              <table className="w-full text-left">
+              <table className="w-full text-start">
                 <thead>
                   <tr className="text-dp-on-surface-variant text-[11px] font-sans font-bold uppercase tracking-[0.04em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                    <th className="px-4 py-2.5"><FolderKanban size={12} className="inline mr-1" />Project</th>
+                    <th className="px-4 py-2.5"><FolderKanban size={12} className="inline me-1" />Project</th>
                     <th className="px-4 py-2.5">Status</th>
                     <th className="px-4 py-2.5">Progress</th>
-                    <th className="px-4 py-2.5 text-right">Budget</th>
-                    <th className="px-4 py-2.5 text-right">Spent</th>
+                    <th className="px-4 py-2.5 text-end">Budget</th>
+                    <th className="px-4 py-2.5 text-end">Spent</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -635,8 +635,8 @@ export default function RunningCapitalPage() {
                       <td className="px-4 py-2.5 font-semibold">{p.title}</td>
                       <td className="px-4 py-2.5"><span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-dp-surface-container-low">{projectStatusLabel[p.status] ?? p.status}</span></td>
                       <td className="px-4 py-2.5 text-dp-on-surface-variant">{p.progress_percent != null ? `${p.progress_percent}%` : '—'}</td>
-                      <td className="px-4 py-2.5 text-right">{p.budget_pkr != null ? `Rs. ${fmtAmount(p.budget_pkr)}` : '—'}</td>
-                      <td className="px-4 py-2.5 text-right">{p.spent_pkr != null ? `Rs. ${fmtAmount(p.spent_pkr)}` : '—'}</td>
+                      <td className="px-4 py-2.5 text-end">{p.budget_pkr != null ? `Rs. ${fmtAmount(p.budget_pkr)}` : '—'}</td>
+                      <td className="px-4 py-2.5 text-end">{p.spent_pkr != null ? `Rs. ${fmtAmount(p.spent_pkr)}` : '—'}</td>
                     </tr>
                   ))}
                 </tbody>

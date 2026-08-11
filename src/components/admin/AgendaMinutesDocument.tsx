@@ -98,20 +98,20 @@ export const AgendaMinutesDocument = forwardRef<HTMLDivElement, Props>(function 
     <div ref={ref} className="relative bg-white p-8 w-[640px] text-dp-on-surface" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>
       <div className="relative text-center mb-5 pb-3 border-b-2 border-dp-primary">
         {branding.logoUrl && (
-          <img src={branding.logoUrl} alt="Logo" className="absolute right-0 top-0 object-contain" style={{ width: branding.logoWidth ?? 48, height: branding.logoWidth ?? 48 }} />
+          <img src={branding.logoUrl} alt="Logo" className="absolute end-0 top-0 object-contain" style={{ width: branding.logoWidth ?? 48, height: branding.logoWidth ?? 48 }} />
         )}
         <p className="text-[20px] font-bold">{companyNameUr}</p>
         <p className="text-[14px] text-dp-on-surface-variant mt-1">اجلاس کی کارروائی</p>
       </div>
 
       <div className="flex justify-between items-start mb-5 text-[14px]">
-        <div className="text-right">
+        <div className="text-end">
           <p className="text-dp-on-surface-variant">تاریخ</p>
           <p className="font-bold">{data.meetingDateLabel}</p>
         </div>
-        <div className="text-left" dir="ltr">
-          <p className="text-dp-on-surface-variant text-right" dir="rtl">صدارت</p>
-          <p className="font-bold text-right" dir="rtl">{data.runByName}</p>
+        <div className="text-start" dir="ltr">
+          <p className="text-dp-on-surface-variant text-end" dir="rtl">صدارت</p>
+          <p className="font-bold text-end" dir="rtl">{data.runByName}</p>
         </div>
       </div>
 

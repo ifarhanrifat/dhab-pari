@@ -99,7 +99,7 @@ export default async function AboutPage() {
               {settingsMap.vision || 'A self-sustaining village with clean water, quality education, and modern infrastructure for every household.'}
             </p>
           </div>
-          <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-white/5 rounded-full blur-2xl" />
+          <div className="absolute -bottom-8 -end-8 w-32 h-32 bg-white/5 rounded-full blur-2xl" />
         </div>
 
         <div className="bg-white border border-dp-outline-variant rounded-lg p-8 relative overflow-hidden">

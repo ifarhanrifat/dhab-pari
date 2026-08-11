@@ -62,7 +62,7 @@ export function Footer() {
 
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-dp-outline-variant flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-on-surface-variant text-center md:text-left">
+          <p className="text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-on-surface-variant text-center md:text-start">
             © {new Date().getFullYear()} {SITE.fullName}.
             All rights reserved.
           </p>

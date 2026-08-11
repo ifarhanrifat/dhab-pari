@@ -339,7 +339,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
             )}
             <p className="font-mono text-[12px] text-dp-on-surface-variant mt-1">{account.code}</p>
           </div>
-          <div className="text-right">
+          <div className="text-end">
             <p className="font-sans text-[12px] font-bold tracking-widest uppercase text-dp-on-surface-variant">
               {dt(lang, account.type === 'donor' ? 'totalContributed' : account.type === 'consumer' && currentBalance < 0 ? 'advanceBalance' : 'currentBalance')}
             </p>
@@ -364,7 +364,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[720px]">
+          <table className="w-full text-start min-w-[720px]">
             <thead>
               <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                 <th className="px-4 py-2.5">{dt(lang, 'date')}</th>
@@ -373,15 +373,15 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                 <th className="px-4 py-2.5">{dt(lang, 'billHash')}</th>
                 {consumerInfo && <th className="px-4 py-2.5 text-center">{dt(lang, 'connections')}</th>}
                 {account.type === 'donor' ? (
-                  <th className="px-4 py-2.5 text-right">{dt(lang, 'amountDonated')}</th>
+                  <th className="px-4 py-2.5 text-end">{dt(lang, 'amountDonated')}</th>
                 ) : (
                   <>
-                    <th className="px-4 py-2.5 text-right">{isParty ? dt(lang, 'billReceivable') : dt(lang, 'debit')}</th>
-                    <th className="px-4 py-2.5 text-right">{isParty ? dt(lang, 'paid') : dt(lang, 'credit')}</th>
+                    <th className="px-4 py-2.5 text-end">{isParty ? dt(lang, 'billReceivable') : dt(lang, 'debit')}</th>
+                    <th className="px-4 py-2.5 text-end">{isParty ? dt(lang, 'paid') : dt(lang, 'credit')}</th>
                   </>
                 )}
-                <th className="px-4 py-2.5 text-right">{account.type === 'donor' ? dt(lang, 'total') : dt(lang, 'balance')}</th>
-                <th className="no-export px-4 py-2.5 text-right print:hidden">Actions</th>
+                <th className="px-4 py-2.5 text-end">{account.type === 'donor' ? dt(lang, 'total') : dt(lang, 'balance')}</th>
+                <th className="no-export px-4 py-2.5 text-end print:hidden">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -400,15 +400,15 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                   </td>
                   {consumerInfo && <td className="px-4 py-3 text-center">{consumerInfo.connections}</td>}
                   {account.type === 'donor' ? (
-                    <td className="px-4 py-3 text-right">{fmtAmount(row.credit)}</td>
+                    <td className="px-4 py-3 text-end">{fmtAmount(row.credit)}</td>
                   ) : (
                     <>
-                      <td className="px-4 py-3 text-right">{row.debit > 0 ? fmtAmount(row.debit) : '—'}</td>
-                      <td className="px-4 py-3 text-right">{row.credit > 0 ? fmtAmount(row.credit) : '—'}</td>
+                      <td className="px-4 py-3 text-end">{row.debit > 0 ? fmtAmount(row.debit) : '—'}</td>
+                      <td className="px-4 py-3 text-end">{row.credit > 0 ? fmtAmount(row.credit) : '—'}</td>
                     </>
                   )}
-                  <td className="px-4 py-3 text-right font-bold">{fmtAmount(row.balance)}</td>
-                  <td className="no-export px-4 py-3 text-right print:hidden">
+                  <td className="px-4 py-3 text-end font-bold">{fmtAmount(row.balance)}</td>
+                  <td className="no-export px-4 py-3 text-end print:hidden">
                     <div className="flex items-center justify-end gap-1.5">
                       <button onClick={() => openView(row)} title="View" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Eye size={15} /></button>
                       {row.reference_type === 'bill' && row.reference_id && (
@@ -450,14 +450,14 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                   <tr className="font-sans text-[13.5px] font-bold bg-dp-surface-container-low/60 border-t-2 border-dp-outline-variant">
                     <td className="px-4 py-3" colSpan={4 + (consumerInfo ? 1 : 0)}>{dt(lang, 'total')}</td>
                     {account.type === 'donor' ? (
-                      <td className="px-4 py-3 text-right">{fmtAmount(totalCredit)}</td>
+                      <td className="px-4 py-3 text-end">{fmtAmount(totalCredit)}</td>
                     ) : (
                       <>
-                        <td className="px-4 py-3 text-right">{fmtAmount(totalDebit)}</td>
-                        <td className="px-4 py-3 text-right">{fmtAmount(totalCredit)}</td>
+                        <td className="px-4 py-3 text-end">{fmtAmount(totalDebit)}</td>
+                        <td className="px-4 py-3 text-end">{fmtAmount(totalCredit)}</td>
                       </>
                     )}
-                    <td className="px-4 py-3 text-right">{fmtAmount(closingBalance)}</td>
+                    <td className="px-4 py-3 text-end">{fmtAmount(closingBalance)}</td>
                     <td className="no-export px-4 py-3 print:hidden"></td>
                   </tr>
                 </tfoot>

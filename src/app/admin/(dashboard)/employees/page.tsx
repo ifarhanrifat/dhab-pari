@@ -539,7 +539,7 @@ function HiringRequestGenerator({ employees, employeeRoles, branding }: { employ
             <button disabled={savingTemplates} onClick={saveTemplates} className="px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
               {savingTemplates ? 'Saving...' : 'Save as Default'}
             </button>
-            <button onClick={() => setShowPreview(true)} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ml-auto">
+            <button onClick={() => setShowPreview(true)} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto">
               <FileText size={15} /> Generate Document
             </button>
           </div>
@@ -562,7 +562,7 @@ function HiringRequestGenerator({ employees, employeeRoles, branding }: { employ
                 <option value="png">PNG</option>
               </select>
               <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={14} /> Print</button>
-              <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ml-auto"><Download size={14} /> Download</button>
+              <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto"><Download size={14} /> Download</button>
             </div>
           </div>
         </div>
@@ -916,7 +916,7 @@ function PayslipButton({
                     </select>
                   )}
                   <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={14} /> Print</button>
-                  <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ml-auto"><Download size={14} /> Download</button>
+                  <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto"><Download size={14} /> Download</button>
                 </div>
               </>
             )}

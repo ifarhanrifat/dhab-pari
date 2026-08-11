@@ -334,17 +334,17 @@ export default function InventoryPage() {
           </div>
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left min-w-[850px]">
+              <table className="w-full text-start min-w-[850px]">
                 <thead>
                   <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                     <th className="px-4 py-2.5">Code</th>
                     <th className="px-4 py-2.5">Name</th>
-                    <th className="px-4 py-2.5 text-right">Unit Cost</th>
-                    <th className="px-4 py-2.5 text-right">Unit Price</th>
-                    <th className="px-4 py-2.5 text-right">Stock</th>
+                    <th className="px-4 py-2.5 text-end">Unit Cost</th>
+                    <th className="px-4 py-2.5 text-end">Unit Price</th>
+                    <th className="px-4 py-2.5 text-end">Stock</th>
                     <th className="px-4 py-2.5">Status</th>
                     <th className="px-4 py-2.5 text-center">New Connection</th>
-                    <th className="px-4 py-2.5 text-right">Actions</th>
+                    <th className="px-4 py-2.5 text-end">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -354,9 +354,9 @@ export default function InventoryPage() {
                     <tr key={i.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${!i.is_active ? 'opacity-50' : ''}`}>
                       <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant">{i.item_code}</td>
                       <td className="px-4 py-3 font-semibold">{i.name} <span className="text-dp-on-surface-variant font-normal">({i.unit})</span></td>
-                      <td className="px-4 py-3 text-right">{fmt(i.unit_cost)}</td>
-                      <td className="px-4 py-3 text-right">{fmt(i.unit_price)}</td>
-                      <td className={`px-4 py-3 text-right font-bold ${i.quantity_on_hand <= i.reorder_level ? 'text-dp-error' : ''}`}>{fmt(i.quantity_on_hand)}</td>
+                      <td className="px-4 py-3 text-end">{fmt(i.unit_cost)}</td>
+                      <td className="px-4 py-3 text-end">{fmt(i.unit_price)}</td>
+                      <td className={`px-4 py-3 text-end font-bold ${i.quantity_on_hand <= i.reorder_level ? 'text-dp-error' : ''}`}>{fmt(i.quantity_on_hand)}</td>
                       <td className="px-4 py-3">
                         <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${i.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{i.is_active ? 'Active' : 'Inactive'}</span>
                       </td>
@@ -369,7 +369,7 @@ export default function InventoryPage() {
                           className="accent-dp-secondary w-4 h-4 cursor-pointer"
                         />
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-end">
                         <div className="flex items-center justify-end gap-1.5">
                           <button onClick={() => openPurchase(i)} title="Record Purchase" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><ShoppingCart size={15} /></button>
                           <button onClick={() => toggleItemActive(i)} className="text-[11px] px-2 py-0.5 rounded font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container">
@@ -396,14 +396,14 @@ export default function InventoryPage() {
           </div>
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left min-w-[650px]">
+              <table className="w-full text-start min-w-[650px]">
                 <thead>
                   <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                     <th className="px-4 py-2.5">Code</th>
                     <th className="px-4 py-2.5">Name</th>
-                    <th className="px-4 py-2.5 text-right">Charge</th>
+                    <th className="px-4 py-2.5 text-end">Charge</th>
                     <th className="px-4 py-2.5">Status</th>
-                    <th className="px-4 py-2.5 text-right">Actions</th>
+                    <th className="px-4 py-2.5 text-end">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -413,11 +413,11 @@ export default function InventoryPage() {
                     <tr key={s.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${!s.is_active ? 'opacity-50' : ''}`}>
                       <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant">{s.service_code}</td>
                       <td className="px-4 py-3 font-semibold">{s.name}{s.description && <p className="font-normal text-[12px] text-dp-on-surface-variant">{s.description}</p>}</td>
-                      <td className="px-4 py-3 text-right font-bold">{fmt(s.charge_amount)}</td>
+                      <td className="px-4 py-3 text-end font-bold">{fmt(s.charge_amount)}</td>
                       <td className="px-4 py-3">
                         <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${s.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{s.is_active ? 'Active' : 'Inactive'}</span>
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-end">
                         <div className="flex items-center justify-end gap-1.5">
                           <button onClick={() => toggleServiceActive(s)} className="text-[11px] px-2 py-0.5 rounded font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container">
                             {s.is_active ? 'Deactivate' : 'Activate'}
@@ -506,15 +506,15 @@ export default function InventoryPage() {
           </div>
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left min-w-[650px]">
+              <table className="w-full text-start min-w-[650px]">
                 <thead>
                   <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                     <th className="px-4 py-2.5">Date</th>
                     <th className="px-4 py-2.5">Item</th>
                     <th className="px-4 py-2.5">Type</th>
-                    <th className="px-4 py-2.5 text-right">Qty</th>
-                    <th className="px-4 py-2.5 text-right">Cost/Unit</th>
-                    <th className="px-4 py-2.5 text-right">Value</th>
+                    <th className="px-4 py-2.5 text-end">Qty</th>
+                    <th className="px-4 py-2.5 text-end">Cost/Unit</th>
+                    <th className="px-4 py-2.5 text-end">Value</th>
                     <th className="px-4 py-2.5">Note</th>
                   </tr>
                 </thead>
@@ -531,9 +531,9 @@ export default function InventoryPage() {
                           <td className="px-4 py-3 whitespace-nowrap">{new Date(m.txn_date).toLocaleDateString('en-GB')}</td>
                           <td className="px-4 py-3 font-semibold">{item?.name ?? '—'}</td>
                           <td className={`px-4 py-3 font-semibold capitalize ${typeStyle}`}>{m.txn_type}</td>
-                          <td className="px-4 py-3 text-right">{m.quantity > 0 ? '+' : ''}{fmt(m.quantity)}</td>
-                          <td className="px-4 py-3 text-right">{fmt(cost)}</td>
-                          <td className="px-4 py-3 text-right font-semibold">{fmt(Math.abs(m.quantity) * cost)}</td>
+                          <td className="px-4 py-3 text-end">{m.quantity > 0 ? '+' : ''}{fmt(m.quantity)}</td>
+                          <td className="px-4 py-3 text-end">{fmt(cost)}</td>
+                          <td className="px-4 py-3 text-end font-semibold">{fmt(Math.abs(m.quantity) * cost)}</td>
                           <td className="px-4 py-3 text-dp-on-surface-variant">{m.note ?? '—'}</td>
                         </tr>
                       )
@@ -567,23 +567,23 @@ export default function InventoryPage() {
               <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No items at or below their reorder level.</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left min-w-[500px]">
+                <table className="w-full text-start min-w-[500px]">
                   <thead>
                     <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                       <th className="px-5 py-2.5">Item</th>
-                      <th className="px-5 py-2.5 text-right">In Stock</th>
-                      <th className="px-5 py-2.5 text-right">Reorder Level</th>
-                      <th className="px-5 py-2.5 text-right">Action</th>
+                      <th className="px-5 py-2.5 text-end">In Stock</th>
+                      <th className="px-5 py-2.5 text-end">Reorder Level</th>
+                      <th className="px-5 py-2.5 text-end">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {lowStockItems.map((i) => (
                       <tr key={i.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
                         <td className="px-5 py-3 font-semibold">{i.name} <span className="text-dp-on-surface-variant font-normal">({i.item_code})</span></td>
-                        <td className="px-5 py-3 text-right font-bold text-dp-error">{fmt(i.quantity_on_hand)} {i.unit}</td>
-                        <td className="px-5 py-3 text-right text-dp-on-surface-variant">{fmt(i.reorder_level)} {i.unit}</td>
-                        <td className="px-5 py-3 text-right">
-                          <button onClick={() => openPurchase(i)} className="flex items-center gap-1.5 ml-auto px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                        <td className="px-5 py-3 text-end font-bold text-dp-error">{fmt(i.quantity_on_hand)} {i.unit}</td>
+                        <td className="px-5 py-3 text-end text-dp-on-surface-variant">{fmt(i.reorder_level)} {i.unit}</td>
+                        <td className="px-5 py-3 text-end">
+                          <button onClick={() => openPurchase(i)} className="flex items-center gap-1.5 ms-auto px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
                             <ShoppingCart size={13} /> Purchase
                           </button>
                         </td>
@@ -616,13 +616,13 @@ export default function InventoryPage() {
               <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No inventory sales in this period yet.</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left min-w-[550px]">
+                <table className="w-full text-start min-w-[550px]">
                   <thead>
                     <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                       <th className="px-5 py-2.5">#</th>
                       <th className="px-5 py-2.5">Item</th>
-                      <th className="px-5 py-2.5 text-right">Qty Sold</th>
-                      <th className="px-5 py-2.5 text-right">Revenue</th>
+                      <th className="px-5 py-2.5 text-end">Qty Sold</th>
+                      <th className="px-5 py-2.5 text-end">Revenue</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -630,8 +630,8 @@ export default function InventoryPage() {
                       <tr key={t.itemId} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
                         <td className="px-5 py-3 text-dp-on-surface-variant">{idx + 1}</td>
                         <td className="px-5 py-3 font-semibold">{t.name} <span className="text-dp-on-surface-variant font-normal">({t.itemCode})</span></td>
-                        <td className="px-5 py-3 text-right">{fmt(t.quantitySold)}</td>
-                        <td className="px-5 py-3 text-right font-bold text-dp-primary">Rs. {fmt(t.revenue)}</td>
+                        <td className="px-5 py-3 text-end">{fmt(t.quantitySold)}</td>
+                        <td className="px-5 py-3 text-end font-bold text-dp-primary">Rs. {fmt(t.revenue)}</td>
                       </tr>
                     ))}
                   </tbody>

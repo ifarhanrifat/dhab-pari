@@ -100,9 +100,9 @@ export default function PortalWaterPage() {
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mb-6">
         <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/60"><span className="font-sans text-[14px] font-bold">Bills</span></div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[12px] font-sans font-bold tracking-[0.05em]">
-              <th className="p-3">Period</th><th className="p-3">Bill #</th><th className="p-3 text-right">Amount</th><th className="p-3 text-right">Paid</th><th className="p-3">Status</th><th className="p-3">Due</th><th className="p-3 text-right">Action</th>
+              <th className="p-3">Period</th><th className="p-3">Bill #</th><th className="p-3 text-end">Amount</th><th className="p-3 text-end">Paid</th><th className="p-3">Status</th><th className="p-3">Due</th><th className="p-3 text-end">Action</th>
             </tr></thead>
             <tbody className="font-sans text-[14px]">
               {bills.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-dp-on-surface-variant">No bills yet.</td></tr>}
@@ -112,17 +112,17 @@ export default function PortalWaterPage() {
                   <tr key={b.id} className="border-b border-dp-outline-variant last:border-b-0">
                     <td className="p-3">{monthName(b.month)} {b.year}</td>
                     <td className="p-3 font-mono text-[13px] text-dp-on-surface-variant">{b.bill_number ?? '—'}</td>
-                    <td className="p-3 text-right">Rs. {fmt(b.amount_pkr)}</td>
-                    <td className="p-3 text-right">Rs. {fmt(b.paid_amount ?? 0)}</td>
+                    <td className="p-3 text-end">Rs. {fmt(b.amount_pkr)}</td>
+                    <td className="p-3 text-end">Rs. {fmt(b.paid_amount ?? 0)}</td>
                     <td className="p-3"><span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${b.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{b.status}</span></td>
                     <td className="p-3 text-dp-on-surface-variant">{b.due_date ? new Date(b.due_date).toLocaleDateString('en-GB') : '—'}</td>
-                    <td className="p-3 text-right">
+                    <td className="p-3 text-end">
                       {b.status === 'paid' ? '—' : claim ? (
                         <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${claim.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
                           {claim.status === 'approved' ? 'Verified' : 'Pending Verification'}
                         </span>
                       ) : (
-                        <button onClick={() => openClaim(b)} className="flex items-center gap-1.5 ml-auto px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
+                        <button onClick={() => openClaim(b)} className="flex items-center gap-1.5 ms-auto px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
                           <UploadCloud size={13} /> I&apos;ve Paid
                         </button>
                       )}
@@ -138,9 +138,9 @@ export default function PortalWaterPage() {
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/60"><span className="font-sans text-[14px] font-bold">Recent Payments</span></div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[12px] font-sans font-bold tracking-[0.05em]">
-              <th className="p-3">Date</th><th className="p-3">Receipt #</th><th className="p-3">Method</th><th className="p-3 text-right">Amount</th>
+              <th className="p-3">Date</th><th className="p-3">Receipt #</th><th className="p-3">Method</th><th className="p-3 text-end">Amount</th>
             </tr></thead>
             <tbody className="font-sans text-[14px]">
               {payments.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-dp-on-surface-variant">No payments yet.</td></tr>}
@@ -149,7 +149,7 @@ export default function PortalWaterPage() {
                   <td className="p-3">{new Date(p.paid_date).toLocaleDateString('en-GB')}</td>
                   <td className="p-3 font-mono text-[13px] text-dp-on-surface-variant">{p.receipt_no ?? '—'}</td>
                   <td className="p-3 capitalize text-dp-on-surface-variant">{p.method}</td>
-                  <td className="p-3 text-right font-semibold">Rs. {fmt(p.amount_pkr)}</td>
+                  <td className="p-3 text-end font-semibold">Rs. {fmt(p.amount_pkr)}</td>
                 </tr>
               ))}
             </tbody>

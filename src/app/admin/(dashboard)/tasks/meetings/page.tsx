@@ -645,7 +645,7 @@ export default function MeetingsAgendaPage() {
         const visible = showResolvedComplaints ? complaints : complaints.filter((c) => c.status !== 'verified')
         return (
           <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-4">
-            <button onClick={() => setComplaintsOpen(!complaintsOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-left cursor-pointer hover:bg-dp-surface-container-low transition-all">
+            <button onClick={() => setComplaintsOpen(!complaintsOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-start cursor-pointer hover:bg-dp-surface-container-low transition-all">
               <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-2">
                 <MessageSquareWarning size={16} className="text-amber-600" /> Complaints Status
                 <span className="font-normal text-dp-on-surface-variant text-[12.5px]">({visible.length}{!showResolvedComplaints ? ' open/pending' : ''})</span>
@@ -690,7 +690,7 @@ export default function MeetingsAgendaPage() {
           committee can decide with full visibility during the meeting. */}
       {!loading && projectDiscussions.length > 0 && (
         <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-4">
-          <button onClick={() => setProjectDiscussionsOpen(!projectDiscussionsOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-left cursor-pointer hover:bg-dp-surface-container-low transition-all">
+          <button onClick={() => setProjectDiscussionsOpen(!projectDiscussionsOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-start cursor-pointer hover:bg-dp-surface-container-low transition-all">
             <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-2">
               <Vote size={16} className="text-dp-secondary" /> Project Proposals &amp; Discussions
               <span className="font-normal text-dp-on-surface-variant text-[12.5px]">({projectDiscussions.length})</span>
@@ -732,7 +732,7 @@ export default function MeetingsAgendaPage() {
           site between meetings, not just what's still outstanding. */}
       {!loading && (
         <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-4">
-          <button onClick={() => setActivityOpen(!activityOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-left cursor-pointer hover:bg-dp-surface-container-low transition-all">
+          <button onClick={() => setActivityOpen(!activityOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-start cursor-pointer hover:bg-dp-surface-container-low transition-all">
             <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-2">
               <Activity size={16} className="text-dp-secondary" /> Recent Activity Since Last Meeting
               <span className="font-normal text-dp-on-surface-variant text-[12.5px]">
@@ -770,7 +770,7 @@ export default function MeetingsAgendaPage() {
           reply on the project's own thread once typed in. */}
       {!loading && projectComments.length > 0 && (
         <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-4">
-          <button onClick={() => setProjectCommentsOpen(!projectCommentsOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-left cursor-pointer hover:bg-dp-surface-container-low transition-all">
+          <button onClick={() => setProjectCommentsOpen(!projectCommentsOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-start cursor-pointer hover:bg-dp-surface-container-low transition-all">
             <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-2">
               <MessageCircle size={16} className="text-dp-secondary" /> Project Comments Since Last Meeting
               <span className="font-normal text-dp-on-surface-variant text-[12.5px]">({projectComments.reduce((n, g) => n + g.comments.length, 0)})</span>
@@ -828,7 +828,7 @@ export default function MeetingsAgendaPage() {
             const isLatest = meeting.id === meetings[0].id
             return (
               <div key={meeting.id} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
-                <button onClick={() => setExpanded(isOpen ? null : meeting.id)} className="w-full flex items-center justify-between gap-3 p-4 text-left cursor-pointer hover:bg-dp-surface-container-low transition-all">
+                <button onClick={() => setExpanded(isOpen ? null : meeting.id)} className="w-full flex items-center justify-between gap-3 p-4 text-start cursor-pointer hover:bg-dp-surface-container-low transition-all">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-sans text-[15px] font-bold text-dp-on-surface">
@@ -937,7 +937,7 @@ export default function MeetingsAgendaPage() {
                                       </div>
                                       <div className="flex items-center flex-wrap gap-2 mt-2">
                                         {assigneesFor(item.id).map((cmId) => (
-                                          <div key={cmId} className="flex items-center gap-1 bg-dp-surface-container-low rounded-full pl-2 pr-1 py-0.5">
+                                          <div key={cmId} className="flex items-center gap-1 bg-dp-surface-container-low rounded-full ps-2 pe-1 py-0.5">
                                             <User size={11} className="text-dp-on-surface-variant" />
                                             <span className="font-sans text-[11.5px] text-dp-on-surface">{memberName(cmId)}</span>
                                             <button onClick={() => sendWhatsApp(item, meeting, cmId)} title="Send WhatsApp reminder" className="p-1 text-green-600 hover:bg-green-50 rounded-full cursor-pointer">
@@ -1022,7 +1022,7 @@ export default function MeetingsAgendaPage() {
                                       onClick={() => saveReply(s, replyDrafts[s.id] ?? s.reply_text ?? '')}
                                       className="px-2.5 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[11.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50"
                                     >
-                                      <Reply size={12} className="inline mr-1" />Save
+                                      <Reply size={12} className="inline me-1" />Save
                                     </button>
                                     {s.reply_text && (
                                       <button
@@ -1031,7 +1031,7 @@ export default function MeetingsAgendaPage() {
                                         title={phone ? 'Send via WhatsApp' : 'No phone number on file'}
                                         className="px-2.5 py-1.5 border border-green-600/40 text-green-700 rounded-lg font-sans text-[11.5px] font-semibold hover:bg-green-50 transition-all cursor-pointer disabled:opacity-40"
                                       >
-                                        <MessageCircle size={12} className="inline mr-1" />WhatsApp
+                                        <MessageCircle size={12} className="inline me-1" />WhatsApp
                                       </button>
                                     )}
                                   </div>
@@ -1057,7 +1057,7 @@ export default function MeetingsAgendaPage() {
                               <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">Called by {adminName(item.created_by_admin_user_id) ?? 'Unknown'}</p>
                               <div className="flex items-center flex-wrap gap-2 mt-2">
                                 {assigneesFor(item.id).map((cmId) => (
-                                  <div key={cmId} className="flex items-center gap-1 bg-white rounded-full pl-2 pr-1 py-0.5 border border-red-200">
+                                  <div key={cmId} className="flex items-center gap-1 bg-white rounded-full ps-2 pe-1 py-0.5 border border-red-200">
                                     <User size={11} className="text-dp-on-surface-variant" />
                                     <span className="font-sans text-[11.5px] text-dp-on-surface">{memberName(cmId)}</span>
                                     <button onClick={() => sendEmergencyWhatsApp(item, cmId)} title="Send WhatsApp" className="p-1 text-green-600 hover:bg-green-50 rounded-full cursor-pointer">
@@ -1462,7 +1462,7 @@ export default function MeetingsAgendaPage() {
                   <option value="png">PNG</option>
                 </select>
                 <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={14} /> Print</button>
-                <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ml-auto"><Download size={14} /> Download</button>
+                <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto"><Download size={14} /> Download</button>
               </div>
             </div>
           </div>

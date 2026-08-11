@@ -172,13 +172,13 @@ export default function NonPaymentReportPage() {
             </span>
           </h2>
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="w-full text-start">
               <thead>
                 <tr className="bg-dp-surface-container-low/60 border-b border-dp-outline-variant">
                   <th className="px-4 py-2.5 font-sans text-[11.5px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant">{dt(lang, 'consumer')}</th>
                   <th className="px-4 py-2.5 font-sans text-[11.5px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant">{dt(lang, 'contact')}</th>
                   <th className="px-4 py-2.5 font-sans text-[11.5px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant">{dt(lang, 'pendingBills')}</th>
-                  <th className="px-4 py-2.5 font-sans text-[11.5px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant text-right">{dt(lang, 'totalOutstanding')}</th>
+                  <th className="px-4 py-2.5 font-sans text-[11.5px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant text-end">{dt(lang, 'totalOutstanding')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -202,7 +202,7 @@ export default function NonPaymentReportPage() {
                         </div>
                       ))}
                     </td>
-                    <td className="px-4 py-3 text-right font-sans text-[14px] font-bold text-dp-error">Rs. {fmtAmount(f.totalOutstanding)}</td>
+                    <td className="px-4 py-3 text-end font-sans text-[14px] font-bold text-dp-error">Rs. {fmtAmount(f.totalOutstanding)}</td>
                   </tr>
                 ))}
               </tbody>

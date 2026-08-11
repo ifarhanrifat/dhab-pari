@@ -162,7 +162,7 @@ export default function ComplaintsPage() {
                       {c.complainant_name || 'Anonymous'}{c.phone ? ` · ${c.phone}` : ''} · {new Date(c.created_at).toLocaleDateString('en-GB')}
                     </p>
                   </div>
-                  <div className="text-right shrink-0">
+                  <div className="text-end shrink-0">
                     <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface">{c.assigned_to ? (people[c.assigned_to] ?? 'Assigned') : 'Unassigned'}</p>
                     {dl && <p className={`font-sans text-[11.5px] font-semibold flex items-center justify-end gap-1 mt-0.5 ${dl.tone}`}><Clock size={11} /> {dl.text}</p>}
                   </div>
@@ -220,7 +220,7 @@ export default function ComplaintsPage() {
                             <button
                               key={c.consumer_id} type="button"
                               onClick={() => { setForm({ ...form, consumer_id: c.consumer_id }); setConsumerQuery('') }}
-                              className="w-full text-left px-3 py-2 hover:bg-dp-surface-container-low font-sans text-[13px] cursor-pointer"
+                              className="w-full text-start px-3 py-2 hover:bg-dp-surface-container-low font-sans text-[13px] cursor-pointer"
                             >
                               <strong>{c.consumer_id}</strong> — {c.name} {c.mobile && <span className="text-dp-on-surface-variant">· {c.mobile}</span>}
                             </button>

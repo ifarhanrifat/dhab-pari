@@ -40,7 +40,7 @@ export const DOC_STRINGS = {
   complaintsShort: { en: 'Complaints', ur: 'شکایات' },
   // Payroll body (Universal Slip). Our model nets advances into the employee's
   // own ledger account rather than listing them as payslip deductions, so the
-  // right-hand column is Owed / Paid Now / Carried Forward, not a deductions list.
+  // end-hand column is Owed / Paid Now / Carried Forward, not a deductions list.
   titleSalarySlip: { en: 'Salary Slip', ur: 'تنخواہ کی پرچی' },
   employee: { en: 'Employee', ur: 'ملازم کا نام' },
   earningsThisCycle: { en: 'Earnings This Cycle', ur: 'اس دورانیے کی آمدنی' },

@@ -67,7 +67,7 @@ export default function JobsPage() {
               <h3 className="font-sans text-[17px] font-semibold text-dp-on-surface mt-2">{l.headline}</h3>
               {l.description && <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1.5 leading-[20px]">{l.description}</p>}
               <p className="font-sans text-[13px] text-dp-on-surface-variant mt-2">{l.contact_name}{l.sector && (
-                <span className="inline-flex items-center gap-1 ml-2"><MapPin size={12} /> {l.sector}</span>
+                <span className="inline-flex items-center gap-1 ms-2"><MapPin size={12} /> {l.sector}</span>
               )}</p>
               <div className="flex gap-2 mt-4">
                 <a href={`tel:${l.contact_mobile}`} className="flex-1 flex items-center justify-center gap-2 border-2 border-dp-primary text-dp-primary px-4 py-2 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary hover:text-white transition-all">

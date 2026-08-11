@@ -66,7 +66,7 @@ export default async function DonatePage() {
           <h1 className="font-heading text-[24px] md:text-[32px] font-bold leading-[32px] md:leading-[40px] mb-6 text-dp-primary section-title">
             Support Village Growth
           </h1>
-          <div className="relative px-8 py-4 border-l-4 border-dp-secondary">
+          <div className="relative px-8 py-4 border-s-4 border-dp-secondary">
             <p className="font-sans text-[18px] leading-[28px] italic text-dp-on-surface-variant">
               &ldquo;The best of people are those who are most beneficial to
               others. Your contribution today is the seed for a prosperous Dhab
@@ -204,7 +204,7 @@ export default async function DonatePage() {
         </div>
 
         <div className="overflow-x-auto rounded-lg border border-dp-outline-variant bg-white">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-start border-collapse">
             <thead className="bg-dp-primary text-white">
               <tr>
                 <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">Rank</th>
@@ -275,7 +275,7 @@ export default async function DonatePage() {
             </p>
           </div>
           <div className="overflow-x-auto rounded-lg border border-dp-outline-variant bg-white">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-start border-collapse">
               <thead className="bg-dp-surface-container-low">
                 <tr>
                   <th className="px-6 py-3 font-sans text-[13px] font-semibold tracking-[0.05em] uppercase text-dp-on-surface-variant">Name</th>

@@ -61,11 +61,11 @@ export function SearchablePicker({
         </div>
         <div className="p-3 border-b border-dp-outline-variant shrink-0">
           <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+            <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
             <input
               ref={inputRef} value={query} onChange={(e) => setQuery(e.target.value)}
               placeholder={searchPlaceholder}
-              className="w-full pl-9 pr-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[14px] focus:outline-none focus:border-dp-secondary"
+              className="w-full ps-9 pe-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[14px] focus:outline-none focus:border-dp-secondary"
             />
           </div>
           {extraAction && (
@@ -86,7 +86,7 @@ export function SearchablePicker({
                 <button
                   key={item.id}
                   onClick={() => { onSelect(item.id); onClose() }}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-dp-surface-container-low transition-all cursor-pointer border-b border-dp-outline-variant/50 last:border-b-0"
+                  className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-start hover:bg-dp-surface-container-low transition-all cursor-pointer border-b border-dp-outline-variant/50 last:border-b-0"
                 >
                   <span className="font-sans text-[14px] text-dp-on-surface truncate">{item.label}</span>
                   {item.sublabel && <span className="font-sans text-[12px] text-dp-on-surface-variant shrink-0">{item.sublabel}</span>}
@@ -127,10 +127,10 @@ export function SearchableField({
       <button
         type="button" disabled={disabled}
         onClick={() => setOpen(true)}
-        className="input-field flex items-center justify-between text-left disabled:bg-dp-surface-container-low disabled:text-dp-on-surface-variant disabled:cursor-not-allowed cursor-pointer"
+        className="input-field flex items-center justify-between text-start disabled:bg-dp-surface-container-low disabled:text-dp-on-surface-variant disabled:cursor-not-allowed cursor-pointer"
       >
         <span className={`truncate ${selected ? 'text-dp-on-surface' : 'text-dp-on-surface-variant'}`}>{selected ? selected.label : placeholder}</span>
-        <ChevronDown size={15} className="text-dp-on-surface-variant shrink-0 ml-2" />
+        <ChevronDown size={15} className="text-dp-on-surface-variant shrink-0 ms-2" />
       </button>
       <SearchablePicker
         open={open} title={pickerTitle ?? label ?? 'Select'} items={items}

@@ -271,15 +271,15 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
         </button>
         {showLedger && (
           <div className="overflow-x-auto border-t border-dp-outline-variant">
-            <table className="w-full text-left min-w-[500px]">
+            <table className="w-full text-start min-w-[500px]">
               <thead>
                 <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant">
                   <th className="px-4 py-2">Date</th>
                   <th className="px-4 py-2">Account</th>
                   <th className="px-4 py-2">Particular</th>
                   <th className="px-4 py-2">Receipt #</th>
-                  <th className="px-4 py-2 text-right">Debit</th>
-                  <th className="px-4 py-2 text-right">Credit</th>
+                  <th className="px-4 py-2 text-end">Debit</th>
+                  <th className="px-4 py-2 text-end">Credit</th>
                 </tr>
               </thead>
               <tbody>
@@ -290,8 +290,8 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
                     <td className="px-4 py-2">{r.account_name}</td>
                     <td className="px-4 py-2">{r.particular}</td>
                     <td className="px-4 py-2 text-dp-secondary">{r.receipt_no ? `#${r.receipt_no}` : '—'}</td>
-                    <td className="px-4 py-2 text-right">{r.debit > 0 ? fmtAmount(r.debit) : '—'}</td>
-                    <td className="px-4 py-2 text-right">{r.credit > 0 ? fmtAmount(r.credit) : '—'}</td>
+                    <td className="px-4 py-2 text-end">{r.debit > 0 ? fmtAmount(r.debit) : '—'}</td>
+                    <td className="px-4 py-2 text-end">{r.credit > 0 ? fmtAmount(r.credit) : '—'}</td>
                   </tr>
                 ))}
               </tbody>

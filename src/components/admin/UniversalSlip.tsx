@@ -178,7 +178,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
 
   const urduFont = { fontFamily: 'var(--font-urdu), serif' } as const
   // Urdu is the leading script only when it is the chosen language; in
-  // bilingual mode English leads, so the block stays left-aligned.
+  // bilingual mode English leads, so the block stays start-aligned.
   const urduLed = mode !== 'en'
   // Label wraps if it must; the figure never does.
   const totalRow: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, lineHeight: 1.7 }
@@ -426,7 +426,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
         )}
 
         {(helplines.length > 0 || complaints.length > 0) && (
-          // Urdu reads right-to-left, so in Urdu mode the label starts at the
+          // Urdu reads end-to-left, so in Urdu mode the label starts at the
           // right edge and its number follows immediately on the same line —
           // no colon, no gap between the wording and the digits.
           <div

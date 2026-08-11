@@ -136,7 +136,7 @@ export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) 
               <p className="font-sans text-[12px] font-bold uppercase tracking-widest text-dp-on-surface-variant">{dt(lang, 'openingBalance')}</p>
               <p className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmtAmount(openingBalance)}</p>
             </div>
-            <div className="text-right">
+            <div className="text-end">
               <p className="font-sans text-[12px] font-bold uppercase tracking-widest text-dp-on-surface-variant">{dt(lang, 'closingBalance')}</p>
               <p className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmtAmount(closingBalance)}</p>
             </div>
@@ -145,7 +145,7 @@ export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) 
 
         <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left min-w-[600px]">
+            <table className="w-full text-start min-w-[600px]">
               <thead>
                 <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                   <th className="px-4 py-2.5">{dt(lang, 'date')}</th>
@@ -153,9 +153,9 @@ export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) 
                   <th className="px-4 py-2.5">{dt(lang, 'type')}</th>
                   <th className="px-4 py-2.5">{dt(lang, 'particular')}</th>
                   <th className="px-4 py-2.5">{dt(lang, 'billHash')}</th>
-                  <th className="px-4 py-2.5 text-right">{dt(lang, 'debit')}</th>
-                  <th className="px-4 py-2.5 text-right">{dt(lang, 'credit')}</th>
-                  <th className="px-4 py-2.5 text-right">{dt(lang, 'balance')}</th>
+                  <th className="px-4 py-2.5 text-end">{dt(lang, 'debit')}</th>
+                  <th className="px-4 py-2.5 text-end">{dt(lang, 'credit')}</th>
+                  <th className="px-4 py-2.5 text-end">{dt(lang, 'balance')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -171,9 +171,9 @@ export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) 
                       {r.bill_number ?? r.voucher_no ?? '—'}
                       {r.receipt_no && <span className="block text-dp-secondary">{dt(lang, 'receiptHash')}{r.receipt_no}</span>}
                     </td>
-                    <td className="px-4 py-3 text-right">{r.debit > 0 ? fmtAmount(r.debit) : '—'}</td>
-                    <td className="px-4 py-3 text-right">{r.credit > 0 ? fmtAmount(r.credit) : '—'}</td>
-                    <td className="px-4 py-3 text-right font-bold">{fmtAmount(r.balance)}</td>
+                    <td className="px-4 py-3 text-end">{r.debit > 0 ? fmtAmount(r.debit) : '—'}</td>
+                    <td className="px-4 py-3 text-end">{r.credit > 0 ? fmtAmount(r.credit) : '—'}</td>
+                    <td className="px-4 py-3 text-end font-bold">{fmtAmount(r.balance)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -181,9 +181,9 @@ export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) 
                 <tfoot>
                   <tr className="font-sans text-[13.5px] font-bold bg-dp-surface-container-low/60 border-t-2 border-dp-outline-variant">
                     <td className="px-4 py-3" colSpan={5}>{dt(lang, 'total')}</td>
-                    <td className="px-4 py-3 text-right">{fmtAmount(totalDebit)}</td>
-                    <td className="px-4 py-3 text-right">{fmtAmount(totalCredit)}</td>
-                    <td className="px-4 py-3 text-right">{fmtAmount(closingBalance)}</td>
+                    <td className="px-4 py-3 text-end">{fmtAmount(totalDebit)}</td>
+                    <td className="px-4 py-3 text-end">{fmtAmount(totalCredit)}</td>
+                    <td className="px-4 py-3 text-end">{fmtAmount(closingBalance)}</td>
                   </tr>
                 </tfoot>
               )}

@@ -54,7 +54,7 @@ export function Header() {
               far right, which made the panel appear to come from nowhere. */}
           <div className="flex items-center gap-2.5 min-w-0">
             <button
-              className="lg:hidden text-white p-1.5 -ml-1.5 shrink-0"
+              className="lg:hidden text-white p-1.5 -ms-1.5 shrink-0"
               onClick={() => setMobileOpen(true)}
               aria-label="Open menu"
             >

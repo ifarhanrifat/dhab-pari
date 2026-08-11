@@ -41,7 +41,7 @@ export const PayslipDocument = forwardRef<HTMLDivElement, Props>(function Paysli
     <div ref={ref} className="relative bg-white p-8 w-[560px] font-sans text-dp-on-surface" style={{ fontFamily: 'var(--font-sans), sans-serif' }}>
       <div className="relative text-center mb-4 pb-3 border-b-2 border-dp-primary">
         {branding.logoUrl && (
-          <img src={branding.logoUrl} alt="Logo" className="absolute left-0 top-0 object-contain" style={{ width: branding.logoWidth ?? 48, height: branding.logoWidth ?? 48 }} />
+          <img src={branding.logoUrl} alt="Logo" className="absolute start-0 top-0 object-contain" style={{ width: branding.logoWidth ?? 48, height: branding.logoWidth ?? 48 }} />
         )}
         <p className="text-[18px] font-bold">{companyNameEn}</p>
         <p className="text-[13px] text-dp-on-surface-variant mt-0.5">Payslip / Salary Slip</p>
@@ -52,7 +52,7 @@ export const PayslipDocument = forwardRef<HTMLDivElement, Props>(function Paysli
           <p className="font-bold text-[15px]">{data.employeeName}</p>
           <p className="text-dp-on-surface-variant">{data.roleEn}</p>
         </div>
-        <div className="text-right">
+        <div className="text-end">
           <p className="text-dp-on-surface-variant">Period</p>
           <p className="font-bold">{monthName(data.month)} {data.year}</p>
         </div>
@@ -82,7 +82,7 @@ export const PayslipDocument = forwardRef<HTMLDivElement, Props>(function Paysli
       </div>
 
       <div className="flex justify-end mt-10">
-        <div className="text-right text-[12px]">
+        <div className="text-end text-[12px]">
           <div className="w-40 border-t border-dp-outline-variant pt-1">Authorized Signatory</div>
         </div>
       </div>
@@ -95,7 +95,7 @@ function Row({ label, amount }: { label: string; amount: number }) {
   return (
     <tr className="border-b border-dp-outline-variant">
       <td className="py-1.5">{label}</td>
-      <td className="py-1.5 text-right">Rs. {fmt(amount)}</td>
+      <td className="py-1.5 text-end">Rs. {fmt(amount)}</td>
     </tr>
   )
 }

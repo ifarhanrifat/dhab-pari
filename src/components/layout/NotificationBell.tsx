@@ -103,7 +103,7 @@ export function NotificationBell() {
     // top-16 clears the mobile header bar (AdminHeader, md:hidden, ~60px tall
     // with its own hamburger button in the same top-right corner) so the two
     // don't overlap; on desktop there's no header bar, so it sits at top-4.
-    <div ref={boxRef} className="fixed top-16 right-4 md:top-4 md:right-4 z-[95] print:hidden">
+    <div ref={boxRef} className="fixed top-16 end-4 md:top-4 md:end-4 z-[95] print:hidden">
       <button
         onClick={() => setOpen(!open)}
         className="relative w-10 h-10 flex items-center justify-center bg-white border border-dp-outline-variant rounded-full shadow-md hover:shadow-lg transition-all cursor-pointer"
@@ -111,13 +111,13 @@ export function NotificationBell() {
       >
         <Bell size={18} className="text-dp-primary" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-dp-error text-white rounded-full text-[10px] font-bold flex items-center justify-center">
+          <span className="absolute -top-1 -end-1 min-w-[18px] h-[18px] px-1 bg-dp-error text-white rounded-full text-[10px] font-bold flex items-center justify-center">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white border border-dp-outline-variant rounded-lg shadow-lg overflow-hidden">
+        <div className="absolute end-0 mt-2 w-80 max-w-[90vw] bg-white border border-dp-outline-variant rounded-lg shadow-lg overflow-hidden">
           <div className="px-4 py-2.5 border-b border-dp-outline-variant flex items-center justify-between">
             <span className="font-sans text-[13px] font-bold text-dp-on-surface">Notifications</span>
             {unreadCount > 0 && (
@@ -132,7 +132,7 @@ export function NotificationBell() {
                 <button
                   key={n.id}
                   onClick={() => openNotification(n)}
-                  className={`w-full text-left px-4 py-3 border-b border-dp-outline-variant last:border-b-0 hover:bg-dp-surface-container-low transition-all cursor-pointer ${!n.is_read ? 'bg-dp-secondary/5' : ''}`}
+                  className={`w-full text-start px-4 py-3 border-b border-dp-outline-variant last:border-b-0 hover:bg-dp-surface-container-low transition-all cursor-pointer ${!n.is_read ? 'bg-dp-secondary/5' : ''}`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-sans text-[13px] font-semibold text-dp-on-surface">{n.title}</p>

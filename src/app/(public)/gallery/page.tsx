@@ -105,7 +105,7 @@ export default function GalleryPage() {
                 transition={{ duration: 0.35, delay: i * 0.05 }}
                 whileHover={{ scale: 1.02 }}
                 onClick={() => loadAlbumItems(album.id)}
-                className="relative aspect-[4/3] rounded-lg overflow-hidden group cursor-pointer text-left"
+                className="relative aspect-[4/3] rounded-lg overflow-hidden group cursor-pointer text-start"
               >
                 {album.cover_url ? (
                   <Image src={album.cover_url} alt={album.title} fill sizes="(min-width: 768px) 33vw, 100vw" className="object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -180,7 +180,7 @@ export default function GalleryPage() {
                   <img src={item.url} alt={item.caption ?? ''} className="w-full h-auto block" loading="lazy" />
                 )}
                 {item.caption && (
-                  <p className="p-3 text-[14px] font-sans text-dp-on-surface-variant text-left">
+                  <p className="p-3 text-[14px] font-sans text-dp-on-surface-variant text-start">
                     {item.caption}
                   </p>
                 )}
@@ -205,7 +205,7 @@ export default function GalleryPage() {
           >
             <button
               onClick={() => setLightboxIndex(null)}
-              className="absolute top-4 right-4 text-white/80 hover:text-white cursor-pointer z-[110]"
+              className="absolute top-4 end-4 text-white/80 hover:text-white cursor-pointer z-[110]"
             >
               <X size={32} />
             </button>
@@ -213,7 +213,7 @@ export default function GalleryPage() {
             {lightboxIndex > 0 && (
               <button
                 onClick={() => setLightboxIndex(lightboxIndex - 1)}
-                className="absolute left-4 text-white/80 hover:text-white cursor-pointer"
+                className="absolute start-4 text-white/80 hover:text-white cursor-pointer"
               >
                 <ChevronLeft size={40} />
               </button>
@@ -222,7 +222,7 @@ export default function GalleryPage() {
             {lightboxIndex < albumItems.length - 1 && (
               <button
                 onClick={() => setLightboxIndex(lightboxIndex + 1)}
-                className="absolute right-4 text-white/80 hover:text-white cursor-pointer"
+                className="absolute end-4 text-white/80 hover:text-white cursor-pointer"
               >
                 <ChevronRight size={40} />
               </button>
