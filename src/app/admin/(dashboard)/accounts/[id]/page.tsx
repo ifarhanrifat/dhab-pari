@@ -542,7 +542,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                 <input value={payForm.note} onChange={(e) => setPayForm({ ...payForm, note: e.target.value })} className="input-field" />
               </div>
               <button disabled={paying} onClick={savePayment} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                <Banknote size={16} /> Record Payment
+                <Banknote size={16} /> {t('billing.recordPayment')}
               </button>
             </div>
           </div>

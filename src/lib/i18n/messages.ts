@@ -893,6 +893,9 @@ export const messages: Record<Locale, Record<string, string>> = {
     'y.videoUnsupported': 'Your browser does not support the video tag.',
     'y.fieldCollectors': 'Field Collectors', 'y.donorCollectors': 'Donor Collectors', 'y.search': 'Search',
     'y.hot': 'Hot',
+    'v.paid': 'PAID', 'v.unpaid': 'UNPAID', 'v.pending': 'PENDING', 'v.late': 'LATE',
+    'v.editingThe': 'Editing the', 'v.showingFirst60': 'Showing the first 60 — search to find any other word.',
+
 
 
 
@@ -1781,6 +1784,9 @@ export const messages: Record<Locale, Record<string, string>> = {
     'y.videoUnsupported': 'آپ کا براؤزر ویڈیو سپورٹ نہیں کرتا۔',
     'y.fieldCollectors': 'فیلڈ کلیکٹرز', 'y.donorCollectors': 'عطیات وصول کنندگان', 'y.search': 'تلاش',
     'y.hot': 'مقبول',
+    'v.paid': 'ادا شدہ', 'v.unpaid': 'واجب الادا', 'v.pending': 'زیرِ التوا', 'v.late': 'تاخیر',
+    'v.editingThe': 'ترمیم', 'v.showingFirst60': 'پہلے 60 دکھائے جا رہے ہیں — کوئی اور لفظ تلاش کریں۔',
+
 
 
 

@@ -54,7 +54,7 @@ export default function AdminJobsPage() {
 
       <div className="flex flex-wrap gap-3 mb-5">
         <select value={category} onChange={(e) => setCategory(e.target.value)} className="input-field w-auto">
-          <option value="">All Categories</option>
+          <option value="">{t('x.allCategories')}</option>
           {CATEGORIES.map((c) => <option key={c} value={c}>{c[0].toUpperCase() + c.slice(1)}</option>)}
         </select>
         <label className="flex items-center gap-2 cursor-pointer font-sans text-[14px]">

@@ -50,7 +50,7 @@ export default function AdminBloodDonorsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]">
-              <th className="p-4">{t('a.name')}</th><th className="p-4">{t('y.group')}</th><th className="p-4">{t('w.sector')}</th><th className="p-4">Mobile</th><th className="p-4">{t('w.whatsapp')}</th><th className="p-4">{t('w.status')}</th>
+              <th className="p-4">{t('a.name')}</th><th className="p-4">{t('y.group')}</th><th className="p-4">{t('w.sector')}</th><th className="p-4">{t('w.mobile')}</th><th className="p-4">{t('w.whatsapp')}</th><th className="p-4">{t('w.status')}</th>
             </tr></thead>
             <tbody className="font-sans text-[16px]">
               {loading && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}

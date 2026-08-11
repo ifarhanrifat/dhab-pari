@@ -206,7 +206,7 @@ export function LanguageSettings() {
       ) : (
         <>
           <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">
-            Editing the <strong>{locale === 'ur' ? 'Urdu' : 'English'}</strong> wording — switch language to edit the other.
+            {t('v.editingThe')} <strong>{locale === 'ur' ? 'Urdu' : 'English'}</strong> wording — switch language to edit the other.
             Leave a box empty to go back to the shipped word.
           </p>
           <div className="space-y-2 max-h-[520px] overflow-y-auto pe-1">
@@ -251,7 +251,7 @@ export function LanguageSettings() {
           </div>
           {!search && (
             <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">
-              Showing the first 60 — search to find any other word.
+              {t('v.showingFirst60')}
             </p>
           )}
           <button onClick={saveWording} disabled={saving || Object.keys(dirtyWords).length === 0}

@@ -9,7 +9,7 @@ export default function TransactionsPickerPage() {
   return (
     <>
       <div className="mb-8">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">Transactions</h1>
+        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('nav.finance')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('y.chooseSystem')}</p>
       </div>
 

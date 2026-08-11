@@ -442,29 +442,30 @@ export default function WaterBillPage() {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useLocale()
   switch (status) {
     case 'paid':
       return (
         <span className="bg-dp-primary text-white text-[12px] px-3 py-1 rounded-full font-bold font-sans uppercase">
-          PAID
+          {t('v.paid')}
         </span>
       )
     case 'unpaid':
       return (
         <span className="bg-dp-error-container text-dp-error text-[12px] px-3 py-1 rounded-full font-bold font-sans uppercase">
-          UNPAID
+          {t('v.unpaid')}
         </span>
       )
     case 'late':
       return (
         <span className="bg-dp-error text-white text-[12px] px-3 py-1 rounded-full font-bold font-sans uppercase">
-          LATE
+          {t('v.late')}
         </span>
       )
     case 'pending':
       return (
         <span className="bg-amber-100 text-amber-800 text-[12px] px-3 py-1 rounded-full font-bold font-sans uppercase">
-          PENDING
+          {t('v.pending')}
         </span>
       )
     default:
