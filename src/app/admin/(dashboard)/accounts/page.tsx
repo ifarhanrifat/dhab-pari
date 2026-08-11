@@ -64,14 +64,16 @@ function fmtAmount(n: number) {
 }
 
 export default function AccountsPage() {
-  const { t } = useLocale()
+  const { t, locale } = useLocale()
   const router = useRouter()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [headers, setHeaders] = useState<AccountHeader[]>([])
   const [consumers, setConsumers] = useState<Record<string, ConsumerInfo>>({})
   const [balances, setBalances] = useState<Record<string, number>>({})
   const [receiptsByConsumer, setReceiptsByConsumer] = useState<Record<string, string[]>>({})
-  const [lang, setLang] = useState<Lang>('en')
+  // Follows the reader, not the village default: selecting English must
+  // actually show English account names.
+  const lang: Lang = locale
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<SystemTab>('water_supply')
   const access = useSystemAccess()
@@ -101,13 +103,12 @@ export default function AccountsPage() {
   const supabase = createClient()
 
   const load = async () => {
-    const [accountsRes, headersRes, consumersRes, ledgerRes, paymentsRes, settingRes] = await Promise.all([
+    const [accountsRes, headersRes, consumersRes, ledgerRes, paymentsRes] = await Promise.all([
       supabase.from('accounts').select('*').order('code'),
       supabase.from('account_headers').select('*').order('display_order'),
       supabase.from('consumers').select('consumer_id, mobile, address, connections, monthly_rate, status'),
       supabase.from('ledger_entries').select('account_id, debit, credit'),
       supabase.from('payments').select('consumer_id, receipt_no'),
-      supabase.from('site_settings').select('value').eq('key', 'display_language').single(),
     ])
     setAccounts(accountsRes.data ?? [])
     setHeaders(headersRes.data ?? [])
@@ -125,7 +126,6 @@ export default function AccountsPage() {
       ;(rMap[p.consumer_id] ??= []).push(p.receipt_no)
     })
     setReceiptsByConsumer(rMap)
-    if (settingRes.data?.value === 'ur') setLang('ur')
     setLoading(false)
   }
   useEffect(() => { load() }, [])
@@ -331,15 +331,19 @@ export default function AccountsPage() {
             <p className="text-[12px] text-dp-on-surface-variant">{consumers[a.consumer_id].mobile}</p>
           )}
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Fixed widths, not flex-sized: a header total and the balances under
+            it have to sit in the same column, and a chevron is not the same
+            width as a menu button. tabular-nums keeps the digits themselves in
+            line so the decimal points stack. */}
+        <div className="flex items-center gap-2 shrink-0">
           {a.type === 'consumer' && bal < 0 ? (
-            <span className="font-sans text-[14.5px] font-bold text-emerald-600">Advance: {fmtAmount(-bal)}</span>
+            <span className="font-sans text-[14.5px] font-bold text-emerald-600 w-36 text-end tabular-nums ltr-num">Advance: {fmtAmount(-bal)}</span>
           ) : (
-            <span className={`font-sans text-[14.5px] font-bold ${a.type === 'consumer' && bal > 0 ? 'text-dp-error' : 'text-dp-on-surface'}`}>
+            <span className={`font-sans text-[14.5px] font-bold w-36 text-end tabular-nums ltr-num ${a.type === 'consumer' && bal > 0 ? 'text-dp-error' : 'text-dp-on-surface'}`}>
               {fmtAmount(bal)}
             </span>
           )}
-          <div className="relative">
+          <div className="relative w-7 flex justify-center">
             <button
               onClick={(e) => { e.stopPropagation(); setMenuId(menuId === a.id ? null : a.id) }}
               className="p-1 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"
@@ -464,9 +468,11 @@ export default function AccountsPage() {
                   className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-dp-surface-container-low/60 hover:bg-dp-surface-container-low cursor-pointer transition-colors"
                 >
                   <span className="font-sans text-[14px] font-bold text-dp-on-surface" style={lang === 'ur' && h.label_ur ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{displayName(h.label, h.label_ur)}</span>
-                  <span className="flex items-center gap-3 shrink-0">
-                    <span className="font-sans text-[13px] font-bold text-dp-secondary">{fmtAmount(headerTotals[h.code] ?? 0)}</span>
-                    {isCollapsed ? <ChevronDown size={16} className="text-dp-on-surface-variant" /> : <ChevronUp size={16} className="text-dp-on-surface-variant" />}
+                  <span className="flex items-center gap-2 shrink-0">
+                    <span className="font-sans text-[14.5px] font-bold text-dp-secondary w-36 text-end tabular-nums ltr-num">{fmtAmount(headerTotals[h.code] ?? 0)}</span>
+                    <span className="w-7 flex justify-center">
+                      {isCollapsed ? <ChevronDown size={16} className="text-dp-on-surface-variant" /> : <ChevronUp size={16} className="text-dp-on-surface-variant" />}
+                    </span>
                   </span>
                 </button>
                 {!isCollapsed && (
