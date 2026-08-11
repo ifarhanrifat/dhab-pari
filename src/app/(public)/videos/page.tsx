@@ -161,7 +161,7 @@ export default function VideosPage() {
                           <Play size={18} className="text-white ms-0.5" fill="white" />
                         </div>
                       </div>
-                      <div className="absolute bottom-2 end-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded font-sans">
+                      <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded font-sans">
                         {formatDuration(video.duration_seconds)}
                       </div>
                     </div>
@@ -227,19 +227,19 @@ function VideoCard({ video, large }: { video: Video; large?: boolean }) {
       </div>
 
       {/* Duration */}
-      <div className="absolute bottom-2 end-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded font-sans">
+      <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded font-sans">
         {formatDuration(video.duration_seconds)}
       </div>
 
       {/* Category badge */}
-      <div className="absolute top-3 start-3">
+      <div className="absolute top-3 left-3">
         <span className={`text-[10px] font-bold uppercase tracking-widest font-sans text-white px-2 py-1 rounded ${categoryBadgeColors[video.category ?? ''] ?? 'bg-dp-primary'}`}>
           {video.category}
         </span>
       </div>
 
       {/* Bottom info */}
-      <div className="absolute bottom-0 start-0 end-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
         <p className="text-white font-bold text-[14px] font-sans tracking-[0.05em] truncate">
           {video.title}
         </p>

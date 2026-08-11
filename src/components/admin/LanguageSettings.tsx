@@ -149,7 +149,7 @@ export function LanguageSettings() {
       </p>
 
       <div className="relative mb-4">
-        <Search size={15} className="absolute top-1/2 -translate-y-1/2 start-3 text-dp-outline" />
+        <Search size={15} className="absolute top-1/2 -translate-y-1/2 left-3 text-dp-outline" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}

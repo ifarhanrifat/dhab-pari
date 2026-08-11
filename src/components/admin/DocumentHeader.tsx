@@ -28,7 +28,7 @@ export function DocumentHeader({ title, subtitle, className = '' }: Props) {
       {branding?.logoUrl && (
         <img
           src={branding.logoUrl} alt="Logo"
-          className="absolute start-0 top-0 object-contain"
+          className="absolute left-0 top-0 object-contain"
           style={{ width: branding.logoWidth, height: branding.logoWidth, marginTop: branding.logoOffsetY }}
         />
       )}

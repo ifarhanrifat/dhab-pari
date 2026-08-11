@@ -342,7 +342,7 @@ export default function CollectPaymentPage() {
       {receipt && (
         <>
           <ReceiptModal data={receipt} phone={receiptPhone} onClose={() => { setReceipt(null); setNotifyTargets([]) }} />
-          <div className="fixed bottom-4 end-4 bg-white border border-dp-outline-variant rounded-lg shadow-lg p-4 max-w-xs z-[110] space-y-3">
+          <div className="fixed bottom-4 right-4 bg-white border border-dp-outline-variant rounded-lg shadow-lg p-4 max-w-xs z-[110] space-y-3">
             {lastConsumerMobile && (
               <div>
                 <p className="font-sans text-[12.5px] font-bold text-dp-on-surface mb-2">Send receipt to consumer</p>

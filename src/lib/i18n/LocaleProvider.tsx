@@ -96,7 +96,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     // across 132 files. Flipping before converting them produced exactly what
     // you would expect: Urdu text in a layout torn in half.
     //
-    // So Urdu reads in the normal start-to-right layout until that sweep is
+    // So Urdu reads in the normal left-to-right layout until that sweep is
     // done, which is legible and honest. Flip this to RTL_READY once the
     // conversion lands, and the whole app mirrors from this one line.
     if (RTL_READY) el.dir = locale === 'ur' ? 'rtl' : 'ltr'

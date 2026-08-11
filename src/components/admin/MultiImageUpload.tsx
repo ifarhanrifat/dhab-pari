@@ -77,7 +77,7 @@ export function MultiImageUpload({ bucket, onUpload, currentUrls = [], label = '
               <button
                 type="button"
                 onClick={() => removeUrl(i)}
-                className="absolute top-1 end-1 bg-black/50 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
               >
                 <X size={12} />
               </button>

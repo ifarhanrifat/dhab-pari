@@ -677,7 +677,7 @@ function BillingPageInner() {
       {/* Filters */}
       <div className="flex flex-col md:flex-row gap-3 mb-6">
         <div className="relative flex-1 max-w-sm">
-          <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-outline" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-outline" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('billing.searchPlaceholder')} className="w-full ps-10 pe-4 py-2 border-2 border-dp-outline-variant rounded-lg focus:border-dp-primary focus:ring-0 text-[14px] font-sans bg-white" />
         </div>
         <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)} className="px-3 py-2 border-2 border-dp-outline-variant rounded-lg text-[14px] font-sans bg-white focus:border-dp-primary focus:ring-0">

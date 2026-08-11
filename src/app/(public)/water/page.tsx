@@ -134,7 +134,7 @@ export default function WaterBillPage() {
               <div className="relative">
                 <Search
                   size={18}
-                  className="absolute start-4 top-1/2 -translate-y-1/2 text-dp-outline"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-dp-outline"
                 />
                 <input
                   id="consumer_id"

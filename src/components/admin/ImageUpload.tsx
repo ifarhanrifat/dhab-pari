@@ -86,7 +86,7 @@ export function ImageUpload({ bucket, onUpload, currentUrl, label = 'Upload Imag
             </div>
           )}
           {!uploading && (
-            <div className="absolute top-2 end-2 flex gap-2">
+            <div className="absolute top-2 right-2 flex gap-2">
               <button
                 type="button"
                 onClick={() => inputRef.current?.click()}

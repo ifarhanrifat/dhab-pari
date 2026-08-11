@@ -409,7 +409,7 @@ export default function AllTransactionsPage() {
           <div className="flex-1 min-w-[220px]">
             <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">Search</label>
             <div className="relative">
-              <Search size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
               <input
                 value={search} onChange={(e) => setSearch(e.target.value)}
                 placeholder="Name, account ID, phone, receipt/voucher #, method..."

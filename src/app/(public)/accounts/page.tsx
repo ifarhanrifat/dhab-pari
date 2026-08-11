@@ -250,7 +250,7 @@ export default async function AccountsPage() {
                 <span key={m}>{m}</span>
               ))}
             </div>
-            <div className="absolute -end-8 -bottom-8 w-32 h-32 bg-dp-secondary opacity-20 rounded-full blur-3xl" />
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-dp-secondary opacity-20 rounded-full blur-3xl" />
           </div>
 
           {/* Audit Certificate */}

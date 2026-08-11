@@ -291,7 +291,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col h-screen fixed start-0 top-0 py-6 bg-dp-primary border-e border-dp-outline-variant w-[210px] z-50 print:hidden">
+      <aside className="hidden md:flex flex-col h-screen fixed left-0 top-0 py-6 bg-dp-primary border-e border-dp-outline-variant w-[210px] z-50 print:hidden">
         <div className="px-4 mb-8">
           <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">
             Admin Portal
@@ -313,7 +313,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
 
       {/* Mobile drawer */}
       <aside
-        className={`fixed start-0 top-0 h-screen w-[260px] bg-dp-primary z-[100] md:hidden flex flex-col py-6 transform transition-transform duration-300 ease-in-out ${
+        className={`fixed left-0 top-0 h-screen w-[260px] bg-dp-primary z-[100] md:hidden flex flex-col py-6 transform transition-transform duration-300 ease-in-out ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full'
         }`}
       >

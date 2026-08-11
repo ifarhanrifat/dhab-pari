@@ -268,8 +268,8 @@ export default function ProjectsPage() {
             </button>
           </div>
         </div>
-        <div className="absolute top-[-50px] end-[-50px] w-64 h-64 bg-dp-primary rounded-full opacity-20 blur-3xl" />
-        <div className="absolute bottom-[-50px] start-[-50px] w-64 h-64 bg-dp-secondary rounded-full opacity-10 blur-3xl" />
+        <div className="absolute top-[-50px] right-[-50px] w-64 h-64 bg-dp-primary rounded-full opacity-20 blur-3xl" />
+        <div className="absolute bottom-[-50px] left-[-50px] w-64 h-64 bg-dp-secondary rounded-full opacity-10 blur-3xl" />
       </div>
     </div>
   )
@@ -280,7 +280,7 @@ type Dt = (key: keyof typeof t) => string
 /* ========== ONGOING CARD ========== */
 function HotBadge() {
   return (
-    <span className="absolute top-2 end-2 z-20 bg-red-500 text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded-full font-sans flex items-center gap-1">
+    <span className="absolute top-2 right-2 z-20 bg-red-500 text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded-full font-sans flex items-center gap-1">
       <Flame size={11} /> Hot
     </span>
   )
@@ -296,7 +296,7 @@ function OngoingCard({ project, isHot, commentCount, dt, isUrdu }: { project: Pr
       {/* Left: Before / Present */}
       <div className="relative grid grid-cols-2 gap-[2px] bg-dp-outline-variant p-[2px]">
         <div className="relative aspect-[4/3]">
-          <div className="absolute top-2 start-2 z-10 bg-black/50 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded font-sans">
+          <div className="absolute top-2 left-2 z-10 bg-black/50 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded font-sans">
             {dt('before')}
           </div>
           {project.before_image_url ? (
@@ -306,7 +306,7 @@ function OngoingCard({ project, isHot, commentCount, dt, isUrdu }: { project: Pr
           )}
         </div>
         <div className="relative aspect-[4/3]">
-          <div className="absolute top-2 start-2 z-10 bg-dp-primary text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded font-sans">
+          <div className="absolute top-2 left-2 z-10 bg-dp-primary text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded font-sans">
             {dt('present')}
           </div>
           {project.after_image_url || project.proposal_image_url ? (
@@ -411,7 +411,7 @@ function CompletedCard({ project, isHot, dt, isUrdu }: { project: Project; isHot
       {isHot && <HotBadge />}
       {/* Left: Photo */}
       <div className="relative h-full min-h-[300px]">
-        <div className="absolute top-4 start-4 z-10 bg-dp-primary text-white text-[10px] uppercase font-bold px-3 py-1 rounded font-sans">
+        <div className="absolute top-4 left-4 z-10 bg-dp-primary text-white text-[10px] uppercase font-bold px-3 py-1 rounded font-sans">
           {dt('successStory')}
         </div>
         {project.after_image_url || project.proposal_image_url ? (

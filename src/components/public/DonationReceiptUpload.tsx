@@ -92,7 +92,7 @@ export function DonationReceiptUpload({ onUpload, label = 'Upload Payment Screen
             </div>
           )}
           {!uploading && (
-            <div className="absolute top-2 end-2 flex items-center gap-2">
+            <div className="absolute top-2 right-2 flex items-center gap-2">
               {fileName && <span className="bg-white/90 px-2 py-1 rounded text-[11px] font-sans truncate max-w-[140px]">{fileName}</span>}
               <button type="button" onClick={clear} className="bg-white/90 text-dp-error p-1 rounded hover:bg-white cursor-pointer">
                 <X size={14} />

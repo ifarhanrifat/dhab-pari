@@ -32,7 +32,7 @@ export function MobileNav({ open, onClose, navLinks, isPortalUser }: MobileNavPr
           item stays reachable on a short screen — the staff login button at
           the bottom used to be cut off with no way to scroll to it. */}
       <div
-        className={`fixed top-0 start-0 h-full w-[280px] max-w-[85vw] bg-dp-primary z-[100] lg:hidden flex flex-col overflow-y-auto transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 h-full w-[280px] max-w-[85vw] bg-dp-primary z-[100] lg:hidden flex flex-col overflow-y-auto transform transition-transform duration-300 ease-in-out ${
           open ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full'
         }`}
       >

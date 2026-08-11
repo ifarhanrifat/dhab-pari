@@ -114,9 +114,9 @@ export function PwaProvider() {
 
   return (
     // bottom-36 on mobile clears BOTH the bottom nav and the floating WhatsApp
-    // bubble (which sits at bottom-20 end-4) — at bottom-20 this banner
+    // bubble (which sits at bottom-20 right-4) — at bottom-20 this banner
     // covered the chat button completely.
-    <div className="fixed inset-x-3 bottom-36 md:inset-x-auto md:end-6 md:bottom-24 md:w-[360px] z-[80] print:hidden">
+    <div className="fixed inset-x-3 bottom-36 md:inset-x-auto md:right-6 md:bottom-24 md:w-[360px] z-[80] print:hidden">
       <div className="bg-dp-primary text-white rounded-xl shadow-2xl border border-white/10 p-4 flex items-start gap-3">
         <img src="/icons/icon-192.png" alt="" className="w-10 h-10 rounded-lg shrink-0 bg-white" />
         <div className="min-w-0 flex-1">

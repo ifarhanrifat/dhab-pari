@@ -19,7 +19,7 @@ export function FloatingWhatsAppButton() {
       rel="noopener noreferrer"
       aria-label="Chat with us on WhatsApp"
       title="Chat with us on WhatsApp"
-      className="fixed z-[70] bottom-20 end-4 md:bottom-6 md:end-6 flex items-center justify-center w-14 h-14 rounded-full bg-[#25D366] text-white shadow-lg hover:bg-[#1ebe5a] hover:scale-105 active:scale-95 transition-all print:hidden"
+      className="fixed z-[70] bottom-20 right-4 md:bottom-6 md:right-6 flex items-center justify-center w-14 h-14 rounded-full bg-[#25D366] text-white shadow-lg hover:bg-[#1ebe5a] hover:scale-105 active:scale-95 transition-all print:hidden"
     >
       <MessageCircle size={28} />
     </a>

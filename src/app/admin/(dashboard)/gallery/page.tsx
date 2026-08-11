@@ -143,11 +143,11 @@ export default function AdminGalleryPage() {
                   type="checkbox"
                   checked={selectedItems.has(item.id)}
                   onChange={() => toggleSelectItem(item.id)}
-                  className="absolute top-2 start-2 z-10 accent-dp-secondary cursor-pointer w-4 h-4"
+                  className="absolute top-2 left-2 z-10 accent-dp-secondary cursor-pointer w-4 h-4"
                 />
                 <div className="aspect-square bg-gradient-to-br from-dp-surface-container-high to-dp-surface-container flex items-center justify-center"><ImageIcon size={24} className="text-dp-on-surface-variant/30" /></div>
                 {item.caption && <p className="p-2 text-[12px] font-sans text-dp-on-surface-variant">{item.caption}</p>}
-                <button onClick={() => deleteItem(item.id)} className="absolute top-2 end-2 bg-black/50 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"><Trash2 size={14} /></button>
+                <button onClick={() => deleteItem(item.id)} className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"><Trash2 size={14} /></button>
               </div>
             ))}
             {items.length === 0 && <div className="col-span-4 text-center py-12 text-dp-on-surface-variant font-sans">No items yet. Add photos above.</div>}

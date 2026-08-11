@@ -1392,7 +1392,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         {mobileTypeMenuOpen && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setMobileTypeMenuOpen(false)} />
-            <div className="absolute z-50 top-full start-0 end-0 mt-1.5 bg-white rounded-lg border border-dp-outline-variant shadow-lg overflow-hidden max-h-[60vh] overflow-y-auto">
+            <div className="absolute z-50 top-full left-0 right-0 mt-1.5 bg-white rounded-lg border border-dp-outline-variant shadow-lg overflow-hidden max-h-[60vh] overflow-y-auto">
               {types.map((t) => {
                 const Icon = t.icon
                 const isActive = activeType === t.key
@@ -2254,7 +2254,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
             <div className="px-5 pt-4 shrink-0">
               <div className="relative mb-3">
-                <Search size={16} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
                 <input autoFocus value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} placeholder="Search..." className="input-field !ps-10 text-[15px]" />
               </div>
               <div className="flex gap-1.5 bg-dp-surface-container-low rounded-lg p-1">
@@ -2354,7 +2354,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
             </div>
             <div className="px-5 pt-4 shrink-0">
               <div className="relative">
-                <Search size={16} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
                 <input autoFocus value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} placeholder="Search items..." className="input-field !ps-10 text-[15px]" />
               </div>
             </div>

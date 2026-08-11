@@ -677,7 +677,7 @@ export default function AdminSettingsPage() {
                       <img
                         src={values.invoice_logo_url} alt="Logo preview"
                         style={{ width: +(values.invoice_logo_width || 56), height: +(values.invoice_logo_width || 56), marginTop: +(values.invoice_logo_offset_y || 0) }}
-                        className="absolute start-4 top-4 object-contain"
+                        className="absolute left-4 top-4 object-contain"
                       />
                       {values.display_language === 'ur' && (
                         <p className="text-[16px] font-bold mb-1.5" style={{ fontFamily: 'var(--font-urdu), serif' }}>واٹر اینڈ ویلفئیر کمیٹی</p>

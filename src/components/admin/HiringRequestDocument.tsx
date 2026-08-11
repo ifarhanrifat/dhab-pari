@@ -36,7 +36,7 @@ export const HiringRequestDocument = forwardRef<HTMLDivElement, Props>(function 
         {branding.logoUrl && (
           <img
             src={branding.logoUrl} alt="Logo"
-            className="absolute end-0 top-0 object-contain"
+            className="absolute right-0 top-0 object-contain"
             style={{ width: branding.logoWidth ?? 56, height: branding.logoWidth ?? 56, marginTop: branding.logoOffsetY ?? 0 }}
           />
         )}

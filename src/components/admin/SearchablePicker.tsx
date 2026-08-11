@@ -61,7 +61,7 @@ export function SearchablePicker({
         </div>
         <div className="p-3 border-b border-dp-outline-variant shrink-0">
           <div className="relative">
-            <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
             <input
               ref={inputRef} value={query} onChange={(e) => setQuery(e.target.value)}
               placeholder={searchPlaceholder}

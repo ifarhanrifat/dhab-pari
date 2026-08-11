@@ -304,7 +304,7 @@ function AdminDonorsPageInner() {
         <button onClick={() => { setForm(empty); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> Add Donor</button>
       </div>
       <div className="relative mb-4">
-        <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
         <input
           value={donorSearch}
           onChange={(e) => setDonorSearch(e.target.value)}
@@ -492,7 +492,7 @@ function AdminDonorsPageInner() {
         <ReceiptModal data={viewReceipt} system="donors_projects" onClose={() => { setViewReceipt(null); setConfirmedWhatsapp(null); setThankYouMessage(null) }} />
       )}
       {viewReceipt && confirmedWhatsapp && (
-        <div className="fixed bottom-6 end-6 z-[130]">
+        <div className="fixed bottom-6 right-6 z-[130]">
           <button onClick={sendThankYou} className="px-4 py-3 bg-emerald-600 text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-emerald-700 transition-all shadow-lg">
             Send Thank You via WhatsApp
           </button>
