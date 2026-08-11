@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { HeartHandshake, PlusCircle, X, Trash2 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Signup { id: string; project_id: string | null; message: string | null; status: string; created_at: string }
 interface ProjectOption { id: string; title: string }
@@ -37,6 +38,7 @@ const AVAILABILITY: { id: string; en: string; ur: string }[] = [
 ]
 
 export default function PortalMyVolunteeringPage() {
+  const { t: tr } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [signups, setSignups] = useState<Signup[]>([])
   const [projects, setProjects] = useState<ProjectOption[]>([])
@@ -116,22 +118,22 @@ export default function PortalMyVolunteeringPage() {
     load()
   }
 
-  if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{tr('action.loading')}</div>
 
   return (
     <>
       <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><HeartHandshake size={22} className="text-dp-secondary" /> My Volunteering</h1>
-          <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Your volunteer signups — visible publicly on the Volunteer page.</p>
+          <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><HeartHandshake size={22} className="text-dp-secondary" /> {tr('p.myVolunteering')}</h1>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{tr('p.signupsBlurb')}</p>
         </div>
         <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-          <PlusCircle size={16} /> New Signup
+          <PlusCircle size={16} /> {tr('p.newSignup')}
         </button>
       </div>
 
       {loading ? (
-        <p className="font-sans text-[14px] text-dp-on-surface-variant">Loading...</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant">{tr('action.loading')}</p>
       ) : signups.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center max-w-xl">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">You haven&apos;t signed up to volunteer yet.</p>
@@ -156,8 +158,8 @@ export default function PortalMyVolunteeringPage() {
       {myTasks.filter((t) => t.status !== 'cancelled').length > 0 && (
         <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mb-6">
           <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low">
-            <span className="font-sans text-[14px] font-bold text-dp-on-surface">My Tasks</span>
-            <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">Work the committee has asked you to do</p>
+            <span className="font-sans text-[14px] font-bold text-dp-on-surface">{tr('p.myTasks')}</span>
+            <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{tr('p.tasksBlurb')}</p>
           </div>
           {myTasks.filter((t) => t.status !== 'cancelled').map((t) => (
             <div key={t.id} className="px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0">
@@ -176,9 +178,9 @@ export default function PortalMyVolunteeringPage() {
               {t.status !== 'done' && (
                 <div className="flex gap-2 mt-2.5">
                   {t.status === 'pending' && (
-                    <button onClick={() => setTaskStatus(t.id, 'in_progress')} className="px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[12.5px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low transition-all">Start</button>
+                    <button onClick={() => setTaskStatus(t.id, 'in_progress')} className="px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[12.5px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low transition-all">{tr('p.start')}</button>
                   )}
-                  <button onClick={() => setTaskStatus(t.id, 'done')} className="px-3 py-1.5 rounded-lg bg-dp-secondary text-white font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">Mark done</button>
+                  <button onClick={() => setTaskStatus(t.id, 'done')} className="px-3 py-1.5 rounded-lg bg-dp-secondary text-white font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">{tr('p.markDone')}</button>
                 </div>
               )}
             </div>
@@ -190,20 +192,20 @@ export default function PortalMyVolunteeringPage() {
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">New Signup</h2>
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{tr('p.newSignup')}</h2>
               <button onClick={() => setShowForm(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Project (optional)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{tr('p.projectOptional')}</label>
                 <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="input-field">
-                  <option value="">General — any project the committee needs</option>
+                  <option value="">{tr('p.generalAnyProject')}</option>
                   {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">
-                  How can you help? <span className="text-dp-error">*</span>
+                  {tr('p.howCanYouHelp')} <span className="text-dp-error">*</span>
                   <span className="block font-normal text-[12px] text-dp-on-surface-variant" dir="rtl">آپ کس طرح مدد کر سکتے ہیں؟</span>
                 </label>
                 <div className="space-y-1.5">
@@ -221,7 +223,7 @@ export default function PortalMyVolunteeringPage() {
 
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">
-                  When are you usually free?
+                  {tr('p.whenFree')}
                   <span className="block font-normal text-[12px]" dir="rtl">آپ عام طور پر کب فارغ ہوتے ہیں؟</span>
                 </label>
                 <select value={availability} onChange={(e) => setAvailability(e.target.value)} className="input-field">
@@ -239,14 +241,14 @@ export default function PortalMyVolunteeringPage() {
 
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">
-                  Any special skill or trade we should know about?
+                  {tr('p.specialSkill')}
                   <span className="block font-normal text-[12px]" dir="rtl">کوئی خاص ہنر جو ہمیں معلوم ہونا چاہیے؟</span>
                 </label>
                 <input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="e.g. welder, tractor driver, first aid" className="input-field" />
               </div>
 
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Anything else (optional)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{tr('p.anythingElse')}</label>
                 <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={2} className="input-field resize-none" />
               </div>
               <button onClick={submit} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">

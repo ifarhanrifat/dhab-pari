@@ -6,6 +6,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { Briefcase, PlusCircle, X, Pencil, Pause, Play, Megaphone } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 const CATEGORIES = ['plumber', 'electrician', 'mason', 'carpenter', 'painter', 'laborer', 'driver', 'tailor', 'cook', 'tutor', 'mechanic', 'other']
 
@@ -23,6 +24,7 @@ const empty = { category: 'plumber', headline: '', description: '', sector: '', 
 // reused from the profile, so a poster can point inquiries at a different
 // number without touching their private account details.
 export default function PostJobPage() {
+  const { t } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
@@ -81,17 +83,17 @@ export default function PostJobPage() {
     load()
   }
 
-  if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
   return (
     <>
       <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Briefcase size={22} className="text-dp-secondary" /> My Job Listings</h1>
+          <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Briefcase size={22} className="text-dp-secondary" /> {t('p.myJobListings')}</h1>
           <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Offer a trade or service — plumber, mason, electrician, laborer, and more. Anyone can see and contact you directly.</p>
         </div>
         <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-          <PlusCircle size={16} /> Post a Listing
+          <PlusCircle size={16} /> {t('p.postListing')}
         </button>
       </div>
 
@@ -103,7 +105,7 @@ export default function PostJobPage() {
       </div>
 
       {loading ? (
-        <p className="font-sans text-[14px] text-dp-on-surface-variant">Loading...</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('action.loading')}</p>
       ) : listings.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center max-w-xl">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">You haven&apos;t posted any listings yet.</p>
@@ -118,7 +120,7 @@ export default function PostJobPage() {
                   <p className="font-sans text-[15px] font-semibold text-dp-on-surface mt-1.5">{l.headline}</p>
                   {l.description && <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">{l.description}</p>}
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1.5">{l.contact_name} · {l.contact_mobile}{l.sector ? ` · ${l.sector}` : ''}</p>
-                  {!l.is_active && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-surface-container-low text-dp-on-surface-variant mt-1.5 inline-block">Paused</span>}
+                  {!l.is_active && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-surface-container-low text-dp-on-surface-variant mt-1.5 inline-block">{t('w.paused')}</span>}
                 </div>
                 <div className="flex gap-1.5 shrink-0">
                   <button onClick={() => openEdit(l)} className="p-2 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Pencil size={15} /></button>
@@ -141,7 +143,7 @@ export default function PostJobPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Category</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.category')}</label>
                 <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">
                   {CATEGORIES.map((c) => <option key={c} value={c}>{c[0].toUpperCase() + c.slice(1)}</option>)}
                 </select>
@@ -151,15 +153,15 @@ export default function PostJobPage() {
                 <input value={form.headline} onChange={(e) => setForm({ ...form, headline: e.target.value })} placeholder="e.g. Experienced plumber, all repairs" className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Description (optional)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.descriptionOptional')}</label>
                 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="input-field resize-none" placeholder="Experience, availability, rates..." />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Sector / Area (optional)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.sectorOptional')}</label>
                 <input value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} className="input-field" />
               </div>
               <div className="border-t border-dp-outline-variant pt-4">
-                <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-wide mb-3">Public Contact Info</p>
+                <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-wide mb-3">{t('p.publicContactInfo')}</p>
                 <div className="space-y-3">
                   <div>
                     <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Contact Name *</label>

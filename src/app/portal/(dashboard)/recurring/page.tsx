@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { PlusCircle, X, Pause, Play, Trash2 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useTranslation } from '@/hooks/useTranslation'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Schedule {
   id: string; amount_pkr: number; frequency: string; next_run_date: string; is_active: boolean
@@ -21,6 +22,7 @@ function fmt(n: number) {
 const empty = { amount_pkr: 0, frequency: 'monthly', next_run_date: new Date().toISOString().split('T')[0], project_id: '', payment_method: 'jazzcash', particular: '' }
 
 export default function PortalRecurringPage() {
+  const { t } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -97,23 +99,23 @@ export default function PortalRecurringPage() {
     load()
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
   return (
     <>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
         <div>
-          <h1 className="font-heading text-[26px] font-bold text-dp-primary">Recurring Donations</h1>
-          <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Set up automatic giving to a project or the general fund.</p>
+          <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('p.recurringDonations')}</h1>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.recurringBlurb')}</p>
         </div>
         <button onClick={() => { setForm(empty); setAcknowledged(false); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
-          <PlusCircle size={16} /> New Schedule
+          <PlusCircle size={16} /> {t('p.newSchedule')}
         </button>
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         {schedules.length === 0 ? (
-          <p className="px-5 py-8 text-center font-sans text-[14px] text-dp-on-surface-variant">No recurring donations set up yet.</p>
+          <p className="px-5 py-8 text-center font-sans text-[14px] text-dp-on-surface-variant">{t('p.noRecurring')}</p>
         ) : (
           schedules.map((s) => (
             <div key={s.id} className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant last:border-b-0">
@@ -140,19 +142,19 @@ export default function PortalRecurringPage() {
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[22px] font-bold text-dp-primary">New Recurring Donation</h2><button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button></div>
+            <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[22px] font-bold text-dp-primary">{t('p.newRecurring')}</h2><button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Amount (PKR)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
                 <input type="number" min={1} value={form.amount_pkr || ''} onChange={(e) => setForm({ ...form, amount_pkr: +e.target.value })} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Frequency</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.frequency')}</label>
                 <select value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })} className="input-field">
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="semi_annual">Every 6 Months</option>
-                  <option value="yearly">Yearly</option>
+                  <option value="weekly">{t('w.weekly')}</option>
+                  <option value="monthly">{t('w.monthly')}</option>
+                  <option value="semi_annual">{t('w.semiAnnual')}</option>
+                  <option value="yearly">{t('w.yearly')}</option>
                 </select>
               </div>
               <div>
@@ -162,18 +164,18 @@ export default function PortalRecurringPage() {
                 <input type="date" value={form.next_run_date} onChange={(e) => setForm({ ...form, next_run_date: e.target.value })} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Project</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.project')}</label>
                 <select value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })} className="input-field">
-                  <option value="">General Fund</option>
+                  <option value="">{t('w.generalFund')}</option>
                   {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Payment Method</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
                 <select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })} className="input-field">
-                  <option value="jazzcash">JazzCash</option>
-                  <option value="easypaisa">Easypaisa</option>
-                  <option value="bank">Bank Transfer</option>
+                  <option value="jazzcash">{t('w.jazzcash')}</option>
+                  <option value="easypaisa">{t('w.easypaisa')}</option>
+                  <option value="bank">{t('w.bankTransfer')}</option>
                 </select>
               </div>
               {/* The policy sits between the form and the button on purpose —

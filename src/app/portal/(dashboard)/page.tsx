@@ -5,12 +5,14 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { HeartHandshake, Droplets, MessageSquareWarning, MessageSquare, Repeat, Droplet } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
 
 export default function PortalDashboardPage() {
+  const { t } = useLocale()
   const { user, loading } = usePortalUser()
   const [totalDonated, setTotalDonated] = useState(0)
   const [waterOutstanding, setWaterOutstanding] = useState(0)
@@ -36,8 +38,8 @@ export default function PortalDashboardPage() {
       .eq('created_by_portal_user_id', user.id).eq('is_active', true).then(({ count }) => setActiveRecurring(count ?? 0))
   }, [user])
 
-  if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
-  if (!user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Could not load your account.</div>
+  if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (!user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('p.couldNotLoad')}</div>
 
   const cards = [
     { href: '/portal/statement', icon: HeartHandshake, label: 'Total Donated', value: `Rs. ${fmt(totalDonated)}`, color: 'text-dp-secondary' },

@@ -6,6 +6,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { HandHeart, Sparkles, Send } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Item { id: string; message: string; type: string; status: string; admin_notes: string | null; created_at: string }
 
@@ -21,6 +22,7 @@ const typeLabel: Record<string, string> = { volunteer: 'Volunteer', role_request
 // review — no auto-granting of the publisher role, matching how every other
 // role change in this app already works (manual, via User Management).
 export default function PortalGetInvolvedPage() {
+  const { t } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
@@ -67,18 +69,18 @@ export default function PortalGetInvolvedPage() {
     load()
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
   return (
     <>
       <div className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary">Get Involved</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('p.getInvolved')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Offer your time, skills, or request to help publish content for the committee.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white border border-dp-outline-variant rounded-lg p-6">
-          <h2 className="font-heading text-[17px] font-bold text-dp-primary flex items-center gap-2 mb-3"><HandHeart size={18} className="text-dp-secondary" /> Volunteer</h2>
+          <h2 className="font-heading text-[17px] font-bold text-dp-primary flex items-center gap-2 mb-3"><HandHeart size={18} className="text-dp-secondary" /> {t('p.volunteer')}</h2>
           <p className="font-sans text-[13px] text-dp-on-surface-variant mb-3">Tell us what you can help with — labor, organizing, skills for ongoing projects.</p>
           <textarea value={skills} onChange={(e) => setSkills(e.target.value)} rows={4} placeholder="e.g. I can help with plumbing work on weekends..." className="input-field resize-none mb-3" />
           <button onClick={submitVolunteer} disabled={savingVolunteer} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
@@ -87,7 +89,7 @@ export default function PortalGetInvolvedPage() {
         </div>
 
         <div className="bg-white border border-dp-outline-variant rounded-lg p-6">
-          <h2 className="font-heading text-[17px] font-bold text-dp-primary flex items-center gap-2 mb-3"><Sparkles size={18} className="text-dp-secondary" /> Request Publisher Role</h2>
+          <h2 className="font-heading text-[17px] font-bold text-dp-primary flex items-center gap-2 mb-3"><Sparkles size={18} className="text-dp-secondary" /> {t('p.requestPublisher')}</h2>
           <p className="font-sans text-[13px] text-dp-on-surface-variant mb-3">Writing, photography, or design skills? Request access to publish news/content on the website.</p>
           <textarea value={roleSkills} onChange={(e) => setRoleSkills(e.target.value)} rows={4} placeholder="e.g. I have 3 years of photography experience and can cover project events..." className="input-field resize-none mb-3" />
           <button onClick={submitRoleRequest} disabled={savingRole} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
@@ -97,9 +99,9 @@ export default function PortalGetInvolvedPage() {
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-        <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/60"><span className="font-sans text-[14px] font-bold">My Requests</span></div>
+        <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/60"><span className="font-sans text-[14px] font-bold">{t('p.myRequests')}</span></div>
         {items.length === 0 ? (
-          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No requests submitted yet.</p>
+          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('p.noRequests')}</p>
         ) : (
           items.map((i) => (
             <div key={i.id} className="px-5 py-4 border-b border-dp-outline-variant last:border-b-0">

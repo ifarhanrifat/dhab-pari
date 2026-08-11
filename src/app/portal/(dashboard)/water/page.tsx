@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { X, UploadCloud } from 'lucide-react'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Bill {
   id: string; month: number; year: number; amount_pkr: number; paid_amount: number
@@ -21,6 +22,7 @@ function fmt(n: number) {
 const monthName = (m: number) => new Date(2000, m - 1, 1).toLocaleDateString('en-US', { month: 'long' })
 
 export default function PortalWaterPage() {
+  const { t } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [bills, setBills] = useState<Bill[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
@@ -73,12 +75,12 @@ export default function PortalWaterPage() {
 
   const claimStatusFor = (billId: string) => claims.find((c) => c.bill_id === billId && c.status !== 'rejected')
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
   if (!user?.consumer_id) {
     return (
       <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">
-        <p className="font-sans text-[14px] text-dp-on-surface-variant">No water connection is linked to your account.</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('p.noWaterConnection')}</p>
       </div>
     )
   }
@@ -93,19 +95,19 @@ export default function PortalWaterPage() {
       </div>
 
       <div className="bg-white border border-dp-outline-variant rounded-lg px-5 py-4 mb-6 inline-block">
-        <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">Total Outstanding</p>
+        <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{t('p.totalOutstanding')}</p>
         <p className={`font-heading text-[24px] font-bold ${outstanding > 0 ? 'text-dp-error' : 'text-dp-secondary'}`}>Rs. {fmt(outstanding)}</p>
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mb-6">
-        <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/60"><span className="font-sans text-[14px] font-bold">Bills</span></div>
+        <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/60"><span className="font-sans text-[14px] font-bold">{t('p.bills')}</span></div>
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[12px] font-sans font-bold tracking-[0.05em]">
-              <th className="p-3">Period</th><th className="p-3">Bill #</th><th className="p-3 text-end">Amount</th><th className="p-3 text-end">Paid</th><th className="p-3">Status</th><th className="p-3">Due</th><th className="p-3 text-end">Action</th>
+              <th className="p-3">{t('w.period')}</th><th className="p-3">{t('p.billNo')}</th><th className="p-3 text-end">{t('w.amount')}</th><th className="p-3 text-end">{t('w.paid')}</th><th className="p-3">{t('w.status')}</th><th className="p-3">Due</th><th className="p-3 text-end">{t('w.action')}</th>
             </tr></thead>
             <tbody className="font-sans text-[14px]">
-              {bills.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-dp-on-surface-variant">No bills yet.</td></tr>}
+              {bills.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-dp-on-surface-variant">{t('p.noBills')}</td></tr>}
               {bills.map((b) => {
                 const claim = claimStatusFor(b.id)
                 return (
@@ -136,14 +138,14 @@ export default function PortalWaterPage() {
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-        <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/60"><span className="font-sans text-[14px] font-bold">Recent Payments</span></div>
+        <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/60"><span className="font-sans text-[14px] font-bold">{t('p.recentPayments')}</span></div>
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[12px] font-sans font-bold tracking-[0.05em]">
-              <th className="p-3">Date</th><th className="p-3">Receipt #</th><th className="p-3">Method</th><th className="p-3 text-end">Amount</th>
+              <th className="p-3">{t('w.date')}</th><th className="p-3">{t('p.receiptNo')}</th><th className="p-3">{t('w.method')}</th><th className="p-3 text-end">{t('w.amount')}</th>
             </tr></thead>
             <tbody className="font-sans text-[14px]">
-              {payments.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-dp-on-surface-variant">No payments yet.</td></tr>}
+              {payments.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-dp-on-surface-variant">{t('p.noPayments')}</td></tr>}
               {payments.map((p) => (
                 <tr key={p.id} className="border-b border-dp-outline-variant last:border-b-0">
                   <td className="p-3">{new Date(p.paid_date).toLocaleDateString('en-GB')}</td>
@@ -166,16 +168,16 @@ export default function PortalWaterPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Amount Paid (PKR)</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('p.amountPaid')}</label>
                 <input type="number" min={1} value={claimAmount || ''} onChange={(e) => setClaimAmount(+e.target.value)} className="input-field" />
               </div>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Payment Method</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
                 <select value={claimMethod} onChange={(e) => setClaimMethod(e.target.value)} className="input-field">
-                  <option value="jazzcash">JazzCash</option>
-                  <option value="easypaisa">Easypaisa</option>
-                  <option value="bank">Bank Transfer</option>
-                  <option value="cash">Cash</option>
+                  <option value="jazzcash">{t('w.jazzcash')}</option>
+                  <option value="easypaisa">{t('w.easypaisa')}</option>
+                  <option value="bank">{t('w.bankTransfer')}</option>
+                  <option value="cash">{t('w.cash')}</option>
                 </select>
               </div>
               <DonationReceiptUpload bucket="bill_payment_proofs" label="Upload Payment Slip" onUpload={setClaimProof} />

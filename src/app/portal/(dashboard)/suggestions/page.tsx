@@ -6,6 +6,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { Send } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Suggestion { id: string; message: string; status: string; admin_notes: string | null; created_at: string }
 
@@ -16,6 +17,7 @@ const statusLabel: Record<string, { label: string; cls: string }> = {
 }
 
 export default function PortalSuggestionsPage() {
+  const { t } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [items, setItems] = useState<Suggestion[]>([])
   const [loading, setLoading] = useState(true)
@@ -46,13 +48,13 @@ export default function PortalSuggestionsPage() {
     load()
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
   return (
     <>
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary">Suggestions</h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Share an idea or proposal with the committee.</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.suggestionsBlurb')}</p>
       </div>
 
       <div className="bg-white border border-dp-outline-variant rounded-lg p-6 mb-8">
@@ -63,9 +65,9 @@ export default function PortalSuggestionsPage() {
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-        <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/60"><span className="font-sans text-[14px] font-bold">My Suggestions</span></div>
+        <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/60"><span className="font-sans text-[14px] font-bold">{t('p.mySuggestions')}</span></div>
         {items.length === 0 ? (
-          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No suggestions submitted yet.</p>
+          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('p.noSuggestions')}</p>
         ) : (
           items.map((s) => (
             <div key={s.id} className="px-5 py-4 border-b border-dp-outline-variant last:border-b-0">

@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { HeartHandshake, AlertTriangle } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 export default function PortalSignupPage() {
+  const { t } = useLocale()
   const [form, setForm] = useState({
     full_name: '', name_ur: '', father_husband_name: '', mobile: '', whatsapp_number: '',
     donor_type: 'villager', country: '', sector: '', username: '', email: '', password: '',
@@ -65,8 +67,8 @@ export default function PortalSignupPage() {
         <div className="w-14 h-14 rounded-full bg-dp-primary flex items-center justify-center text-white mb-4">
           <HeartHandshake size={26} />
         </div>
-        <h1 className="font-heading text-[24px] font-bold text-dp-primary">Create Your Account</h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">One account for donations, water bills, and more.</p>
+        <h1 className="font-heading text-[24px] font-bold text-dp-primary">{t('p.createAccount')}</h1>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.oneAccount')}</p>
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant p-6 md:p-8 w-full max-w-md">
@@ -76,7 +78,7 @@ export default function PortalSignupPage() {
             <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required className="input-field" />
           </div>
           <div>
-            <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">Name (Urdu)</label>
+            <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('w.nameUrdu')}</label>
             <input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder="اردو میں نام" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
           </div>
           <div>
@@ -95,20 +97,20 @@ export default function PortalSignupPage() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">You Are</label>
+              <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('w.youAre')}</label>
               <select value={form.donor_type} onChange={(e) => setForm({ ...form, donor_type: e.target.value, country: '' })} className="input-field">
-                <option value="villager">Village Resident</option>
-                <option value="overseas">Overseas</option>
+                <option value="villager">{t('w.villageResident')}</option>
+                <option value="overseas">{t('w.overseas')}</option>
               </select>
             </div>
             {form.donor_type === 'overseas' ? (
               <div>
-                <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">Country *</label>
+                <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('w.country')}</label>
                 <input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} required className="input-field" />
               </div>
             ) : (
               <div>
-                <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">Sector</label>
+                <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('w.sector')}</label>
                 <input value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} list="sector-options" placeholder="Select or type your sector" className="input-field" />
                 <datalist id="sector-options">
                   {sectors.map((s) => <option key={s} value={s} />)}
@@ -122,7 +124,7 @@ export default function PortalSignupPage() {
             <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Used to log in — never your phone number. This will also be your public name for community features.</p>
           </div>
           <div>
-            <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">Email (optional)</label>
+            <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('w.emailOptional')}</label>
             <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input-field" />
           </div>
           <div>
@@ -144,7 +146,7 @@ export default function PortalSignupPage() {
         </form>
 
         <p className="text-center font-sans text-[14px] text-dp-on-surface-variant mt-6">
-          Already have an account? <Link href="/portal/login" className="text-dp-secondary font-semibold hover:underline">Log in</Link>
+          {t('p.alreadyHaveAccount')} <Link href="/portal/login" className="text-dp-secondary font-semibold hover:underline">{t('p.logIn')}</Link>
         </p>
       </div>
     </div>

@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { HeartHandshake, X } from 'lucide-react'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface LedgerRow { id: string; entry_date: string; particular: string; debit: number; credit: number }
 interface AccountInfo { donor_account_no: string | null; opening_balance: number }
@@ -17,6 +18,7 @@ function fmt(n: number) {
 }
 
 export default function PortalStatementPage() {
+  const { t } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [account, setAccount] = useState<AccountInfo | null>(null)
   const [rows, setRows] = useState<LedgerRow[]>([])
@@ -56,7 +58,7 @@ export default function PortalStatementPage() {
     load()
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
   const pledges = donations.filter((d) => d.payment_status === 'pledged')
   // Paid but not yet verified by the committee. Until now this showed nowhere:
@@ -72,13 +74,13 @@ export default function PortalStatementPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary">My Giving Statement</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('p.givingStatement')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{account?.donor_account_no ? `Donor Account: ${account.donor_account_no}` : 'No confirmed donations yet'}</p>
       </div>
 
       {pledges.length > 0 && (
         <div className="bg-white rounded-lg border border-amber-200 overflow-hidden mb-6">
-          <div className="px-5 py-3 border-b border-amber-200 bg-amber-50"><span className="font-sans text-[14px] font-bold text-amber-800">My Announced Pledges — Not Yet Paid</span></div>
+          <div className="px-5 py-3 border-b border-amber-200 bg-amber-50"><span className="font-sans text-[14px] font-bold text-amber-800">{t('p.announcedPledges')}</span></div>
           {pledges.map((p) => (
             <div key={p.id} className="flex items-center justify-between px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0">
               <div>
@@ -86,7 +88,7 @@ export default function PortalStatementPage() {
                 <p className="font-sans text-[12px] text-dp-on-surface-variant">Pledged {new Date(p.date).toLocaleDateString('en-GB')}</p>
               </div>
               <button onClick={() => { setPayingId(p.id); setPayProof(''); setPayMethod('jazzcash') }} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
-                Pay Now
+                {t('p.payNow')}
               </button>
             </div>
           ))}
@@ -96,7 +98,7 @@ export default function PortalStatementPage() {
       {awaiting.length > 0 && (
         <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mb-6">
           <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low">
-            <span className="font-sans text-[14px] font-bold text-dp-on-surface">Paid — Awaiting Confirmation</span>
+            <span className="font-sans text-[14px] font-bold text-dp-on-surface">{t('p.paidAwaiting')}</span>
             <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">
               We have your payment on record. It will appear in your statement below once the committee confirms it.
             </p>
@@ -107,7 +109,7 @@ export default function PortalStatementPage() {
                 <p className="font-sans text-[15px] font-bold">Rs. {fmt(d.amount_pkr)}</p>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant">Paid {new Date(d.date).toLocaleDateString('en-GB')}</p>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-sans text-[11.5px] font-bold">Awaiting confirmation</span>
+              <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-sans text-[11.5px] font-bold">{t('p.awaitingConfirmation')}</span>
             </div>
           ))}
         </div>
@@ -117,12 +119,12 @@ export default function PortalStatementPage() {
         <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">
           <HeartHandshake size={32} className="mx-auto text-dp-on-surface-variant mb-3" />
           <p className="font-sans text-[14px] text-dp-on-surface-variant">Your giving statement will appear here once your first donation is verified.</p>
-          <a href="/donate/submit" className="inline-block mt-4 bg-dp-secondary text-white px-5 py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all">Make a Donation</a>
+          <a href="/donate/submit" className="inline-block mt-4 bg-dp-secondary text-white px-5 py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all">{t('p.makeDonation')}</a>
         </div>
       ) : (
         <>
           <div className="bg-white border border-dp-outline-variant rounded-lg px-5 py-4 mb-6 inline-block">
-            <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">Total Contributed</p>
+            <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{t('p.totalContributed')}</p>
             <p className="font-heading text-[24px] font-bold text-dp-secondary">Rs. {fmt(total)}</p>
           </div>
 
@@ -131,11 +133,11 @@ export default function PortalStatementPage() {
               <table className="w-full text-start border-collapse">
                 <thead>
                   <tr className="bg-dp-surface-container-low text-dp-outline text-[12px] font-sans font-bold tracking-[0.05em]">
-                    <th className="p-3">Date</th><th className="p-3">Particular</th><th className="p-3 text-end">Amount</th><th className="p-3 text-end">Running Total</th>
+                    <th className="p-3">{t('w.date')}</th><th className="p-3">{t('w.particular')}</th><th className="p-3 text-end">{t('w.amount')}</th><th className="p-3 text-end">{t('p.runningTotal')}</th>
                   </tr>
                 </thead>
                 <tbody className="font-sans text-[14px]">
-                  {withBalance.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-dp-on-surface-variant">No donations recorded yet.</td></tr>}
+                  {withBalance.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-dp-on-surface-variant">{t('p.noDonations')}</td></tr>}
                   {withBalance.map((r) => (
                     <tr key={r.id} className="border-b border-dp-outline-variant last:border-b-0">
                       <td className="p-3 whitespace-nowrap">{new Date(r.entry_date).toLocaleDateString('en-GB')}</td>
@@ -155,16 +157,16 @@ export default function PortalStatementPage() {
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPayingId(null)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">Pay Your Pledge</h2>
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('p.payYourPledge')}</h2>
               <button onClick={() => setPayingId(null)} className="cursor-pointer"><X size={20} /></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Payment Method</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
                 <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className="input-field">
-                  <option value="jazzcash">JazzCash</option>
-                  <option value="easypaisa">Easypaisa</option>
-                  <option value="bank">Bank Transfer</option>
+                  <option value="jazzcash">{t('w.jazzcash')}</option>
+                  <option value="easypaisa">{t('w.easypaisa')}</option>
+                  <option value="bank">{t('w.bankTransfer')}</option>
                 </select>
               </div>
               <DonationReceiptUpload onUpload={setPayProof} />

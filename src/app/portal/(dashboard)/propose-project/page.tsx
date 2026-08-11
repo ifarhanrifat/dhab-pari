@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { Vote, Sparkles, ListChecks } from 'lucide-react'
 import { ImageUpload } from '@/components/admin/ImageUpload'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 const CATEGORIES = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'sports', 'other']
 
@@ -83,6 +84,7 @@ function selfCommitmentRequiredFor(budget: number) {
 // server-side by trg_project_proposal_defaults). Committee approval + real
 // funded budget still happens later, via the existing admin Projects page.
 export default function ProposeProjectPage() {
+  const { t: tr } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const router = useRouter()
   const [lang, setLang] = useState<Lang>('en')
@@ -200,7 +202,7 @@ export default function ProposeProjectPage() {
     router.push(`/projects/${data.id}`)
   }
 
-  if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{tr('action.loading')}</div>
 
   return (
     <>
@@ -273,7 +275,7 @@ export default function ProposeProjectPage() {
               {aiWaitingForAnswer && aiStage < 2 && (
                 <div className="flex gap-2">
                   <input value={aiReply} onChange={(e) => setAiReply(e.target.value)} placeholder="Your answer..." className="input-field flex-1" />
-                  <button onClick={sendAiReply} disabled={aiBusy} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">Send</button>
+                  <button onClick={sendAiReply} disabled={aiBusy} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{tr('p.send')}</button>
                 </div>
               )}
               {modernEstimate && <p className="font-sans text-[13.5px] font-bold text-dp-secondary">Modern Equipment Estimate: Rs. {modernEstimate.toLocaleString()}</p>}
@@ -290,7 +292,7 @@ export default function ProposeProjectPage() {
                   </button>
                 )}
                 {aiStage === 2 && (
-                  <p className="font-sans text-[12px] text-dp-on-surface-variant italic">AI estimate complete — write your final budget below manually.</p>
+                  <p className="font-sans text-[12px] text-dp-on-surface-variant italic">{tr('p.aiEstimateDone')}</p>
                 )}
               </div>
             </div>

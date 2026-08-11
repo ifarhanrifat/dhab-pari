@@ -6,6 +6,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { Send } from 'lucide-react'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Complaint {
   id: string; complaint_number: string | null; system: string; complaint_text: string
@@ -19,6 +20,7 @@ const statusLabel: Record<string, { label: string; cls: string }> = {
 }
 
 export default function PortalComplaintsPage() {
+  const { t } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [complaints, setComplaints] = useState<Complaint[]>([])
   const [sectors, setSectors] = useState<{ id: string; name: string }[]>([])
@@ -58,13 +60,13 @@ export default function PortalComplaintsPage() {
     load()
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
   return (
     <>
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary">Complaints</h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Raise an issue with a project/donation, or your water connection.</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.complaintsBlurb')}</p>
       </div>
 
       <div className="bg-white border border-dp-outline-variant rounded-lg p-6 mb-8">
@@ -84,7 +86,7 @@ export default function PortalComplaintsPage() {
           <div className="mb-4">
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">Sector (optional)</label>
             <select value={sector} onChange={(e) => setSector(e.target.value)} className="input-field">
-              <option value="">Select your sector...</option>
+              <option value="">{t('w.selectSector')}</option>
               {sectors.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
             </select>
           </div>
@@ -96,9 +98,9 @@ export default function PortalComplaintsPage() {
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-        <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/60"><span className="font-sans text-[14px] font-bold">My Complaints</span></div>
+        <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/60"><span className="font-sans text-[14px] font-bold">{t('p.myComplaints')}</span></div>
         {complaints.length === 0 ? (
-          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No complaints submitted yet.</p>
+          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('p.noComplaints')}</p>
         ) : (
           complaints.map((c) => (
             <div key={c.id} className="px-5 py-4 border-b border-dp-outline-variant last:border-b-0">

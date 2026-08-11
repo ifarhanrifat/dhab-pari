@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, HeartHandshake, AlertTriangle } from 'lucide-react'
 import { SITE } from '@/lib/constants'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 const MIN_DELAY_MS = 1000
 const MAX_DELAY_MS = 8000
 
 export default function PortalLoginPage() {
+  const { t } = useLocale()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
@@ -101,7 +103,7 @@ export default function PortalLoginPage() {
               placeholder="Your username" />
           </div>
           <div>
-            <label htmlFor="password" className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">Password</label>
+            <label htmlFor="password" className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('w.password')}</label>
             <div className="relative">
               <input id="password" type={showPw ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required
                 autoComplete="current-password" disabled={isLocked || loading}
@@ -129,7 +131,7 @@ export default function PortalLoginPage() {
         </form>
 
         <p className="text-center font-sans text-[14px] text-dp-on-surface-variant mt-6">
-          New here? <Link href="/portal/signup" className="text-dp-secondary font-semibold hover:underline">Create an account</Link>
+          {t('p.newHere')} <Link href="/portal/signup" className="text-dp-secondary font-semibold hover:underline">{t('p.createAnAccount')}</Link>
         </p>
       </div>
     </div>
