@@ -105,6 +105,10 @@ ALTER TABLE appeals
 -- Blood is always an emergency; nobody raises one in advance for fun.
 UPDATE appeals SET severity = 'emergency' WHERE kind = 'blood' AND severity = 'appeal';
 
+-- Dropped first: CREATE OR REPLACE cannot change a RETURNS TABLE signature,
+-- and adding `severity` changes it. Same reason my_appeals is dropped below.
+DROP FUNCTION IF EXISTS public_appeals();
+
 CREATE OR REPLACE FUNCTION public_appeals()
 RETURNS TABLE (id uuid, kind text, severity text, title_en text, title_ur text,
                body_en text, body_ur text, contact_number text, created_at timestamptz) AS $$
