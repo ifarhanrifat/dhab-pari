@@ -23,21 +23,25 @@ export default async function AdminDashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
 
   let role = 'viewer'
-  let accessWater = false
-  let accessDonor = false
   let displayName = 'there'
+  let showWater = false
+  let showDonor = false
   if (user) {
-    const { data: profile } = await supabase.from('admin_users')
-      .select('role, access_water_supply, access_donors_projects, full_name')
-      .eq('auth_user_id', user.id).single()
+    // Ask the database the same question its RLS policies ask, instead of
+    // re-deriving it from role names here. The hand-rolled version below this
+    // comment used to miss secondary_role entirely, so a user whose access came
+    // from their second role saw an empty dashboard while every other screen
+    // worked.
+    const [{ data: profile }, { data: canWater }, { data: canDonor }] = await Promise.all([
+      supabase.from('admin_users').select('role, full_name').eq('auth_user_id', user.id).single(),
+      supabase.rpc('can_access_system', { p_system: 'water_supply' }),
+      supabase.rpc('can_access_system', { p_system: 'donors_projects' }),
+    ])
     role = profile?.role ?? 'viewer'
-    accessWater = !!profile?.access_water_supply
-    accessDonor = !!profile?.access_donors_projects
     displayName = profile?.full_name ?? 'there'
+    showWater = !!canWater
+    showDonor = !!canDonor
   }
-  const fullAccess = role === 'super_admin' || role === 'admin' || role === 'viewer'
-  const showWater = fullAccess || role === 'water_accountant' || (role === 'accountant' && accessWater)
-  const showDonor = fullAccess || role === 'donor_accountant' || (role === 'accountant' && accessDonor)
 
   const [{ data: accountsData }, { data: ledgerData }, { data: consumersData }, { data: donorsData }, { data: inventoryData }, { data: topSellingLines }] = await Promise.all([
     supabase.from('accounts').select('id, code, name, type, system, opening_balance'),

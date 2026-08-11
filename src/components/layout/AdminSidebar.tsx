@@ -45,10 +45,19 @@ import {
   ArrowRightLeft,
   Briefcase,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useSystemAccess } from '@/hooks/useSystemAccess'
+import { MODULES } from '@/lib/constants'
 import { SITE } from '@/lib/constants'
 
-const menuItems = [
+const menuItems: {
+  href: string; label: string; icon: LucideIcon
+  system?: 'water_supply' | 'donors_projects'
+  module?: 'business'
+  badge?: string
+  collectorOnly?: boolean; adminAndAbove?: boolean; superAdminOnly?: boolean
+}[] = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/billing', label: 'Billing', icon: Receipt, system: 'water_supply' },
   { href: '/admin/connections', label: 'New Connections', icon: UserPlus, system: 'water_supply', badge: 'connections' },
@@ -56,7 +65,7 @@ const menuItems = [
   { href: '/admin/tasks/meetings', label: 'Meetings & Agenda', icon: CalendarClock },
   { href: '/admin/reminders', label: 'Reminders', icon: BellRing },
   { href: '/admin/advances', label: 'Advance Payments', icon: HandCoins, system: 'water_supply' },
-  { href: '/admin/projects', label: 'Projects', icon: FolderKanban },
+  { href: '/admin/projects', label: 'Projects', icon: FolderKanban, system: 'donors_projects' },
   { href: '/admin/members', label: 'Members', icon: Users },
   { href: '/admin/accounts', label: 'Accounts', icon: BookOpen },
   { href: '/admin/finance', label: 'Transactions', icon: BarChart3 },
@@ -110,6 +119,12 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
   const router = useRouter()
   const supabase = createClient()
   const [profile, setProfile] = useState<{ full_name: string; role: string; can_collect_payments: boolean } | null>(null)
+  // Same can_access_system() the RLS policies are built on, rather than a
+  // hand-maintained list of role names — the old check only knew about
+  // water_accountant and donor_accountant, so an 'accountant' granted just one
+  // system still saw the other one's whole menu, and a secondary role was
+  // ignored entirely.
+  const access = useSystemAccess()
   const [badges, setBadges] = useState<Record<string, number>>({})
 
   useEffect(() => {
@@ -141,12 +156,21 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
   }
 
   const visibleMenuItems = menuItems.filter((item) => {
+    // Modules this village did not buy are hidden for everyone. A product
+    // switch only — RLS still decides what any request may actually read.
+    if (item.system === 'water_supply' && !MODULES.waterSupply) return false
+    if (item.system === 'donors_projects' && !MODULES.donors) return false
+    if (item.module === 'business' && !MODULES.business) return false
+
     if (!profile) return !item.collectorOnly
     if (item.collectorOnly && !profile.can_collect_payments) return false
     if (item.superAdminOnly && profile.role !== 'super_admin') return false
     if (item.adminAndAbove && profile.role !== 'super_admin' && profile.role !== 'admin') return false
-    if (item.system === 'water_supply' && profile.role === 'donor_accountant') return false
-    if (item.system === 'donors_projects' && profile.role === 'water_accountant') return false
+
+    // While access is still loading, show nothing system-specific rather than
+    // flashing the other account's menu and then removing it.
+    if (item.system === 'water_supply') return !access.loading && access.canWaterSupply
+    if (item.system === 'donors_projects') return !access.loading && access.canDonorsProjects
     return true
   })
 

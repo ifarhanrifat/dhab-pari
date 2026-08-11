@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Save, PlusCircle, Trash2, Pencil, X, Check, Bell, MessageCircle, ShieldCheck, MessageSquareWarning, AlertTriangle, Copy, MessageSquareText, Building2, Wallet, FileText, MapPin, Heart, ChevronDown } from 'lucide-react'
+import { Save, PlusCircle, Trash2, Pencil, X, Check, Bell, MessageCircle, ShieldCheck, MessageSquareWarning, AlertTriangle, Copy, MessageSquareText, Building2, Wallet, FileText, MapPin, Heart, ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ImageUpload } from '@/components/admin/ImageUpload'
@@ -9,6 +9,8 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import type { ManagementContact } from '@/lib/branding'
 import { TEMPLATE_KEYS } from '@/lib/messageTemplates'
 import { SITE } from '@/lib/constants'
+import { useSystemAccess } from '@/hooks/useSystemAccess'
+import { MODULES } from '@/lib/constants'
 
 interface Setting { id: string; key: string; value: string | null; description: string | null }
 interface Sector { id: string; name: string; display_order: number }
@@ -44,14 +46,35 @@ const invoiceTemplates: { id: string; label: string; blurb: string }[] = [
 
 type SettingsCategory = 'general' | 'payments' | 'documents' | 'donorTemplates' | 'connections' | 'approvals' | 'danger'
 
-const CATEGORIES: { id: SettingsCategory; label: string; icon: typeof Building2 }[] = [
-  { id: 'general', label: 'General', icon: Building2 },
-  { id: 'payments', label: 'Payment Methods', icon: Wallet },
-  { id: 'documents', label: 'Documents & Templates', icon: FileText },
-  { id: 'donorTemplates', label: 'Donor Templates', icon: Heart },
-  { id: 'connections', label: 'Connections & Billing', icon: MapPin },
-  { id: 'approvals', label: 'Approvals & Notifications', icon: ShieldCheck },
-  { id: 'danger', label: 'Danger Zone', icon: AlertTriangle },
+// Grouped by which part of the system each one belongs to, so a village that
+// runs only water supply — or only donations — sees a settings screen with
+// nothing in it belonging to a module they do not have. The `system` field is
+// what does that filtering; `group` is only the heading it sits under.
+const CATEGORIES: {
+  id: SettingsCategory
+  label: string
+  icon: typeof Building2
+  group: string
+  blurb: string
+  system?: 'water_supply' | 'donors_projects'
+}[] = [
+  { id: 'general', label: 'Committee & Identity', icon: Building2, group: 'Committee',
+    blurb: 'Name, display language, about text and office hours' },
+  { id: 'payments', label: 'Payment Methods', icon: Wallet, group: 'Committee',
+    blurb: 'WhatsApp, JazzCash, Easypaisa and bank details' },
+
+  { id: 'connections', label: 'Connections & Billing', icon: MapPin, group: 'Water Supply', system: 'water_supply',
+    blurb: 'Sectors, new connection charges and reminder fees' },
+  { id: 'documents', label: 'Bills & Water Documents', icon: FileText, group: 'Water Supply', system: 'water_supply',
+    blurb: 'Bill template, slip format, footer links and WhatsApp messages' },
+
+  { id: 'donorTemplates', label: 'Receipts & Donor Documents', icon: Heart, group: 'Donors & Projects', system: 'donors_projects',
+    blurb: 'Donation receipt template, slip format and donor footer' },
+
+  { id: 'approvals', label: 'Approvals & Alerts', icon: ShieldCheck, group: 'System',
+    blurb: 'Who approves spending, who handles complaints, which alerts are sent' },
+  { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, group: 'System',
+    blurb: 'Reset an accounting system — irreversible' },
 ]
 
 const settingGroups: { label: string; keys: string[]; category: SettingsCategory }[] = [
@@ -179,6 +202,25 @@ export default function AdminSettingsPage() {
   const [templates, setTemplates] = useState<MessageTemplate[]>([])
   const [savingTemplate, setSavingTemplate] = useState<string | null>(null)
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>('general')
+  // On a phone the category list is the whole screen until one is picked, the
+  // way a settings app works — the old horizontal strip of seven tabs meant
+  // the later ones were permanently off-screen and never found.
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(true)
+  const access = useSystemAccess()
+
+  const visibleCategories = CATEGORIES.filter((c) => {
+    if (c.system === 'water_supply') return MODULES.waterSupply && (access.loading || access.canWaterSupply)
+    if (c.system === 'donors_projects') return MODULES.donors && (access.loading || access.canDonorsProjects)
+    return true
+  })
+
+  // If the open category belongs to a module this user cannot see, fall back
+  // rather than rendering a panel they should not be looking at.
+  useEffect(() => {
+    if (access.loading) return
+    if (!visibleCategories.some((c) => c.id === activeCategory)) setActiveCategory('general')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [access.loading, access.canWaterSupply, access.canDonorsProjects])
   const supabase = createClient()
 
   const resetLabel = (sys: 'water_supply' | 'donors_projects') => (sys === 'water_supply' ? 'WATER SUPPLY' : 'DONORS PROJECTS')
@@ -527,29 +569,62 @@ export default function AdminSettingsPage() {
       </div>
 
       <div className="flex flex-col md:flex-row gap-6 items-start">
-        {/* Category sidebar */}
-        <nav className="w-full md:w-60 shrink-0 bg-white border border-dp-outline-variant rounded-lg p-2 flex md:flex-col gap-1 overflow-x-auto md:overflow-visible md:sticky md:top-6">
-          {CATEGORIES.map((cat) => {
-            const Icon = cat.icon
-            const active = activeCategory === cat.id
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer transition-all whitespace-nowrap shrink-0 md:shrink text-left ${
-                  active
-                    ? cat.id === 'danger' ? 'bg-dp-error/10 text-dp-error' : 'bg-dp-secondary text-white'
-                    : cat.id === 'danger' ? 'text-dp-error hover:bg-dp-error/5' : 'text-dp-on-surface-variant hover:bg-dp-surface-container-low'
-                }`}
-              >
-                <Icon size={16} /> {cat.label}
-              </button>
-            )
-          })}
+        {/* Category navigation.
+            Desktop: a grouped sidebar, so "which module does this belong to" is
+            visible at a glance.
+            Mobile: the list IS the screen until something is picked, then it is
+            replaced by that section with a back arrow — the previous horizontal
+            strip pushed four of the seven tabs off the edge where nobody found
+            them. */}
+        <nav
+          className={`w-full md:w-64 shrink-0 md:sticky md:top-6 ${mobileMenuOpen ? 'block' : 'hidden'} md:block`}
+        >
+          <div className="bg-white border border-dp-outline-variant rounded-lg p-2 space-y-1">
+            {Array.from(new Set(visibleCategories.map((c) => c.group))).map((group) => (
+              <div key={group}>
+                <p className="px-3 pt-3 pb-1.5 font-sans text-[11px] font-bold uppercase tracking-[0.08em] text-dp-outline">
+                  {group}
+                </p>
+                {visibleCategories.filter((c) => c.group === group).map((cat) => {
+                  const Icon = cat.icon
+                  const active = activeCategory === cat.id
+                  const danger = cat.id === 'danger'
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => { setActiveCategory(cat.id); setMobileMenuOpen(false) }}
+                      className={`w-full flex items-start gap-2.5 px-3.5 py-3 md:py-2.5 rounded-lg font-sans cursor-pointer transition-all text-left ${
+                        active
+                          ? danger ? 'bg-dp-error/10 text-dp-error' : 'bg-dp-secondary text-white'
+                          : danger ? 'text-dp-error hover:bg-dp-error/5' : 'text-dp-on-surface-variant hover:bg-dp-surface-container-low'
+                      }`}
+                    >
+                      <Icon size={17} className="shrink-0 mt-0.5" />
+                      <span className="min-w-0">
+                        <span className="block text-[14px] md:text-[13.5px] font-semibold">{cat.label}</span>
+                        {/* The blurb answers "is the thing I want in here?"
+                            without opening every section to find out. */}
+                        <span className={`block text-[11.5px] font-normal leading-snug mt-0.5 md:hidden ${active ? 'text-white/75' : 'text-dp-on-surface-variant/75'}`}>
+                          {cat.blurb}
+                        </span>
+                      </span>
+                      <ChevronRight size={16} className={`shrink-0 ml-auto mt-0.5 md:hidden ${active ? 'text-white/70' : 'text-dp-outline'}`} />
+                    </button>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
         </nav>
 
         {/* Category content */}
-        <div className="flex-1 min-w-0 space-y-6">
+        <div className={`flex-1 min-w-0 space-y-6 ${mobileMenuOpen ? 'hidden' : 'block'} md:block`}>
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="md:hidden flex items-center gap-1.5 text-dp-secondary font-sans text-[13.5px] font-semibold cursor-pointer mb-1"
+          >
+            <ChevronLeft size={17} /> All settings
+          </button>
           {activeCategory === 'general' && (
             <>
               <SettingsSection title="Company Identity" icon={Building2} defaultOpen>
@@ -960,7 +1035,15 @@ export default function AdminSettingsPage() {
                 Resetting a system permanently clears its bills, payments, vouchers, purchases, inventory movement history, and recurring schedules. Consumers, inventory stock levels, and the chart of accounts are kept exactly as they are. This cannot be undone.
               </p>
               <div className="space-y-3">
-                {(['water_supply', 'donors_projects'] as const).map((sys) => (
+                {(['water_supply', 'donors_projects'] as const)
+                  // Only offer to wipe books this user can actually reach, and
+                  // only modules this village runs. Reset is SECURITY DEFINER
+                  // and checks permission itself — this keeps the button from
+                  // being there to mis-click in the first place.
+                  .filter((sys) => sys === 'water_supply'
+                    ? MODULES.waterSupply && access.canWaterSupply
+                    : MODULES.donors && access.canDonorsProjects)
+                  .map((sys) => (
                   <div key={sys} className="border border-dp-outline-variant rounded-lg p-4">
                     <div className="flex items-center justify-between gap-3 flex-wrap">
                       <span className="font-sans text-[14px] font-semibold text-dp-on-surface">{sys === 'water_supply' ? 'Water Supply' : 'Donors & Projects'}</span>

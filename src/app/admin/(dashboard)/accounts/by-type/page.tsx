@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Eye, Power } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
+import { SystemGuard } from '@/components/admin/SystemGuard'
 
 interface Account {
   id: string; code: string; name: string; name_ur: string | null
@@ -23,14 +24,23 @@ function fmtAmount(n: number) {
 export default function AccountsByTypePage() {
   return (
     <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">Loading...</div>}>
-      <AccountsByTypePageInner />
+      <AccountsByTypeGuarded />
     </Suspense>
   )
 }
 
+// The system arrives in the query string, so it can be edited by hand or
+// arrive in a link pasted between staff. RLS already returns nothing for the
+// wrong system; this makes that read as a refusal instead of "no accounts".
+function AccountsByTypeGuarded() {
+  const searchParams = useSearchParams()
+  const system = (searchParams.get('system') === 'donors_projects' ? 'donors_projects' : 'water_supply') as 'water_supply' | 'donors_projects'
+  return <SystemGuard system={system}><AccountsByTypePageInner /></SystemGuard>
+}
+
 function AccountsByTypePageInner() {
   const searchParams = useSearchParams()
-  const system = searchParams.get('system') ?? 'water_supply'
+  const system = (searchParams.get('system') === 'donors_projects' ? 'donors_projects' : 'water_supply') as 'water_supply' | 'donors_projects'
   const type = searchParams.get('type') ?? 'cash'
 
   const [accounts, setAccounts] = useState<Account[]>([])
