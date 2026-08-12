@@ -56,6 +56,10 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
 
     // The portal has no news ticker of its own — only appeals belong there.
     if (source === 'public') {
+      // Sweeps expired thank-yous off the belt before reading it. Without this
+      // a donation thank-you would sit there for ever and the belt would fill
+      // with old gratitude until nobody read any of it.
+      await supabase.rpc('expire_ticker_messages')
       const { data } = await supabase
         .from('news_ticker')
         .select('id, message, message_ur')

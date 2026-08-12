@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, Save, Wallet, ArrowDownCircle, ArrowLeftRight, ArrowUpFromLine,
-  ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck, ChevronDown, Search, PlusCircle, ChevronLeft, HandCoins,
+  ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck, ChevronDown, Search, PlusCircle, ChevronLeft, HandCoins, Undo2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
@@ -20,10 +20,12 @@ import { billBadge, billBadgeClass, type BillBadgeTone } from '@/lib/billStatus'
 import { QuickAddAccountModal, type NewAccount } from '@/components/admin/QuickAddAccountModal'
 import { voucherTypeLabels as sharedVoucherTypeLabels, voucherReceiptKind } from '@/lib/ledgerLabels'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { fetchPeriodLockRule, periodIsLocked, dateIsLocked, DEFAULT_PERIOD_LOCK, type PeriodLockRule } from '@/lib/periodLock'
+import { renderTemplate } from '@/lib/messageTemplates'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 type VoucherType = 'expense' | 'income' | 'contra' | 'withdrawal' | 'deposit' | 'advance'
-type ActiveType = VoucherType | 'bill' | 'donation' | 'purchase' | 'cash_receipt'
+type ActiveType = VoucherType | 'bill' | 'donation' | 'purchase' | 'cash_receipt' | 'project_transfer'
 
 interface Account { id: string; name: string; name_ur: string | null; type: string; code: string; system: string; opening_balance: number }
 interface Consumer { consumer_id: string; name: string; monthly_rate: number; connections: number }
@@ -160,6 +162,18 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [accountBalances, setAccountBalances] = useState<Record<string, { debit: number; credit: number }>>({})
   const [consumers, setConsumers] = useState<Consumer[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  // A committee decision to move raised funds from one project to another.
+  // Kept apart from voucherForm because its two sides are projects, not
+  // accounts — the ledger accounts behind them are resolved server-side.
+  const [transferForm, setTransferForm] = useState({
+    date: today(), fromProjectId: '', toProjectId: '', amount: 0, particular: '', meetingId: '',
+  })
+  const [projectBalances, setProjectBalances] = useState<Record<string, number>>({})
+  const [meetings, setMeetings] = useState<{ id: string; title: string; meeting_date: string }[]>([])
+  const [savingTransfer, setSavingTransfer] = useState(false)
+  const [reverseTarget, setReverseTarget] = useState<TxnCard | null>(null)
+  const [reverseReason, setReverseReason] = useState('')
+  const [reversing, setReversing] = useState(false)
   const [txnCards, setTxnCards] = useState<TxnCard[]>([])
   const [logSortDir, setLogSortDir] = useState<'asc' | 'desc'>('desc')
   const [filterLogByType, setFilterLogByType] = useState(true)
@@ -197,6 +211,10 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [editingBill, setEditingBill] = useState<{ id: string; bill_number: string | null; paid_amount: number; security_deposit_voucher_id: string | null; recurring_schedule_id: string | null } | null>(null)
   const [editLoading, setEditLoading] = useState(false)
   const [lockedReceipts, setLockedReceipts] = useState<string[]>([])
+  // Why this bill is closed to editing, if it is — cash received, or a month
+  // that has already been reported and closed.
+  const [billLockReason, setBillLockReason] = useState<'paid' | 'period' | null>(null)
+  const [lockRule, setLockRule] = useState<PeriodLockRule>(DEFAULT_PERIOD_LOCK)
   const [donationForm, setDonationForm] = useState(emptyDonationForm)
   const [confirmDeleteVoucherId, setConfirmDeleteVoucherId] = useState<string | null>(null)
   const [editVoucherTarget, setEditVoucherTarget] = useState<{ id: string; voucherNo: string | null } | null>(null)
@@ -483,6 +501,10 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   }, [searchParams, txnCards.length])
 
   useEffect(() => {
+    fetchPeriodLockRule(supabase).then(setLockRule)
+  }, [supabase])
+
+  useEffect(() => {
     const billParam = searchParams.get('bill')
     if (system !== 'water_supply' || !billParam) return
     setEditLoading(true)
@@ -500,12 +522,19 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         id: bill.id, bill_number: bill.bill_number, paid_amount: bill.paid_amount ?? 0,
         security_deposit_voucher_id: bill.security_deposit_voucher_id, recurring_schedule_id: bill.recurring_schedule_id,
       })
-      if ((bill.paid_amount ?? 0) > 0) {
-        const { data: pays } = await supabase.from('payments').select('receipt_no').eq('bill_id', billParam).order('created_at')
-        setLockedReceipts((pays ?? []).map((p) => p.receipt_no).filter(Boolean) as string[])
-      } else {
-        setLockedReceipts([])
-      }
+      // Asked unconditionally, and keyed on the payment rows themselves rather
+      // than on paid_amount. The database trigger blocks on the existence of a
+      // receipt; if this screen decided from a different column the two could
+      // disagree, and the accountant would fill in the form only to have Save
+      // refused.
+      const { data: pays } = await supabase.from('payments').select('receipt_no').eq('bill_id', billParam).order('created_at')
+      const receipts = (pays ?? []).map((p) => p.receipt_no ?? '—')
+      setLockedReceipts(receipts.filter((r) => r !== '—'))
+      setBillLockReason(
+        receipts.length > 0 ? 'paid'
+          : periodIsLocked(bill.year, bill.month, lockRule) ? 'period'
+            : null
+      )
       setBillForm({
         consumer_id: bill.consumer_id, month: bill.month, year: bill.year,
         due_date: bill.due_date ?? '', description: bill.description ?? '',
@@ -525,7 +554,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       setActiveType('bill')
       setEditLoading(false)
     })()
-  }, [system, searchParams, supabase])
+  }, [system, searchParams, supabase, lockRule])
 
   const deletePayment = async () => {
     if (!confirmDeletePaymentId) return
@@ -744,6 +773,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       base.push({ key: 'advance', label: 'Advance Payment', icon: HandCoins })
     } else {
       base.push({ key: 'donation', label: 'Record Donation', icon: Heart })
+      base.push({ key: 'project_transfer', label: 'Transfer Project Money', icon: ArrowLeftRight })
     }
     return base
   }, [system])
@@ -756,6 +786,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       if (activeType === 'donation') return c.kind === 'donation'
       if (activeType === 'purchase') return c.kind === 'purchase'
       if (activeType === 'cash_receipt') return c.kind === 'payment'
+      if (activeType === 'project_transfer') return c.kind === 'voucher' && c.voucherType === 'project_transfer'
       // An advance settlement's real economic effect is an expense (see
       // migration 090) — it should show up under Expense, not be invisible
       // just because its own voucher_type isn't literally 'expense'.
@@ -951,6 +982,72 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setNewChargeAccountName('')
     setShowAddChargeAccount(false)
     toast.success('Charge account created')
+  }
+
+  // Loaded on demand rather than with the page: only this one form needs a
+  // project's running balance or the list of meetings, and both are wasted
+  // round trips on every other tab.
+  useEffect(() => {
+    if (activeType !== 'project_transfer' || system !== 'donors_projects') return
+    ;(async () => {
+      const [{ data: projAccounts }, { data: mts }] = await Promise.all([
+        supabase.from('accounts').select('id, project_id').not('project_id', 'is', null),
+        supabase.from('agenda_meetings').select('id, title, meeting_date').order('meeting_date', { ascending: false }).limit(24),
+      ])
+      setMeetings(mts ?? [])
+      const accountIds = (projAccounts ?? []).map((a) => a.id as string)
+      if (accountIds.length === 0) { setProjectBalances({}); return }
+      const { data: legs } = await supabase.from('ledger_entries')
+        .select('account_id, debit, credit').in('account_id', accountIds)
+      const byAccount: Record<string, number> = {}
+      for (const l of legs ?? []) {
+        // A project account's balance is what it still holds: everything
+        // credited to it, less everything spent or transferred away.
+        byAccount[l.account_id as string] = (byAccount[l.account_id as string] ?? 0) + Number(l.credit) - Number(l.debit)
+      }
+      setProjectBalances(Object.fromEntries(
+        (projAccounts ?? []).map((a) => [a.project_id as string, byAccount[a.id as string] ?? 0])
+      ))
+    })()
+  }, [activeType, system, supabase])
+
+  const runReversal = async () => {
+    if (!reverseTarget?.voucherId) return
+    if (!reverseReason.trim()) { toast.error(t('rv.err.reason')); return }
+    setReversing(true)
+    const { data, error } = await supabase.rpc('reverse_voucher', {
+      p_voucher_id: reverseTarget.voucherId, p_reason: reverseReason.trim(),
+    })
+    setReversing(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(`${t('rv.ok')} ${(data as { voucher_no?: string } | null)?.voucher_no ?? ''}`.trim())
+    setReverseTarget(null)
+    setReverseReason('')
+    load()
+  }
+
+  const saveProjectTransfer = async () => {
+    if (!transferForm.fromProjectId || !transferForm.toProjectId) { toast.error(t('pt.err.bothProjects')); return }
+    if (transferForm.fromProjectId === transferForm.toProjectId) { toast.error(t('pt.err.sameProject')); return }
+    if (!transferForm.amount || transferForm.amount <= 0) { toast.error(t('pt.err.amount')); return }
+    if (!transferForm.particular.trim()) { toast.error(t('pt.err.reason')); return }
+    setSavingTransfer(true)
+    // from_account_id/to_account_id are filled in by the trigger from the two
+    // projects — this screen deliberately doesn't have to know which ledger
+    // account sits behind a project, or create one that doesn't exist yet.
+    const { data: saved, error } = await supabase.from('vouchers').insert({
+      system: 'donors_projects', voucher_type: 'project_transfer',
+      voucher_date: transferForm.date, particular: transferForm.particular.trim(),
+      amount_pkr: transferForm.amount,
+      project_id: transferForm.fromProjectId,
+      transfer_to_project_id: transferForm.toProjectId,
+      meeting_id: transferForm.meetingId || null,
+    }).select('status, voucher_no').single()
+    setSavingTransfer(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(saved.status === 'pending' ? t('pt.ok.pending') : `${t('pt.ok.posted')} ${saved.voucher_no ?? ''}`.trim())
+    setTransferForm({ ...transferForm, fromProjectId: '', toProjectId: '', amount: 0, particular: '', meetingId: '' })
+    load()
   }
 
   const saveVoucher = async () => {
@@ -1546,6 +1643,82 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
               )
             })()}
 
+            {activeType === 'project_transfer' && (() => {
+              const available = projectBalances[transferForm.fromProjectId] ?? 0
+              const over = transferForm.fromProjectId !== '' && transferForm.amount > available
+              return (
+                <div className="space-y-4">
+                  <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('pt.title')}</h2>
+                  <p className="font-sans text-[13px] text-dp-on-surface-variant -mt-2">{t('pt.blurb')}</p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.date')}</label>
+                      <input type="date" value={transferForm.date} onChange={(e) => setTransferForm({ ...transferForm, date: e.target.value })} className="input-field" />
+                    </div>
+                    <div>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
+                      <input type="number" value={transferForm.amount || ''} onChange={(e) => setTransferForm({ ...transferForm, amount: +e.target.value })} className="input-field" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pt.fromProject')}</label>
+                      <select value={transferForm.fromProjectId} onChange={(e) => setTransferForm({ ...transferForm, fromProjectId: e.target.value })} className="input-field">
+                        <option value="">{t('pt.choose')}</option>
+                        {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                      </select>
+                      {/* What the project actually holds, next to the field
+                          that spends it — the alternative is finding out from
+                          a refusal after the form is filled in. */}
+                      {transferForm.fromProjectId && (
+                        <p className={`font-sans text-[12px] mt-1.5 font-semibold ${over ? 'text-dp-error' : 'text-dp-on-surface-variant'}`}>
+                          {t('pt.available')} Rs. {fmtAmount(available)}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pt.toProject')}</label>
+                      <select value={transferForm.toProjectId} onChange={(e) => setTransferForm({ ...transferForm, toProjectId: e.target.value })} className="input-field">
+                        <option value="">{t('pt.choose')}</option>
+                        {projects.filter((p) => p.id !== transferForm.fromProjectId).map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pt.meeting')}</label>
+                    <select value={transferForm.meetingId} onChange={(e) => setTransferForm({ ...transferForm, meetingId: e.target.value })} className="input-field">
+                      <option value="">{t('pt.noMeeting')}</option>
+                      {meetings.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {new Date(m.meeting_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}{m.title ? ` — ${m.title}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pt.reason')}</label>
+                    <textarea value={transferForm.particular} onChange={(e) => setTransferForm({ ...transferForm, particular: e.target.value })}
+                      rows={2} placeholder={t('pt.reasonPlaceholder')} className="input-field resize-none" />
+                  </div>
+
+                  {over && (
+                    <p className="font-sans text-[13px] font-semibold text-dp-error bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                      {t('pt.err.overBalance')}
+                    </p>
+                  )}
+
+                  <button disabled={savingTransfer || over} onClick={saveProjectTransfer}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+                    <Save size={16} /> {t('pt.save')}
+                  </button>
+                </div>
+              )
+            })()}
+
             {activeType === 'cash_receipt' && (
               <div className="space-y-4">
                 <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('f.cashReceipt')}</h2>
@@ -1627,15 +1800,16 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
               <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('f.loadingBill')}</div>
             )}
 
-            {activeType === 'bill' && !editLoading && editingBill && editingBill.paid_amount > 0 && (
+            {activeType === 'bill' && !editLoading && editingBill && billLockReason && (
               <div className="space-y-4">
                 <h2 className="font-heading text-[20px] font-bold text-dp-primary">Edit Bill {editingBill.bill_number}</h2>
                 <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-4">
-                  <p className="font-sans text-[14px] font-semibold text-dp-error mb-1.5">This bill can&apos;t be edited — cash has already been received against it.</p>
-                  <p className="font-sans text-[13px] text-dp-on-surface-variant mb-3">
-                    Delete {lockedReceipts.length > 1 ? 'these receipts' : 'this receipt'} first, then come back here to edit the bill:
+                  <p className="font-sans text-[14px] font-semibold text-dp-error mb-1.5">
+                    {billLockReason === 'paid'
+                      ? renderTemplate(t('lock.billPaid'), { receipt: lockedReceipts.join(', ') })
+                      : t('lock.periodClosed')}
                   </p>
-                  {lockedReceipts.length > 0 && (
+                  {billLockReason === 'paid' && lockedReceipts.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
                       {lockedReceipts.map((r) => (
                         <span key={r} className="px-2.5 py-1 bg-white border border-red-200 rounded-full font-sans text-[12.5px] font-semibold text-dp-error">Receipt #{r}</span>
@@ -1649,7 +1823,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
               </div>
             )}
 
-            {activeType === 'bill' && !editLoading && !(editingBill && editingBill.paid_amount > 0) && (
+            {activeType === 'bill' && !editLoading && !(editingBill && billLockReason) && (
               <div className="space-y-4">
                 <h2 className="font-heading text-[20px] font-bold text-dp-primary">{editingBill ? `Edit Bill ${editingBill.bill_number}` : 'Generate Bill'}</h2>
 
@@ -2168,8 +2342,19 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         {c.kind === 'voucher' && c.voucherId && (
                           <>
                             <button onClick={() => openVoucherReceipt(c)} title="View voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><FileText size={15} /></button>
-                            <button onClick={() => openEditVoucher(c.voucherId!)} title="Edit voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></button>
-                            <button onClick={() => setConfirmDeleteVoucherId(c.voucherId!)} title="Delete voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
+                            {/* Once the month is closed the entry stops being
+                                editable and starts being reversible. Editing
+                                it would rewrite a month that has already been
+                                reported; a reversal shows the correction in
+                                the month it was actually made. */}
+                            {dateIsLocked(c.date, lockRule) ? (
+                              <button onClick={() => { setReverseTarget(c); setReverseReason('') }} title={t('rv.reverse')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Undo2 size={15} /></button>
+                            ) : (
+                              <>
+                                <button onClick={() => openEditVoucher(c.voucherId!)} title="Edit voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></button>
+                                <button onClick={() => setConfirmDeleteVoucherId(c.voucherId!)} title="Delete voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
+                              </>
+                            )}
                           </>
                         )}
                         {c.kind === 'purchase' && c.purchaseId && (
@@ -2191,6 +2376,36 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
           </div>
         </div>
       </div>
+
+      {/* A reason is required and goes into the audit log, because in a year's
+          time the entry itself will not explain why the books changed. */}
+      {reverseTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setReverseTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('rv.title')}</h2>
+              <button onClick={() => setReverseTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
+              <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{reverseTarget.docLabel} — {reverseTarget.partyName}</p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">
+                {new Date(reverseTarget.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · Rs. {fmtAmount(reverseTarget.amount)}
+              </p>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-3">{t('rv.blurb')}</p>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('rv.reason')}</label>
+            <textarea value={reverseReason} onChange={(e) => setReverseReason(e.target.value)} rows={3}
+              placeholder={t('rv.reasonPlaceholder')} className="input-field resize-none mb-4" />
+            <div className="flex items-center gap-2">
+              <button disabled={reversing} onClick={runReversal}
+                className="flex items-center gap-2 px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+                <Undo2 size={16} /> {reversing ? t('action.saving') : t('rv.confirm')}
+              </button>
+              <button onClick={() => setReverseTarget(null)} className="px-4 py-2.5 font-sans font-semibold text-dp-on-surface-variant cursor-pointer">{t('action.cancel')}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         open={!!confirmDeleteVoucherId}

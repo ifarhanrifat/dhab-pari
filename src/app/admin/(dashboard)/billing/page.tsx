@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Search, PlusCircle, X, ChevronRight, Phone,
   Home, MapPin, MessageCircle, AlertCircle, CheckCircle2,
-  Clock, CreditCard, Banknote, Pencil, Receipt, Users, UserCheck, UserX, Tag, UserPlus, Repeat, Trash2, FileText,
+  Clock, CreditCard, Banknote, Pencil, Receipt, Users, UserCheck, UserX, Tag, UserPlus, Repeat, Trash2, FileText, Lock,
   Power, Ban, PauseCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -18,6 +18,7 @@ import { renderTemplate } from '@/lib/messageTemplates'
 import { findDuplicate, type DuplicateCandidate } from '@/lib/duplicateCheck'
 import { SITE } from '@/lib/constants'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { fetchPeriodLockRule, periodIsLocked, DEFAULT_PERIOD_LOCK, type PeriodLockRule } from '@/lib/periodLock'
 
 interface Consumer {
   consumer_id: string
@@ -116,6 +117,12 @@ function BillingPageInner() {
   const searchParams = useSearchParams()
   const [consumers, setConsumers] = useState<Consumer[]>([])
   const [bills, setBills] = useState<Bill[]>([])
+  // Receipt numbers against each bill. A bill with cash received is closed to
+  // edits — the database refuses one (migration 204) — so the screen has to
+  // know before it offers the button, and has to be able to name the receipt
+  // that must be deleted first.
+  const [receiptsByBill, setReceiptsByBill] = useState<Record<string, string[]>>({})
+  const [lockRule, setLockRule] = useState<PeriodLockRule>(DEFAULT_PERIOD_LOCK)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [sectorFilter, setSectorFilter] = useState('')
@@ -170,7 +177,7 @@ function BillingPageInner() {
     setLoading(true)
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-    const [cRes, bRes, secRes, auditRes, recurRes, complaintsRes, inProcessRes, pendingReqRes] = await Promise.all([
+    const [cRes, bRes, secRes, auditRes, recurRes, complaintsRes, inProcessRes, pendingReqRes, payRes, lockRes] = await Promise.all([
       supabase.from('consumers').select('*').order('consumer_id'),
       supabase.from('bills').select('*').order('year', { ascending: false }).order('month', { ascending: false }),
       supabase.from('sectors').select('id, name').order('display_order').order('name'),
@@ -181,12 +188,22 @@ function BillingPageInner() {
       // Not-yet-converted requests too, so a duplicate can be caught before it
       // ever becomes a real consumer, not just after.
       supabase.from('connection_requests').select('id, consumer_name, consumer_phone, whatsapp_number, father_husband_name').is('consumer_id', null),
+      supabase.from('payments').select('bill_id, receipt_no').not('bill_id', 'is', null),
+      fetchPeriodLockRule(supabase),
     ])
     setConsumers(cRes.data ?? [])
     setPendingRequestIdentities((pendingReqRes.data ?? []).map((r) => ({
       id: r.id, name: r.consumer_name, mobile: r.consumer_phone, whatsapp_number: r.whatsapp_number, father_husband_name: r.father_husband_name,
     })))
     setBills(bRes.data ?? [])
+    const receiptMap: Record<string, string[]> = {}
+    for (const p of payRes.data ?? []) {
+      // A receipt with no number still blocks the bill — it is still cash the
+      // committee holds — so it counts, it just cannot be named.
+      ;(receiptMap[p.bill_id as string] ??= []).push(p.receipt_no ?? '—')
+    }
+    setReceiptsByBill(receiptMap)
+    setLockRule(lockRes)
     setSectorOptions(secRes.data ?? [])
     setRecurringSchedules(Object.fromEntries(
       (recurRes.data ?? []).filter((r) => r.consumer_id).map((r) => [r.consumer_id as string, r as RecurringSchedule])
@@ -541,6 +558,15 @@ function BillingPageInner() {
 
   const deleteBill = async () => {
     if (!confirmDeleteBill) return
+    // The trigger in migration 204 refuses this too, but its message is English
+    // and written for a log. Say it here in the language the accountant is
+    // reading, naming the receipt they need to delete.
+    const blocking = receiptsByBill[confirmDeleteBill] ?? []
+    if (blocking.length > 0) {
+      toast.error(renderTemplate(t('lock.billPaid'), { receipt: blocking.join(', ') }))
+      setConfirmDeleteBill(null)
+      return
+    }
     const { error } = await supabase.from('bills').delete().eq('id', confirmDeleteBill)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('billing.ok.billDeleted'))
@@ -915,12 +941,34 @@ function BillingPageInner() {
               {selectedBills.map((bill) => {
                 const rem = outstanding(bill)
                 const isPaymentOpen = paymentForm?.billId === bill.id
+                // Why this bill cannot be touched, if it cannot. Cash received
+                // is checked first because it is the one an accountant can act
+                // on: delete the receipt and the bill opens again. A closed
+                // month cannot be reopened at all — it needs a journal voucher
+                // in the current month instead.
+                const blockingReceipts = receiptsByBill[bill.id] ?? []
+                const monthClosed = periodIsLocked(bill.year, bill.month, lockRule)
+                const lockReason = blockingReceipts.length > 0
+                  ? renderTemplate(t('lock.billPaid'), { receipt: blockingReceipts.join(', ') })
+                  : monthClosed ? t('lock.periodClosed') : null
+                const fullBillHref = `/admin/finance/water_supply?action=generate_bill&bill=${bill.id}&consumer=${bill.consumer_id}`
                 return (
                   <div key={bill.id} className={`border rounded-lg overflow-hidden ${rem <= 0 ? 'border-dp-outline-variant' : 'border-dp-error/30'}`}>
                     <div className="px-4 py-3 flex items-center justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className="font-sans text-[15px] font-semibold text-dp-on-surface">{fullMonths[bill.month]} {bill.year}</span>
+                          {/* The month is the handle for the whole bill. It used
+                              to be dead text, so the only way in was the pencil
+                              — and the receive-cash panel below it looked like
+                              the bill itself. */}
+                          {lockReason ? (
+                            <span className="font-sans text-[15px] font-semibold text-dp-on-surface">{fullMonths[bill.month]} {bill.year}</span>
+                          ) : (
+                            <Link href={fullBillHref} title={t('lock.openFullBill')}
+                              className="font-sans text-[15px] font-semibold text-dp-on-surface hover:text-dp-secondary hover:underline cursor-pointer">
+                              {fullMonths[bill.month]} {bill.year}
+                            </Link>
+                          )}
                           {bill.bill_number && <span className="font-mono text-[11px] text-dp-on-surface-variant">#{bill.bill_number}</span>}
                           <StatusBadge bill={bill} />
                         </div>
@@ -958,12 +1006,32 @@ function BillingPageInner() {
                         <Link href={`/admin/invoice/bill/${bill.id}`} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer" title={t('billing.tip.viewInvoice')}>
                           <FileText size={15} />
                         </Link>
-                        <Link href={`/admin/finance/water_supply?action=generate_bill&bill=${bill.id}&consumer=${bill.consumer_id}`} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer" title={t('billing.tip.editBill')}>
-                          <Pencil size={15} />
-                        </Link>
-                        <button onClick={() => setConfirmDeleteBill(bill.id)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer" title={t('billing.tip.deleteBill')}>
-                          <Trash2 size={15} />
-                        </button>
+                        {lockReason ? (
+                          // One padlock carrying the reason, rather than two
+                          // greyed-out buttons that say nothing about why. The
+                          // receipt number is in the text because that is the
+                          // thing the accountant has to go and delete.
+                          <span
+                            title={lockReason}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-dp-surface-container-low text-dp-on-surface-variant font-sans text-[12px] font-semibold whitespace-nowrap"
+                          >
+                            <Lock size={13} className="shrink-0" />
+                            <span className="hidden sm:inline">
+                              {blockingReceipts.length > 0
+                                ? renderTemplate(t('lock.billPaidShort'), { receipt: blockingReceipts.join(', ') })
+                                : t('lock.locked')}
+                            </span>
+                          </span>
+                        ) : (
+                          <>
+                            <Link href={fullBillHref} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer" title={t('billing.tip.editBill')}>
+                              <Pencil size={15} />
+                            </Link>
+                            <button onClick={() => setConfirmDeleteBill(bill.id)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer" title={t('billing.tip.deleteBill')}>
+                              <Trash2 size={15} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
 

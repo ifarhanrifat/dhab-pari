@@ -3,10 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Search, FileText, Eye, Pencil, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
-import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
-import { friendlyError } from '@/lib/errors'
+import { Search, FileText, Eye } from 'lucide-react'
 import { billBadge, billBadgeClass, type BillBadgeTone } from '@/lib/billStatus'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { voucherTypeLabels, voucherReceiptKind } from '@/lib/ledgerLabels'
@@ -80,8 +77,6 @@ export default function AllTransactionsPage() {
   const [search, setSearch] = useState('')
   const [rows, setRows] = useState<TxnRow[]>([])
   const [viewReceipt, setViewReceipt] = useState<ReceiptData | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState<{ kind: 'payment' | 'voucher' | 'donation' | 'bill'; id: string } | null>(null)
-  const [billDeleteBlock, setBillDeleteBlock] = useState<string[] | null>(null)
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
@@ -191,15 +186,19 @@ export default function AllTransactionsPage() {
         typeLabel: d.payment_method ? d.payment_method.charAt(0).toUpperCase() + d.payment_method.slice(1) : null,
         // Real name for staff; anonymity is enforced publicly by donors_public.
         partyName: d.is_anonymous ? `${d.name} (anonymous publicly)` : d.name,
-        docLabel: 'Donation', date: d.date, description: d.notes || 'Donation received',
+        // A confirmed donation gets a voucher number from confirm_donation() /
+        // assign_donor_numbers(); showing it here is what makes the entry
+        // traceable back to the paper receipt the donor was handed.
+        docLabel: d.voucher_no ? `Receipt # ${d.voucher_no}` : 'Donation',
+        date: d.date, description: d.notes || 'Donation received',
         amount: d.amount_pkr, note: null, createdAt: d.created_at,
         badge: d.is_verified
           ? { text: 'Received', tone: 'green' as BillBadgeTone }
           : d.payment_status === 'pledged'
             ? { text: 'Announced', tone: 'amber' as BillBadgeTone }
             : { text: 'Awaiting confirmation', tone: 'gray' as BillBadgeTone },
-        donationId: d.id, donationVoucherNo: d.voucher_no, donationVerified: d.is_verified,
-        searchBlob: `${d.name} ${d.payment_method ?? ''} ${d.notes ?? ''}`.toLowerCase(),
+        donationId: d.id, donationVoucherNo: d.voucher_no, donationVerified: d.is_verified, receiptNo: d.voucher_no,
+        searchBlob: `${d.name} ${d.payment_method ?? ''} ${d.notes ?? ''} ${d.voucher_no ?? ''}`.toLowerCase(),
       })
     }
 
@@ -306,30 +305,6 @@ export default function AllTransactionsPage() {
       isConfirmed: totals.isConfirmed,
       })
     }
-  }
-
-  const deleteTarget = async () => {
-    if (!confirmDelete) return
-    const table = confirmDelete.kind === 'payment' ? 'payments'
-      : confirmDelete.kind === 'voucher' ? 'vouchers'
-        : confirmDelete.kind === 'donation' ? 'donors' : 'bills'
-    const { error } = await supabase.from(table).delete().eq('id', confirmDelete.id)
-    setConfirmDelete(null)
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Deleted')
-    load()
-  }
-
-  // A bill with cash already received cannot be deleted — the database refuses.
-  // Name the receipts blocking it up front instead of surfacing a generic
-  // constraint error after the click.
-  const attemptDeleteBill = async (billId: string) => {
-    const { data: pays } = await supabase.from('payments').select('receipt_no').eq('bill_id', billId).order('created_at')
-    if (pays && pays.length > 0) {
-      setBillDeleteBlock(pays.map((p) => p.receipt_no).filter(Boolean) as string[])
-      return
-    }
-    setConfirmDelete({ kind: 'bill', id: billId })
   }
 
   return (
@@ -462,6 +437,12 @@ export default function AllTransactionsPage() {
                     )}
                   </div>
                 </div>
+                {/* Editing and deleting are deliberately absent. This is the
+                    register — the record of what happened — and a screen that
+                    lists every document is the wrong place to change one. Each
+                    document is edited on the screen that owns it, where its
+                    own rules (a paid bill is locked, a closed month is locked)
+                    are enforced and visible. */}
                 {(r.billId || r.kind === 'payment' || r.kind === 'voucher' || r.kind === 'purchase' || r.kind === 'donation') && (
                   <div className="flex justify-end items-center gap-1 mt-2 pt-2 border-t border-dp-outline-variant/60">
                     {r.billId && (
@@ -471,34 +452,6 @@ export default function AllTransactionsPage() {
                       <button onClick={() => openRowReceipt(r)} title="View receipt" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Eye size={15} /></button>
                     )}
 
-                    {/* Edit opens the screen that owns the record, so there is one
-                        edit form per document type instead of a second copy here
-                        that could drift out of step with it. */}
-                    {r.kind === 'bill' && r.billId && (
-                      <Link href={`/admin/finance/${system}?action=generate_bill&bill=${r.billId}`} title="Edit bill" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
-                    )}
-                    {r.kind === 'payment' && r.paymentId && (
-                      <Link href={`/admin/finance/${system}?edit_payment=${r.paymentId}`} title="Edit payment" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
-                    )}
-                    {r.kind === 'donation' && r.donationId && (
-                      <Link href={`/admin/donors?edit=${r.donationId}`} title={r.donationVerified ? 'Edit donation' : 'Review & confirm'} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
-                    )}
-                    {r.kind === 'voucher' && r.voucherId && (
-                      <Link href={`/admin/finance/${system}?edit_voucher=${r.voucherId}`} title="Edit voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
-                    )}
-
-                    {r.kind === 'bill' && r.billId && (
-                      <button onClick={() => attemptDeleteBill(r.billId!)} title="Delete bill" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
-                    )}
-                    {r.kind === 'payment' && r.paymentId && (
-                      <button onClick={() => setConfirmDelete({ kind: 'payment', id: r.paymentId! })} title="Delete payment" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
-                    )}
-                    {r.kind === 'voucher' && r.voucherId && (
-                      <button onClick={() => setConfirmDelete({ kind: 'voucher', id: r.voucherId! })} title="Delete voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
-                    )}
-                    {r.kind === 'donation' && r.donationId && (
-                      <button onClick={() => setConfirmDelete({ kind: 'donation', id: r.donationId! })} title="Delete donation" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
-                    )}
                   </div>
                 )}
               </div>
@@ -508,22 +461,6 @@ export default function AllTransactionsPage() {
       </div>
       {viewReceipt && <ReceiptModal data={viewReceipt} system={system} onClose={() => setViewReceipt(null)} />}
 
-      <ConfirmDialog
-        open={!!confirmDelete}
-        title={`Delete ${confirmDelete?.kind ?? ''}`}
-        message="Every ledger entry this created will be removed with it. This cannot be undone."
-        onConfirm={deleteTarget}
-        onCancel={() => setConfirmDelete(null)}
-      />
-
-      <ConfirmDialog
-        open={!!billDeleteBlock}
-        title="Bill Cannot Be Deleted"
-        message={`Cash has already been received against this bill${billDeleteBlock?.length ? ` (receipt ${billDeleteBlock.join(', ')})` : ''}. Delete the receipt first, then the bill.`}
-        confirmLabel="OK"
-        onConfirm={() => setBillDeleteBlock(null)}
-        onCancel={() => setBillDeleteBlock(null)}
-      />
     </>
   )
 }

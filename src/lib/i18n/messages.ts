@@ -904,6 +904,51 @@ export const messages: Record<Locale, Record<string, string>> = {
 
 
 
+
+    // ── Locked bills and closed months (migration 204) ───────────────────
+    'lock.billPaid': 'Paid — receipt %%receipt%% must be deleted before this bill can be changed',
+    'lock.billPaidShort': 'Receipt %%receipt%%',
+    'lock.periodClosed': 'Closed month — corrections go in the current month as a journal voucher',
+    'lock.locked': 'Locked',
+    'lock.openFullBill': 'Open the full bill',
+    'lock.viewOnly': 'Statements and reports are view-only — open the record on its own screen to change it',
+
+    // ── Project fund transfer (migration 206) ────────────────────────────
+    'pt.title': 'Transfer Project Money',
+    'pt.blurb': 'Move funds the village raised for one project to another, as decided by the committee. The cash itself does not move — only which project it belongs to.',
+    'pt.fromProject': 'Transfer From Project',
+    'pt.toProject': 'Transfer To Project',
+    'pt.choose': 'Choose a project...',
+    'pt.available': 'Available in this project:',
+    'pt.meeting': 'Approved in Meeting (optional)',
+    'pt.noMeeting': 'Not linked to a meeting',
+    'pt.reason': 'Reason for the Transfer',
+    'pt.reasonPlaceholder': 'e.g. Mosque roof work is complete — the balance goes to the water filtration plant',
+    'pt.save': 'Save Transfer',
+    'pt.err.bothProjects': 'Choose both the project giving the money and the project receiving it',
+    'pt.err.sameProject': 'The two projects must be different',
+    'pt.err.amount': 'Enter an amount',
+    'pt.err.reason': 'Write why the committee moved this money — it is the record of the decision',
+    'pt.err.overBalance': 'This is more than the project holds. Reduce the amount, or transfer from a project with a larger balance.',
+    'pt.ok.pending': 'Saved — waiting for the committee approvers before it posts',
+    'pt.ok.posted': 'Transfer posted',
+
+    // ── Reversal of a closed-month entry (migration 207) ─────────────────
+    'rv.title': 'Reverse This Entry',
+    'rv.blurb': 'This entry is in a month that has already been closed and reported, so it cannot be edited. Reversing it posts an exact mirror of it in the current month, which leaves the closed month as it was reported and shows the correction where it actually happened. Enter the corrected transaction afterwards as a new entry.',
+    'rv.reason': 'Why is this being reversed?',
+    'rv.reasonPlaceholder': 'e.g. Entered against the wrong project · Amount was Rs. 5,000, not Rs. 50,000',
+    'rv.reverse': 'Reverse this entry',
+    'rv.confirm': 'Post the Reversal',
+    'rv.ok': 'Reversed —',
+    'rv.err.reason': 'Write why this is being reversed — it is the only record of why the books changed',
+
+    // ── Where a donor lives (migration 205) ──────────────────────────────
+    'dn.cityInPakistan': 'Living in a Pakistani city',
+    'dn.city': 'Which city?',
+    'dn.cityPlaceholder': 'e.g. Lahore, Rawalpindi, Karachi',
+    'dn.country': 'Which country?',
+    'dn.countryPlaceholder': 'e.g. Saudi Arabia, UAE, United Kingdom',
   },
 
   ur: {
@@ -1795,6 +1840,51 @@ export const messages: Record<Locale, Record<string, string>> = {
 
 
 
+
+    // ── Locked bills and closed months (migration 204) ───────────────────
+    'lock.billPaid': 'ادا شدہ — اس بل میں تبدیلی سے پہلے رسید %%receipt%% حذف کرنا ضروری ہے',
+    'lock.billPaidShort': 'رسید %%receipt%%',
+    'lock.periodClosed': 'بند مہینہ — درستگی رواں مہینے میں جرنل واؤچر کے ذریعے کی جائے',
+    'lock.locked': 'مقفل',
+    'lock.openFullBill': 'مکمل بل کھولیں',
+    'lock.viewOnly': 'گوشوارے اور رپورٹیں صرف دیکھنے کے لیے ہیں — تبدیلی کے لیے ریکارڈ اپنی سکرین پر کھولیں',
+
+    // ── Project fund transfer (migration 206) ────────────────────────────
+    'pt.title': 'پروجیکٹ کی رقم منتقل کریں',
+    'pt.blurb': 'کمیٹی کے فیصلے کے مطابق ایک پروجیکٹ کے لیے جمع شدہ رقم دوسرے پروجیکٹ کو منتقل کریں۔ نقد رقم کہیں نہیں جاتی — صرف یہ بدلتا ہے کہ وہ کس پروجیکٹ کی ہے۔',
+    'pt.fromProject': 'کس پروجیکٹ سے',
+    'pt.toProject': 'کس پروجیکٹ کو',
+    'pt.choose': 'پروجیکٹ منتخب کریں...',
+    'pt.available': 'اس پروجیکٹ میں موجود رقم:',
+    'pt.meeting': 'کس اجلاس میں منظور ہوا (اختیاری)',
+    'pt.noMeeting': 'کسی اجلاس سے منسلک نہیں',
+    'pt.reason': 'منتقلی کی وجہ',
+    'pt.reasonPlaceholder': 'مثلاً مسجد کی چھت کا کام مکمل ہو گیا — بقیہ رقم واٹر فلٹریشن پلانٹ کو',
+    'pt.save': 'منتقلی محفوظ کریں',
+    'pt.err.bothProjects': 'رقم دینے والا اور لینے والا، دونوں پروجیکٹ منتخب کریں',
+    'pt.err.sameProject': 'دونوں پروجیکٹ مختلف ہونے چاہئیں',
+    'pt.err.amount': 'رقم درج کریں',
+    'pt.err.reason': 'لکھیں کہ کمیٹی نے یہ رقم کیوں منتقل کی — یہی فیصلے کا ریکارڈ ہے',
+    'pt.err.overBalance': 'یہ رقم اس پروجیکٹ کے پاس موجود رقم سے زیادہ ہے۔ رقم کم کریں یا کسی اور پروجیکٹ سے منتقل کریں۔',
+    'pt.ok.pending': 'محفوظ ہو گیا — کمیٹی کی منظوری کے بعد پوسٹ ہوگا',
+    'pt.ok.posted': 'منتقلی پوسٹ ہو گئی',
+
+    // ── Reversal of a closed-month entry (migration 207) ─────────────────
+    'rv.title': 'اس اندراج کو ریورس کریں',
+    'rv.blurb': 'یہ اندراج ایسے مہینے کا ہے جو بند ہو چکا ہے اور جس کی رپورٹ دی جا چکی ہے، اس لیے اس میں ترمیم نہیں ہو سکتی۔ ریورس کرنے سے اسی کا الٹ اندراج رواں مہینے میں ہو جائے گا — بند مہینہ ویسا ہی رہے گا جیسا رپورٹ ہوا تھا، اور درستگی وہیں نظر آئے گی جہاں وہ اصل میں ہوئی۔ درست لین دین بعد میں نئے اندراج کے طور پر درج کریں۔',
+    'rv.reason': 'ریورس کرنے کی وجہ؟',
+    'rv.reasonPlaceholder': 'مثلاً غلط پروجیکٹ میں درج ہو گیا تھا · رقم 50,000 نہیں، 5,000 روپے تھی',
+    'rv.reverse': 'اس اندراج کو ریورس کریں',
+    'rv.confirm': 'ریورسل پوسٹ کریں',
+    'rv.ok': 'ریورس ہو گیا —',
+    'rv.err.reason': 'لکھیں کہ یہ کیوں ریورس کیا جا رہا ہے — حسابات میں تبدیلی کا یہی واحد ریکارڈ ہے',
+
+    // ── Where a donor lives (migration 205) ──────────────────────────────
+    'dn.cityInPakistan': 'پاکستان کے کسی شہر میں مقیم',
+    'dn.city': 'کون سا شہر؟',
+    'dn.cityPlaceholder': 'مثلاً لاہور، راولپنڈی، کراچی',
+    'dn.country': 'کون سا ملک؟',
+    'dn.countryPlaceholder': 'مثلاً سعودی عرب، متحدہ عرب امارات، برطانیہ',
   },
 }
 

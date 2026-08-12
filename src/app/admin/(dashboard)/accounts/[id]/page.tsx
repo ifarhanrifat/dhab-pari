@@ -3,10 +3,9 @@
 import { useEffect, useState, useCallback, useRef, use as usePromise } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Eye, Pencil, Trash2, Printer, PlusCircle, X, Save, Banknote } from 'lucide-react'
+import { ArrowLeft, Eye, FileText, Printer, PlusCircle, X, Save, Banknote } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
@@ -50,10 +49,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
   const [billStatusMap, setBillStatusMap] = useState<Record<string, BillStatus>>({})
   const [paymentBillMap, setPaymentBillMap] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
-  const [confirmDeleteRow, setConfirmDeleteRow] = useState<LedgerRow | null>(null)
   const [receipt, setReceipt] = useState<ReceiptData | null>(null)
-  const [editBillRow, setEditBillRow] = useState<LedgerRow | null>(null)
-  const [billForm, setBillForm] = useState({ month: 1, year: 2026, amount_pkr: 0 })
   const [payBillRow, setPayBillRow] = useState<LedgerRow | null>(null)
   const [payForm, setPayForm] = useState({ amount: 0, method: 'cash', note: '' })
   const [payOutstanding, setPayOutstanding] = useState(0)
@@ -203,23 +199,6 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
     }
   }
 
-  const openEditBill = async (row: LedgerRow) => {
-    if (!row.reference_id) return
-    const { data } = await supabase.from('bills').select('*').eq('id', row.reference_id).single()
-    if (!data) return
-    setBillForm({ month: data.month, year: data.year, amount_pkr: data.amount_pkr })
-    setEditBillRow(row)
-  }
-
-  const saveBillEdit = async () => {
-    if (!editBillRow?.reference_id) return
-    const { error } = await supabase.from('bills').update(billForm).eq('id', editBillRow.reference_id)
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Bill updated')
-    setEditBillRow(null)
-    load()
-  }
-
   const openReceivePayment = async (row: LedgerRow) => {
     if (!row.reference_id) return
     const { data } = await supabase.from('bills').select('amount_pkr, paid_amount, discount_amount').eq('id', row.reference_id).single()
@@ -251,25 +230,6 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
       toast.success(amount >= payOutstanding ? 'Payment recorded — bill paid in full' : `Partial payment of Rs. ${fmtAmount(amount)} recorded`)
     }
     setPayBillRow(null)
-    load()
-  }
-
-  const deleteRow = async () => {
-    if (!confirmDeleteRow) return
-    const row = confirmDeleteRow
-    let error = null
-    if (row.reference_type === 'bill' && row.reference_id) {
-      ({ error } = await supabase.from('bills').delete().eq('id', row.reference_id))
-    } else if (row.reference_type === 'payment' && row.reference_id) {
-      ({ error } = await supabase.from('payments').delete().eq('id', row.reference_id))
-    } else if (row.reference_type === 'donation' && row.reference_id) {
-      ({ error } = await supabase.from('donors').delete().eq('id', row.reference_id))
-    } else {
-      ({ error } = await supabase.from('ledger_entries').delete().eq('id', row.id))
-    }
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Transaction deleted')
-    setConfirmDeleteRow(null)
     load()
   }
 
@@ -410,6 +370,12 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                     </>
                   )}
                   <td className="px-4 py-3 text-end font-bold">{fmtAmount(row.balance)}</td>
+                  {/* A statement reports what happened; it does not change it.
+                      Edit and Delete used to live here and were the easiest
+                      place in the whole system to quietly rewrite a settled
+                      figure — from a screen whose whole purpose is to be the
+                      trusted record. Receiving cash still belongs here, because
+                      that adds a new receipt rather than altering an old one. */}
                   <td className="no-export px-4 py-3 text-end print:hidden">
                     <div className="flex items-center justify-end gap-1.5">
                       <button onClick={() => openView(row)} title="View" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Eye size={15} /></button>
@@ -427,10 +393,9 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                               <button onClick={() => openReceivePayment(row)} title="Receive Now" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Banknote size={15} /></button>
                             </>
                           )}
-                          <button onClick={() => openEditBill(row)} title="Edit" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></button>
+                          <Link href={`/admin/invoice/bill/${row.reference_id}`} title={t('f.viewBillLedger')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><FileText size={15} /></Link>
                         </>
                       )}
-                      <button onClick={() => setConfirmDeleteRow(row)} title="Delete" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
                     </div>
                   </td>
                 </tr>
@@ -470,45 +435,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
       </div>
       </div>
 
-      <ConfirmDialog
-        open={!!confirmDeleteRow}
-        title="Delete Transaction"
-        message="Are you sure you want to delete this transaction? This cannot be undone."
-        onConfirm={deleteRow}
-        onCancel={() => setConfirmDeleteRow(null)}
-      />
-
       {receipt && <ReceiptModal data={receipt} phone={consumerInfo?.mobile} system={account?.system === 'donors_projects' ? 'donors_projects' : 'water_supply'} onClose={() => setReceipt(null)} />}
-
-      {editBillRow && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setEditBillRow(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('g.editBill')}</h2>
-              <button onClick={() => setEditBillRow(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
-            </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.month')}</label>
-                  <input type="number" min={1} max={12} value={billForm.month || ''} onChange={(e) => setBillForm({ ...billForm, month: +e.target.value })} className="input-field" />
-                </div>
-                <div>
-                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.year')}</label>
-                  <input type="number" value={billForm.year || ''} onChange={(e) => setBillForm({ ...billForm, year: +e.target.value })} className="input-field" />
-                </div>
-              </div>
-              <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
-                <input type="number" value={billForm.amount_pkr || ''} onChange={(e) => setBillForm({ ...billForm, amount_pkr: +e.target.value })} className="input-field" />
-              </div>
-              <button onClick={saveBillEdit} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-                <Save size={16} /> {t('g.saveChanges')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {payBillRow && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPayBillRow(null)}>

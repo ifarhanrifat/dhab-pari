@@ -21,6 +21,9 @@ export const voucherTypeLabels: Record<string, string> = {
   // service-failure complaint — kept as its own visible category rather than
   // folded into Expense, unlike advance_settlement above.
   complaint_waiver: 'Complaint Waiver Settlement',
+  // Funds moved between two projects by committee decision (migration 206).
+  // No cash leg — only which project the money belongs to changes.
+  project_transfer: 'Project Fund Transfer',
 }
 
 export const referenceTypeLabels: Record<string, string> = {
@@ -40,7 +43,7 @@ const voucherTypeDocKeys: Record<string, DocStringKey> = {
   withdrawal: 'typeCashWithdrawal', deposit: 'typeCashDeposit',
   security_deposit: 'typeSecurityDeposit', security_deposit_refund: 'typeSecurityDepositRefund',
   advance: 'typeAdvancePayment', advance_settlement: 'typeExpense',
-  complaint_waiver: 'typeComplaintWaiver',
+  complaint_waiver: 'typeComplaintWaiver', project_transfer: 'typeProjectTransfer',
 }
 const referenceTypeDocKeys: Record<string, DocStringKey> = {
   bill: 'typeBill', payment: 'typeReceipt', donation: 'typeDonation',
@@ -66,5 +69,5 @@ export const voucherReceiptKind: Record<string, 'payment' | 'purchase_payment' |
   expense: 'purchase_payment', advance: 'purchase_payment', advance_settlement: 'purchase_payment',
   security_deposit_refund: 'purchase_payment', complaint_waiver: 'purchase_payment',
   income: 'payment', security_deposit: 'payment',
-  contra: 'manual', withdrawal: 'manual', deposit: 'manual',
+  contra: 'manual', withdrawal: 'manual', deposit: 'manual', project_transfer: 'manual',
 }

@@ -17,7 +17,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Donor {
   id: string; name: string; name_ur: string | null; phone: string | null; father_husband_name: string | null
-  whatsapp_number: string | null; donor_type: string | null; amount_pkr: number; date: string
+  whatsapp_number: string | null; donor_type: string | null; donor_location: string | null; amount_pkr: number; date: string
   is_anonymous: boolean; is_verified: boolean; payment_method: string | null; notes: string | null
   project_id: string | null; payment_proof_url: string | null; submitted_via: string; voucher_no: string | null
   payment_status: string | null
@@ -28,7 +28,7 @@ interface Project { id: string; title: string }
 type SortKey = 'name' | 'account' | 'amount' | 'date' | 'status'
 
 const empty = {
-  name: '', name_ur: '', phone: '', father_husband_name: '', whatsapp_number: '', donor_type: 'villager',
+  name: '', name_ur: '', phone: '', father_husband_name: '', whatsapp_number: '', donor_type: 'villager', donor_location: '',
   amount_pkr: 0, date: new Date().toISOString().split('T')[0], is_anonymous: false, payment_method: 'cash',
   notes: '', project_id: '',
 }
@@ -158,7 +158,7 @@ function AdminDonorsPageInner() {
     setEditTarget(d)
     setEditForm({
       name: d.name, name_ur: d.name_ur ?? '', phone: d.phone ?? '', father_husband_name: d.father_husband_name ?? '',
-      whatsapp_number: d.whatsapp_number ?? '', donor_type: d.donor_type ?? 'villager', amount_pkr: d.amount_pkr,
+      whatsapp_number: d.whatsapp_number ?? '', donor_type: d.donor_type ?? 'villager', donor_location: d.donor_location ?? '', amount_pkr: d.amount_pkr,
       date: d.date, is_anonymous: d.is_anonymous, payment_method: d.payment_method ?? 'cash', notes: d.notes ?? '',
       project_id: d.project_id ?? '',
     })
@@ -186,7 +186,7 @@ function AdminDonorsPageInner() {
     const { error } = await supabase.from('donors').update({
       name: editForm.name, name_ur: editForm.name_ur || null, phone: editForm.phone || null,
       father_husband_name: editForm.father_husband_name || null, whatsapp_number: editForm.whatsapp_number || null,
-      donor_type: editForm.donor_type, amount_pkr: editForm.amount_pkr, date: editForm.date,
+      donor_type: editForm.donor_type, donor_location: editForm.donor_location || null, amount_pkr: editForm.amount_pkr, date: editForm.date,
       payment_method: editForm.payment_method, project_id: editForm.project_id || null,
       is_anonymous: editForm.is_anonymous, notes: editForm.notes || null,
     }).eq('id', editTarget.id)
@@ -204,7 +204,7 @@ function AdminDonorsPageInner() {
       p_edits: {
         name: editForm.name, name_ur: editForm.name_ur || null, phone: editForm.phone || null,
         father_husband_name: editForm.father_husband_name || null, whatsapp_number: editForm.whatsapp_number || null,
-        donor_type: editForm.donor_type, amount_pkr: editForm.amount_pkr, date: editForm.date,
+        donor_type: editForm.donor_type, donor_location: editForm.donor_location || null, amount_pkr: editForm.amount_pkr, date: editForm.date,
         payment_method: editForm.payment_method, project_id: editForm.project_id || '',
         is_anonymous: editForm.is_anonymous, notes: editForm.notes || null,
       },
@@ -405,7 +405,14 @@ function AdminDonorsPageInner() {
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('g.nameUrdu')}</label><input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder="اردو میں نام" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.phone')}</label><input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0300-1234567" className="input-field" /></div>
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('f.donorType')}</label><select value={form.donor_type} onChange={(e) => setForm({ ...form, donor_type: e.target.value })} className="input-field"><option value="villager">Villager (مقامی)</option><option value="overseas">Overseas (بیرون ملک)</option></select></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('f.donorType')}</label><select value={form.donor_type} onChange={(e) => setForm({ ...form, donor_type: e.target.value, donor_location: e.target.value === 'villager' ? '' : form.donor_location })} className="input-field"><option value="villager">{t('f.villager')}</option><option value="city">{t('dn.cityInPakistan')}</option><option value="overseas">{t('g.overseas')}</option></select></div>
+                {/* Where they are, in their own words. It is what the public
+                    thank-you says — "from Lahore", "from Dubai" — and most of
+                    the people who give left the village years ago, so calling
+                    them either local or foreign was wrong either way. */}
+                {form.donor_type !== 'villager' && (
+                  <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{form.donor_type === 'overseas' ? t('dn.country') : t('dn.city')}</label><input type="text" value={form.donor_location} onChange={(e) => setForm({ ...form, donor_location: e.target.value })} placeholder={form.donor_type === 'overseas' ? t('dn.countryPlaceholder') : t('dn.cityPlaceholder')} className="input-field" /></div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.amountPkr')}</label><input type="number" value={form.amount_pkr || ''} onChange={(e) => setForm({ ...form, amount_pkr: +e.target.value })} className="input-field" /></div>
@@ -452,7 +459,14 @@ function AdminDonorsPageInner() {
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.name')}</label><input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="input-field" /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.fatherHusband')}</label><input value={editForm.father_husband_name} onChange={(e) => setEditForm({ ...editForm, father_husband_name: e.target.value })} className="input-field" /></div>
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('f.donorType')}</label><select value={editForm.donor_type} onChange={(e) => setEditForm({ ...editForm, donor_type: e.target.value })} className="input-field"><option value="villager">{t('f.villager')}</option><option value="overseas">{t('g.overseas')}</option></select></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('f.donorType')}</label><select value={editForm.donor_type} onChange={(e) => setEditForm({ ...editForm, donor_type: e.target.value, donor_location: e.target.value === 'villager' ? '' : editForm.donor_location })} className="input-field"><option value="villager">{t('f.villager')}</option><option value="city">{t('dn.cityInPakistan')}</option><option value="overseas">{t('g.overseas')}</option></select></div>
+                {/* Where they are, in their own words. It is what the public
+                    thank-you says — "from Lahore", "from Dubai" — and most of
+                    the people who give left the village years ago, so calling
+                    them either local or foreign was wrong either way. */}
+                {editForm.donor_type !== 'villager' && (
+                  <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{editForm.donor_type === 'overseas' ? t('dn.country') : t('dn.city')}</label><input type="text" value={editForm.donor_location} onChange={(e) => setEditForm({ ...editForm, donor_location: e.target.value })} placeholder={editForm.donor_type === 'overseas' ? t('dn.countryPlaceholder') : t('dn.cityPlaceholder')} className="input-field" /></div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.phone')}</label><input type="tel" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} className="input-field" /></div>

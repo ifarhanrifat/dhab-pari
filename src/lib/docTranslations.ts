@@ -244,6 +244,7 @@ export const DOC_STRINGS = {
   typeSecurityDepositRefund: { en: 'Security Deposit Refund', ur: 'سیکیورٹی ڈیپازٹ واپسی' },
   typeAdvancePayment: { en: 'Advance Payment', ur: 'ایڈوانس ادائیگی' },
   typeComplaintWaiver: { en: 'Complaint Waiver Settlement', ur: 'شکایت معافی سیٹلمنٹ' },
+  typeProjectTransfer: { en: 'Project Fund Transfer', ur: 'پروجیکٹ فنڈ کی منتقلی' },
   typeBill: { en: 'Bill', ur: 'بل' },
   typeReceipt: { en: 'Receipt', ur: 'رسید' },
   typeDonation: { en: 'Donation', ur: 'عطیہ' },
