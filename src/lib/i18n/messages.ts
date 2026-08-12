@@ -949,6 +949,18 @@ export const messages: Record<Locale, Record<string, string>> = {
     'dn.cityPlaceholder': 'e.g. Lahore, Rawalpindi, Karachi',
     'dn.country': 'Which country?',
     'dn.countryPlaceholder': 'e.g. Saudi Arabia, UAE, United Kingdom',
+
+    // ── Donation status + picking a donor ────────────────────────────────
+    'dn.badge.received': 'Received',
+    'dn.badge.announced': 'Announced',
+    'dn.badge.awaiting': 'Awaiting confirmation',
+    'dn.existingDonor': 'Donor',
+    'dn.pickDonor': 'Choose an existing donor, or add a new one',
+    'dn.searchDonor': 'Search by name or donor number...',
+    'dn.addNewDonor': '+ Add a new donor',
+    'dn.newDonor': 'New Donor',
+    'dn.recordingAgainst': 'Recording against',
+    'dn.detailsEditable': 'their details are filled in below and can still be corrected',
   },
 
   ur: {
@@ -1885,6 +1897,18 @@ export const messages: Record<Locale, Record<string, string>> = {
     'dn.cityPlaceholder': 'مثلاً لاہور، راولپنڈی، کراچی',
     'dn.country': 'کون سا ملک؟',
     'dn.countryPlaceholder': 'مثلاً سعودی عرب، متحدہ عرب امارات، برطانیہ',
+
+    // ── Donation status + picking a donor ────────────────────────────────
+    'dn.badge.received': 'وصول شدہ',
+    'dn.badge.announced': 'اعلان شدہ',
+    'dn.badge.awaiting': 'تصدیق کا منتظر',
+    'dn.existingDonor': 'عطیہ دہندہ',
+    'dn.pickDonor': 'موجودہ عطیہ دہندہ منتخب کریں یا نیا شامل کریں',
+    'dn.searchDonor': 'نام یا اکاؤنٹ نمبر سے تلاش کریں...',
+    'dn.addNewDonor': '+ نیا عطیہ دہندہ شامل کریں',
+    'dn.newDonor': 'نیا عطیہ دہندہ',
+    'dn.recordingAgainst': 'اندراج کیا جا رہا ہے:',
+    'dn.detailsEditable': 'ان کی تفصیلات نیچے بھر دی گئی ہیں اور تبدیل کی جا سکتی ہیں',
   },
 }
 

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Search, FileText, Eye } from 'lucide-react'
 import { billBadge, billBadgeClass, type BillBadgeTone } from '@/lib/billStatus'
+import { donationBadge } from '@/lib/donationStatus'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { voucherTypeLabels, voucherReceiptKind } from '@/lib/ledgerLabels'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
@@ -25,7 +26,7 @@ interface TxnRow {
   date: string
   description: string
   amount: number
-  badge: { text: string; tone: BillBadgeTone } | null
+  badge: { text?: string; textKey?: string; tone: BillBadgeTone } | null
   note: string | null
   searchBlob: string
   billId?: string
@@ -192,11 +193,7 @@ export default function AllTransactionsPage() {
         docLabel: d.voucher_no ? `Receipt # ${d.voucher_no}` : 'Donation',
         date: d.date, description: d.notes || 'Donation received',
         amount: d.amount_pkr, note: null, createdAt: d.created_at,
-        badge: d.is_verified
-          ? { text: 'Received', tone: 'green' as BillBadgeTone }
-          : d.payment_status === 'pledged'
-            ? { text: 'Announced', tone: 'amber' as BillBadgeTone }
-            : { text: 'Awaiting confirmation', tone: 'gray' as BillBadgeTone },
+        badge: (() => { const b = donationBadge(d); return { textKey: b.key, tone: b.tone } })(),
         donationId: d.id, donationVoucherNo: d.voucher_no, donationVerified: d.is_verified, receiptNo: d.voucher_no,
         searchBlob: `${d.name} ${d.payment_method ?? ''} ${d.notes ?? ''} ${d.voucher_no ?? ''}`.toLowerCase(),
       })
@@ -433,7 +430,7 @@ export default function AllTransactionsPage() {
                   <div className="text-end shrink-0">
                     {r.amount > 0 && <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">Rs {fmtAmount(r.amount)}</p>}
                     {r.badge && (
-                      <span className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide ${billBadgeClass[r.badge.tone]}`}>{r.badge.text}</span>
+                      <span className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide ${billBadgeClass[r.badge.tone]}`}>{r.badge.textKey ? t(r.badge.textKey) : r.badge.text}</span>
                     )}
                   </div>
                 </div>

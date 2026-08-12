@@ -17,6 +17,7 @@ import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import { donorReceiptTotals } from '@/lib/donorReceiptTotals'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { billBadge, billBadgeClass, type BillBadgeTone } from '@/lib/billStatus'
+import { donationBadge } from '@/lib/donationStatus'
 import { QuickAddAccountModal, type NewAccount } from '@/components/admin/QuickAddAccountModal'
 import { voucherTypeLabels as sharedVoucherTypeLabels, voucherReceiptKind } from '@/lib/ledgerLabels'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -34,7 +35,7 @@ interface TxnCard {
   id: string; kind: 'bill' | 'payment' | 'voucher' | 'donation' | 'purchase'
   borderColor: string; typeLabel: string | null; partyName: string; docLabel: string
   date: string; description: string; amount: number
-  badge: { text: string; tone: BillBadgeTone } | null
+  badge: { text?: string; textKey?: string; tone: BillBadgeTone } | null
   note: string | null; created_at: string
   billId?: string; paymentId?: string; voucherId?: string; donationId?: string; purchaseId?: string
   donationVerified?: boolean; donationVoucherNo?: string | null; donationNameUr?: string | null
@@ -133,7 +134,7 @@ const emptyBillForm = {
   due_date: defaultDueDate(new Date().getMonth() + 1, new Date().getFullYear()), description: '', discount_amount: 0, security_deposit_amount: 0, deposit_account_id: '',
   attachment_url: '',
 }
-const emptyDonationForm = { name: '', name_ur: '', phone: '', donor_type: 'villager', amount_pkr: 0, date: today(), payment_method: 'cash', project_id: '', is_anonymous: false }
+const emptyDonationForm = { name: '', name_ur: '', phone: '', donor_type: 'villager', donor_location: '', amount_pkr: 0, date: today(), payment_method: 'cash', project_id: '', is_anonymous: false }
 const emptyNewLine = { kind: 'custom' as 'inventory' | 'service' | 'custom', itemId: '', description: '', quantity: 1, unit_price: 0, discount_pct: 0, is_recurring: false }
 const emptyPurchaseForm = { date: today(), vendor: '', method: 'cash' as 'cash' | 'bank', note: '', attachment_url: '' }
 const emptyNewPurchaseLine = { itemId: '', quantity: 1, unit_cost: 0 }
@@ -216,6 +217,12 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [billLockReason, setBillLockReason] = useState<'paid' | 'period' | null>(null)
   const [lockRule, setLockRule] = useState<PeriodLockRule>(DEFAULT_PERIOD_LOCK)
   const [donationForm, setDonationForm] = useState(emptyDonationForm)
+  // Every donor already on the books, so a repeat donation is picked rather
+  // than retyped. A donor's ledger account is keyed on phone-else-name, so a
+  // name typed with different spacing or spelling silently opens a *second*
+  // account for the same person and splits their history in two.
+  const [donorAccounts, setDonorAccounts] = useState<{ donor_key: string; name: string; donor_account_no: string | null }[]>([])
+  const [selectedDonorKey, setSelectedDonorKey] = useState('')
   const [confirmDeleteVoucherId, setConfirmDeleteVoucherId] = useState<string | null>(null)
   const [editVoucherTarget, setEditVoucherTarget] = useState<{ id: string; voucherNo: string | null } | null>(null)
   const [editVoucherSaving, setEditVoucherSaving] = useState(false)
@@ -400,11 +407,11 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         docLabel: d.voucher_no ? `Voucher # ${d.voucher_no}` : 'Donation',
         date: d.date, description: d.notes || 'Donation received',
         amount: d.amount_pkr,
-        // Not yet posted to the ledger (trg_donor_ledger only fires once
-        // is_verified is true) — flagged here rather than filtered out, since
-        // this list is the operational queue staff act on, unlike the Donor
-        // Report (a financial summary, filtered to verified-only instead).
-        badge: d.is_verified ? null : { text: 'PENDING', tone: 'amber' },
+        // Announced / Awaiting confirmation / Received — this list is the
+        // operational queue staff act on (unlike the Donor Report, which is a
+        // financial summary and shows verified rows only), and the three
+        // states call for three different actions.
+        badge: (() => { const b = donationBadge(d); return { textKey: b.key, tone: b.tone } })(),
         note: null, created_at: d.created_at, donationId: d.id,
         donationVerified: d.is_verified, donationVoucherNo: d.voucher_no, donationNameUr: d.name_ur,
       })
@@ -1333,20 +1340,86 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setSaving(false)
   }
 
+  useEffect(() => {
+    if (activeType !== 'donation' || system !== 'donors_projects') return
+    ;(async () => {
+      const [{ data: accountRows }, { data: donationRows }] = await Promise.all([
+        supabase.from('accounts')
+          .select('donor_key, name, donor_account_no')
+          .eq('system', 'donors_projects').eq('type', 'donor')
+          .not('donor_key', 'is', null).order('name'),
+        supabase.from('donors').select('name, phone'),
+      ])
+      // A donor account only ever comes into existence because a donation
+      // created it (ensure_donor_account, called from the ledger trigger), so
+      // an account with no donation behind it is a leftover — a deleted or
+      // test donation whose account was never cleaned up. Listing those would
+      // put dozens of people who never gave anything in front of the
+      // accountant, and picking one would prefill nothing.
+      const liveKeys = new Set(
+        (donationRows ?? []).map((d) => {
+          const phone = (d.phone ?? '').trim()
+          return (phone !== '' ? phone : (d.name ?? '').trim()).toLowerCase()
+        })
+      )
+      setDonorAccounts(
+        ((accountRows ?? []) as { donor_key: string; name: string; donor_account_no: string | null }[])
+          .filter((a) => liveKeys.has(a.donor_key))
+      )
+    })()
+  }, [activeType, system, supabase])
+
+  const pickExistingDonor = async (key: string) => {
+    setSelectedDonorKey(key)
+    const account = donorAccounts.find((a) => a.donor_key === key)
+    if (!account) return
+    // Their most recent donation carries the details worth reusing — phone,
+    // Urdu spelling, where they live. Prefilled, not locked: someone who has
+    // moved city since last time can still be corrected here.
+    // Quoted, because a donor_key is a phone number *or* a name, and a name
+    // containing a comma would otherwise be read as the end of one condition
+    // and the start of another.
+    const quoted = `"${key.replace(/"/g, '\\"')}"`
+    const { data } = await supabase.from('donors')
+      .select('name, name_ur, phone, donor_type, donor_location')
+      .or(`phone.eq.${quoted},name.ilike.${quoted}`)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+    setDonationForm({
+      ...donationForm,
+      name: data?.name ?? account.name,
+      name_ur: data?.name_ur ?? '',
+      phone: data?.phone ?? '',
+      donor_type: data?.donor_type ?? 'villager',
+      donor_location: data?.donor_location ?? '',
+    })
+  }
+
+  const startNewDonor = () => {
+    setSelectedDonorKey('')
+    setDonationForm({ ...donationForm, name: '', name_ur: '', phone: '', donor_type: 'villager', donor_location: '' })
+  }
+
   const saveDonation = async () => {
     if (!donationForm.name.trim()) { toast.error('Donor name is required'); return }
     if (!donationForm.amount_pkr || donationForm.amount_pkr <= 0) { toast.error('Enter a valid amount'); return }
     setSaving(true)
-    const { error } = await supabase.from('donors').insert({
+    const { data: inserted, error } = await supabase.from('donors').insert({
       name: donationForm.name, name_ur: donationForm.name_ur || null, phone: donationForm.phone || null,
-      donor_type: donationForm.donor_type, amount_pkr: donationForm.amount_pkr, date: donationForm.date,
+      donor_type: donationForm.donor_type, donor_location: donationForm.donor_location || null,
+      amount_pkr: donationForm.amount_pkr, date: donationForm.date,
       payment_method: donationForm.payment_method, project_id: donationForm.project_id || null,
-      is_anonymous: donationForm.is_anonymous, is_verified: true,
-    })
+      is_anonymous: donationForm.is_anonymous, is_verified: true, submitted_via: 'staff',
+    }).select('id').single()
+    // Staff-entered donations post to the ledger straight away (is_verified is
+    // already true) but, unlike confirm_donation()'s route, get no voucher
+    // number or donor account number of their own — which is why they turned
+    // up in All Transactions with no receipt against them.
+    if (inserted) await supabase.rpc('assign_donor_numbers', { p_donor_id: inserted.id })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success('Donation recorded')
     setDonationForm(emptyDonationForm)
+    setSelectedDonorKey('')
     load()
   }
 
@@ -2171,6 +2244,42 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
             {activeType === 'donation' && (
               <div className="space-y-4">
                 <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('f.recordDonation')}</h2>
+
+                {/* Pick the donor before typing anything else. Most donations
+                    are from someone who has given before, and retyping their
+                    name is how a second ledger account gets opened for the
+                    same person. New donors are added from inside the picker
+                    and from the button beside it. */}
+                <div className="flex items-end gap-2">
+                  <div className="flex-1 min-w-0">
+                    <SearchableField
+                      label={t('dn.existingDonor')}
+                      value={selectedDonorKey}
+                      items={donorAccounts.map((a) => ({
+                        id: a.donor_key,
+                        label: a.donor_account_no ? `${a.donor_account_no} · ${a.name}` : a.name,
+                      }))}
+                      onChange={pickExistingDonor}
+                      placeholder={t('dn.pickDonor')}
+                      pickerTitle={t('dn.existingDonor')}
+                      searchPlaceholder={t('dn.searchDonor')}
+                      extraAction={{ label: t('dn.addNewDonor'), onClick: startNewDonor }}
+                    />
+                  </div>
+                  <button
+                    onClick={startNewDonor}
+                    className="shrink-0 flex items-center gap-1.5 px-3.5 py-2.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer"
+                  >
+                    <PlusCircle size={15} /> {t('dn.newDonor')}
+                  </button>
+                </div>
+
+                {selectedDonorKey && (
+                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-surface-container-low rounded-lg px-3 py-2">
+                    {t('dn.recordingAgainst')} <strong>{donorAccounts.find((a) => a.donor_key === selectedDonorKey)?.name}</strong> — {t('dn.detailsEditable')}
+                  </p>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.name')}</label>
@@ -2188,12 +2297,24 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   </div>
                   <div>
                     <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('f.donorType')}</label>
-                    <select value={donationForm.donor_type} onChange={(e) => setDonationForm({ ...donationForm, donor_type: e.target.value })} className="input-field">
+                    <select value={donationForm.donor_type} onChange={(e) => setDonationForm({ ...donationForm, donor_type: e.target.value, donor_location: e.target.value === 'villager' ? '' : donationForm.donor_location })} className="input-field">
                       <option value="villager">{t('f.villager')}</option>
+                      <option value="city">{t('dn.cityInPakistan')}</option>
                       <option value="overseas">{t('g.overseas')}</option>
                     </select>
                   </div>
                 </div>
+                {donationForm.donor_type !== 'villager' && (
+                  <div>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">
+                      {donationForm.donor_type === 'overseas' ? t('dn.country') : t('dn.city')}
+                    </label>
+                    <input value={donationForm.donor_location}
+                      onChange={(e) => setDonationForm({ ...donationForm, donor_location: e.target.value })}
+                      placeholder={donationForm.donor_type === 'overseas' ? t('dn.countryPlaceholder') : t('dn.cityPlaceholder')}
+                      className="input-field" />
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
@@ -2314,7 +2435,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">Rs {fmtAmount(c.amount)}</p>
                         {c.badge && (
                           <span className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide ${billBadgeClass[c.badge.tone]}`}>
-                            {c.badge.text}
+                            {c.badge.textKey ? t(c.badge.textKey) : c.badge.text}
                           </span>
                         )}
                       </div>
