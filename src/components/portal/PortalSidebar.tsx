@@ -11,6 +11,9 @@ import { LanguageToggle } from '@/components/layout/LanguageToggle'
 import {
   LayoutDashboard, HeartHandshake, Droplets, Repeat, MessageSquare,
   MessageSquareWarning, Droplet, LogOut, X, UserCog, ArrowLeftCircle, HandHeart, Vote, Briefcase,
+  GraduationCap,
+  Gift,
+  BookOpen,
 } from 'lucide-react'
 import { SITE } from '@/lib/constants'
 
@@ -24,6 +27,9 @@ const menuItems = [
   { href: '/portal/statement', label: 'My Giving', tKey: 'portal.statement', icon: HeartHandshake },
   { href: '/portal/water', label: 'Water Bills', tKey: 'portal.water', icon: Droplets, requiresConsumer: true },
   { href: '/portal/recurring', label: 'Recurring Donations', tKey: 'portal.recurring', icon: Repeat },
+  { href: '/portal/kafalat', label: 'Sponsor a Child', tKey: 'portal.kafalat', icon: GraduationCap },
+  { href: '/portal/esal-e-sawab', label: 'Sadqa-e-Jariya', tKey: 'portal.esalESawab', icon: Gift },
+  { href: '/portal/wazifa', label: 'Taleemi Wazifa', tKey: 'portal.wazifa', icon: BookOpen },
   { href: '/portal/propose-project', label: 'Propose a Project', tKey: 'portal.proposeProject', icon: Vote },
   { href: '/portal/suggestions', label: 'Suggestions', tKey: 'portal.suggestions', icon: MessageSquare },
   { href: '/portal/complaints', label: 'Complaints', tKey: 'portal.complaints', icon: MessageSquareWarning },

@@ -44,6 +44,9 @@ import {
   UploadCloud,
   ArrowRightLeft,
   Briefcase,
+  Scale,
+  GraduationCap,
+  Gift,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -92,6 +95,13 @@ const menuItems: {
   { href: '/admin/volunteers', label: 'Volunteers', tKey: 'nav.volunteers', icon: HandHeart, system: 'donors_projects', badge: 'volunteers' },
   { href: '/admin/comments', label: 'Project Comments', tKey: 'nav.comments', icon: MessageSquare, system: 'donors_projects' },
   { href: '/admin/project-transfers', label: 'Project Transfers', tKey: 'nav.projectTransfers', icon: ArrowRightLeft, system: 'donors_projects' },
+  // The welfare modules. All four sit in the donors system and all four read
+  // from the one verified needs register.
+  { href: '/admin/needs-register', label: 'Needs Register', tKey: 'nav.needsRegister', icon: ShieldCheck, system: 'donors_projects' },
+  { href: '/admin/zakat', label: 'Zakat & Ushr', tKey: 'nav.zakat', icon: Scale, system: 'donors_projects' },
+  { href: '/admin/kafalat', label: 'Kafalat', tKey: 'nav.kafalat', icon: GraduationCap, system: 'donors_projects' },
+  { href: '/admin/wazifa', label: 'Taleemi Wazifa', tKey: 'nav.wazifa', icon: BookOpen, system: 'donors_projects' },
+  { href: '/admin/esal-e-sawab', label: 'Esal-e-Sawab', tKey: 'nav.esalESawab', icon: Gift, system: 'donors_projects' },
   { href: '/admin/complaints', label: 'Complaints', tKey: 'nav.complaints', icon: MessageSquareWarning, badge: 'complaints' },
   { href: '/admin/ticker', label: 'Ticker', tKey: 'nav.ticker', icon: TicketSlash, publish: 'ticker' },
   { href: '/admin/notifications', label: 'Alerts & Appeals', tKey: 'nav.alerts', icon: Bell, badge: 'alerts' },
