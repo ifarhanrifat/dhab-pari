@@ -369,7 +369,7 @@ CREATE OR REPLACE FUNCTION zakat_round_report(p_round_id uuid) RETURNS jsonb AS 
     'by_category', (SELECT jsonb_object_agg(asnaf_category, c) FROM
                      (SELECT asnaf_category, count(*) c FROM zakat_round_beneficiaries
                        WHERE round_id = r.id GROUP BY asnaf_category) x),
-    'verifiers', (SELECT COALESCE(jsonb_agg(DISTINCT a.name), '[]'::jsonb)
+    'verifiers', (SELECT COALESCE(jsonb_agg(DISTINCT a.full_name), '[]'::jsonb)
                     FROM needs_verifications v JOIN admin_users a ON a.id = v.admin_user_id
                    WHERE v.register_id IN (SELECT register_id FROM zakat_round_beneficiaries WHERE round_id = r.id))
   ) FROM zakat_rounds r WHERE r.id = p_round_id;

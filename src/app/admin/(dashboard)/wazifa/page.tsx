@@ -135,7 +135,7 @@ export default function WazifaPage() {
   // the committee should decide that knowingly rather than the software
   // deciding it silently.
   const [documents, setDocuments] = useState<DocRow[]>([])
-  const [committee, setCommittee] = useState<{ id: string; name: string }[]>([])
+  const [committee, setCommittee] = useState<{ id: string; full_name: string }[]>([])
   const [coVerifiers, setCoVerifiers] = useState<string[]>([])
   const [coNames, setCoNames] = useState('')
   const [minVerifiers, setMinVerifiers] = useState(2)
@@ -153,7 +153,7 @@ export default function WazifaPage() {
       supabase.from('wazifa_verifications').select('*'),
       supabase.from('wazifa_decisions').select('*').order('created_at', { ascending: false }),
       supabase.from('wazifa_documents').select('*').order('created_at'),
-      supabase.from('admin_users').select('id, name').eq('is_active', true).order('name'),
+      supabase.from('admin_users').select('id, full_name').eq('is_active', true).order('full_name'),
       supabase.from('site_settings').select('value').eq('key', 'wazifa_min_verifiers').maybeSingle(),
     ])
     setStudents((st ?? []) as Student[])
@@ -166,7 +166,7 @@ export default function WazifaPage() {
     for (const d of (dc ?? []) as DecisionRow[]) if (!dmap[d.application_id]) dmap[d.application_id] = d
     setDecisionsByApp(dmap)
     setDocuments((docs ?? []) as DocRow[])
-    setCommittee((cm ?? []) as { id: string; name: string }[])
+    setCommittee((cm ?? []) as { id: string; full_name: string }[])
     setMinVerifiers(Number(minV?.value ?? 2))
     setLoading(false)
   }, [supabase])
@@ -719,7 +719,7 @@ export default function WazifaPage() {
                         ? [...coVerifiers, m.id]
                         : coVerifiers.filter((x) => x !== m.id))}
                       className="accent-dp-secondary" />
-                    {m.name}
+                    {m.full_name}
                   </label>
                 ))}
               </div>
