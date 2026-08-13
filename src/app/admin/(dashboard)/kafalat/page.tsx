@@ -65,7 +65,7 @@ const emptyChild = {
   first_name: '', first_name_ur: '', full_name: '', guardian_name: '',
   guardian_relation: 'father', guardian_phone: '', address: '',
   date_of_birth: '', gender: 'male', is_orphan: false, orphan_type: '',
-  school_name: '', current_class: '', school_location: 'village',
+  school_id: '', school_name: '', current_class: '', school_location: 'village',
   guardian_consent_signed: false, photo_consent: false,
 }
 
@@ -78,6 +78,11 @@ export default function KafalatPage() {
   const [shares, setShares] = useState<Share[]>([])
   const [nominations, setNominations] = useState<Nomination[]>([])
   const [summary, setSummary] = useState<Record<string, number>>({})
+  const [schools, setSchools] = useState<{ id: string; name: string; kind: string; location: string; monthly_fee_pkr: number; months_charged: number }[]>([])
+  // What the chosen school actually charges for the class typed in, so the
+  // committee sees the real number before the package is built rather than
+  // after the challan arrives.
+  const [feePreview, setFeePreview] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'children' | 'nominations'>('children')
   const [showForm, setShowForm] = useState(false)
@@ -87,18 +92,21 @@ export default function KafalatPage() {
   const [editLines, setEditLines] = useState<{ category: string; annual_amount_pkr: number }[]>([])
 
   const load = useCallback(async () => {
-    const [{ data: cs }, { data: ls }, { data: ss }, { data: ns }, { data: sum }] = await Promise.all([
+    const [{ data: cs }, { data: ls }, { data: ss }, { data: ns }, { data: sum }, { data: sch }] = await Promise.all([
       supabase.from('kafalat_children').select('*').order('created_at', { ascending: false }),
       supabase.from('kafalat_package_lines').select('*'),
       supabase.from('kafalat_shares').select('*'),
       supabase.from('kafalat_nominations').select('*').order('created_at', { ascending: false }),
       supabase.rpc('public_kafalat_summary'),
+      supabase.from('schools').select('id, name, kind, location, monthly_fee_pkr, months_charged')
+        .eq('is_active', true).order('location').order('name'),
     ])
     setChildren((cs ?? []) as Child[])
     setLines((ls ?? []) as PackageLine[])
     setShares((ss ?? []) as Share[])
     setNominations((ns ?? []) as Nomination[])
     setSummary((sum ?? {}) as Record<string, number>)
+    setSchools((sch ?? []) as { id: string; name: string; kind: string; location: string; monthly_fee_pkr: number; months_charged: number }[])
     setLoading(false)
   }, [supabase])
 
@@ -111,6 +119,14 @@ export default function KafalatPage() {
     shares.filter((s) => s.child_id === childId && ['pledged', 'active'].includes(s.status))
       .reduce((s, x) => s + Number(x.share_percent || 0), 0)
 
+  const previewFee = async (schoolId: string, currentClass: string) => {
+    if (!schoolId) { setFeePreview(null); return }
+    const { data } = await supabase.rpc('school_fee_for_class', {
+      p_school_id: schoolId, p_class: currentClass || null,
+    })
+    setFeePreview((data ?? null) as Record<string, unknown> | null)
+  }
+
   const addChild = async () => {
     if (!form.first_name.trim() || !form.full_name.trim() || !form.guardian_name.trim()) {
       toast.error(t('kf.err.required')); return
@@ -118,6 +134,7 @@ export default function KafalatPage() {
     setBusy(true)
     const { data, error } = await supabase.from('kafalat_children').insert({
       ...form,
+      school_id: form.school_id || null,
       first_name_ur: form.first_name_ur || null,
       guardian_phone: form.guardian_phone || null,
       address: form.address || null,
@@ -410,7 +427,9 @@ export default function KafalatPage() {
                 </div>
                 <div>
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.f.class')}</label>
-                  <input value={form.current_class} onChange={(e) => setForm({ ...form, current_class: e.target.value })} className="input-field" />
+                  <input value={form.current_class}
+                    onChange={(e) => { setForm({ ...form, current_class: e.target.value }); previewFee(form.school_id, e.target.value) }}
+                    className="input-field" />
                 </div>
                 <div>
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.f.schoolLocation')}</label>
@@ -425,7 +444,43 @@ export default function KafalatPage() {
 
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.f.school')}</label>
-                <input value={form.school_name} onChange={(e) => setForm({ ...form, school_name: e.target.value })} className="input-field" />
+                <select value={form.school_id}
+                  onChange={(e) => {
+                    const sc = schools.find((x) => x.id === e.target.value)
+                    setForm({
+                      ...form, school_id: e.target.value,
+                      school_name: sc?.name ?? form.school_name,
+                      // The school knows where it is; the child's location
+                      // follows from it rather than being asked twice.
+                      school_location: sc?.location ?? form.school_location,
+                    })
+                    previewFee(e.target.value, form.current_class)
+                  }}
+                  className="input-field">
+                  <option value="">{t('kf.f.schoolNotListed')}</option>
+                  {schools.map((sc) => (
+                    <option key={sc.id} value={sc.id}>
+                      {sc.name} — {t(`sc.kind.${sc.kind}`)}{Number(sc.monthly_fee_pkr) > 0 ? ` · Rs ${fmt(sc.monthly_fee_pkr)}/${t('sc.month')}` : ''}
+                    </option>
+                  ))}
+                </select>
+
+                {!form.school_id && (
+                  <input value={form.school_name} onChange={(e) => setForm({ ...form, school_name: e.target.value })}
+                    placeholder={t('kf.f.schoolTypeName')} className="input-field mt-2" />
+                )}
+
+                {feePreview && (
+                  <div className="mt-2 bg-dp-surface-container-low rounded-lg px-3.5 py-2.5">
+                    <p className="font-sans text-[12.5px] text-dp-on-surface">
+                      {t('kf.f.feeForClass')} <strong>Rs {fmt(Number(feePreview.monthly_fee ?? 0))}</strong>/{t('sc.month')}
+                      {' × '}{String(feePreview.months_charged ?? 12)}
+                      {' = '}<strong>Rs {fmt(Number(feePreview.annual_fee ?? 0) + Number(feePreview.annual_charges ?? 0))}</strong>/{t('es.year')}
+                      {feePreview.tier ? ` · ${String(feePreview.tier)}` : ''}
+                    </p>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">{t('kf.f.feePreviewHint')}</p>
+                  </div>
+                )}
               </div>
 
               <label className="flex items-center gap-2 cursor-pointer font-sans text-[13.5px]">

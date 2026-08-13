@@ -47,6 +47,7 @@ import {
   Scale,
   GraduationCap,
   Gift,
+  School,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -100,6 +101,7 @@ const menuItems: {
   { href: '/admin/needs-register', label: 'Needs Register', tKey: 'nav.needsRegister', icon: ShieldCheck, system: 'donors_projects' },
   { href: '/admin/zakat', label: 'Zakat & Ushr', tKey: 'nav.zakat', icon: Scale, system: 'donors_projects' },
   { href: '/admin/kafalat', label: 'Kafalat', tKey: 'nav.kafalat', icon: GraduationCap, system: 'donors_projects' },
+  { href: '/admin/schools', label: 'Schools & Fees', tKey: 'nav.schools', icon: School, system: 'donors_projects' },
   { href: '/admin/wazifa', label: 'Taleemi Wazifa', tKey: 'nav.wazifa', icon: BookOpen, system: 'donors_projects' },
   { href: '/admin/esal-e-sawab', label: 'Esal-e-Sawab', tKey: 'nav.esalESawab', icon: Gift, system: 'donors_projects' },
   { href: '/admin/complaints', label: 'Complaints', tKey: 'nav.complaints', icon: MessageSquareWarning, badge: 'complaints' },
