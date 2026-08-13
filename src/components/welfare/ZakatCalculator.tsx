@@ -36,6 +36,12 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
   const [tab, setTab] = useState<'zakat' | 'ushr'>('zakat')
   const [goldRate, setGoldRate] = useState(0)
   const [silverRate, setSilverRate] = useState(0)
+  const [rateSource, setRateSource] = useState<{ sources: string[]; fetchedAt: string } | null>(null)
+  const [rateError, setRateError] = useState(false)
+  // Anyone who knows today's Chakwal sarafa rate can overrule the feed. A
+  // local rate from the bazaar beats an international spot price for someone
+  // valuing the bangles in their own house.
+  const [manualRates, setManualRates] = useState(false)
 
   const [z, setZ] = useState({
     goldGrams: 0, silverGrams: 0, cash: 0, bank: 0,
@@ -48,12 +54,28 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
   })
 
   useEffect(() => {
+    // The committee's own figures win if it has entered any — a rate agreed
+    // in a meeting is a deliberate decision and should not be overwritten by
+    // a feed. Otherwise today's rate is fetched.
     createClient().from('site_settings').select('key, value')
       .in('key', ['zakat_gold_rate_pkr', 'zakat_silver_rate_pkr'])
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         const m = Object.fromEntries((data ?? []).map((r) => [r.key, Number(r.value) || 0]))
-        setGoldRate(m.zakat_gold_rate_pkr ?? 0)
-        setSilverRate(m.zakat_silver_rate_pkr ?? 0)
+        if ((m.zakat_gold_rate_pkr ?? 0) > 0 || (m.zakat_silver_rate_pkr ?? 0) > 0) {
+          setGoldRate(m.zakat_gold_rate_pkr ?? 0)
+          setSilverRate(m.zakat_silver_rate_pkr ?? 0)
+          return
+        }
+        try {
+          const res = await fetch('/api/metal-rates')
+          if (!res.ok) { setRateError(true); return }
+          const r = await res.json()
+          setGoldRate(r.goldPkrPerGram)
+          setSilverRate(r.silverPkrPerGram)
+          setRateSource({ sources: r.sources, fetchedAt: r.fetchedAt })
+        } catch {
+          setRateError(true)
+        }
       })
   }, [])
 
@@ -110,10 +132,59 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
         ))}
       </div>
 
-      {ratesMissing && tab === 'zakat' && (
-        <div className="mx-5 mt-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3.5 py-2.5">
-          <Info size={15} className="text-amber-700 shrink-0 mt-0.5" />
-          <p className="font-sans text-[12.5px] text-amber-900">{t('zc.ratesMissing')}</p>
+      {tab === 'zakat' && (
+        <div className="mx-5 mt-4">
+          {rateError && ratesMissing ? (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3.5 py-2.5 mb-2">
+              <Info size={15} className="text-amber-700 shrink-0 mt-0.5" />
+              <p className="font-sans text-[12.5px] text-amber-900">{t('zc.ratesUnavailable')}</p>
+            </div>
+          ) : null}
+
+          <div className="bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-3.5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+              <p className="font-sans text-[12px] font-bold uppercase tracking-[0.06em] text-dp-outline">{t('zc.todaysRates')}</p>
+              <button onClick={() => setManualRates(!manualRates)}
+                className="font-sans text-[12px] font-semibold text-dp-secondary hover:underline cursor-pointer">
+                {manualRates ? t('zc.useFeed') : t('zc.enterOwnRates')}
+              </button>
+            </div>
+
+            {manualRates ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-sans text-[12px] text-dp-on-surface-variant mb-1">{t('zc.goldPerGram')}</label>
+                  <input type="number" min={0} value={goldRate || ''} onChange={(e) => setGoldRate(+e.target.value)}
+                    className="input-field !py-2 text-end tabular-nums" />
+                </div>
+                <div>
+                  <label className="block font-sans text-[12px] text-dp-on-surface-variant mb-1">{t('zc.silverPerGram')}</label>
+                  <input type="number" min={0} step="0.01" value={silverRate || ''} onChange={(e) => setSilverRate(+e.target.value)}
+                    className="input-field !py-2 text-end tabular-nums" />
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-x-6 gap-y-1">
+                <p className="font-sans text-[13px] text-dp-on-surface">
+                  {t('zc.goldPerGram')}: <strong>Rs {fmt(goldRate)}</strong>
+                </p>
+                <p className="font-sans text-[13px] text-dp-on-surface">
+                  {t('zc.silverPerGram')}: <strong>Rs {silverRate ? silverRate.toFixed(2) : '—'}</strong>
+                </p>
+              </div>
+            )}
+
+            {/* Where the numbers came from, named. A zakat figure worked out
+                from an unattributed rate is a number nobody should act on. */}
+            {rateSource && !manualRates && (
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2 leading-relaxed">
+                {t('zc.rateSource')} <strong>{rateSource.sources.join(', ')}</strong>
+                {' · '}
+                {new Date(rateSource.fetchedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                {' — '}{t('zc.notOurRate')}
+              </p>
+            )}
+          </div>
         </div>
       )}
 
@@ -272,7 +343,22 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
         </div>
       )}
 
-      <p className="px-5 pb-5 font-sans text-[11.5px] text-dp-on-surface-variant leading-relaxed">{t('zc.disclaimer')}</p>
+      <div className="px-5 pb-5">
+        <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-relaxed mb-3">{t('zc.disclaimer')}</p>
+        <p className="font-sans text-[11.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('zc.crossCheck')}</p>
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {([
+            ['Zakat & Ushr Department, Punjab', 'https://zakat.punjab.gov.pk/'],
+            ['Alkhidmat Foundation', 'https://alkhidmat.org/zakat'],
+            ['Saylani Welfare', 'https://saylaniwelfare.com/'],
+          ] as const).map(([label, href]) => (
+            <a key={href} href={href} target="_blank" rel="noopener noreferrer"
+              className="font-sans text-[11.5px] text-dp-secondary hover:underline">
+              {label} ↗
+            </a>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

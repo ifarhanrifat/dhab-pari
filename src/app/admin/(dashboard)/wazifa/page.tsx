@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { BookOpen, X, Award, Calculator, HandCoins, Plus, Save, ClipboardCheck, Gavel, CalendarClock } from 'lucide-react'
+import { BookOpen, X, Award, Calculator, HandCoins, Plus, Save, ClipboardCheck, Gavel, CalendarClock, Users } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 /**
@@ -126,6 +126,10 @@ export default function WazifaPage() {
   const [planForm, setPlanForm] = useState({ starts_on: '', instalments: 12 })
   const [repayTarget, setRepayTarget] = useState<AwardRow | null>(null)
   const [repayForm, setRepayForm] = useState({ amount: 0, method: 'cash', note: '' })
+  // Reported, never enforced. A second brother may be perfectly deserving —
+  // the committee should decide that knowingly rather than the software
+  // deciding it silently.
+  const [familyCheck, setFamilyCheck] = useState<Record<string, { code: string; name?: string; status: string; awarded?: number }[]> | null>(null)
   const [instalmentForm, setInstalmentForm] = useState({ purpose: 'admission_fee', description: '', due_on: '', amount: 0 })
 
   const load = useCallback(async () => {
@@ -199,6 +203,17 @@ export default function WazifaPage() {
     setBusy(false)
     toast.success(t('wz.ok.rescored'))
     load()
+  }
+
+  const runFamilyCheck = async (a: Application) => {
+    const st = studentOf(a.student_id)
+    const { data, error } = await supabase.rpc('wazifa_family_check', {
+      p_father_name: st?.father_name ?? null,
+      p_phone: st?.phone ?? null,
+      p_cnic: null,
+    })
+    if (error) { toast.error(friendlyError(error)); return }
+    setFamilyCheck(data as Record<string, { code: string; name?: string; status: string; awarded?: number }[]>)
   }
 
   const saveVerification = async () => {
@@ -454,6 +469,10 @@ export default function WazifaPage() {
                   {/* Verification first, decision second. The order is the
                       point: a committee deciding before anybody has stood in
                       the courtyard is deciding on a claim. */}
+                  <button onClick={() => runFamilyCheck(a)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[13px] font-semibold hover:text-dp-primary transition-all cursor-pointer whitespace-nowrap">
+                    <Users size={15} /> {t('wz.familyCheck')}
+                  </button>
                   <button onClick={() => { setVerifyTarget(a); setVForm({ ...emptyVerification, recommended_amount_pkr: a.requested_amount_pkr }) }}
                     className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all cursor-pointer whitespace-nowrap ${myVerification(a.id) ? 'border border-dp-outline-variant text-dp-on-surface-variant' : 'bg-dp-secondary text-white hover:bg-dp-primary'}`}>
                     <ClipboardCheck size={15} /> {myVerification(a.id) ? t('wz.editVerification') : t('wz.enterVerification')}
@@ -564,6 +583,53 @@ export default function WazifaPage() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* ── Is this family already being helped? ────────────────────────── */}
+      {familyCheck && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setFamilyCheck(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('wz.familyCheckTitle')}</h2>
+              <button onClick={() => setFamilyCheck(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('wz.familyCheckHelp')}</p>
+
+            {([
+              ['wazifa_students', 'wz.fc.wazifa'],
+              ['kafalat_children', 'wz.fc.kafalat'],
+              ['needs_register', 'wz.fc.register'],
+            ] as const).map(([key, lbl]) => {
+              const rows = familyCheck[key] ?? []
+              return (
+                <div key={key} className="mb-4">
+                  <p className="font-sans text-[12px] font-bold uppercase tracking-[0.06em] text-dp-outline mb-2">{t(lbl)}</p>
+                  {rows.length === 0 ? (
+                    <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('wz.fc.none')}</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {rows.map((r) => (
+                        <div key={r.code} className="flex flex-wrap items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                          <span className="font-sans text-[13px]">
+                            <span className="font-mono text-[12px] font-semibold">{r.code}</span>
+                            {r.name && ` · ${r.name}`}
+                          </span>
+                          <span className="font-sans text-[12px] font-semibold text-dp-on-surface-variant">
+                            {r.status}{r.awarded ? ` · Rs ${fmt(r.awarded)}` : ''}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+
+            <p className="font-sans text-[12px] text-dp-on-surface-variant bg-dp-surface-container-low rounded-lg px-3.5 py-2.5">
+              {t('wz.familyCheckNote')}
+            </p>
+          </div>
         </div>
       )}
 

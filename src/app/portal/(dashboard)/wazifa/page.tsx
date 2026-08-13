@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { BookOpen, Send, Plus, Trash2, Printer, HandCoins, RotateCcw } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { printNodeInPopup } from '@/lib/receiptExport'
+import { FileAttachment } from '@/components/admin/FileAttachment'
 
 /**
  * The Taleemi Wazifa application.
@@ -96,19 +97,28 @@ export default function PortalWazifaPage() {
     level: 'bachelors', institution: '', programme: '', city: '', admission_status: 'seeking',
     requested_amount_pkr: 0, need_statement: '', achievements: '',
     repayment_pledge: false, repayment_note: '',
+    requested_as: 'grant',
+    has_family_business: false, family_business_kind: '', family_business_share_pkr: 0, family_business_note: '',
+    loan_terms_accepted: false, loan_terms_signature: '',
   })
+  const [docs, setDocs] = useState<{ kind: string; label: string; url: string }[]>([])
+  const [loanTerms, setLoanTerms] = useState({ ur: '', en: '' })
   const [family, setFamily] = useState<FamilyRow[]>([{ ...emptyFamilyRow }])
   const [academics, setAcademics] = useState<AcademicRow[]>([{ ...emptyAcademicRow }])
 
   const load = useCallback(async () => {
-    const [{ data: sum }, { data: dec }, { data: lns }] = await Promise.all([
+    const [{ data: sum }, { data: dec }, { data: lns }, { data: terms }] = await Promise.all([
       supabase.rpc('public_wazifa_summary'),
       supabase.rpc('my_wazifa_decisions'),
       supabase.rpc('my_wazifa_loans'),
+      supabase.from('site_settings').select('key, value')
+        .in('key', ['wazifa_loan_terms_ur', 'wazifa_loan_terms_en']),
     ])
     setSummary((sum ?? {}) as Record<string, number>)
     setDecisions((dec ?? []) as Decision[])
     setLoans((lns ?? []) as Loan[])
+    const tm = Object.fromEntries(((terms ?? []) as { key: string; value: string }[]).map((r) => [r.key, r.value]))
+    setLoanTerms({ ur: tm.wazifa_loan_terms_ur ?? '', en: tm.wazifa_loan_terms_en ?? '' })
   }, [supabase])
 
   useEffect(() => { load() }, [load])
@@ -138,6 +148,13 @@ export default function PortalWazifaPage() {
     if (!form.student_full_name.trim()) { toast.error(t('pwz.err.studentName')); return }
     if (!form.institution.trim() || !form.programme.trim()) { toast.error(t('pwz.err.required')); return }
     if (!form.need_statement.trim()) { toast.error(t('pwz.err.statement')); return }
+    // A loan without an accepted agreement is a promise nobody wrote down.
+    if (form.requested_as !== 'grant' && !form.loan_terms_accepted) {
+      toast.error(t('pwz.err.termsNotAccepted')); return
+    }
+    if (form.requested_as !== 'grant' && !form.loan_terms_signature.trim()) {
+      toast.error(t('pwz.err.signature')); return
+    }
     setBusy(true)
 
     // The student is the subject of the record, not whoever held the pen. A
@@ -190,8 +207,16 @@ export default function PortalWazifaPage() {
       family_receives_zakat: form.family_receives_zakat,
       zakat_sources: form.zakat_sources.length > 0 ? form.zakat_sources : null,
       zakat_monthly_pkr: form.zakat_monthly_pkr || 0,
-      repayment_pledge: form.repayment_pledge,
+      requested_as: form.requested_as,
+      repayment_pledge: form.requested_as !== 'grant',
       repayment_note: form.repayment_note || null,
+      has_family_business: form.has_family_business,
+      family_business_kind: form.family_business_kind || null,
+      family_business_share_pkr: form.family_business_share_pkr || 0,
+      family_business_note: form.family_business_note || null,
+      loan_terms_accepted: form.requested_as !== 'grant' ? form.loan_terms_accepted : false,
+      loan_terms_accepted_at: form.requested_as !== 'grant' && form.loan_terms_accepted ? new Date().toISOString() : null,
+      loan_terms_signature: form.requested_as !== 'grant' ? (form.loan_terms_signature || null) : null,
       // A second attempt is linked to the first, so the committee can see
       // that this family has been here before and what changed.
       supersedes_application_id: reapplyOf?.application_id ?? null,
@@ -223,6 +248,15 @@ export default function PortalWazifaPage() {
     }))
     if (academicRows.length > 0) await supabase.from('wazifa_academic_records').insert(academicRows)
 
+    if (docs.length > 0) {
+      await supabase.from('wazifa_documents').insert(
+        docs.map((d) => ({
+          application_id: app.id, kind: d.kind, label: d.label || null,
+          url: d.url, uploaded_by_portal_user_id: portalUser.id,
+        }))
+      )
+    }
+
     await supabase.rpc('wazifa_sync_merit', { p_application_id: app.id })
 
     setBusy(false)
@@ -231,9 +265,30 @@ export default function PortalWazifaPage() {
     load()
   }
 
-  const label = 'block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5'
-  const section = 'bg-white border border-dp-outline-variant rounded-lg p-5 mb-4'
+  const label = 'block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5'
+  const section = 'bg-white border border-dp-outline-variant rounded-lg p-5 sm:p-6 mb-4'
   const heading = 'font-heading text-[18px] font-bold text-dp-primary mb-1'
+
+  // Every section carries its number, so a form this long reads as a sequence
+  // with an end rather than an unbroken wall. The number is also what a
+  // committee member says on the phone: "section four, the brothers".
+  const StepHead = ({ n, title, help, urdu }: { n: number; title: string; help?: string; urdu?: string }) => (
+    <div className="mb-4 pb-3 border-b border-dp-outline-variant">
+      <div className="flex items-start gap-3">
+        <span className="shrink-0 w-7 h-7 rounded-full bg-dp-secondary text-white flex items-center justify-center font-sans text-[13px] font-bold mt-0.5">
+          {n}
+        </span>
+        <div className="min-w-0">
+          <h2 className={heading}>{title}</h2>
+          {urdu && (
+            <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mt-1"
+              style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>{urdu}</p>
+          )}
+          {help && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1 leading-relaxed">{help}</p>}
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="max-w-3xl">
@@ -408,12 +463,7 @@ export default function PortalWazifaPage() {
 
         {/* ── Who is this application for ───────────────────────────────── */}
         <div className={section}>
-          <h2 className={heading}>{t('pwz.s.whoFor')}</h2>
-          <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mb-1"
-            style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
-            {t('pwz.whoForUrdu')}
-          </p>
-          <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('pwz.whoForEnglish')}</p>
+          <StepHead n={1} title={t('pwz.s.whoFor')} urdu={t('pwz.whoForUrdu')} help={t('pwz.whoForEnglish')} />
 
           <div className="space-y-2 mb-4">
             {([
@@ -450,8 +500,7 @@ export default function PortalWazifaPage() {
 
         {/* ── The student ───────────────────────────────────────────────── */}
         <div className={section}>
-          <h2 className={heading}>{t('pwz.s.student')}</h2>
-          <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('pwz.s.studentHelp')}</p>
+          <StepHead n={2} title={t('pwz.s.student')} help={t('pwz.s.studentHelp')} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
             <div>
@@ -511,12 +560,7 @@ export default function PortalWazifaPage() {
 
         {/* ── The household, person by person ───────────────────────────── */}
         <div className={section}>
-          <h2 className={heading}>{t('pwz.s.family')}</h2>
-          <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mb-1"
-            style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
-            {t('pwz.familyUrdu')}
-          </p>
-          <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('pwz.familyEnglish')}</p>
+          <StepHead n={3} title={t('pwz.s.family')} urdu={t('pwz.familyUrdu')} help={t('pwz.familyEnglish')} />
 
           <div className="space-y-3">
             {family.map((f, i) => (
@@ -635,14 +679,45 @@ export default function PortalWazifaPage() {
           </div>
         </div>
 
+        {/* ── Joint income ─────────────────────────────────────────────── */}
+        <div className={section}>
+          <StepHead n={4} title={t('pwz.s.business')} urdu={t('pwz.businessUrdu')} help={t('pwz.businessEnglish')} />
+
+          <label className="flex items-center gap-2 cursor-pointer font-sans text-[13.5px] mb-3">
+            <input type="checkbox" checked={form.has_family_business}
+              onChange={(e) => setForm({ ...form, has_family_business: e.target.checked })} className="accent-dp-secondary" />
+            {t('pwz.f.hasBusiness')}
+          </label>
+
+          {form.has_family_business && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className={label}>{t('pwz.f.businessKind')}</label>
+                  <input value={form.family_business_kind}
+                    onChange={(e) => setForm({ ...form, family_business_kind: e.target.value })}
+                    placeholder={t('pwz.f.businessPlaceholder')} className="input-field" />
+                </div>
+                <div>
+                  <label className={label}>{t('pwz.f.businessShare')}</label>
+                  <input type="number" min={0} value={form.family_business_share_pkr || ''}
+                    onChange={(e) => setForm({ ...form, family_business_share_pkr: +e.target.value })} className="input-field" />
+                  <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('pwz.f.businessShareHint')}</p>
+                </div>
+              </div>
+              <div>
+                <label className={label}>{t('pwz.f.businessNote')}</label>
+                <textarea value={form.family_business_note}
+                  onChange={(e) => setForm({ ...form, family_business_note: e.target.value })}
+                  rows={2} className="input-field resize-none" />
+              </div>
+            </>
+          )}
+        </div>
+
         {/* ── Illness in the house ──────────────────────────────────────── */}
         <div className={section}>
-          <h2 className={heading}>{t('pwz.s.health')}</h2>
-          <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mb-1"
-            style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
-            {t('pwz.healthUrdu')}
-          </p>
-          <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('pwz.healthEnglish')}</p>
+          <StepHead n={5} title={t('pwz.s.health')} urdu={t('pwz.healthUrdu')} help={t('pwz.healthEnglish')} />
 
           <label className="flex items-center gap-2 cursor-pointer font-sans text-[13.5px] mb-3">
             <input type="checkbox" checked={form.has_long_term_patient}
@@ -671,12 +746,7 @@ export default function PortalWazifaPage() {
 
         {/* ── Help already being received ───────────────────────────────── */}
         <div className={section}>
-          <h2 className={heading}>{t('pwz.s.zakat')}</h2>
-          <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mb-1"
-            style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
-            {t('pwz.zakatUrdu')}
-          </p>
-          <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('pwz.zakatEnglish')}</p>
+          <StepHead n={6} title={t('pwz.s.zakat')} urdu={t('pwz.zakatUrdu')} help={t('pwz.zakatEnglish')} />
 
           <label className="flex items-center gap-2 cursor-pointer font-sans text-[13.5px] mb-3">
             <input type="checkbox" checked={form.family_receives_zakat}
@@ -713,8 +783,7 @@ export default function PortalWazifaPage() {
 
         {/* ── Academic record ───────────────────────────────────────────── */}
         <div className={section}>
-          <h2 className={heading}>{t('pwz.s.academics')}</h2>
-          <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('pwz.academicsHelp')}</p>
+          <StepHead n={7} title={t('pwz.s.academics')} help={t('pwz.academicsHelp')} />
 
           <div className="space-y-3">
             {academics.map((a, i) => {
@@ -767,7 +836,7 @@ export default function PortalWazifaPage() {
 
         {/* ── What they want to study ───────────────────────────────────── */}
         <div className={section}>
-          <h2 className={heading}>{t('pwz.s.study')}</h2>
+          <StepHead n={8} title={t('pwz.s.study')} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
             <div>
@@ -822,33 +891,124 @@ export default function PortalWazifaPage() {
           </div>
         </div>
 
+        {/* ── Documents ────────────────────────────────────────────────── */}
+        <div className={section}>
+          <StepHead n={9} title={t('pwz.s.documents')} urdu={t('pwz.documentsUrdu')} help={t('pwz.documentsEnglish')} />
+
+          <div className="space-y-3">
+            {docs.map((d, i) => (
+              <div key={i} className="border border-dp-outline-variant rounded-lg p-3.5">
+                <div className="flex items-center justify-between gap-2 mb-2.5">
+                  <select value={d.kind}
+                    onChange={(e) => { const n = [...docs]; n[i] = { ...d, kind: e.target.value }; setDocs(n) }}
+                    className="input-field !py-2 max-w-[260px]">
+                    {(['cnic', 'b_form', 'matric_dmc', 'fsc_dmc', 'degree', 'admission_letter',
+                       'fee_challan', 'income_proof', 'medical', 'other'] as const).map((k) => (
+                      <option key={k} value={k}>{t(`pwz.doc.${k}`)}</option>
+                    ))}
+                  </select>
+                  <button onClick={() => setDocs(docs.filter((_, x) => x !== i))}
+                    className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer print:hidden">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                <FileAttachment
+                  label={t('pwz.doc.upload')}
+                  currentUrl={d.url || undefined}
+                  onUpload={(url) => { const n = [...docs]; n[i] = { ...d, url }; setDocs(n) }}
+                />
+              </div>
+            ))}
+          </div>
+
+          <button onClick={() => setDocs([...docs, { kind: 'matric_dmc', label: '', url: '' }])}
+            className="mt-3 flex items-center gap-1.5 px-3.5 py-2 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer print:hidden">
+            <Plus size={15} /> {t('pwz.doc.add')}
+          </button>
+
+          {/* Said plainly, because a family without a scanner should not
+              think that rules them out. */}
+          <p className="font-sans text-[12px] text-dp-on-surface-variant mt-3 bg-dp-surface-container-low rounded-lg px-3.5 py-2.5 leading-relaxed">
+            {t('pwz.doc.noScannerNote')}
+          </p>
+        </div>
+
         {/* ── Qarz-e-Hasana ─────────────────────────────────────────────── */}
         <div className={section}>
-          <h2 className={heading}>{t('pwz.s.qarz')}</h2>
-          <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mb-1"
-            style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
-            {t('pwz.qarzUrdu')}
-          </p>
-          <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3 leading-relaxed">{t('pwz.qarzEnglish')}</p>
+          <StepHead n={10} title={t('pwz.s.qarz')} urdu={t('pwz.qarzUrdu')} help={t('pwz.qarzEnglish')} />
 
-          <label className={`flex items-start gap-2.5 px-3.5 py-3 rounded-lg border-2 cursor-pointer transition-all ${form.repayment_pledge ? 'border-emerald-500 bg-emerald-50' : 'border-dp-outline-variant'}`}>
-            <input type="checkbox" checked={form.repayment_pledge}
-              onChange={(e) => setForm({ ...form, repayment_pledge: e.target.checked })} className="accent-emerald-600 mt-0.5" />
-            <span>
-              <span className="flex items-center gap-1.5 font-sans text-[13.5px] font-semibold text-dp-on-surface">
-                <HandCoins size={15} /> {t('pwz.f.repaymentPledge')}
-              </span>
-              <span className="block font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('pwz.f.repaymentHelp')}</span>
-            </span>
-          </label>
+          {/* A three-way choice rather than a checkbox. Asking "do you want
+              this as a gift or as a loan you will return?" out loud is a
+              fairer question than a tickbox somebody scrolls past. */}
+          <div className="space-y-2.5 mb-4">
+            {([
+              ['grant', 'pwz.as.grant', 'pwz.as.grantHelp'],
+              ['loan', 'pwz.as.loan', 'pwz.as.loanHelp'],
+              ['either', 'pwz.as.either', 'pwz.as.eitherHelp'],
+            ] as const).map(([value, lbl, help]) => (
+              <label key={value}
+                className={`flex items-start gap-2.5 px-4 py-3.5 rounded-lg border-2 cursor-pointer transition-all ${form.requested_as === value ? (value === 'grant' ? 'border-dp-secondary bg-dp-secondary/5' : 'border-emerald-500 bg-emerald-50') : 'border-dp-outline-variant'}`}>
+                <input type="radio" name="requested_as" checked={form.requested_as === value}
+                  onChange={() => setForm({ ...form, requested_as: value })} className="accent-dp-secondary mt-0.5" />
+                <span className="min-w-0">
+                  <span className="flex items-center gap-1.5 font-sans text-[14px] font-bold text-dp-on-surface">
+                    {value !== 'grant' && <HandCoins size={15} />} {t(lbl)}
+                  </span>
+                  <span className="block font-sans text-[12.5px] text-dp-on-surface-variant mt-1 leading-relaxed">{t(help)}</span>
+                </span>
+              </label>
+            ))}
+          </div>
 
-          <p className="font-sans text-[12px] text-dp-on-surface-variant mt-2.5">{t('pwz.f.repaymentNoPressure')}</p>
+          <p className="font-sans text-[12px] text-dp-on-surface-variant mb-4">{t('pwz.f.repaymentNoPressure')}</p>
 
-          {form.repayment_pledge && (
-            <div className="mt-3">
-              <label className={label}>{t('pwz.f.repaymentNote')}</label>
-              <textarea value={form.repayment_note} onChange={(e) => setForm({ ...form, repayment_note: e.target.value })}
-                rows={2} placeholder={t('pwz.f.repaymentNotePlaceholder')} className="input-field resize-none" />
+          {/* ── The agreement ────────────────────────────────────────────
+              Shown in full, not behind a link. Somebody is being asked to
+              commit to returning money over years; the terms belong on the
+              same screen as the box they tick. */}
+          {form.requested_as !== 'grant' && (
+            <div className="border-2 border-emerald-500 rounded-lg overflow-hidden">
+              <div className="bg-emerald-50 px-4 py-3 border-b border-emerald-200">
+                <h3 className="font-sans text-[14px] font-bold text-emerald-900">{t('pwz.terms.title')}</h3>
+              </div>
+
+              <div className="p-4 max-h-[280px] overflow-y-auto print:max-h-none print:overflow-visible">
+                {loanTerms.ur && (
+                  <p className="font-sans text-[13.5px] text-dp-on-surface leading-[2.1] whitespace-pre-line"
+                    style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                    {loanTerms.ur}
+                  </p>
+                )}
+                {loanTerms.en && (
+                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed whitespace-pre-line mt-4 pt-4 border-t border-dp-outline-variant">
+                    {loanTerms.en}
+                  </p>
+                )}
+                {!loanTerms.ur && !loanTerms.en && (
+                  <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('pwz.terms.notLoaded')}</p>
+                )}
+              </div>
+
+              <div className="px-4 py-4 border-t border-emerald-200 bg-white">
+                <label className="flex items-start gap-2.5 cursor-pointer mb-3">
+                  <input type="checkbox" checked={form.loan_terms_accepted}
+                    onChange={(e) => setForm({ ...form, loan_terms_accepted: e.target.checked })}
+                    className="accent-emerald-600 mt-0.5" />
+                  <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{t('pwz.terms.accept')}</span>
+                </label>
+
+                <label className={label}>{t('pwz.terms.signature')}</label>
+                <input value={form.loan_terms_signature}
+                  onChange={(e) => setForm({ ...form, loan_terms_signature: e.target.value })}
+                  placeholder={t('pwz.terms.signaturePlaceholder')} className="input-field max-w-sm" />
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('pwz.terms.signatureHint')}</p>
+
+                <div className="mt-3">
+                  <label className={label}>{t('pwz.f.repaymentNote')}</label>
+                  <textarea value={form.repayment_note} onChange={(e) => setForm({ ...form, repayment_note: e.target.value })}
+                    rows={2} placeholder={t('pwz.f.repaymentNotePlaceholder')} className="input-field resize-none" />
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -944,7 +1104,7 @@ export default function PortalWazifaPage() {
 
         {/* ── Declaration, for the printed sheet ────────────────────────── */}
         <div className={`${section} print:break-inside-avoid`}>
-          <h2 className={heading}>{t('pwz.s.declaration')}</h2>
+          <StepHead n={11} title={t('pwz.s.declaration')} />
           <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mb-4"
             style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
             {t('pwz.declarationUrdu')}
