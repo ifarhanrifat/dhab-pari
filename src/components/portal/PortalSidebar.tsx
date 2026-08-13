@@ -14,6 +14,7 @@ import {
   GraduationCap,
   Gift,
   BookOpen,
+  Scale,
 } from 'lucide-react'
 import { SITE } from '@/lib/constants'
 
@@ -27,6 +28,7 @@ const menuItems = [
   { href: '/portal/statement', label: 'My Giving', tKey: 'portal.statement', icon: HeartHandshake },
   { href: '/portal/water', label: 'Water Bills', tKey: 'portal.water', icon: Droplets, requiresConsumer: true },
   { href: '/portal/recurring', label: 'Recurring Donations', tKey: 'portal.recurring', icon: Repeat },
+  { href: '/portal/zakat', label: 'Zakat & Ushr', tKey: 'portal.zakat', icon: Scale },
   { href: '/portal/kafalat', label: 'Sponsor a Child', tKey: 'portal.kafalat', icon: GraduationCap },
   { href: '/portal/esal-e-sawab', label: 'Sadqa-e-Jariya', tKey: 'portal.esalESawab', icon: Gift },
   { href: '/portal/wazifa', label: 'Taleemi Wazifa', tKey: 'portal.wazifa', icon: BookOpen },

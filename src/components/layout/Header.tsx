@@ -21,6 +21,7 @@ const navLinks: { href: string; label: string; tKey: string }[] = [
   { href: '/jobs', label: 'Jobs', tKey: 'site.jobs' },
   { href: '/accounts', label: 'Accounts', tKey: 'site.accounts' },
   { href: '/donate', label: 'Donate', tKey: 'site.donate' },
+  { href: '/welfare', label: 'Welfare', tKey: 'site.welfare' },
   { href: '/news', label: 'News', tKey: 'site.news' },
   { href: '/videos', label: 'Videos', tKey: 'site.videos' },
   { href: '/gallery', label: 'Gallery', tKey: 'site.gallery' },
