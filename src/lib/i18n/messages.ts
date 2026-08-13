@@ -2004,6 +2004,12 @@ export const messages: Record<Locale, Record<string, string>> = {
     'hw.esal.stat1': 'still working today',
     'hw.esal.stat2': 'given in all',
     'hw.privacyUr': 'اگر آپ مدد کے لیے اندراج کریں تو آپ کا نام نہ اس ویب سائٹ پر آئے گا، نہ کسی عطیہ دینے والے تک پہنچے گا۔ کمیٹی کے صرف دو تین ذمہ دار افراد آپ کی تفصیل دیکھ سکتے ہیں۔',
+
+    // Card names — short enough to hold one line at card width.
+    'hw.zakat.tab': 'Zakat & Ushr',
+    'hw.kafalat.tab': 'Kafalat — School',
+    'hw.wazifa.tab': 'Taleemi Wazifa',
+    'hw.esal.tab': 'Esal-e-Sawab',
   },
 
   ur: {
@@ -3995,6 +4001,12 @@ export const messages: Record<Locale, Record<string, string>> = {
     'hw.esal.stat1': 'آج بھی کارآمد',
     'hw.esal.stat2': 'کل عطیات',
     'hw.privacyUr': 'اگر آپ مدد کے لیے اندراج کریں تو آپ کا نام نہ اس ویب سائٹ پر آئے گا، نہ کسی عطیہ دینے والے تک پہنچے گا۔ کمیٹی کے صرف دو تین ذمہ دار افراد آپ کی تفصیل دیکھ سکتے ہیں۔',
+
+    // Card names — short enough to hold one line at card width.
+    'hw.zakat.tab': 'زکوٰۃ و عشر',
+    'hw.kafalat.tab': 'کفالت — سکول',
+    'hw.wazifa.tab': 'تعلیمی وظیفہ',
+    'hw.esal.tab': 'ایصالِ ثواب',
   },
 }
 

@@ -1,28 +1,27 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { motion, useInView } from 'motion/react'
 import { Scale, GraduationCap, BookOpen, Gift, ArrowRight, ShieldCheck, Info } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 /**
  * The four welfare appeals, on the home page.
  *
- * Built the way the appeal sites that actually raise money build them, because
- * the counting stat and the emotive line do different jobs and both are
- * needed. The number answers "is this real?" — the reason nobody gives to a
- * page of promises. The line answers "why should I care?" — the reason nobody
- * gives to a page of statistics either.
+ * Deliberately still: no entrance animation and no counting figures. Movement
+ * on a page like this reads as a marketing device, and a village committee
+ * asking for zakat is better served looking plain and steady than looking
+ * like it is selling something.
+ *
+ * The card still does two jobs at once. The figures answer "is this real?",
+ * which is why nobody gives to a page of promises. The motto answers "why
+ * should I care?", which is why nobody gives to a page of statistics either.
  *
  * The Urdu motto is the headline rather than a translation underneath it. Most
  * of the people who read this page read Urdu first, and a village committee's
  * appeal that leads in English is an appeal aimed past its own village.
  *
- * Every card carries its own numbers top-left and top-right, one emotive line,
- * one plain sentence on how to apply, and one way through to the full
- * explanation. Nothing else — a card that tries to say everything gets read as
- * far as the first paragraph.
+ * Colours come from the site palette rather than a per-card scheme, so these
+ * sit inside the page instead of on top of it.
  */
 
 interface Props {
@@ -33,77 +32,17 @@ interface Props {
   sadqaTotal: number
 }
 
-/** Counts up when the card scrolls into view — the number earns a glance. */
-function Counter({ to, duration = 1100 }: { to: number; duration?: number }) {
-  const ref = useRef<HTMLSpanElement>(null)
-  const inView = useInView(ref, { once: true, margin: '-40px' })
-  const [n, setN] = useState(0)
-
-  useEffect(() => {
-    if (!inView || to <= 0) { setN(to); return }
-    let raf = 0
-    const start = performance.now()
-    const tick = (now: number) => {
-      const p = Math.min((now - start) / duration, 1)
-      // Ease-out: fast first, settling at the end, so the eye lands on the
-      // final figure rather than watching a linear crawl.
-      setN(Math.round(to * (1 - Math.pow(1 - p, 3))))
-      if (p < 1) raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [inView, to, duration])
-
-  return <span ref={ref} className="tabular-nums">{n.toLocaleString()}</span>
-}
+const fmt = (n: number) => Number(n || 0).toLocaleString()
 
 export function WelfareCards({ needs, kafalat, wazifa, sadqaWorking, sadqaTotal }: Props) {
   const { t, isUrdu } = useLocale()
 
   const cards = [
     {
-      key: 'wazifa',
-      icon: BookOpen,
-      href: '/portal/wazifa',
-      // Each module gets its own colour so a returning visitor recognises the
-      // card before reading it.
-      tint: 'from-indigo-600 to-indigo-800',
-      accent: 'text-indigo-700',
-      ring: 'group-hover:border-indigo-400',
-      leftValue: wazifa.students_supported ?? 0,
-      leftLabel: t('hw.wazifa.stat1'),
-      rightValue: wazifa.graduated ?? 0,
-      rightLabel: t('hw.wazifa.stat2'),
-      mottoUr: t('hw.wazifa.mottoUr'),
-      motto: t('hw.wazifa.motto'),
-      body: t('hw.wazifa.body'),
-      how: t('hw.wazifa.how'),
-      cta: t('hw.wazifa.cta'),
-    },
-    {
-      key: 'kafalat',
-      icon: GraduationCap,
-      href: '/portal/kafalat',
-      tint: 'from-emerald-600 to-emerald-800',
-      accent: 'text-emerald-700',
-      ring: 'group-hover:border-emerald-400',
-      leftValue: kafalat.active_children ?? 0,
-      leftLabel: t('hw.kafalat.stat1'),
-      rightValue: kafalat.awaiting_sponsor ?? 0,
-      rightLabel: t('hw.kafalat.stat2'),
-      mottoUr: t('hw.kafalat.mottoUr'),
-      motto: t('hw.kafalat.motto'),
-      body: t('hw.kafalat.body'),
-      how: t('hw.kafalat.how'),
-      cta: t('hw.kafalat.cta'),
-    },
-    {
       key: 'zakat',
       icon: Scale,
       href: '/portal/zakat',
-      tint: 'from-amber-600 to-amber-800',
-      accent: 'text-amber-700',
-      ring: 'group-hover:border-amber-400',
+      title: t('hw.zakat.tab'),
       leftValue: needs.verified_households ?? 0,
       leftLabel: t('hw.zakat.stat1'),
       rightValue: needs.widow_headed ?? 0,
@@ -115,12 +54,40 @@ export function WelfareCards({ needs, kafalat, wazifa, sadqaWorking, sadqaTotal 
       cta: t('hw.zakat.cta'),
     },
     {
+      key: 'kafalat',
+      icon: GraduationCap,
+      href: '/portal/kafalat',
+      title: t('hw.kafalat.tab'),
+      leftValue: kafalat.active_children ?? 0,
+      leftLabel: t('hw.kafalat.stat1'),
+      rightValue: kafalat.awaiting_sponsor ?? 0,
+      rightLabel: t('hw.kafalat.stat2'),
+      mottoUr: t('hw.kafalat.mottoUr'),
+      motto: t('hw.kafalat.motto'),
+      body: t('hw.kafalat.body'),
+      how: t('hw.kafalat.how'),
+      cta: t('hw.kafalat.cta'),
+    },
+    {
+      key: 'wazifa',
+      icon: BookOpen,
+      href: '/portal/wazifa',
+      title: t('hw.wazifa.tab'),
+      leftValue: wazifa.students_supported ?? 0,
+      leftLabel: t('hw.wazifa.stat1'),
+      rightValue: wazifa.graduated ?? 0,
+      rightLabel: t('hw.wazifa.stat2'),
+      mottoUr: t('hw.wazifa.mottoUr'),
+      motto: t('hw.wazifa.motto'),
+      body: t('hw.wazifa.body'),
+      how: t('hw.wazifa.how'),
+      cta: t('hw.wazifa.cta'),
+    },
+    {
       key: 'esal',
       icon: Gift,
       href: '/sadqa-jariya',
-      tint: 'from-sky-600 to-sky-800',
-      accent: 'text-sky-700',
-      ring: 'group-hover:border-sky-400',
+      title: t('hw.esal.tab'),
       leftValue: sadqaWorking,
       leftLabel: t('hw.esal.stat1'),
       rightValue: sadqaTotal,
@@ -150,95 +117,72 @@ export function WelfareCards({ needs, kafalat, wazifa, sadqaWorking, sadqaTotal 
       </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {cards.map((c, i) => (
-          <motion.div
-            key={c.key}
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-60px' }}
-            transition={{ duration: 0.45, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }}
-            whileHover={{ y: -4 }}
-            className="group"
-          >
-            <Link href={c.href}
-              className={`block h-full bg-white border-2 border-dp-outline-variant ${c.ring} rounded-2xl overflow-hidden transition-colors duration-300 shadow-sm hover:shadow-lg`}>
+        {cards.map((c) => (
+          <Link key={c.key} href={c.href}
+            className="group block h-full bg-white border border-dp-outline-variant hover:border-dp-secondary rounded-lg overflow-hidden transition-colors">
 
-              {/* ── The coloured head, with a number in each corner ────────
-                  Left is the reach, right is the gap still open. Two figures
-                  side by side say more than either alone: this many helped,
-                  this many still waiting. */}
-              <div className={`relative bg-gradient-to-br ${c.tint} text-white px-5 pt-4 pb-6 overflow-hidden`}>
-                {/* A soft disc behind the icon so the head is not a flat slab. */}
-                <div className="absolute -right-8 -top-10 w-40 h-40 rounded-full bg-white/10" aria-hidden />
-                <div className="absolute -left-10 -bottom-14 w-32 h-32 rounded-full bg-black/10" aria-hidden />
-
-                <div className="relative flex items-start justify-between gap-3">
-                  <div className="text-start">
-                    <p className="font-heading text-[30px] font-bold leading-none">
-                      <Counter to={c.leftValue} />
-                    </p>
-                    <p className="font-sans text-[11.5px] font-semibold opacity-90 mt-1 max-w-[110px] leading-tight">
-                      {c.leftLabel}
-                    </p>
-                  </div>
-
-                  <c.icon size={26} className="opacity-90 shrink-0 mt-1" />
-
-                  <div className="text-end">
-                    <p className="font-heading text-[30px] font-bold leading-none">
-                      <Counter to={c.rightValue} />
-                    </p>
-                    <p className="font-sans text-[11.5px] font-semibold opacity-90 mt-1 max-w-[110px] leading-tight ms-auto">
-                      {c.rightLabel}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-5">
-                {/* ── The motto ────────────────────────────────────────────
-                    Urdu leads. This page is read by the village first, and an
-                    appeal that opens in English is aimed past the people it is
-                    written for. */}
-                <p className="font-sans text-[19px] leading-[2] text-dp-primary font-bold mb-1"
-                  style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
-                  {c.mottoUr}
-                </p>
-                <p className={`font-heading text-[16.5px] font-bold ${c.accent} leading-snug mb-3`}>
-                  {c.motto}
-                </p>
-
-                <p className="font-sans text-[13.5px] text-dp-on-surface leading-relaxed mb-4">
-                  {c.body}
-                </p>
-
-                {/* ── How to apply ───────────────────────────────────────── */}
-                <div className="flex items-start gap-2 bg-dp-surface-container-low rounded-lg px-3.5 py-2.5 mb-4">
-                  <Info size={14} className="text-dp-on-surface-variant shrink-0 mt-0.5" />
-                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">
-                    {c.how}
+            {/* ── The head: name in the middle, a figure in each corner ────
+                Left is the reach, right is the gap still open. Side by side
+                they say more than either alone: this many carried, this many
+                still waiting. The name is one short phrase and does not wrap. */}
+            <div className="bg-dp-primary text-white px-5 py-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="text-start shrink-0">
+                  <p className="font-heading text-[26px] font-bold leading-none">{fmt(c.leftValue)}</p>
+                  <p className="font-sans text-[11px] font-semibold opacity-80 mt-1 leading-tight max-w-[104px]">
+                    {c.leftLabel}
                   </p>
                 </div>
 
-                <span className={`inline-flex items-center gap-1.5 font-sans text-[13.5px] font-bold ${c.accent} group-hover:gap-2.5 transition-all`}>
-                  {c.cta}
-                  <ArrowRight size={15} className={isUrdu ? 'rotate-180' : ''} />
-                </span>
+                <div className="flex-1 min-w-0 text-center pt-1">
+                  <c.icon size={20} className="mx-auto opacity-90 mb-1.5" />
+                  <p className="font-heading text-[16px] font-bold leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                    {c.title}
+                  </p>
+                </div>
+
+                <div className="text-end shrink-0">
+                  <p className="font-heading text-[26px] font-bold leading-none">{fmt(c.rightValue)}</p>
+                  <p className="font-sans text-[11px] font-semibold opacity-80 mt-1 leading-tight max-w-[104px] ms-auto">
+                    {c.rightLabel}
+                  </p>
+                </div>
               </div>
-            </Link>
-          </motion.div>
+            </div>
+
+            <div className="p-5">
+              {/* Urdu leads: this page is read by the village first. */}
+              <p className="font-sans text-[18px] leading-[2] text-dp-primary font-bold mb-1"
+                style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                {c.mottoUr}
+              </p>
+              <p className="font-heading text-[16px] font-bold text-dp-secondary leading-snug mb-3">
+                {c.motto}
+              </p>
+
+              <p className="font-sans text-[13.5px] text-dp-on-surface leading-relaxed mb-4">
+                {c.body}
+              </p>
+
+              <div className="flex items-start gap-2 bg-dp-surface-container-low rounded-lg px-3.5 py-2.5 mb-4">
+                <Info size={14} className="text-dp-on-surface-variant shrink-0 mt-0.5" />
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">
+                  {c.how}
+                </p>
+              </div>
+
+              <span className="inline-flex items-center gap-1.5 font-sans text-[13.5px] font-bold text-dp-secondary group-hover:underline">
+                {c.cta}
+                <ArrowRight size={15} className={isUrdu ? 'rotate-180' : ''} />
+              </span>
+            </div>
+          </Link>
         ))}
       </div>
 
       {/* The promise, where a worried family reads it before deciding whether
           to put their name down at all. */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-        className="mt-5 flex items-start gap-2.5 bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3.5"
-      >
+      <div className="mt-5 flex items-start gap-2.5 bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3.5">
         <ShieldCheck size={17} className="text-dp-secondary shrink-0 mt-0.5" />
         <div>
           <p className="font-sans text-[13.5px] text-dp-on-surface leading-[1.9] mb-1"
@@ -249,7 +193,7 @@ export function WelfareCards({ needs, kafalat, wazifa, sadqaWorking, sadqaTotal 
             {t('home.welfarePrivacy')}
           </p>
         </div>
-      </motion.div>
+      </div>
     </section>
   )
 }

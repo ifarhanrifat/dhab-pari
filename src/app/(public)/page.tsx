@@ -274,6 +274,19 @@ export default async function HomePage() {
             </div>
           </section>
 
+          {/* --- Welfare: Zakat, Kafalat, Taleemi Wazifa, Esal-e-Sawab ---
+              A client island, because the counters animate as they scroll
+              into view and the cards lift on hover — none of which a server
+              component can do. The counts are computed here and passed down,
+              so the page still renders them without waiting on the browser. */}
+          <WelfareCards
+            needs={needs}
+            kafalat={kafalat}
+            wazifa={wazifa}
+            sadqaWorking={sadqaWorking}
+            sadqaTotal={sadqaObjects.length}
+          />
+
           {/* --- Latest News --- */}
           <section>
             <div className="flex items-center justify-between mb-6">
@@ -407,18 +420,6 @@ export default async function HomePage() {
             </div>
           </section>
 
-          {/* --- Welfare: Zakat, Kafalat, Taleemi Wazifa, Esal-e-Sawab ---
-              A client island, because the counters animate as they scroll
-              into view and the cards lift on hover — none of which a server
-              component can do. The counts are computed here and passed down,
-              so the page still renders them without waiting on the browser. */}
-          <WelfareCards
-            needs={needs}
-            kafalat={kafalat}
-            wazifa={wazifa}
-            sadqaWorking={sadqaWorking}
-            sadqaTotal={sadqaObjects.length}
-          />
         </div>
 
         {/* ===== RIGHT SIDEBAR (280px) ===== */}
