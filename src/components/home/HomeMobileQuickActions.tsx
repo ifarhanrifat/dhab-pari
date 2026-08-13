@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { CreditCard, Newspaper, Droplet } from 'lucide-react'
+import { CreditCard, Newspaper, Droplet, HeartHandshake } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 export function HomeMobileQuickActions() {
@@ -27,6 +27,16 @@ export function HomeMobileQuickActions() {
         >
           <span>{t('home.requestBlood')}</span>
           <Droplet size={20} />
+        </Link>
+        {/* Same reasoning as the blood card. Somebody looking for help with
+            school fees or zakat is not going to scroll past the whole main
+            column on a phone to find it. */}
+        <Link
+          href="/welfare"
+          className="w-full bg-dp-secondary text-white py-4 px-6 rounded-lg font-sans font-semibold text-[18px] flex items-center justify-between active:scale-[0.98] transition-transform"
+        >
+          <span>{t('home.needHelp')}</span>
+          <HeartHandshake size={20} />
         </Link>
         <Link
           href="/news"

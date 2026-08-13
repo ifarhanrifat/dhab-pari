@@ -27,6 +27,12 @@ import {
   Trophy,
   Lock,
   Droplet,
+  HeartHandshake,
+  Scale,
+  GraduationCap,
+  BookOpen,
+  Gift,
+  ShieldCheck,
 } from 'lucide-react'
 import { HomeHero } from '@/components/home/HomeHero'
 import { HomeMobileQuickActions } from '@/components/home/HomeMobileQuickActions'
@@ -45,7 +51,8 @@ interface HomepageStats {
 export default async function HomePage() {
   const supabase = await createClient()
 
-  const [projectsRes, newsRes, videosRes, donorsRes, statsRes, jobsRes, volunteersRes, achievementsRes, bloodRes] = await Promise.all([
+  const [projectsRes, newsRes, videosRes, donorsRes, statsRes, jobsRes, volunteersRes, achievementsRes, bloodRes,
+         needsRes, kafalatRes, wazifaRes, sadqaRes] = await Promise.all([
     supabase
       .from('projects')
       .select('id, title, title_ur, status, progress_percent, budget_pkr, spent_pkr, category, location, before_image_url, after_image_url')
@@ -77,6 +84,10 @@ export default async function HomePage() {
     // Counts only — the function is SECURITY DEFINER precisely so that no
     // donor name, number or address can ever reach this page (migration 188).
     supabase.rpc('blood_group_counts'),
+    supabase.rpc('needs_register_summary'),
+    supabase.rpc('public_kafalat_summary'),
+    supabase.rpc('public_wazifa_summary'),
+    supabase.rpc('public_sadqa_board'),
   ])
 
   const projects = projectsRes.data ?? []
@@ -89,6 +100,15 @@ export default async function HomePage() {
   const achievements = achievementsRes.data ?? []
   const bloodGroups = (bloodRes.data ?? []) as { blood_group: string; registered: number; available_now: number }[]
   const bloodTotal = bloodGroups.reduce((s, g) => s + g.registered, 0)
+
+  // The welfare modules. Counts only — no household, child or student is ever
+  // named on a public page, so what the village sees is scale rather than
+  // people: how many are being reached, and how many are still waiting.
+  const needs = (needsRes.data ?? {}) as Record<string, number>
+  const kafalat = (kafalatRes.data ?? {}) as Record<string, number>
+  const wazifa = (wazifaRes.data ?? {}) as Record<string, number>
+  const sadqaObjects = ((sadqaRes.data ?? []) as { status: string }[])
+  const sadqaWorking = sadqaObjects.filter((o) => ['installed', 'in_service'].includes(o.status)).length
   const volunteerProjectIds = volunteers.map((v) => v.project_id).filter((id): id is string => !!id)
   const { data: volunteerProjects } = volunteerProjectIds.length
     ? await supabase.from('projects').select('id, title').in('id', volunteerProjectIds)
@@ -389,6 +409,140 @@ export default async function HomePage() {
                   <T k="home.nothingCompleted" />
                 </div>
               )}
+            </div>
+          </section>
+
+          {/* --- Welfare: Zakat, Kafalat, Taleemi Wazifa, Esal-e-Sawab ---
+              Given a whole section rather than a sidebar slot because these
+              are the four things a family in trouble is actually looking for,
+              and a page nobody links to is a page nobody finds. Each card
+              carries a live count, so the village can see the scale of what
+              is running without anybody being named. */}
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title flex items-center gap-3">
+                <HeartHandshake size={26} /> <T k="home.welfare" />
+              </h2>
+              <Link href="/welfare" className="text-dp-secondary font-bold hover:underline flex items-center text-[14px] font-sans tracking-[0.05em]">
+                <T k="home.howItWorks" /> <ArrowRight size={16} className="ms-1" />
+              </Link>
+            </div>
+
+            <p className="font-sans text-[14px] text-dp-on-surface-variant mb-5 max-w-2xl leading-relaxed">
+              <T k="home.welfareBlurb" />
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Zakat */}
+              <div className="bg-white border border-dp-outline-variant rounded-lg p-5 flex flex-col">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-dp-secondary/10 text-dp-secondary flex items-center justify-center shrink-0">
+                    <Scale size={19} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-heading text-[19px] font-bold text-dp-primary leading-tight"><T k="home.zakatTitle" /></h3>
+                    <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1 leading-relaxed"><T k="home.zakatBlurb" /></p>
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-2 mb-4 mt-auto pt-2">
+                  <span className="font-heading text-[26px] font-bold text-dp-primary">{needs.verified_households ?? 0}</span>
+                  <span className="font-sans text-[12.5px] text-dp-on-surface-variant"><T k="home.zakatStat" /></span>
+                </div>
+                <div className="flex gap-2">
+                  <Link href="/welfare" className="flex-1 py-2 text-center text-[13px] font-sans font-bold tracking-[0.04em] text-white bg-dp-secondary rounded hover:bg-dp-primary transition-colors">
+                    <T k="home.calculateZakat" />
+                  </Link>
+                  <Link href="/portal/donate" className="flex-1 py-2 text-center text-[13px] font-sans font-semibold tracking-[0.04em] text-dp-secondary bg-dp-surface-container-low border border-dp-outline-variant rounded hover:bg-dp-surface-container transition-colors">
+                    <T k="home.giveZakat" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Kafalat */}
+              <div className="bg-white border border-dp-outline-variant rounded-lg p-5 flex flex-col">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-dp-secondary/10 text-dp-secondary flex items-center justify-center shrink-0">
+                    <GraduationCap size={19} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-heading text-[19px] font-bold text-dp-primary leading-tight"><T k="home.kafalatTitle" /></h3>
+                    <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1 leading-relaxed"><T k="home.kafalatBlurb" /></p>
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-2 mb-4 mt-auto pt-2">
+                  <span className="font-heading text-[26px] font-bold text-dp-primary">{kafalat.active_children ?? 0}</span>
+                  <span className="font-sans text-[12.5px] text-dp-on-surface-variant"><T k="home.kafalatStat" /></span>
+                  {(kafalat.awaiting_sponsor ?? 0) > 0 && (
+                    <span className="ms-auto px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-sans text-[11px] font-bold">
+                      {kafalat.awaiting_sponsor} <T k="home.kafalatWaiting" />
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Link href="/portal/kafalat" className="flex-1 py-2 text-center text-[13px] font-sans font-bold tracking-[0.04em] text-white bg-dp-secondary rounded hover:bg-dp-primary transition-colors">
+                    <T k="home.sponsorChild" />
+                  </Link>
+                  <Link href="/welfare" className="flex-1 py-2 text-center text-[13px] font-sans font-semibold tracking-[0.04em] text-dp-secondary bg-dp-surface-container-low border border-dp-outline-variant rounded hover:bg-dp-surface-container transition-colors">
+                    <T k="home.howItWorks" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Taleemi Wazifa */}
+              <div className="bg-white border border-dp-outline-variant rounded-lg p-5 flex flex-col">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-dp-secondary/10 text-dp-secondary flex items-center justify-center shrink-0">
+                    <BookOpen size={19} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-heading text-[19px] font-bold text-dp-primary leading-tight"><T k="home.wazifaTitle" /></h3>
+                    <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1 leading-relaxed"><T k="home.wazifaBlurb" /></p>
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-2 mb-4 mt-auto pt-2">
+                  <span className="font-heading text-[26px] font-bold text-dp-primary">{wazifa.students_supported ?? 0}</span>
+                  <span className="font-sans text-[12.5px] text-dp-on-surface-variant"><T k="home.wazifaStat" /></span>
+                </div>
+                <div className="flex gap-2">
+                  <Link href="/portal/wazifa" className="flex-1 py-2 text-center text-[13px] font-sans font-bold tracking-[0.04em] text-white bg-dp-secondary rounded hover:bg-dp-primary transition-colors">
+                    <T k="home.applyWazifa" />
+                  </Link>
+                  <Link href="/welfare" className="flex-1 py-2 text-center text-[13px] font-sans font-semibold tracking-[0.04em] text-dp-secondary bg-dp-surface-container-low border border-dp-outline-variant rounded hover:bg-dp-surface-container transition-colors">
+                    <T k="home.howItWorks" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Esal-e-Sawab */}
+              <div className="bg-white border border-dp-outline-variant rounded-lg p-5 flex flex-col">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-dp-secondary/10 text-dp-secondary flex items-center justify-center shrink-0">
+                    <Gift size={19} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-heading text-[19px] font-bold text-dp-primary leading-tight"><T k="home.esalTitle" /></h3>
+                    <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1 leading-relaxed"><T k="home.esalBlurb" /></p>
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-2 mb-4 mt-auto pt-2">
+                  <span className="font-heading text-[26px] font-bold text-dp-primary">{sadqaWorking}</span>
+                  <span className="font-sans text-[12.5px] text-dp-on-surface-variant"><T k="home.esalStat" /></span>
+                </div>
+                <div className="flex gap-2">
+                  <Link href="/sadqa-jariya" className="flex-1 py-2 text-center text-[13px] font-sans font-bold tracking-[0.04em] text-white bg-dp-secondary rounded hover:bg-dp-primary transition-colors">
+                    <T k="home.seeTheBoard" />
+                  </Link>
+                  <Link href="/portal/esal-e-sawab" className="flex-1 py-2 text-center text-[13px] font-sans font-semibold tracking-[0.04em] text-dp-secondary bg-dp-surface-container-low border border-dp-outline-variant rounded hover:bg-dp-surface-container transition-colors">
+                    <T k="home.giveOne" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* The promise, where a family in trouble will actually see it. */}
+            <div className="mt-4 flex items-start gap-2.5 bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3">
+              <ShieldCheck size={16} className="text-dp-secondary shrink-0 mt-0.5" />
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed"><T k="home.welfarePrivacy" /></p>
             </div>
           </section>
         </div>

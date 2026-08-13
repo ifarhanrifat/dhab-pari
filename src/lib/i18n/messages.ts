@@ -1683,6 +1683,33 @@ export const messages: Record<Locale, Record<string, string>> = {
     'portal.zakat': 'Zakat & Ushr',
 
     'site.welfare': 'Welfare',
+
+    // ── Home page welfare cards ──────────────────────────────────────────
+    'home.welfare': 'Welfare & Education',
+    'home.welfareBlurb': 'Four ways the committee helps the people of the village. Nobody who registers for help is ever named on this website — the counts below are all anyone outside the committee sees.',
+    'home.welfarePrivacy': 'If you register for help, your name never appears on this website, never reaches a donor and never appears in a report. Only two or three named committee members can open your record.',
+    'home.howItWorks': 'How it works',
+    'home.zakatTitle': 'Zakat & Ushr',
+    'home.zakatBlurb': 'Shared among every verified household by a rule fixed before collection begins — so the same visible family is not helped again and again.',
+    'home.zakatStat': 'verified households',
+    'home.calculateZakat': 'Calculate zakat',
+    'home.giveZakat': 'Give zakat',
+    'home.kafalatTitle': 'Kafalat',
+    'home.kafalatBlurb': 'A child’s school year paid for — fees, uniform, books and the fare to Chakwal — in full or in shares.',
+    'home.kafalatStat': 'children in school',
+    'home.kafalatWaiting': 'waiting',
+    'home.sponsorChild': 'Sponsor a child',
+    'home.wazifaTitle': 'Taleemi Wazifa',
+    'home.wazifaBlurb': 'For the student who did well at matric or FSc and stops because the family cannot find the admission fee.',
+    'home.wazifaStat': 'students supported',
+    'home.applyWazifa': 'Apply',
+    'home.esalTitle': 'Esal-e-Sawab',
+    'home.esalBlurb': 'A water cooler, a solar street light, a hand pump — carrying the name of someone you have lost, for as long as it works.',
+    'home.esalStat': 'working today',
+    'home.seeTheBoard': 'See the board',
+    'home.giveOne': 'Give one',
+
+    'home.needHelp': 'Zakat, school fees, help',
   },
 
   ur: {
@@ -3353,6 +3380,33 @@ export const messages: Record<Locale, Record<string, string>> = {
     'portal.zakat': 'زکوٰۃ و عشر',
 
     'site.welfare': 'فلاحی نظام',
+
+    // ── Home page welfare cards ──────────────────────────────────────────
+    'home.welfare': 'فلاح و تعلیم',
+    'home.welfareBlurb': 'کمیٹی چار طریقوں سے اہلِ گاؤں کی مدد کرتی ہے۔ مدد کے لیے اندراج کرنے والے کا نام اس ویب سائٹ پر کبھی نہیں آتا — کمیٹی سے باہر صرف یہی تعداد نظر آتی ہے۔',
+    'home.welfarePrivacy': 'اگر آپ مدد کے لیے اندراج کریں تو آپ کا نام نہ ویب سائٹ پر آئے گا، نہ کسی عطیہ دہندہ تک پہنچے گا، نہ کسی رپورٹ میں۔ صرف دو تین نامزد ارکان آپ کی تفصیل دیکھ سکتے ہیں۔',
+    'home.howItWorks': 'یہ کیسے کام کرتا ہے',
+    'home.zakatTitle': 'زکوٰۃ و عشر',
+    'home.zakatBlurb': 'ہر تصدیق شدہ گھرانے میں ایسے اصول پر تقسیم جو وصولی سے پہلے طے ہو — تاکہ ایک ہی خاندان کو بار بار نہ ملے۔',
+    'home.zakatStat': 'تصدیق شدہ گھرانے',
+    'home.calculateZakat': 'زکوٰۃ کا حساب',
+    'home.giveZakat': 'زکوٰۃ دیں',
+    'home.kafalatTitle': 'کفالت',
+    'home.kafalatBlurb': 'کسی بچے کا تعلیمی سال — فیس، یونیفارم، کتابیں اور چکوال کا کرایہ — مکمل یا حصوں میں۔',
+    'home.kafalatStat': 'زیرِ تعلیم بچے',
+    'home.kafalatWaiting': 'منتظر',
+    'home.sponsorChild': 'کفالت کریں',
+    'home.wazifaTitle': 'تعلیمی وظیفہ',
+    'home.wazifaBlurb': 'اس طالبِ علم کے لیے جس نے میٹرک یا ایف ایس سی اچھے نمبروں سے کیا مگر داخلہ فیس نہ ہونے پر تعلیم رک گئی۔',
+    'home.wazifaStat': 'زیرِ کفالت طلبہ',
+    'home.applyWazifa': 'درخواست دیں',
+    'home.esalTitle': 'ایصالِ ثواب',
+    'home.esalBlurb': 'واٹر کولر، سولر سٹریٹ لائٹ، ہینڈ پمپ — آپ کے پیارے کے نام پر، جب تک وہ کام دیتا رہے۔',
+    'home.esalStat': 'آج کارآمد',
+    'home.seeTheBoard': 'بورڈ دیکھیں',
+    'home.giveOne': 'ایک عطیہ کریں',
+
+    'home.needHelp': 'زکوٰۃ، تعلیمی اخراجات، مدد',
   },
 }
 
