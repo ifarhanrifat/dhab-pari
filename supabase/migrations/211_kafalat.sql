@@ -214,7 +214,7 @@ DECLARE
 BEGIN
   v_min := COALESCE(nullif(setting_text('kafalat_min_share_percent', '10'), '')::decimal, 10);
   IF NEW.share_percent < v_min THEN
-    RAISE EXCEPTION 'The smallest share is %%%. A child split into smaller pieces than that cannot be administered.', v_min
+    RAISE EXCEPTION 'The smallest share is % percent. A child split into smaller pieces than that cannot be administered.', v_min
       USING ERRCODE = 'P0001';
   END IF;
 
@@ -224,13 +224,13 @@ BEGIN
      AND id IS DISTINCT FROM NEW.id;
 
   IF v_committed + NEW.share_percent > 100.0001 THEN
-    RAISE EXCEPTION 'Only %%% of this child is still unsponsored.', round(100 - v_committed, 2)
+    RAISE EXCEPTION 'Only % percent of this child is still unsponsored.', round(100 - v_committed, 2)
       USING ERRCODE = 'P0001';
   END IF;
 
   -- The rupee value of the share, so a sponsor sees a number and not a
   -- percentage they have to work out themselves.
-  v_total := kafalat_package_total(NEW.child_id, NULL);
+  v_total := kafalat_package_total(NEW.child_id, NULL::varchar);
   NEW.annual_amount_pkr := round(v_total * NEW.share_percent / 100.0);
 
   IF NEW.ends_on IS NULL THEN
@@ -306,7 +306,7 @@ RETURNS TABLE (
     CASE WHEN c.date_of_birth IS NULL THEN NULL
          ELSE date_part('year', age(c.date_of_birth))::int END,
     c.current_class, c.school_location, c.is_orphan,
-    kafalat_package_total(c.id, NULL),
+    kafalat_package_total(c.id, NULL::varchar),
     kafalat_committed_percent(c.id),
     GREATEST(100 - kafalat_committed_percent(c.id), 0),
     CASE WHEN c.photo_consent AND NOT c.do_not_display THEN c.photo_url ELSE NULL END
@@ -333,7 +333,7 @@ CREATE OR REPLACE FUNCTION public_kafalat_summary() RETURNS jsonb AS $$
     'girls', count(*) FILTER (WHERE status = 'active' AND gender = 'female'),
     'boys', count(*) FILTER (WHERE status = 'active' AND gender = 'male'),
     'orphans', count(*) FILTER (WHERE status = 'active' AND is_orphan),
-    'annual_need_pkr', COALESCE(SUM(kafalat_package_total(id, NULL)) FILTER (WHERE status = 'active'), 0)
+    'annual_need_pkr', COALESCE(SUM(kafalat_package_total(id, NULL::varchar)) FILTER (WHERE status = 'active'), 0)
   ) FROM kafalat_children;
 $$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
 
