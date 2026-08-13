@@ -5,6 +5,7 @@ import { PortalSidebar } from '@/components/portal/PortalSidebar'
 import { PortalHeader } from '@/components/portal/PortalHeader'
 import { PortalNotificationBell } from '@/components/portal/PortalNotificationBell'
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar'
+import { PoolAppealBanner } from '@/components/portal/PoolAppealBanner'
 
 export default function PortalDashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -18,6 +19,8 @@ export default function PortalDashboardLayout({ children }: { children: React.Re
         {/* Same red belt as the website, scoped to the appeals aimed at
             this user — targeted ones appear here even when not public. */}
         <AnnouncementBar source="portal" />
+        {/* Stays up on every page until enough people have joined. */}
+        <PoolAppealBanner />
         <main className="p-6 md:p-10 max-w-[1400px] print:p-0 print:max-w-none">{children}</main>
       </div>
     </div>

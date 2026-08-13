@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { BookOpen, Send, Plus, Trash2, Printer, HandCoins, RotateCcw } from 'lucide-react'
+import { BookOpen, Send, Plus, Trash2, Printer, HandCoins, RotateCcw, Save, Lock, Info } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { FileAttachment } from '@/components/admin/FileAttachment'
@@ -85,6 +85,16 @@ export default function PortalWazifaPage() {
   const [summary, setSummary] = useState<Record<string, number>>({})
   const [busy, setBusy] = useState(false)
 
+  // The application already on file, if there is one. A family filling in
+  // eleven sections needs to stop halfway and come back — and needs to fix the
+  // fee they typed wrong a minute after sending it. Editing stays open until
+  // the committee starts reviewing, and closes for good after that, because
+  // what they verified in person has to keep matching what is on the record.
+  const [savedId, setSavedId] = useState<string | null>(null)
+  const [savedStatus, setSavedStatus] = useState<string | null>(null)
+  const [isEditable, setIsEditable] = useState(true)
+  const [lockedReason, setLockedReason] = useState<string | null>(null)
+
   const [form, setForm] = useState({
     applicant_for: 'self',
     applicant_name: '', applicant_relation: '', applicant_phone: '',
@@ -109,13 +119,110 @@ export default function PortalWazifaPage() {
   const [academics, setAcademics] = useState<AcademicRow[]>([{ ...emptyAcademicRow }])
 
   const load = useCallback(async () => {
-    const [{ data: sum }, { data: dec }, { data: lns }, { data: terms }] = await Promise.all([
+    const [{ data: sum }, { data: dec }, { data: lns }, { data: terms }, { data: saved }] = await Promise.all([
       supabase.rpc('public_wazifa_summary'),
       supabase.rpc('my_wazifa_decisions'),
       supabase.rpc('my_wazifa_loans'),
       supabase.from('site_settings').select('key, value')
         .in('key', ['wazifa_loan_terms_ur', 'wazifa_loan_terms_en']),
+      supabase.rpc('my_wazifa_application'),
     ])
+
+    if (saved) {
+      const a = saved.application as Record<string, unknown>
+      const st = saved.student as Record<string, unknown>
+      setSavedId(a.id as string)
+      setSavedStatus(a.status as string)
+      setIsEditable(Boolean(saved.is_editable))
+      setLockedReason((saved.locked_reason as string) ?? null)
+
+      setForm((f) => ({
+        ...f,
+        applicant_for: (a.applicant_for as string) ?? f.applicant_for,
+        applicant_name: (a.applicant_name as string) ?? '',
+        applicant_relation: (a.applicant_relation as string) ?? '',
+        applicant_phone: (a.applicant_phone as string) ?? '',
+        student_full_name: (st?.full_name as string) ?? '',
+        student_full_name_ur: (st?.full_name_ur as string) ?? '',
+        father_name: (st?.father_name as string) ?? '',
+        gender: (st?.gender as string) ?? f.gender,
+        student_phone: (st?.phone as string) ?? '',
+        declared_cnic: (a.declared_cnic as string) ?? '',
+        declared_b_form_no: (a.declared_b_form_no as string) ?? '',
+        declared_dob: (a.declared_dob as string) ?? '',
+        declared_address: (a.declared_address as string) ?? '',
+        offered_monthly_contribution_pkr: Number(a.offered_monthly_contribution_pkr ?? 0),
+        institution_monthly_fee_pkr: Number(a.institution_monthly_fee_pkr ?? 0),
+        father_alive: a.father_alive !== false,
+        father_occupation: (a.father_occupation as string) ?? '',
+        mother_occupation: (a.mother_occupation as string) ?? '',
+        house_owned: a.house_owned !== false,
+        land_owned_kanal: Number(a.land_owned_kanal ?? 0),
+        family_monthly_income_pkr: Number(a.family_monthly_income_pkr ?? 0),
+        has_long_term_patient: Boolean(a.has_long_term_patient),
+        patient_relation: (a.patient_relation as string) ?? '',
+        patient_illness: (a.patient_illness as string) ?? '',
+        patient_monthly_cost_pkr: Number(a.patient_monthly_cost_pkr ?? 0),
+        family_receives_zakat: Boolean(a.family_receives_zakat),
+        zakat_sources: (a.zakat_sources as string[]) ?? [],
+        zakat_monthly_pkr: Number(a.zakat_monthly_pkr ?? 0),
+        level: (a.level as string) ?? f.level,
+        institution: (a.institution as string) ?? '',
+        programme: (a.programme as string) ?? '',
+        city: (a.city as string) ?? '',
+        admission_status: (a.admission_status as string) ?? f.admission_status,
+        requested_amount_pkr: Number(a.requested_amount_pkr ?? 0),
+        need_statement: (a.need_statement as string) ?? '',
+        achievements: (a.achievements as string) ?? '',
+        repayment_pledge: Boolean(a.repayment_pledge),
+        repayment_note: (a.repayment_note as string) ?? '',
+        requested_as: (a.requested_as as string) ?? f.requested_as,
+        has_family_business: Boolean(a.has_family_business),
+        family_business_kind: (a.family_business_kind as string) ?? '',
+        family_business_share_pkr: Number(a.family_business_share_pkr ?? 0),
+        family_business_note: (a.family_business_note as string) ?? '',
+        loan_terms_accepted: Boolean(a.loan_terms_accepted),
+        loan_terms_signature: (a.loan_terms_signature as string) ?? '',
+      }))
+
+      const fam = (saved.family ?? []) as Record<string, unknown>[]
+      if (fam.length) {
+        setFamily(fam.map((r) => ({
+          ...emptyFamilyRow,
+          full_name: (r.full_name as string) ?? '',
+          relation: (r.relation as string) ?? emptyFamilyRow.relation,
+          age: Number(r.age ?? 0),
+          marital_status: (r.marital_status as string) ?? emptyFamilyRow.marital_status,
+          is_studying: Boolean(r.is_studying),
+          institution: (r.institution as string) ?? '',
+          class_or_year: (r.class_or_year as string) ?? '',
+          study_location: (r.study_location as string) ?? emptyFamilyRow.study_location,
+          annual_fee_pkr: Number(r.annual_fee_pkr ?? 0),
+          is_working: Boolean(r.is_working),
+          occupation: (r.occupation as string) ?? '',
+          income_period: (r.income_period as string) ?? emptyFamilyRow.income_period,
+          income_pkr: Number(r.income_pkr ?? 0),
+        })) as FamilyRow[])
+      }
+
+      const acs = (saved.academics ?? []) as Record<string, unknown>[]
+      if (acs.length) {
+        setAcademics(acs.map((r) => ({
+          ...emptyAcademicRow,
+          exam: (r.exam as string) ?? emptyAcademicRow.exam,
+          board_university: (r.board_university as string) ?? '',
+          passing_year: Number(r.passing_year ?? 0),
+          obtained_marks: Number(r.obtained_marks ?? 0),
+          total_marks: Number(r.total_marks ?? 0),
+        })) as AcademicRow[])
+      }
+
+      setDocs(((saved.documents ?? []) as Record<string, unknown>[]).map((d) => ({
+        kind: (d.kind as string) ?? 'other',
+        label: (d.label as string) ?? '',
+        url: (d.url as string) ?? '',
+      })))
+    }
     setSummary((sum ?? {}) as Record<string, number>)
     setDecisions((dec ?? []) as Decision[])
     setLoans((lns ?? []) as Loan[])
@@ -145,13 +252,18 @@ export default function PortalWazifaPage() {
     if (!ok) toast.error(t('pwz.err.popup'))
   }
 
-  const submit = async () => {
+  const submit = async (asDraft = false) => {
     if (!portalUser) { toast.error(t('pwz.err.login')); return }
+    // A draft is a half-finished thought and is saved as it stands. Only a
+    // real submission has to be complete — refusing to save an incomplete
+    // draft would defeat the entire point of having drafts.
     if (!form.student_full_name.trim()) { toast.error(t('pwz.err.studentName')); return }
-    if (!form.institution.trim() || !form.programme.trim()) { toast.error(t('pwz.err.required')); return }
-    if (!form.need_statement.trim()) { toast.error(t('pwz.err.statement')); return }
+    if (!asDraft) {
+      if (!form.institution.trim() || !form.programme.trim()) { toast.error(t('pwz.err.required')); return }
+      if (!form.need_statement.trim()) { toast.error(t('pwz.err.statement')); return }
+    }
     // A loan without an accepted agreement is a promise nobody wrote down.
-    if (form.requested_as !== 'grant' && !form.loan_terms_accepted) {
+    if (!asDraft && form.requested_as !== 'grant' && !form.loan_terms_accepted) {
       toast.error(t('pwz.err.termsNotAccepted')); return
     }
     if (form.requested_as !== 'grant' && !form.loan_terms_signature.trim()) {
@@ -189,7 +301,7 @@ export default function PortalWazifaPage() {
     }
 
     const year = `${new Date().getFullYear()}-${String((new Date().getFullYear() + 1) % 100).padStart(2, '0')}`
-    const { data: app, error: appErr } = await supabase.from('wazifa_applications').insert({
+    const payload = {
       student_id: studentId, academic_year: year,
       applicant_for: form.applicant_for,
       applicant_name: form.applicant_for === 'self' ? null : (form.applicant_name || portalUser.full_name),
@@ -234,9 +346,26 @@ export default function PortalWazifaPage() {
       // that this family has been here before and what changed.
       supersedes_application_id: reapplyOf?.application_id ?? null,
       attempt: reapplyOf ? (reapplyOf.attempt ?? 1) + 1 : 1,
-      status: 'submitted',
-    }).select('id').single()
-    if (appErr) { setBusy(false); toast.error(friendlyError(appErr)); return }
+      status: asDraft ? 'draft' : 'submitted',
+    }
+
+    // Re-saving an application that is still open updates it in place, so the
+    // committee sees one form per applicant rather than a pile of near-
+    // duplicates, and the id the documents hang off does not change.
+    let app: { id: string } | null = null
+    let appErr: unknown = null
+    if (savedId && isEditable) {
+      const { error } = await supabase.from('wazifa_applications')
+        .update(payload).eq('id', savedId)
+      appErr = error
+      app = error ? null : { id: savedId }
+    } else {
+      const { data, error } = await supabase.from('wazifa_applications')
+        .insert(payload).select('id').single()
+      appErr = error
+      app = data
+    }
+    if (appErr || !app) { setBusy(false); toast.error(friendlyError(appErr)); return }
 
     const familyRows = family.filter((f) => f.full_name.trim()).map((f) => ({
       application_id: app.id, full_name: f.full_name.trim(), relation: f.relation,
@@ -251,6 +380,9 @@ export default function PortalWazifaPage() {
       income_period: f.is_working ? f.income_period : null,
       income_pkr: f.is_working ? f.income_pkr : 0,
     }))
+    // Replaced wholesale rather than appended, so deleting a sibling in the
+    // form actually deletes them instead of leaving a ghost row behind.
+    await supabase.from('wazifa_family_members').delete().eq('application_id', app.id)
     if (familyRows.length > 0) await supabase.from('wazifa_family_members').insert(familyRows)
 
     const academicRows = academics.filter((a) => a.total_marks > 0 && a.obtained_marks > 0).map((a) => ({
@@ -259,8 +391,12 @@ export default function PortalWazifaPage() {
       passing_year: a.passing_year || null,
       obtained_marks: a.obtained_marks, total_marks: a.total_marks,
     }))
+    await supabase.from('wazifa_academic_records').delete().eq('application_id', app.id)
     if (academicRows.length > 0) await supabase.from('wazifa_academic_records').insert(academicRows)
 
+    // Documents a verifier has already ticked off are protected by RLS and
+    // simply will not delete, which is the intended behaviour.
+    await supabase.from('wazifa_documents').delete().eq('application_id', app.id)
     if (docs.length > 0) {
       await supabase.from('wazifa_documents').insert(
         docs.map((d) => ({
@@ -273,7 +409,8 @@ export default function PortalWazifaPage() {
     await supabase.rpc('wazifa_sync_merit', { p_application_id: app.id })
 
     setBusy(false)
-    toast.success(reapplyOf ? t('pwz.ok.reapplied') : t('pwz.ok.submitted'))
+    toast.success(asDraft ? t('pwz.ok.draftSaved')
+      : reapplyOf ? t('pwz.ok.reapplied') : t('pwz.ok.submitted'))
     setReapplyOf(null)
     load()
   }
@@ -1220,10 +1357,47 @@ export default function PortalWazifaPage() {
         </div>
       </div>
 
-      <button disabled={busy} onClick={submit}
-        className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50 print:hidden">
-        <Send size={16} /> {busy ? t('action.saving') : t('pwz.submit')}
-      </button>
+      {isEditable ? (
+        <div className="print:hidden space-y-3">
+          {savedStatus === 'submitted' && (
+            <div className="flex items-start gap-2.5 bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3">
+              <Info size={16} className="text-dp-secondary shrink-0 mt-0.5" />
+              <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">
+                {t('pwz.stillEditable')}
+              </p>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Saving without sending, so a form this long can be filled in
+                over several sittings instead of one. */}
+            <button disabled={busy} onClick={() => submit(true)}
+              className="flex-1 flex items-center justify-center gap-2 border-2 border-dp-outline-variant text-dp-primary py-3 rounded-lg font-sans font-semibold hover:border-dp-secondary transition-all cursor-pointer disabled:opacity-50">
+              <Save size={16} /> {busy ? t('action.saving') : t('pwz.saveDraft')}
+            </button>
+            <button disabled={busy} onClick={() => submit(false)}
+              className="flex-1 flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              <Send size={16} /> {busy ? t('action.saving')
+                : savedStatus === 'submitted' ? t('pwz.saveChanges') : t('pwz.submit')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Locked. The reason is spelled out rather than left as a greyed-out
+           button, because "why can I not change this?" is the next question
+           and a disabled control never answers it. */
+        <div className="print:hidden flex items-start gap-2.5 bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3.5">
+          <Lock size={17} className="text-dp-secondary shrink-0 mt-0.5" />
+          <div>
+            <p className="font-sans text-[13.5px] font-bold text-dp-primary mb-0.5">
+              {t('pwz.lockedTitle')}
+            </p>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">
+              {lockedReason ?? t('pwz.lockedGeneric')} {t('pwz.lockedHelp')}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
