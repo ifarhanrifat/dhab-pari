@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { BookOpen, X, Award, Calculator, HandCoins, Plus, Save, ClipboardCheck, Gavel, CalendarClock, Users } from 'lucide-react'
+import { BookOpen, X, Award, Calculator, HandCoins, Plus, Save, ClipboardCheck, Gavel, CalendarClock, Users, FileText, Printer, Ban } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { printNodeInPopup } from '@/lib/receiptExport'
 
 /**
  * Taleemi Wazifa — help for students who cannot pay to carry on.
@@ -139,12 +140,23 @@ export default function WazifaPage() {
   const [coVerifiers, setCoVerifiers] = useState<string[]>([])
   const [coNames, setCoNames] = useState('')
   const [minVerifiers, setMinVerifiers] = useState(2)
+  // The whole application as the family submitted it, fetched on demand so
+  // the committee can read and print exactly what was signed.
+  const [sheet, setSheet] = useState<Record<string, unknown> | null>(null)
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const [payTarget, setPayTarget] = useState<Instalment | null>(null)
+  const [payForm, setPayForm] = useState({ method: 'bank', challan_no: '', school_id: '', note: '' })
+  const [contribTarget, setContribTarget] = useState<AwardRow | null>(null)
+  const [contribForm, setContribForm] = useState({ amount: 0, method: 'cash', note: '' })
+  const [writeOffTarget, setWriteOffTarget] = useState<AwardRow | null>(null)
+  const [writeOffForm, setWriteOffForm] = useState({ amount: 0, reason: '' })
+  const [schools, setSchools] = useState<{ id: string; name: string }[]>([])
   const [familyCheck, setFamilyCheck] = useState<Record<string, { code: string; name?: string; status: string; awarded?: number }[]> | null>(null)
   const [instalmentForm, setInstalmentForm] = useState({ purpose: 'admission_fee', description: '', due_on: '', amount: 0 })
 
   const load = useCallback(async () => {
     const [{ data: st }, { data: ap }, { data: aw }, { data: ins }, { data: sum }, { data: vf }, { data: dc },
-           { data: docs }, { data: cm }, { data: minV }] = await Promise.all([
+           { data: docs }, { data: cm }, { data: minV }, { data: sch }] = await Promise.all([
       supabase.from('wazifa_students').select('*').order('created_at', { ascending: false }),
       supabase.from('wazifa_applications').select('*').order('total_score', { ascending: false, nullsFirst: false }),
       supabase.from('wazifa_awards').select('*').order('created_at', { ascending: false }),
@@ -155,6 +167,7 @@ export default function WazifaPage() {
       supabase.from('wazifa_documents').select('*').order('created_at'),
       supabase.from('admin_users').select('id, full_name').eq('is_active', true).order('full_name'),
       supabase.from('site_settings').select('value').eq('key', 'wazifa_min_verifiers').maybeSingle(),
+      supabase.from('schools').select('id, name').eq('is_active', true).order('name'),
     ])
     setStudents((st ?? []) as Student[])
     setApplications((ap ?? []) as Application[])
@@ -168,6 +181,7 @@ export default function WazifaPage() {
     setDocuments((docs ?? []) as DocRow[])
     setCommittee((cm ?? []) as { id: string; full_name: string }[])
     setMinVerifiers(Number(minV?.value ?? 2))
+    setSchools((sch ?? []) as { id: string; name: string }[])
     setLoading(false)
   }, [supabase])
 
@@ -227,6 +241,64 @@ export default function WazifaPage() {
     }
     setBusy(false)
     toast.success(t('wz.ok.rescored'))
+    load()
+  }
+
+  const openSheet = async (a: Application) => {
+    const { data, error } = await supabase.rpc('wazifa_application_sheet', { p_application_id: a.id })
+    if (error) { toast.error(friendlyError(error)); return }
+    setSheet(data as Record<string, unknown>)
+  }
+
+  const printSheet = () => {
+    if (!sheetRef.current) return
+    if (!printNodeInPopup(sheetRef.current, t('wz.applicationTitle'))) toast.error(t('pwz.err.popup'))
+  }
+
+  const payInstalmentNow = async () => {
+    if (!payTarget) return
+    setBusy(true)
+    const { data, error } = await supabase.rpc('wazifa_pay_instalment', {
+      p_instalment_id: payTarget.id, p_method: payForm.method,
+      p_note: payForm.note || null,
+      p_challan_no: payForm.challan_no || null,
+      p_school_id: payForm.school_id || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(`${t('wz.ok.paid')} ${(data as { voucher_no: string }).voucher_no}`)
+    setPayTarget(null)
+    load()
+  }
+
+  const takeContribution = async () => {
+    if (!contribTarget || contribForm.amount <= 0) { toast.error(t('wz.err.amount')); return }
+    setBusy(true)
+    const { data, error } = await supabase.rpc('wazifa_record_contribution', {
+      p_award_id: contribTarget.id, p_amount: contribForm.amount,
+      p_method: contribForm.method, p_for_month: new Date().toISOString().slice(0, 10),
+      p_note: contribForm.note || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(`${t('wz.ok.repaid')} ${(data as { voucher_no: string }).voucher_no}`)
+    setContribTarget(null)
+    setContribForm({ amount: 0, method: 'cash', note: '' })
+    load()
+  }
+
+  const writeOff = async () => {
+    if (!writeOffTarget) return
+    if (!writeOffForm.reason.trim()) { toast.error(t('wz.writeOffReason')); return }
+    setBusy(true)
+    const { error } = await supabase.rpc('wazifa_write_off_loan', {
+      p_award_id: writeOffTarget.id, p_amount: writeOffForm.amount, p_reason: writeOffForm.reason.trim(),
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.ok.decided'))
+    setWriteOffTarget(null)
+    setWriteOffForm({ amount: 0, reason: '' })
     load()
   }
 
@@ -386,19 +458,7 @@ export default function WazifaPage() {
     load()
   }
 
-  const payInstalment = async (i: Instalment) => {
-    setBusy(true)
-    const { data, error } = await supabase.rpc('wazifa_pay_instalment', {
-      p_instalment_id: i.id, p_method: 'bank', p_note: null,
-    })
-    setBusy(false)
-    if (error) { toast.error(friendlyError(error)); return }
-    const d = data as { receipt_no: string }
-    toast.success(`${t('wz.ok.paid')} ${d.receipt_no}`)
-    load()
-  }
-
-  const open = applications.filter((a) => ['submitted', 'screening', 'interview', 'waitlisted'].includes(a.status))
+const open = applications.filter((a) => ['submitted', 'screening', 'interview', 'waitlisted'].includes(a.status))
 
   return (
     <>
@@ -511,6 +571,10 @@ export default function WazifaPage() {
                   {/* Verification first, decision second. The order is the
                       point: a committee deciding before anybody has stood in
                       the courtyard is deciding on a claim. */}
+                  <button onClick={() => openSheet(a)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[13px] font-semibold hover:text-dp-primary transition-all cursor-pointer whitespace-nowrap">
+                    <FileText size={15} /> {t('wz.viewApplication')}
+                  </button>
                   <button onClick={() => runFamilyCheck(a)}
                     className="flex items-center gap-1.5 px-3.5 py-2 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[13px] font-semibold hover:text-dp-primary transition-all cursor-pointer whitespace-nowrap">
                     <Users size={15} /> {t('wz.familyCheck')}
@@ -587,6 +651,12 @@ export default function WazifaPage() {
                       className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
                       <Plus size={14} /> {t('wz.addInstalment')}
                     </button>
+                    {Number((aw as AwardRow & { student_monthly_contribution_pkr?: number }).student_monthly_contribution_pkr ?? 0) > 0 && (
+                      <button onClick={() => { setContribTarget(aw); setContribForm({ amount: Number((aw as AwardRow & { student_monthly_contribution_pkr?: number }).student_monthly_contribution_pkr ?? 0), method: 'cash', note: '' }) }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 border border-emerald-600 text-emerald-700 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-600 hover:text-white transition-all cursor-pointer">
+                        <HandCoins size={14} /> {t('wz.contribution')}
+                      </button>
+                    )}
                     {/* Only a qarz-e-hasana has anything to repay. A grant
                         shows neither button, so nobody can start chasing a
                         student who owes nothing. */}
@@ -599,6 +669,10 @@ export default function WazifaPage() {
                         <button onClick={() => { setRepayTarget(aw); setRepayForm({ amount: 0, method: 'cash', note: '' }) }}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
                           <HandCoins size={14} /> {t('wz.takeRepayment')}
+                        </button>
+                        <button onClick={() => { setWriteOffTarget(aw); setWriteOffForm({ amount: 0, reason: '' }) }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-error transition-all cursor-pointer">
+                          <Ban size={14} /> {t('wz.writeOff')}
                         </button>
                       </>
                     )}
@@ -619,7 +693,7 @@ export default function WazifaPage() {
                           {i.status === 'paid' ? (
                             <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">{i.receipt_no}</span>
                           ) : (
-                            <button disabled={busy} onClick={() => payInstalment(i)}
+                            <button disabled={busy} onClick={() => { setPayTarget(i); setPayForm({ method: 'bank', challan_no: '', school_id: '', note: '' }) }}
                               className="flex items-center gap-1 px-2.5 py-1 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer disabled:opacity-50">
                               <HandCoins size={13} /> {t('wz.pay')}
                             </button>
@@ -632,6 +706,253 @@ export default function WazifaPage() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* ── The application exactly as it was submitted, printable ────────
+          The committee prints this, carries it to the house, and marks the
+          verification block on the back. Reading it on screen and reading it
+          on paper have to be the same act. */}
+      {sheet && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setSheet(null)}>
+          <div className="bg-white rounded-lg w-full max-w-3xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-dp-outline-variant px-6 py-4 flex items-center justify-between print:hidden">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('wz.applicationTitle')}</h2>
+              <div className="flex items-center gap-2">
+                <button onClick={printSheet}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                  <Printer size={15} /> {t('wz.printApplication')}
+                </button>
+                <button onClick={() => setSheet(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+              </div>
+            </div>
+
+            <div ref={sheetRef} className="p-6">
+              {(() => {
+                const app = (sheet.application ?? {}) as Record<string, unknown>
+                const stu = (sheet.student ?? {}) as Record<string, unknown>
+                const fam = (sheet.family ?? []) as Record<string, unknown>[]
+                const acad = (sheet.academics ?? []) as Record<string, unknown>[]
+                const dcs = (sheet.documents ?? []) as Record<string, unknown>[]
+                const row = (k: string, v: unknown) => v === null || v === undefined || v === '' ? null : (
+                  <div key={k} className="flex gap-2 py-1 border-b border-dp-outline-variant/50">
+                    <span className="font-sans text-[12px] text-dp-on-surface-variant w-[46%] shrink-0">{k}</span>
+                    <span className="font-sans text-[13px] text-dp-on-surface font-semibold">{String(v)}</span>
+                  </div>
+                )
+                return (
+                  <>
+                    <h1 className="font-heading text-[22px] font-bold text-dp-primary mb-1">{String(stu.full_name ?? '')}</h1>
+                    <p className="font-sans text-[13px] text-dp-on-surface-variant mb-5">
+                      {String(stu.code ?? '')} · {String(app.programme ?? '')} · {String(app.institution ?? '')}
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                      {row(t('pwz.f.cnic'), stu.cnic)}
+                      {row(t('pwz.f.bForm'), stu.b_form_no)}
+                      {row(t('kf.f.dob'), stu.date_of_birth)}
+                      {row(t('nr.f.address'), stu.address)}
+                      {row(t('a.phone'), stu.phone)}
+                      {row(t('nr.f.fatherHusband'), stu.father_name)}
+                      {row(t('pwz.f.applicantName'), app.applicant_name)}
+                      {row(t('pwz.f.applicantRelation'), app.applicant_relation)}
+                      {row(t('wz.f.requested'), app.requested_amount_pkr)}
+                      {row(t('pwz.f.instituteMonthlyFee'), app.institution_monthly_fee_pkr)}
+                      {row(t('pwz.f.myShare'), app.offered_monthly_contribution_pkr)}
+                      {row(t('pwz.f.income'), sheet.monthly_income)}
+                      {row(t('pwz.familyEducationCost'), sheet.family_education_cost)}
+                      {row(t('pwz.f.hasPatient'), app.has_long_term_patient ? '✓' : null)}
+                      {row(t('pwz.f.illness'), app.patient_illness)}
+                      {row(t('pwz.f.medicineCost'), app.patient_monthly_cost_pkr)}
+                      {row(t('pwz.f.receivesZakat'), app.family_receives_zakat ? '✓' : null)}
+                      {row(t('pwz.f.businessKind'), app.family_business_kind)}
+                      {row(t('pwz.f.businessShare'), app.family_business_share_pkr)}
+                      {row(t('pwz.terms.signature'), app.loan_terms_signature)}
+                    </div>
+
+                    {app.need_statement ? (
+                      <div className="mt-4">
+                        <p className="font-sans text-[12px] font-bold uppercase tracking-[0.06em] text-dp-outline mb-1">{t('pwz.f.statement')}</p>
+                        <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed">{String(app.need_statement)}</p>
+                      </div>
+                    ) : null}
+
+                    {fam.length > 0 && (
+                      <div className="mt-5">
+                        <p className="font-sans text-[12px] font-bold uppercase tracking-[0.06em] text-dp-outline mb-2">{t('pwz.s.family')}</p>
+                        <table className="w-full border-collapse text-[12.5px] font-sans">
+                          <thead><tr className="bg-dp-surface-container-low">
+                            <th className="border border-dp-outline-variant p-1.5 text-start">{t('a.name')}</th>
+                            <th className="border border-dp-outline-variant p-1.5">{t('pwz.f.relation')}</th>
+                            <th className="border border-dp-outline-variant p-1.5">{t('pwz.f.age')}</th>
+                            <th className="border border-dp-outline-variant p-1.5 text-start">{t('pwz.f.schoolName')}</th>
+                            <th className="border border-dp-outline-variant p-1.5 text-end">{t('pwz.f.annualFee')}</th>
+                            <th className="border border-dp-outline-variant p-1.5 text-start">{t('pwz.f.occupation')}</th>
+                            <th className="border border-dp-outline-variant p-1.5 text-end">{t('pwz.f.incomeAmount')}</th>
+                          </tr></thead>
+                          <tbody>
+                            {fam.map((f, i) => (
+                              <tr key={i}>
+                                <td className="border border-dp-outline-variant p-1.5">{String(f.full_name ?? '')}</td>
+                                <td className="border border-dp-outline-variant p-1.5 text-center">{String(f.relation ?? '')}</td>
+                                <td className="border border-dp-outline-variant p-1.5 text-center">{String(f.age ?? '')}</td>
+                                <td className="border border-dp-outline-variant p-1.5">{String(f.institution ?? '')}</td>
+                                <td className="border border-dp-outline-variant p-1.5 text-end">{f.annual_fee_pkr ? fmt(Number(f.annual_fee_pkr)) : ''}</td>
+                                <td className="border border-dp-outline-variant p-1.5">{String(f.occupation ?? '')}</td>
+                                <td className="border border-dp-outline-variant p-1.5 text-end">
+                                  {f.income_pkr ? `${fmt(Number(f.income_pkr))} / ${String(f.income_period ?? '')}` : ''}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {acad.length > 0 && (
+                      <div className="mt-5">
+                        <p className="font-sans text-[12px] font-bold uppercase tracking-[0.06em] text-dp-outline mb-2">{t('pwz.s.academics')}</p>
+                        <table className="w-full border-collapse text-[12.5px] font-sans">
+                          <thead><tr className="bg-dp-surface-container-low">
+                            <th className="border border-dp-outline-variant p-1.5 text-start">{t('pwz.f.exam')}</th>
+                            <th className="border border-dp-outline-variant p-1.5 text-start">{t('pwz.f.board')}</th>
+                            <th className="border border-dp-outline-variant p-1.5">{t('pwz.f.year')}</th>
+                            <th className="border border-dp-outline-variant p-1.5 text-end">{t('pwz.f.obtained')}</th>
+                            <th className="border border-dp-outline-variant p-1.5 text-end">{t('pwz.f.total')}</th>
+                            <th className="border border-dp-outline-variant p-1.5 text-end">%</th>
+                          </tr></thead>
+                          <tbody>
+                            {acad.map((r, i) => (
+                              <tr key={i}>
+                                <td className="border border-dp-outline-variant p-1.5">{String(r.exam ?? '')}</td>
+                                <td className="border border-dp-outline-variant p-1.5">{String(r.board_university ?? '')}</td>
+                                <td className="border border-dp-outline-variant p-1.5 text-center">{String(r.passing_year ?? '')}</td>
+                                <td className="border border-dp-outline-variant p-1.5 text-end">{String(r.obtained_marks ?? '')}</td>
+                                <td className="border border-dp-outline-variant p-1.5 text-end">{String(r.total_marks ?? '')}</td>
+                                <td className="border border-dp-outline-variant p-1.5 text-end font-semibold">{String(r.percent ?? '')}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {dcs.length > 0 && (
+                      <div className="mt-5">
+                        <p className="font-sans text-[12px] font-bold uppercase tracking-[0.06em] text-dp-outline mb-2">{t('wz.v.documents')}</p>
+                        <ul className="font-sans text-[12.5px] text-dp-on-surface">
+                          {dcs.map((d, i) => (
+                            <li key={i}>· {t(`pwz.doc.${String(d.kind)}`)} {d.original_seen ? `— ${t('wz.v.originalSeen')}` : ''}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Paying an institution ────────────────────────────────────────
+          The money goes to the school against its challan, never through the
+          student — except on a zakat-funded award, where tamleek requires it
+          to become theirs first. */}
+      {payTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPayTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('wz.pay')}</h2>
+              <button onClick={() => setPayTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
+              {t(`wz.purpose.${payTarget.purpose}`)} · Rs {fmt(payTarget.amount_pkr)} · → {t(`wz.payTo.${payTarget.pay_to}`)}
+            </p>
+
+            {payTarget.pay_to === 'institution' && (
+              <>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.f.payToInstitution')}</label>
+                <select value={payForm.school_id} onChange={(e) => setPayForm({ ...payForm, school_id: e.target.value })} className="input-field mb-3">
+                  <option value="">—</option>
+                  {schools.map((sc) => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
+                </select>
+
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.f.challan')}</label>
+                <input value={payForm.challan_no} onChange={(e) => setPayForm({ ...payForm, challan_no: e.target.value })} className="input-field mb-1.5" />
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-3">{t('wz.f.challanHint')}</p>
+              </>
+            )}
+
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
+            <select value={payForm.method} onChange={(e) => setPayForm({ ...payForm, method: e.target.value })} className="input-field mb-4">
+              <option value="bank">{t('a.bank')}</option>
+              <option value="cash">{t('w.cash')}</option>
+              <option value="jazzcash">{t('w.jazzcash')}</option>
+              <option value="easypaisa">{t('w.easypaisa')}</option>
+            </select>
+
+            <button disabled={busy} onClick={payInstalmentNow}
+              className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              <HandCoins size={16} /> {busy ? t('action.saving') : t('wz.pay')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── The student's own monthly share ─────────────────────────────── */}
+      {contribTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setContribTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('wz.contributionTitle')}</h2>
+              <button onClick={() => setContribTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('wz.contributionHint')}</p>
+
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
+            <input type="number" min={0} value={contribForm.amount || ''}
+              onChange={(e) => setContribForm({ ...contribForm, amount: +e.target.value })} className="input-field mb-3" />
+
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
+            <select value={contribForm.method} onChange={(e) => setContribForm({ ...contribForm, method: e.target.value })} className="input-field mb-4">
+              <option value="cash">{t('w.cash')}</option>
+              <option value="bank">{t('a.bank')}</option>
+              <option value="jazzcash">{t('w.jazzcash')}</option>
+              <option value="easypaisa">{t('w.easypaisa')}</option>
+            </select>
+
+            <button disabled={busy} onClick={takeContribution}
+              className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-50">
+              <HandCoins size={16} /> {busy ? t('action.saving') : t('wz.contribution')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Writing off a loan ──────────────────────────────────────────── */}
+      {writeOffTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setWriteOffTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('wz.writeOffTitle')}</h2>
+              <button onClick={() => setWriteOffTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('wz.writeOffHint')}</p>
+
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
+            <input type="number" min={0} value={writeOffForm.amount || ''}
+              onChange={(e) => setWriteOffForm({ ...writeOffForm, amount: +e.target.value })} className="input-field mb-3" />
+
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.writeOffReason')}</label>
+            <textarea value={writeOffForm.reason} onChange={(e) => setWriteOffForm({ ...writeOffForm, reason: e.target.value })}
+              rows={3} className="input-field resize-none mb-4" />
+
+            <button disabled={busy} onClick={writeOff}
+              className="w-full flex items-center justify-center gap-2 bg-dp-error text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 transition-all cursor-pointer disabled:opacity-50">
+              <Ban size={16} /> {busy ? t('action.saving') : t('wz.writeOff')}
+            </button>
+          </div>
         </div>
       )}
 

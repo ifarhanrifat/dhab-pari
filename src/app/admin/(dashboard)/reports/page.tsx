@@ -188,6 +188,9 @@ function ReportsPageInner() {
     // silently understated Total Assets (and the Fund Balance residual) by
     // whatever any collector was currently holding uncleared.
     const assetTypes = ['cash', 'bank', 'asset', 'consumer', 'collector']
+    // 'student', 'institution', 'project' and 'restricted_fund' are subsidiary
+    // ledgers, deliberately excluded — the expense, receivable and cash
+    // accounts already carry the same money once.
     const assets = accounts.filter((a) => assetTypes.includes(a.type)).map((a) => ({ account: a, balance: balanceOf(a) }))
     const liabilities = accounts.filter((a) => a.type === 'liability').map((a) => ({ account: a, balance: balanceOf(a) }))
     const totalAssets = assets.reduce((s, r) => s + r.balance, 0)

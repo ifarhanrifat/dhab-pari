@@ -88,7 +88,9 @@ export default function PortalWazifaPage() {
   const [form, setForm] = useState({
     applicant_for: 'self',
     applicant_name: '', applicant_relation: '', applicant_phone: '',
-    student_full_name: '', father_name: '', gender: 'male', student_phone: '',
+    student_full_name: '', student_full_name_ur: '', father_name: '', gender: 'male', student_phone: '',
+    declared_cnic: '', declared_b_form_no: '', declared_dob: '', declared_address: '',
+    offered_monthly_contribution_pkr: 0, institution_monthly_fee_pkr: 0,
     father_alive: true, father_occupation: '', mother_occupation: '',
     house_owned: true, land_owned_kanal: 0,
     family_monthly_income_pkr: 0,
@@ -168,6 +170,11 @@ export default function PortalWazifaPage() {
     if (!studentId) {
       const { data: created, error } = await supabase.from('wazifa_students').insert({
         full_name: form.student_full_name.trim(),
+        full_name_ur: form.student_full_name_ur || null,
+        cnic: form.declared_cnic || null,
+        b_form_no: form.declared_b_form_no || null,
+        date_of_birth: form.declared_dob || null,
+        address: form.declared_address || null,
         father_name: form.father_name || null,
         phone: form.student_phone || portalUser.mobile || null,
         gender: form.gender,
@@ -208,6 +215,12 @@ export default function PortalWazifaPage() {
       zakat_sources: form.zakat_sources.length > 0 ? form.zakat_sources : null,
       zakat_monthly_pkr: form.zakat_monthly_pkr || 0,
       requested_as: form.requested_as,
+      declared_cnic: form.declared_cnic || null,
+      declared_b_form_no: form.declared_b_form_no || null,
+      declared_dob: form.declared_dob || null,
+      declared_address: form.declared_address || null,
+      offered_monthly_contribution_pkr: form.offered_monthly_contribution_pkr || 0,
+      institution_monthly_fee_pkr: form.institution_monthly_fee_pkr || 0,
       repayment_pledge: form.requested_as !== 'grant',
       repayment_note: form.repayment_note || null,
       has_family_business: form.has_family_business,
@@ -510,6 +523,38 @@ export default function PortalWazifaPage() {
             <div>
               <label className={label}>{t('nr.f.fatherHusband')}</label>
               <input value={form.father_name} onChange={(e) => setForm({ ...form, father_name: e.target.value })} className="input-field" />
+            </div>
+          </div>
+
+          {/* The verification sheet asks a committee member to confirm the
+              CNIC "matches the form". Until now there was nothing on the form
+              to match it against. */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+            <div>
+              <label className={label}>{t('pwz.f.cnic')}</label>
+              <input value={form.declared_cnic} onChange={(e) => setForm({ ...form, declared_cnic: e.target.value })}
+                placeholder="37301-1234567-8" className="input-field" />
+            </div>
+            <div>
+              <label className={label}>{t('pwz.f.bForm')}</label>
+              <input value={form.declared_b_form_no} onChange={(e) => setForm({ ...form, declared_b_form_no: e.target.value })} className="input-field" />
+              <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('pwz.f.bFormHint')}</p>
+            </div>
+            <div>
+              <label className={label}>{t('kf.f.dob')}</label>
+              <input type="date" value={form.declared_dob} onChange={(e) => setForm({ ...form, declared_dob: e.target.value })} className="input-field" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className={label}>{t('g.nameUrdu')}</label>
+              <input value={form.student_full_name_ur} onChange={(e) => setForm({ ...form, student_full_name_ur: e.target.value })}
+                className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+            </div>
+            <div>
+              <label className={label}>{t('nr.f.address')}</label>
+              <input value={form.declared_address} onChange={(e) => setForm({ ...form, declared_address: e.target.value })} className="input-field" />
             </div>
           </div>
 
@@ -876,6 +921,44 @@ export default function PortalWazifaPage() {
                 onChange={(e) => setForm({ ...form, requested_amount_pkr: +e.target.value })} className="input-field" />
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('pwz.f.requestedHint')}</p>
             </div>
+          </div>
+
+          {/* ── What the student can manage themselves ──────────────────
+              The single most useful question on the form. A student who pays
+              a share every month is telling the committee they are still
+              enrolled and still serious — and when the payments stop, the
+              committee finds out something is wrong months before a result
+              would have told it. */}
+          <div className="mt-4 border-2 border-dp-secondary/40 bg-dp-secondary/5 rounded-lg p-4">
+            <p className="font-sans text-[14px] font-bold text-dp-on-surface mb-1">{t('pwz.s.share')}</p>
+            <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mb-1"
+              style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+              {t('pwz.shareUrdu')}
+            </p>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3 leading-relaxed">{t('pwz.shareEnglish')}</p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className={label}>{t('pwz.f.instituteMonthlyFee')}</label>
+                <input type="number" min={0} value={form.institution_monthly_fee_pkr || ''}
+                  onChange={(e) => setForm({ ...form, institution_monthly_fee_pkr: +e.target.value })} className="input-field" />
+              </div>
+              <div>
+                <label className={label}>{t('pwz.f.myShare')}</label>
+                <input type="number" min={0} value={form.offered_monthly_contribution_pkr || ''}
+                  onChange={(e) => setForm({ ...form, offered_monthly_contribution_pkr: +e.target.value })} className="input-field" />
+              </div>
+            </div>
+
+            {form.institution_monthly_fee_pkr > 0 && (
+              <p className="font-sans text-[13px] text-dp-on-surface mt-3 bg-white rounded-lg px-3.5 py-2.5">
+                {t('pwz.f.committeeWouldPay')} <strong>Rs {fmt(Math.max(form.institution_monthly_fee_pkr - form.offered_monthly_contribution_pkr, 0))}</strong>/{t('pkf.month')}
+              </p>
+            )}
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">{t('pwz.f.shareZeroOk')}</p>
+          </div>
+
+          <div className="hidden">
           </div>
 
           <div className="mt-3">
