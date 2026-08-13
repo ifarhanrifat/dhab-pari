@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { BookOpen, X, Award, Calculator, HandCoins, Plus, Save } from 'lucide-react'
+import { BookOpen, X, Award, Calculator, HandCoins, Plus, Save, ClipboardCheck, Gavel, CalendarClock } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 /**
@@ -41,6 +41,19 @@ interface AwardRow {
   awarded_amount_pkr: number; funded_by: string; status: string
 }
 
+interface Verification {
+  id: string; application_id: string; admin_user_id: string; visited_on: string
+  recommendation: string | null; recommended_amount_pkr: number | null
+  overall_note: string | null; relationship: string
+  verified_obtained_marks: number | null; verified_total_marks: number | null
+  observed_monthly_income_pkr: number | null; verified_annual_cost_pkr: number | null
+}
+
+interface DecisionRow {
+  id: string; application_id: string; decision: string; approved_amount_pkr: number
+  as_loan: boolean; funded_by: string; reason: string | null; decided_on: string
+}
+
 interface Instalment {
   id: string; award_id: string; purpose: string; description: string | null
   due_on: string | null; amount_pkr: number; pay_to: string
@@ -50,6 +63,31 @@ interface Instalment {
 const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 const LEVELS = ['intermediate', 'diploma', 'bachelors', 'masters', 'technical_certificate', 'medical', 'engineering', 'other'] as const
 const PURPOSES = ['admission_fee', 'semester_fee', 'hostel', 'transport', 'books', 'equipment', 'exam_fee', 'stipend', 'other'] as const
+
+// The same eleven checks as the printed block, in the same order, so a
+// committee member typing up a sheet reads down the page rather than hunting.
+const CHECKS = [
+  ['cnic_seen', 'cnic_note', 'cnic'],
+  ['documents_seen', 'documents_note', 'documents'],
+  ['marks_verified', 'marks_note', 'marks'],
+  ['admission_letter_seen', 'admission_note', 'admission'],
+  ['fee_challan_seen', 'fee_challan_note', 'challan'],
+  ['home_visited', 'home_note', 'home'],
+  ['household_matches', 'household_note', 'household'],
+  ['income_verified', 'income_note', 'income'],
+  ['siblings_education_verified', 'siblings_note', 'siblings'],
+  ['illness_verified', 'illness_note', 'illness'],
+  ['zakat_status_verified', 'zakat_note', 'zakat'],
+] as const
+
+const emptyVerification: Record<string, string | number> = Object.fromEntries([
+  ...CHECKS.flatMap(([a, n]) => [[a, 'yes'], [n, '']]),
+  ['visited_on', new Date().toISOString().slice(0, 10)],
+  ['verified_obtained_marks', 0], ['verified_total_marks', 0], ['verified_grade', ''],
+  ['observed_monthly_income_pkr', 0], ['verified_annual_cost_pkr', 0],
+  ['recommendation', 'full'], ['recommended_amount_pkr', 0],
+  ['overall_note', ''], ['relationship', 'none'],
+])
 
 const emptyStudent = {
   full_name: '', full_name_ur: '', father_name: '', phone: '', gender: 'male',
@@ -75,27 +113,48 @@ export default function WazifaPage() {
   const [awardTarget, setAwardTarget] = useState<Application | null>(null)
   const [awardForm, setAwardForm] = useState({ amount: 0, funded_by: 'sadqa', condition: '' })
   const [instalmentTarget, setInstalmentTarget] = useState<AwardRow | null>(null)
+  const [verifications, setVerifications] = useState<Verification[]>([])
+  const [decisionsByApp, setDecisionsByApp] = useState<Record<string, DecisionRow>>({})
+  const [verifyTarget, setVerifyTarget] = useState<Application | null>(null)
+  const [vForm, setVForm] = useState<Record<string, string | number>>({ ...emptyVerification })
+  const [decideTarget, setDecideTarget] = useState<Application | null>(null)
+  const [dForm, setDForm] = useState({
+    decision: 'approved_full', amount: 0, as_loan: false, funded_by: 'sadqa',
+    reason: '', reason_ur: '', internal_note: '', shortfall_note: '',
+  })
+  const [planTarget, setPlanTarget] = useState<AwardRow | null>(null)
+  const [planForm, setPlanForm] = useState({ starts_on: '', instalments: 12 })
+  const [repayTarget, setRepayTarget] = useState<AwardRow | null>(null)
+  const [repayForm, setRepayForm] = useState({ amount: 0, method: 'cash', note: '' })
   const [instalmentForm, setInstalmentForm] = useState({ purpose: 'admission_fee', description: '', due_on: '', amount: 0 })
 
   const load = useCallback(async () => {
-    const [{ data: st }, { data: ap }, { data: aw }, { data: ins }, { data: sum }] = await Promise.all([
+    const [{ data: st }, { data: ap }, { data: aw }, { data: ins }, { data: sum }, { data: vf }, { data: dc }] = await Promise.all([
       supabase.from('wazifa_students').select('*').order('created_at', { ascending: false }),
       supabase.from('wazifa_applications').select('*').order('total_score', { ascending: false, nullsFirst: false }),
       supabase.from('wazifa_awards').select('*').order('created_at', { ascending: false }),
       supabase.from('wazifa_instalments').select('*').order('due_on'),
       supabase.rpc('public_wazifa_summary'),
+      supabase.from('wazifa_verifications').select('*'),
+      supabase.from('wazifa_decisions').select('*').order('created_at', { ascending: false }),
     ])
     setStudents((st ?? []) as Student[])
     setApplications((ap ?? []) as Application[])
     setAwards((aw ?? []) as AwardRow[])
     setInstalments((ins ?? []) as Instalment[])
     setSummary((sum ?? {}) as Record<string, number>)
+    setVerifications((vf ?? []) as Verification[])
+    const dmap: Record<string, DecisionRow> = {}
+    for (const d of (dc ?? []) as DecisionRow[]) if (!dmap[d.application_id]) dmap[d.application_id] = d
+    setDecisionsByApp(dmap)
     setLoading(false)
   }, [supabase])
 
   useEffect(() => { load() }, [load])
 
   const studentOf = (id: string) => students.find((s) => s.id === id)
+  const verificationCount = (appId: string) => verifications.filter((v) => v.application_id === appId).length
+  const myVerification = (appId: string) => verifications.find((v) => v.application_id === appId)
 
   const addApplicant = async () => {
     if (!form.full_name.trim() || !form.institution.trim() || !form.programme.trim()) {
@@ -139,6 +198,92 @@ export default function WazifaPage() {
     }
     setBusy(false)
     toast.success(t('wz.ok.rescored'))
+    load()
+  }
+
+  const saveVerification = async () => {
+    if (!verifyTarget) return
+    const { data: me } = await supabase.rpc('current_admin_user_id')
+    if (!me) { toast.error(t('wz.err.notAdmin')); return }
+    setBusy(true)
+    const { error } = await supabase.from('wazifa_verifications').upsert({
+      application_id: verifyTarget.id, admin_user_id: me, ...vForm,
+    }, { onConflict: 'application_id,admin_user_id' })
+    if (!error) {
+      // A visit that turned up different marks corrects the record, and the
+      // score is recomputed from the corrected figure rather than the claim.
+      const obtained = Number(vForm.verified_obtained_marks) || 0
+      const total = Number(vForm.verified_total_marks) || 0
+      if (obtained > 0 && total > 0) {
+        await supabase.from('wazifa_applications').update({
+          last_exam_marks: obtained, last_exam_total: total,
+          last_exam_percent: Math.round((obtained / total) * 10000) / 100,
+        }).eq('id', verifyTarget.id)
+        await supabase.rpc('wazifa_score_application', { p_application_id: verifyTarget.id })
+      }
+      await supabase.from('wazifa_applications').update({ status: 'screening' })
+        .eq('id', verifyTarget.id).eq('status', 'submitted')
+    }
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.ok.verified'))
+    setVerifyTarget(null)
+    setVForm({ ...emptyVerification })
+    load()
+  }
+
+  const recordDecision = async () => {
+    if (!decideTarget) return
+    setBusy(true)
+    const { error } = await supabase.rpc('wazifa_record_decision', {
+      p_application_id: decideTarget.id,
+      p_decision: dForm.decision,
+      p_amount: dForm.amount,
+      p_as_loan: dForm.as_loan,
+      p_funded_by: dForm.funded_by,
+      p_reason: dForm.reason || null,
+      p_reason_ur: dForm.reason_ur || null,
+      p_internal_note: dForm.internal_note || null,
+      p_meeting_id: null,
+      p_shortfall_note: dForm.shortfall_note || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.ok.decided'))
+    setDecideTarget(null)
+    load()
+  }
+
+  const generatePlan = async () => {
+    if (!planTarget) return
+    if (!planForm.starts_on) { toast.error(t('wz.err.startDate')); return }
+    setBusy(true)
+    const { error } = await supabase.rpc('wazifa_generate_repayment_plan', {
+      p_award_id: planTarget.id,
+      p_starts_on: planForm.starts_on,
+      p_instalments: planForm.instalments,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.ok.planMade'))
+    setPlanTarget(null)
+    load()
+  }
+
+  const recordRepayment = async () => {
+    if (!repayTarget) return
+    if (repayForm.amount <= 0) { toast.error(t('wz.err.amount')); return }
+    setBusy(true)
+    const { data, error } = await supabase.rpc('wazifa_record_repayment', {
+      p_award_id: repayTarget.id, p_amount: repayForm.amount,
+      p_method: repayForm.method, p_note: repayForm.note || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    const d = data as { receipt_no: string }
+    toast.success(`${t('wz.ok.repaid')} ${d.receipt_no}`)
+    setRepayTarget(null)
+    setRepayForm({ amount: 0, method: 'cash', note: '' })
     load()
   }
 
@@ -276,6 +421,17 @@ export default function WazifaPage() {
                   {a.need_statement && <p className="font-sans text-[12.5px] text-dp-on-surface mt-1.5 italic">{a.need_statement}</p>}
 
                   <div className="flex flex-wrap gap-2 mt-2">
+                    {verificationCount(a.id) > 0 ? (
+                      <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[11.5px] font-bold">
+                        {verificationCount(a.id)} {t('wz.verifiedBy')}
+                        {verifications.find((v) => v.application_id === a.id)?.recommendation &&
+                          ` · ${t(`wz.rec.${verifications.find((v) => v.application_id === a.id)!.recommendation}`)}`}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[11.5px] font-bold">
+                        {t('wz.notVerified')}
+                      </span>
+                    )}
                     <span className="px-2 py-0.5 rounded bg-dp-surface-container-low text-[11.5px] font-semibold">
                       {t('wz.merit')} {a.merit_score ?? '—'}
                     </span>
@@ -285,13 +441,40 @@ export default function WazifaPage() {
                     <span className="px-2 py-0.5 rounded bg-dp-secondary/10 text-dp-secondary text-[11.5px] font-bold">
                       {t('wz.score')} {a.total_score ?? '—'}
                     </span>
+                    {decisionsByApp[a.id] && (
+                      <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11.5px] font-bold">
+                        {t(`pwz.decision.${decisionsByApp[a.id].decision}`)}
+                        {decisionsByApp[a.id].approved_amount_pkr > 0 && ` — Rs ${fmt(decisionsByApp[a.id].approved_amount_pkr)}`}
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                <button onClick={() => { setAwardTarget(a); setAwardForm({ amount: a.requested_amount_pkr, funded_by: 'sadqa', condition: '' }) }}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer shrink-0">
-                  <Award size={15} /> {t('wz.award')}
-                </button>
+                <div className="flex flex-col gap-2 shrink-0">
+                  {/* Verification first, decision second. The order is the
+                      point: a committee deciding before anybody has stood in
+                      the courtyard is deciding on a claim. */}
+                  <button onClick={() => { setVerifyTarget(a); setVForm({ ...emptyVerification, recommended_amount_pkr: a.requested_amount_pkr }) }}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all cursor-pointer whitespace-nowrap ${myVerification(a.id) ? 'border border-dp-outline-variant text-dp-on-surface-variant' : 'bg-dp-secondary text-white hover:bg-dp-primary'}`}>
+                    <ClipboardCheck size={15} /> {myVerification(a.id) ? t('wz.editVerification') : t('wz.enterVerification')}
+                  </button>
+                  <button
+                    disabled={verificationCount(a.id) === 0}
+                    title={verificationCount(a.id) === 0 ? t('wz.verifyFirst') : undefined}
+                    onClick={() => {
+                      const v = verifications.find((x) => x.application_id === a.id)
+                      setDecideTarget(a)
+                      setDForm({
+                        decision: 'approved_full',
+                        amount: Number(v?.recommended_amount_pkr) || a.requested_amount_pkr,
+                        as_loan: false, funded_by: 'sadqa',
+                        reason: '', reason_ur: '', internal_note: '', shortfall_note: '',
+                      })
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-2 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
+                    <Gavel size={15} /> {t('wz.decide')}
+                  </button>
+                </div>
               </div>
             )
           })}
@@ -324,11 +507,34 @@ export default function WazifaPage() {
                     {aw.funded_by === 'zakat' && (
                       <p className="font-sans text-[12px] text-amber-700 mt-1">{t('wz.zakatRouting')}</p>
                     )}
+                    {(aw as AwardRow & { is_loan?: boolean; repaid_pkr?: number }).is_loan && (
+                      <p className="font-sans text-[12.5px] text-emerald-700 mt-1 font-semibold">
+                        {t('pwz.qarzBadge')} · {t('pwz.loanRepaid')} Rs {fmt(Number((aw as AwardRow & { repaid_pkr?: number }).repaid_pkr ?? 0))}
+                        {' · '}{t('pwz.loanOutstanding')} Rs {fmt(aw.awarded_amount_pkr - Number((aw as AwardRow & { repaid_pkr?: number }).repaid_pkr ?? 0))}
+                      </p>
+                    )}
                   </div>
-                  <button onClick={() => setInstalmentTarget(aw)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer shrink-0">
-                    <Plus size={14} /> {t('wz.addInstalment')}
-                  </button>
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    <button onClick={() => setInstalmentTarget(aw)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
+                      <Plus size={14} /> {t('wz.addInstalment')}
+                    </button>
+                    {/* Only a qarz-e-hasana has anything to repay. A grant
+                        shows neither button, so nobody can start chasing a
+                        student who owes nothing. */}
+                    {(aw as AwardRow & { is_loan?: boolean }).is_loan && (
+                      <>
+                        <button onClick={() => { setPlanTarget(aw); setPlanForm({ starts_on: '', instalments: 12 }) }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
+                          <CalendarClock size={14} /> {t('wz.plan.button')}
+                        </button>
+                        <button onClick={() => { setRepayTarget(aw); setRepayForm({ amount: 0, method: 'cash', note: '' }) }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
+                          <HandCoins size={14} /> {t('wz.takeRepayment')}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {mine.length > 0 && (
@@ -358,6 +564,284 @@ export default function WazifaPage() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* ── Typing up the verification sheet ────────────────────────────
+          The same eleven questions as the printed block, in the same order,
+          so somebody working from a marked-up sheet reads straight down. */}
+      {verifyTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setVerifyTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('wz.verificationTitle')}</h2>
+              <button onClick={() => setVerifyTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
+              {studentOf(verifyTarget.student_id)?.full_name} · {verifyTarget.programme}
+            </p>
+
+            <div className="mb-4">
+              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.v.visitedOn')}</label>
+              <input type="date" value={String(vForm.visited_on)}
+                onChange={(e) => setVForm({ ...vForm, visited_on: e.target.value })} className="input-field max-w-xs" />
+            </div>
+
+            <div className="space-y-2.5 mb-5">
+              {CHECKS.map(([ansKey, noteKey, labelKey]) => (
+                <div key={ansKey} className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-start border-b border-dp-outline-variant pb-2.5">
+                  <div>
+                    <p className="font-sans text-[13.5px] text-dp-on-surface mb-1.5">{t(`pwz.v.item.${labelKey}`)}</p>
+                    <input value={String(vForm[noteKey] ?? '')}
+                      onChange={(e) => setVForm({ ...vForm, [noteKey]: e.target.value })}
+                      placeholder={t('pwz.v.detail')} className="input-field !py-1.5 text-[13px]" />
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    {(['yes', 'no', 'na'] as const).map((v) => (
+                      <button key={v} onClick={() => setVForm({ ...vForm, [ansKey]: v })}
+                        className={`px-2.5 py-1.5 rounded-lg font-sans text-[12px] font-bold cursor-pointer transition-all ${vForm[ansKey] === v ? (v === 'yes' ? 'bg-emerald-600 text-white' : v === 'no' ? 'bg-dp-error text-white' : 'bg-dp-outline text-white') : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
+                        {t(`pwz.v.${v}`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <h3 className="font-sans text-[13px] font-bold uppercase tracking-[0.06em] text-dp-outline mb-2">{t('wz.v.whatWasSeen')}</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+              {([
+                ['verified_obtained_marks', 'pwz.v.obtainedMarks'],
+                ['verified_total_marks', 'pwz.v.totalMarks'],
+                ['observed_monthly_income_pkr', 'pwz.v.observedIncome'],
+                ['verified_annual_cost_pkr', 'pwz.v.verifiedCost'],
+              ] as const).map(([k, lbl]) => (
+                <div key={k}>
+                  <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t(lbl)}</label>
+                  <input type="number" min={0} value={Number(vForm[k]) || ''}
+                    onChange={(e) => setVForm({ ...vForm, [k]: +e.target.value })} className="input-field !py-2" />
+                </div>
+              ))}
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pwz.v.grade')}</label>
+                <input value={String(vForm.verified_grade ?? '')}
+                  onChange={(e) => setVForm({ ...vForm, verified_grade: e.target.value })} className="input-field !py-2" />
+              </div>
+            </div>
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-4">{t('wz.v.marksOverrideHint')}</p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pwz.v.recommendation')}</label>
+                <select value={String(vForm.recommendation)} onChange={(e) => setVForm({ ...vForm, recommendation: e.target.value })} className="input-field !py-2">
+                  {(['full', 'partial', 'decline', 'defer'] as const).map((r) => (
+                    <option key={r} value={r}>{t(`pwz.v.rec.${r}`)}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pwz.v.recommendedAmount')}</label>
+                <input type="number" min={0} value={Number(vForm.recommended_amount_pkr) || ''}
+                  onChange={(e) => setVForm({ ...vForm, recommended_amount_pkr: +e.target.value })} className="input-field !py-2" />
+              </div>
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pwz.v.relationship')}</label>
+                <select value={String(vForm.relationship)} onChange={(e) => setVForm({ ...vForm, relationship: e.target.value })} className="input-field !py-2">
+                  {(['none', 'sibling', 'close_relative', 'other', 'parent', 'child', 'spouse'] as const).map((r) => (
+                    <option key={r} value={r}>{t(`nr.rel.${r}`)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pwz.v.notes')}</label>
+            <textarea value={String(vForm.overall_note ?? '')} onChange={(e) => setVForm({ ...vForm, overall_note: e.target.value })}
+              rows={3} className="input-field resize-none mb-4" />
+
+            <button disabled={busy} onClick={saveVerification}
+              className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              <Save size={16} /> {busy ? t('action.saving') : t('wz.saveVerification')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── The committee's decision ────────────────────────────────────── */}
+      {decideTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setDecideTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('wz.decisionTitle')}</h2>
+              <button onClick={() => setDecideTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+
+            <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
+              <p className="font-sans text-[14px] font-semibold">{studentOf(decideTarget.student_id)?.full_name}</p>
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                {decideTarget.programme} · {decideTarget.institution} · {t('wz.requested')} Rs {fmt(decideTarget.requested_amount_pkr)}
+              </p>
+              {myVerification(decideTarget.id) && (
+                <p className="font-sans text-[12.5px] text-dp-secondary mt-1 font-semibold">
+                  {t('wz.verifierRecommends')} {t(`pwz.v.rec.${myVerification(decideTarget.id)!.recommendation ?? 'full'}`)}
+                  {myVerification(decideTarget.id)!.recommended_amount_pkr
+                    ? ` — Rs ${fmt(Number(myVerification(decideTarget.id)!.recommended_amount_pkr))}` : ''}
+                </p>
+              )}
+            </div>
+
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-2">{t('wz.d.decision')}</label>
+            <div className="space-y-2 mb-4">
+              {([
+                ['approved_full', 'wz.d.approvedFull'],
+                ['approved_partial', 'wz.d.approvedPartial'],
+                ['deferred', 'wz.d.deferred'],
+                ['declined', 'wz.d.declined'],
+              ] as const).map(([value, lbl]) => (
+                <label key={value} className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border-2 cursor-pointer transition-all ${dForm.decision === value ? 'border-dp-secondary bg-dp-secondary/5' : 'border-dp-outline-variant'}`}>
+                  <input type="radio" name="decision" checked={dForm.decision === value}
+                    onChange={() => setDForm({ ...dForm, decision: value })} className="accent-dp-secondary" />
+                  <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{t(lbl)}</span>
+                </label>
+              ))}
+            </div>
+
+            {dForm.decision.startsWith('approved') && (
+              <>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.d.amount')}</label>
+                    <input type="number" min={0} value={dForm.amount || ''}
+                      onChange={(e) => setDForm({ ...dForm, amount: +e.target.value })} className="input-field" />
+                  </div>
+                  <div>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.f.fundedBy')}</label>
+                    <select value={dForm.funded_by} onChange={(e) => setDForm({ ...dForm, funded_by: e.target.value })} className="input-field">
+                      <option value="sadqa">{t('wz.funded.sadqa')}</option>
+                      <option value="zakat">{t('wz.funded.zakat')}</option>
+                      <option value="general">{t('wz.funded.general')}</option>
+                      <option value="sponsor">{t('wz.funded.sponsor')}</option>
+                    </select>
+                  </div>
+                </div>
+
+                <label className={`flex items-start gap-2.5 px-3.5 py-3 rounded-lg border-2 cursor-pointer transition-all mb-1.5 ${dForm.as_loan ? 'border-emerald-500 bg-emerald-50' : 'border-dp-outline-variant'}`}>
+                  <input type="checkbox" checked={dForm.as_loan}
+                    onChange={(e) => setDForm({ ...dForm, as_loan: e.target.checked, funded_by: e.target.checked && dForm.funded_by === 'zakat' ? 'sadqa' : dForm.funded_by })}
+                    className="accent-emerald-600 mt-0.5" />
+                  <span>
+                    <span className="block font-sans text-[13.5px] font-semibold text-dp-on-surface">{t('wz.d.asLoan')}</span>
+                    <span className="block font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{t('wz.d.asLoanHelp')}</span>
+                  </span>
+                </label>
+                {dForm.as_loan && (
+                  <p className="font-sans text-[11.5px] text-amber-700 mb-3">{t('wz.d.loanNotZakat')}</p>
+                )}
+
+                {dForm.decision === 'approved_partial' && (
+                  <div className="mb-3">
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.d.shortfall')}</label>
+                    <textarea value={dForm.shortfall_note} onChange={(e) => setDForm({ ...dForm, shortfall_note: e.target.value })}
+                      rows={2} placeholder={t('wz.d.shortfallPlaceholder')} className="input-field resize-none" />
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Two boxes on purpose: one the family reads, one they do not. */}
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 mt-3">{t('wz.d.reasonUr')}</label>
+            <textarea value={dForm.reason_ur} onChange={(e) => setDForm({ ...dForm, reason_ur: e.target.value })}
+              rows={2} className="input-field resize-none mb-1.5"
+              style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.d.reason')}</label>
+            <textarea value={dForm.reason} onChange={(e) => setDForm({ ...dForm, reason: e.target.value })}
+              rows={2} className="input-field resize-none mb-1.5" />
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-3">{t('wz.d.reasonHint')}</p>
+
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.d.internalNote')}</label>
+            <textarea value={dForm.internal_note} onChange={(e) => setDForm({ ...dForm, internal_note: e.target.value })}
+              rows={2} className="input-field resize-none mb-1.5" />
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-4">{t('wz.d.internalHint')}</p>
+
+            <button disabled={busy} onClick={recordDecision}
+              className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              <Gavel size={16} /> {busy ? t('action.saving') : t('wz.d.record')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── The repayment plan ──────────────────────────────────────────── */}
+      {planTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPlanTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('wz.planTitle')}</h2>
+              <button onClick={() => setPlanTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
+              {studentOf(planTarget.student_id)?.full_name} · Rs {fmt(planTarget.awarded_amount_pkr)}
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.plan.startsOn')}</label>
+                <input type="date" value={planForm.starts_on}
+                  onChange={(e) => setPlanForm({ ...planForm, starts_on: e.target.value })} className="input-field" />
+              </div>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.plan.instalments')}</label>
+                <input type="number" min={1} max={120} value={planForm.instalments || ''}
+                  onChange={(e) => setPlanForm({ ...planForm, instalments: +e.target.value })} className="input-field" />
+              </div>
+            </div>
+
+            <p className="font-sans text-[13px] text-dp-on-surface bg-dp-surface-container-low rounded-lg px-3.5 py-2.5 mb-3">
+              {t('wz.plan.each')} <strong>Rs {fmt(Math.floor(planTarget.awarded_amount_pkr / Math.max(planForm.instalments, 1)))}</strong>
+            </p>
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-4">{t('wz.plan.startHint')}</p>
+
+            <button disabled={busy} onClick={generatePlan}
+              className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              <CalendarClock size={16} /> {busy ? t('action.saving') : t('wz.plan.create')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Taking a repayment ──────────────────────────────────────────── */}
+      {repayTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setRepayTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('wz.repayTitle')}</h2>
+              <button onClick={() => setRepayTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
+              {studentOf(repayTarget.student_id)?.full_name} · {t('pwz.qarzBadge')}
+            </p>
+
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
+            <input type="number" min={0} value={repayForm.amount || ''}
+              onChange={(e) => setRepayForm({ ...repayForm, amount: +e.target.value })} className="input-field mb-3" />
+
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
+            <select value={repayForm.method} onChange={(e) => setRepayForm({ ...repayForm, method: e.target.value })} className="input-field mb-3">
+              <option value="cash">{t('w.cash')}</option>
+              <option value="bank">{t('a.bank')}</option>
+              <option value="jazzcash">{t('w.jazzcash')}</option>
+              <option value="easypaisa">{t('w.easypaisa')}</option>
+            </select>
+
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.notesOptional')}</label>
+            <textarea value={repayForm.note} onChange={(e) => setRepayForm({ ...repayForm, note: e.target.value })}
+              rows={2} className="input-field resize-none mb-1.5" />
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-4">{t('wz.repayHint')}</p>
+
+            <button disabled={busy} onClick={recordRepayment}
+              className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              <HandCoins size={16} /> {busy ? t('action.saving') : t('wz.repayRecord')}
+            </button>
+          </div>
         </div>
       )}
 

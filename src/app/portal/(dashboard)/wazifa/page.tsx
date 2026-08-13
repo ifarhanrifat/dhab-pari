@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { BookOpen, Send, Plus, Trash2, Printer, HandCoins } from 'lucide-react'
+import { BookOpen, Send, Plus, Trash2, Printer, HandCoins, RotateCcw } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { printNodeInPopup } from '@/lib/receiptExport'
 
@@ -22,19 +22,25 @@ import { printNodeInPopup } from '@/lib/receiptExport'
  * village school and one travelling to Chakwal, with fees against each, is.
  */
 
-interface MyApplication {
-  id: string; academic_year: string; level: string; institution: string
-  programme: string; status: string; requested_amount_pkr: number
-  merit_score: number | null; need_score: number | null; total_score: number | null
-  applicant_for: string; repayment_pledge: boolean
-}
-
 interface FamilyRow {
   full_name: string; relation: string; age: number
   marital_status: string
   is_studying: boolean; institution: string; class_or_year: string
   study_location: string; annual_fee_pkr: number
   is_working: boolean; occupation: string; income_period: string; income_pkr: number
+}
+
+interface Decision {
+  application_id: string; academic_year: string; programme: string; institution: string
+  status: string; attempt: number; decided_on: string | null; decision: string | null
+  approved_amount_pkr: number | null; as_loan: boolean | null
+  reason: string | null; reason_ur: string | null
+  shortfall_note: string | null; can_reapply: boolean | null
+}
+
+interface Loan {
+  award_id: string; academic_year: string; awarded_amount_pkr: number
+  repaid_pkr: number; outstanding: number; next_due_on: string | null; overdue: number
 }
 
 interface AcademicRow {
@@ -72,7 +78,9 @@ export default function PortalWazifaPage() {
   const { user: portalUser } = usePortalUser()
   const formRef = useRef<HTMLDivElement>(null)
 
-  const [mine, setMine] = useState<MyApplication[]>([])
+  const [decisions, setDecisions] = useState<Decision[]>([])
+  const [loans, setLoans] = useState<Loan[]>([])
+  const [reapplyOf, setReapplyOf] = useState<Decision | null>(null)
   const [summary, setSummary] = useState<Record<string, number>>({})
   const [busy, setBusy] = useState(false)
 
@@ -93,14 +101,14 @@ export default function PortalWazifaPage() {
   const [academics, setAcademics] = useState<AcademicRow[]>([{ ...emptyAcademicRow }])
 
   const load = useCallback(async () => {
-    const [{ data: apps }, { data: sum }] = await Promise.all([
-      supabase.from('wazifa_applications')
-        .select('id, academic_year, level, institution, programme, status, requested_amount_pkr, merit_score, need_score, total_score, applicant_for, repayment_pledge')
-        .order('created_at', { ascending: false }),
+    const [{ data: sum }, { data: dec }, { data: lns }] = await Promise.all([
       supabase.rpc('public_wazifa_summary'),
+      supabase.rpc('my_wazifa_decisions'),
+      supabase.rpc('my_wazifa_loans'),
     ])
-    setMine((apps ?? []) as MyApplication[])
     setSummary((sum ?? {}) as Record<string, number>)
+    setDecisions((dec ?? []) as Decision[])
+    setLoans((lns ?? []) as Loan[])
   }, [supabase])
 
   useEffect(() => { load() }, [load])
@@ -184,6 +192,10 @@ export default function PortalWazifaPage() {
       zakat_monthly_pkr: form.zakat_monthly_pkr || 0,
       repayment_pledge: form.repayment_pledge,
       repayment_note: form.repayment_note || null,
+      // A second attempt is linked to the first, so the committee can see
+      // that this family has been here before and what changed.
+      supersedes_application_id: reapplyOf?.application_id ?? null,
+      attempt: reapplyOf ? (reapplyOf.attempt ?? 1) + 1 : 1,
       status: 'submitted',
     }).select('id').single()
     if (appErr) { setBusy(false); toast.error(friendlyError(appErr)); return }
@@ -214,7 +226,8 @@ export default function PortalWazifaPage() {
     await supabase.rpc('wazifa_sync_merit', { p_application_id: app.id })
 
     setBusy(false)
-    toast.success(t('pwz.ok.submitted'))
+    toast.success(reapplyOf ? t('pwz.ok.reapplied') : t('pwz.ok.submitted'))
+    setReapplyOf(null)
     load()
   }
 
@@ -250,30 +263,139 @@ export default function PortalWazifaPage() {
         ))}
       </div>
 
-      {mine.length > 0 && (
+      {/* ── What the committee decided ───────────────────────────────── */}
+      {decisions.length > 0 && (
         <div className="mb-6 print:hidden">
           <h2 className="font-heading text-[20px] font-bold text-dp-primary mb-3">{t('pwz.myApplications')}</h2>
-          <div className="space-y-2.5">
-            {mine.map((a) => (
-              <div key={a.id} className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <p className="font-sans text-[14px] font-bold text-dp-on-surface">{a.programme}</p>
-                    <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
-                      {a.institution} · {t(`wz.level.${a.level}`)} · {a.academic_year}
-                    </p>
-                    <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">
-                      {t('wz.requested')} Rs {fmt(a.requested_amount_pkr)}
-                      {a.repayment_pledge && <span className="ms-2 text-emerald-700 font-semibold">· {t('pwz.qarzBadge')}</span>}
-                    </p>
+          <div className="space-y-3">
+            {decisions.map((d) => {
+              const approved = d.decision === 'approved_full' || d.decision === 'approved_partial'
+              return (
+                <div key={d.application_id} className={`bg-white border rounded-lg px-4 py-4 ${approved ? 'border-emerald-300' : d.decision === 'declined' ? 'border-dp-outline-variant' : 'border-dp-outline-variant'}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                    <div>
+                      <p className="font-sans text-[14.5px] font-bold text-dp-on-surface">{d.programme}</p>
+                      <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                        {d.institution} · {d.academic_year}
+                        {d.attempt > 1 && <span className="ms-2">· {t('pwz.attempt')} {d.attempt}</span>}
+                      </p>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-[11.5px] font-bold ${STATUS_TONE[d.status] ?? 'bg-slate-100'}`}>
+                      {d.decision ? t(`pwz.decision.${d.decision}`) : t(`pwz.status.${d.status}`)}
+                    </span>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${STATUS_TONE[a.status] ?? 'bg-slate-100'}`}>
-                    {t(`pwz.status.${a.status}`)}
-                  </span>
+
+                  {approved && (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3.5 py-3 mb-2">
+                      <p className="font-sans text-[12px] font-semibold text-emerald-900">{t('pwz.awardedAmount')}</p>
+                      <p className="font-heading text-[26px] font-bold text-emerald-800 leading-tight">
+                        Rs {fmt(d.approved_amount_pkr ?? 0)}
+                      </p>
+                      {d.as_loan && (
+                        <p className="font-sans text-[12px] text-emerald-900 mt-1 font-semibold">{t('pwz.awardIsLoan')}</p>
+                      )}
+                      {d.decision === 'approved_partial' && d.shortfall_note && (
+                        <p className="font-sans text-[12.5px] text-emerald-900 mt-1.5">{d.shortfall_note}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* The reason, in Urdu first — it is the part the family
+                      will actually read, and the part that tells them what to
+                      fix before trying again. */}
+                  {(d.reason_ur || d.reason) && (
+                    <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3">
+                      <p className="font-sans text-[11.5px] font-bold uppercase tracking-[0.06em] text-dp-outline mb-1.5">
+                        {t('pwz.committeeSaid')}
+                      </p>
+                      {d.reason_ur && (
+                        <p className="font-sans text-[13.5px] text-dp-on-surface leading-relaxed"
+                          style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                          {d.reason_ur}
+                        </p>
+                      )}
+                      {d.reason && <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1.5 leading-relaxed">{d.reason}</p>}
+                    </div>
+                  )}
+
+                  {d.can_reapply && (
+                    <div className="mt-3">
+                      <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-2">{t('pwz.canReapply')}</p>
+                      <button onClick={() => { setReapplyOf(d); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }) }}
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                        <RotateCcw size={14} /> {t('pwz.reapply')}
+                      </button>
+                    </div>
+                  )}
+
+                  {d.decided_on && (
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">
+                      {t('pwz.decidedOn')} {new Date(d.decided_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
+                  )}
                 </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── A loan being repaid ───────────────────────────────────────── */}
+      {loans.length > 0 && (
+        <div className="mb-6 print:hidden">
+          <h2 className="font-heading text-[20px] font-bold text-dp-primary mb-3">{t('pwz.myLoan')}</h2>
+          <div className="space-y-2.5">
+            {loans.map((l) => (
+              <div key={l.award_id} className="bg-white border border-dp-outline-variant rounded-lg px-4 py-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+                  <p className="font-sans text-[13px] text-dp-on-surface-variant">{l.academic_year} · {t('pwz.qarzBadge')}</p>
+                  {l.overdue > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold">
+                      {l.overdue} {t('pwz.overdue')}
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  <div>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('pwz.loanAwarded')}</p>
+                    <p className="font-heading text-[19px] font-bold text-dp-primary">Rs {fmt(l.awarded_amount_pkr)}</p>
+                  </div>
+                  <div>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('pwz.loanRepaid')}</p>
+                    <p className="font-heading text-[19px] font-bold text-emerald-700">Rs {fmt(l.repaid_pkr)}</p>
+                  </div>
+                  <div>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('pwz.loanOutstanding')}</p>
+                    <p className="font-heading text-[19px] font-bold text-dp-primary">Rs {fmt(l.outstanding)}</p>
+                  </div>
+                </div>
+                <div className="h-2 w-full bg-dp-surface-container rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-600"
+                    style={{ width: `${Math.min((l.repaid_pkr / Math.max(l.awarded_amount_pkr, 1)) * 100, 100)}%` }} />
+                </div>
+                {l.next_due_on && (
+                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-2">
+                    {t('pwz.nextDue')} {new Date(l.next_due_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                )}
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('pwz.loanNoInterest')}</p>
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Reapplying: say so at the top of the form, so nobody fills in a
+          second application without realising it is a second application. */}
+      {reapplyOf && (
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-dp-secondary/10 border border-dp-secondary/30 rounded-lg px-4 py-3 mb-4 print:hidden">
+          <p className="font-sans text-[13px] font-semibold text-dp-primary">
+            {t('pwz.reapplyingFor')} {reapplyOf.programme} · {t('pwz.attempt')} {(reapplyOf.attempt ?? 1) + 1}
+          </p>
+          <button onClick={() => setReapplyOf(null)}
+            className="font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline cursor-pointer">
+            {t('action.cancel')}
+          </button>
         </div>
       )}
 
@@ -729,6 +851,95 @@ export default function PortalWazifaPage() {
                 rows={2} placeholder={t('pwz.f.repaymentNotePlaceholder')} className="input-field resize-none" />
             </div>
           )}
+        </div>
+
+        {/* ── For office use ────────────────────────────────────────────
+            Only ever printed. The committee member fills this in by hand at
+            the house, and the same questions in the same order appear on the
+            admin screen where the marks are typed back in — so the paper and
+            the record cannot drift apart. */}
+        <div className="hidden print:block border-2 border-black rounded p-4 mb-4" style={{ breakInside: 'avoid' }}>
+          <h2 className="font-heading text-[17px] font-bold mb-1">{t('pwz.v.printTitle')}</h2>
+          <p className="font-sans text-[11px] mb-3">{t('pwz.v.printSubtitle')}</p>
+
+          <table className="w-full border-collapse text-[11.5px] font-sans">
+            <thead>
+              <tr>
+                <th className="border border-black p-1.5 text-start w-[46%]">{t('pwz.v.checkItem')}</th>
+                <th className="border border-black p-1.5 w-[9%]">{t('pwz.v.yes')}</th>
+                <th className="border border-black p-1.5 w-[9%]">{t('pwz.v.no')}</th>
+                <th className="border border-black p-1.5 w-[9%]">{t('pwz.v.na')}</th>
+                <th className="border border-black p-1.5 text-start">{t('pwz.v.detail')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {([
+                'cnic', 'documents', 'marks', 'admission', 'challan',
+                'home', 'household', 'income', 'siblings', 'illness', 'zakat',
+              ] as const).map((k) => (
+                <tr key={k}>
+                  <td className="border border-black p-1.5">{t(`pwz.v.item.${k}`)}</td>
+                  <td className="border border-black p-1.5 h-7" />
+                  <td className="border border-black p-1.5" />
+                  <td className="border border-black p-1.5" />
+                  <td className="border border-black p-1.5" />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* The three numbers a verifier is expected to come back with. */}
+          <div className="grid grid-cols-3 gap-3 mt-3">
+            {(['obtainedMarks', 'totalMarks', 'grade'] as const).map((k) => (
+              <div key={k}>
+                <p className="font-sans text-[11px] mb-1">{t(`pwz.v.${k}`)}</p>
+                <div className="border-b border-black h-6" />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            {(['observedIncome', 'verifiedCost'] as const).map((k) => (
+              <div key={k}>
+                <p className="font-sans text-[11px] mb-1">{t(`pwz.v.${k}`)}</p>
+                <div className="border-b border-black h-6" />
+              </div>
+            ))}
+          </div>
+
+          <p className="font-sans text-[11px] mt-3 mb-1">{t('pwz.v.recommendation')}</p>
+          <div className="flex gap-4 font-sans text-[11.5px]">
+            {(['full', 'partial', 'decline', 'defer'] as const).map((k) => (
+              <span key={k} className="flex items-center gap-1.5">
+                <span className="inline-block w-3.5 h-3.5 border border-black" /> {t(`pwz.v.rec.${k}`)}
+              </span>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <div>
+              <p className="font-sans text-[11px] mb-1">{t('pwz.v.recommendedAmount')}</p>
+              <div className="border-b border-black h-6" />
+            </div>
+            <div>
+              <p className="font-sans text-[11px] mb-1">{t('pwz.v.relationship')}</p>
+              <div className="border-b border-black h-6" />
+            </div>
+          </div>
+
+          <p className="font-sans text-[11px] mt-3 mb-1">{t('pwz.v.notes')}</p>
+          <div className="border-b border-black h-6 mb-2" />
+          <div className="border-b border-black h-6" />
+
+          <div className="grid grid-cols-2 gap-8 mt-6">
+            <div>
+              <div className="border-b border-black h-7" />
+              <p className="font-sans text-[11px] mt-1">{t('pwz.v.signVerifier')}</p>
+            </div>
+            <div>
+              <div className="border-b border-black h-7" />
+              <p className="font-sans text-[11px] mt-1">{t('pwz.v.signDate')}</p>
+            </div>
+          </div>
         </div>
 
         {/* ── Declaration, for the printed sheet ────────────────────────── */}
