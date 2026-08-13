@@ -54,6 +54,11 @@ interface DecisionRow {
   as_loan: boolean; funded_by: string; reason: string | null; decided_on: string
 }
 
+interface DocRow {
+  id: string; application_id: string; kind: string; label: string | null
+  url: string; original_seen: boolean; seen_at: string | null
+}
+
 interface Instalment {
   id: string; award_id: string; purpose: string; description: string | null
   due_on: string | null; amount_pkr: number; pay_to: string
@@ -129,11 +134,17 @@ export default function WazifaPage() {
   // Reported, never enforced. A second brother may be perfectly deserving —
   // the committee should decide that knowingly rather than the software
   // deciding it silently.
+  const [documents, setDocuments] = useState<DocRow[]>([])
+  const [committee, setCommittee] = useState<{ id: string; name: string }[]>([])
+  const [coVerifiers, setCoVerifiers] = useState<string[]>([])
+  const [coNames, setCoNames] = useState('')
+  const [minVerifiers, setMinVerifiers] = useState(2)
   const [familyCheck, setFamilyCheck] = useState<Record<string, { code: string; name?: string; status: string; awarded?: number }[]> | null>(null)
   const [instalmentForm, setInstalmentForm] = useState({ purpose: 'admission_fee', description: '', due_on: '', amount: 0 })
 
   const load = useCallback(async () => {
-    const [{ data: st }, { data: ap }, { data: aw }, { data: ins }, { data: sum }, { data: vf }, { data: dc }] = await Promise.all([
+    const [{ data: st }, { data: ap }, { data: aw }, { data: ins }, { data: sum }, { data: vf }, { data: dc },
+           { data: docs }, { data: cm }, { data: minV }] = await Promise.all([
       supabase.from('wazifa_students').select('*').order('created_at', { ascending: false }),
       supabase.from('wazifa_applications').select('*').order('total_score', { ascending: false, nullsFirst: false }),
       supabase.from('wazifa_awards').select('*').order('created_at', { ascending: false }),
@@ -141,6 +152,9 @@ export default function WazifaPage() {
       supabase.rpc('public_wazifa_summary'),
       supabase.from('wazifa_verifications').select('*'),
       supabase.from('wazifa_decisions').select('*').order('created_at', { ascending: false }),
+      supabase.from('wazifa_documents').select('*').order('created_at'),
+      supabase.from('admin_users').select('id, name').eq('is_active', true).order('name'),
+      supabase.from('site_settings').select('value').eq('key', 'wazifa_min_verifiers').maybeSingle(),
     ])
     setStudents((st ?? []) as Student[])
     setApplications((ap ?? []) as Application[])
@@ -151,13 +165,24 @@ export default function WazifaPage() {
     const dmap: Record<string, DecisionRow> = {}
     for (const d of (dc ?? []) as DecisionRow[]) if (!dmap[d.application_id]) dmap[d.application_id] = d
     setDecisionsByApp(dmap)
+    setDocuments((docs ?? []) as DocRow[])
+    setCommittee((cm ?? []) as { id: string; name: string }[])
+    setMinVerifiers(Number(minV?.value ?? 2))
     setLoading(false)
   }, [supabase])
 
   useEffect(() => { load() }, [load])
 
   const studentOf = (id: string) => students.find((s) => s.id === id)
-  const verificationCount = (appId: string) => verifications.filter((v) => v.application_id === appId).length
+  // One typed-up row, several signatures on the paper. The count is the
+  // person who entered it plus everyone they named.
+  const verificationCount = (appId: string) => {
+    const v = verifications.find((x) => x.application_id === appId) as (Verification & {
+      co_verifier_ids?: string[]; co_verifier_names?: string[] }) | undefined
+    if (!v) return 0
+    return 1 + (v.co_verifier_ids?.length ?? 0) + (v.co_verifier_names?.length ?? 0)
+  }
+  const docsOf = (appId: string) => documents.filter((d) => d.application_id === appId)
   const myVerification = (appId: string) => verifications.find((v) => v.application_id === appId)
 
   const addApplicant = async () => {
@@ -205,6 +230,14 @@ export default function WazifaPage() {
     load()
   }
 
+  const markDocSeen = async (docId: string, seen: boolean) => {
+    const { error } = await supabase.rpc('wazifa_mark_document_seen', {
+      p_document_id: docId, p_seen: seen,
+    })
+    if (error) { toast.error(friendlyError(error)); return }
+    setDocuments(documents.map((d) => d.id === docId ? { ...d, original_seen: seen } : d))
+  }
+
   const runFamilyCheck = async (a: Application) => {
     const st = studentOf(a.student_id)
     const { data, error } = await supabase.rpc('wazifa_family_check', {
@@ -223,6 +256,9 @@ export default function WazifaPage() {
     setBusy(true)
     const { error } = await supabase.from('wazifa_verifications').upsert({
       application_id: verifyTarget.id, admin_user_id: me, ...vForm,
+      co_verifier_ids: coVerifiers.length > 0 ? coVerifiers : null,
+      co_verifier_names: coNames.trim()
+        ? coNames.split(',').map((x) => x.trim()).filter(Boolean) : null,
     }, { onConflict: 'application_id,admin_user_id' })
     if (!error) {
       // A visit that turned up different marks corrects the record, and the
@@ -236,14 +272,19 @@ export default function WazifaPage() {
         }).eq('id', verifyTarget.id)
         await supabase.rpc('wazifa_score_application', { p_application_id: verifyTarget.id })
       }
-      await supabase.from('wazifa_applications').update({ status: 'screening' })
-        .eq('id', verifyTarget.id).eq('status', 'submitted')
+      // Verified is its own state, between "somebody has been" and "the
+      // committee has decided" — otherwise a visited application sits in the
+      // same bucket as one nobody has looked at.
+      await supabase.from('wazifa_applications').update({ status: 'verified' })
+        .eq('id', verifyTarget.id).in('status', ['submitted', 'screening'])
     }
     setBusy(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('wz.ok.verified'))
     setVerifyTarget(null)
     setVForm({ ...emptyVerification })
+    setCoVerifiers([])
+    setCoNames('')
     load()
   }
 
@@ -439,6 +480,7 @@ export default function WazifaPage() {
                     {verificationCount(a.id) > 0 ? (
                       <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[11.5px] font-bold">
                         {verificationCount(a.id)} {t('wz.verifiedBy')}
+                        {' / '}{minVerifiers}
                         {verifications.find((v) => v.application_id === a.id)?.recommendation &&
                           ` · ${t(`wz.rec.${verifications.find((v) => v.application_id === a.id)!.recommendation}`)}`}
                       </span>
@@ -473,13 +515,20 @@ export default function WazifaPage() {
                     className="flex items-center gap-1.5 px-3.5 py-2 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[13px] font-semibold hover:text-dp-primary transition-all cursor-pointer whitespace-nowrap">
                     <Users size={15} /> {t('wz.familyCheck')}
                   </button>
-                  <button onClick={() => { setVerifyTarget(a); setVForm({ ...emptyVerification, recommended_amount_pkr: a.requested_amount_pkr }) }}
+                  <button onClick={() => {
+                      const v = verifications.find((x) => x.application_id === a.id) as (Verification & {
+                        co_verifier_ids?: string[]; co_verifier_names?: string[] }) | undefined
+                      setVerifyTarget(a)
+                      setVForm({ ...emptyVerification, recommended_amount_pkr: a.requested_amount_pkr })
+                      setCoVerifiers(v?.co_verifier_ids ?? [])
+                      setCoNames((v?.co_verifier_names ?? []).join(', '))
+                    }}
                     className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all cursor-pointer whitespace-nowrap ${myVerification(a.id) ? 'border border-dp-outline-variant text-dp-on-surface-variant' : 'bg-dp-secondary text-white hover:bg-dp-primary'}`}>
                     <ClipboardCheck size={15} /> {myVerification(a.id) ? t('wz.editVerification') : t('wz.enterVerification')}
                   </button>
                   <button
-                    disabled={verificationCount(a.id) === 0}
-                    title={verificationCount(a.id) === 0 ? t('wz.verifyFirst') : undefined}
+                    disabled={verificationCount(a.id) < minVerifiers}
+                    title={verificationCount(a.id) < minVerifiers ? t('wz.verifyFirst') : undefined}
                     onClick={() => {
                       const v = verifications.find((x) => x.application_id === a.id)
                       setDecideTarget(a)
@@ -652,6 +701,75 @@ export default function WazifaPage() {
               <input type="date" value={String(vForm.visited_on)}
                 onChange={(e) => setVForm({ ...vForm, visited_on: e.target.value })} className="input-field max-w-xs" />
             </div>
+
+            {/* ── Who went and signed ────────────────────────────────────
+                The signatures are on the paper. Nobody else has to log in
+                and re-enter the same findings — they never would, and if
+                somebody did it on their behalf that is worse than not
+                recording it. Naming them is enough. */}
+            <div className="border border-dp-outline-variant rounded-lg p-3.5 mb-5">
+              <p className="font-sans text-[13px] font-bold text-dp-on-surface mb-1">{t('wz.v.whoSigned')}</p>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">{t('wz.v.whoSignedHelp')}</p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 mb-3">
+                {committee.map((m) => (
+                  <label key={m.id} className="flex items-center gap-2 cursor-pointer font-sans text-[13px]">
+                    <input type="checkbox" checked={coVerifiers.includes(m.id)}
+                      onChange={(e) => setCoVerifiers(e.target.checked
+                        ? [...coVerifiers, m.id]
+                        : coVerifiers.filter((x) => x !== m.id))}
+                      className="accent-dp-secondary" />
+                    {m.name}
+                  </label>
+                ))}
+              </div>
+
+              <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.v.otherSigners')}</label>
+              <input value={coNames} onChange={(e) => setCoNames(e.target.value)}
+                placeholder={t('wz.v.otherSignersPlaceholder')} className="input-field !py-2" />
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('wz.v.otherSignersHint')}</p>
+
+              <div className={`mt-3 rounded-lg px-3 py-2 font-sans text-[12.5px] font-semibold ${1 + coVerifiers.length + (coNames.trim() ? coNames.split(',').filter((x) => x.trim()).length : 0) >= minVerifiers ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'}`}>
+                {1 + coVerifiers.length + (coNames.trim() ? coNames.split(',').filter((x) => x.trim()).length : 0)} {t('wz.v.ofRequired')} {minVerifiers}
+              </div>
+            </div>
+
+            {/* ── The documents the family uploaded ──────────────────────
+                They send a photograph; this is where somebody confirms they
+                held the original. The difference between the two is most of
+                what a visit is for. */}
+            {docsOf(verifyTarget.id).length > 0 && (
+              <div className="border border-dp-outline-variant rounded-lg p-3.5 mb-5">
+                <p className="font-sans text-[13px] font-bold text-dp-on-surface mb-1">{t('wz.v.documents')}</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">{t('wz.v.documentsHelp')}</p>
+
+                <div className="space-y-2">
+                  {docsOf(verifyTarget.id).map((d) => (
+                    <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-dp-outline-variant pb-2">
+                      <div className="min-w-0">
+                        <a href={d.url} target="_blank" rel="noopener noreferrer"
+                          className="font-sans text-[13px] font-semibold text-dp-secondary hover:underline">
+                          {t(`pwz.doc.${d.kind}`)} ↗
+                        </a>
+                        {d.original_seen && d.seen_at && (
+                          <span className="block font-sans text-[11px] text-emerald-700">
+                            {t('wz.v.seenOn')} {new Date(d.seen_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                          </span>
+                        )}
+                      </div>
+                      <button onClick={() => markDocSeen(d.id, !d.original_seen)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-sans text-[12px] font-bold cursor-pointer transition-all ${d.original_seen ? 'bg-emerald-600 text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant hover:border-emerald-500'}`}>
+                        <ClipboardCheck size={13} /> {d.original_seen ? t('wz.v.originalSeen') : t('wz.v.markSeen')}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2.5">
+                  {docsOf(verifyTarget.id).filter((d) => d.original_seen).length} / {docsOf(verifyTarget.id).length} {t('wz.v.originalsSeen')}
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2.5 mb-5">
               {CHECKS.map(([ansKey, noteKey, labelKey]) => (

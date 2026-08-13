@@ -1090,14 +1090,29 @@ export default function PortalWazifaPage() {
           <div className="border-b border-black h-6 mb-2" />
           <div className="border-b border-black h-6" />
 
-          <div className="grid grid-cols-2 gap-8 mt-6">
+          {/* Three signature lines, because two or more members go together
+              and all sign the same sheet. Only one of them will later type it
+              up; the others are named on the screen rather than asked to log
+              in and repeat themselves. */}
+          <p className="font-sans text-[11px] mt-5 mb-2 font-semibold">{t('pwz.v.signBlock')}</p>
+          <div className="grid grid-cols-3 gap-4">
+            {[1, 2, 3].map((n) => (
+              <div key={n}>
+                <div className="border-b border-black h-7" />
+                <p className="font-sans text-[10.5px] mt-1">{t('pwz.v.signVerifier')} {n}</p>
+                <div className="border-b border-black h-6 mt-3" />
+                <p className="font-sans text-[10.5px] mt-1">{t('pwz.v.printName')}</p>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-4 mt-4">
             <div>
-              <div className="border-b border-black h-7" />
-              <p className="font-sans text-[11px] mt-1">{t('pwz.v.signVerifier')}</p>
+              <div className="border-b border-black h-6" />
+              <p className="font-sans text-[10.5px] mt-1">{t('pwz.v.signDate')}</p>
             </div>
             <div>
-              <div className="border-b border-black h-7" />
-              <p className="font-sans text-[11px] mt-1">{t('pwz.v.signDate')}</p>
+              <div className="border-b border-black h-6" />
+              <p className="font-sans text-[10.5px] mt-1">{t('pwz.v.enteredBy')}</p>
             </div>
           </div>
         </div>

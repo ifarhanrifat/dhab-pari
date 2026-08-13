@@ -1874,6 +1874,24 @@ export const messages: Record<Locale, Record<string, string>> = {
     'zc.notOurRate': 'these are not our figures, and you can enter the Chakwal sarafa rate instead',
     'zc.ratesUnavailable': 'Today’s gold and silver rates could not be fetched. Enter them yourself below — any jeweller in Chakwal will tell you the rate.',
     'zc.crossCheck': 'Cross-check your figure with:',
+
+    // ── Co-verifiers and document sighting ───────────────────────────────
+    'pwz.v.signBlock': 'Signatures of the members who carried out this verification',
+    'pwz.v.printName': 'Name in block letters',
+    'pwz.v.enteredBy': 'Entered into the system by',
+    'wz.v.whoSigned': 'Who went and signed the sheet',
+    'wz.v.whoSignedHelp': 'Tick everyone who visited the house and signed the printed form. Only one person types it up — the others do not need to log in.',
+    'wz.v.otherSigners': 'Anyone else who signed',
+    'wz.v.otherSignersPlaceholder': 'e.g. Imam sahib, Master Ashraf',
+    'wz.v.otherSignersHint': 'Separate names with a comma. For people who signed but have no login — an imam, a schoolteacher, a neighbouring elder.',
+    'wz.v.ofRequired': 'signed — the committee requires',
+    'wz.v.documents': 'Documents the family uploaded',
+    'wz.v.documentsHelp': 'They sent a photograph. Tick the ones whose original you actually held at the house.',
+    'wz.v.markSeen': 'Mark original seen',
+    'wz.v.originalSeen': 'Original seen',
+    'wz.v.seenOn': 'seen',
+    'wz.v.originalsSeen': 'originals seen',
+    'pwz.status.verified': 'Verified — awaiting the committee',
   },
 
   ur: {
@@ -3735,6 +3753,24 @@ export const messages: Record<Locale, Record<string, string>> = {
     'zc.notOurRate': 'یہ ہمارے اپنے اعداد نہیں، آپ چکوال صرافہ کے نرخ بھی درج کر سکتے ہیں',
     'zc.ratesUnavailable': 'آج کے سونے چاندی کے نرخ حاصل نہ ہو سکے۔ نیچے خود درج کریں — چکوال کا کوئی بھی صرافہ بتا دے گا۔',
     'zc.crossCheck': 'اپنا حساب یہاں سے بھی ملا لیں:',
+
+    // ── Co-verifiers and document sighting ───────────────────────────────
+    'pwz.v.signBlock': 'تصدیق کرنے والے ارکان کے دستخط',
+    'pwz.v.printName': 'نام صاف الفاظ میں',
+    'pwz.v.enteredBy': 'سسٹم میں درج کرنے والا',
+    'wz.v.whoSigned': 'کون گیا اور شیٹ پر دستخط کیے',
+    'wz.v.whoSignedHelp': 'ان تمام ارکان پر نشان لگائیں جو گھر گئے اور پرنٹ شدہ فارم پر دستخط کیے۔ صرف ایک شخص اسے سسٹم میں درج کرتا ہے — باقی کو لاگ اِن کرنے کی ضرورت نہیں۔',
+    'wz.v.otherSigners': 'کوئی اور جس نے دستخط کیے',
+    'wz.v.otherSignersPlaceholder': 'مثلاً امام صاحب، ماسٹر اشرف',
+    'wz.v.otherSignersHint': 'ناموں کے درمیان کوما لگائیں۔ ان کے لیے جنہوں نے دستخط کیے مگر ان کا لاگ اِن نہیں — امام، ماسٹر صاحب، محلے کا بزرگ۔',
+    'wz.v.ofRequired': 'دستخط — کمیٹی کی شرط',
+    'wz.v.documents': 'خاندان کی جمع کرائی گئی دستاویزات',
+    'wz.v.documentsHelp': 'انہوں نے تصویر بھیجی۔ جن کی اصل دستاویز آپ نے گھر پر خود دیکھی، ان پر نشان لگائیں۔',
+    'wz.v.markSeen': 'اصل دیکھی — نشان لگائیں',
+    'wz.v.originalSeen': 'اصل دیکھی',
+    'wz.v.seenOn': 'دیکھی گئی',
+    'wz.v.originalsSeen': 'اصل دستاویزات دیکھی گئیں',
+    'pwz.status.verified': 'تصدیق شدہ — کمیٹی کے فیصلے کا انتظار',
   },
 }
 
