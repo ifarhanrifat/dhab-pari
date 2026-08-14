@@ -49,6 +49,13 @@ interface AcademicRow {
   obtained_marks: number; total_marks: number
 }
 
+interface Dues {
+  awards: { award_id: string; academic_year: string; is_loan: boolean
+    position: { outstanding: number; next_due_on: string | null; overdue: number } }[]
+  due_soon: { id: string; due_on: string; amount: number; status: string }[]
+  total_outstanding: number
+}
+
 const LEVELS = ['intermediate', 'diploma', 'bachelors', 'masters', 'technical_certificate', 'medical', 'engineering', 'other'] as const
 const EXAMS = ['matric', 'fsc', 'fa', 'ics', 'icom', 'dae', 'ba', 'bsc', 'bs', 'bcom', 'masters', 'other'] as const
 const RELATIONS = ['father', 'mother', 'brother', 'sister', 'spouse', 'son', 'daughter', 'grandparent', 'other'] as const
@@ -81,6 +88,7 @@ export default function PortalWazifaPage() {
 
   const [decisions, setDecisions] = useState<Decision[]>([])
   const [loans, setLoans] = useState<Loan[]>([])
+  const [dues, setDues] = useState<Dues | null>(null)
   const [reapplyOf, setReapplyOf] = useState<Decision | null>(null)
   const [summary, setSummary] = useState<Record<string, number>>({})
   const [busy, setBusy] = useState(false)
@@ -120,14 +128,16 @@ export default function PortalWazifaPage() {
   const [academics, setAcademics] = useState<AcademicRow[]>([{ ...emptyAcademicRow }])
 
   const load = useCallback(async () => {
-    const [{ data: sum }, { data: dec }, { data: lns }, { data: terms }, { data: saved }] = await Promise.all([
+    const [{ data: sum }, { data: dec }, { data: lns }, { data: terms }, { data: saved }, { data: due }] = await Promise.all([
       supabase.rpc('public_wazifa_summary'),
       supabase.rpc('my_wazifa_decisions'),
       supabase.rpc('my_wazifa_loans'),
       supabase.from('site_settings').select('key, value')
         .in('key', ['wazifa_loan_terms_ur', 'wazifa_loan_terms_en']),
       supabase.rpc('my_wazifa_application'),
+      supabase.rpc('my_wazifa_dues'),
     ])
+    setDues((due ?? null) as Dues | null)
 
     if (saved) {
       const a = saved.application as Record<string, unknown>
@@ -467,6 +477,52 @@ export default function PortalWazifaPage() {
           </div>
         ))}
       </div>
+
+      {/* ── One line that speaks to the person, not the process ─────────
+          Everything else on this page is status: submitted, screening,
+          approved, an amount, a due date. This is the one place that says
+          why any of it matters — and it changes with where the student
+          actually stands, because the same sentence read every visit stops
+          meaning anything by the third time. A due instalment is framed as
+          the next student's turn, never as a debt collector's line — the
+          whole point of qarz-e-hasana is that repaying it is what lets it
+          reach someone else. */}
+      {(() => {
+        const soonest = dues?.due_soon?.[0]
+        const overdueCount = dues?.awards?.reduce((s, a) => s + (a.position?.overdue ?? 0), 0) ?? 0
+        const hasActiveAward = (dues?.awards?.length ?? 0) > 0
+        const pendingDecision = decisions.find((d) => ['submitted', 'screening', 'interview'].includes(d.status))
+        const declinedReapply = decisions.find((d) => d.status === 'declined' && d.can_reapply)
+
+        let mottoUr = '', motto = '', tone = 'bg-dp-primary'
+        if (soonest) {
+          tone = overdueCount > 0 ? 'bg-amber-700' : 'bg-dp-primary'
+          mottoUr = t('pwz.mood.dueUr')
+            .replace('{amt}', fmt(soonest.amount)).replace('{date}', new Date(soonest.due_on).toLocaleDateString())
+          motto = t('pwz.mood.due')
+            .replace('{amt}', fmt(soonest.amount)).replace('{date}', new Date(soonest.due_on).toLocaleDateString())
+        } else if (hasActiveAward) {
+          mottoUr = t('pwz.mood.activeUr'); motto = t('pwz.mood.active')
+        } else if (pendingDecision) {
+          mottoUr = t('pwz.mood.pendingUr'); motto = t('pwz.mood.pending')
+        } else if (declinedReapply) {
+          mottoUr = t('pwz.mood.declinedUr'); motto = t('pwz.mood.declined')
+        } else if (!savedId) {
+          mottoUr = t('pwz.mood.inviteUr'); motto = t('pwz.mood.invite')
+        } else {
+          return null
+        }
+
+        return (
+          <div className={`${tone} text-white rounded-lg px-5 py-4 mb-6 print:hidden`}>
+            <p className="font-sans text-[17px] leading-[2] font-bold"
+              style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+              {mottoUr}
+            </p>
+            <p className="font-sans text-[13.5px] leading-relaxed opacity-90 mt-1">{motto}</p>
+          </div>
+        )
+      })()}
 
       {/* ── What the committee decided ───────────────────────────────── */}
       {decisions.length > 0 && (

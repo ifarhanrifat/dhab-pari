@@ -2331,6 +2331,18 @@ export const messages: Record<Locale, Record<string, string>> = {
     'wz.startRenewal': 'Start renewal',
     'wz.startRenewalConfirm': 'Start a renewal for the new academic year? A draft application is created from this one — the student edits what changed and it goes through verification and a decision the same as any other application.',
     'wz.ok.renewalStarted': 'Renewal started as a new draft application.',
+
+    // Emotional notifications — the wazifa portal tab (task 314)
+    'pwz.mood.dueUr': 'Rs {amt} کی قسط {date} کو واجب الادا ہے — یہی رقم اگلے طالبِ علم کا راستہ کھولتی ہے۔',
+    'pwz.mood.due': 'Rs {amt} is due on {date}. This is the same rupee that will carry the next student — thank you for keeping it moving.',
+    'pwz.mood.activeUr': 'کوئی آپ پر یقین رکھتا ہے۔ پڑھتے رہیں — یہ خواب اب اکیلے آپ کا نہیں، ہم سب کا ہے۔',
+    'pwz.mood.active': 'Somebody believed you could do this. Keep going — this dream stopped being yours alone the day the committee signed off on it.',
+    'pwz.mood.pendingUr': 'آپ کی درخواست کمیٹی کے پاس ہے۔ تھوڑا انتظار کریں — کوئی آپ کی کہانی پڑھ رہا ہے۔',
+    'pwz.mood.pending': 'Your application is with the committee. It takes a little time because a real person is reading it, not a form clearing itself.',
+    'pwz.mood.declinedUr': 'یہ سال نہیں تو کوئی بات نہیں — دوبارہ کوشش کریں، دروازہ ابھی بند نہیں ہوا۔',
+    'pwz.mood.declined': 'Not this year, but the door is not closed. Circumstances change, and so can the answer — you may apply again.',
+    'pwz.mood.inviteUr': 'میٹرک اچھے نمبروں سے پاس کیا اور آگے پڑھنا چاہتے ہیں؟ صرف فیس کی کمی آپ کو نہیں روکے گی۔',
+    'pwz.mood.invite': 'Passed matric with good marks and want to keep going? A missing admission fee should never be the reason a bright student stops.',
   },
 
   ur: {
@@ -4649,6 +4661,18 @@ export const messages: Record<Locale, Record<string, string>> = {
     'wz.startRenewal': 'تجدید شروع کریں',
     'wz.startRenewalConfirm': 'نئے تعلیمی سال کے لیے تجدید شروع کریں؟ اسی درخواست سے ایک نیا مسودہ بنایا جائے گا — طالب علم جو تبدیل ہوا اسے درست کرے گا اور یہ کسی بھی دوسری درخواست کی طرح تصدیق اور فیصلے کے مرحلے سے گزرے گی۔',
     'wz.ok.renewalStarted': 'تجدید ایک نئے مسودے کے طور پر شروع ہو گئی۔',
+
+    // Emotional notifications — the wazifa portal tab (task 314)
+    'pwz.mood.dueUr': 'Rs {amt} کی قسط {date} کو واجب الادا ہے — یہی رقم اگلے طالبِ علم کا راستہ کھولتی ہے۔',
+    'pwz.mood.due': '{date} کو {amt} روپے واجب الادا ہیں۔ یہی رقم اگلے طالبِ علم تک پہنچے گی — اسے جاری رکھنے کا شکریہ۔',
+    'pwz.mood.activeUr': 'کوئی آپ پر یقین رکھتا ہے۔ پڑھتے رہیں — یہ خواب اب اکیلے آپ کا نہیں، ہم سب کا ہے۔',
+    'pwz.mood.active': 'کوئی آپ پر یقین رکھتا ہے۔ پڑھتے رہیں — جس دن کمیٹی نے منظوری دی، یہ خواب اکیلے آپ کا نہ رہا۔',
+    'pwz.mood.pendingUr': 'آپ کی درخواست کمیٹی کے پاس ہے۔ تھوڑا انتظار کریں — کوئی آپ کی کہانی پڑھ رہا ہے۔',
+    'pwz.mood.pending': 'آپ کی درخواست کمیٹی کے پاس ہے۔ اس میں کچھ وقت لگتا ہے کیونکہ ایک حقیقی شخص اسے پڑھ رہا ہے، خودکار فارم نہیں۔',
+    'pwz.mood.declinedUr': 'یہ سال نہیں تو کوئی بات نہیں — دوبارہ کوشش کریں، دروازہ ابھی بند نہیں ہوا۔',
+    'pwz.mood.declined': 'اس سال نہیں، مگر دروازہ بند نہیں ہوا۔ حالات بدلتے ہیں، اور فیصلہ بھی — آپ دوبارہ درخواست دے سکتے ہیں۔',
+    'pwz.mood.inviteUr': 'میٹرک اچھے نمبروں سے پاس کیا اور آگے پڑھنا چاہتے ہیں؟ صرف فیس کی کمی آپ کو نہیں روکے گی۔',
+    'pwz.mood.invite': 'اچھے نمبروں سے میٹرک پاس کیا اور آگے پڑھنا چاہتے ہیں؟ داخلہ فیس کی کمی کبھی کسی قابل طالب علم کے رکنے کی وجہ نہیں بننی چاہیے۔',
   },
 }
 
