@@ -5,8 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import {
-  Users, Phone, AlertTriangle, Check, X, Wallet, CalendarCheck,
-  HandCoins, RotateCcw, Info,
+  Users, Phone, AlertTriangle, Check, X, Wallet, CalendarCheck, HandCoins, RotateCcw, Info, Plus, Pencil, Megaphone,
 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
@@ -36,7 +35,7 @@ interface Position {
   pool_id: string; code: string; name: string; name_ur: string | null
   required: number; committed: number; received_this_month: number
   committee_covered_this_month: number; donors: number; coverage_percent: number
-  gap: number; suggested_share: number; donors_needed: number
+  gap: number; suggested_share: number; min_share: number; donors_needed: number
   reserve_months: number; reserve_target_months: number; is_short: boolean
 }
 
@@ -79,6 +78,16 @@ export default function AdminPoolsPage() {
   const [covering, setCovering] = useState<ShortMonth | null>(null)
   const [coverAmount, setCoverAmount] = useState(0)
   const [coverNote, setCoverNote] = useState('')
+
+  // Editing the one number that is meant to move, and creating a pool for a
+  // cost that is not a child, a student or a sadqa object.
+  const [editing, setEditing] = useState<Position | null>(null)
+  const [editForm, setEditForm] = useState({
+    name: '', suggested_share: 0, min_share: 0, reserve_months: 0,
+    manual_target: '' as string, clear_manual: false,
+  })
+  const [creating, setCreating] = useState(false)
+  const [createForm, setCreateForm] = useState({ name: '', name_ur: '', monthly: 0, share: 1000, description: '' })
 
   const [paying, setPaying] = useState<{ pool_id: string; pool: string } | null>(null)
   const [commitments, setCommitments] = useState<{ id: string; donor_name: string; monthly_amount_pkr: number; status: string }[]>([])
@@ -128,6 +137,63 @@ export default function AdminPoolsPage() {
     load()
   }
 
+  const openEdit = (p: Position) => {
+    setEditForm({
+      name: p.name, suggested_share: p.suggested_share, min_share: p.min_share ?? 500,
+      reserve_months: p.reserve_target_months ?? 2, manual_target: '', clear_manual: false,
+    })
+    setEditing(p)
+  }
+
+  const saveEdit = async () => {
+    if (!editing) return
+    setBusy(true)
+    const { error } = await supabase.rpc('pool_update', {
+      p_pool_id: editing.pool_id,
+      p_name: editForm.name || null,
+      p_suggested_share: editForm.suggested_share || null,
+      p_min_share: editForm.min_share || null,
+      p_reserve_months: editForm.reserve_months || null,
+      p_manual_monthly_target: editForm.manual_target === '' ? null : Number(editForm.manual_target),
+      p_clear_manual_target: editForm.clear_manual,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.saved'))
+    setEditing(null)
+    load()
+  }
+
+  const createPool = async () => {
+    setBusy(true)
+    const { error } = await supabase.rpc('pool_create', {
+      p_name: createForm.name,
+      p_monthly_target: createForm.monthly,
+      p_suggested_share: createForm.share,
+      p_name_ur: createForm.name_ur || null,
+      p_description: createForm.description || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.created'))
+    setCreating(false)
+    setCreateForm({ name: '', name_ur: '', monthly: 0, share: 1000, description: '' })
+    load()
+  }
+
+  // The daily job, on demand. It is idempotent, so pressing it is safe — and
+  // without it the only way to see an appeal go out is to wait until morning.
+  const runAppeal = async () => {
+    setBusy(true)
+    const { data, error } = await supabase.rpc('pool_daily_appeal')
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    const r = data as { pools_appealed: number; notifications_sent: number }
+    toast.success(t('pool.appealRan')
+      .replace('{pools}', String(r?.pools_appealed ?? 0))
+      .replace('{n}', String(r?.notifications_sent ?? 0)))
+  }
+
   const openPay = async (pool_id: string, pool: string) => {
     const { data } = await supabase.from('pool_commitments')
       .select('id, donor_name, monthly_amount_pkr, status')
@@ -166,10 +232,22 @@ export default function AdminPoolsPage() {
             {t('pool.adminBlurb')}
           </p>
         </div>
-        <button onClick={closeMonth} disabled={busy}
-          className="bg-dp-primary text-white font-sans text-[13px] font-bold px-4 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2">
-          <CalendarCheck size={16} /> {t('pool.closeMonth')}
-        </button>
+        <div className="flex flex-wrap gap-2.5">
+          <button onClick={() => setCreating(true)}
+            className="border border-dp-outline-variant font-sans text-[13px] font-bold px-4 py-2.5 rounded-lg text-dp-on-surface hover:border-dp-secondary flex items-center gap-2">
+            <Plus size={16} /> {t('pool.newPool')}
+          </button>
+          {/* Idempotent, so pressing it is safe. Without it the only way to
+              see an appeal go out is to wait for tomorrow's job. */}
+          <button onClick={runAppeal} disabled={busy}
+            className="border border-dp-outline-variant font-sans text-[13px] font-bold px-4 py-2.5 rounded-lg text-dp-on-surface hover:border-dp-secondary disabled:opacity-50 flex items-center gap-2">
+            <Megaphone size={16} /> {t('pool.sendAppeal')}
+          </button>
+          <button onClick={closeMonth} disabled={busy}
+            className="bg-dp-primary text-white font-sans text-[13px] font-bold px-4 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-2">
+            <CalendarCheck size={16} /> {t('pool.closeMonth')}
+          </button>
+        </div>
       </div>
 
       {/* ── Where each pool stands ─────────────────────────────────────── */}
@@ -221,10 +299,16 @@ export default function AdminPoolsPage() {
               </p>
             )}
 
-            <button onClick={() => openPay(p.pool_id, p.name)}
-              className="font-sans text-[12.5px] font-bold text-dp-secondary hover:underline flex items-center gap-1.5">
-              <HandCoins size={14} /> {t('pool.recordPayment')}
-            </button>
+            <div className="flex flex-wrap items-center gap-4">
+              <button onClick={() => openPay(p.pool_id, p.name)}
+                className="font-sans text-[12.5px] font-bold text-dp-secondary hover:underline flex items-center gap-1.5">
+                <HandCoins size={14} /> {t('pool.recordPayment')}
+              </button>
+              <button onClick={() => openEdit(p)}
+                className="font-sans text-[12.5px] font-bold text-dp-on-surface-variant hover:underline flex items-center gap-1.5">
+                <Pencil size={13} /> {t('pool.edit')}
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -466,6 +550,134 @@ export default function AdminPoolsPage() {
                   className="px-5 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] text-dp-on-surface">
                   {t('common.cancel')}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Editing a pool ─────────────────────────────────────────────
+          The suggested share is the number meant to move: as the pool grows,
+          the next person is asked for less. Nothing here can touch what a
+          donor has already agreed to — that promise is the whole design. */}
+      {editing && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-dp-primary text-white px-5 py-3.5 flex items-center justify-between">
+              <h3 className="font-heading text-[15px] font-bold">{t('pool.editTitle')}</h3>
+              <button onClick={() => setEditing(null)}><X size={18} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="font-sans text-[12.5px] font-bold text-dp-primary block mb-1.5">{t('pool.f.name')}</label>
+                <input value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="input-field" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-sans text-[12.5px] font-bold text-dp-primary block mb-1.5">{t('pool.f.suggestedShare')}</label>
+                  <input type="number" min={1} value={editForm.suggested_share || ''}
+                    onChange={(e) => setEditForm({ ...editForm, suggested_share: +e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className="font-sans text-[12.5px] font-bold text-dp-primary block mb-1.5">{t('pool.f.minShare')}</label>
+                  <input type="number" min={1} value={editForm.min_share || ''}
+                    onChange={(e) => setEditForm({ ...editForm, min_share: +e.target.value })} className="input-field" />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-sans text-[12.5px] font-bold text-dp-primary block mb-1.5">{t('pool.f.reserveMonths')}</label>
+                <input type="number" min={0} step={0.5} value={editForm.reserve_months || ''}
+                  onChange={(e) => setEditForm({ ...editForm, reserve_months: +e.target.value })} className="input-field" />
+              </div>
+
+              <div>
+                <label className="font-sans text-[12.5px] font-bold text-dp-primary block mb-1.5">{t('pool.f.manualTarget')}</label>
+                <input type="number" min={0} value={editForm.manual_target}
+                  disabled={editForm.clear_manual}
+                  onChange={(e) => setEditForm({ ...editForm, manual_target: e.target.value })}
+                  placeholder={String(editing.required)} className="input-field disabled:opacity-50" />
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">
+                  {t('pool.f.manualTargetHint').replace('{amt}', fmt(editing.required))}
+                </p>
+                <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                  <input type="checkbox" checked={editForm.clear_manual}
+                    onChange={(e) => setEditForm({ ...editForm, clear_manual: e.target.checked })}
+                    className="w-4 h-4 accent-[color:var(--dp-secondary)]" />
+                  <span className="font-sans text-[12.5px] text-dp-on-surface">{t('pool.f.useComputed')}</span>
+                </label>
+              </div>
+
+              <div className="flex gap-2.5">
+                <button onClick={saveEdit} disabled={busy}
+                  className="flex-1 bg-dp-primary text-white font-sans text-[13.5px] font-bold py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50">
+                  {busy ? t('common.saving') : t('common.save')}
+                </button>
+                <button onClick={() => setEditing(null)}
+                  className="px-5 border border-dp-outline-variant rounded-lg font-sans text-[13.5px]">{t('common.cancel')}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── A pool for a cost that is not a child or a student ─────────── */}
+      {creating && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-dp-primary text-white px-5 py-3.5 flex items-center justify-between">
+              <h3 className="font-heading text-[15px] font-bold">{t('pool.newTitle')}</h3>
+              <button onClick={() => setCreating(false)}><X size={18} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">
+                {t('pool.newBlurb')}
+              </p>
+              <div>
+                <label className="font-sans text-[12.5px] font-bold text-dp-primary block mb-1.5">{t('pool.f.name')}</label>
+                <input value={createForm.name}
+                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  placeholder={t('pool.f.namePlaceholder')} className="input-field" />
+              </div>
+              <div>
+                <label className="font-sans text-[12.5px] font-bold text-dp-primary block mb-1.5">{t('pool.f.nameUr')}</label>
+                <input value={createForm.name_ur}
+                  onChange={(e) => setCreateForm({ ...createForm, name_ur: e.target.value })}
+                  className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-sans text-[12.5px] font-bold text-dp-primary block mb-1.5">{t('pool.f.monthlyCost')}</label>
+                  <input type="number" min={1} value={createForm.monthly || ''}
+                    onChange={(e) => setCreateForm({ ...createForm, monthly: +e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className="font-sans text-[12.5px] font-bold text-dp-primary block mb-1.5">{t('pool.f.suggestedShare')}</label>
+                  <input type="number" min={1} value={createForm.share || ''}
+                    onChange={(e) => setCreateForm({ ...createForm, share: +e.target.value })} className="input-field" />
+                </div>
+              </div>
+              {createForm.monthly > 0 && createForm.share > 0 && (
+                <p className="font-sans text-[12.5px] bg-dp-surface-container-low rounded-lg px-3.5 py-2.5 text-dp-on-surface">
+                  {t('pool.newMath')
+                    .replace('{n}', String(Math.ceil(createForm.monthly / Math.max(createForm.share, 1))))
+                    .replace('{amt}', fmt(createForm.share))}
+                </p>
+              )}
+              <div>
+                <label className="font-sans text-[12.5px] font-bold text-dp-primary block mb-1.5">{t('pool.f.description')}</label>
+                <textarea value={createForm.description} rows={2}
+                  onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })} className="input-field" />
+              </div>
+              <div className="flex gap-2.5">
+                <button onClick={createPool} disabled={busy || !createForm.name.trim() || createForm.monthly <= 0}
+                  className="flex-1 bg-dp-primary text-white font-sans text-[13.5px] font-bold py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50">
+                  {busy ? t('common.saving') : t('pool.createIt')}
+                </button>
+                <button onClick={() => setCreating(false)}
+                  className="px-5 border border-dp-outline-variant rounded-lg font-sans text-[13.5px]">{t('common.cancel')}</button>
               </div>
             </div>
           </div>
