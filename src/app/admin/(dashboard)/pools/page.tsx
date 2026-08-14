@@ -62,6 +62,11 @@ interface Queue {
   covers: Cover[]
 }
 
+interface Announcement {
+  id: string; pool: string; donor_name: string | null; donor_phone: string | null
+  amount: number; is_one_time: boolean; month: string; proof_url: string | null; announced_at: string
+}
+
 const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 const monthName = (d: string) =>
   new Date(d).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
@@ -93,16 +98,42 @@ export default function AdminPoolsPage() {
   const [commitments, setCommitments] = useState<{ id: string; donor_name: string; monthly_amount_pkr: number; status: string }[]>([])
   const [payForm, setPayForm] = useState({ commitment_id: '', amount: 0, method: 'cash' })
 
+  // What donors have told us they are sending, not yet matched against the
+  // bank statement. This is the accountant's actual daily task now — one tap
+  // to confirm turns it into a real donation, ledger entry and (for Kafalat)
+  // a credit against the measuring account, all in one place.
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
+
   const load = useCallback(async () => {
     const { data: list } = await supabase.from('support_pools').select('id').eq('is_active', true)
     const positions = await Promise.all(
       (list ?? []).map((p: { id: string }) => supabase.rpc('pool_position', { p_pool_id: p.id })),
     )
     const { data: q } = await supabase.rpc('pool_shortfall_queue')
+    const { data: ann } = await supabase.rpc('pool_announcement_queue')
     setPools(positions.map((r) => r.data as Position).filter(Boolean))
     setQueue((q ?? null) as Queue | null)
+    setAnnouncements((ann ?? []) as Announcement[])
     setLoading(false)
   }, [supabase])
+
+  const confirmAnnouncement = async (id: string) => {
+    setBusy(true)
+    const { error } = await supabase.rpc('pool_confirm_payment', { p_payment_id: id })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.ok.confirmed'))
+    load()
+  }
+
+  const declineAnnouncement = async (id: string) => {
+    const reason = prompt(t('pool.declineReasonPrompt'))
+    if (!reason) return
+    const { error } = await supabase.rpc('pool_decline_announcement', { p_payment_id: id, p_reason: reason })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.ok.declined'))
+    load()
+  }
 
   useEffect(() => { load() }, [load])
 
@@ -312,6 +343,78 @@ export default function AdminPoolsPage() {
           </div>
         ))}
       </div>
+
+      {/* ── Announced, awaiting confirmation ─────────────────────────────
+          The actual daily task: match each against the bank statement or
+          the slip attached, then tap. That single tap is the moment a
+          donor's word becomes a real donation, a ledger entry, and — for
+          Kafalat — a credit against the measuring account. Nothing here
+          moves until that happens. */}
+      {announcements.length > 0 && (
+        <section>
+          <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1 flex items-center gap-2">
+            <HandCoins size={18} /> {t('pool.queueTitle')}
+          </h2>
+          <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3 max-w-2xl">
+            {t('pool.queueBlurb')}
+          </p>
+          <div className="bg-white border border-dp-outline-variant rounded-lg overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-dp-surface-container-low">
+                <tr>
+                  {['pool.donor', 'pool.phone', 'pool.pool', 'pool.amount', 'pool.month', ''].map((k, i) => (
+                    <th key={i} className="font-sans text-[11.5px] font-bold text-dp-on-surface-variant uppercase tracking-wide px-4 py-2.5 text-start">
+                      {k && t(k)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {announcements.map((a) => (
+                  <tr key={a.id} className="border-t border-dp-outline-variant">
+                    <td className="px-4 py-2.5 font-sans text-[13px] text-dp-on-surface font-semibold">
+                      {a.donor_name ?? '—'}
+                      <span className="block font-sans text-[11px] font-normal text-dp-on-surface-variant">
+                        {a.is_one_time ? t('pool.oneTime') : t('pool.recurringMonthly')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 font-sans text-[13px]">
+                      {a.donor_phone ? (
+                        <a href={`tel:${a.donor_phone}`} className="text-dp-secondary hover:underline">{a.donor_phone}</a>
+                      ) : <span className="text-dp-on-surface-variant">—</span>}
+                    </td>
+                    <td className="px-4 py-2.5 font-sans text-[12.5px] text-dp-on-surface-variant">{a.pool}</td>
+                    <td className="px-4 py-2.5 font-sans text-[13px] font-semibold text-dp-on-surface">{fmt(a.amount)}</td>
+                    <td className="px-4 py-2.5 font-sans text-[12.5px] text-dp-on-surface-variant">
+                      {new Date(a.month).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-3 justify-end">
+                        {a.proof_url ? (
+                          <a href={a.proof_url} target="_blank" rel="noreferrer"
+                            className="font-sans text-[12px] font-bold text-dp-secondary hover:underline">
+                            {t('pool.viewProof')}
+                          </a>
+                        ) : (
+                          <span className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('pool.noProofYet')}</span>
+                        )}
+                        <button onClick={() => confirmAnnouncement(a.id)} disabled={busy}
+                          className="bg-dp-secondary text-white font-sans text-[12px] font-bold px-3 py-1.5 rounded-lg disabled:opacity-50">
+                          {t('pool.confirmThis')}
+                        </button>
+                        <button onClick={() => declineAnnouncement(a.id)}
+                          className="font-sans text-[12px] font-bold text-dp-on-surface-variant hover:underline">
+                          {t('pool.declineThis')}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* ── Who stopped paying ─────────────────────────────────────────── */}
       {queue && queue.lapsed.length > 0 && (

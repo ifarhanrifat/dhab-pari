@@ -39,7 +39,13 @@ interface Position {
 interface MyCommitment {
   id: string; pool: string; pool_ur: string | null; pool_id: string
   monthly_amount: number; status: string; funded_by: string; started_on: string
-  paid_this_month: number; months_given: number; total_given: number
+  paid_this_month: number; announced_this_month: number; months_given: number; total_given: number
+}
+
+interface MyAnnouncement {
+  id: string; pool_id: string; pool: string; pool_ur: string | null
+  amount: number; is_one_time: boolean; month: string; status: string
+  has_proof: boolean; show_name_publicly: boolean; announced_at: string
 }
 
 const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -65,8 +71,12 @@ function SupportBody() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
 
+  const [announcements, setAnnouncements] = useState<MyAnnouncement[]>([])
+
   const [joining, setJoining] = useState<Position | null>(null)
-  const [form, setForm] = useState({ monthly_amount: 2000, funded_by: 'sadqa', is_anonymous: false })
+  const [form, setForm] = useState({
+    monthly_amount: 2000, recurring: true, funded_by: 'sadqa', show_name_publicly: false,
+  })
   const [editing, setEditing] = useState<MyCommitment | null>(null)
   const [newAmount, setNewAmount] = useState(0)
 
@@ -77,31 +87,53 @@ function SupportBody() {
       (list ?? []).map((p: { id: string }) => supabase.rpc('pool_position', { p_pool_id: p.id })),
     )
     const { data: commitments } = await supabase.rpc('my_pool_commitments')
+    const { data: announced } = await supabase.rpc('my_pool_announcements')
     setPools(positions.map((r) => r.data as Position).filter(Boolean))
     setMine((commitments ?? []) as MyCommitment[])
+    setAnnouncements((announced ?? []) as MyAnnouncement[])
     setLoading(false)
   }, [supabase])
 
   useEffect(() => { load() }, [load])
 
   const openJoin = (p: Position) => {
-    setForm({ monthly_amount: p.suggested_share, funded_by: 'sadqa', is_anonymous: false })
+    setForm({ monthly_amount: p.suggested_share, recurring: true, funded_by: 'sadqa', show_name_publicly: false })
     setJoining(p)
   }
 
   const submitJoin = async () => {
     if (!joining) return
     setBusy(true)
-    const { error } = await supabase.rpc('pool_join', {
+    // Announces rather than joining outright — nothing is charged and nothing
+    // counts as received until the accountant confirms it against real money.
+    const { error } = await supabase.rpc('pool_announce', {
       p_pool_id: joining.pool_id,
-      p_monthly_amount: form.monthly_amount,
+      p_amount: form.monthly_amount,
+      p_recurring: form.recurring,
       p_funded_by: form.funded_by,
-      p_is_anonymous: form.is_anonymous,
+      p_show_name_publicly: form.show_name_publicly,
     })
     setBusy(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('pool.joined'))
+    toast.success(t('pool.announced'))
     setJoining(null)
+    load()
+  }
+
+  const withdrawAnnouncement = async (id: string) => {
+    if (!confirm(t('pool.withdrawConfirm'))) return
+    const { error } = await supabase.rpc('pool_cancel_announcement', { p_payment_id: id })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.withdrawn'))
+    load()
+  }
+
+  const attachProof = async (id: string) => {
+    const url = prompt(t('pool.attachProof') + ' — ' + t('es.f.proofUrl') + ':')
+    if (!url) return
+    const { error } = await supabase.rpc('pool_attach_proof', { p_payment_id: id, p_proof_url: url })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.proofAttached'))
     load()
   }
 
@@ -330,6 +362,15 @@ function SupportBody() {
                   {t(`pool.status.${c.status}`)}
                 </span>
 
+                {/* This month's own announcement, if there is one open — the
+                    donor's evidence that they said something, before the
+                    accountant has acted on it. */}
+                {c.announced_this_month > 0 && (
+                  <span className="font-sans text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700">
+                    {t('pool.status.announced')} · {fmt(c.announced_this_month)}
+                  </span>
+                )}
+
                 {c.status !== 'ended' && (
                   <div className="flex gap-2">
                     <button
@@ -342,6 +383,53 @@ function SupportBody() {
                       {t('pool.stopGiving')}
                     </button>
                   </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── My announcements ─────────────────────────────────────────────
+          Recurring or one-time, this is the donor's own record of what they
+          said they would send — visible from the moment they announce it,
+          withdrawable right up until the accountant confirms it. */}
+      {announcements.filter((a) => a.status === 'announced').length > 0 && (
+        <section>
+          <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-3">
+            {t('pool.myAnnouncements')}
+          </h2>
+          <div className="space-y-2.5">
+            {announcements.filter((a) => a.status === 'announced').map((a) => (
+              <div key={a.id}
+                className="bg-white border border-amber-200 bg-amber-50/40 rounded-lg p-4 flex flex-wrap items-center gap-3">
+                <div className="flex-1 min-w-[180px]">
+                  <p className="font-heading text-[14px] font-bold text-dp-primary">
+                    {isUrdu && a.pool_ur ? a.pool_ur : a.pool}
+                  </p>
+                  <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">
+                    {a.is_one_time ? t('pool.oneTime') : t('pool.recurringMonthly')}
+                    {' · '}{new Date(a.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                  </p>
+                </div>
+                <p className="font-heading text-[16px] font-bold text-dp-primary">Rs {fmt(a.amount)}</p>
+                <span className="font-sans text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">
+                  {t('pool.awaitingConfirmation')}
+                </span>
+                <div className="flex gap-3">
+                  {!a.has_proof && (
+                    <button onClick={() => attachProof(a.id)}
+                      className="font-sans text-[12.5px] font-bold text-dp-secondary hover:underline">
+                      {t('pool.attachProof')}
+                    </button>
+                  )}
+                  <button onClick={() => withdrawAnnouncement(a.id)}
+                    className="font-sans text-[12.5px] text-dp-on-surface-variant hover:underline">
+                    {t('pool.withdraw')}
+                  </button>
+                </div>
+                {a.has_proof && (
+                  <p className="font-sans text-[11.5px] text-dp-secondary w-full">{t('pool.proofAttached')}</p>
                 )}
               </div>
             ))}
@@ -363,6 +451,27 @@ function SupportBody() {
                 {t('pool.joinBlurb').replace('{pool}',
                   isUrdu && joining.name_ur ? joining.name_ur : joining.name)}
               </p>
+
+              <div>
+                <label className="font-sans text-[12.5px] font-bold text-dp-primary block mb-1.5">
+                  {t('pool.announceTitle')}
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {([
+                    [true, 'pool.recurringMonthly'],
+                    [false, 'pool.oneTime'],
+                  ] as const).map(([val, lbl]) => (
+                    <button key={String(val)} type="button"
+                      onClick={() => setForm({ ...form, recurring: val })}
+                      className={`px-3.5 py-2.5 rounded-lg border-2 font-sans text-[13px] font-semibold transition-colors ${
+                        form.recurring === val
+                          ? 'border-dp-secondary bg-dp-secondary/5 text-dp-primary'
+                          : 'border-dp-outline-variant text-dp-on-surface-variant'}`}>
+                      {t(lbl)}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <div>
                 <label className="font-sans text-[12.5px] font-bold text-dp-primary block mb-1.5">
@@ -408,25 +517,33 @@ function SupportBody() {
                 </p>
               </div>
 
-              <label className="flex items-center gap-2.5 cursor-pointer">
-                <input type="checkbox" checked={form.is_anonymous}
-                  onChange={(e) => setForm({ ...form, is_anonymous: e.target.checked })}
-                  className="w-4 h-4 accent-[color:var(--dp-secondary)]" />
-                <span className="font-sans text-[13px] text-dp-on-surface">
-                  {t('pool.anonymous')}
+              {/* Opt-in, off by default. A pledge is never named here — only
+                  a donor who has actually paid, and only if they ticked
+                  this. */}
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input type="checkbox" checked={form.show_name_publicly}
+                  onChange={(e) => setForm({ ...form, show_name_publicly: e.target.checked })}
+                  className="w-4 h-4 accent-[color:var(--dp-secondary)] mt-0.5" />
+                <span>
+                  <span className="block font-sans text-[13px] text-dp-on-surface">
+                    {t('pool.showNamePublicly')}
+                  </span>
+                  <span className="block font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">
+                    {t('pool.showNamePubliclyHint')}
+                  </span>
                 </span>
               </label>
 
               <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3">
                 <p className="font-sans text-[12.5px] text-dp-on-surface leading-relaxed">
-                  {t('pool.joinTerms')}
+                  {t('pool.announceTerms')}
                 </p>
               </div>
 
               <div className="flex gap-2.5 pt-1">
                 <button onClick={submitJoin} disabled={busy}
                   className="flex-1 bg-dp-primary text-white font-sans text-[13.5px] font-bold py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50">
-                  {busy ? t('common.saving') : t('pool.confirmJoin')}
+                  {busy ? t('common.saving') : t('pool.confirmAnnounce')}
                 </button>
                 <button onClick={() => setJoining(null)}
                   className="px-5 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] text-dp-on-surface">

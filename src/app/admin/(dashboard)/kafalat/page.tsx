@@ -23,6 +23,12 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
  * rather than one number is what makes that visible.
  */
 
+interface Measuring {
+  academic_year: string; account_code: string
+  required: number; confirmed: number; outstanding: number
+  months_remaining: number; monthly_target: number; children_active: number
+}
+
 interface Child {
   id: string; code: string; first_name: string; first_name_ur: string | null
   full_name: string; guardian_name: string; guardian_phone: string | null
@@ -78,6 +84,7 @@ export default function KafalatPage() {
   const [shares, setShares] = useState<Share[]>([])
   const [nominations, setNominations] = useState<Nomination[]>([])
   const [summary, setSummary] = useState<Record<string, number>>({})
+  const [measuring, setMeasuring] = useState<Measuring | null>(null)
   const [schools, setSchools] = useState<{ id: string; name: string; kind: string; location: string; monthly_fee_pkr: number; months_charged: number }[]>([])
   // What the chosen school actually charges for the class typed in, so the
   // committee sees the real number before the package is built rather than
@@ -91,8 +98,29 @@ export default function KafalatPage() {
   const [packageChild, setPackageChild] = useState<Child | null>(null)
   const [editLines, setEditLines] = useState<{ category: string; annual_amount_pkr: number }[]>([])
 
+  // Ending a sponsorship reverses whatever of this year's requirement is
+  // still owed, so the measuring account stops being measured against a
+  // child who is no longer here — a raw status update would leave the pool
+  // asking donors for money against a child that already left.
+  const [endTarget, setEndTarget] = useState<Child | null>(null)
+  const [endForm, setEndForm] = useState({ status: 'graduated', reason: '' })
+
+  const endSponsorship = async () => {
+    if (!endTarget) return
+    setBusy(true)
+    const { error } = await supabase.rpc('kafalat_end_child', {
+      p_child_id: endTarget.id, p_status: endForm.status, p_reason: endForm.reason || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('kf.ok.ended'))
+    setEndTarget(null)
+    setEndForm({ status: 'graduated', reason: '' })
+    load()
+  }
+
   const load = useCallback(async () => {
-    const [{ data: cs }, { data: ls }, { data: ss }, { data: ns }, { data: sum }, { data: sch }] = await Promise.all([
+    const [{ data: cs }, { data: ls }, { data: ss }, { data: ns }, { data: sum }, { data: sch }, { data: meas }] = await Promise.all([
       supabase.from('kafalat_children').select('*').order('created_at', { ascending: false }),
       supabase.from('kafalat_package_lines').select('*'),
       supabase.from('kafalat_shares').select('*'),
@@ -100,6 +128,7 @@ export default function KafalatPage() {
       supabase.rpc('public_kafalat_summary'),
       supabase.from('schools').select('id, name, kind, location, monthly_fee_pkr, months_charged')
         .eq('is_active', true).order('location').order('name'),
+      supabase.rpc('kafalat_measuring_position'),
     ])
     setChildren((cs ?? []) as Child[])
     setLines((ls ?? []) as PackageLine[])
@@ -107,6 +136,7 @@ export default function KafalatPage() {
     setNominations((ns ?? []) as Nomination[])
     setSummary((sum ?? {}) as Record<string, number>)
     setSchools((sch ?? []) as { id: string; name: string; kind: string; location: string; monthly_fee_pkr: number; months_charged: number }[])
+    setMeasuring((meas ?? null) as Measuring | null)
     setLoading(false)
   }, [supabase])
 
@@ -191,11 +221,14 @@ export default function KafalatPage() {
 
   const activate = async (c: Child) => {
     if (!c.guardian_consent_signed) { toast.error(t('kf.err.consentFirst')); return }
-    const { error } = await supabase.from('kafalat_children')
-      .update({ status: 'active', joined_on: new Date().toISOString().slice(0, 10), updated_at: new Date().toISOString() })
-      .eq('id', c.id)
+    // Runs the rate card and posts the year's requirement to the measuring
+    // account in the same breath approval happens — a raw status update here
+    // would leave the pool figure exactly where it was before this child ever
+    // existed, the same class of bug the "cash received" button had.
+    const { data, error } = await supabase.rpc('kafalat_approve_child', { p_child_id: c.id })
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('kf.ok.activated'))
+    const r = data as { this_year_requirement: number; months_remaining: number }
+    toast.success(t('kf.ok.activated').replace('{amt}', fmt(r.this_year_requirement)).replace('{n}', String(r.months_remaining)))
     load()
   }
 
@@ -240,6 +273,38 @@ export default function KafalatPage() {
           </div>
         ))}
       </div>
+
+      {/* ── The measuring account ──────────────────────────────────────
+          What every registered child needs for the rest of this academic
+          year, against what has been confirmed so far — the same figure
+          Mushtarka Kafalat's pool divides among donors. A requirement
+          register, not a fund: it holds no money of its own. */}
+      {measuring && (
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h3 className="font-heading text-[14px] font-bold text-dp-primary">
+              {t('kf.measuring.title')} {measuring.academic_year}
+            </h3>
+            <span className="font-mono text-[11px] text-dp-on-surface-variant">{measuring.account_code}</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { v: fmt(measuring.required), l: t('kf.measuring.required') },
+              { v: fmt(measuring.confirmed), l: t('kf.measuring.confirmed') },
+              { v: fmt(measuring.outstanding), l: t('kf.measuring.outstanding') },
+              { v: fmt(measuring.monthly_target), l: t('kf.measuring.monthlyTarget') },
+            ].map((s) => (
+              <div key={s.l}>
+                <p className="font-heading text-[18px] font-bold text-dp-primary">{s.v}</p>
+                <p className="font-sans text-[11px] text-dp-on-surface-variant">{s.l}</p>
+              </div>
+            ))}
+          </div>
+          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">
+            {t('kf.measuring.monthsLeft').replace('{n}', String(measuring.months_remaining))}
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 mb-4">
         {([
@@ -320,6 +385,12 @@ export default function KafalatPage() {
                       <button onClick={() => activate(c)}
                         className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer whitespace-nowrap">
                         {t('kf.activate')}
+                      </button>
+                    )}
+                    {c.status === 'active' && (
+                      <button onClick={() => setEndTarget(c)}
+                        className="px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer whitespace-nowrap">
+                        {t('kf.endSponsorship')}
                       </button>
                     )}
                   </div>
@@ -555,6 +626,37 @@ export default function KafalatPage() {
             <button disabled={busy} onClick={savePackage}
               className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
               <Plus size={16} /> {busy ? t('action.saving') : t('action.save')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {endTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setEndTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('kf.endTitle')}</h2>
+              <button onClick={() => setEndTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
+              {t('kf.endBlurb').replace('{name}', endTarget.first_name)}
+            </p>
+
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.endReason')}</label>
+            <select value={endForm.status} onChange={(e) => setEndForm({ ...endForm, status: e.target.value })}
+              className="input-field mb-3">
+              <option value="graduated">{t('kf.status.graduated')}</option>
+              <option value="left_village">{t('kf.status.left_village')}</option>
+              <option value="withdrawn">{t('kf.status.withdrawn')}</option>
+            </select>
+
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.f.note')}</label>
+            <textarea value={endForm.reason} rows={2}
+              onChange={(e) => setEndForm({ ...endForm, reason: e.target.value })} className="input-field mb-4" />
+
+            <button disabled={busy} onClick={endSponsorship}
+              className="w-full bg-dp-primary text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 disabled:opacity-50">
+              {busy ? t('action.saving') : t('kf.confirmEnd')}
             </button>
           </div>
         </div>
