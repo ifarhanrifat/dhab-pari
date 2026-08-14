@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { BookOpen, X, Award, Calculator, HandCoins, Plus, Save, ClipboardCheck, Gavel, CalendarClock, Users, FileText, Printer, Ban } from 'lucide-react'
+import { BookOpen, X, Award, Calculator, HandCoins, Plus, Save, ClipboardCheck, Gavel, CalendarClock, Users, FileText, Printer, Ban, RotateCcw } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { printNodeInPopup } from '@/lib/receiptExport'
 
@@ -186,6 +186,14 @@ export default function WazifaPage() {
   }, [supabase])
 
   useEffect(() => { load() }, [load])
+
+  const startRenewal = async (aw: AwardRow) => {
+    if (!confirm(t('wz.startRenewalConfirm'))) return
+    const { error } = await supabase.rpc('wazifa_start_renewal', { p_award_id: aw.id })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.ok.renewalStarted'))
+    load()
+  }
 
   const studentOf = (id: string) => students.find((s) => s.id === id)
   // One typed-up row, several signatures on the paper. The count is the
@@ -647,6 +655,14 @@ const open = applications.filter((a) => ['submitted', 'screening', 'interview', 
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2 shrink-0">
+                    {/* A new academic year — the same student, verified
+                        again rather than assumed. Pre-fills a draft from
+                        this award's own application, so the student edits
+                        what changed instead of starting from nothing. */}
+                    <button onClick={() => startRenewal(aw)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
+                      <RotateCcw size={14} /> {t('wz.startRenewal')}
+                    </button>
                     <button onClick={() => setInstalmentTarget(aw)}
                       className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
                       <Plus size={14} /> {t('wz.addInstalment')}

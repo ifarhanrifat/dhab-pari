@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { GraduationCap, X, Plus, Save, ShieldAlert, UserPlus, Bus } from 'lucide-react'
+import { GraduationCap, X, Plus, Save, ShieldAlert, UserPlus, Bus, Printer } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 /**
@@ -37,7 +37,26 @@ interface Child {
   school_name: string | null; current_class: string | null
   school_location: string; status: string
   guardian_consent_signed: boolean; photo_consent: boolean; do_not_display: boolean
+  roll_no: string | null; section: string | null; uniform_mode: string
   created_at: string
+}
+
+interface DisbursementQueue {
+  uniforms: {
+    id: string; child_code: string; child_name: string; guardian: string
+    guardian_phone: string | null; issue_no: number; scheduled_on: string
+    amount: number; uniform_mode: string
+  }[]
+  disbursements: {
+    id: string; child_code: string; child_name: string; guardian: string
+    guardian_phone: string | null; category: string; month: string; amount: number
+  }[]
+}
+
+interface ReverificationDue {
+  child_id: string; code: string; name: string; guardian: string
+  guardian_phone: string | null; current_class: string | null
+  joined_on: string | null; last_verified: string | null
 }
 
 interface PackageLine {
@@ -73,6 +92,7 @@ const emptyChild = {
   date_of_birth: '', gender: 'male', is_orphan: false, orphan_type: '',
   school_id: '', school_name: '', current_class: '', school_location: 'village',
   guardian_consent_signed: false, photo_consent: false,
+  roll_no: '', section: '', uniform_mode: 'staggered',
 }
 
 export default function KafalatPage() {
@@ -91,7 +111,22 @@ export default function KafalatPage() {
   // after the challan arrives.
   const [feePreview, setFeePreview] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'children' | 'nominations'>('children')
+  const [tab, setTab] = useState<'children' | 'nominations' | 'operations' | 'reverify'>('children')
+  const [queue, setQueue] = useState<DisbursementQueue | null>(null)
+  const [dueList, setDueList] = useState<ReverificationDue[]>([])
+  const [reverifyTarget, setReverifyTarget] = useState<ReverificationDue | null>(null)
+  const [reverifyForm, setReverifyForm] = useState({
+    home_visited: 'yes', household_matches: 'yes', household_note: '',
+    father_employment_changed: false, father_employment_note: '',
+    siblings_employment_changed: false, siblings_employment_note: '',
+    income_verified: 'yes', observed_monthly_income_pkr: 0,
+    school_continuing: 'yes', current_class: '', attendance_note: '',
+    co_verifier_names: '', recommendation: 'continue', recommended_note: '', overall_note: '',
+  })
+  const [issuingUniform, setIssuingUniform] = useState<DisbursementQueue['uniforms'][number] | null>(null)
+  const [uniformForm, setUniformForm] = useState({ received_by: '', signed_note: '', method: 'cash' })
+  const [payingDisbursement, setPayingDisbursement] = useState<DisbursementQueue['disbursements'][number] | null>(null)
+  const [disbursementForm, setDisbursementForm] = useState({ method: 'cash', signed_by: '', driver_name: '', signed_note: '' })
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyChild)
   const [busy, setBusy] = useState(false)
@@ -139,6 +174,160 @@ export default function KafalatPage() {
     setMeasuring((meas ?? null) as Measuring | null)
     setLoading(false)
   }, [supabase])
+
+  const loadOperations = useCallback(async () => {
+    const [{ data: q }, { data: due }] = await Promise.all([
+      supabase.rpc('kafalat_disbursement_queue'),
+      supabase.rpc('kafalat_reverification_due'),
+    ])
+    setQueue((q ?? null) as DisbursementQueue | null)
+    setDueList((due ?? []) as ReverificationDue[])
+  }, [supabase])
+
+  useEffect(() => { if (tab === 'operations' || tab === 'reverify') loadOperations() }, [tab, loadOperations])
+
+  const issueUniform = async () => {
+    if (!issuingUniform) return
+    if (!uniformForm.received_by.trim()) { toast.error(t('kf.err.receivedByRequired')); return }
+    setBusy(true)
+    const { data, error } = await supabase.rpc('kafalat_issue_uniform', {
+      p_issue_id: issuingUniform.id, p_received_by: uniformForm.received_by,
+      p_signed_note: uniformForm.signed_note || null, p_method: uniformForm.method,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    const r = data as { voucher_no: string }
+    toast.success(t('kf.ok.uniformIssued').replace('{v}', r.voucher_no))
+    setIssuingUniform(null)
+    setUniformForm({ received_by: '', signed_note: '', method: 'cash' })
+    loadOperations()
+  }
+
+  const skipUniform = async (id: string) => {
+    const reason = prompt(t('kf.skipReasonPrompt'))
+    if (!reason) return
+    const { error } = await supabase.rpc('kafalat_skip_uniform', { p_issue_id: id, p_reason: reason })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('kf.ok.skipped'))
+    loadOperations()
+  }
+
+  const payDisbursement = async () => {
+    if (!payingDisbursement) return
+    if (payingDisbursement.category === 'transport' && !disbursementForm.driver_name.trim()) {
+      toast.error(t('kf.err.driverRequired')); return
+    }
+    setBusy(true)
+    const { data, error } = await supabase.rpc('kafalat_pay_disbursement', {
+      p_disbursement_id: payingDisbursement.id, p_method: disbursementForm.method,
+      p_signed_by: disbursementForm.signed_by || null,
+      p_driver_name: disbursementForm.driver_name || null,
+      p_signed_note: disbursementForm.signed_note || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    const r = data as { voucher_no: string }
+    toast.success(t('kf.ok.disbursementPaid').replace('{v}', r.voucher_no))
+    setPayingDisbursement(null)
+    setDisbursementForm({ method: 'cash', signed_by: '', driver_name: '', signed_note: '' })
+    loadOperations()
+  }
+
+  const skipDisbursement = async (id: string) => {
+    const reason = prompt(t('kf.skipReasonPrompt'))
+    if (!reason) return
+    const { error } = await supabase.rpc('kafalat_skip_disbursement', { p_disbursement_id: id, p_reason: reason })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('kf.ok.skipped'))
+    loadOperations()
+  }
+
+  const printRegister = async () => {
+    const { data, error } = await supabase.rpc('kafalat_register')
+    if (error) { toast.error(friendlyError(error)); return }
+    const reg = data as { academic_year: string
+      children: { code: string; name: string; roll_no: string | null; section: string | null
+        guardian: string; guardian_phone: string | null; current_class: string | null
+        school_name: string | null; school_location: string; fee_annual: number
+        transport_annual: number; uniform_mode: string
+        uniform_status: { issue_no: number; status: string; scheduled_on: string }[] | null }[] }
+    const win = window.open('', '_blank')
+    if (!win) return
+    const rows = reg.children.map((c) => `
+      <tr>
+        <td>${c.code}</td><td>${c.name}</td><td>${c.roll_no ?? ''}</td><td>${c.section ?? ''}</td>
+        <td>${c.current_class ?? ''}</td><td>${c.school_name ?? ''}</td>
+        <td>${c.guardian}${c.guardian_phone ? ' · ' + c.guardian_phone : ''}</td>
+        <td>Rs ${fmt(c.fee_annual)}</td>
+        <td>Rs ${fmt(c.transport_annual)}</td>
+        <td style="min-width:120px;border-bottom:1px solid #000">&nbsp;</td>
+      </tr>`).join('')
+    win.document.write(`<html><head><title>${t('kf.registerTitle')} — ${reg.academic_year}</title>
+      <style>
+        body{font-family:sans-serif;padding:24px;font-size:12px}
+        h1{font-size:18px} table{width:100%;border-collapse:collapse;margin-top:12px}
+        th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;font-size:11.5px}
+        th{background:#f3f3f3}
+      </style></head><body>
+      <h1>${t('kf.registerTitle')} — ${reg.academic_year}</h1>
+      <p>${new Date().toLocaleDateString()}</p>
+      <table><thead><tr>
+        <th>Code</th><th>Name</th><th>${t('kf.rollNo')}</th><th>${t('kf.section')}</th>
+        <th>${t('kf.class')}</th><th>School</th><th>${t('kf.guardian')}</th>
+        <th>${t('kf.f.feeAnnual')}</th><th>${t('kf.f.transportAnnual')}</th><th>${t('kf.driverSignature')}</th>
+      </tr></thead><tbody>${rows}</tbody></table>
+      </body></html>`)
+    win.document.close()
+    win.print()
+  }
+
+  const openReverify = (d: ReverificationDue) => {
+    setReverifyForm({
+      home_visited: 'yes', household_matches: 'yes', household_note: '',
+      father_employment_changed: false, father_employment_note: '',
+      siblings_employment_changed: false, siblings_employment_note: '',
+      income_verified: 'yes', observed_monthly_income_pkr: 0,
+      school_continuing: 'yes', current_class: d.current_class ?? '', attendance_note: '',
+      co_verifier_names: '', recommendation: 'continue', recommended_note: '', overall_note: '',
+    })
+    setReverifyTarget(d)
+  }
+
+  const submitReverify = async () => {
+    if (!reverifyTarget) return
+    setBusy(true)
+    const { data, error } = await supabase.rpc('kafalat_record_reverification', {
+      p_child_id: reverifyTarget.child_id,
+      p_home_visited: reverifyForm.home_visited,
+      p_household_matches: reverifyForm.household_matches,
+      p_household_note: reverifyForm.household_note || null,
+      p_father_employment_changed: reverifyForm.father_employment_changed,
+      p_father_employment_note: reverifyForm.father_employment_note || null,
+      p_siblings_employment_changed: reverifyForm.siblings_employment_changed,
+      p_siblings_employment_note: reverifyForm.siblings_employment_note || null,
+      p_income_verified: reverifyForm.income_verified,
+      p_observed_monthly_income_pkr: reverifyForm.observed_monthly_income_pkr || null,
+      p_school_continuing: reverifyForm.school_continuing,
+      p_current_class: reverifyForm.current_class || null,
+      p_attendance_note: reverifyForm.attendance_note || null,
+      p_co_verifier_names: reverifyForm.co_verifier_names
+        ? reverifyForm.co_verifier_names.split(',').map((s) => s.trim()).filter(Boolean) : null,
+      p_recommendation: reverifyForm.recommendation,
+      p_recommended_note: reverifyForm.recommended_note || null,
+      p_overall_note: reverifyForm.overall_note || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    const r = data as { verifiers: number; note?: string }
+    if (r.verifiers < 2) {
+      toast.warning(r.note ?? t('kf.reverify.needSecond'))
+    } else {
+      toast.success(t('kf.ok.reverified'))
+    }
+    setReverifyTarget(null)
+    loadOperations()
+    load()
+  }
 
   useEffect(() => { load() }, [load])
 
@@ -310,6 +499,8 @@ export default function KafalatPage() {
         {([
           ['children', `${t('kf.tab.children')} (${children.length})`],
           ['nominations', `${t('kf.tab.nominations')} (${nominations.filter((n) => n.status === 'new').length})`],
+          ['operations', `${t('kf.tab.operations')}${queue ? ` (${queue.uniforms.length + queue.disbursements.length})` : ''}`],
+          ['reverify', `${t('kf.tab.reverify')}${dueList.length ? ` (${dueList.length})` : ''}`],
         ] as const).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)}
             className={`px-3.5 py-2 rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer transition-all ${tab === key ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
@@ -349,6 +540,7 @@ export default function KafalatPage() {
                     </div>
                     <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
                       {c.current_class && `${t('kf.class')} ${c.current_class} · `}
+                      {c.roll_no && `${t('kf.rollNo')} ${c.roll_no}${c.section ? '/' + c.section : ''} · `}
                       {c.school_name}
                       <span className="inline-flex items-center gap-1 ms-2">
                         <Bus size={12} /> {t(`kf.loc.${c.school_location}`)}
@@ -438,6 +630,120 @@ export default function KafalatPage() {
         </div>
       )}
 
+      {/* ── Operations: uniforms and monthly disbursements ──────────────
+          The paper this actually produces — issue a uniform, pay a driver,
+          print the register to carry to a school gate. */}
+      {!loading && tab === 'operations' && (
+        <div className="space-y-6">
+          <button onClick={printRegister}
+            className="flex items-center gap-2 px-4 py-2 bg-dp-primary text-white rounded-lg font-sans text-[13px] font-semibold hover:opacity-90 cursor-pointer">
+            <Printer size={15} /> {t('kf.printRegister')}
+          </button>
+
+          <div>
+            <h3 className="font-heading text-[15px] font-bold text-dp-primary mb-2">{t('kf.uniformsDue')}</h3>
+            {(!queue || queue.uniforms.length === 0) ? (
+              <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('kf.nothingDue')}</p>
+            ) : (
+              <div className="space-y-2">
+                {queue.uniforms.map((u) => (
+                  <div key={u.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">
+                        {u.child_name} <span className="font-mono text-[11px] text-dp-on-surface-variant">{u.child_code}</span>
+                        {' · '}{t('kf.uniformIssue')} {u.issue_no}/2
+                      </p>
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant">
+                        {u.guardian}{u.guardian_phone ? ` · ${u.guardian_phone}` : ''} · Rs {fmt(u.amount)}
+                        {' · '}{t(`kf.uniform.${u.uniform_mode}`)}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button onClick={() => { setUniformForm({ received_by: '', signed_note: '', method: u.uniform_mode === 'cash' ? 'cash' : 'cash' }); setIssuingUniform(u) }}
+                        className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer">
+                        {t('kf.issue')}
+                      </button>
+                      <button onClick={() => skipUniform(u.id)}
+                        className="px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer">
+                        {t('kf.skip')}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h3 className="font-heading text-[15px] font-bold text-dp-primary mb-2">{t('kf.disbursementsDue')}</h3>
+            {(!queue || queue.disbursements.length === 0) ? (
+              <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('kf.nothingDue')}</p>
+            ) : (
+              <div className="space-y-2">
+                {queue.disbursements.map((d) => (
+                  <div key={d.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">
+                        {d.child_name} <span className="font-mono text-[11px] text-dp-on-surface-variant">{d.child_code}</span>
+                        {' · '}{t(`kf.cat.${d.category}`)}
+                      </p>
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant">
+                        {d.guardian}{d.guardian_phone ? ` · ${d.guardian_phone}` : ''} · Rs {fmt(d.amount)}
+                        {' · '}{new Date(d.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button onClick={() => { setDisbursementForm({ method: 'cash', signed_by: '', driver_name: '', signed_note: '' }); setPayingDisbursement(d) }}
+                        className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer">
+                        {t('kf.pay')}
+                      </button>
+                      <button onClick={() => skipDisbursement(d.id)}
+                        className="px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer">
+                        {t('kf.skip')}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Annual re-verification ───────────────────────────────────────
+          A father finds work, a brother finishes his own studies — none of
+          that shows up on its own. Once a year the committee goes back and
+          asks, with the same weight as the first visit: two names, one
+          form, one decision. */}
+      {!loading && tab === 'reverify' && (
+        <div className="space-y-3">
+          {dueList.length === 0 ? (
+            <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">
+              <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('kf.reverify.allDone')}</p>
+            </div>
+          ) : dueList.map((d) => (
+            <div key={d.child_id} className="bg-white border border-dp-outline-variant rounded-lg p-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-sans text-[14px] font-bold text-dp-on-surface">
+                  {d.name} <span className="font-mono text-[11px] text-dp-on-surface-variant">{d.code}</span>
+                </p>
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                  {t('kf.guardian')}: {d.guardian}{d.guardian_phone ? ` · ${d.guardian_phone}` : ''}
+                  {d.current_class ? ` · ${t('kf.class')} ${d.current_class}` : ''}
+                </p>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">
+                  {d.last_verified ? t('kf.reverify.lastChecked').replace('{y}', d.last_verified) : t('kf.reverify.neverChecked')}
+                </p>
+              </div>
+              <button onClick={() => openReverify(d)}
+                className="px-3.5 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer shrink-0">
+                {t('kf.reverify.recordVisit')}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── Add a child ─────────────────────────────────────────────────── */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
@@ -512,6 +818,25 @@ export default function KafalatPage() {
                 </div>
               </div>
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant -mt-2">{t('kf.f.transportHint')}</p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.rollNo')}</label>
+                  <input value={form.roll_no} onChange={(e) => setForm({ ...form, roll_no: e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.section')}</label>
+                  <input value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.f.uniformMode')}</label>
+                  <select value={form.uniform_mode} onChange={(e) => setForm({ ...form, uniform_mode: e.target.value })} className="input-field">
+                    <option value="both">{t('kf.uniform.both')}</option>
+                    <option value="staggered">{t('kf.uniform.staggered')}</option>
+                    <option value="cash">{t('kf.uniform.cash')}</option>
+                  </select>
+                </div>
+              </div>
 
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.f.school')}</label>
@@ -658,6 +983,202 @@ export default function KafalatPage() {
               className="w-full bg-dp-primary text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 disabled:opacity-50">
               {busy ? t('action.saving') : t('kf.confirmEnd')}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Handing over a uniform ────────────────────────────────────── */}
+      {issuingUniform && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setIssuingUniform(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[17px] font-bold text-dp-primary">{t('kf.issueTitle')}</h2>
+              <button onClick={() => setIssuingUniform(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={18} /></button>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
+              {issuingUniform.child_name} · {t('kf.uniformIssue')} {issuingUniform.issue_no}/2 · Rs {fmt(issuingUniform.amount)}
+            </p>
+
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.receivedBy')}</label>
+            <input value={uniformForm.received_by} onChange={(e) => setUniformForm({ ...uniformForm, received_by: e.target.value })}
+              placeholder={issuingUniform.guardian} className="input-field mb-3" />
+
+            {issuingUniform.uniform_mode === 'cash' && (
+              <>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.f.method')}</label>
+                <select value={uniformForm.method} onChange={(e) => setUniformForm({ ...uniformForm, method: e.target.value })} className="input-field mb-3">
+                  <option value="cash">{t('pool.method.cash')}</option>
+                  <option value="bank">{t('pool.method.bank')}</option>
+                </select>
+              </>
+            )}
+
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.f.note')}</label>
+            <textarea value={uniformForm.signed_note} rows={2}
+              onChange={(e) => setUniformForm({ ...uniformForm, signed_note: e.target.value })} className="input-field mb-4" />
+
+            <button disabled={busy} onClick={issueUniform}
+              className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 disabled:opacity-50">
+              {busy ? t('action.saving') : t('kf.confirmIssue')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Paying a monthly disbursement ────────────────────────────────
+          Transport insists on a driver's name; pocket money does not need
+          one, since it goes to the guardian who is already on file. */}
+      {payingDisbursement && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPayingDisbursement(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[17px] font-bold text-dp-primary">{t('kf.payTitle')}</h2>
+              <button onClick={() => setPayingDisbursement(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={18} /></button>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
+              {payingDisbursement.child_name} · {t(`kf.cat.${payingDisbursement.category}`)} · Rs {fmt(payingDisbursement.amount)}
+            </p>
+
+            {payingDisbursement.category === 'transport' && (
+              <>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.driverName')}</label>
+                <input value={disbursementForm.driver_name}
+                  onChange={(e) => setDisbursementForm({ ...disbursementForm, driver_name: e.target.value })} className="input-field mb-3" />
+              </>
+            )}
+
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.f.method')}</label>
+            <select value={disbursementForm.method} onChange={(e) => setDisbursementForm({ ...disbursementForm, method: e.target.value })} className="input-field mb-3">
+              <option value="cash">{t('pool.method.cash')}</option>
+              <option value="bank">{t('pool.method.bank')}</option>
+              <option value="jazzcash">JazzCash</option>
+              <option value="easypaisa">EasyPaisa</option>
+            </select>
+
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.receivedBy')}</label>
+            <input value={disbursementForm.signed_by}
+              onChange={(e) => setDisbursementForm({ ...disbursementForm, signed_by: e.target.value })} className="input-field mb-3" />
+
+            <button disabled={busy} onClick={payDisbursement}
+              className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 disabled:opacity-50">
+              {busy ? t('action.saving') : t('kf.confirmPay')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── The annual re-verification visit ─────────────────────────────
+          A committee member types this up after the visit. The signatures —
+          the verifier's and the co-signer's — are on the paper form, not in
+          this database; only the names go here. */}
+      {reverifyTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setReverifyTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('kf.reverify.title')}</h2>
+              <button onClick={() => setReverifyTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
+              {reverifyTarget.name} · {reverifyTarget.code}
+            </p>
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.reverify.homeVisited')}</label>
+                  <select value={reverifyForm.home_visited} onChange={(e) => setReverifyForm({ ...reverifyForm, home_visited: e.target.value })} className="input-field">
+                    <option value="yes">{t('g.yes')}</option><option value="no">{t('g.no')}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.reverify.householdMatches')}</label>
+                  <select value={reverifyForm.household_matches} onChange={(e) => setReverifyForm({ ...reverifyForm, household_matches: e.target.value })} className="input-field">
+                    <option value="yes">{t('g.yes')}</option><option value="no">{t('g.no')}</option><option value="na">{t('g.na')}</option>
+                  </select>
+                </div>
+              </div>
+              <textarea placeholder={t('kf.reverify.householdNote')} value={reverifyForm.household_note} rows={2}
+                onChange={(e) => setReverifyForm({ ...reverifyForm, household_note: e.target.value })} className="input-field" />
+
+              <div className="bg-dp-surface-container-low rounded-lg p-3 space-y-2.5">
+                <p className="font-sans text-[12.5px] font-bold text-dp-on-surface">{t('kf.reverify.whatChanged')}</p>
+                <label className="flex items-start gap-2 cursor-pointer font-sans text-[13px]">
+                  <input type="checkbox" checked={reverifyForm.father_employment_changed}
+                    onChange={(e) => setReverifyForm({ ...reverifyForm, father_employment_changed: e.target.checked })} className="accent-dp-secondary mt-0.5" />
+                  {t('kf.reverify.fatherEmploymentChanged')}
+                </label>
+                {reverifyForm.father_employment_changed && (
+                  <input value={reverifyForm.father_employment_note} placeholder={t('kf.f.note')}
+                    onChange={(e) => setReverifyForm({ ...reverifyForm, father_employment_note: e.target.value })} className="input-field !py-2" />
+                )}
+                <label className="flex items-start gap-2 cursor-pointer font-sans text-[13px]">
+                  <input type="checkbox" checked={reverifyForm.siblings_employment_changed}
+                    onChange={(e) => setReverifyForm({ ...reverifyForm, siblings_employment_changed: e.target.checked })} className="accent-dp-secondary mt-0.5" />
+                  {t('kf.reverify.siblingsEmploymentChanged')}
+                </label>
+                {reverifyForm.siblings_employment_changed && (
+                  <input value={reverifyForm.siblings_employment_note} placeholder={t('kf.f.note')}
+                    onChange={(e) => setReverifyForm({ ...reverifyForm, siblings_employment_note: e.target.value })} className="input-field !py-2" />
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.reverify.incomeVerified')}</label>
+                  <select value={reverifyForm.income_verified} onChange={(e) => setReverifyForm({ ...reverifyForm, income_verified: e.target.value })} className="input-field">
+                    <option value="yes">{t('g.yes')}</option><option value="no">{t('g.no')}</option><option value="na">{t('g.na')}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.reverify.observedIncome')}</label>
+                  <input type="number" min={0} value={reverifyForm.observed_monthly_income_pkr || ''}
+                    onChange={(e) => setReverifyForm({ ...reverifyForm, observed_monthly_income_pkr: +e.target.value })} className="input-field" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.reverify.schoolContinuing')}</label>
+                  <select value={reverifyForm.school_continuing} onChange={(e) => setReverifyForm({ ...reverifyForm, school_continuing: e.target.value })} className="input-field">
+                    <option value="yes">{t('g.yes')}</option><option value="no">{t('g.no')}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.f.class')}</label>
+                  <input value={reverifyForm.current_class}
+                    onChange={(e) => setReverifyForm({ ...reverifyForm, current_class: e.target.value })} className="input-field" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.reverify.coVerifiers')}</label>
+                <input value={reverifyForm.co_verifier_names} placeholder={t('kf.reverify.coVerifiersPlaceholder')}
+                  onChange={(e) => setReverifyForm({ ...reverifyForm, co_verifier_names: e.target.value })} className="input-field" />
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('kf.reverify.coVerifiersHint')}</p>
+              </div>
+
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.reverify.recommendation')}</label>
+                <select value={reverifyForm.recommendation} onChange={(e) => setReverifyForm({ ...reverifyForm, recommendation: e.target.value })} className="input-field">
+                  <option value="continue">{t('kf.reverify.rec.continue')}</option>
+                  <option value="adjust">{t('kf.reverify.rec.adjust')}</option>
+                  <option value="graduate">{t('kf.reverify.rec.graduate')}</option>
+                  <option value="end">{t('kf.reverify.rec.end')}</option>
+                </select>
+              </div>
+              {reverifyForm.recommendation !== 'continue' && (
+                <textarea placeholder={t('kf.reverify.recommendationNote')} value={reverifyForm.recommended_note} rows={2}
+                  onChange={(e) => setReverifyForm({ ...reverifyForm, recommended_note: e.target.value })} className="input-field" />
+              )}
+
+              <textarea placeholder={t('kf.reverify.overallNote')} value={reverifyForm.overall_note} rows={2}
+                onChange={(e) => setReverifyForm({ ...reverifyForm, overall_note: e.target.value })} className="input-field" />
+
+              <button disabled={busy} onClick={submitReverify}
+                className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 disabled:opacity-50">
+                {busy ? t('action.saving') : t('kf.reverify.submit')}
+              </button>
+            </div>
           </div>
         </div>
       )}
