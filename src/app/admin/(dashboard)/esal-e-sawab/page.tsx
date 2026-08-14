@@ -25,6 +25,8 @@ interface SadqaObject {
   capital_cost_pkr: number; annual_running_cost_pkr: number
   maintenance_mode: string; endowment_pkr: number; amount_received_pkr: number
   status: string; installed_on: string | null; created_at: string
+  actual_cost_pkr: number | null; settled_at: string | null
+  maintenance_pool_id: string | null
 }
 
 interface CatalogueItem {
@@ -52,9 +54,14 @@ const STATUS_TONE: Record<string, string> = {
   declined: 'bg-slate-100 text-slate-500',
 }
 
+// Only the steps that are genuinely a decision rather than a payment.
+//
+// 'approved -> funded' and 'funded -> procured' used to live here, which is
+// how a button came to mark money as received when none had been. Those two
+// are now consequences of sadqa_record_receipt() and sadqa_agree_bill(): the
+// money moves, and the status follows it.
 const FLOW: Record<string, string> = {
-  approved: 'funded', funded: 'procured', procured: 'installed',
-  installed: 'in_service', needs_repair: 'in_service',
+  procured: 'installed', installed: 'in_service', needs_repair: 'in_service',
 }
 
 export default function EsalESawabPage() {
@@ -71,6 +78,18 @@ export default function EsalESawabPage() {
   const [maintTarget, setMaintTarget] = useState<SadqaObject | null>(null)
   const [maintForm, setMaintForm] = useState({ kind: 'service', description: '', cost: 0, paid_by: 'committee' })
   const [busy, setBusy] = useState(false)
+
+  // Recording what actually arrived, with the evidence behind it.
+  const [receiptTarget, setReceiptTarget] = useState<SadqaObject | null>(null)
+  const [receiptForm, setReceiptForm] = useState({
+    amount: 0, method: 'bank', proof_url: '', cash_witness: '', received_on: '', note: '',
+  })
+
+  // The shop's bill, sent to the donor to agree before anything is posted.
+  const [billTarget, setBillTarget] = useState<SadqaObject | null>(null)
+  const [billForm, setBillForm] = useState({
+    vendor: '', amount: 0, bill_no: '', bill_date: '', invoice_url: '', note: '',
+  })
 
   const load = useCallback(async () => {
     const [{ data: objs }, { data: cat }, { data: liab }] = await Promise.all([
@@ -128,6 +147,52 @@ export default function EsalESawabPage() {
     const { error } = await supabase.from('sadqa_objects').update(patch).eq('id', o.id)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('es.ok.moved'))
+    load()
+  }
+
+  const recordReceipt = async () => {
+    if (!receiptTarget) return
+    setBusy(true)
+    const { error } = await supabase.rpc('sadqa_record_receipt', {
+      p_object_id: receiptTarget.id,
+      p_amount: receiptForm.amount,
+      p_method: receiptForm.method,
+      p_proof_url: receiptForm.proof_url || null,
+      p_cash_witness: receiptForm.cash_witness || null,
+      p_received_on: receiptForm.received_on || null,
+      p_note: receiptForm.note || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('es.ok.receiptRecorded'))
+    setReceiptTarget(null)
+    load()
+  }
+
+  const proposeBill = async () => {
+    if (!billTarget) return
+    setBusy(true)
+    const { error } = await supabase.rpc('sadqa_propose_bill', {
+      p_object_id: billTarget.id,
+      p_vendor: billForm.vendor,
+      p_amount: billForm.amount,
+      p_bill_no: billForm.bill_no || null,
+      p_bill_date: billForm.bill_date || null,
+      p_invoice_url: billForm.invoice_url || null,
+      p_note: billForm.note || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('es.ok.billSent'))
+    setBillTarget(null)
+    load()
+  }
+
+  const publishPool = async (o: SadqaObject) => {
+    if (!confirm(t('es.publishPoolConfirm'))) return
+    const { error } = await supabase.rpc('sadqa_publish_upkeep_pool', { p_object_id: o.id })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('es.ok.poolPublished'))
     load()
   }
 
@@ -301,6 +366,40 @@ export default function EsalESawabPage() {
                       </button>
                     </>
                   )}
+                  {/* Money first. Status is what follows it. */}
+                  {['approved', 'funded'].includes(o.status)
+                    && (o.amount_received_pkr ?? 0) < (o.capital_cost_pkr ?? 0) && (
+                    <button onClick={() => {
+                      setReceiptForm({
+                        amount: (o.capital_cost_pkr ?? 0) - (o.amount_received_pkr ?? 0),
+                        method: 'bank', proof_url: '', cash_witness: '', received_on: '', note: '',
+                      })
+                      setReceiptTarget(o)
+                    }}
+                      className="px-3 py-1.5 rounded-lg bg-dp-secondary text-white font-sans text-[12.5px] font-semibold cursor-pointer">
+                      {t('es.recordReceipt')}
+                    </button>
+                  )}
+
+                  {(o.amount_received_pkr ?? 0) > 0 && !o.settled_at && (
+                    <button onClick={() => {
+                      setBillForm({ vendor: '', amount: o.capital_cost_pkr ?? 0, bill_no: '',
+                                    bill_date: '', invoice_url: '', note: '' })
+                      setBillTarget(o)
+                    }}
+                      className="px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[12.5px] font-semibold text-dp-on-surface cursor-pointer">
+                      {t('es.sendBill')}
+                    </button>
+                  )}
+
+                  {o.maintenance_mode === 'committee' && (o.annual_running_cost_pkr ?? 0) > 0
+                    && !o.maintenance_pool_id && (
+                    <button onClick={() => publishPool(o)}
+                      className="px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[12.5px] font-semibold text-dp-on-surface cursor-pointer">
+                      {t('es.publishPool')}
+                    </button>
+                  )}
+
                   {FLOW[o.status] && (
                     <button onClick={() => advance(o)}
                       className="px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer whitespace-nowrap">
@@ -401,6 +500,139 @@ export default function EsalESawabPage() {
               className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
               <Plus size={16} /> {busy ? t('action.saving') : t('es.m.save')}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Recording money that actually arrived ──────────────────────
+          The old button set a status and posted nothing. This one refuses to
+          run without the transfer slip, or — for cash handed over in person,
+          where there is no screenshot to have — the name of somebody who saw
+          it happen. */}
+      {receiptTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-dp-primary text-white px-5 py-3.5 flex items-center justify-between">
+              <h3 className="font-heading text-[15px] font-bold">{t('es.receiptTitle')}</h3>
+              <button onClick={() => setReceiptTarget(null)}><X size={18} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">
+                {t('es.receiptBlurb').replace('{item}', receiptTarget.item_name).replace('{donor}', receiptTarget.donor_name)}
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('es.f.amount')}</label>
+                  <input type="number" min={1} value={receiptForm.amount || ''}
+                    onChange={(e) => setReceiptForm({ ...receiptForm, amount: +e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('es.f.method')}</label>
+                  <select value={receiptForm.method}
+                    onChange={(e) => setReceiptForm({ ...receiptForm, method: e.target.value })} className="input-field">
+                    <option value="bank">{t('pool.method.bank')}</option>
+                    <option value="cash">{t('pool.method.cash')}</option>
+                    <option value="jazzcash">JazzCash</option>
+                    <option value="easypaisa">EasyPaisa</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('es.f.proofUrl')}</label>
+                <input value={receiptForm.proof_url}
+                  onChange={(e) => setReceiptForm({ ...receiptForm, proof_url: e.target.value })}
+                  placeholder="https://..." className="input-field" />
+              </div>
+              {receiptForm.method === 'cash' && !receiptForm.proof_url && (
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('es.f.cashWitness')}</label>
+                  <input value={receiptForm.cash_witness}
+                    onChange={(e) => setReceiptForm({ ...receiptForm, cash_witness: e.target.value })} className="input-field" />
+                  <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('es.f.cashWitnessHint')}</p>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('es.f.receivedOn')}</label>
+                  <input type="date" value={receiptForm.received_on}
+                    onChange={(e) => setReceiptForm({ ...receiptForm, received_on: e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('es.f.note')}</label>
+                  <input value={receiptForm.note}
+                    onChange={(e) => setReceiptForm({ ...receiptForm, note: e.target.value })} className="input-field" />
+                </div>
+              </div>
+              <div className="flex gap-2.5">
+                <button onClick={recordReceipt} disabled={busy || receiptForm.amount <= 0}
+                  className="flex-1 bg-dp-primary text-white font-sans text-[13.5px] font-bold py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50">
+                  {busy ? t('action.saving') : t('es.confirmReceipt')}
+                </button>
+                <button onClick={() => setReceiptTarget(null)}
+                  className="px-5 border border-dp-outline-variant rounded-lg font-sans text-[13.5px]">{t('action.cancel')}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Sending the shop's bill to the donor to agree ──────────────── */}
+      {billTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-dp-primary text-white px-5 py-3.5 flex items-center justify-between">
+              <h3 className="font-heading text-[15px] font-bold">{t('es.billTitle')}</h3>
+              <button onClick={() => setBillTarget(null)}><X size={18} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">
+                {t('es.billBlurb').replace('{estimate}', fmt(billTarget.capital_cost_pkr)).replace('{received}', fmt(billTarget.amount_received_pkr))}
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('es.f.vendor')}</label>
+                  <input value={billForm.vendor}
+                    onChange={(e) => setBillForm({ ...billForm, vendor: e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('es.f.billAmount')}</label>
+                  <input type="number" min={1} value={billForm.amount || ''}
+                    onChange={(e) => setBillForm({ ...billForm, amount: +e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('es.f.billNo')}</label>
+                  <input value={billForm.bill_no}
+                    onChange={(e) => setBillForm({ ...billForm, bill_no: e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('es.f.billDate')}</label>
+                  <input type="date" value={billForm.bill_date}
+                    onChange={(e) => setBillForm({ ...billForm, bill_date: e.target.value })} className="input-field" />
+                </div>
+              </div>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('es.f.invoiceUrl')}</label>
+                <input value={billForm.invoice_url}
+                  onChange={(e) => setBillForm({ ...billForm, invoice_url: e.target.value })}
+                  placeholder="https://..." className="input-field" />
+              </div>
+              {billForm.amount > 0 && (
+                <p className="font-sans text-[12.5px] bg-dp-surface-container-low rounded-lg px-3.5 py-2.5 text-dp-on-surface">
+                  {billForm.amount === billTarget.capital_cost_pkr ? t('es.billSame')
+                    : billForm.amount > billTarget.capital_cost_pkr
+                      ? t('es.billDearer').replace('{amt}', fmt(billForm.amount - billTarget.capital_cost_pkr))
+                      : t('es.billCheaper').replace('{amt}', fmt(billTarget.capital_cost_pkr - billForm.amount))}
+                </p>
+              )}
+              <div className="flex gap-2.5">
+                <button onClick={proposeBill} disabled={busy || !billForm.vendor.trim() || billForm.amount <= 0}
+                  className="flex-1 bg-dp-primary text-white font-sans text-[13.5px] font-bold py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50">
+                  {busy ? t('action.saving') : t('es.sendToDonor')}
+                </button>
+                <button onClick={() => setBillTarget(null)}
+                  className="px-5 border border-dp-outline-variant rounded-lg font-sans text-[13.5px]">{t('action.cancel')}</button>
+              </div>
+            </div>
           </div>
         </div>
       )}

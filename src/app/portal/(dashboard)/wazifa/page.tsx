@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { BookOpen, Send, Plus, Trash2, Printer, HandCoins, RotateCcw, Save, Lock, Info } from 'lucide-react'
+import { BookOpen, Send, Plus, Trash2, Printer, HandCoins, RotateCcw, Save, Lock, Info, UserCheck } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { FileAttachment } from '@/components/admin/FileAttachment'
@@ -90,6 +90,7 @@ export default function PortalWazifaPage() {
   // fee they typed wrong a minute after sending it. Editing stays open until
   // the committee starts reviewing, and closes for good after that, because
   // what they verified in person has to keep matching what is on the record.
+  const [showForm, setShowForm] = useState(false)
   const [savedId, setSavedId] = useState<string | null>(null)
   const [savedStatus, setSavedStatus] = useState<string | null>(null)
   const [isEditable, setIsEditable] = useState(true)
@@ -275,8 +276,7 @@ export default function PortalWazifaPage() {
     // father applying for his son creates the son's record and signs it as
     // the applicant, so next year the son's history is already there.
     const { data: existing } = await supabase.from('wazifa_students')
-      .select('id').eq('full_name', form.student_full_name.trim())
-      .eq('portal_user_id', portalUser.id).maybeSingle()
+      .select('id').eq('portal_user_id', portalUser.id).maybeSingle()
 
     let studentId = existing?.id
     if (!studentId) {
@@ -303,9 +303,9 @@ export default function PortalWazifaPage() {
     const year = `${new Date().getFullYear()}-${String((new Date().getFullYear() + 1) % 100).padStart(2, '0')}`
     const payload = {
       student_id: studentId, academic_year: year,
-      applicant_for: form.applicant_for,
-      applicant_name: form.applicant_for === 'self' ? null : (form.applicant_name || portalUser.full_name),
-      applicant_relation: form.applicant_for === 'self' ? null : form.applicant_relation,
+      applicant_for: 'self',
+      applicant_name: null,
+      applicant_relation: null,
       applicant_phone: form.applicant_phone || portalUser.mobile || null,
       level: form.level, institution: form.institution.trim(),
       programme: form.programme.trim(), city: form.city || null,
@@ -604,48 +604,87 @@ export default function PortalWazifaPage() {
         </div>
       )}
 
+      {/* ── The application already on file ────────────────────────────
+          Shown before the form, because somebody coming back wants to know
+          where their application stands — not a blank eleven-section form. */}
+      {savedId && !showForm && (
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-5 print:hidden">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+            <div>
+              <h2 className="font-heading text-[17px] font-bold text-dp-primary">
+                {t('pwz.savedTitle')}
+              </h2>
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">
+                {form.institution || t('pwz.noInstitutionYet')}
+                {form.programme ? ` · ${form.programme}` : ''}
+              </p>
+            </div>
+            <span className="px-2.5 py-1 rounded-full bg-dp-surface-container-low font-sans text-[11.5px] font-bold text-dp-on-surface">
+              {t(`pwz.status.${savedStatus ?? 'draft'}`)}
+            </span>
+          </div>
+
+          {!isEditable && lockedReason && (
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3 flex items-start gap-2">
+              <Lock size={14} className="shrink-0 mt-0.5" /> {lockedReason}
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-3">
+            <button onClick={() => setShowForm(true)}
+              className="bg-dp-primary text-white font-sans text-[13px] font-bold px-4 py-2 rounded-lg hover:opacity-90">
+              {isEditable ? t('pwz.continueEditing') : t('pwz.viewApplication')}
+            </button>
+            <button onClick={() => { setShowForm(true); setTimeout(printForm, 300) }}
+              className="border border-dp-outline-variant font-sans text-[13px] font-bold px-4 py-2 rounded-lg text-dp-on-surface">
+              <Printer size={14} className="inline me-1.5" />{t('pwz.print')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Nothing on file yet: one button rather than a wall of fields. */}
+      {!savedId && !showForm && (
+        <button onClick={() => setShowForm(true)}
+          className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-dp-outline-variant hover:border-dp-secondary text-dp-primary py-4 rounded-lg font-sans font-semibold transition-colors print:hidden">
+          <Plus size={17} /> {t('pwz.startApplication')}
+        </button>
+      )}
+
       {/* ══════ The form itself — this whole block is what prints ══════ */}
-      <div ref={formRef}>
+      <div ref={formRef} className={showForm ? '' : 'hidden print:block'}>
         <div className="hidden print:block mb-4">
           <h2 className="font-heading text-[22px] font-bold">{t('pwz.printHeading')}</h2>
           <p className="font-sans text-[12px]">{t('pwz.printSubheading')}</p>
         </div>
 
-        {/* ── Who is this application for ───────────────────────────────── */}
+        {/* ── Whose application this is ──────────────────────────────────
+            The student applies for themselves, from their own account. A
+            father applying for his son leaves the son with no way to see what
+            he owes, no reminder when an instalment falls due, and no record he
+            can carry to the next committee — while the father keeps getting
+            alerts about somebody else's education. The account has to belong
+            to the person the money follows. */}
         <div className={section}>
           <StepHead n={1} title={t('pwz.s.whoFor')} urdu={t('pwz.whoForUrdu')} help={t('pwz.whoForEnglish')} />
 
-          <div className="space-y-2 mb-4">
-            {([
-              ['self', 'pwz.for.self'],
-              ['own_child', 'pwz.for.ownChild'],
-              ['other_family', 'pwz.for.otherFamily'],
-            ] as const).map(([value, lbl]) => (
-              <label key={value} className={`flex items-start gap-2.5 px-3.5 py-3 rounded-lg border-2 cursor-pointer transition-all ${form.applicant_for === value ? 'border-dp-secondary bg-dp-secondary/5' : 'border-dp-outline-variant'}`}>
-                <input type="radio" name="applicant_for" checked={form.applicant_for === value}
-                  onChange={() => setForm({ ...form, applicant_for: value })} className="accent-dp-secondary mt-0.5" />
-                <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{t(lbl)}</span>
-              </label>
-            ))}
-          </div>
-
-          {form.applicant_for !== 'self' && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className={label}>{t('pwz.f.applicantName')}</label>
-                <input value={form.applicant_name} onChange={(e) => setForm({ ...form, applicant_name: e.target.value })} className="input-field" />
-              </div>
-              <div>
-                <label className={label}>{t('pwz.f.applicantRelation')}</label>
-                <input value={form.applicant_relation} onChange={(e) => setForm({ ...form, applicant_relation: e.target.value })}
-                  placeholder={t('pwz.f.applicantRelationPlaceholder')} className="input-field" />
-              </div>
-              <div>
-                <label className={label}>{t('pwz.f.applicantPhone')}</label>
-                <input value={form.applicant_phone} onChange={(e) => setForm({ ...form, applicant_phone: e.target.value })} className="input-field" />
-              </div>
+          <div className="flex items-start gap-2.5 bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3.5">
+            <UserCheck size={17} className="text-dp-secondary shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="font-sans text-[15px] leading-[2] text-dp-on-surface font-bold"
+                style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                {t('pwz.selfOnlyUr')}
+              </p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed mt-1">
+                {t('pwz.selfOnly')}
+              </p>
+              <p className="font-sans text-[12.5px] text-dp-on-surface mt-2">
+                <span className="font-semibold">{t('pwz.applyingAs')}</span>{' '}
+                {portalUser?.full_name ?? '—'}
+                {portalUser?.mobile ? ` · ${portalUser.mobile}` : ''}
+              </p>
             </div>
-          )}
+          </div>
         </div>
 
         {/* ── The student ───────────────────────────────────────────────── */}
