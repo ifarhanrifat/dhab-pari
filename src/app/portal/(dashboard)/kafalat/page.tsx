@@ -6,25 +6,25 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import {
-  GraduationCap, Heart, Users, X, Send, HandHeart, Info, HelpCircle, ChevronDown,
-  HandCoins, TrendingUp, Calendar, ShieldCheck, AlertTriangle,
+  GraduationCap, Heart, Users, X, Send, HelpCircle, ChevronDown,
+  HandCoins, TrendingUp, Calendar, ShieldCheck, AlertTriangle, CheckCircle2,
+  Clock, ArrowRight, Sparkles,
 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { SITE } from '@/lib/constants'
+import { renderTemplate } from '@/lib/messageTemplates'
 import Link from 'next/link'
 
 /**
- * Sponsoring a child, or joining the shared pool — one system, one form.
+ * Sponsoring a child — one card per child, one status, one action.
  *
- * There used to be two of these: naming a child through kafalat_shares (which
- * had no way to actually confirm a payment ever arrived, and was never
- * reconciled against what the committee still needed), and joining the
- * anonymous Mushtarka Kafalat pool through pool_announce. A donor had no way
- * to tell that giving to one did not also cover the other. They are now the
- * same action — announce an amount, recurring or once — with the only
- * difference being whether a child's name rides along with it. Both credit
- * the identical measuring account, so there is no longer a way for the two
- * figures to disagree.
+ * There is no anonymous "join the shared pool" option here any more. Every
+ * donor who gives through this page is giving to a named child, so every
+ * card can show exactly where that one relationship stands: not yet
+ * sponsored, joined and waiting on a payment, sent and waiting on the
+ * accountant, or confirmed and running monthly. Actually sending the money
+ * and managing what recurs happens on the same two pages every other fund
+ * already uses (My Giving, Recurring Donations) — this page only decides
+ * who the money is for.
  *
  * A child is never shown by family name, house or school-plus-photo, and a
  * child whose guardian has not consented to a photograph appears with their
@@ -56,6 +56,11 @@ interface Announcement {
   status: string; named_child: string | null; kafalat_child_id: string | null; has_proof: boolean
 }
 
+interface Dashboard {
+  children_active: number; monthly_target: number; outstanding: number
+  confirmed: number; required: number; on_track: boolean
+}
+
 const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 
 export default function PortalKafalatPage() {
@@ -65,61 +70,88 @@ export default function PortalKafalatPage() {
 
   const [poolId, setPoolId] = useState<string | null>(null)
   const [position, setPosition] = useState<Position | null>(null)
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null)
   const [children, setChildren] = useState<NamingChild[]>([])
   const [commitments, setCommitments] = useState<Commitment[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [templates, setTemplates] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [showGuide, setShowGuide] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  // null target = the shared pool, no name attached.
-  const [giving, setGiving] = useState<{ target: NamingChild | null } | null>(null)
+  const [giving, setGiving] = useState<NamingChild | null>(null)
   const [form, setForm] = useState({ amount: 0, recurring: true, funded_by: 'sadqa', show_name_publicly: false })
 
   const [showNominate, setShowNominate] = useState(false)
   const [nomination, setNomination] = useState({ child_name: '', guardian_name: '', approximate_age: 0, gender: 'male', address_hint: '', reason: '' })
 
+  const [managing, setManaging] = useState<{ commitment: Commitment; child: NamingChild } | null>(null)
   const [changing, setChanging] = useState<Commitment | null>(null)
   const [changeAmount, setChangeAmount] = useState(0)
+  const [endTarget, setEndTarget] = useState<{ commitment: Commitment; child: NamingChild } | null>(null)
+  const [thankYou, setThankYou] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     const { data: pool } = await supabase.from('support_pools').select('id').eq('code', 'POOL-KFL').single()
     const pid = (pool as { id: string } | null)?.id ?? null
     setPoolId(pid)
 
-    const [{ data: kids }, { data: pos }, { data: myC }, { data: myA }] = await Promise.all([
+    const [{ data: kids }, { data: pos }, { data: myC }, { data: myA }, { data: dash }, { data: tpl }] = await Promise.all([
       supabase.rpc('kafalat_children_for_naming'),
       pid ? supabase.rpc('pool_position', { p_pool_id: pid }) : Promise.resolve({ data: null }),
       supabase.rpc('my_pool_commitments'),
       supabase.rpc('my_pool_announcements'),
+      supabase.rpc('kafalat_public_dashboard'),
+      supabase.from('message_templates').select('key, body')
+        .in('key', ['kafalat_card_tagline', 'kafalat_end_sponsorship', 'kafalat_thank_you']),
     ])
     setChildren((kids ?? []) as NamingChild[])
     setPosition((pos ?? null) as Position | null)
     setCommitments(((myC ?? []) as Commitment[]).filter((c) => c.pool_id === pid))
     setAnnouncements(((myA ?? []) as (Announcement & { pool_id: string })[]).filter((a) => a.pool_id === pid))
+    setDashboard((dash ?? null) as Dashboard | null)
+    setTemplates(Object.fromEntries(((tpl ?? []) as { key: string; body: string }[]).map((r) => [r.key, r.body])))
     setLoading(false)
   }, [supabase])
 
   useEffect(() => { load() }, [load])
 
-  // A donor can now hold several independent standing commitments at once —
-  // one per named child, plus optionally one to the shared pool — so "am I
-  // already committed" is only ever meaningful against a specific target,
-  // never as a single yes/no for the whole page. Re-announcing to a target
-  // that already has a live commitment reuses that same row rather than
-  // creating a second one, so recurring stays disabled for that one target
-  // only, and the shared-pool card only hides once the shared (unnamed)
-  // commitment specifically already exists — a named commitment to some
-  // other child says nothing about that.
-  const commitmentFor = (child: NamingChild | null) =>
-    commitments.find((c) => c.status === 'active' && (child ? c.kafalat_child_id === child.id : !c.kafalat_child_id))
-  const alreadySharedCommitted = !!commitmentFor(null)
+  // Everything this donor's own card for one child needs to know, derived
+  // fresh each render from the same two lists every other part of this page
+  // already loads — there is nothing per-child cached separately to drift
+  // out of sync with it.
+  // pool_leave() sets status to 'ended', not 'cancelled' — a commitment a
+  // donor has deliberately ended must NOT keep showing as "Joined" here, so
+  // only 'active' and 'lapsed' (missed a month, not yet ended) count as a
+  // live relationship to a child. Anything else means the card starts over.
+  const commitmentFor = (child: NamingChild) =>
+    commitments.find((c) => c.kafalat_child_id === child.id && (c.status === 'active' || c.status === 'lapsed'))
+  const announcementFor = (child: NamingChild) =>
+    announcements.find((a) => a.kafalat_child_id === child.id && a.status === 'announced')
 
-  const openGive = (child: NamingChild | null) => {
+  type CardState = 'sponsor' | 'full' | 'lapsed' | 'confirm_payment' | 'awaiting' | 'joined'
+  const stateFor = (child: NamingChild): CardState => {
+    const c = commitmentFor(child)
+    if (!c) return child.already_named >= child.this_year_requirement ? 'full' : 'sponsor'
+    if (c.status === 'lapsed') return 'lapsed'
+    const a = announcementFor(child)
+    if (a) return a.has_proof ? 'awaiting' : 'confirm_payment'
+    return 'joined'
+  }
+
+  const openGive = (child: NamingChild) => {
     const existing = commitmentFor(child)
-    const remaining = child ? Math.max(child.this_year_requirement - child.already_named, position?.min_share ?? 1000) : (position?.suggested_share ?? 2000)
-    setForm({ amount: existing?.monthly_amount ?? remaining, recurring: !existing, funded_by: 'sadqa', show_name_publicly: false })
-    setGiving({ target: child })
+    const remaining = Math.max(child.this_year_requirement - child.already_named, position?.min_share ?? 1000)
+    // A lapsed commitment needs p_recurring=true to actually reactivate that
+    // same row (pool_announce only reuses a commitment when told this is
+    // recurring) — "Resume sponsoring" would otherwise silently create a
+    // stray one-time announcement and leave the commitment lapsed forever.
+    setForm({
+      amount: existing?.monthly_amount ?? remaining,
+      recurring: existing?.status === 'lapsed' ? true : !existing,
+      funded_by: 'sadqa', show_name_publicly: false,
+    })
+    setGiving(child)
   }
 
   const submitGive = async () => {
@@ -131,7 +163,7 @@ export default function PortalKafalatPage() {
     const { error } = await supabase.rpc('pool_announce', {
       p_pool_id: poolId, p_amount: form.amount, p_recurring: form.recurring,
       p_funded_by: form.funded_by, p_show_name_publicly: form.show_name_publicly,
-      p_kafalat_child_id: giving.target?.id ?? null,
+      p_kafalat_child_id: giving.id,
     })
     setBusy(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -150,22 +182,22 @@ export default function PortalKafalatPage() {
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('pool.shareChanged'))
     setChanging(null)
+    setManaging(null)
     load()
   }
 
-  const stopGiving = async (c: Commitment) => {
-    if (!confirm(t('pool.leaveConfirm'))) return
-    const { error } = await supabase.rpc('pool_leave', { p_commitment_id: c.id })
+  const confirmEnd = async () => {
+    if (!endTarget) return
+    setBusy(true)
+    const { error } = await supabase.rpc('pool_leave', { p_commitment_id: endTarget.commitment.id })
+    setBusy(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('pool.left'))
-    load()
-  }
-
-  const withdraw = async (a: Announcement) => {
-    if (!confirm(t('pool.withdrawConfirm'))) return
-    const { error } = await supabase.rpc('pool_cancel_announcement', { p_payment_id: a.id })
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('pool.withdrawn'))
+    const msg = templates.kafalat_thank_you
+      ? renderTemplate(templates.kafalat_thank_you, { name: endTarget.child.first_name })
+      : `Thank you for everything, from ${endTarget.child.first_name}.`
+    setEndTarget(null)
+    setManaging(null)
+    setThankYou(msg)
     load()
   }
 
@@ -191,8 +223,6 @@ export default function PortalKafalatPage() {
     setNomination({ child_name: '', guardian_name: '', approximate_age: 0, gender: 'male', address_hint: '', reason: '' })
   }
 
-  const waitingChildren = children.filter((c) => c.already_named < c.this_year_requirement)
-
   return (
     <div className="max-w-4xl">
       <div className="mb-6">
@@ -201,6 +231,36 @@ export default function PortalKafalatPage() {
         </h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1.5 leading-relaxed">{t('pkf.blurb')}</p>
       </div>
+
+      {/* ── The whole programme, at a glance ─────────────────────────────
+          What used to be scattered across a shared-pool position card and a
+          separate measuring account: how many children, what they need,
+          what's confirmed, and whether the committee is on the mark. */}
+      {dashboard && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3.5">
+            <p className="font-sans text-[11px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-1">{t('pkf.stats.kids')}</p>
+            <p className="font-heading text-[24px] font-bold text-dp-primary">{dashboard.children_active}</p>
+          </div>
+          <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3.5">
+            <p className="font-sans text-[11px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-1">{t('pkf.stats.required')}</p>
+            <p className="font-heading text-[24px] font-bold text-dp-primary">Rs {fmt(dashboard.required)}</p>
+          </div>
+          <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3.5">
+            <p className="font-sans text-[11px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-1">{t('pkf.stats.confirmed')}</p>
+            <p className="font-heading text-[24px] font-bold text-dp-secondary">Rs {fmt(dashboard.confirmed)}</p>
+            {dashboard.outstanding > 0 && (
+              <p className="font-sans text-[11px] text-dp-on-surface-variant mt-0.5">{t('pkf.stats.outstanding').replace('{amt}', fmt(dashboard.outstanding))}</p>
+            )}
+          </div>
+          <div className={`rounded-lg px-4 py-3.5 flex flex-col justify-center ${dashboard.on_track ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`}>
+            <p className={`flex items-center gap-1.5 font-sans text-[13.5px] font-bold ${dashboard.on_track ? 'text-emerald-700' : 'text-amber-800'}`}>
+              {dashboard.on_track ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+              {dashboard.on_track ? t('pkf.stats.onTrack') : t('pkf.stats.behind')}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3 mb-3">
         <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{t('pkf.poolNotice')}</p>
@@ -257,97 +317,6 @@ export default function PortalKafalatPage() {
         </section>
       )}
 
-      {/* ── My Kafalat giving ────────────────────────────────────────── */}
-      {(commitments.length > 0 || announcements.length > 0) && (
-        <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-5">
-          <h2 className="font-heading text-[15px] font-bold text-dp-primary mb-3">{t('pool.mine')}</h2>
-          <div className="space-y-2.5">
-            {commitments.map((c) => (
-              <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-dp-outline-variant last:border-0 pb-2.5 last:pb-0">
-                <div>
-                  <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">
-                    Rs {fmt(c.monthly_amount)}/{t('pkf.month')}
-                    <span className="font-normal text-dp-on-surface-variant"> · {c.named_child ? t('pkf.namedFor').replace('{name}', c.named_child) : t('pkf.sharedGiving')}</span>
-                  </p>
-                  <p className="font-sans text-[11.5px] text-dp-on-surface-variant">
-                    {t('pool.givenSoFar').replace('{months}', String(c.months_given)).replace('{total}', fmt(c.total_given))}
-                    {c.status === 'lapsed' && <span className="text-amber-700 font-semibold"> · {t('pool.status.lapsed')}</span>}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <button onClick={() => { setChangeAmount(c.monthly_amount); setChanging(c) }}
-                    className="font-sans text-[12px] font-bold text-dp-secondary hover:underline cursor-pointer">{t('pool.changeAmount')}</button>
-                  <button onClick={() => stopGiving(c)}
-                    className="font-sans text-[12px] text-dp-on-surface-variant hover:underline cursor-pointer">{t('pool.stopGiving')}</button>
-                </div>
-              </div>
-            ))}
-            {announcements.filter((a) => a.status === 'announced').map((a) => (
-              <div key={a.id} className="border-b border-dp-outline-variant last:border-0 pb-3 last:pb-0">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                  <div>
-                    <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">
-                      Rs {fmt(a.amount)}
-                      <span className="font-normal text-dp-on-surface-variant"> · {a.named_child ? t('pkf.namedFor').replace('{name}', a.named_child) : t('pkf.sharedGiving')}</span>
-                    </p>
-                    <p className="font-sans text-[11.5px] text-amber-700 font-semibold">{t('pool.status.announced')} — {t('pool.awaitingConfirmation')}</p>
-                  </div>
-                  <button onClick={() => withdraw(a)}
-                    className="font-sans text-[12px] text-dp-on-surface-variant hover:underline cursor-pointer shrink-0">{t('pool.withdraw')}</button>
-                </div>
-
-                {/* The gap that was actually reported: an announcement told
-                    the accountant nothing had arrived, but never said where
-                    to actually send it. Attaching the actual payment slip
-                    now happens on My Giving, alongside every other fund —
-                    one payment flow, not a separate one per feature. */}
-                <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3">
-                  <p className="font-sans text-[12px] font-bold text-dp-primary mb-1.5">{t('pool.sendTo.title')}</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 font-sans text-[12px] text-dp-on-surface mb-2.5">
-                    <p><span className="text-dp-on-surface-variant">{t('w.jazzcash')}: </span>{SITE.jazzcash} <span className="text-dp-on-surface-variant">({SITE.jazzcashName})</span></p>
-                    <p><span className="text-dp-on-surface-variant">{t('w.easypaisa')}: </span>{SITE.easypaisa} <span className="text-dp-on-surface-variant">({SITE.easypaisaName})</span></p>
-                    <p><span className="text-dp-on-surface-variant">{SITE.bankName}: </span>{SITE.bankAccount}</p>
-                  </div>
-                  {a.has_proof ? (
-                    <p className="font-sans text-[11.5px] text-dp-secondary font-semibold">{t('pool.proofAttached')}</p>
-                  ) : (
-                    <Link href="/portal/statement" className="font-sans text-[12px] font-bold text-dp-secondary hover:underline">
-                      {t('pool.payOnStatement')}
-                    </Link>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Join the shared pool, no child named ────────────────────────
-          The other half of the same choice: give without picking anyone,
-          and it goes toward whichever child in the register needs it most.
-          Only shown before a donor has a standing monthly share — once they
-          do, this same card would just be a second way to change or rename
-          the one they already have, which "My Kafalat giving" above already
-          does properly. A one-time top-up is still offered from a specific
-          child's own card below regardless. */}
-      {position && !alreadySharedCommitted && (
-        <div className="bg-white border-2 border-dp-secondary/30 rounded-lg p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-2">
-              <HandHeart size={16} className="text-dp-secondary" /> {t('pkf.sharedCard.title')}
-            </p>
-            <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1 max-w-md">{t('pkf.sharedCard.blurb')}</p>
-            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">
-              {t('pool.nDonors').replace('{n}', String(position.donors))} · {position.coverage_percent}% {t('kf.sponsored')}
-            </p>
-          </div>
-          <button onClick={() => openGive(null)}
-            className="flex items-center gap-2 bg-dp-secondary text-white px-4 py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer shrink-0">
-            <HandHeart size={15} /> {t('pool.join')}
-          </button>
-        </div>
-      )}
-
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h2 className="font-heading text-[16px] font-bold text-dp-primary">{t('pkf.tab.available')}</h2>
         <button onClick={() => setShowNominate(true)}
@@ -358,18 +327,25 @@ export default function PortalKafalatPage() {
 
       {loading && <p className="font-sans text-dp-on-surface-variant">{t('action.loading')}</p>}
 
-      {!loading && waitingChildren.length === 0 && (
+      {!loading && children.length === 0 && (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">
-          <p className="font-sans text-[14px] text-dp-on-surface-variant">
-            {children.length === 0 ? t('pkf.noneRegisteredYet') : t('pkf.allSponsored')}
-          </p>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('pkf.noneRegisteredYet')}</p>
         </div>
       )}
 
+      {/* ── Every registered child, one card, one status each ───────────
+          No separate "my giving" list and no anonymous shared-pool card —
+          a donor's own relationship to a child lives entirely on that
+          child's own card. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {!loading && waitingChildren.map((c) => {
+        {!loading && children.map((c) => {
           const remaining = Math.max(c.this_year_requirement - c.already_named, 0)
           const pct = c.this_year_requirement > 0 ? Math.min(100, Math.round((c.already_named / c.this_year_requirement) * 100)) : 0
+          const state = stateFor(c)
+          const commitment = commitmentFor(c)
+          const announcement = announcementFor(c)
+          const tagline = templates.kafalat_card_tagline ? renderTemplate(templates.kafalat_card_tagline, { name: c.first_name }) : null
+
           return (
             <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
               <div className="flex items-start gap-3">
@@ -395,6 +371,12 @@ export default function PortalKafalatPage() {
                 </div>
               </div>
 
+              {tagline && (
+                <p className="font-sans text-[12px] text-dp-on-surface-variant italic mt-2.5 flex items-start gap-1.5">
+                  <Sparkles size={12} className="text-dp-secondary shrink-0 mt-0.5" /> {tagline}
+                </p>
+              )}
+
               <div className="mt-3">
                 <div className="h-2 w-full bg-dp-surface-container rounded-full overflow-hidden mb-1.5">
                   <div className="h-full bg-dp-secondary" style={{ width: `${Math.max(pct, 1)}%` }} />
@@ -404,34 +386,64 @@ export default function PortalKafalatPage() {
                 </p>
               </div>
 
-              <button onClick={() => openGive(c)}
-                className="w-full mt-3 flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-                <Heart size={15} /> {c.already_named > 0 ? t('pkf.joinShare') : t('pkf.sponsor')}
-              </button>
+              {/* ── The one action this card needs, based on exactly where
+                  this donor's own relationship to this child stands ────── */}
+              <div className="mt-3">
+                {state === 'sponsor' && (
+                  <button onClick={() => openGive(c)}
+                    className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                    <Heart size={15} /> {t('pkf.sponsor')}
+                  </button>
+                )}
+                {state === 'full' && (
+                  <p className="w-full text-center py-2.5 rounded-lg bg-dp-surface-container-low font-sans text-[13px] font-semibold text-dp-on-surface-variant">
+                    {t('pkf.card.fullySponsored')}
+                  </p>
+                )}
+                {state === 'lapsed' && (
+                  <button onClick={() => openGive(c)}
+                    className="w-full flex items-center justify-center gap-2 border-2 border-amber-400 text-amber-800 py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-amber-50 transition-all cursor-pointer">
+                    <Heart size={15} /> {t('pkf.card.resume')}
+                  </button>
+                )}
+                {state === 'confirm_payment' && announcement && (
+                  <Link href={`/portal/statement?pay=${announcement.id}`}
+                    className="w-full flex items-center justify-center gap-2 bg-amber-500 text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-amber-600 transition-all">
+                    <ArrowRight size={15} /> {t('pkf.card.confirmPayment')}
+                  </Link>
+                )}
+                {state === 'awaiting' && (
+                  <p className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-dp-surface-container-low font-sans text-[13px] font-semibold text-dp-on-surface-variant">
+                    <Clock size={14} /> {t('pkf.card.awaiting')}
+                  </p>
+                )}
+                {state === 'joined' && commitment && (
+                  <button onClick={() => setManaging({ commitment, child: c })}
+                    className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
+                    <CheckCircle2 size={15} /> {t('pkf.card.joined').replace('{amt}', fmt(commitment.monthly_amount))}
+                  </button>
+                )}
+              </div>
             </div>
           )
         })}
       </div>
 
-      {/* ── Give — named or shared, same form ────────────────────────── */}
+      {/* ── Give — always for the one child whose card was tapped ───────── */}
       {giving && position && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setGiving(null)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">
-                {giving.target ? t('pkf.sponsorTitle') : t('pool.joinTitle')}
-              </h2>
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('pkf.sponsorTitle')}</h2>
               <button onClick={() => setGiving(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
 
-            {giving.target && (
-              <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
-                <p className="font-sans text-[15px] font-bold">{giving.target.first_name}</p>
-                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
-                  Rs {fmt(Math.max(giving.target.this_year_requirement - giving.target.already_named, 0))} {t('kf.remaining')} {t('es.year').toLowerCase()}
-                </p>
-              </div>
-            )}
+            <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
+              <p className="font-sans text-[15px] font-bold">{giving.first_name}</p>
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                Rs {fmt(Math.max(giving.this_year_requirement - giving.already_named, 0))} {t('kf.remaining')} {t('es.year').toLowerCase()}
+              </p>
+            </div>
 
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">
               {t('pool.monthlyAmount')}
@@ -445,13 +457,13 @@ export default function PortalKafalatPage() {
 
             <div className="flex gap-2 mb-1">
               {([['recurring', true, 'pool.recurringMonthly'], ['one_time', false, 'pool.oneTime']] as const).map(([key, val, label]) => (
-                <button key={key} disabled={!!commitmentFor(giving.target) && val} onClick={() => setForm({ ...form, recurring: val })}
-                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all ${form.recurring === val ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'} ${commitmentFor(giving.target) && val ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
+                <button key={key} disabled={commitmentFor(giving)?.status === 'active' && val} onClick={() => setForm({ ...form, recurring: val })}
+                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all ${form.recurring === val ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'} ${commitmentFor(giving)?.status === 'active' && val ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
                   {t(label)}
                 </button>
               ))}
             </div>
-            {commitmentFor(giving.target) ? (
+            {commitmentFor(giving)?.status === 'active' ? (
               <p className="font-sans text-[11px] text-dp-on-surface-variant mb-3">{t('pkf.alreadyMonthlyHint')}</p>
             ) : (
               <div className="mb-4" />
@@ -479,6 +491,31 @@ export default function PortalKafalatPage() {
         </div>
       )}
 
+      {/* ── Manage a joined sponsorship — increase, or end it ────────────── */}
+      {managing && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setManaging(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('pkf.manage.title')}</h2>
+              <button onClick={() => setManaging(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={18} /></button>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-5">
+              {t('pkf.manage.subtitle').replace('{amt}', fmt(managing.commitment.monthly_amount)).replace('{name}', managing.child.first_name)}
+            </p>
+            <div className="space-y-2.5">
+              <button onClick={() => { setChangeAmount(managing.commitment.monthly_amount); setChanging(managing.commitment) }}
+                className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                <TrendingUp size={15} /> {t('pkf.manage.increase')}
+              </button>
+              <button onClick={() => setEndTarget({ commitment: managing.commitment, child: managing.child })}
+                className="w-full flex items-center justify-center gap-2 border border-dp-outline-variant text-dp-on-surface-variant py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:border-dp-error hover:text-dp-error transition-all cursor-pointer">
+                <X size={15} /> {t('pkf.manage.end')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Change my standing amount ────────────────────────────────── */}
       {changing && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setChanging(null)}>
@@ -488,10 +525,52 @@ export default function PortalKafalatPage() {
               <button onClick={() => setChanging(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={18} /></button>
             </div>
             <input type="number" min={1} value={changeAmount || ''}
-              onChange={(e) => setChangeAmount(+e.target.value)} className="input-field mb-4" />
+              onChange={(e) => setChangeAmount(+e.target.value)} className="input-field mb-2" />
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-4">{t('pkf.manage.increaseHint')}</p>
             <button disabled={busy} onClick={submitChange}
               className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
               {busy ? t('action.saving') : t('action.save')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── End a sponsorship — a real goodbye, not a confirm() popup ──────
+          The message itself is admin-editable (message_templates), never
+          hardcoded here — only the two-step shape (ask once, warmly; act
+          only if they still mean it) is fixed. */}
+      {endTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setEndTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-3">{t('pkf.manage.end')}</h2>
+            <p className="font-sans text-[14px] text-dp-on-surface leading-relaxed mb-6">
+              {templates.kafalat_end_sponsorship
+                ? renderTemplate(templates.kafalat_end_sponsorship, { name: endTarget.child.first_name })
+                : `Are you sure you want to stop sponsoring ${endTarget.child.first_name}?`}
+            </p>
+            <div className="flex flex-col gap-2.5">
+              <button onClick={() => setEndTarget(null)}
+                className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                {t('pkf.end.cancel')}
+              </button>
+              <button disabled={busy} onClick={confirmEnd}
+                className="w-full text-dp-on-surface-variant py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:text-dp-error transition-all cursor-pointer disabled:opacity-50">
+                {busy ? t('action.saving') : t('pkf.end.stillEnd')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Thank you, from the child ─────────────────────────────────── */}
+      {thankYou && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setThankYou(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm text-center" onClick={(e) => e.stopPropagation()}>
+            <Heart size={28} className="mx-auto text-dp-secondary mb-3" />
+            <p className="font-sans text-[15px] text-dp-on-surface leading-relaxed mb-6">{thankYou}</p>
+            <button onClick={() => setThankYou(null)}
+              className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+              {t('pkf.thankYou.close')}
             </button>
           </div>
         </div>

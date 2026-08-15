@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
@@ -15,15 +16,24 @@ interface DonationRow { id: string; amount_pkr: number; date: string; payment_st
 // A Kafalat/Wazifa/Sadqa announcement, read the same way a project pledge
 // is — one "Pay Now" flow for every fund, with its own label attached.
 interface PoolPending { id: string; source: 'pool'; amount_pkr: number; date: string; has_proof: boolean; particular: string }
-type PayTarget = { kind: 'donor'; id: string } | { kind: 'pool'; id: string }
+type PayTarget = { kind: 'donor' | 'pool'; id: string; amount: number; particular: string | null }
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 export default function PortalStatementPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">…</div>}>
+      <PortalStatementInner />
+    </Suspense>
+  )
+}
+
+function PortalStatementInner() {
   const { t } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
+  const searchParams = useSearchParams()
   const [account, setAccount] = useState<AccountInfo | null>(null)
   const [rows, setRows] = useState<LedgerRow[]>([])
   const [donations, setDonations] = useState<DonationRow[]>([])
@@ -33,6 +43,10 @@ export default function PortalStatementPage() {
   const [payProof, setPayProof] = useState('')
   const [payMethod, setPayMethod] = useState('jazzcash')
   const [submitting, setSubmitting] = useState(false)
+  // Arrived here from a "Confirm your payment" button on a Kafalat/Wazifa/
+  // Sadqa card — open straight to that one pending payment instead of
+  // making them find it in the list themselves.
+  const [autoOpened, setAutoOpened] = useState(false)
 
   const load = async () => {
     if (!user) return
@@ -51,6 +65,19 @@ export default function PortalStatementPage() {
     setLoading(false)
   }
   useEffect(() => { load() }, [user])
+
+  useEffect(() => {
+    if (autoOpened || loading) return
+    const payId = searchParams.get('pay')
+    if (!payId) return
+    const match = poolPending.find((p) => p.id === payId && !p.has_proof)
+    if (match) {
+      setPayTarget({ kind: 'pool', id: match.id, amount: match.amount_pkr, particular: match.particular })
+      setPayProof('')
+      setPayMethod('jazzcash')
+    }
+    setAutoOpened(true)
+  }, [autoOpened, loading, searchParams, poolPending])
 
   const payPledge = async () => {
     if (!payTarget || !payProof) { toast.error('Upload your payment slip'); return }
@@ -102,7 +129,7 @@ export default function PortalStatementPage() {
                 <p className="font-sans text-[15px] font-bold">Rs. {fmt(p.amount_pkr)}</p>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant">Pledged {new Date(p.date).toLocaleDateString('en-GB')}</p>
               </div>
-              <button onClick={() => { setPayTarget({ kind: 'donor', id: p.id }); setPayProof(''); setPayMethod('jazzcash') }} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
+              <button onClick={() => { setPayTarget({ kind: 'donor', id: p.id, amount: p.amount_pkr, particular: null }); setPayProof(''); setPayMethod('jazzcash') }} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
                 {t('p.payNow')}
               </button>
             </div>
@@ -113,7 +140,7 @@ export default function PortalStatementPage() {
                 <p className="font-sans text-[15px] font-bold">Rs. {fmt(p.amount_pkr)}</p>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant">{p.particular} · Pledged {new Date(p.date).toLocaleDateString('en-GB')}</p>
               </div>
-              <button onClick={() => { setPayTarget({ kind: 'pool', id: p.id }); setPayProof(''); setPayMethod('jazzcash') }} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
+              <button onClick={() => { setPayTarget({ kind: 'pool', id: p.id, amount: p.amount_pkr, particular: p.particular }); setPayProof(''); setPayMethod('jazzcash') }} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
                 {t('p.payNow')}
               </button>
             </div>
@@ -194,6 +221,10 @@ export default function PortalStatementPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('p.payYourPledge')}</h2>
               <button onClick={() => setPayTarget(null)} className="cursor-pointer"><X size={20} /></button>
+            </div>
+            <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
+              <p className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmt(payTarget.amount)}</p>
+              {payTarget.particular && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">{payTarget.particular}</p>}
             </div>
             <div className="space-y-4">
               <div>

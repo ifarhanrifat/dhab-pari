@@ -2324,6 +2324,29 @@ export const messages: Record<Locale, Record<string, string>> = {
     'pool.payOnStatement': 'Sent it? Confirm it on My Giving →',
     'pool.manageOnRecurring': 'Change amount or stop on Recurring Donations →',
 
+    // Kafalat sponsor page — the stats header and per-child status cards
+    // (migration 244's kafalat_public_dashboard, and the state machine on
+    // each card: sponsor → confirm payment → awaiting → joined).
+    'pkf.stats.kids': 'Children sponsored',
+    'pkf.stats.required': "Needed this year",
+    'pkf.stats.confirmed': 'Confirmed so far',
+    'pkf.stats.outstanding': 'Rs {amt} still needed',
+    'pkf.stats.onTrack': 'On track',
+    'pkf.stats.behind': 'Falling behind',
+    'pkf.card.confirmPayment': "You've joined — confirm your payment",
+    'pkf.card.awaiting': 'Sent — awaiting confirmation',
+    'pkf.card.joined': 'Joined — Rs {amt}/month',
+    'pkf.card.fullySponsored': 'Fully sponsored, Alhamdulillah',
+    'pkf.card.resume': 'Resume sponsoring',
+    'pkf.manage.title': 'Your sponsorship',
+    'pkf.manage.subtitle': 'Rs {amt}/month for {name}',
+    'pkf.manage.increase': 'Increase my monthly amount',
+    'pkf.manage.increaseHint': 'Takes effect from next month — this month stays as it is.',
+    'pkf.manage.end': 'End this sponsorship',
+    'pkf.end.stillEnd': 'Yes, end it',
+    'pkf.end.cancel': 'Never mind, keep it',
+    'pkf.thankYou.close': 'Close',
+
     // Pool announcement queue — accountant side
     'pool.queueTitle': 'Announced, awaiting confirmation',
     'pool.queueBlurb': 'What donors have told us they are sending. Match each against your bank statement or the slip attached, then confirm — that is the moment it becomes a real donation.',
@@ -4766,6 +4789,26 @@ export const messages: Record<Locale, Record<string, string>> = {
     'pool.payOnStatement': 'بھیج دیا؟ اسے "میرا عطیہ" پر جا کر تصدیق کریں ←',
     'pool.manageOnRecurring': 'رقم تبدیل کریں یا روکیں — "باقاعدہ عطیات" پر ←',
     'pool.awaitingConfirmation': 'تصدیق کا منتظر',
+
+    'pkf.stats.kids': 'کفالت میں بچے',
+    'pkf.stats.required': 'اس سال درکار',
+    'pkf.stats.confirmed': 'اب تک موصول',
+    'pkf.stats.outstanding': '{amt} روپے ابھی درکار',
+    'pkf.stats.onTrack': 'ہدف کے مطابق',
+    'pkf.stats.behind': 'ہدف سے پیچھے',
+    'pkf.card.confirmPayment': 'آپ شامل ہو چکے — ادائیگی کی تصدیق کریں',
+    'pkf.card.awaiting': 'بھیج دیا — تصدیق کا منتظر',
+    'pkf.card.joined': 'شامل — {amt} روپے/ماہ',
+    'pkf.card.fullySponsored': 'مکمل کفالت ہو چکی، الحمدللہ',
+    'pkf.card.resume': 'دوبارہ کفالت شروع کریں',
+    'pkf.manage.title': 'آپ کی کفالت',
+    'pkf.manage.subtitle': '{name} کے لیے {amt} روپے/ماہ',
+    'pkf.manage.increase': 'ماہانہ رقم بڑھائیں',
+    'pkf.manage.increaseHint': 'اگلے مہینے سے لاگو ہو گا — اس مہینے کی رقم وہی رہے گی۔',
+    'pkf.manage.end': 'یہ کفالت ختم کریں',
+    'pkf.end.stillEnd': 'ہاں، ختم کریں',
+    'pkf.end.cancel': 'نہیں، رہنے دیں',
+    'pkf.thankYou.close': 'بند کریں',
 
     // Pool announcement queue — accountant side
     'pool.queueTitle': 'اعلان شدہ، تصدیق کا منتظر',

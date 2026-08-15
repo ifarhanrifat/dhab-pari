@@ -159,6 +159,43 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
     }
     if (consumerInfo) phone = consumerInfo.mobile
 
+    // What this donation was earmarked for — a project, or, for Kafalat/
+    // Wazifa/Sadqa giving (which has no project of its own), the pool it
+    // fed and who it was named for. Left unset only for genuinely
+    // unearmarked general giving, where "General Fund" is the true answer
+    // rather than a fallback standing in for a lookup nobody ran.
+    let projectName: string | undefined
+    if (row.reference_type === 'donation' && row.reference_id) {
+      const { data: donor } = await supabase.from('donors')
+        .select('project_id, fund_type').eq('id', row.reference_id).single()
+      if (donor?.project_id) {
+        const { data: proj } = await supabase.from('projects').select('title').eq('id', donor.project_id).single()
+        projectName = proj?.title ?? undefined
+      } else {
+        const { data: pp } = await supabase.from('pool_payments')
+          .select('pool:support_pools(name), kafalat_child_id, wazifa_student_id, sadqa_object_id')
+          .eq('donor_id', row.reference_id).maybeSingle()
+        const poolRow = pp as unknown as { pool: { name: string } | null
+          kafalat_child_id: string | null; wazifa_student_id: string | null; sadqa_object_id: string | null } | null
+        if (poolRow?.pool?.name) {
+          let named: string | null = null
+          if (poolRow.kafalat_child_id) {
+            const { data } = await supabase.from('kafalat_children').select('first_name').eq('id', poolRow.kafalat_child_id).single()
+            named = data?.first_name ?? null
+          } else if (poolRow.wazifa_student_id) {
+            const { data } = await supabase.from('wazifa_students').select('full_name').eq('id', poolRow.wazifa_student_id).single()
+            named = data?.full_name ?? null
+          } else if (poolRow.sadqa_object_id) {
+            const { data } = await supabase.from('sadqa_objects').select('item_name').eq('id', poolRow.sadqa_object_id).single()
+            named = data?.item_name ?? null
+          }
+          projectName = poolRow.pool.name + (named ? ` — ${named}` : '')
+        } else if (donor?.fund_type && donor.fund_type !== 'general') {
+          projectName = donor.fund_type.charAt(0).toUpperCase() + donor.fund_type.slice(1)
+        }
+      }
+    }
+
     const receiptKind = row.reference_type === 'bill' || row.reference_type === 'payment' || row.reference_type === 'donation' ? row.reference_type : 'manual'
     setReceipt({
       kind: receiptKind,
@@ -172,6 +209,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
       amount: row.debit > 0 ? row.debit : row.credit,
       balanceAfter: row.balance,
       billOutstandingAfter,
+      projectName,
     })
     void phone
   }

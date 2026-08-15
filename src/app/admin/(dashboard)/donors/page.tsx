@@ -23,6 +23,24 @@ interface Donor {
   payment_status: string | null
   recurring_schedule_id: string | null
   confirmed_at: string | null
+  fund_type: string | null
+}
+
+// "Staff"/"Public" in the Source column says how the donation was entered —
+// it has nothing to do with what the money is for, but read on its own it
+// looks exactly like a category ("filed under Staff"). Kafalat/Wazifa/Sadqa
+// giving confirmed through the pool system carries its purpose right in
+// notes (set by pool_post_confirmed_payment); fall back to fund_type for
+// anything fund-tagged that didn't come through a pool.
+function fundBadge(d: Donor): { label: string; className: string } | null {
+  const notes = d.notes ?? ''
+  if (notes.includes('Mushtarka Kafalat')) return { label: 'Kafalat', className: 'bg-rose-100 text-rose-700' }
+  if (notes.includes('Mushtarka Taleemi Wazifa')) return { label: 'Wazifa', className: 'bg-amber-100 text-amber-800' }
+  if (notes.includes('Mushtarka Sadqa')) return { label: 'Sadqa Upkeep', className: 'bg-emerald-100 text-emerald-700' }
+  if (d.fund_type === 'kafalat') return { label: 'Kafalat', className: 'bg-rose-100 text-rose-700' }
+  if (d.fund_type === 'zakat') return { label: 'Zakat', className: 'bg-teal-100 text-teal-700' }
+  if (d.fund_type === 'sadqa') return { label: 'Sadqa', className: 'bg-emerald-100 text-emerald-700' }
+  return null
 }
 interface Project { id: string; title: string }
 type SortKey = 'name' | 'account' | 'amount' | 'date' | 'status'
@@ -351,6 +369,9 @@ function AdminDonorsPageInner() {
                   <td className="p-4 border-b border-dp-outline-variant text-[14px] text-dp-on-surface-variant">{new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                   <td className="p-4 border-b border-dp-outline-variant">
                     <span className="inline-flex flex-wrap gap-1">
+                      {fundBadge(d) && (
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full font-sans ${fundBadge(d)!.className}`}>{fundBadge(d)!.label}</span>
+                      )}
                       <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full font-sans ${d.submitted_via === 'public' ? 'bg-blue-100 text-blue-700' : 'bg-dp-surface-container-high'}`}>{d.submitted_via === 'public' ? 'Public' : 'Staff'}</span>
                       {d.donor_type === 'overseas' && <span className="text-[11px] font-bold px-2 py-0.5 rounded-full font-sans bg-violet-100 text-violet-700">{t('g.overseas')}</span>}
                       {d.recurring_schedule_id && (
