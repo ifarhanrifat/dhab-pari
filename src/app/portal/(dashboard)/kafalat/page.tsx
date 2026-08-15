@@ -8,10 +8,11 @@ import { friendlyError } from '@/lib/errors'
 import {
   GraduationCap, Heart, Users, X, Send, HelpCircle, ChevronDown,
   HandCoins, TrendingUp, Calendar, ShieldCheck, AlertTriangle, CheckCircle2,
-  Clock, ArrowRight, Sparkles,
+  Clock, ArrowRight, Sparkles, Share2, ListChecks, Copy, MessageCircle,
 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { renderTemplate } from '@/lib/messageTemplates'
+import { SITE } from '@/lib/constants'
 import Link from 'next/link'
 
 /**
@@ -90,6 +91,10 @@ export default function PortalKafalatPage() {
   const [changeAmount, setChangeAmount] = useState(0)
   const [endTarget, setEndTarget] = useState<{ commitment: Commitment; child: NamingChild } | null>(null)
   const [thankYou, setThankYou] = useState<string | null>(null)
+
+  const [breakdownChild, setBreakdownChild] = useState<NamingChild | null>(null)
+  const [breakdown, setBreakdown] = useState<{ lines: { category: string; amount: number }[]; total: number } | null>(null)
+  const [sharing, setSharing] = useState<NamingChild | null>(null)
 
   const load = useCallback(async () => {
     const { data: pool } = await supabase.from('support_pools').select('id').eq('code', 'POOL-KFL').single()
@@ -221,6 +226,34 @@ export default function PortalKafalatPage() {
     toast.success(t('pkf.ok.nominated'))
     setShowNominate(false)
     setNomination({ child_name: '', guardian_name: '', approximate_age: 0, gender: 'male', address_hint: '', reason: '' })
+  }
+
+  const openBreakdown = async (child: NamingChild) => {
+    setBreakdownChild(child)
+    setBreakdown(null)
+    const { data, error } = await supabase.rpc('kafalat_child_package_breakdown', { p_child_id: child.id })
+    if (error) { toast.error(friendlyError(error)); setBreakdownChild(null); return }
+    setBreakdown(data as { lines: { category: string; amount: number }[]; total: number })
+  }
+
+  const publicShareUrl = (child: NamingChild) => `https://${SITE.domain}/kafalat/${child.code}`
+
+  const shareChild = async (child: NamingChild) => {
+    const url = publicShareUrl(child)
+    const text = t('pkf.share.text').replace('{name}', child.first_name)
+    // navigator.share hands off to the phone's own share sheet — WhatsApp,
+    // Facebook, everything already installed — which is what most people on
+    // this portal actually reach for first. The modal below is only the
+    // fallback for a desktop browser that doesn't have one.
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try { await navigator.share({ title: text, url }); return } catch { /* cancelled — fall through to nothing */ return }
+    }
+    setSharing(child)
+  }
+
+  const copyShareLink = async (child: NamingChild) => {
+    await navigator.clipboard.writeText(publicShareUrl(child))
+    toast.success(t('pkf.share.copied'))
   }
 
   return (
@@ -378,12 +411,33 @@ export default function PortalKafalatPage() {
               )}
 
               <div className="mt-3">
-                <div className="h-2 w-full bg-dp-surface-container rounded-full overflow-hidden mb-1.5">
-                  <div className="h-full bg-dp-secondary" style={{ width: `${Math.max(pct, 1)}%` }} />
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <div className="h-2 flex-1 bg-dp-surface-container rounded-full overflow-hidden">
+                    <div className="h-full bg-dp-secondary" style={{ width: `${Math.max(pct, 1)}%` }} />
+                  </div>
+                  {state === 'full' ? (
+                    <span className="shrink-0 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10.5px] font-bold">{t('pkf.card.full')}</span>
+                  ) : (
+                    <span className="shrink-0 px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 text-[10.5px] font-bold">{t('pkf.card.inProgress')}</span>
+                  )}
                 </div>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant">
                   {pct}% {t('kf.sponsored')} · <strong>Rs {fmt(remaining)} {t('kf.remaining')}</strong>
                 </p>
+              </div>
+
+              {/* ── Two quiet secondary actions every card gets: see what the
+                  money actually pays for, and pass this child on to someone
+                  else who might join in. ─────────────────────────────────── */}
+              <div className="flex items-center gap-4 mt-2">
+                <button onClick={() => openBreakdown(c)}
+                  className="flex items-center gap-1.5 font-sans text-[12px] font-bold text-dp-secondary hover:underline cursor-pointer">
+                  <ListChecks size={13} /> {t('pkf.viewBreakdown')}
+                </button>
+                <button onClick={() => shareChild(c)}
+                  className="flex items-center gap-1.5 font-sans text-[12px] font-bold text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
+                  <Share2 size={13} /> {t('pkf.share.button')}
+                </button>
               </div>
 
               {/* ── The one action this card needs, based on exactly where
@@ -572,6 +626,69 @@ export default function PortalKafalatPage() {
               className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
               {t('pkf.thankYou.close')}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── What you're actually paying for — the annual figure, itemised ── */}
+      {breakdownChild && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setBreakdownChild(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('pkf.breakdown.title')}</h2>
+              <button onClick={() => setBreakdownChild(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={18} /></button>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{breakdownChild.first_name}</p>
+            {!breakdown ? (
+              <p className="font-sans text-[13px] text-dp-on-surface-variant text-center py-6">{t('action.loading')}</p>
+            ) : breakdown.lines.length === 0 ? (
+              <p className="font-sans text-[13px] text-dp-on-surface-variant text-center py-6">{t('pkf.breakdown.none')}</p>
+            ) : (
+              <>
+                <div className="divide-y divide-dp-outline-variant border border-dp-outline-variant rounded-lg overflow-hidden mb-3">
+                  {breakdown.lines.map((l, i) => (
+                    <div key={i} className="flex items-center justify-between px-3.5 py-2.5">
+                      <p className="font-sans text-[13px] font-semibold text-dp-on-surface">{t(`kf.cat.${l.category}`)}</p>
+                      <p className="font-sans text-[13px] font-bold text-dp-on-surface shrink-0 ms-3">Rs {fmt(l.amount)}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between px-1">
+                  <p className="font-sans text-[13.5px] font-bold text-dp-primary">{t('pkf.breakdown.total')}</p>
+                  <p className="font-heading text-[18px] font-bold text-dp-primary">Rs {fmt(breakdown.total)}</p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Share this child's card — a fallback for browsers with no share
+          sheet of their own; on a phone shareChild() skips this modal
+          entirely and hands off to WhatsApp/Facebook/etc. directly. ────── */}
+      {sharing && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setSharing(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('pkf.share.title')}</h2>
+              <button onClick={() => setSharing(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={18} /></button>
+            </div>
+            <div className="space-y-2.5">
+              <a href={`https://wa.me/?text=${encodeURIComponent(`${t('pkf.share.text').replace('{name}', sharing.first_name)} ${publicShareUrl(sharing)}`)}`}
+                target="_blank" rel="noreferrer"
+                className="w-full flex items-center justify-center gap-2 bg-[#25D366] text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:opacity-90 transition-all">
+                <MessageCircle size={16} /> WhatsApp
+              </a>
+              <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publicShareUrl(sharing))}`}
+                target="_blank" rel="noreferrer"
+                className="w-full flex items-center justify-center gap-2 bg-[#1877F2] text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:opacity-90 transition-all">
+                <span className="font-heading text-[15px] font-black leading-none">f</span> Facebook
+              </a>
+              <button onClick={() => copyShareLink(sharing)}
+                className="w-full flex items-center justify-center gap-2 border border-dp-outline-variant text-dp-on-surface py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:border-dp-secondary transition-all cursor-pointer">
+                <Copy size={15} /> {t('pkf.share.copyLink')}
+              </button>
+            </div>
           </div>
         </div>
       )}
