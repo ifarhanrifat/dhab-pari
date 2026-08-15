@@ -81,11 +81,12 @@ function SupportBody() {
   const [newAmount, setNewAmount] = useState(0)
 
   const load = useCallback(async () => {
-    // Kafalat is deliberately excluded — it has its own page (/portal/kafalat)
-    // that covers both naming a child and joining the shared pool in one
-    // place, so it does not need a second, unnamed entry point here too.
+    // Kafalat and the shared Sadqa upkeep pool are deliberately excluded —
+    // both now have their own page (/portal/kafalat, /portal/esal-e-sawab)
+    // covering naming and joining the shared pool in one place, so neither
+    // needs a second, unnamed entry point here too. Only Wazifa is left.
     const { data: list } = await supabase.from('support_pools')
-      .select('id').eq('is_active', true).neq('code', 'POOL-KFL')
+      .select('id').eq('is_active', true).not('code', 'in', '(POOL-KFL,POOL-SDQ)')
     const positions = await Promise.all(
       (list ?? []).map((p: { id: string }) => supabase.rpc('pool_position', { p_pool_id: p.id })),
     )

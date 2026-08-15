@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { Gift, Send, Plus, Info, MessageSquare, X, Paperclip } from 'lucide-react'
+import { Gift, Send, Plus, Info, MessageSquare, X, Paperclip, HandHeart, Heart } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 /**
@@ -54,6 +54,27 @@ interface UpkeepCharge {
   month: string; amount: number; status: string; due_on: string; paid_on: string | null
 }
 
+// Helping keep an already-installed object running — a different thing from
+// offering a new one above. Every committee-maintained object needs its
+// electricity, filters and repairs kept up, shared the same way Kafalat and
+// Wazifa now share their own costs: name one object, or join with no name
+// attached, either way through the one shared pool.
+interface UpkeepObject {
+  id: string; object_no: string; item_name: string; item_name_ur: string | null
+  dedicated_to: string; monthly_cost: number; already_named: number
+}
+interface Position {
+  pool_id: string; required: number; committed: number; donors: number
+  coverage_percent: number; suggested_share: number; min_share: number
+}
+interface Commitment {
+  id: string; pool_id: string; monthly_amount: number; status: string
+  named_object: string | null; months_given: number; total_given: number
+}
+interface UpkeepAnnouncement {
+  id: string; pool_id: string; amount: number; is_one_time: boolean; status: string; named_object: string | null
+}
+
 interface ChatMessage {
   id: string; sender_kind: string; sender_name: string | null
   body: string | null; attachment_url: string | null; attachment_kind: string | null
@@ -71,6 +92,17 @@ export default function PortalEsalESawabPage() {
   const [mine, setMine] = useState<MyOffer[]>([])
   const [upkeep, setUpkeep] = useState<UpkeepCharge[]>([])
   const [busy, setBusy] = useState(false)
+
+  // ── Helping keep things running — the shared upkeep pool ──────────────
+  const [upkeepPoolId, setUpkeepPoolId] = useState<string | null>(null)
+  const [upkeepPosition, setUpkeepPosition] = useState<Position | null>(null)
+  const [upkeepObjects, setUpkeepObjects] = useState<UpkeepObject[]>([])
+  const [upkeepCommitments, setUpkeepCommitments] = useState<Commitment[]>([])
+  const [upkeepAnnouncements, setUpkeepAnnouncements] = useState<UpkeepAnnouncement[]>([])
+  const [giving, setGiving] = useState<{ target: UpkeepObject | null } | null>(null)
+  const [giveForm, setGiveForm] = useState({ amount: 0, recurring: true, funded_by: 'sadqa', show_name_publicly: false })
+  const [changing, setChanging] = useState<Commitment | null>(null)
+  const [changeAmount, setChangeAmount] = useState(0)
 
   // The form stays shut until asked for. What a returning donor wants first is
   // "where has my request got to", not a blank form they have already filled
@@ -90,17 +122,82 @@ export default function PortalEsalESawabPage() {
   })
 
   const load = useCallback(async () => {
-    const [{ data: cat }, { data: offers }, { data: dues }] = await Promise.all([
+    const { data: pool } = await supabase.from('support_pools').select('id').eq('code', 'POOL-SDQ').single()
+    const pid = (pool as { id: string } | null)?.id ?? null
+    setUpkeepPoolId(pid)
+
+    const [{ data: cat }, { data: offers }, { data: dues }, { data: objs }, { data: pos }, { data: myC }, { data: myA }] = await Promise.all([
       supabase.from('sadqa_catalogue').select('*').eq('is_active', true).order('display_order'),
       supabase.rpc('my_sadqa_objects'),
       supabase.rpc('my_sadqa_upkeep'),
+      supabase.rpc('sadqa_objects_for_naming'),
+      pid ? supabase.rpc('pool_position', { p_pool_id: pid }) : Promise.resolve({ data: null }),
+      supabase.rpc('my_pool_commitments'),
+      supabase.rpc('my_pool_announcements'),
     ])
     setCatalogue((cat ?? []) as CatalogueItem[])
     setMine((offers ?? []) as MyOffer[])
     setUpkeep((dues ?? []) as UpkeepCharge[])
+    setUpkeepObjects((objs ?? []) as UpkeepObject[])
+    setUpkeepPosition((pos ?? null) as Position | null)
+    setUpkeepCommitments(((myC ?? []) as Commitment[]).filter((c) => c.pool_id === pid))
+    setUpkeepAnnouncements(((myA ?? []) as UpkeepAnnouncement[]).filter((a) => a.pool_id === pid))
   }, [supabase])
 
   useEffect(() => { load() }, [load])
+
+  const openGive = (target: UpkeepObject | null) => {
+    setGiveForm({
+      amount: target ? Math.max(target.monthly_cost - target.already_named, upkeepPosition?.min_share ?? 200) : (upkeepPosition?.suggested_share ?? 500),
+      recurring: true, funded_by: 'sadqa', show_name_publicly: false,
+    })
+    setGiving({ target })
+  }
+
+  const submitGive = async () => {
+    if (!giving || !upkeepPoolId) return
+    if (upkeepPosition && giveForm.amount < upkeepPosition.min_share) {
+      toast.error(t('pool.minimumIs').replace('{amt}', fmt(upkeepPosition.min_share))); return
+    }
+    setBusy(true)
+    const { error } = await supabase.rpc('pool_announce', {
+      p_pool_id: upkeepPoolId, p_amount: giveForm.amount, p_recurring: giveForm.recurring,
+      p_funded_by: giveForm.funded_by, p_show_name_publicly: giveForm.show_name_publicly,
+      p_sadqa_object_id: giving.target?.id ?? null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.announced'))
+    setGiving(null)
+    load()
+  }
+
+  const submitChangeUpkeep = async () => {
+    if (!changing) return
+    setBusy(true)
+    const { error } = await supabase.rpc('pool_change_my_share', { p_commitment_id: changing.id, p_monthly_amount: changeAmount })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.shareChanged'))
+    setChanging(null)
+    load()
+  }
+
+  const stopUpkeepGiving = async (c: Commitment) => {
+    if (!confirm(t('pool.leaveConfirm'))) return
+    const { error } = await supabase.rpc('pool_leave', { p_commitment_id: c.id })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.left'))
+    load()
+  }
+
+  const withdrawUpkeepAnnouncement = async (a: UpkeepAnnouncement) => {
+    if (!confirm(t('pool.withdrawConfirm'))) return
+    const { error } = await supabase.rpc('pool_cancel_announcement', { p_payment_id: a.id })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.withdrawn'))
+    load()
+  }
 
   const openChat = async (o: MyOffer) => {
     setChatOn(o)
@@ -305,6 +402,90 @@ export default function PortalEsalESawabPage() {
           </div>
         </div>
       )}
+
+      {/* ── Helping keep things running — the shared upkeep pool ─────────
+          A different thing from offering a new object above: this is the
+          ongoing electricity, filters and repairs for everything the
+          committee already maintains. Name one object, or join with no
+          name attached — both credit the same shared pot. */}
+      <div className="mb-6">
+        <h2 className="font-heading text-[20px] font-bold text-dp-primary mb-1 flex items-center gap-2">
+          <HandHeart size={18} className="text-dp-secondary" /> {t('pes.upkeep2.title')}
+        </h2>
+        <p className="font-sans text-[13px] text-dp-on-surface-variant mb-3 leading-relaxed">{t('pes.upkeep2.blurb')}</p>
+
+        {(upkeepCommitments.length > 0 || upkeepAnnouncements.filter((a) => a.status === 'announced').length > 0) && (
+          <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-3">
+            <h3 className="font-heading text-[13.5px] font-bold text-dp-primary mb-2.5">{t('pool.mine')}</h3>
+            <div className="space-y-2">
+              {upkeepCommitments.map((c) => (
+                <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-dp-outline-variant last:border-0 pb-2 last:pb-0">
+                  <div>
+                    <p className="font-sans text-[13px] font-bold text-dp-on-surface">
+                      Rs {fmt(c.monthly_amount)}/{t('pkf.month')}
+                      <span className="font-normal text-dp-on-surface-variant"> · {c.named_object ? t('pkf.namedFor').replace('{name}', c.named_object) : t('pkf.sharedGiving')}</span>
+                    </p>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant">
+                      {t('pool.givenSoFar').replace('{months}', String(c.months_given)).replace('{total}', fmt(c.total_given))}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button onClick={() => { setChangeAmount(c.monthly_amount); setChanging(c) }}
+                      className="font-sans text-[12px] font-bold text-dp-secondary hover:underline cursor-pointer">{t('pool.changeAmount')}</button>
+                    <button onClick={() => stopUpkeepGiving(c)}
+                      className="font-sans text-[12px] text-dp-on-surface-variant hover:underline cursor-pointer">{t('pool.stopGiving')}</button>
+                  </div>
+                </div>
+              ))}
+              {upkeepAnnouncements.filter((a) => a.status === 'announced').map((a) => (
+                <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-dp-outline-variant last:border-0 pb-2 last:pb-0">
+                  <div>
+                    <p className="font-sans text-[13px] font-bold text-dp-on-surface">
+                      Rs {fmt(a.amount)}
+                      <span className="font-normal text-dp-on-surface-variant"> · {a.named_object ? t('pkf.namedFor').replace('{name}', a.named_object) : t('pkf.sharedGiving')}</span>
+                    </p>
+                    <p className="font-sans text-[11px] text-amber-700 font-semibold">{t('pool.status.announced')} — {t('pool.awaitingConfirmation')}</p>
+                  </div>
+                  <button onClick={() => withdrawUpkeepAnnouncement(a)}
+                    className="font-sans text-[12px] text-dp-on-surface-variant hover:underline cursor-pointer shrink-0">{t('pool.withdraw')}</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {upkeepPosition && (
+          <div className="bg-white border-2 border-dp-secondary/30 rounded-lg p-4 mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{t('pes.upkeep2.sharedTitle')}</p>
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">
+                {t('pool.nDonors').replace('{n}', String(upkeepPosition.donors))} · {upkeepPosition.coverage_percent}%
+              </p>
+            </div>
+            <button onClick={() => openGive(null)}
+              className="flex items-center gap-2 bg-dp-secondary text-white px-4 py-2 rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer shrink-0">
+              <HandHeart size={14} /> {t('pool.join')}
+            </button>
+          </div>
+        )}
+
+        {upkeepObjects.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {upkeepObjects.map((o) => (
+              <div key={o.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+                <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{o.item_name}</p>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2">
+                  {o.object_no} · Rs {fmt(o.monthly_cost)}/{t('pkf.month')}
+                </p>
+                <button onClick={() => openGive(o)}
+                  className="w-full flex items-center justify-center gap-1.5 bg-dp-secondary text-white py-1.5 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                  <Heart size={13} /> {t('pkf.joinShare')}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* ── The form, only when asked for ──────────────────────────────── */}
       {!showForm ? (
@@ -546,6 +727,78 @@ export default function PortalEsalESawabPage() {
                 <Send size={16} />
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Give — named or shared, same form ────────────────────────── */}
+      {giving && upkeepPosition && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setGiving(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">
+                {giving.target ? t('pes.upkeep2.giveForTitle') : t('pool.joinTitle')}
+              </h2>
+              <button onClick={() => setGiving(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+
+            {giving.target && (
+              <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
+                <p className="font-sans text-[15px] font-bold">{giving.target.item_name}</p>
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">Rs {fmt(giving.target.monthly_cost)}/{t('pkf.month')}</p>
+              </div>
+            )}
+
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pool.monthlyAmount')}</label>
+            <input type="number" min={upkeepPosition.min_share} value={giveForm.amount || ''}
+              onChange={(e) => setGiveForm({ ...giveForm, amount: +e.target.value })} className="input-field mb-1" />
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-4">
+              {t('pool.minimumIs').replace('{amt}', fmt(upkeepPosition.min_share))}
+            </p>
+
+            <div className="flex gap-2 mb-4">
+              {([['recurring', true, 'pool.recurringMonthly'], ['one_time', false, 'pool.oneTime']] as const).map(([key, val, label]) => (
+                <button key={key} onClick={() => setGiveForm({ ...giveForm, recurring: val })}
+                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer transition-all ${giveForm.recurring === val ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
+                  {t(label)}
+                </button>
+              ))}
+            </div>
+
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pool.fundedBy')}</label>
+            <select value={giveForm.funded_by} onChange={(e) => setGiveForm({ ...giveForm, funded_by: e.target.value })} className="input-field mb-3.5">
+              <option value="sadqa">{t('pool.fundedBy.sadqa')}</option>
+              <option value="general">{t('pool.fundedBy.general')}</option>
+            </select>
+
+            <label className="flex items-start gap-2 cursor-pointer font-sans text-[12.5px] mb-5">
+              <input type="checkbox" checked={giveForm.show_name_publicly}
+                onChange={(e) => setGiveForm({ ...giveForm, show_name_publicly: e.target.checked })} className="accent-dp-secondary mt-0.5" />
+              <span>{t('pool.showNamePublicly')} <span className="block text-dp-on-surface-variant">{t('pool.showNamePubliclyHint')}</span></span>
+            </label>
+
+            <button disabled={busy || giveForm.amount < upkeepPosition.min_share} onClick={submitGive}
+              className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              <Heart size={16} /> {busy ? t('action.saving') : t('pool.confirmAnnounce')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Change my standing amount ────────────────────────────────── */}
+      {changing && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setChanging(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('pool.changeTitle')}</h2>
+              <button onClick={() => setChanging(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={18} /></button>
+            </div>
+            <input type="number" min={1} value={changeAmount || ''}
+              onChange={(e) => setChangeAmount(+e.target.value)} className="input-field mb-4" />
+            <button disabled={busy} onClick={submitChangeUpkeep}
+              className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              {busy ? t('action.saving') : t('action.save')}
+            </button>
           </div>
         </div>
       )}

@@ -4,7 +4,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { Gift, X, Check, Wrench, AlertTriangle, MapPin, Plus } from 'lucide-react'
+import {
+  Gift, X, Check, Wrench, AlertTriangle, MapPin, Plus, Pencil, HelpCircle, ChevronDown,
+  HandCoins, Phone, RotateCcw, Info, Wallet,
+} from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 /**
@@ -40,6 +43,23 @@ interface Liability {
   endowment_held: number; live_objects: number; spent_last_12m: number
 }
 
+// The pool-collection side, folded in from what used to be a separate
+// /admin/pools screen — same shapes as Kafalat's, scoped to POOL-SDQ only.
+interface Position {
+  pool_id: string; required: number; committed: number; received_this_month: number
+  donors: number; coverage_percent: number; reserve_months: number; reserve_target_months: number
+}
+interface ShortMonth {
+  pool_month_id: string; pool_code: string; month: string
+  required: number; received: number; remaining: number
+}
+interface Lapsed { commitment_id: string; pool_code: string; name: string; phone: string | null; amount: number }
+interface Cover { month: string; pool_code: string; amount: number; voucher_no: string | null }
+interface Announcement {
+  id: string; pool_code: string; donor_name: string | null; donor_phone: string | null
+  amount: number; is_one_time: boolean; month: string; proof_url: string | null
+}
+
 const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 
 const STATUS_TONE: Record<string, string> = {
@@ -72,7 +92,29 @@ export default function EsalESawabPage() {
   const [catalogue, setCatalogue] = useState<CatalogueItem[]>([])
   const [liability, setLiability] = useState<Liability | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'proposals' | 'live' | 'catalogue'>('proposals')
+  const [tab, setTab] = useState<'proposals' | 'live' | 'catalogue' | 'collections'>('proposals')
+  const [showGuide, setShowGuide] = useState(false)
+
+  // ── Catalogue CRUD ────────────────────────────────────────────────────
+  const [editingItem, setEditingItem] = useState<CatalogueItem | null>(null)
+  const [showNewItem, setShowNewItem] = useState(false)
+  const [itemForm, setItemForm] = useState({
+    name: '', name_ur: '', capital_cost: 0, annual_running_cost: 0, expected_life_years: 0, description: '',
+  })
+
+  // ── Collections: shortfall, lapsed donors, announced pledges awaiting
+  // confirmation — the same functionality Kafalat's admin page folded in,
+  // scoped to just the shared Sadqa upkeep pool.
+  const [poolId, setPoolId] = useState<string | null>(null)
+  const [poolPosition, setPoolPosition] = useState<Position | null>(null)
+  const [shortMonths, setShortMonths] = useState<ShortMonth[]>([])
+  const [lapsed, setLapsed] = useState<Lapsed[]>([])
+  const [covers, setCovers] = useState<Cover[]>([])
+  const [unrestrictedAvailable, setUnrestrictedAvailable] = useState(0)
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [covering, setCovering] = useState<ShortMonth | null>(null)
+  const [coverAmount, setCoverAmount] = useState(0)
+  const [coverNote, setCoverNote] = useState('')
   const [approveTarget, setApproveTarget] = useState<SadqaObject | null>(null)
   const [approveForm, setApproveForm] = useState({ location: '', capital: 0, running: 0 })
   const [maintTarget, setMaintTarget] = useState<SadqaObject | null>(null)
@@ -217,18 +259,149 @@ export default function EsalESawabPage() {
     load()
   }
 
+  // ── Catalogue CRUD ──────────────────────────────────────────────────────
+  const openEditItem = (c: CatalogueItem) => {
+    setItemForm({
+      name: c.name, name_ur: c.name_ur ?? '', capital_cost: c.capital_cost_pkr,
+      annual_running_cost: c.annual_running_cost_pkr, expected_life_years: c.expected_life_years ?? 0,
+      description: '',
+    })
+    setEditingItem(c)
+  }
+
+  const saveNewItem = async () => {
+    if (!itemForm.name.trim()) { toast.error(t('es.err.itemName')); return }
+    setBusy(true)
+    const { error } = await supabase.rpc('sadqa_catalogue_create', {
+      p_name: itemForm.name, p_name_ur: itemForm.name_ur || null,
+      p_capital_cost: itemForm.capital_cost, p_annual_running_cost: itemForm.annual_running_cost,
+      p_expected_life_years: itemForm.expected_life_years || null,
+      p_description: itemForm.description || null, p_description_ur: null, p_image_url: null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('es.ok.itemAdded'))
+    setShowNewItem(false)
+    setItemForm({ name: '', name_ur: '', capital_cost: 0, annual_running_cost: 0, expected_life_years: 0, description: '' })
+    load()
+  }
+
+  const saveEditItem = async () => {
+    if (!editingItem) return
+    setBusy(true)
+    const { error } = await supabase.rpc('sadqa_catalogue_update', {
+      p_id: editingItem.id, p_name: itemForm.name, p_name_ur: itemForm.name_ur || null,
+      p_capital_cost: itemForm.capital_cost, p_annual_running_cost: itemForm.annual_running_cost,
+      p_expected_life_years: itemForm.expected_life_years || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('es.ok.itemSaved'))
+    setEditingItem(null)
+    load()
+  }
+
+  const retireItem = async (c: CatalogueItem, retire: boolean) => {
+    if (retire && !confirm(t('es.retireConfirm'))) return
+    const { error } = await supabase.rpc('sadqa_catalogue_retire', { p_id: c.id, p_retire: retire })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(retire ? t('es.ok.itemRetired') : t('es.ok.itemRestored'))
+    load()
+  }
+
+  // ── Collections ──────────────────────────────────────────────────────────
+  const loadCollections = useCallback(async () => {
+    const { data: pool } = await supabase.from('support_pools').select('id').eq('code', 'POOL-SDQ').single()
+    const pid = (pool as { id: string } | null)?.id ?? null
+    setPoolId(pid)
+    const [{ data: pos }, { data: short }, { data: ann }] = await Promise.all([
+      pid ? supabase.rpc('pool_position', { p_pool_id: pid }) : Promise.resolve({ data: null }),
+      supabase.rpc('pool_shortfall_queue'),
+      supabase.rpc('pool_announcement_queue'),
+    ])
+    setPoolPosition((pos ?? null) as Position | null)
+    const s = short as { unrestricted_available: number; months: ShortMonth[]; lapsed: Lapsed[]; covers: Cover[] } | null
+    setUnrestrictedAvailable(s?.unrestricted_available ?? 0)
+    setShortMonths((s?.months ?? []).filter((m) => m.pool_code === 'POOL-SDQ'))
+    setLapsed((s?.lapsed ?? []).filter((l) => l.pool_code === 'POOL-SDQ'))
+    setCovers((s?.covers ?? []).filter((c) => c.pool_code === 'POOL-SDQ'))
+    setAnnouncements(((ann ?? []) as Announcement[]).filter((a) => a.pool_code === 'POOL-SDQ'))
+  }, [supabase])
+
+  useEffect(() => { if (tab === 'collections') loadCollections() }, [tab, loadCollections])
+
+  const confirmAnnouncement = async (id: string) => {
+    setBusy(true)
+    const { error } = await supabase.rpc('pool_confirm_payment', { p_payment_id: id })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.ok.confirmed'))
+    loadCollections()
+  }
+
+  const declineAnnouncement = async (id: string) => {
+    const reason = prompt(t('pool.declineReasonPrompt'))
+    if (!reason) return
+    const { error } = await supabase.rpc('pool_decline_announcement', { p_payment_id: id, p_reason: reason })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.ok.declined'))
+    loadCollections()
+  }
+
+  const openCover = (m: ShortMonth) => {
+    setCoverAmount(m.remaining)
+    setCoverNote('')
+    setCovering(m)
+  }
+
+  const submitCover = async () => {
+    if (!covering) return
+    setBusy(true)
+    const { data, error } = await supabase.rpc('pool_cover_shortfall', {
+      p_pool_month_id: covering.pool_month_id, p_amount: coverAmount, p_note: coverNote || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.covered').replace('{v}', (data as { voucher_no: string })?.voucher_no ?? ''))
+    setCovering(null)
+    loadCollections()
+  }
+
   const proposals = objects.filter((o) => ['proposed'].includes(o.status))
   const live = objects.filter((o) => !['proposed', 'declined'].includes(o.status))
   const shown = tab === 'proposals' ? proposals : live
 
   return (
     <>
-      <div className="mb-6">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5">
-          <Gift size={26} className="text-dp-secondary" /> {t('es.title')}
-        </h1>
-        <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('es.blurb')}</p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5">
+            <Gift size={26} className="text-dp-secondary" /> {t('es.title')}
+          </h1>
+          <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('es.blurb')}</p>
+        </div>
+        <button onClick={() => setShowGuide((v) => !v)}
+          className="flex items-center gap-1.5 px-3.5 py-2.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[13.5px] font-semibold hover:border-dp-secondary transition-all cursor-pointer">
+          <HelpCircle size={16} /> {t('es.guide.toggle')}
+          <ChevronDown size={14} className={`transition-transform ${showGuide ? 'rotate-180' : ''}`} />
+        </button>
       </div>
+
+      {showGuide && (
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-5 space-y-4">
+          {([
+            ['proposals', 'es.guide.proposals'],
+            ['upkeep', 'es.guide.upkeep'],
+            ['collections', 'es.guide.collections'],
+            ['catalogue', 'es.guide.catalogue'],
+          ] as const).map(([key, base]) => (
+            <div key={key}>
+              <h4 className="font-heading text-[13.5px] font-bold text-dp-primary mb-1">{t(`${base}.title`)}</h4>
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{t(`${base}.body`)}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* The number that should be read before accepting the next gift. */}
       {liability && (
@@ -266,6 +439,7 @@ export default function EsalESawabPage() {
         {([
           ['proposals', `${t('es.tab.proposals')} (${proposals.length})`],
           ['live', `${t('es.tab.live')} (${live.length})`],
+          ['collections', `${t('es.tab.collections')}${(announcements.length + lapsed.length + shortMonths.length) ? ` (${announcements.length + lapsed.length + shortMonths.length})` : ''}`],
           ['catalogue', t('es.tab.catalogue')],
         ] as const).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)}
@@ -279,6 +453,12 @@ export default function EsalESawabPage() {
 
       {!loading && tab === 'catalogue' && (
         <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
+          <div className="flex justify-end p-3 border-b border-dp-outline-variant">
+            <button onClick={() => { setItemForm({ name: '', name_ur: '', capital_cost: 0, annual_running_cost: 0, expected_life_years: 0, description: '' }); setShowNewItem(true) }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+              <Plus size={14} /> {t('es.addItem')}
+            </button>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
@@ -287,18 +467,27 @@ export default function EsalESawabPage() {
                   <th className="p-3 text-end">{t('es.col.capital')}</th>
                   <th className="p-3 text-end">{t('es.col.running')}</th>
                   <th className="p-3 text-center">{t('es.col.life')}</th>
+                  <th className="p-3"></th>
                 </tr>
               </thead>
               <tbody className="font-sans text-[14px]">
                 {catalogue.map((c, i) => (
-                  <tr key={c.id} className={i % 2 === 1 ? 'bg-dp-surface-container/30' : ''}>
+                  <tr key={c.id} className={`${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''} ${!c.is_active ? 'opacity-50' : ''}`}>
                     <td className="p-3 border-b border-dp-outline-variant">
                       <span className="font-semibold">{c.name}</span>
                       {c.name_ur && <span className="block text-[13px] text-dp-on-surface-variant" style={{ fontFamily: 'var(--font-urdu), serif' }}>{c.name_ur}</span>}
+                      {!c.is_active && <span className="ms-2 px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10.5px] font-bold">{t('es.retired')}</span>}
                     </td>
                     <td className="p-3 border-b border-dp-outline-variant text-end tabular-nums">Rs {fmt(c.capital_cost_pkr)}</td>
                     <td className="p-3 border-b border-dp-outline-variant text-end tabular-nums">Rs {fmt(c.annual_running_cost_pkr)}</td>
                     <td className="p-3 border-b border-dp-outline-variant text-center">{c.expected_life_years ?? '—'}</td>
+                    <td className="p-3 border-b border-dp-outline-variant text-end whitespace-nowrap">
+                      <button onClick={() => openEditItem(c)} className="text-dp-on-surface-variant hover:text-dp-primary cursor-pointer me-2"><Pencil size={14} /></button>
+                      <button onClick={() => retireItem(c, c.is_active)}
+                        className="font-sans text-[11.5px] font-semibold text-dp-on-surface-variant hover:underline cursor-pointer">
+                        {c.is_active ? t('es.retire') : t('es.restore')}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -308,7 +497,7 @@ export default function EsalESawabPage() {
         </div>
       )}
 
-      {!loading && tab !== 'catalogue' && (
+      {!loading && (tab === 'proposals' || tab === 'live') && (
         <div className="space-y-3">
           {shown.length === 0 && (
             <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">
@@ -416,6 +605,201 @@ export default function EsalESawabPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Collections: shortfall, lapsed donors, and pledges awaiting
+          confirmation — folded in from what used to be a separate
+          /admin/pools screen, scoped to just the shared upkeep pool. */}
+      {!loading && tab === 'collections' && (
+        <div className="space-y-6">
+          {poolPosition && (
+            <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                {[
+                  { v: fmt(poolPosition.committed), l: t('pool.pledged') },
+                  { v: String(poolPosition.donors), l: t('pool.donors') },
+                  { v: `${poolPosition.coverage_percent}%`, l: t('kf.collections.coverage') },
+                  { v: fmt(poolPosition.received_this_month), l: t('kf.collections.receivedThisMonth') },
+                ].map((s) => (
+                  <div key={s.l}>
+                    <p className="font-heading text-[17px] font-bold text-dp-primary">{s.v}</p>
+                    <p className="font-sans text-[11px] text-dp-on-surface-variant">{s.l}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant flex items-center gap-1.5">
+                <Wallet size={12} />
+                {t('pool.reserve').replace('{n}', String(poolPosition.reserve_months)).replace('{target}', String(poolPosition.reserve_target_months))}
+              </p>
+            </div>
+          )}
+
+          {announcements.length > 0 && (
+            <div>
+              <h3 className="font-heading text-[15px] font-bold text-dp-primary mb-1 flex items-center gap-2">
+                <HandCoins size={16} /> {t('pool.queueTitle')}
+              </h3>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-2">{t('pool.queueBlurb')}</p>
+              <div className="space-y-2">
+                {announcements.map((a) => (
+                  <div key={a.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{a.donor_name ?? '—'}</p>
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant">
+                        {a.donor_phone && <a href={`tel:${a.donor_phone}`} className="text-dp-secondary hover:underline">{a.donor_phone}</a>}
+                        {' · '}Rs {fmt(a.amount)} · {a.is_one_time ? t('pool.oneTime') : t('pool.recurringMonthly')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {a.proof_url && (
+                        <a href={a.proof_url} target="_blank" rel="noreferrer" className="font-sans text-[12px] font-bold text-dp-secondary hover:underline">{t('pool.viewProof')}</a>
+                      )}
+                      <button onClick={() => confirmAnnouncement(a.id)} disabled={busy}
+                        className="bg-dp-secondary text-white font-sans text-[12px] font-bold px-3 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer">
+                        {t('pool.confirmThis')}
+                      </button>
+                      <button onClick={() => declineAnnouncement(a.id)}
+                        className="font-sans text-[12px] font-bold text-dp-on-surface-variant hover:underline cursor-pointer">
+                        {t('pool.declineThis')}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {lapsed.length > 0 && (
+            <div>
+              <h3 className="font-heading text-[15px] font-bold text-dp-primary mb-1 flex items-center gap-2">
+                <Phone size={16} /> {t('pool.lapsedTitle')}
+              </h3>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-2">{t('pool.lapsedBlurb')}</p>
+              <div className="space-y-2">
+                {lapsed.map((l) => (
+                  <div key={l.commitment_id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex flex-wrap items-center justify-between gap-3">
+                    <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{l.name}</p>
+                    <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                      {l.phone && <a href={`tel:${l.phone}`} className="text-dp-secondary hover:underline">{l.phone}</a>}
+                      {' · '}Rs {fmt(l.amount)}/{t('pkf.month')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {shortMonths.length > 0 && (
+            <div>
+              <h3 className="font-heading text-[15px] font-bold text-dp-primary mb-1 flex items-center gap-2">
+                <AlertTriangle size={16} /> {t('pool.shortTitle')}
+              </h3>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-2">{t('pool.shortBlurb').replace('{amt}', fmt(unrestrictedAvailable))}</p>
+              <div className="space-y-2">
+                {shortMonths.map((m) => (
+                  <div key={m.pool_month_id} className="bg-white border border-dp-outline-variant rounded-lg p-4 flex flex-wrap items-center gap-4">
+                    <div className="flex-1 min-w-[200px]">
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant">
+                        {new Date(m.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                        {' · '}{t('pool.neededReceived').replace('{req}', fmt(m.required)).replace('{recd}', fmt(m.received))}
+                      </p>
+                    </div>
+                    <p className="font-heading text-[18px] font-bold text-dp-secondary">{fmt(m.remaining)}</p>
+                    <button onClick={() => openCover(m)}
+                      className="bg-dp-primary text-white font-sans text-[12.5px] font-bold px-4 py-2 rounded-lg hover:opacity-90 cursor-pointer">
+                      {t('pool.coverIt')}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {covers.length > 0 && (
+            <div>
+              <h3 className="font-heading text-[15px] font-bold text-dp-primary mb-1 flex items-center gap-2">
+                <RotateCcw size={16} /> {t('pool.coversTitle')}
+              </h3>
+              <div className="space-y-2">
+                {covers.map((c, i) => (
+                  <div key={i} className="bg-white border border-dp-outline-variant rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-sans text-[12.5px] text-dp-on-surface">{new Date(c.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</p>
+                    <p className="font-sans text-[13px] font-semibold text-dp-on-surface">Rs {fmt(c.amount)}</p>
+                    <p className="font-mono text-[11.5px] text-dp-secondary">{c.voucher_no ?? '—'}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {announcements.length === 0 && lapsed.length === 0 && shortMonths.length === 0 && (
+            <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">
+              <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('kf.collections.allClear')}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── New / edit catalogue item ─────────────────────────────────── */}
+      {(showNewItem || editingItem) && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => { setShowNewItem(false); setEditingItem(null) }}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{editingItem ? t('es.editItem') : t('es.addItem')}</h2>
+              <button onClick={() => { setShowNewItem(false); setEditingItem(null) }} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.name')}</label>
+            <input value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} className="input-field mb-3" />
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.nameUrdu')}</label>
+            <input value={itemForm.name_ur} onChange={(e) => setItemForm({ ...itemForm, name_ur: e.target.value })}
+              className="input-field mb-3" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('es.col.capital')}</label>
+                <input type="number" min={0} value={itemForm.capital_cost || ''}
+                  onChange={(e) => setItemForm({ ...itemForm, capital_cost: +e.target.value })} className="input-field" />
+              </div>
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('es.col.running')}</label>
+                <input type="number" min={0} value={itemForm.annual_running_cost || ''}
+                  onChange={(e) => setItemForm({ ...itemForm, annual_running_cost: +e.target.value })} className="input-field" />
+              </div>
+            </div>
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('es.col.life')}</label>
+            <input type="number" min={0} value={itemForm.expected_life_years || ''}
+              onChange={(e) => setItemForm({ ...itemForm, expected_life_years: +e.target.value })} className="input-field mb-4" />
+            <button disabled={busy} onClick={editingItem ? saveEditItem : saveNewItem}
+              className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 disabled:opacity-50 cursor-pointer">
+              {busy ? t('action.saving') : t('action.save')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Committee covers a shortfall ──────────────────────────────── */}
+      {covering && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setCovering(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('pool.coverTitle')}</h2>
+              <button onClick={() => setCovering(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={18} /></button>
+            </div>
+            <div className="flex items-start gap-2 bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
+              <Info size={15} className="text-dp-secondary shrink-0 mt-0.5" />
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{t('pool.coverExplain')}</p>
+            </div>
+            <label className="block font-sans text-[12.5px] font-bold text-dp-primary mb-1.5">{t('pool.coverAmount')}</label>
+            <input type="number" min={1} max={covering.remaining} value={coverAmount}
+              onChange={(e) => setCoverAmount(Number(e.target.value))} className="input-field mb-1.5" />
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-3.5">{t('pool.availableIs').replace('{amt}', fmt(unrestrictedAvailable))}</p>
+            <label className="block font-sans text-[12.5px] font-bold text-dp-primary mb-1.5">{t('pool.coverNote')}</label>
+            <textarea value={coverNote} onChange={(e) => setCoverNote(e.target.value)} rows={2} className="input-field mb-4" />
+            <button onClick={submitCover} disabled={busy}
+              className="w-full bg-dp-primary text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 disabled:opacity-50 cursor-pointer">
+              {busy ? t('action.saving') : t('pool.confirmCover')}
+            </button>
+          </div>
         </div>
       )}
 

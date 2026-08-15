@@ -107,11 +107,14 @@ export default function AdminPoolsPage() {
   // a credit against the measuring account, all in one place.
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
 
+  const EXCLUDED = ['POOL-KFL', 'POOL-SDQ']
+
   const load = useCallback(async () => {
-    // Kafalat is deliberately excluded — its own collections screen now
-    // lives inside /admin/kafalat, scoped to just that one pool, instead of
-    // being split across two pages.
-    const { data: list } = await supabase.from('support_pools').select('id, code').eq('is_active', true).neq('code', 'POOL-KFL')
+    // Kafalat and the shared Sadqa upkeep pool are deliberately excluded —
+    // each now has its own collections screen (/admin/kafalat,
+    // /admin/esal-e-sawab), scoped to just that one pool, instead of being
+    // split across two pages. Only Wazifa is left here.
+    const { data: list } = await supabase.from('support_pools').select('id, code').eq('is_active', true).not('code', 'in', `(${EXCLUDED.join(',')})`)
     const ids = (list ?? []).map((p: { id: string }) => p.id)
     const positions = await Promise.all(
       ids.map((id) => supabase.rpc('pool_position', { p_pool_id: id })),
@@ -122,11 +125,11 @@ export default function AdminPoolsPage() {
     const qData = q as Queue | null
     setQueue(qData ? {
       ...qData,
-      months: qData.months.filter((m) => m.pool_code !== 'POOL-KFL'),
-      lapsed: qData.lapsed.filter((l) => l.pool_code !== 'POOL-KFL'),
-      covers: qData.covers.filter((c) => c.pool_code !== 'POOL-KFL'),
+      months: qData.months.filter((m) => !EXCLUDED.includes(m.pool_code)),
+      lapsed: qData.lapsed.filter((l) => !EXCLUDED.includes(l.pool_code)),
+      covers: qData.covers.filter((c) => !EXCLUDED.includes(c.pool_code)),
     } : null)
-    setAnnouncements(((ann ?? []) as Announcement[]).filter((a) => a.pool_code !== 'POOL-KFL'))
+    setAnnouncements(((ann ?? []) as Announcement[]).filter((a) => !EXCLUDED.includes(a.pool_code)))
     setLoading(false)
   }, [supabase])
 
