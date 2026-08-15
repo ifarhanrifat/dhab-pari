@@ -65,21 +65,6 @@ function AdminDonorsPageInner() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(empty)
-  // A gift for Kafalat, Wazifa or the shared Sadqa upkeep pool is the same
-  // "Add Donor" action as any other donation — same button, same modal —
-  // except it needs a real portal account behind it (so it can credit the
-  // right measuring account, optionally name a child/student/object, and
-  // show up on that donor's own portal) rather than the plain donors row a
-  // general/zakat/ushr/project gift writes directly. Search first, always;
-  // a new account is only ever created once that search comes back empty.
-  const [programme, setProgramme] = useState<'general' | 'kafalat' | 'wazifa' | 'sadqa'>('general')
-  const [donorQuery, setDonorQuery] = useState('')
-  const [donorResults, setDonorResults] = useState<{ id: string; full_name: string; mobile: string; has_login: boolean }[]>([])
-  const [selectedDonor, setSelectedDonor] = useState<{ id: string; full_name: string; mobile: string } | null>(null)
-  const [showNewDonor, setShowNewDonor] = useState(false)
-  const [newDonor, setNewDonor] = useState({ full_name: '', mobile: '', father_husband_name: '', whatsapp_number: '' })
-  const [namingOptions, setNamingOptions] = useState<{ id: string; label: string }[]>([])
-  const [programmeForm, setProgrammeForm] = useState({ amount: 0, method: 'cash', target_id: '' })
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editTarget, setEditTarget] = useState<Donor | null>(null)
@@ -117,60 +102,7 @@ function AdminDonorsPageInner() {
 
   const projectTitle = (id: string | null) => projects.find((p) => p.id === id)?.title ?? null
 
-  const poolCodeFor = { kafalat: 'POOL-KFL', wazifa: 'POOL-WZF', sadqa: 'POOL-SDQ' } as const
-  const namingRpcFor = { kafalat: 'kafalat_children_for_naming', wazifa: 'wazifa_students_for_naming', sadqa: 'sadqa_objects_for_naming' } as const
-
-  const changeProgramme = async (p: typeof programme) => {
-    setProgramme(p)
-    setDonorQuery(''); setDonorResults([]); setSelectedDonor(null); setShowNewDonor(false)
-    setProgrammeForm({ amount: 0, method: 'cash', target_id: '' })
-    setNamingOptions([])
-    if (p !== 'general') {
-      const { data } = await supabase.rpc(namingRpcFor[p])
-      const rows = (data ?? []) as Record<string, unknown>[]
-      setNamingOptions(rows.map((r) => ({
-        id: String(r.id ?? r.student_id),
-        label: String(r.first_name ?? r.full_name ?? r.item_name ?? ''),
-      })))
-    }
-  }
-
-  const searchDonors = async (q: string) => {
-    setDonorQuery(q)
-    if (q.trim().length < 2) { setDonorResults([]); return }
-    const { data } = await supabase.rpc('admin_search_donor_accounts', { p_query: q.trim() })
-    setDonorResults((data ?? []) as typeof donorResults)
-  }
-
-  const createNewDonor = async () => {
-    if (!newDonor.full_name.trim() || !newDonor.mobile.trim()) { toast.error('A name and a mobile number are both needed.'); return }
-    const { data, error } = await supabase.rpc('admin_create_donor_account', {
-      p_full_name: newDonor.full_name, p_mobile: newDonor.mobile,
-      p_father_husband_name: newDonor.father_husband_name || null,
-      p_whatsapp_number: newDonor.whatsapp_number || null,
-    })
-    if (error) { toast.error(friendlyError(error)); return }
-    const r = data as { id: string }
-    setSelectedDonor({ id: r.id, full_name: newDonor.full_name, mobile: newDonor.mobile })
-    setShowNewDonor(false)
-    toast.success('Account created.')
-  }
-
-  const saveProgrammeGift = async () => {
-    if (!selectedDonor || programme === 'general') return
-    const { error } = await supabase.rpc('admin_receive_program_cash', {
-      p_portal_user_id: selectedDonor.id, p_pool_code: poolCodeFor[programme],
-      p_amount: programmeForm.amount, p_method: programmeForm.method,
-      p_kafalat_child_id: programme === 'kafalat' ? (programmeForm.target_id || null) : null,
-      p_wazifa_student_id: programme === 'wazifa' ? (programmeForm.target_id || null) : null,
-      p_sadqa_object_id: programme === 'sadqa' ? (programmeForm.target_id || null) : null,
-    })
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Donor added'); setShowForm(false); load()
-  }
-
   const save = async () => {
-    if (programme !== 'general') { await saveProgrammeGift(); return }
     if (!form.name.trim()) { toast.error('Name required'); return }
     const payload = { ...form, name_ur: form.name_ur || null, project_id: form.project_id || null, notes: form.notes || null, phone: form.phone || null, father_husband_name: form.father_husband_name || null, whatsapp_number: form.whatsapp_number || null }
     const { data, error } = await supabase.from('donors').insert({ ...payload, is_verified: true, submitted_via: 'staff' }).select('id').single()
@@ -369,13 +301,7 @@ function AdminDonorsPageInner() {
             </p>
           )}
         </div>
-        <button onClick={() => {
-          setForm(empty); setProgramme('general')
-          setDonorQuery(''); setDonorResults([]); setSelectedDonor(null); setShowNewDonor(false)
-          setNewDonor({ full_name: '', mobile: '', father_husband_name: '', whatsapp_number: '' })
-          setProgrammeForm({ amount: 0, method: 'cash', target_id: '' }); setNamingOptions([])
-          setShowForm(true)
-        }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('dn.addDonor')}</button>
+        <button onClick={() => { setForm(empty); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('dn.addDonor')}</button>
       </div>
       <div className="relative mb-4">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
@@ -474,128 +400,39 @@ function AdminDonorsPageInner() {
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">{t('dn.addDonor')}</h2><button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button></div>
-
-            {/* Kafalat/Wazifa/Sadqa need a real portal account behind the
-                gift — general/zakat/ushr/project donations don't, and keep
-                working exactly as they always have below. */}
-            <div className="flex flex-wrap gap-2 mb-5">
-              {([['general', 'General / Zakat / Ushr / Project'], ['kafalat', 'Kafalat'], ['wazifa', 'Wazifa'], ['sadqa', 'Sadqa Upkeep']] as const).map(([key, label]) => (
-                <button key={key} onClick={() => changeProgramme(key)}
-                  className={`px-3 py-1.5 rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer transition-all ${programme === key ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {programme === 'general' ? (
-              <div className="space-y-4">
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.name')}</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" /></div>
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('g.nameUrdu')}</label><input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder="اردو میں نام" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.phone')}</label><input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0300-1234567" className="input-field" /></div>
-                  <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('f.donorType')}</label><select value={form.donor_type} onChange={(e) => setForm({ ...form, donor_type: e.target.value, donor_location: e.target.value === 'villager' ? '' : form.donor_location })} className="input-field"><option value="villager">{t('f.villager')}</option><option value="city">{t('dn.cityInPakistan')}</option><option value="overseas">{t('g.overseas')}</option></select></div>
-                  {/* Where they are, in their own words. It is what the public
-                      thank-you says — "from Lahore", "from Dubai" — and most of
-                      the people who give left the village years ago, so calling
-                      them either local or foreign was wrong either way. */}
-                  {form.donor_type !== 'villager' && (
-                    <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{form.donor_type === 'overseas' ? t('dn.country') : t('dn.city')}</label><input type="text" value={form.donor_location} onChange={(e) => setForm({ ...form, donor_location: e.target.value })} placeholder={form.donor_type === 'overseas' ? t('dn.countryPlaceholder') : t('dn.cityPlaceholder')} className="input-field" /></div>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.amountPkr')}</label><input type="number" value={form.amount_pkr || ''} onChange={(e) => setForm({ ...form, amount_pkr: +e.target.value })} className="input-field" /></div>
-                  <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.date')}</label><input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="input-field" /></div>
-                </div>
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.paymentMethod')}</label><select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })} className="input-field"><option value="cash">{t('w.cash')}</option><option value="jazzcash">{t('w.jazzcash')}</option><option value="easypaisa">{t('w.easypaisa')}</option><option value="bank">{t('a.bank')}</option></select></div>
-                <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('dn.selectProject')}</label>
-                  <select value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })} className="input-field">
-                    <option value="">{t('a.noProject')}</option>
-                    {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.notesOptional')}</label>
-                  <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} placeholder="Any additional notes..." className="input-field resize-none" />
-                </div>
-                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_anonymous} onChange={(e) => setForm({ ...form, is_anonymous: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('f.anonymousDonor')}</span></label>
-                <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{t('dn.addDonor')}</button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {!selectedDonor ? (
-                  <>
-                    <div>
-                      <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Search for their account</label>
-                      <input value={donorQuery} onChange={(e) => searchDonors(e.target.value)}
-                        placeholder="Name or mobile number" className="input-field" />
-                    </div>
-                    {donorResults.length > 0 && (
-                      <div className="border border-dp-outline-variant rounded-lg divide-y divide-dp-outline-variant overflow-hidden">
-                        {donorResults.map((d) => (
-                          <button key={d.id} onClick={() => setSelectedDonor(d)}
-                            className="w-full text-start px-3.5 py-2.5 hover:bg-dp-surface-container-low transition-colors">
-                            <p className="font-sans text-[13px] font-bold text-dp-on-surface">{d.full_name}</p>
-                            <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{d.mobile}{!d.has_login && ' · no login yet'}</p>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {donorQuery.trim().length >= 2 && donorResults.length === 0 && !showNewDonor && (
-                      <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3">
-                        <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-2">No matching account. If you have checked the spelling and they are genuinely new, create one.</p>
-                        <button onClick={() => { setShowNewDonor(true); setNewDonor({ ...newDonor, full_name: donorQuery }) }}
-                          className="font-sans text-[12.5px] font-bold text-dp-secondary hover:underline">Create a new account</button>
-                      </div>
-                    )}
-                    {showNewDonor && (
-                      <div className="border border-dp-outline-variant rounded-lg p-3.5 space-y-2.5">
-                        <input value={newDonor.full_name} placeholder="Full name"
-                          onChange={(e) => setNewDonor({ ...newDonor, full_name: e.target.value })} className="input-field" />
-                        <input value={newDonor.mobile} placeholder="Mobile number"
-                          onChange={(e) => setNewDonor({ ...newDonor, mobile: e.target.value })} className="input-field" />
-                        <input value={newDonor.father_husband_name} placeholder="Father's/husband's name (optional)"
-                          onChange={(e) => setNewDonor({ ...newDonor, father_husband_name: e.target.value })} className="input-field" />
-                        <button onClick={createNewDonor}
-                          className="w-full bg-dp-secondary text-white font-sans text-[13px] font-bold py-2 rounded-lg hover:opacity-90">Create account</button>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 flex items-center justify-between">
-                      <div>
-                        <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{selectedDonor.full_name}</p>
-                        <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{selectedDonor.mobile}</p>
-                      </div>
-                      <button onClick={() => setSelectedDonor(null)} className="font-sans text-[12px] text-dp-secondary hover:underline">Change</button>
-                    </div>
-                    {namingOptions.length > 0 && (
-                      <div>
-                        <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Who this is for</label>
-                        <select value={programmeForm.target_id} onChange={(e) => setProgrammeForm({ ...programmeForm, target_id: e.target.value })} className="input-field">
-                          <option value="">The shared pool — no name attached</option>
-                          {namingOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                        </select>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.amountPkr')}</label>
-                        <input type="number" value={programmeForm.amount || ''} onChange={(e) => setProgrammeForm({ ...programmeForm, amount: +e.target.value })} className="input-field" /></div>
-                      <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.paymentMethod')}</label>
-                        <select value={programmeForm.method} onChange={(e) => setProgrammeForm({ ...programmeForm, method: e.target.value })} className="input-field">
-                          <option value="cash">{t('w.cash')}</option><option value="jazzcash">{t('w.jazzcash')}</option><option value="easypaisa">{t('w.easypaisa')}</option><option value="bank">{t('a.bank')}</option>
-                        </select></div>
-                    </div>
-                    <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-2.5">
-                      <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-relaxed">Recorded as a one-time gift. If they want to give every month, they can join from their own portal instead.</p>
-                    </div>
-                    <button onClick={save} disabled={programmeForm.amount <= 0}
-                      className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{t('dn.addDonor')}</button>
-                  </>
+            <div className="space-y-4">
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.name')}</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" /></div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('g.nameUrdu')}</label><input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder="اردو میں نام" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.phone')}</label><input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0300-1234567" className="input-field" /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('f.donorType')}</label><select value={form.donor_type} onChange={(e) => setForm({ ...form, donor_type: e.target.value, donor_location: e.target.value === 'villager' ? '' : form.donor_location })} className="input-field"><option value="villager">{t('f.villager')}</option><option value="city">{t('dn.cityInPakistan')}</option><option value="overseas">{t('g.overseas')}</option></select></div>
+                {/* Where they are, in their own words. It is what the public
+                    thank-you says — "from Lahore", "from Dubai" — and most of
+                    the people who give left the village years ago, so calling
+                    them either local or foreign was wrong either way. */}
+                {form.donor_type !== 'villager' && (
+                  <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{form.donor_type === 'overseas' ? t('dn.country') : t('dn.city')}</label><input type="text" value={form.donor_location} onChange={(e) => setForm({ ...form, donor_location: e.target.value })} placeholder={form.donor_type === 'overseas' ? t('dn.countryPlaceholder') : t('dn.cityPlaceholder')} className="input-field" /></div>
                 )}
               </div>
-            )}
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.amountPkr')}</label><input type="number" value={form.amount_pkr || ''} onChange={(e) => setForm({ ...form, amount_pkr: +e.target.value })} className="input-field" /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.date')}</label><input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="input-field" /></div>
+              </div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.paymentMethod')}</label><select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })} className="input-field"><option value="cash">{t('w.cash')}</option><option value="jazzcash">{t('w.jazzcash')}</option><option value="easypaisa">{t('w.easypaisa')}</option><option value="bank">{t('a.bank')}</option></select></div>
+              <div>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('dn.selectProject')}</label>
+                <select value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })} className="input-field">
+                  <option value="">{t('a.noProject')}</option>
+                  {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.notesOptional')}</label>
+                <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} placeholder="Any additional notes..." className="input-field resize-none" />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_anonymous} onChange={(e) => setForm({ ...form, is_anonymous: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('f.anonymousDonor')}</span></label>
+              <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{t('dn.addDonor')}</button>
+            </div>
           </div>
         </div>
       )}
