@@ -4,8 +4,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { GraduationCap, X, Plus, Save, ShieldAlert, UserPlus, Bus, Printer } from 'lucide-react'
+import {
+  GraduationCap, X, Plus, Save, ShieldAlert, UserPlus, Bus, Printer,
+  Phone, AlertTriangle, Check, Wallet, HandCoins, RotateCcw, Info, HelpCircle, ChevronDown, Receipt,
+} from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { ImageUpload } from '@/components/admin/ImageUpload'
 
 /**
  * Kafalat — sponsoring a school child.
@@ -75,6 +79,37 @@ interface Sponsor {
 // child's requirement is covered" figure the donor portal shows.
 interface NamingInfo { this_year_requirement: number; already_named: number }
 
+// The pool-collection side, folded in from what used to be a separate
+// /admin/pools screen — same shapes, just scoped to POOL-KFL only.
+interface Position {
+  pool_id: string; required: number; committed: number; received_this_month: number
+  committee_covered_this_month: number; donors: number; coverage_percent: number
+  suggested_share: number; min_share: number; donors_needed: number
+  reserve_months: number; reserve_target_months: number; is_short: boolean
+}
+interface ShortMonth {
+  pool_month_id: string; pool_code: string; month: string
+  required: number; received: number; remaining: number; donors_needed: number
+}
+interface Lapsed {
+  commitment_id: string; pool_code: string; name: string
+  phone: string | null; amount: number; since: string
+}
+interface Cover { month: string; pool_code: string; amount: number; voucher_no: string | null; by: string | null }
+interface Announcement {
+  id: string; pool_code: string; donor_name: string | null; donor_phone: string | null
+  amount: number; is_one_time: boolean; month: string; proof_url: string | null
+}
+
+// Every school-fee/books/medical/exam-fee/tuition line, budgeted against
+// what's actually been paid — the categories uniform and transport already
+// had their own payment step for.
+interface FeeQueueItem {
+  line_id: string; child_id: string; child_code: string; child_name: string
+  guardian: string; guardian_phone: string | null
+  category: string; description: string | null; budgeted: number; paid_so_far: number
+}
+
 interface Nomination {
   id: string; child_name: string; guardian_name: string | null
   approximate_age: number | null; gender: string | null
@@ -111,14 +146,38 @@ export default function KafalatPage() {
   const [nominations, setNominations] = useState<Nomination[]>([])
   const [summary, setSummary] = useState<Record<string, number>>({})
   const [measuring, setMeasuring] = useState<Measuring | null>(null)
+  const [totalSpent, setTotalSpent] = useState(0)
   const [schools, setSchools] = useState<{ id: string; name: string; kind: string; location: string; monthly_fee_pkr: number; months_charged: number }[]>([])
   // What the chosen school actually charges for the class typed in, so the
   // committee sees the real number before the package is built rather than
   // after the challan arrives.
   const [feePreview, setFeePreview] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'children' | 'nominations' | 'operations' | 'reverify'>('children')
+  const [tab, setTab] = useState<'children' | 'nominations' | 'operations' | 'collections' | 'reverify'>('children')
+  const [showGuide, setShowGuide] = useState(false)
   const [queue, setQueue] = useState<DisbursementQueue | null>(null)
+
+  // ── Collections: shortfall, lapsed donors, announced pledges awaiting
+  // confirmation — folded in from what used to be a separate /admin/pools
+  // screen, filtered to just this one pool.
+  const [poolId, setPoolId] = useState<string | null>(null)
+  const [poolPosition, setPoolPosition] = useState<Position | null>(null)
+  const [shortMonths, setShortMonths] = useState<ShortMonth[]>([])
+  const [lapsed, setLapsed] = useState<Lapsed[]>([])
+  const [covers, setCovers] = useState<Cover[]>([])
+  const [unrestrictedAvailable, setUnrestrictedAvailable] = useState(0)
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [covering, setCovering] = useState<ShortMonth | null>(null)
+  const [coverAmount, setCoverAmount] = useState(0)
+  const [coverNote, setCoverNote] = useState('')
+
+  // ── Fees: school fee, books, medical, exam fee, tuition — the categories
+  // that, unlike uniform and transport, never had a real payment step.
+  const [feeQueue, setFeeQueue] = useState<FeeQueueItem[]>([])
+  const [payingFee, setPayingFee] = useState<FeeQueueItem | null>(null)
+  const [feeForm, setFeeForm] = useState({ amount: 0, method: 'cash', paid_to: '', signed_by: '', proof_url: '', note: '' })
+
+  const [printingChild, setPrintingChild] = useState<Child | null>(null)
   const [dueList, setDueList] = useState<ReverificationDue[]>([])
   const [reverifyTarget, setReverifyTarget] = useState<ReverificationDue | null>(null)
   const [reverifyForm, setReverifyForm] = useState({
@@ -161,7 +220,7 @@ export default function KafalatPage() {
   }
 
   const load = useCallback(async () => {
-    const [{ data: cs }, { data: ls }, { data: breakdown }, { data: named }, { data: ns }, { data: sum }, { data: sch }, { data: meas }] = await Promise.all([
+    const [{ data: cs }, { data: ls }, { data: breakdown }, { data: named }, { data: ns }, { data: sum }, { data: sch }, { data: meas }, { data: spent }] = await Promise.all([
       supabase.from('kafalat_children').select('*').order('created_at', { ascending: false }),
       supabase.from('kafalat_package_lines').select('*'),
       supabase.rpc('kafalat_sponsor_breakdown'),
@@ -171,6 +230,7 @@ export default function KafalatPage() {
       supabase.from('schools').select('id, name, kind, location, monthly_fee_pkr, months_charged')
         .eq('is_active', true).order('location').order('name'),
       supabase.rpc('kafalat_measuring_position'),
+      supabase.rpc('kafalat_total_spent'),
     ])
     setChildren((cs ?? []) as Child[])
     setLines((ls ?? []) as PackageLine[])
@@ -182,19 +242,155 @@ export default function KafalatPage() {
     setSummary((sum ?? {}) as Record<string, number>)
     setSchools((sch ?? []) as { id: string; name: string; kind: string; location: string; monthly_fee_pkr: number; months_charged: number }[])
     setMeasuring((meas ?? null) as Measuring | null)
+    setTotalSpent(Number(spent ?? 0))
     setLoading(false)
   }, [supabase])
 
   const loadOperations = useCallback(async () => {
-    const [{ data: q }, { data: due }] = await Promise.all([
+    const [{ data: q }, { data: due }, { data: fees }] = await Promise.all([
       supabase.rpc('kafalat_disbursement_queue'),
       supabase.rpc('kafalat_reverification_due'),
+      supabase.rpc('kafalat_fee_queue'),
     ])
     setQueue((q ?? null) as DisbursementQueue | null)
     setDueList((due ?? []) as ReverificationDue[])
+    setFeeQueue((fees ?? []) as FeeQueueItem[])
+  }, [supabase])
+
+  const loadCollections = useCallback(async () => {
+    const { data: pool } = await supabase.from('support_pools').select('id').eq('code', 'POOL-KFL').single()
+    const pid = (pool as { id: string } | null)?.id ?? null
+    setPoolId(pid)
+    const [{ data: pos }, { data: short }, { data: ann }] = await Promise.all([
+      pid ? supabase.rpc('pool_position', { p_pool_id: pid }) : Promise.resolve({ data: null }),
+      supabase.rpc('pool_shortfall_queue'),
+      supabase.rpc('pool_announcement_queue'),
+    ])
+    setPoolPosition((pos ?? null) as Position | null)
+    const s = short as { unrestricted_available: number; months: ShortMonth[]; lapsed: Lapsed[]; covers: Cover[] } | null
+    setUnrestrictedAvailable(s?.unrestricted_available ?? 0)
+    setShortMonths((s?.months ?? []).filter((m) => m.pool_code === 'POOL-KFL'))
+    setLapsed((s?.lapsed ?? []).filter((l) => l.pool_code === 'POOL-KFL'))
+    setCovers((s?.covers ?? []).filter((c) => c.pool_code === 'POOL-KFL'))
+    setAnnouncements(((ann ?? []) as Announcement[]).filter((a) => a.pool_code === 'POOL-KFL'))
   }, [supabase])
 
   useEffect(() => { if (tab === 'operations' || tab === 'reverify') loadOperations() }, [tab, loadOperations])
+  useEffect(() => { if (tab === 'collections') loadCollections() }, [tab, loadCollections])
+
+  const confirmAnnouncement = async (id: string) => {
+    setBusy(true)
+    const { error } = await supabase.rpc('pool_confirm_payment', { p_payment_id: id })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.ok.confirmed'))
+    loadCollections()
+  }
+
+  const declineAnnouncement = async (id: string) => {
+    const reason = prompt(t('pool.declineReasonPrompt'))
+    if (!reason) return
+    const { error } = await supabase.rpc('pool_decline_announcement', { p_payment_id: id, p_reason: reason })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.ok.declined'))
+    loadCollections()
+  }
+
+  const openCover = (m: ShortMonth) => {
+    setCoverAmount(m.remaining)
+    setCoverNote('')
+    setCovering(m)
+  }
+
+  const submitCover = async () => {
+    if (!covering) return
+    setBusy(true)
+    const { data, error } = await supabase.rpc('pool_cover_shortfall', {
+      p_pool_month_id: covering.pool_month_id, p_amount: coverAmount, p_note: coverNote || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.covered').replace('{v}', (data as { voucher_no: string })?.voucher_no ?? ''))
+    setCovering(null)
+    loadCollections()
+  }
+
+  const openPayFee = (f: FeeQueueItem) => {
+    setFeeForm({ amount: Math.max(f.budgeted - f.paid_so_far, 0) || f.budgeted, method: 'cash', paid_to: '', signed_by: '', proof_url: '', note: '' })
+    setPayingFee(f)
+  }
+
+  const submitPayFee = async () => {
+    if (!payingFee) return
+    setBusy(true)
+    const { data, error } = await supabase.rpc('kafalat_pay_fee_item', {
+      p_line_id: payingFee.line_id, p_amount: feeForm.amount, p_method: feeForm.method,
+      p_paid_to: feeForm.paid_to || null, p_signed_by: feeForm.signed_by || null,
+      p_proof_url: feeForm.proof_url || null, p_note: feeForm.note || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    const r = data as { voucher_no: string }
+    toast.success(t('kf.ok.feePaid').replace('{v}', r.voucher_no))
+    setPayingFee(null)
+    loadOperations()
+  }
+
+  const [record, setRecord] = useState<{
+    child_code: string; child_name: string; full_name: string; guardian_name: string
+    guardian_phone: string | null; school_name: string | null; current_class: string | null
+    academic_year: string; total_spent: number
+    lines: { category: string; amount: number; paid_on: string; method: string | null; paid_to: string | null; signed_by: string | null; note: string | null }[]
+  } | null>(null)
+
+  const openPrintRecord = async (c: Child) => {
+    const { data, error } = await supabase.rpc('kafalat_child_expense_record', { p_child_id: c.id })
+    if (error) { toast.error(friendlyError(error)); return }
+    setRecord(data as typeof record)
+    setPrintingChild(c)
+  }
+
+  const printRecordNow = () => {
+    if (!record) return
+    const win = window.open('', '_blank')
+    if (!win) return
+    const rows = record.lines.map((l) => `
+      <tr>
+        <td>${new Date(l.paid_on).toLocaleDateString()}</td>
+        <td style="text-transform:capitalize">${l.category.replace(/_/g, ' ')}</td>
+        <td>Rs ${fmt(l.amount)}</td>
+        <td>${l.method ?? ''}</td>
+        <td>${l.paid_to ?? ''}</td>
+        <td style="min-width:100px;border-bottom:1px solid #000">${l.signed_by ?? '&nbsp;'}</td>
+      </tr>`).join('')
+    win.document.write(`<html><head><title>${t('kf.record.title')} — ${record.child_name} (${record.child_code})</title>
+      <style>
+        body{font-family:sans-serif;padding:24px;font-size:12px}
+        h1{font-size:18px;margin-bottom:2px} p{margin:2px 0}
+        table{width:100%;border-collapse:collapse;margin-top:14px}
+        th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;font-size:11.5px}
+        th{background:#f3f3f3}
+        .total{font-size:15px;font-weight:bold;margin-top:12px;text-align:right}
+        .sign{margin-top:36px;display:flex;justify-content:space-between}
+        .sign div{width:45%;border-top:1px solid #000;padding-top:4px;font-size:11px;text-align:center}
+      </style></head><body>
+      <h1>${t('kf.record.title')} — ${record.academic_year}</h1>
+      <p><strong>${record.child_name}</strong> (${record.child_code}) — ${record.full_name}</p>
+      <p>${t('kf.guardian')}: ${record.guardian_name}${record.guardian_phone ? ' · ' + record.guardian_phone : ''}</p>
+      <p>${record.school_name ?? ''}${record.current_class ? ' · ' + t('kf.class') + ' ' + record.current_class : ''}</p>
+      <table><thead><tr>
+        <th>${t('kf.record.date')}</th><th>${t('kf.record.category')}</th><th>${t('kf.record.amount')}</th>
+        <th>${t('kf.f.method')}</th><th>${t('kf.record.paidTo')}</th><th>${t('kf.record.signature')}</th>
+      </tr></thead><tbody>${rows}</tbody></table>
+      <p class="total">${t('kf.record.total')}: Rs ${fmt(record.total_spent)}</p>
+      <div class="sign">
+        <div>${t('kf.record.preparedBy')}</div>
+        <div>${t('kf.record.committeeSignature')}</div>
+      </div>
+      </body></html>`)
+    win.document.close()
+    win.print()
+  }
 
   const issueUniform = async () => {
     if (!issuingUniform) return
@@ -454,11 +650,40 @@ export default function KafalatPage() {
           </h1>
           <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('kf.blurb')}</p>
         </div>
-        <button onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-          <UserPlus size={16} /> {t('kf.addChild')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowGuide((v) => !v)}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[13.5px] font-semibold hover:border-dp-secondary transition-all cursor-pointer">
+            <HelpCircle size={16} /> {t('kf.guide.toggle')}
+            <ChevronDown size={14} className={`transition-transform ${showGuide ? 'rotate-180' : ''}`} />
+          </button>
+          <button onClick={() => setShowForm(true)}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+            <UserPlus size={16} /> {t('kf.addChild')}
+          </button>
+        </div>
       </div>
+
+      {/* ── How this works — the whole flow, in plain language, for whoever
+          is sitting at this screen: the donor accountant recording money,
+          or a committee member checking on a child. */}
+      {showGuide && (
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-5 space-y-4">
+          {([
+            ['sponsorOrShare', 'kf.guide.sponsorOrShare'],
+            ['measuring', 'kf.guide.measuring'],
+            ['collections', 'kf.guide.collections'],
+            ['operations', 'kf.guide.operations'],
+            ['fees', 'kf.guide.fees'],
+            ['reverify', 'kf.guide.reverify'],
+            ['record', 'kf.guide.record'],
+          ] as const).map(([key, base]) => (
+            <div key={key}>
+              <h4 className="font-heading text-[13.5px] font-bold text-dp-primary mb-1">{t(`${base}.title`)}</h4>
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{t(`${base}.body`)}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="flex items-start gap-2.5 bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3 mb-5">
         <ShieldAlert size={16} className="text-amber-600 shrink-0 mt-0.5" />
@@ -492,12 +717,13 @@ export default function KafalatPage() {
             </h3>
             <span className="font-mono text-[11px] text-dp-on-surface-variant">{measuring.account_code}</span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
               { v: fmt(measuring.required), l: t('kf.measuring.required') },
               { v: fmt(measuring.confirmed), l: t('kf.measuring.confirmed') },
               { v: fmt(measuring.outstanding), l: t('kf.measuring.outstanding') },
               { v: fmt(measuring.monthly_target), l: t('kf.measuring.monthlyTarget') },
+              { v: fmt(totalSpent), l: t('kf.measuring.totalSpent') },
             ].map((s) => (
               <div key={s.l}>
                 <p className="font-heading text-[18px] font-bold text-dp-primary">{s.v}</p>
@@ -515,7 +741,8 @@ export default function KafalatPage() {
         {([
           ['children', `${t('kf.tab.children')} (${children.length})`],
           ['nominations', `${t('kf.tab.nominations')} (${nominations.filter((n) => n.status === 'new').length})`],
-          ['operations', `${t('kf.tab.operations')}${queue ? ` (${queue.uniforms.length + queue.disbursements.length})` : ''}`],
+          ['operations', `${t('kf.tab.operations')}${queue ? ` (${queue.uniforms.length + queue.disbursements.length + feeQueue.length})` : ''}`],
+          ['collections', `${t('kf.tab.collections')}${(announcements.length + lapsed.length + shortMonths.length) ? ` (${announcements.length + lapsed.length + shortMonths.length})` : ''}`],
           ['reverify', `${t('kf.tab.reverify')}${dueList.length ? ` (${dueList.length})` : ''}`],
         ] as const).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)}
@@ -587,6 +814,12 @@ export default function KafalatPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 shrink-0">
+                    {c.status === 'active' && (
+                      <button onClick={() => openPrintRecord(c)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer whitespace-nowrap">
+                        <Receipt size={13} /> {t('kf.record.button')}
+                      </button>
+                    )}
                     <button onClick={() => openPackage(c)}
                       className="px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer whitespace-nowrap">
                       {t('kf.editPackage')}
@@ -725,6 +958,172 @@ export default function KafalatPage() {
               </div>
             )}
           </div>
+
+          {/* ── Fees: school fee, books, medical, exam fee, tuition ──────
+              These are budget lines, not scheduled disbursements — paid
+              termly or as needed, so every line shown here regardless of
+              whether it is fully settled yet, with what remains alongside
+              what has already gone out. */}
+          <div>
+            <h3 className="font-heading text-[15px] font-bold text-dp-primary mb-2">{t('kf.fees.due')}</h3>
+            {feeQueue.length === 0 ? (
+              <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('kf.nothingDue')}</p>
+            ) : (
+              <div className="space-y-2">
+                {feeQueue.map((f) => (
+                  <div key={f.line_id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">
+                        {f.child_name} <span className="font-mono text-[11px] text-dp-on-surface-variant">{f.child_code}</span>
+                        {' · '}{t(`kf.cat.${f.category}`)}
+                      </p>
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant">
+                        {f.guardian}{f.guardian_phone ? ` · ${f.guardian_phone}` : ''}
+                        {' · '}{t('kf.fees.paidOfBudgeted').replace('{paid}', fmt(f.paid_so_far)).replace('{budget}', fmt(f.budgeted))}
+                      </p>
+                    </div>
+                    <button onClick={() => openPayFee(f)}
+                      className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer shrink-0">
+                      {t('kf.pay')}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Collections: shortfall, lapsed donors, and pledges awaiting
+          confirmation — folded in from what used to be a separate
+          /admin/pools screen, scoped to just Kafalat. */}
+      {!loading && tab === 'collections' && (
+        <div className="space-y-6">
+          {poolPosition && (
+            <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                {[
+                  { v: fmt(poolPosition.committed), l: t('pool.pledged') },
+                  { v: String(poolPosition.donors), l: t('pool.donors') },
+                  { v: `${poolPosition.coverage_percent}%`, l: t('kf.collections.coverage') },
+                  { v: fmt(poolPosition.received_this_month), l: t('kf.collections.receivedThisMonth') },
+                ].map((s) => (
+                  <div key={s.l}>
+                    <p className="font-heading text-[17px] font-bold text-dp-primary">{s.v}</p>
+                    <p className="font-sans text-[11px] text-dp-on-surface-variant">{s.l}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant flex items-center gap-1.5">
+                <Wallet size={12} />
+                {t('pool.reserve').replace('{n}', String(poolPosition.reserve_months)).replace('{target}', String(poolPosition.reserve_target_months))}
+              </p>
+            </div>
+          )}
+
+          {announcements.length > 0 && (
+            <div>
+              <h3 className="font-heading text-[15px] font-bold text-dp-primary mb-1 flex items-center gap-2">
+                <HandCoins size={16} /> {t('pool.queueTitle')}
+              </h3>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-2">{t('pool.queueBlurb')}</p>
+              <div className="space-y-2">
+                {announcements.map((a) => (
+                  <div key={a.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{a.donor_name ?? '—'}</p>
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant">
+                        {a.donor_phone && <a href={`tel:${a.donor_phone}`} className="text-dp-secondary hover:underline">{a.donor_phone}</a>}
+                        {' · '}Rs {fmt(a.amount)} · {a.is_one_time ? t('pool.oneTime') : t('pool.recurringMonthly')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {a.proof_url && (
+                        <a href={a.proof_url} target="_blank" rel="noreferrer" className="font-sans text-[12px] font-bold text-dp-secondary hover:underline">{t('pool.viewProof')}</a>
+                      )}
+                      <button onClick={() => confirmAnnouncement(a.id)} disabled={busy}
+                        className="bg-dp-secondary text-white font-sans text-[12px] font-bold px-3 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer">
+                        {t('pool.confirmThis')}
+                      </button>
+                      <button onClick={() => declineAnnouncement(a.id)}
+                        className="font-sans text-[12px] font-bold text-dp-on-surface-variant hover:underline cursor-pointer">
+                        {t('pool.declineThis')}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {lapsed.length > 0 && (
+            <div>
+              <h3 className="font-heading text-[15px] font-bold text-dp-primary mb-1 flex items-center gap-2">
+                <Phone size={16} /> {t('pool.lapsedTitle')}
+              </h3>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-2">{t('pool.lapsedBlurb')}</p>
+              <div className="space-y-2">
+                {lapsed.map((l) => (
+                  <div key={l.commitment_id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex flex-wrap items-center justify-between gap-3">
+                    <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{l.name}</p>
+                    <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                      {l.phone && <a href={`tel:${l.phone}`} className="text-dp-secondary hover:underline">{l.phone}</a>}
+                      {' · '}Rs {fmt(l.amount)}/{t('pkf.month')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {shortMonths.length > 0 && (
+            <div>
+              <h3 className="font-heading text-[15px] font-bold text-dp-primary mb-1 flex items-center gap-2">
+                <AlertTriangle size={16} /> {t('pool.shortTitle')}
+              </h3>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-2">{t('pool.shortBlurb').replace('{amt}', fmt(unrestrictedAvailable))}</p>
+              <div className="space-y-2">
+                {shortMonths.map((m) => (
+                  <div key={m.pool_month_id} className="bg-white border border-dp-outline-variant rounded-lg p-4 flex flex-wrap items-center gap-4">
+                    <div className="flex-1 min-w-[200px]">
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant">
+                        {new Date(m.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                        {' · '}{t('pool.neededReceived').replace('{req}', fmt(m.required)).replace('{recd}', fmt(m.received))}
+                      </p>
+                    </div>
+                    <p className="font-heading text-[18px] font-bold text-dp-secondary">{fmt(m.remaining)}</p>
+                    <button onClick={() => openCover(m)}
+                      className="bg-dp-primary text-white font-sans text-[12.5px] font-bold px-4 py-2 rounded-lg hover:opacity-90 cursor-pointer">
+                      {t('pool.coverIt')}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {covers.length > 0 && (
+            <div>
+              <h3 className="font-heading text-[15px] font-bold text-dp-primary mb-1 flex items-center gap-2">
+                <RotateCcw size={16} /> {t('pool.coversTitle')}
+              </h3>
+              <div className="space-y-2">
+                {covers.map((c, i) => (
+                  <div key={i} className="bg-white border border-dp-outline-variant rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-sans text-[12.5px] text-dp-on-surface">{new Date(c.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</p>
+                    <p className="font-sans text-[13px] font-semibold text-dp-on-surface">Rs {fmt(c.amount)}</p>
+                    <p className="font-mono text-[11.5px] text-dp-secondary">{c.voucher_no ?? '—'}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {announcements.length === 0 && lapsed.length === 0 && shortMonths.length === 0 && (
+            <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">
+              <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('kf.collections.allClear')}</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -1197,6 +1596,119 @@ export default function KafalatPage() {
                 {busy ? t('action.saving') : t('kf.reverify.submit')}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Committee covers a shortfall ──────────────────────────────── */}
+      {covering && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setCovering(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('pool.coverTitle')}</h2>
+              <button onClick={() => setCovering(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={18} /></button>
+            </div>
+            <div className="flex items-start gap-2 bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
+              <Info size={15} className="text-dp-secondary shrink-0 mt-0.5" />
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{t('pool.coverExplain')}</p>
+            </div>
+            <label className="block font-sans text-[12.5px] font-bold text-dp-primary mb-1.5">{t('pool.coverAmount')}</label>
+            <input type="number" min={1} max={covering.remaining} value={coverAmount}
+              onChange={(e) => setCoverAmount(Number(e.target.value))} className="input-field mb-1.5" />
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-3.5">{t('pool.availableIs').replace('{amt}', fmt(unrestrictedAvailable))}</p>
+            <label className="block font-sans text-[12.5px] font-bold text-dp-primary mb-1.5">{t('pool.coverNote')}</label>
+            <textarea value={coverNote} onChange={(e) => setCoverNote(e.target.value)} rows={2} className="input-field mb-4" />
+            <button onClick={submitCover} disabled={busy}
+              className="w-full bg-dp-primary text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 disabled:opacity-50 cursor-pointer">
+              {busy ? t('action.saving') : t('pool.confirmCover')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Paying a fee/books/medical/exam-fee/tuition line ────────────
+          The one where the slip actually gets attached. */}
+      {payingFee && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPayingFee(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[17px] font-bold text-dp-primary">{t('kf.fees.payTitle')}</h2>
+              <button onClick={() => setPayingFee(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={18} /></button>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
+              {payingFee.child_name} · {t(`kf.cat.${payingFee.category}`)}
+            </p>
+
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pool.amount')}</label>
+            <input type="number" min={1} value={feeForm.amount}
+              onChange={(e) => setFeeForm({ ...feeForm, amount: Number(e.target.value) })} className="input-field mb-3" />
+
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.f.method')}</label>
+            <select value={feeForm.method} onChange={(e) => setFeeForm({ ...feeForm, method: e.target.value })} className="input-field mb-3">
+              <option value="cash">{t('pool.method.cash')}</option>
+              <option value="bank">{t('pool.method.bank')}</option>
+              <option value="jazzcash">JazzCash</option>
+              <option value="easypaisa">EasyPaisa</option>
+            </select>
+
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.fees.paidTo')}</label>
+            <input value={feeForm.paid_to} placeholder={t('kf.fees.paidToPlaceholder')}
+              onChange={(e) => setFeeForm({ ...feeForm, paid_to: e.target.value })} className="input-field mb-3" />
+
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.receivedBy')}</label>
+            <input value={feeForm.signed_by} onChange={(e) => setFeeForm({ ...feeForm, signed_by: e.target.value })} className="input-field mb-3" />
+
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.fees.slip')}</label>
+            <ImageUpload bucket="images" currentUrl={feeForm.proof_url || undefined}
+              onUpload={(url) => setFeeForm({ ...feeForm, proof_url: url })} label={t('kf.fees.slipUpload')} />
+
+            <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5 mt-3">{t('kf.f.note')}</label>
+            <textarea value={feeForm.note} rows={2} onChange={(e) => setFeeForm({ ...feeForm, note: e.target.value })} className="input-field mb-4" />
+
+            <button disabled={busy} onClick={submitPayFee}
+              className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 disabled:opacity-50 cursor-pointer">
+              {busy ? t('action.saving') : t('kf.confirmPay')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── One child, printed ────────────────────────────────────────── */}
+      {printingChild && record && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPrintingChild(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('kf.record.title')}</h2>
+              <button onClick={() => setPrintingChild(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
+              {record.child_name} ({record.child_code}) · {record.academic_year}
+            </p>
+
+            <div className="space-y-2 mb-4">
+              {record.lines.length === 0 && (
+                <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('kf.record.nothingYet')}</p>
+              )}
+              {record.lines.map((l, i) => (
+                <div key={i} className="flex items-center justify-between border-b border-dp-outline-variant pb-2">
+                  <div>
+                    <p className="font-sans text-[13px] font-semibold text-dp-on-surface capitalize">{l.category.replace(/_/g, ' ')}</p>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{new Date(l.paid_on).toLocaleDateString()}{l.paid_to ? ` · ${l.paid_to}` : ''}</p>
+                  </div>
+                  <p className="font-sans text-[13px] font-bold text-dp-on-surface">Rs {fmt(l.amount)}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between border-t border-dp-outline-variant pt-3 mb-4">
+              <span className="font-sans text-[13px] font-bold uppercase tracking-[0.05em] text-dp-on-surface-variant">{t('kf.record.total')}</span>
+              <span className="font-heading text-[22px] font-bold text-dp-primary">Rs {fmt(record.total_spent)}</span>
+            </div>
+
+            <button onClick={printRecordNow}
+              className="w-full flex items-center justify-center gap-2 bg-dp-primary text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 cursor-pointer">
+              <Printer size={16} /> {t('kf.record.print')}
+            </button>
           </div>
         </div>
       )}

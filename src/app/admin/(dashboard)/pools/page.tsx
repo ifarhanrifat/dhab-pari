@@ -40,18 +40,18 @@ interface Position {
 }
 
 interface ShortMonth {
-  pool_month_id: string; pool_id: string; pool: string; month: string
+  pool_month_id: string; pool_id: string; pool_code: string; pool: string; month: string
   required: number; received: number; shortfall: number; covered: number
   remaining: number; donors_active: number; donors_needed: number; status: string
 }
 
 interface Lapsed {
-  commitment_id: string; pool: string; name: string
+  commitment_id: string; pool_code: string; pool: string; name: string
   phone: string | null; amount: number; since: string
 }
 
 interface Cover {
-  month: string; pool: string; amount: number
+  month: string; pool_code: string; pool: string; amount: number
   voucher_no: string | null; at: string; by: string | null
 }
 
@@ -63,7 +63,7 @@ interface Queue {
 }
 
 interface Announcement {
-  id: string; pool: string; donor_name: string | null; donor_phone: string | null
+  id: string; pool_code: string; pool: string; donor_name: string | null; donor_phone: string | null
   amount: number; is_one_time: boolean; month: string; proof_url: string | null; announced_at: string
 }
 
@@ -108,15 +108,25 @@ export default function AdminPoolsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
 
   const load = useCallback(async () => {
-    const { data: list } = await supabase.from('support_pools').select('id').eq('is_active', true)
+    // Kafalat is deliberately excluded — its own collections screen now
+    // lives inside /admin/kafalat, scoped to just that one pool, instead of
+    // being split across two pages.
+    const { data: list } = await supabase.from('support_pools').select('id, code').eq('is_active', true).neq('code', 'POOL-KFL')
+    const ids = (list ?? []).map((p: { id: string }) => p.id)
     const positions = await Promise.all(
-      (list ?? []).map((p: { id: string }) => supabase.rpc('pool_position', { p_pool_id: p.id })),
+      ids.map((id) => supabase.rpc('pool_position', { p_pool_id: id })),
     )
     const { data: q } = await supabase.rpc('pool_shortfall_queue')
     const { data: ann } = await supabase.rpc('pool_announcement_queue')
     setPools(positions.map((r) => r.data as Position).filter(Boolean))
-    setQueue((q ?? null) as Queue | null)
-    setAnnouncements((ann ?? []) as Announcement[])
+    const qData = q as Queue | null
+    setQueue(qData ? {
+      ...qData,
+      months: qData.months.filter((m) => m.pool_code !== 'POOL-KFL'),
+      lapsed: qData.lapsed.filter((l) => l.pool_code !== 'POOL-KFL'),
+      covers: qData.covers.filter((c) => c.pool_code !== 'POOL-KFL'),
+    } : null)
+    setAnnouncements(((ann ?? []) as Announcement[]).filter((a) => a.pool_code !== 'POOL-KFL'))
     setLoading(false)
   }, [supabase])
 
