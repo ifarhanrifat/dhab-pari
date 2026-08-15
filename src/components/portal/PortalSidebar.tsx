@@ -31,7 +31,6 @@ const menuItems = [
   { href: '/portal/recurring', label: 'Recurring Donations', tKey: 'portal.recurring', icon: Repeat },
   { href: '/portal/zakat', label: 'Zakat & Ushr', tKey: 'portal.zakat', icon: Scale },
   { href: '/portal/kafalat', label: 'Kafalat — Sponsor or Join', tKey: 'portal.kafalat', icon: GraduationCap },
-  { href: '/portal/support', label: 'Mushtarka Giving', tKey: 'portal.support', icon: Users },
   { href: '/portal/esal-e-sawab', label: 'Sadqa-e-Jariya', tKey: 'portal.esalESawab', icon: Gift },
   { href: '/portal/wazifa', label: 'Taleemi Wazifa', tKey: 'portal.wazifa', icon: BookOpen },
   { href: '/portal/propose-project', label: 'Propose a Project', tKey: 'portal.proposeProject', icon: Vote },

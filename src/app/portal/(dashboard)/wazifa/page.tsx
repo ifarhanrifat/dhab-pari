@@ -5,7 +5,10 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { BookOpen, Send, Plus, Trash2, Printer, HandCoins, RotateCcw, Save, Lock, Info, UserCheck } from 'lucide-react'
+import {
+  BookOpen, Send, Plus, Trash2, Printer, HandCoins, RotateCcw, Save, Lock, Info, UserCheck,
+  HelpCircle, ChevronDown, TrendingUp, Calendar, ShieldCheck, AlertTriangle, Heart, X,
+} from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { FileAttachment } from '@/components/admin/FileAttachment'
@@ -92,6 +95,31 @@ export default function PortalWazifaPage() {
   const [reapplyOf, setReapplyOf] = useState<Decision | null>(null)
   const [summary, setSummary] = useState<Record<string, number>>({})
   const [busy, setBusy] = useState(false)
+
+  // ── Sponsoring a student — a different visitor to this same page than the
+  // one applying above: pick a specific student, or join the shared pool
+  // with no name attached, the same pattern Kafalat and Sadqa already use.
+  const [showGuide, setShowGuide] = useState(false)
+  const [sponsorPoolId, setSponsorPoolId] = useState<string | null>(null)
+  const [sponsorPosition, setSponsorPosition] = useState<{
+    required: number; committed: number; donors: number; coverage_percent: number
+    suggested_share: number; min_share: number
+  } | null>(null)
+  const [sponsorStudents, setSponsorStudents] = useState<{
+    student_id: string; code: string; full_name: string; institution: string | null
+    programme: string | null; level: string | null; awarded_amount: number; is_loan: boolean; already_named: number
+  }[]>([])
+  const [sponsorCommitments, setSponsorCommitments] = useState<{
+    id: string; pool_id: string; monthly_amount: number; status: string
+    named_student: string | null; months_given: number; total_given: number
+  }[]>([])
+  const [sponsorAnnouncements, setSponsorAnnouncements] = useState<{
+    id: string; pool_id: string; amount: number; is_one_time: boolean; status: string; named_student: string | null
+  }[]>([])
+  const [giving, setGiving] = useState<{ target: (typeof sponsorStudents)[number] | null } | null>(null)
+  const [giveForm, setGiveForm] = useState({ amount: 0, recurring: true, funded_by: 'sadqa', show_name_publicly: false })
+  const [changingShare, setChangingShare] = useState<(typeof sponsorCommitments)[number] | null>(null)
+  const [changeAmount, setChangeAmount] = useState(0)
 
   // The application already on file, if there is one. A family filling in
   // eleven sections needs to stop halfway and come back — and needs to fix the
@@ -242,6 +270,77 @@ export default function PortalWazifaPage() {
   }, [supabase])
 
   useEffect(() => { load() }, [load])
+
+  const loadSponsorship = useCallback(async () => {
+    const { data: pool } = await supabase.from('support_pools').select('id').eq('code', 'POOL-WZF').single()
+    const pid = (pool as { id: string } | null)?.id ?? null
+    setSponsorPoolId(pid)
+    const [{ data: pos }, { data: students }, { data: myC }, { data: myA }] = await Promise.all([
+      pid ? supabase.rpc('pool_position', { p_pool_id: pid }) : Promise.resolve({ data: null }),
+      supabase.rpc('wazifa_students_for_naming'),
+      supabase.rpc('my_pool_commitments'),
+      supabase.rpc('my_pool_announcements'),
+    ])
+    setSponsorPosition((pos ?? null) as typeof sponsorPosition)
+    setSponsorStudents((students ?? []) as typeof sponsorStudents)
+    setSponsorCommitments(((myC ?? []) as typeof sponsorCommitments).filter((c) => c.pool_id === pid))
+    setSponsorAnnouncements(((myA ?? []) as typeof sponsorAnnouncements).filter((a) => a.pool_id === pid))
+  }, [supabase])
+
+  useEffect(() => { loadSponsorship() }, [loadSponsorship])
+
+  const openGive = (target: (typeof sponsorStudents)[number] | null) => {
+    setGiveForm({
+      amount: target ? Math.max(target.awarded_amount - target.already_named, sponsorPosition?.min_share ?? 1000) : (sponsorPosition?.suggested_share ?? 2000),
+      recurring: true, funded_by: 'sadqa', show_name_publicly: false,
+    })
+    setGiving({ target })
+  }
+
+  const submitGive = async () => {
+    if (!giving || !sponsorPoolId) return
+    if (sponsorPosition && giveForm.amount < sponsorPosition.min_share) {
+      toast.error(t('pool.minimumIs').replace('{amt}', fmt(sponsorPosition.min_share))); return
+    }
+    setBusy(true)
+    const { error } = await supabase.rpc('pool_announce', {
+      p_pool_id: sponsorPoolId, p_amount: giveForm.amount, p_recurring: giveForm.recurring,
+      p_funded_by: giveForm.funded_by, p_show_name_publicly: giveForm.show_name_publicly,
+      p_wazifa_student_id: giving.target?.student_id ?? null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.announced'))
+    setGiving(null)
+    loadSponsorship()
+  }
+
+  const submitChangeShare = async () => {
+    if (!changingShare) return
+    setBusy(true)
+    const { error } = await supabase.rpc('pool_change_my_share', { p_commitment_id: changingShare.id, p_monthly_amount: changeAmount })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.shareChanged'))
+    setChangingShare(null)
+    loadSponsorship()
+  }
+
+  const stopSponsoring = async (c: (typeof sponsorCommitments)[number]) => {
+    if (!confirm(t('pool.leaveConfirm'))) return
+    const { error } = await supabase.rpc('pool_leave', { p_commitment_id: c.id })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.left'))
+    loadSponsorship()
+  }
+
+  const withdrawSponsorAnnouncement = async (a: (typeof sponsorAnnouncements)[number]) => {
+    if (!confirm(t('pool.withdrawConfirm'))) return
+    const { error } = await supabase.rpc('pool_cancel_announcement', { p_payment_id: a.id })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.withdrawn'))
+    loadSponsorship()
+  }
 
   // Monthly figure, whether the family is paid by the day or the month.
   const monthlyIncome = family
@@ -476,6 +575,136 @@ export default function PortalWazifaPage() {
             <p className="font-heading text-[22px] font-bold text-dp-primary">{summary[key] ?? 0}</p>
           </div>
         ))}
+      </div>
+
+      {/* ── Sponsoring a student — a different visitor to this page than
+          the one applying below: name a specific student, or join the
+          shared pool with no name attached. */}
+      <div className="mb-6 print:hidden">
+        <h2 className="font-heading text-[20px] font-bold text-dp-primary mb-1 flex items-center gap-2">
+          <HandCoins size={18} className="text-dp-secondary" /> {t('pwz.sponsor.title')}
+        </h2>
+        <p className="font-sans text-[13px] text-dp-on-surface-variant mb-3 leading-relaxed">{t('pwz.sponsor.blurb')}</p>
+
+        <button onClick={() => setShowGuide((v) => !v)}
+          className="w-full flex items-center justify-between gap-2 bg-white border border-dp-outline-variant rounded-lg px-4 py-3 mb-3 hover:border-dp-secondary transition-all cursor-pointer">
+          <span className="flex items-center gap-2 font-sans text-[13px] font-bold text-dp-primary">
+            <HelpCircle size={16} /> {t('pool.howTitle')}
+          </span>
+          <ChevronDown size={16} className={`text-dp-on-surface-variant transition-transform ${showGuide ? 'rotate-180' : ''}`} />
+        </button>
+
+        {showGuide && (
+          <section className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-3">
+            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+              {[
+                { icon: HandCoins, k: 'what' },
+                { icon: TrendingUp, k: 'amount' },
+                { icon: Calendar, k: 'when' },
+                { icon: X, k: 'stop' },
+                { icon: AlertTriangle, k: 'short' },
+                { icon: ShieldCheck, k: 'privacy' },
+              ].map(({ icon: Icon, k }) => (
+                <div key={k} className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-dp-surface-container-low flex items-center justify-center shrink-0 mt-0.5">
+                    <Icon size={16} className="text-dp-secondary" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-heading text-[14px] font-bold text-dp-primary mb-1">{t(`pool.how.${k}.q`)}</h3>
+                    <p className="font-sans text-[15px] leading-[2] text-dp-on-surface mb-1"
+                      style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                      {t(`pool.how.${k}.aUr`)}
+                    </p>
+                    <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{t(`pool.how.${k}.a`)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-dp-outline-variant bg-dp-surface-container-low px-5 py-4 flex items-start gap-2.5">
+              <ShieldCheck size={17} className="text-dp-secondary shrink-0 mt-0.5" />
+              <div>
+                <p className="font-sans text-[15px] leading-[2] text-dp-on-surface font-bold"
+                  style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                  {t('pool.promiseUr')}
+                </p>
+                <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{t('pool.promise')}</p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {(sponsorCommitments.length > 0 || sponsorAnnouncements.filter((a) => a.status === 'announced').length > 0) && (
+          <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-3">
+            <h3 className="font-heading text-[13.5px] font-bold text-dp-primary mb-2.5">{t('pool.mine')}</h3>
+            <div className="space-y-2">
+              {sponsorCommitments.map((c) => (
+                <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-dp-outline-variant last:border-0 pb-2 last:pb-0">
+                  <div>
+                    <p className="font-sans text-[13px] font-bold text-dp-on-surface">
+                      Rs {fmt(c.monthly_amount)}/{t('pkf.month')}
+                      <span className="font-normal text-dp-on-surface-variant"> · {c.named_student ? t('pkf.namedFor').replace('{name}', c.named_student) : t('pkf.sharedGiving')}</span>
+                    </p>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant">
+                      {t('pool.givenSoFar').replace('{months}', String(c.months_given)).replace('{total}', fmt(c.total_given))}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button onClick={() => { setChangeAmount(c.monthly_amount); setChangingShare(c) }}
+                      className="font-sans text-[12px] font-bold text-dp-secondary hover:underline cursor-pointer">{t('pool.changeAmount')}</button>
+                    <button onClick={() => stopSponsoring(c)}
+                      className="font-sans text-[12px] text-dp-on-surface-variant hover:underline cursor-pointer">{t('pool.stopGiving')}</button>
+                  </div>
+                </div>
+              ))}
+              {sponsorAnnouncements.filter((a) => a.status === 'announced').map((a) => (
+                <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-dp-outline-variant last:border-0 pb-2 last:pb-0">
+                  <div>
+                    <p className="font-sans text-[13px] font-bold text-dp-on-surface">
+                      Rs {fmt(a.amount)}
+                      <span className="font-normal text-dp-on-surface-variant"> · {a.named_student ? t('pkf.namedFor').replace('{name}', a.named_student) : t('pkf.sharedGiving')}</span>
+                    </p>
+                    <p className="font-sans text-[11px] text-amber-700 font-semibold">{t('pool.status.announced')} — {t('pool.awaitingConfirmation')}</p>
+                  </div>
+                  <button onClick={() => withdrawSponsorAnnouncement(a)}
+                    className="font-sans text-[12px] text-dp-on-surface-variant hover:underline cursor-pointer shrink-0">{t('pool.withdraw')}</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {sponsorPosition && (
+          <div className="bg-white border-2 border-dp-secondary/30 rounded-lg p-4 mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{t('pwz.sponsor.sharedTitle')}</p>
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">
+                {t('pool.nDonors').replace('{n}', String(sponsorPosition.donors))} · {sponsorPosition.coverage_percent}%
+              </p>
+            </div>
+            <button onClick={() => openGive(null)}
+              className="flex items-center gap-2 bg-dp-secondary text-white px-4 py-2 rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer shrink-0">
+              <HandCoins size={14} /> {t('pool.join')}
+            </button>
+          </div>
+        )}
+
+        {sponsorStudents.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {sponsorStudents.map((s) => (
+              <div key={s.student_id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+                <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{s.full_name}</p>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2">
+                  {[s.institution, s.programme].filter(Boolean).join(' · ')}
+                  {s.is_loan && <span className="ms-1.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-bold">{t('pwz.sponsor.loan')}</span>}
+                </p>
+                <button onClick={() => openGive(s)}
+                  className="w-full flex items-center justify-center gap-1.5 bg-dp-secondary text-white py-1.5 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                  <Heart size={13} /> {s.already_named > 0 ? t('pkf.joinShare') : t('pkf.sponsor')}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── One line that speaks to the person, not the process ─────────
@@ -1490,6 +1719,80 @@ export default function PortalWazifaPage() {
             <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">
               {lockedReason ?? t('pwz.lockedGeneric')} {t('pwz.lockedHelp')}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Give — named or shared, same form ────────────────────────── */}
+      {giving && sponsorPosition && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 print:hidden" onClick={() => setGiving(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">
+                {giving.target ? t('pwz.sponsor.giveForTitle') : t('pool.joinTitle')}
+              </h2>
+              <button onClick={() => setGiving(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+
+            {giving.target && (
+              <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
+                <p className="font-sans text-[15px] font-bold">{giving.target.full_name}</p>
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                  {[giving.target.institution, giving.target.programme].filter(Boolean).join(' · ')}
+                </p>
+              </div>
+            )}
+
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pool.monthlyAmount')}</label>
+            <input type="number" min={sponsorPosition.min_share} value={giveForm.amount || ''}
+              onChange={(e) => setGiveForm({ ...giveForm, amount: +e.target.value })} className="input-field mb-1" />
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-4">
+              {t('pool.minimumIs').replace('{amt}', fmt(sponsorPosition.min_share))}
+            </p>
+
+            <div className="flex gap-2 mb-4">
+              {([['recurring', true, 'pool.recurringMonthly'], ['one_time', false, 'pool.oneTime']] as const).map(([key, val, label]) => (
+                <button key={key} onClick={() => setGiveForm({ ...giveForm, recurring: val })}
+                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer transition-all ${giveForm.recurring === val ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
+                  {t(label)}
+                </button>
+              ))}
+            </div>
+
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pool.fundedBy')}</label>
+            <select value={giveForm.funded_by} onChange={(e) => setGiveForm({ ...giveForm, funded_by: e.target.value })} className="input-field mb-3.5">
+              <option value="sadqa">{t('pool.fundedBy.sadqa')}</option>
+              <option value="general">{t('pool.fundedBy.general')}</option>
+            </select>
+
+            <label className="flex items-start gap-2 cursor-pointer font-sans text-[12.5px] mb-5">
+              <input type="checkbox" checked={giveForm.show_name_publicly}
+                onChange={(e) => setGiveForm({ ...giveForm, show_name_publicly: e.target.checked })} className="accent-dp-secondary mt-0.5" />
+              <span>{t('pool.showNamePublicly')} <span className="block text-dp-on-surface-variant">{t('pool.showNamePubliclyHint')}</span></span>
+            </label>
+
+            <button disabled={busy || giveForm.amount < sponsorPosition.min_share} onClick={submitGive}
+              className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              <Heart size={16} /> {busy ? t('action.saving') : t('pool.confirmAnnounce')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Change my standing amount ────────────────────────────────── */}
+      {changingShare && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 print:hidden" onClick={() => setChangingShare(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('pool.changeTitle')}</h2>
+              <button onClick={() => setChangingShare(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={18} /></button>
+            </div>
+            <input type="number" min={1} value={changeAmount || ''}
+              onChange={(e) => setChangeAmount(+e.target.value)} className="input-field mb-4" />
+            <button disabled={busy} onClick={submitChangeShare}
+              className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              {busy ? t('action.saving') : t('action.save')}
+            </button>
           </div>
         </div>
       )}

@@ -4,7 +4,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { BookOpen, X, Award, Calculator, HandCoins, Plus, Save, ClipboardCheck, Gavel, CalendarClock, Users, FileText, Printer, Ban, RotateCcw } from 'lucide-react'
+import {
+  BookOpen, X, Award, Calculator, HandCoins, Plus, Save, ClipboardCheck, Gavel, CalendarClock, Users, FileText, Printer, Ban, RotateCcw,
+  HelpCircle, ChevronDown, Phone, AlertTriangle, Wallet, Info,
+} from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { printNodeInPopup } from '@/lib/receiptExport'
 
@@ -112,7 +115,30 @@ export default function WazifaPage() {
   const [instalments, setInstalments] = useState<Instalment[]>([])
   const [summary, setSummary] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'applications' | 'awards'>('applications')
+  const [tab, setTab] = useState<'applications' | 'awards' | 'collections'>('applications')
+  const [showGuide, setShowGuide] = useState(false)
+
+  // ── Collections: shortfall, lapsed donors, announced pledges awaiting
+  // confirmation — folded in from what used to be a separate /admin/pools
+  // screen, the same as Kafalat and Sadqa, scoped to just POOL-WZF.
+  const [collPoolId, setCollPoolId] = useState<string | null>(null)
+  const [collPosition, setCollPosition] = useState<{
+    committed: number; donors: number; coverage_percent: number
+    received_this_month: number; reserve_months: number; reserve_target_months: number
+  } | null>(null)
+  const [collShortMonths, setCollShortMonths] = useState<{
+    pool_month_id: string; pool_code: string; month: string; required: number; received: number; remaining: number
+  }[]>([])
+  const [collLapsed, setCollLapsed] = useState<{ commitment_id: string; pool_code: string; name: string; phone: string | null; amount: number }[]>([])
+  const [collCovers, setCollCovers] = useState<{ month: string; pool_code: string; amount: number; voucher_no: string | null }[]>([])
+  const [collUnrestricted, setCollUnrestricted] = useState(0)
+  const [collAnnouncements, setCollAnnouncements] = useState<{
+    id: string; pool_code: string; donor_name: string | null; donor_phone: string | null
+    amount: number; is_one_time: boolean; month: string; proof_url: string | null
+  }[]>([])
+  const [collCovering, setCollCovering] = useState<(typeof collShortMonths)[number] | null>(null)
+  const [collCoverAmount, setCollCoverAmount] = useState(0)
+  const [collCoverNote, setCollCoverNote] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyStudent)
   const [busy, setBusy] = useState(false)
@@ -186,6 +212,63 @@ export default function WazifaPage() {
   }, [supabase])
 
   useEffect(() => { load() }, [load])
+
+  const loadCollections = useCallback(async () => {
+    const { data: pool } = await supabase.from('support_pools').select('id').eq('code', 'POOL-WZF').single()
+    const pid = (pool as { id: string } | null)?.id ?? null
+    setCollPoolId(pid)
+    const [{ data: pos }, { data: short }, { data: ann }] = await Promise.all([
+      pid ? supabase.rpc('pool_position', { p_pool_id: pid }) : Promise.resolve({ data: null }),
+      supabase.rpc('pool_shortfall_queue'),
+      supabase.rpc('pool_announcement_queue'),
+    ])
+    setCollPosition((pos ?? null) as typeof collPosition)
+    const s = short as { unrestricted_available: number; months: typeof collShortMonths; lapsed: typeof collLapsed; covers: typeof collCovers } | null
+    setCollUnrestricted(s?.unrestricted_available ?? 0)
+    setCollShortMonths((s?.months ?? []).filter((m) => m.pool_code === 'POOL-WZF'))
+    setCollLapsed((s?.lapsed ?? []).filter((l) => l.pool_code === 'POOL-WZF'))
+    setCollCovers((s?.covers ?? []).filter((c) => c.pool_code === 'POOL-WZF'))
+    setCollAnnouncements(((ann ?? []) as typeof collAnnouncements).filter((a) => a.pool_code === 'POOL-WZF'))
+  }, [supabase])
+
+  useEffect(() => { if (tab === 'collections') loadCollections() }, [tab, loadCollections])
+
+  const confirmCollAnnouncement = async (id: string) => {
+    setBusy(true)
+    const { error } = await supabase.rpc('pool_confirm_payment', { p_payment_id: id })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.ok.confirmed'))
+    loadCollections()
+  }
+
+  const declineCollAnnouncement = async (id: string) => {
+    const reason = prompt(t('pool.declineReasonPrompt'))
+    if (!reason) return
+    const { error } = await supabase.rpc('pool_decline_announcement', { p_payment_id: id, p_reason: reason })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.ok.declined'))
+    loadCollections()
+  }
+
+  const openCollCover = (m: (typeof collShortMonths)[number]) => {
+    setCollCoverAmount(m.remaining)
+    setCollCoverNote('')
+    setCollCovering(m)
+  }
+
+  const submitCollCover = async () => {
+    if (!collCovering) return
+    setBusy(true)
+    const { data, error } = await supabase.rpc('pool_cover_shortfall', {
+      p_pool_month_id: collCovering.pool_month_id, p_amount: collCoverAmount, p_note: collCoverNote || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.covered').replace('{v}', (data as { voucher_no: string })?.voucher_no ?? ''))
+    setCollCovering(null)
+    loadCollections()
+  }
 
   const startRenewal = async (aw: AwardRow) => {
     if (!confirm(t('wz.startRenewalConfirm'))) return
@@ -478,6 +561,11 @@ const open = applications.filter((a) => ['submitted', 'screening', 'interview', 
           <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('wz.blurb')}</p>
         </div>
         <div className="flex gap-2">
+          <button onClick={() => setShowGuide((v) => !v)}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[13.5px] font-semibold hover:border-dp-secondary transition-all cursor-pointer">
+            <HelpCircle size={16} /> {t('wz.guide.toggle')}
+            <ChevronDown size={14} className={`transition-transform ${showGuide ? 'rotate-180' : ''}`} />
+          </button>
           <button onClick={rescoreAll} disabled={busy}
             className="flex items-center gap-1.5 px-3.5 py-2.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[13.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer disabled:opacity-50">
             <Calculator size={15} /> {t('wz.rescore')}
@@ -488,6 +576,22 @@ const open = applications.filter((a) => ['submitted', 'screening', 'interview', 
           </button>
         </div>
       </div>
+
+      {showGuide && (
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-5 space-y-4">
+          {([
+            ['applications', 'wz.guide.applications'],
+            ['awards', 'wz.guide.awards'],
+            ['loans', 'wz.guide.loans'],
+            ['collections', 'wz.guide.collections'],
+          ] as const).map(([key, base]) => (
+            <div key={key}>
+              <h4 className="font-heading text-[13.5px] font-bold text-dp-primary mb-1">{t(`${base}.title`)}</h4>
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{t(`${base}.body`)}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         {([
@@ -507,6 +611,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'interview', 
         {([
           ['applications', `${t('wz.tab.applications')} (${open.length})`],
           ['awards', `${t('wz.tab.awards')} (${awards.length})`],
+          ['collections', `${t('wz.tab.collections')}${(collAnnouncements.length + collLapsed.length + collShortMonths.length) ? ` (${collAnnouncements.length + collLapsed.length + collShortMonths.length})` : ''}`],
         ] as const).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)}
             className={`px-3.5 py-2 rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer transition-all ${tab === key ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
@@ -722,6 +827,165 @@ const open = applications.filter((a) => ['submitted', 'screening', 'interview', 
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* ── Collections: shortfall, lapsed donors, and pledges awaiting
+          confirmation — folded in from what used to be a separate
+          /admin/pools screen, scoped to just Wazifa's shared pool. */}
+      {!loading && tab === 'collections' && (
+        <div className="space-y-6">
+          {collPosition && (
+            <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                {[
+                  { v: fmt(collPosition.committed), l: t('pool.pledged') },
+                  { v: String(collPosition.donors), l: t('pool.donors') },
+                  { v: `${collPosition.coverage_percent}%`, l: t('kf.collections.coverage') },
+                  { v: fmt(collPosition.received_this_month), l: t('kf.collections.receivedThisMonth') },
+                ].map((s) => (
+                  <div key={s.l}>
+                    <p className="font-heading text-[17px] font-bold text-dp-primary">{s.v}</p>
+                    <p className="font-sans text-[11px] text-dp-on-surface-variant">{s.l}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant flex items-center gap-1.5">
+                <Wallet size={12} />
+                {t('pool.reserve').replace('{n}', String(collPosition.reserve_months)).replace('{target}', String(collPosition.reserve_target_months))}
+              </p>
+            </div>
+          )}
+
+          {collAnnouncements.length > 0 && (
+            <div>
+              <h3 className="font-heading text-[15px] font-bold text-dp-primary mb-1 flex items-center gap-2">
+                <HandCoins size={16} /> {t('pool.queueTitle')}
+              </h3>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-2">{t('pool.queueBlurb')}</p>
+              <div className="space-y-2">
+                {collAnnouncements.map((a) => (
+                  <div key={a.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{a.donor_name ?? '—'}</p>
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant">
+                        {a.donor_phone && <a href={`tel:${a.donor_phone}`} className="text-dp-secondary hover:underline">{a.donor_phone}</a>}
+                        {' · '}Rs {fmt(a.amount)} · {a.is_one_time ? t('pool.oneTime') : t('pool.recurringMonthly')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {a.proof_url && (
+                        <a href={a.proof_url} target="_blank" rel="noreferrer" className="font-sans text-[12px] font-bold text-dp-secondary hover:underline">{t('pool.viewProof')}</a>
+                      )}
+                      <button onClick={() => confirmCollAnnouncement(a.id)} disabled={busy}
+                        className="bg-dp-secondary text-white font-sans text-[12px] font-bold px-3 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer">
+                        {t('pool.confirmThis')}
+                      </button>
+                      <button onClick={() => declineCollAnnouncement(a.id)}
+                        className="font-sans text-[12px] font-bold text-dp-on-surface-variant hover:underline cursor-pointer">
+                        {t('pool.declineThis')}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {collLapsed.length > 0 && (
+            <div>
+              <h3 className="font-heading text-[15px] font-bold text-dp-primary mb-1 flex items-center gap-2">
+                <Phone size={16} /> {t('pool.lapsedTitle')}
+              </h3>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-2">{t('pool.lapsedBlurb')}</p>
+              <div className="space-y-2">
+                {collLapsed.map((l) => (
+                  <div key={l.commitment_id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex flex-wrap items-center justify-between gap-3">
+                    <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{l.name}</p>
+                    <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                      {l.phone && <a href={`tel:${l.phone}`} className="text-dp-secondary hover:underline">{l.phone}</a>}
+                      {' · '}Rs {fmt(l.amount)}/{t('pkf.month')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {collShortMonths.length > 0 && (
+            <div>
+              <h3 className="font-heading text-[15px] font-bold text-dp-primary mb-1 flex items-center gap-2">
+                <AlertTriangle size={16} /> {t('pool.shortTitle')}
+              </h3>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-2">{t('pool.shortBlurb').replace('{amt}', fmt(collUnrestricted))}</p>
+              <div className="space-y-2">
+                {collShortMonths.map((m) => (
+                  <div key={m.pool_month_id} className="bg-white border border-dp-outline-variant rounded-lg p-4 flex flex-wrap items-center gap-4">
+                    <div className="flex-1 min-w-[200px]">
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant">
+                        {new Date(m.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                        {' · '}{t('pool.neededReceived').replace('{req}', fmt(m.required)).replace('{recd}', fmt(m.received))}
+                      </p>
+                    </div>
+                    <p className="font-heading text-[18px] font-bold text-dp-secondary">{fmt(m.remaining)}</p>
+                    <button onClick={() => openCollCover(m)}
+                      className="bg-dp-primary text-white font-sans text-[12.5px] font-bold px-4 py-2 rounded-lg hover:opacity-90 cursor-pointer">
+                      {t('pool.coverIt')}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {collCovers.length > 0 && (
+            <div>
+              <h3 className="font-heading text-[15px] font-bold text-dp-primary mb-1 flex items-center gap-2">
+                <RotateCcw size={16} /> {t('pool.coversTitle')}
+              </h3>
+              <div className="space-y-2">
+                {collCovers.map((c, i) => (
+                  <div key={i} className="bg-white border border-dp-outline-variant rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-sans text-[12.5px] text-dp-on-surface">{new Date(c.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</p>
+                    <p className="font-sans text-[13px] font-semibold text-dp-on-surface">Rs {fmt(c.amount)}</p>
+                    <p className="font-mono text-[11.5px] text-dp-secondary">{c.voucher_no ?? '—'}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {collAnnouncements.length === 0 && collLapsed.length === 0 && collShortMonths.length === 0 && (
+            <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">
+              <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('kf.collections.allClear')}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Committee covers a shortfall ──────────────────────────────── */}
+      {collCovering && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setCollCovering(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('pool.coverTitle')}</h2>
+              <button onClick={() => setCollCovering(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={18} /></button>
+            </div>
+            <div className="flex items-start gap-2 bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
+              <Info size={15} className="text-dp-secondary shrink-0 mt-0.5" />
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{t('pool.coverExplain')}</p>
+            </div>
+            <label className="block font-sans text-[12.5px] font-bold text-dp-primary mb-1.5">{t('pool.coverAmount')}</label>
+            <input type="number" min={1} max={collCovering.remaining} value={collCoverAmount}
+              onChange={(e) => setCollCoverAmount(Number(e.target.value))} className="input-field mb-1.5" />
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-3.5">{t('pool.availableIs').replace('{amt}', fmt(collUnrestricted))}</p>
+            <label className="block font-sans text-[12.5px] font-bold text-dp-primary mb-1.5">{t('pool.coverNote')}</label>
+            <textarea value={collCoverNote} onChange={(e) => setCollCoverNote(e.target.value)} rows={2} className="input-field mb-4" />
+            <button onClick={submitCollCover} disabled={busy}
+              className="w-full bg-dp-primary text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 disabled:opacity-50 cursor-pointer">
+              {busy ? t('action.saving') : t('pool.confirmCover')}
+            </button>
+          </div>
         </div>
       )}
 

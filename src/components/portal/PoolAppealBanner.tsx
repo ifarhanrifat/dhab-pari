@@ -25,6 +25,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Alert {
   pool_id: string
+  code: string
   name: string
   name_ur: string | null
   donors_needed: number
@@ -35,6 +36,14 @@ interface Alert {
 }
 
 const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
+
+// Each pool now lives on its own dedicated page (Kafalat, Wazifa, Sadqa) —
+// there is no generic /portal/support to point at any more.
+const ROUTE_FOR: Record<string, string> = {
+  'POOL-KFL': '/portal/kafalat',
+  'POOL-WZF': '/portal/wazifa',
+  'POOL-SDQ': '/portal/esal-e-sawab',
+}
 
 export function PoolAppealBanner() {
   const { t, isUrdu } = useLocale()
@@ -49,7 +58,7 @@ export function PoolAppealBanner() {
   return (
     <div className="border-b border-dp-outline-variant bg-dp-surface-container-low print:hidden">
       {alerts.map((a) => (
-        <Link key={a.pool_id} href={`/portal/support?pool=${a.pool_id}`}
+        <Link key={a.pool_id} href={ROUTE_FOR[a.code] ?? '/portal'}
           className="group flex items-center gap-3 px-6 md:px-10 py-2.5 hover:bg-white transition-colors">
           <Users size={16} className="text-dp-secondary shrink-0" />
 
