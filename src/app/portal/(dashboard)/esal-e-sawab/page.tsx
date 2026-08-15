@@ -5,7 +5,10 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { Gift, Send, Plus, Info, MessageSquare, X, Paperclip, HandHeart, Heart } from 'lucide-react'
+import {
+  Gift, Send, Plus, Info, MessageSquare, X, Paperclip, HandHeart, Heart,
+  HelpCircle, ChevronDown, HandCoins, TrendingUp, Calendar, ShieldCheck, AlertTriangle,
+} from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 /**
@@ -94,6 +97,7 @@ export default function PortalEsalESawabPage() {
   const [busy, setBusy] = useState(false)
 
   // ── Helping keep things running — the shared upkeep pool ──────────────
+  const [showGuide, setShowGuide] = useState(false)
   const [upkeepPoolId, setUpkeepPoolId] = useState<string | null>(null)
   const [upkeepPosition, setUpkeepPosition] = useState<Position | null>(null)
   const [upkeepObjects, setUpkeepObjects] = useState<UpkeepObject[]>([])
@@ -413,6 +417,55 @@ export default function PortalEsalESawabPage() {
           <HandHeart size={18} className="text-dp-secondary" /> {t('pes.upkeep2.title')}
         </h2>
         <p className="font-sans text-[13px] text-dp-on-surface-variant mb-3 leading-relaxed">{t('pes.upkeep2.blurb')}</p>
+
+        {/* How "monthly" actually works, and the one thing worth knowing
+            before agreeing to it: nothing is ever taken automatically. */}
+        <button onClick={() => setShowGuide((v) => !v)}
+          className="w-full flex items-center justify-between gap-2 bg-white border border-dp-outline-variant rounded-lg px-4 py-3 mb-3 hover:border-dp-secondary transition-all cursor-pointer">
+          <span className="flex items-center gap-2 font-sans text-[13px] font-bold text-dp-primary">
+            <HelpCircle size={16} /> {t('pool.howTitle')}
+          </span>
+          <ChevronDown size={16} className={`text-dp-on-surface-variant transition-transform ${showGuide ? 'rotate-180' : ''}`} />
+        </button>
+
+        {showGuide && (
+          <section className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-3">
+            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+              {[
+                { icon: HandCoins, k: 'what' },
+                { icon: TrendingUp, k: 'amount' },
+                { icon: Calendar, k: 'when' },
+                { icon: X, k: 'stop' },
+                { icon: AlertTriangle, k: 'short' },
+                { icon: ShieldCheck, k: 'privacy' },
+              ].map(({ icon: Icon, k }) => (
+                <div key={k} className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-dp-surface-container-low flex items-center justify-center shrink-0 mt-0.5">
+                    <Icon size={16} className="text-dp-secondary" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-heading text-[14px] font-bold text-dp-primary mb-1">{t(`pool.how.${k}.q`)}</h3>
+                    <p className="font-sans text-[15px] leading-[2] text-dp-on-surface mb-1"
+                      style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                      {t(`pool.how.${k}.aUr`)}
+                    </p>
+                    <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{t(`pool.how.${k}.a`)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-dp-outline-variant bg-dp-surface-container-low px-5 py-4 flex items-start gap-2.5">
+              <ShieldCheck size={17} className="text-dp-secondary shrink-0 mt-0.5" />
+              <div>
+                <p className="font-sans text-[15px] leading-[2] text-dp-on-surface font-bold"
+                  style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                  {t('pool.promiseUr')}
+                </p>
+                <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{t('pool.promise')}</p>
+              </div>
+            </div>
+          </section>
+        )}
 
         {(upkeepCommitments.length > 0 || upkeepAnnouncements.filter((a) => a.status === 'announced').length > 0) && (
           <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-3">

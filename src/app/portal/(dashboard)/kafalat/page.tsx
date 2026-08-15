@@ -5,7 +5,10 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { GraduationCap, Heart, Users, X, Send, HandHeart } from 'lucide-react'
+import {
+  GraduationCap, Heart, Users, X, Send, HandHeart, Info, HelpCircle, ChevronDown,
+  HandCoins, TrendingUp, Calendar, ShieldCheck, AlertTriangle,
+} from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 /**
@@ -63,6 +66,7 @@ export default function PortalKafalatPage() {
   const [commitments, setCommitments] = useState<Commitment[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
+  const [showGuide, setShowGuide] = useState(false)
   const [busy, setBusy] = useState(false)
 
   // null target = the shared pool, no name attached.
@@ -181,9 +185,60 @@ export default function PortalKafalatPage() {
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1.5 leading-relaxed">{t('pkf.blurb')}</p>
       </div>
 
-      <div className="bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3 mb-5">
+      <div className="bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3 mb-3">
         <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{t('pkf.poolNotice')}</p>
       </div>
+
+      {/* ── How this works, before anybody commits ───────────────────────
+          What "monthly" actually means here, and the one thing every donor
+          deserves to know before they agree to it: nothing is ever taken
+          from their account on its own. */}
+      <button onClick={() => setShowGuide((v) => !v)}
+        className="w-full flex items-center justify-between gap-2 bg-white border border-dp-outline-variant rounded-lg px-4 py-3 mb-5 hover:border-dp-secondary transition-all cursor-pointer">
+        <span className="flex items-center gap-2 font-sans text-[13px] font-bold text-dp-primary">
+          <HelpCircle size={16} /> {t('pool.howTitle')}
+        </span>
+        <ChevronDown size={16} className={`text-dp-on-surface-variant transition-transform ${showGuide ? 'rotate-180' : ''}`} />
+      </button>
+
+      {showGuide && (
+        <section className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-5">
+          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+            {[
+              { icon: HandCoins, k: 'what' },
+              { icon: TrendingUp, k: 'amount' },
+              { icon: Calendar, k: 'when' },
+              { icon: X, k: 'stop' },
+              { icon: AlertTriangle, k: 'short' },
+              { icon: ShieldCheck, k: 'privacy' },
+            ].map(({ icon: Icon, k }) => (
+              <div key={k} className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-dp-surface-container-low flex items-center justify-center shrink-0 mt-0.5">
+                  <Icon size={16} className="text-dp-secondary" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-heading text-[14px] font-bold text-dp-primary mb-1">{t(`pool.how.${k}.q`)}</h3>
+                  <p className="font-sans text-[15px] leading-[2] text-dp-on-surface mb-1"
+                    style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                    {t(`pool.how.${k}.aUr`)}
+                  </p>
+                  <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{t(`pool.how.${k}.a`)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="border-t border-dp-outline-variant bg-dp-surface-container-low px-5 py-4 flex items-start gap-2.5">
+            <ShieldCheck size={17} className="text-dp-secondary shrink-0 mt-0.5" />
+            <div>
+              <p className="font-sans text-[15px] leading-[2] text-dp-on-surface font-bold"
+                style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                {t('pool.promiseUr')}
+              </p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{t('pool.promise')}</p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── My Kafalat giving ────────────────────────────────────────── */}
       {(commitments.length > 0 || announcements.length > 0) && (
