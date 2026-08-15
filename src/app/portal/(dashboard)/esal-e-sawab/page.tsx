@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { SITE } from '@/lib/constants'
-import { ImageUpload } from '@/components/admin/ImageUpload'
+import Link from 'next/link'
 
 /**
  * Offering a lasting object in memory of someone.
@@ -74,10 +74,11 @@ interface Position {
 }
 interface Commitment {
   id: string; pool_id: string; monthly_amount: number; status: string
-  named_object: string | null; months_given: number; total_given: number
+  named_object: string | null; sadqa_object_id: string | null; months_given: number; total_given: number
 }
 interface UpkeepAnnouncement {
-  id: string; pool_id: string; amount: number; is_one_time: boolean; status: string; named_object: string | null; has_proof: boolean
+  id: string; pool_id: string; amount: number; is_one_time: boolean; status: string
+  named_object: string | null; sadqa_object_id: string | null; has_proof: boolean
 }
 
 interface ChatMessage {
@@ -152,15 +153,19 @@ export default function PortalEsalESawabPage() {
 
   useEffect(() => { load() }, [load])
 
-  // Only one standing monthly commitment per pool is possible — offering
-  // "monthly" again would silently rename or re-target the one that
-  // already exists rather than creating a second.
-  const alreadyCommitted = upkeepCommitments.some((c) => c.status === 'active')
+  // A donor can hold several independent standing commitments at once — one
+  // per named object, plus optionally one to the shared pool — so whether
+  // "monthly" is already taken only ever means something against a specific
+  // target, never the whole page at once.
+  const commitmentFor = (target: UpkeepObject | null) =>
+    upkeepCommitments.find((c) => c.status === 'active' && (target ? c.sadqa_object_id === target.id : !c.sadqa_object_id))
+  const alreadySharedCommitted = !!commitmentFor(null)
 
   const openGive = (target: UpkeepObject | null) => {
+    const existing = commitmentFor(target)
     setGiveForm({
-      amount: target ? Math.max(target.monthly_cost - target.already_named, upkeepPosition?.min_share ?? 200) : (upkeepPosition?.suggested_share ?? 500),
-      recurring: !alreadyCommitted, funded_by: 'sadqa', show_name_publicly: false,
+      amount: existing?.monthly_amount ?? (target ? Math.max(target.monthly_cost - target.already_named, upkeepPosition?.min_share ?? 200) : (upkeepPosition?.suggested_share ?? 500)),
+      recurring: !existing, funded_by: 'sadqa', show_name_publicly: false,
     })
     setGiving({ target })
   }
@@ -207,13 +212,6 @@ export default function PortalEsalESawabPage() {
     const { error } = await supabase.rpc('pool_cancel_announcement', { p_payment_id: a.id })
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('pool.withdrawn'))
-    load()
-  }
-
-  const attachUpkeepProof = async (paymentId: string, url: string) => {
-    const { error } = await supabase.rpc('pool_attach_proof', { p_payment_id: paymentId, p_proof_url: url })
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('pool.proofAttached'))
     load()
   }
 
@@ -527,7 +525,9 @@ export default function PortalEsalESawabPage() {
                     {a.has_proof ? (
                       <p className="font-sans text-[11.5px] text-dp-secondary font-semibold">{t('pool.proofAttached')}</p>
                     ) : (
-                      <ImageUpload bucket="images" onUpload={(url) => attachUpkeepProof(a.id, url)} label={t('pool.attachProof')} />
+                      <Link href="/portal/statement" className="font-sans text-[12px] font-bold text-dp-secondary hover:underline">
+                        {t('pool.payOnStatement')}
+                      </Link>
                     )}
                   </div>
                 </div>
@@ -536,7 +536,7 @@ export default function PortalEsalESawabPage() {
           </div>
         )}
 
-        {upkeepPosition && !alreadyCommitted && (
+        {upkeepPosition && !alreadySharedCommitted && (
           <div className="bg-white border-2 border-dp-secondary/30 rounded-lg p-4 mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{t('pes.upkeep2.sharedTitle')}</p>
@@ -840,13 +840,13 @@ export default function PortalEsalESawabPage() {
 
             <div className="flex gap-2 mb-1">
               {([['recurring', true, 'pool.recurringMonthly'], ['one_time', false, 'pool.oneTime']] as const).map(([key, val, label]) => (
-                <button key={key} disabled={alreadyCommitted && val} onClick={() => setGiveForm({ ...giveForm, recurring: val })}
-                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all ${giveForm.recurring === val ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'} ${alreadyCommitted && val ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
+                <button key={key} disabled={!!commitmentFor(giving.target) && val} onClick={() => setGiveForm({ ...giveForm, recurring: val })}
+                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all ${giveForm.recurring === val ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'} ${commitmentFor(giving.target) && val ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
                   {t(label)}
                 </button>
               ))}
             </div>
-            {alreadyCommitted ? (
+            {commitmentFor(giving.target) ? (
               <p className="font-sans text-[11px] text-dp-on-surface-variant mb-3">{t('pkf.alreadyMonthlyHint')}</p>
             ) : <div className="mb-4" />}
 

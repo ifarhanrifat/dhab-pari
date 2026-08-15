@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { SITE } from '@/lib/constants'
-import { ImageUpload } from '@/components/admin/ImageUpload'
+import Link from 'next/link'
 
 /**
  * Sponsoring a child, or joining the shared pool — one system, one form.
@@ -46,13 +46,14 @@ interface Position {
 
 interface Commitment {
   id: string; pool_id: string; monthly_amount: number; status: string; started_on: string
-  named_child: string | null; paid_this_month: number; announced_this_month: number
+  named_child: string | null; kafalat_child_id: string | null
+  paid_this_month: number; announced_this_month: number
   months_given: number; total_given: number
 }
 
 interface Announcement {
   id: string; amount: number; is_one_time: boolean; month: string
-  status: string; named_child: string | null; has_proof: boolean
+  status: string; named_child: string | null; kafalat_child_id: string | null; has_proof: boolean
 }
 
 const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -101,17 +102,23 @@ export default function PortalKafalatPage() {
 
   useEffect(() => { load() }, [load])
 
-  // Only one standing monthly commitment per pool is possible at all — the
-  // system reuses whichever one already exists rather than creating a
-  // second. Offering "monthly" again here would silently rename or
-  // re-target that same commitment instead of adding a new one, so once a
-  // donor already has an active monthly share, anything more they give
-  // through this modal is a one-time top-up, never another "monthly".
-  const alreadyCommitted = commitments.some((c) => c.status === 'active')
+  // A donor can now hold several independent standing commitments at once —
+  // one per named child, plus optionally one to the shared pool — so "am I
+  // already committed" is only ever meaningful against a specific target,
+  // never as a single yes/no for the whole page. Re-announcing to a target
+  // that already has a live commitment reuses that same row rather than
+  // creating a second one, so recurring stays disabled for that one target
+  // only, and the shared-pool card only hides once the shared (unnamed)
+  // commitment specifically already exists — a named commitment to some
+  // other child says nothing about that.
+  const commitmentFor = (child: NamingChild | null) =>
+    commitments.find((c) => c.status === 'active' && (child ? c.kafalat_child_id === child.id : !c.kafalat_child_id))
+  const alreadySharedCommitted = !!commitmentFor(null)
 
   const openGive = (child: NamingChild | null) => {
+    const existing = commitmentFor(child)
     const remaining = child ? Math.max(child.this_year_requirement - child.already_named, position?.min_share ?? 1000) : (position?.suggested_share ?? 2000)
-    setForm({ amount: remaining, recurring: !alreadyCommitted, funded_by: 'sadqa', show_name_publicly: false })
+    setForm({ amount: existing?.monthly_amount ?? remaining, recurring: !existing, funded_by: 'sadqa', show_name_publicly: false })
     setGiving({ target: child })
   }
 
@@ -159,13 +166,6 @@ export default function PortalKafalatPage() {
     const { error } = await supabase.rpc('pool_cancel_announcement', { p_payment_id: a.id })
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('pool.withdrawn'))
-    load()
-  }
-
-  const attachProof = async (paymentId: string, url: string) => {
-    const { error } = await supabase.rpc('pool_attach_proof', { p_payment_id: paymentId, p_proof_url: url })
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('pool.proofAttached'))
     load()
   }
 
@@ -298,7 +298,9 @@ export default function PortalKafalatPage() {
 
                 {/* The gap that was actually reported: an announcement told
                     the accountant nothing had arrived, but never said where
-                    to actually send it. */}
+                    to actually send it. Attaching the actual payment slip
+                    now happens on My Giving, alongside every other fund —
+                    one payment flow, not a separate one per feature. */}
                 <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3">
                   <p className="font-sans text-[12px] font-bold text-dp-primary mb-1.5">{t('pool.sendTo.title')}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 font-sans text-[12px] text-dp-on-surface mb-2.5">
@@ -309,7 +311,9 @@ export default function PortalKafalatPage() {
                   {a.has_proof ? (
                     <p className="font-sans text-[11.5px] text-dp-secondary font-semibold">{t('pool.proofAttached')}</p>
                   ) : (
-                    <ImageUpload bucket="images" onUpload={(url) => attachProof(a.id, url)} label={t('pool.attachProof')} />
+                    <Link href="/portal/statement" className="font-sans text-[12px] font-bold text-dp-secondary hover:underline">
+                      {t('pool.payOnStatement')}
+                    </Link>
                   )}
                 </div>
               </div>
@@ -326,7 +330,7 @@ export default function PortalKafalatPage() {
           the one they already have, which "My Kafalat giving" above already
           does properly. A one-time top-up is still offered from a specific
           child's own card below regardless. */}
-      {position && !alreadyCommitted && (
+      {position && !alreadySharedCommitted && (
         <div className="bg-white border-2 border-dp-secondary/30 rounded-lg p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-2">
@@ -441,16 +445,17 @@ export default function PortalKafalatPage() {
 
             <div className="flex gap-2 mb-1">
               {([['recurring', true, 'pool.recurringMonthly'], ['one_time', false, 'pool.oneTime']] as const).map(([key, val, label]) => (
-                <button key={key} disabled={alreadyCommitted && val} onClick={() => setForm({ ...form, recurring: val })}
-                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all ${form.recurring === val ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'} ${alreadyCommitted && val ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
+                <button key={key} disabled={!!commitmentFor(giving.target) && val} onClick={() => setForm({ ...form, recurring: val })}
+                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all ${form.recurring === val ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'} ${commitmentFor(giving.target) && val ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
                   {t(label)}
                 </button>
               ))}
             </div>
-            {alreadyCommitted && (
+            {commitmentFor(giving.target) ? (
               <p className="font-sans text-[11px] text-dp-on-surface-variant mb-3">{t('pkf.alreadyMonthlyHint')}</p>
+            ) : (
+              <div className="mb-4" />
             )}
-            {!alreadyCommitted && <div className="mb-4" />}
 
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pool.fundedBy')}</label>
             <select value={form.funded_by} onChange={(e) => setForm({ ...form, funded_by: e.target.value })} className="input-field mb-1.5">

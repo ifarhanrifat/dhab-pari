@@ -60,4 +60,13 @@ export const TEMPLATE_KEYS: Record<string, TemplateKeyInfo[]> = {
     { token: '%%outstanding%%', description: 'Total outstanding amount' },
     { token: '%%pending_count%%', description: 'Number of pending bills' },
   ],
+  kafalat_card_tagline: [
+    { token: '%%name%%', description: 'Child’s first name (optional to use)' },
+  ],
+  kafalat_end_sponsorship: [
+    { token: '%%name%%', description: 'Child’s first name' },
+  ],
+  kafalat_thank_you: [
+    { token: '%%name%%', description: 'Child’s first name' },
+  ],
 }

@@ -12,6 +12,10 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 interface LedgerRow { id: string; entry_date: string; particular: string; debit: number; credit: number }
 interface AccountInfo { donor_account_no: string | null; opening_balance: number }
 interface DonationRow { id: string; amount_pkr: number; date: string; payment_status: string; is_verified: boolean; project_id: string | null }
+// A Kafalat/Wazifa/Sadqa announcement, read the same way a project pledge
+// is — one "Pay Now" flow for every fund, with its own label attached.
+interface PoolPending { id: string; source: 'pool'; amount_pkr: number; date: string; has_proof: boolean; particular: string }
+type PayTarget = { kind: 'donor'; id: string } | { kind: 'pool'; id: string }
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -23,8 +27,9 @@ export default function PortalStatementPage() {
   const [account, setAccount] = useState<AccountInfo | null>(null)
   const [rows, setRows] = useState<LedgerRow[]>([])
   const [donations, setDonations] = useState<DonationRow[]>([])
+  const [poolPending, setPoolPending] = useState<PoolPending[]>([])
   const [loading, setLoading] = useState(true)
-  const [payingId, setPayingId] = useState<string | null>(null)
+  const [payTarget, setPayTarget] = useState<PayTarget | null>(null)
   const [payProof, setPayProof] = useState('')
   const [payMethod, setPayMethod] = useState('jazzcash')
   const [submitting, setSubmitting] = useState(false)
@@ -32,28 +37,32 @@ export default function PortalStatementPage() {
   const load = async () => {
     if (!user) return
     const supabase = createClient()
-    const [donationsRes, acctRes, ledgerRes] = await Promise.all([
+    const [donationsRes, acctRes, ledgerRes, poolRes] = await Promise.all([
       supabase.from('donors').select('id, amount_pkr, date, payment_status, is_verified, project_id').eq('portal_user_id', user.id).order('date', { ascending: false }),
       user.donor_account_id ? supabase.from('accounts').select('donor_account_no, opening_balance').eq('id', user.donor_account_id).single() : Promise.resolve({ data: null }),
       user.donor_account_id ? supabase.from('ledger_entries').select('id, entry_date, particular, debit, credit').eq('account_id', user.donor_account_id)
         .order('entry_date', { ascending: true }).order('created_at', { ascending: true }) : Promise.resolve({ data: [] }),
+      supabase.rpc('my_pool_pending_payments'),
     ])
     setDonations(donationsRes.data ?? [])
     setAccount(acctRes.data ?? null)
     setRows((ledgerRes.data as LedgerRow[]) ?? [])
+    setPoolPending((poolRes.data ?? []) as PoolPending[])
     setLoading(false)
   }
   useEffect(() => { load() }, [user])
 
   const payPledge = async () => {
-    if (!payingId || !payProof) { toast.error('Upload your payment slip'); return }
+    if (!payTarget || !payProof) { toast.error('Upload your payment slip'); return }
     setSubmitting(true)
     const supabase = createClient()
-    const { error } = await supabase.rpc('submit_pledge_payment', { p_donor_id: payingId, p_payment_proof_url: payProof, p_payment_method: payMethod })
+    const { error } = payTarget.kind === 'donor'
+      ? await supabase.rpc('submit_pledge_payment', { p_donor_id: payTarget.id, p_payment_proof_url: payProof, p_payment_method: payMethod })
+      : await supabase.rpc('pool_submit_pledge_payment', { p_payment_id: payTarget.id, p_proof_url: payProof, p_method: payMethod })
     setSubmitting(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success('Payment submitted — awaiting verification')
-    setPayingId(null)
+    setPayTarget(null)
     setPayProof('')
     load()
   }
@@ -67,6 +76,12 @@ export default function PortalStatementPage() {
   // (nothing posts to the ledger until an admin confirms). Silence at exactly
   // the moment a donor most wants reassurance.
   const awaiting = donations.filter((d) => d.payment_status !== 'pledged' && !d.is_verified)
+  // Kafalat/Wazifa/Sadqa announcements slot into the same two boxes as a
+  // general pledge: still needs sending (no proof yet) joins "Announced
+  // Pledges", already sent (proof attached) joins "Paid, awaiting
+  // confirmation" — one payment flow, every fund, with its own label.
+  const poolNeedsPay = poolPending.filter((p) => !p.has_proof)
+  const poolAwaiting = poolPending.filter((p) => p.has_proof)
   let running = account?.opening_balance ?? 0
   const withBalance = rows.map((r) => { running += Number(r.credit) - Number(r.debit); return { ...r, balance: running } })
   const total = withBalance.length > 0 ? withBalance[withBalance.length - 1].balance : 0
@@ -78,7 +93,7 @@ export default function PortalStatementPage() {
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{account?.donor_account_no ? `Donor Account: ${account.donor_account_no}` : 'No confirmed donations yet'}</p>
       </div>
 
-      {pledges.length > 0 && (
+      {(pledges.length > 0 || poolNeedsPay.length > 0) && (
         <div className="bg-white rounded-lg border border-amber-200 overflow-hidden mb-6">
           <div className="px-5 py-3 border-b border-amber-200 bg-amber-50"><span className="font-sans text-[14px] font-bold text-amber-800">{t('p.announcedPledges')}</span></div>
           {pledges.map((p) => (
@@ -87,7 +102,18 @@ export default function PortalStatementPage() {
                 <p className="font-sans text-[15px] font-bold">Rs. {fmt(p.amount_pkr)}</p>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant">Pledged {new Date(p.date).toLocaleDateString('en-GB')}</p>
               </div>
-              <button onClick={() => { setPayingId(p.id); setPayProof(''); setPayMethod('jazzcash') }} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
+              <button onClick={() => { setPayTarget({ kind: 'donor', id: p.id }); setPayProof(''); setPayMethod('jazzcash') }} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
+                {t('p.payNow')}
+              </button>
+            </div>
+          ))}
+          {poolNeedsPay.map((p) => (
+            <div key={p.id} className="flex items-center justify-between px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0">
+              <div>
+                <p className="font-sans text-[15px] font-bold">Rs. {fmt(p.amount_pkr)}</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant">{p.particular} · Pledged {new Date(p.date).toLocaleDateString('en-GB')}</p>
+              </div>
+              <button onClick={() => { setPayTarget({ kind: 'pool', id: p.id }); setPayProof(''); setPayMethod('jazzcash') }} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
                 {t('p.payNow')}
               </button>
             </div>
@@ -95,7 +121,7 @@ export default function PortalStatementPage() {
         </div>
       )}
 
-      {awaiting.length > 0 && (
+      {(awaiting.length > 0 || poolAwaiting.length > 0) && (
         <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mb-6">
           <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low">
             <span className="font-sans text-[14px] font-bold text-dp-on-surface">{t('p.paidAwaiting')}</span>
@@ -108,6 +134,15 @@ export default function PortalStatementPage() {
               <div>
                 <p className="font-sans text-[15px] font-bold">Rs. {fmt(d.amount_pkr)}</p>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant">Paid {new Date(d.date).toLocaleDateString('en-GB')}</p>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-sans text-[11.5px] font-bold">{t('p.awaitingConfirmation')}</span>
+            </div>
+          ))}
+          {poolAwaiting.map((p) => (
+            <div key={p.id} className="flex items-center justify-between px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0">
+              <div>
+                <p className="font-sans text-[15px] font-bold">Rs. {fmt(p.amount_pkr)}</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant">{p.particular} · Paid {new Date(p.date).toLocaleDateString('en-GB')}</p>
               </div>
               <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-sans text-[11.5px] font-bold">{t('p.awaitingConfirmation')}</span>
             </div>
@@ -153,12 +188,12 @@ export default function PortalStatementPage() {
         </>
       )}
 
-      {payingId && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPayingId(null)}>
+      {payTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPayTarget(null)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('p.payYourPledge')}</h2>
-              <button onClick={() => setPayingId(null)} className="cursor-pointer"><X size={20} /></button>
+              <button onClick={() => setPayTarget(null)} className="cursor-pointer"><X size={20} /></button>
             </div>
             <div className="space-y-4">
               <div>

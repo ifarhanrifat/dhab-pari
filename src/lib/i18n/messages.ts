@@ -2321,6 +2321,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'pool.status.announced': 'Announced',
     'pool.status.confirmed': 'Confirmed',
     'pool.awaitingConfirmation': 'Awaiting confirmation',
+    'pool.payOnStatement': 'Sent it? Confirm it on My Giving →',
+    'pool.manageOnRecurring': 'Change amount or stop on Recurring Donations →',
 
     // Pool announcement queue — accountant side
     'pool.queueTitle': 'Announced, awaiting confirmation',
@@ -4761,6 +4763,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'pool.sendTo.title': 'خود بھیجیں، ان میں سے کسی بھی طریقے سے',
     'pool.status.announced': 'اعلان شدہ',
     'pool.status.confirmed': 'تصدیق شدہ',
+    'pool.payOnStatement': 'بھیج دیا؟ اسے "میرا عطیہ" پر جا کر تصدیق کریں ←',
+    'pool.manageOnRecurring': 'رقم تبدیل کریں یا روکیں — "باقاعدہ عطیات" پر ←',
     'pool.awaitingConfirmation': 'تصدیق کا منتظر',
 
     // Pool announcement queue — accountant side

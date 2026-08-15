@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { PlusCircle, X, Pause, Play, Trash2 } from 'lucide-react'
+import { PlusCircle, X, Pause, Play, Trash2, Pencil } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -15,6 +15,9 @@ interface Schedule {
   project_id: string | null; payment_method: string | null; particular: string | null
 }
 interface Project { id: string; title: string }
+// A standing Kafalat/Wazifa/Sadqa share, read the same way a project
+// recurring schedule is — one list, one place a donor manages what repeats.
+interface PoolLine { id: string; source: 'pool'; amount_pkr: number; is_active: boolean; particular: string; pool_code: string }
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -25,12 +28,16 @@ export default function PortalRecurringPage() {
   const { t } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [schedules, setSchedules] = useState<Schedule[]>([])
+  const [poolLines, setPoolLines] = useState<PoolLine[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(empty)
   const [saving, setSaving] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState<string | null>(null)
+  const [confirmStopPool, setConfirmStopPool] = useState<string | null>(null)
+  const [changingPool, setChangingPool] = useState<PoolLine | null>(null)
+  const [changeAmount, setChangeAmount] = useState(0)
   // Follows the reader's own language toggle, not the committee's setting —
   // this text is the one thing on the page they must actually understand.
   const { isUrdu } = useTranslation()
@@ -40,19 +47,42 @@ export default function PortalRecurringPage() {
   const load = async () => {
     if (!user) return
     const supabase = createClient()
-    const [{ data: sched }, { data: proj }, { data: pol }] = await Promise.all([
+    const [{ data: sched }, { data: proj }, { data: pol }, { data: pool }] = await Promise.all([
       supabase.from('recurring_schedules').select('id, amount_pkr, frequency, next_run_date, is_active, project_id, payment_method, particular')
         .eq('created_by_portal_user_id', user.id).order('next_run_date', { ascending: true }),
       supabase.from('projects').select('id, title').neq('status', 'upcoming').order('title'),
       supabase.from('site_settings').select('key, value').in('key', ['recurring_policy_en', 'recurring_policy_ur']),
+      supabase.rpc('my_pool_recurring_lines'),
     ])
     setSchedules(sched ?? [])
     setProjects(proj ?? [])
+    setPoolLines((pool ?? []) as PoolLine[])
     const v = Object.fromEntries((pol ?? []).map((x) => [x.key, x.value ?? '']))
     setPolicy({ en: v.recurring_policy_en ?? '', ur: v.recurring_policy_ur ?? '' })
     setLoading(false)
   }
   useEffect(() => { load() }, [user])
+
+  const stopPoolLine = async (id: string) => {
+    const supabase = createClient()
+    const { error } = await supabase.rpc('pool_leave', { p_commitment_id: id })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(isUrdu ? 'روک دیا گیا' : 'Stopped')
+    setConfirmStopPool(null)
+    load()
+  }
+
+  const savePoolAmount = async () => {
+    if (!changingPool) return
+    setSaving(true)
+    const supabase = createClient()
+    const { error } = await supabase.rpc('pool_change_my_share', { p_commitment_id: changingPool.id, p_monthly_amount: changeAmount })
+    setSaving(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(isUrdu ? 'رقم تبدیل ہو گئی' : 'Amount changed')
+    setChangingPool(null)
+    load()
+  }
 
   const policyText = isUrdu ? (policy.ur || policy.en) : (policy.en || policy.ur)
 
@@ -114,30 +144,74 @@ export default function PortalRecurringPage() {
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-        {schedules.length === 0 ? (
+        {schedules.length === 0 && poolLines.length === 0 ? (
           <p className="px-5 py-8 text-center font-sans text-[14px] text-dp-on-surface-variant">{t('p.noRecurring')}</p>
         ) : (
-          schedules.map((s) => (
-            <div key={s.id} className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant last:border-b-0">
-              <div>
-                <p className="font-sans text-[15px] font-bold text-dp-on-surface">Rs. {fmt(s.amount_pkr)} · <span className="capitalize">{s.frequency}</span></p>
-                <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">
-                  {projects.find((p) => p.id === s.project_id)?.title ?? 'General Fund'} · Next: {new Date(s.next_run_date).toLocaleDateString('en-GB')}
-                </p>
+          <>
+            {schedules.map((s) => (
+              <div key={s.id} className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant last:border-b-0">
+                <div>
+                  <p className="font-sans text-[15px] font-bold text-dp-on-surface">Rs. {fmt(s.amount_pkr)} · <span className="capitalize">{s.frequency}</span></p>
+                  <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">
+                    {projects.find((p) => p.id === s.project_id)?.title ?? 'General Fund'} · Next: {new Date(s.next_run_date).toLocaleDateString('en-GB')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${s.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>{s.is_active ? 'Active' : 'Paused'}</span>
+                  <button onClick={() => togglePause(s)} className="p-2 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer" title={s.is_active ? 'Pause' : 'Resume'}>
+                    {s.is_active ? <Pause size={16} /> : <Play size={16} />}
+                  </button>
+                  <button onClick={() => setConfirmCancel(s.id)} className="p-2 text-dp-on-surface-variant hover:text-dp-error cursor-pointer" title="Cancel"><Trash2 size={16} /></button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${s.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>{s.is_active ? 'Active' : 'Paused'}</span>
-                <button onClick={() => togglePause(s)} className="p-2 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer" title={s.is_active ? 'Pause' : 'Resume'}>
-                  {s.is_active ? <Pause size={16} /> : <Play size={16} />}
-                </button>
-                <button onClick={() => setConfirmCancel(s.id)} className="p-2 text-dp-on-surface-variant hover:text-dp-error cursor-pointer" title="Cancel"><Trash2 size={16} /></button>
+            ))}
+            {/* Kafalat/Wazifa/Sadqa standing shares — same list, same page,
+                one payment system for every fund. There is no "pause" here,
+                only change the amount or stop for good, since a pool share
+                is a commitment to a specific child/student/object rather
+                than a payment plan that can sit idle. */}
+            {poolLines.map((p) => (
+              <div key={p.id} className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant last:border-b-0">
+                <div>
+                  <p className="font-sans text-[15px] font-bold text-dp-on-surface">Rs. {fmt(p.amount_pkr)} · {isUrdu ? 'ماہانہ' : 'monthly'}</p>
+                  <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">{p.particular}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${p.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>{p.is_active ? 'Active' : 'Lapsed'}</span>
+                  <button onClick={() => { setChangeAmount(p.amount_pkr); setChangingPool(p) }} className="p-2 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer" title={isUrdu ? 'رقم تبدیل کریں' : 'Change amount'}>
+                    <Pencil size={16} />
+                  </button>
+                  <button onClick={() => setConfirmStopPool(p.id)} className="p-2 text-dp-on-surface-variant hover:text-dp-error cursor-pointer" title="Stop"><Trash2 size={16} /></button>
+                </div>
               </div>
-            </div>
-          ))
+            ))}
+          </>
         )}
       </div>
 
       <ConfirmDialog open={!!confirmCancel} title="Cancel Recurring Donation" message="Are you sure you want to cancel this recurring donation? This cannot be undone." onConfirm={cancel} onCancel={() => setConfirmCancel(null)} />
+      <ConfirmDialog open={!!confirmStopPool}
+        title={isUrdu ? 'حصہ روکیں' : 'Stop this share'}
+        message={isUrdu ? 'یہ ماہانہ حصہ روک دیں؟ اسے دوبارہ کسی بھی وقت شروع کیا جا سکتا ہے۔' : 'Stop this monthly share? You can start it again any time.'}
+        onConfirm={() => confirmStopPool && stopPoolLine(confirmStopPool)} onCancel={() => setConfirmStopPool(null)} />
+
+      {changingPool && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setChangingPool(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{isUrdu ? 'رقم تبدیل کریں' : 'Change monthly amount'}</h2>
+              <button onClick={() => setChangingPool(null)} className="cursor-pointer"><X size={18} /></button>
+            </div>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{changingPool.particular}</p>
+            <input type="number" min={1} value={changeAmount || ''}
+              onChange={(e) => setChangeAmount(+e.target.value)} className="input-field mb-4" />
+            <button disabled={saving} onClick={savePoolAmount}
+              className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              {saving ? t('action.saving') : t('action.save')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
