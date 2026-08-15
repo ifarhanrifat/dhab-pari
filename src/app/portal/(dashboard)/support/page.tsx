@@ -81,8 +81,11 @@ function SupportBody() {
   const [newAmount, setNewAmount] = useState(0)
 
   const load = useCallback(async () => {
+    // Kafalat is deliberately excluded — it has its own page (/portal/kafalat)
+    // that covers both naming a child and joining the shared pool in one
+    // place, so it does not need a second, unnamed entry point here too.
     const { data: list } = await supabase.from('support_pools')
-      .select('id').eq('is_active', true)
+      .select('id').eq('is_active', true).neq('code', 'POOL-KFL')
     const positions = await Promise.all(
       (list ?? []).map((p: { id: string }) => supabase.rpc('pool_position', { p_pool_id: p.id })),
     )

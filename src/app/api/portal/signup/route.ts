@@ -70,18 +70,30 @@ export async function POST(req: NextRequest) {
   // already unique-indexed (belt and suspenders here), but WhatsApp and the
   // name+father's-name combo aren't, so check those explicitly. Same
   // matching rules as check_donor_duplicate() (migration 115)/duplicateCheck.ts.
-  const { data: candidates } = await admin.from('portal_users').select('id, full_name, mobile, whatsapp_number, father_husband_name')
+  const { data: candidates } = await admin.from('portal_users').select('id, full_name, mobile, whatsapp_number, father_husband_name, auth_user_id')
   const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase()
   const dup = (candidates ?? []).find((c) =>
     norm(c.mobile) === norm(mobile) ||
     norm(c.whatsapp_number) === norm(whatsapp) ||
     (norm(c.full_name) === norm(fullName) && norm(c.father_husband_name) === norm(fatherName))
   )
-  if (dup) {
+  // An accountant can now create a portal_users row for a walk-in cash donor
+  // straight from the admin side (auth_user_id left NULL — nobody has ever
+  // logged into it) so a confirmed donation has a real account to land
+  // against instead of floating free. That row is not "somebody else's
+  // account" — it is this donor's own account, just not yet claimed. If the
+  // match is by their exact mobile number (the one hard identity signal,
+  // and the same one login resolves through), signup claims it instead of
+  // being told to "log in" to credentials that were never issued. A softer
+  // match (WhatsApp only, or name + father's name only) still blocks, since
+  // claiming on a weaker signal risks handing a similarly-named stranger's
+  // placeholder to the wrong person.
+  const claiming = dup && dup.auth_user_id === null && norm(dup.mobile) === norm(mobile) ? dup : null
+  if (dup && !claiming) {
     return NextResponse.json({ error: 'An account with this mobile/WhatsApp number or name already exists. Try logging in instead.' }, { status: 409 })
   }
 
-  const email = syntheticEmail(mobile)
+  const email = syntheticEmail(claiming ? claiming.mobile : mobile)
   const { data: authUser, error: authErr } = await admin.auth.admin.createUser({
     email, password, email_confirm: true,
   })
@@ -104,16 +116,28 @@ export async function POST(req: NextRequest) {
     .eq('type', 'donor').eq('system', 'donors_projects').eq('donor_key', donorKey)
     .maybeSingle()
 
-  const { error: insertErr } = await admin.from('portal_users').insert({
-    auth_user_id: authUser.user.id, full_name: fullName, name_ur: nameUr,
-    mobile, whatsapp_number: whatsapp, father_husband_name: fatherName,
-    donor_type: donorType, country, sector, username, email: userEmail,
-    consumer_id: matchedConsumer?.consumer_id ?? null,
-    donor_account_id: matchedDonorAccount?.id ?? null,
-  })
-  if (insertErr) {
+  // Claiming an accountant-created placeholder updates that same row rather
+  // than inserting a second one — the whole point is one account per donor.
+  // full_name/mobile stay whatever the accountant already recorded (that is
+  // what any earlier confirmed cash gift is already attributed to); this
+  // only fills in what a placeholder row never had.
+  const { error: writeErr } = claiming
+    ? await admin.from('portal_users').update({
+        auth_user_id: authUser.user.id, username, email: userEmail, name_ur: nameUr,
+        whatsapp_number: whatsapp, donor_type: donorType, country, sector,
+        consumer_id: matchedConsumer?.consumer_id ?? null,
+        donor_account_id: matchedDonorAccount?.id ?? null,
+      }).eq('id', claiming.id)
+    : await admin.from('portal_users').insert({
+        auth_user_id: authUser.user.id, full_name: fullName, name_ur: nameUr,
+        mobile, whatsapp_number: whatsapp, father_husband_name: fatherName,
+        donor_type: donorType, country, sector, username, email: userEmail,
+        consumer_id: matchedConsumer?.consumer_id ?? null,
+        donor_account_id: matchedDonorAccount?.id ?? null,
+      })
+  if (writeErr) {
     await admin.auth.admin.deleteUser(authUser.user.id)
-    return NextResponse.json({ error: insertErr.message }, { status: 400 })
+    return NextResponse.json({ error: writeErr.message }, { status: 400 })
   }
 
   // Sign them in immediately (cookie-bound client) so signup flows straight
