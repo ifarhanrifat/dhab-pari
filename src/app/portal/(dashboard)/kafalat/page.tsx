@@ -10,6 +10,8 @@ import {
   HandCoins, TrendingUp, Calendar, ShieldCheck, AlertTriangle,
 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { SITE } from '@/lib/constants'
+import { ImageUpload } from '@/components/admin/ImageUpload'
 
 /**
  * Sponsoring a child, or joining the shared pool — one system, one form.
@@ -50,7 +52,7 @@ interface Commitment {
 
 interface Announcement {
   id: string; amount: number; is_one_time: boolean; month: string
-  status: string; named_child: string | null
+  status: string; named_child: string | null; has_proof: boolean
 }
 
 const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -149,6 +151,13 @@ export default function PortalKafalatPage() {
     const { error } = await supabase.rpc('pool_cancel_announcement', { p_payment_id: a.id })
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('pool.withdrawn'))
+    load()
+  }
+
+  const attachProof = async (paymentId: string, url: string) => {
+    const { error } = await supabase.rpc('pool_attach_proof', { p_payment_id: paymentId, p_proof_url: url })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.proofAttached'))
     load()
   }
 
@@ -266,16 +275,35 @@ export default function PortalKafalatPage() {
               </div>
             ))}
             {announcements.filter((a) => a.status === 'announced').map((a) => (
-              <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-dp-outline-variant last:border-0 pb-2.5 last:pb-0">
-                <div>
-                  <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">
-                    Rs {fmt(a.amount)}
-                    <span className="font-normal text-dp-on-surface-variant"> · {a.named_child ? t('pkf.namedFor').replace('{name}', a.named_child) : t('pkf.sharedGiving')}</span>
-                  </p>
-                  <p className="font-sans text-[11.5px] text-amber-700 font-semibold">{t('pool.status.announced')} — {t('pool.awaitingConfirmation')}</p>
+              <div key={a.id} className="border-b border-dp-outline-variant last:border-0 pb-3 last:pb-0">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <div>
+                    <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">
+                      Rs {fmt(a.amount)}
+                      <span className="font-normal text-dp-on-surface-variant"> · {a.named_child ? t('pkf.namedFor').replace('{name}', a.named_child) : t('pkf.sharedGiving')}</span>
+                    </p>
+                    <p className="font-sans text-[11.5px] text-amber-700 font-semibold">{t('pool.status.announced')} — {t('pool.awaitingConfirmation')}</p>
+                  </div>
+                  <button onClick={() => withdraw(a)}
+                    className="font-sans text-[12px] text-dp-on-surface-variant hover:underline cursor-pointer shrink-0">{t('pool.withdraw')}</button>
                 </div>
-                <button onClick={() => withdraw(a)}
-                  className="font-sans text-[12px] text-dp-on-surface-variant hover:underline cursor-pointer shrink-0">{t('pool.withdraw')}</button>
+
+                {/* The gap that was actually reported: an announcement told
+                    the accountant nothing had arrived, but never said where
+                    to actually send it. */}
+                <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3">
+                  <p className="font-sans text-[12px] font-bold text-dp-primary mb-1.5">{t('pool.sendTo.title')}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 font-sans text-[12px] text-dp-on-surface mb-2.5">
+                    <p><span className="text-dp-on-surface-variant">{t('w.jazzcash')}: </span>{SITE.jazzcash} <span className="text-dp-on-surface-variant">({SITE.jazzcashName})</span></p>
+                    <p><span className="text-dp-on-surface-variant">{t('w.easypaisa')}: </span>{SITE.easypaisa} <span className="text-dp-on-surface-variant">({SITE.easypaisaName})</span></p>
+                    <p><span className="text-dp-on-surface-variant">{SITE.bankName}: </span>{SITE.bankAccount}</p>
+                  </div>
+                  {a.has_proof ? (
+                    <p className="font-sans text-[11.5px] text-dp-secondary font-semibold">{t('pool.proofAttached')}</p>
+                  ) : (
+                    <ImageUpload bucket="images" onUpload={(url) => attachProof(a.id, url)} label={t('pool.attachProof')} />
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -315,7 +343,9 @@ export default function PortalKafalatPage() {
 
       {!loading && waitingChildren.length === 0 && (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">
-          <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('pkf.allSponsored')}</p>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant">
+            {children.length === 0 ? t('pkf.noneRegisteredYet') : t('pkf.allSponsored')}
+          </p>
         </div>
       )}
 

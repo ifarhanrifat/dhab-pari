@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { printNodeInPopup } from '@/lib/receiptExport'
+import { SITE } from '@/lib/constants'
+import { ImageUpload } from '@/components/admin/ImageUpload'
 import { FileAttachment } from '@/components/admin/FileAttachment'
 
 /**
@@ -114,7 +116,7 @@ export default function PortalWazifaPage() {
     named_student: string | null; months_given: number; total_given: number
   }[]>([])
   const [sponsorAnnouncements, setSponsorAnnouncements] = useState<{
-    id: string; pool_id: string; amount: number; is_one_time: boolean; status: string; named_student: string | null
+    id: string; pool_id: string; amount: number; is_one_time: boolean; status: string; named_student: string | null; has_proof: boolean
   }[]>([])
   const [giving, setGiving] = useState<{ target: (typeof sponsorStudents)[number] | null } | null>(null)
   const [giveForm, setGiveForm] = useState({ amount: 0, recurring: true, funded_by: 'sadqa', show_name_publicly: false })
@@ -339,6 +341,13 @@ export default function PortalWazifaPage() {
     const { error } = await supabase.rpc('pool_cancel_announcement', { p_payment_id: a.id })
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('pool.withdrawn'))
+    loadSponsorship()
+  }
+
+  const attachSponsorProof = async (paymentId: string, url: string) => {
+    const { error } = await supabase.rpc('pool_attach_proof', { p_payment_id: paymentId, p_proof_url: url })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.proofAttached'))
     loadSponsorship()
   }
 
@@ -657,16 +666,31 @@ export default function PortalWazifaPage() {
                 </div>
               ))}
               {sponsorAnnouncements.filter((a) => a.status === 'announced').map((a) => (
-                <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-dp-outline-variant last:border-0 pb-2 last:pb-0">
-                  <div>
-                    <p className="font-sans text-[13px] font-bold text-dp-on-surface">
-                      Rs {fmt(a.amount)}
-                      <span className="font-normal text-dp-on-surface-variant"> · {a.named_student ? t('pkf.namedFor').replace('{name}', a.named_student) : t('pkf.sharedGiving')}</span>
-                    </p>
-                    <p className="font-sans text-[11px] text-amber-700 font-semibold">{t('pool.status.announced')} — {t('pool.awaitingConfirmation')}</p>
+                <div key={a.id} className="border-b border-dp-outline-variant last:border-0 pb-3 last:pb-0">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <div>
+                      <p className="font-sans text-[13px] font-bold text-dp-on-surface">
+                        Rs {fmt(a.amount)}
+                        <span className="font-normal text-dp-on-surface-variant"> · {a.named_student ? t('pkf.namedFor').replace('{name}', a.named_student) : t('pkf.sharedGiving')}</span>
+                      </p>
+                      <p className="font-sans text-[11px] text-amber-700 font-semibold">{t('pool.status.announced')} — {t('pool.awaitingConfirmation')}</p>
+                    </div>
+                    <button onClick={() => withdrawSponsorAnnouncement(a)}
+                      className="font-sans text-[12px] text-dp-on-surface-variant hover:underline cursor-pointer shrink-0">{t('pool.withdraw')}</button>
                   </div>
-                  <button onClick={() => withdrawSponsorAnnouncement(a)}
-                    className="font-sans text-[12px] text-dp-on-surface-variant hover:underline cursor-pointer shrink-0">{t('pool.withdraw')}</button>
+                  <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 print:hidden">
+                    <p className="font-sans text-[12px] font-bold text-dp-primary mb-1.5">{t('pool.sendTo.title')}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 font-sans text-[12px] text-dp-on-surface mb-2.5">
+                      <p><span className="text-dp-on-surface-variant">{t('w.jazzcash')}: </span>{SITE.jazzcash} <span className="text-dp-on-surface-variant">({SITE.jazzcashName})</span></p>
+                      <p><span className="text-dp-on-surface-variant">{t('w.easypaisa')}: </span>{SITE.easypaisa} <span className="text-dp-on-surface-variant">({SITE.easypaisaName})</span></p>
+                      <p><span className="text-dp-on-surface-variant">{SITE.bankName}: </span>{SITE.bankAccount}</p>
+                    </div>
+                    {a.has_proof ? (
+                      <p className="font-sans text-[11.5px] text-dp-secondary font-semibold">{t('pool.proofAttached')}</p>
+                    ) : (
+                      <ImageUpload bucket="images" onUpload={(url) => attachSponsorProof(a.id, url)} label={t('pool.attachProof')} />
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
