@@ -95,21 +95,11 @@ export default function AdminPoolsPage() {
     manual_target: '' as string, clear_manual: false,
   })
 
-  // Receiving cash from someone who never touched the portal at all — a
-  // walk-in donor, or a phone call. Search their account first (never a
-  // second one for the same person), create it only if genuinely new, then
-  // the money is posted through the same pool_post_confirmed_payment() every
-  // other confirmed pool donation uses. Always one-time: this is one payment
-  // handed over today, not a standing monthly arrangement — a donor who
-  // wants that joins from their own portal.
-  const [receiving, setReceiving] = useState<Position | null>(null)
-  const [donorQuery, setDonorQuery] = useState('')
-  const [donorResults, setDonorResults] = useState<{ id: string; full_name: string; mobile: string; has_login: boolean }[]>([])
-  const [selectedDonor, setSelectedDonor] = useState<{ id: string; full_name: string; mobile: string } | null>(null)
-  const [showNewDonor, setShowNewDonor] = useState(false)
-  const [newDonor, setNewDonor] = useState({ full_name: '', mobile: '', father_husband_name: '', whatsapp_number: '' })
-  const [namingOptions, setNamingOptions] = useState<{ id: string; label: string }[]>([])
-  const [receiveForm, setReceiveForm] = useState({ amount: 0, method: 'cash', target_id: '' })
+  // Receiving cash from someone who never touched the portal at all now
+  // lives in the one general "Add Donor" screen (/admin/donors), not here —
+  // the same search-by-name/mobile-first, create-only-if-new step, and the
+  // same posting path, but through the one place staff already record every
+  // other kind of donation, instead of a second screen with the same job.
 
   // What donors have told us they are sending, not yet matched against the
   // bank statement. This is the accountant's actual daily task now — one tap
@@ -198,68 +188,6 @@ export default function AdminPoolsPage() {
     load()
   }
 
-  const namingRpcFor = (code: string) =>
-    code === 'POOL-KFL' ? 'kafalat_children_for_naming'
-      : code === 'POOL-WZF' ? 'wazifa_students_for_naming'
-      : code === 'POOL-SDQ' ? 'sadqa_objects_for_naming' : null
-
-  const openReceive = async (p: Position) => {
-    setDonorQuery(''); setDonorResults([]); setSelectedDonor(null); setShowNewDonor(false)
-    setNewDonor({ full_name: '', mobile: '', father_husband_name: '', whatsapp_number: '' })
-    setReceiveForm({ amount: p.suggested_share, method: 'cash', target_id: '' })
-    setNamingOptions([])
-    const rpc = namingRpcFor(p.code)
-    if (rpc) {
-      const { data } = await supabase.rpc(rpc)
-      const rows = (data ?? []) as Record<string, unknown>[]
-      setNamingOptions(rows.map((r) => ({
-        id: String(r.id ?? r.student_id),
-        label: String(r.first_name ?? r.full_name ?? r.item_name ?? ''),
-      })))
-    }
-    setReceiving(p)
-  }
-
-  const searchDonors = async (q: string) => {
-    setDonorQuery(q)
-    if (q.trim().length < 2) { setDonorResults([]); return }
-    const { data } = await supabase.rpc('admin_search_donor_accounts', { p_query: q.trim() })
-    setDonorResults((data ?? []) as typeof donorResults)
-  }
-
-  const createNewDonor = async () => {
-    if (!newDonor.full_name.trim() || !newDonor.mobile.trim()) { toast.error(t('pool.receive.needNameMobile')); return }
-    setBusy(true)
-    const { data, error } = await supabase.rpc('admin_create_donor_account', {
-      p_full_name: newDonor.full_name, p_mobile: newDonor.mobile,
-      p_father_husband_name: newDonor.father_husband_name || null,
-      p_whatsapp_number: newDonor.whatsapp_number || null,
-    })
-    setBusy(false)
-    if (error) { toast.error(friendlyError(error)); return }
-    const r = data as { id: string }
-    setSelectedDonor({ id: r.id, full_name: newDonor.full_name, mobile: newDonor.mobile })
-    setShowNewDonor(false)
-    toast.success(t('pool.receive.accountCreated'))
-  }
-
-  const submitReceive = async () => {
-    if (!receiving || !selectedDonor) return
-    setBusy(true)
-    const { error } = await supabase.rpc('admin_receive_program_cash', {
-      p_portal_user_id: selectedDonor.id, p_pool_code: receiving.code,
-      p_amount: receiveForm.amount, p_method: receiveForm.method,
-      p_kafalat_child_id: receiving.code === 'POOL-KFL' ? (receiveForm.target_id || null) : null,
-      p_wazifa_student_id: receiving.code === 'POOL-WZF' ? (receiveForm.target_id || null) : null,
-      p_sadqa_object_id: receiving.code === 'POOL-SDQ' ? (receiveForm.target_id || null) : null,
-    })
-    setBusy(false)
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('pool.paymentRecorded'))
-    setReceiving(null)
-    load()
-  }
-
   if (loading) {
     return <div className="font-sans text-[14px] text-dp-on-surface-variant">{t('common.loading')}</div>
   }
@@ -338,10 +266,6 @@ export default function AdminPoolsPage() {
             )}
 
             <div className="flex flex-wrap items-center gap-4">
-              <button onClick={() => openReceive(p)}
-                className="font-sans text-[12.5px] font-bold text-dp-secondary hover:underline flex items-center gap-1.5">
-                <HandCoins size={14} /> {t('pool.receiveCash')}
-              </button>
               <button onClick={() => openEdit(p)}
                 className="font-sans text-[12.5px] font-bold text-dp-on-surface-variant hover:underline flex items-center gap-1.5">
                 <Pencil size={13} /> {t('pool.edit')}
@@ -593,136 +517,6 @@ export default function AdminPoolsPage() {
                   {t('common.cancel')}
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Receiving cash from someone with no portal account ──────────
-          Search first — never a second account for the same person. Always
-          one-time: this is money handed over today, not a standing monthly
-          arrangement. */}
-      {receiving && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="bg-dp-primary text-white px-5 py-3.5 flex items-center justify-between">
-              <h3 className="font-heading text-[15px] font-bold">{t('pool.receiveTitle')}</h3>
-              <button onClick={() => setReceiving(null)}><X size={18} /></button>
-            </div>
-            <div className="p-5 space-y-4">
-              {!selectedDonor ? (
-                <>
-                  <div>
-                    <label className="font-sans text-[12.5px] font-bold text-dp-primary block mb-1.5">
-                      {t('pool.receive.searchLabel')}
-                    </label>
-                    <input value={donorQuery} onChange={(e) => searchDonors(e.target.value)}
-                      placeholder={t('pool.receive.searchPlaceholder')}
-                      className="w-full border border-dp-outline-variant rounded-lg px-3 py-2.5 font-sans text-[13.5px] focus:border-dp-secondary outline-none" />
-                  </div>
-
-                  {donorResults.length > 0 && (
-                    <div className="border border-dp-outline-variant rounded-lg divide-y divide-dp-outline-variant overflow-hidden">
-                      {donorResults.map((d) => (
-                        <button key={d.id} onClick={() => setSelectedDonor(d)}
-                          className="w-full text-start px-3.5 py-2.5 hover:bg-dp-surface-container-low transition-colors">
-                          <p className="font-sans text-[13px] font-bold text-dp-on-surface">{d.full_name}</p>
-                          <p className="font-sans text-[11.5px] text-dp-on-surface-variant">
-                            {d.mobile}{!d.has_login && ` · ${t('pool.receive.noLoginYet')}`}
-                          </p>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {donorQuery.trim().length >= 2 && donorResults.length === 0 && !showNewDonor && (
-                    <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3">
-                      <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-2">{t('pool.receive.noneFound')}</p>
-                      <button onClick={() => { setShowNewDonor(true); setNewDonor({ ...newDonor, full_name: donorQuery }) }}
-                        className="font-sans text-[12.5px] font-bold text-dp-secondary hover:underline">
-                        {t('pool.receive.createNew')}
-                      </button>
-                    </div>
-                  )}
-
-                  {showNewDonor && (
-                    <div className="border border-dp-outline-variant rounded-lg p-3.5 space-y-2.5">
-                      <input value={newDonor.full_name} placeholder={t('pool.receive.f.fullName')}
-                        onChange={(e) => setNewDonor({ ...newDonor, full_name: e.target.value })} className="input-field" />
-                      <input value={newDonor.mobile} placeholder={t('pool.receive.f.mobile')}
-                        onChange={(e) => setNewDonor({ ...newDonor, mobile: e.target.value })} className="input-field" />
-                      <input value={newDonor.father_husband_name} placeholder={t('pool.receive.f.fatherHusband')}
-                        onChange={(e) => setNewDonor({ ...newDonor, father_husband_name: e.target.value })} className="input-field" />
-                      <button onClick={createNewDonor} disabled={busy}
-                        className="w-full bg-dp-secondary text-white font-sans text-[13px] font-bold py-2 rounded-lg hover:opacity-90 disabled:opacity-50">
-                        {busy ? t('common.saving') : t('pool.receive.createAccount')}
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 flex items-center justify-between">
-                    <div>
-                      <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{selectedDonor.full_name}</p>
-                      <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{selectedDonor.mobile}</p>
-                    </div>
-                    <button onClick={() => setSelectedDonor(null)}
-                      className="font-sans text-[12px] text-dp-secondary hover:underline">{t('action.change')}</button>
-                  </div>
-
-                  {namingOptions.length > 0 && (
-                    <div>
-                      <label className="font-sans text-[12.5px] font-bold text-dp-primary block mb-1.5">
-                        {t('pool.receive.whoFor')}
-                      </label>
-                      <select value={receiveForm.target_id}
-                        onChange={(e) => setReceiveForm({ ...receiveForm, target_id: e.target.value })}
-                        className="w-full border border-dp-outline-variant rounded-lg px-3 py-2.5 font-sans text-[13.5px] focus:border-dp-secondary outline-none">
-                        <option value="">{t('pool.receive.sharedPoolOption')}</option>
-                        {namingOptions.map((o) => (
-                          <option key={o.id} value={o.id}>{o.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="font-sans text-[12.5px] font-bold text-dp-primary block mb-1.5">{t('pool.amount')}</label>
-                      <input type="number" min={1} value={receiveForm.amount}
-                        onChange={(e) => setReceiveForm({ ...receiveForm, amount: Number(e.target.value) })}
-                        className="w-full border border-dp-outline-variant rounded-lg px-3 py-2.5 font-sans text-[13.5px] focus:border-dp-secondary outline-none" />
-                    </div>
-                    <div>
-                      <label className="font-sans text-[12.5px] font-bold text-dp-primary block mb-1.5">{t('pool.method')}</label>
-                      <select value={receiveForm.method}
-                        onChange={(e) => setReceiveForm({ ...receiveForm, method: e.target.value })}
-                        className="w-full border border-dp-outline-variant rounded-lg px-3 py-2.5 font-sans text-[13.5px] focus:border-dp-secondary outline-none">
-                        <option value="cash">{t('pool.method.cash')}</option>
-                        <option value="bank">{t('pool.method.bank')}</option>
-                        <option value="jazzcash">JazzCash</option>
-                        <option value="easypaisa">EasyPaisa</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-2.5">
-                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-relaxed">{t('pool.receive.oneTimeNotice')}</p>
-                  </div>
-
-                  <div className="flex gap-2.5">
-                    <button onClick={submitReceive} disabled={busy || receiveForm.amount <= 0}
-                      className="flex-1 bg-dp-primary text-white font-sans text-[13.5px] font-bold py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50">
-                      {busy ? t('common.saving') : t('common.save')}
-                    </button>
-                    <button onClick={() => setReceiving(null)}
-                      className="px-5 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] text-dp-on-surface">
-                      {t('common.cancel')}
-                    </button>
-                  </div>
-                </>
-              )}
             </div>
           </div>
         </div>
