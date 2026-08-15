@@ -101,9 +101,17 @@ export default function PortalKafalatPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Only one standing monthly commitment per pool is possible at all — the
+  // system reuses whichever one already exists rather than creating a
+  // second. Offering "monthly" again here would silently rename or
+  // re-target that same commitment instead of adding a new one, so once a
+  // donor already has an active monthly share, anything more they give
+  // through this modal is a one-time top-up, never another "monthly".
+  const alreadyCommitted = commitments.some((c) => c.status === 'active')
+
   const openGive = (child: NamingChild | null) => {
     const remaining = child ? Math.max(child.this_year_requirement - child.already_named, position?.min_share ?? 1000) : (position?.suggested_share ?? 2000)
-    setForm({ amount: remaining, recurring: true, funded_by: 'sadqa', show_name_publicly: false })
+    setForm({ amount: remaining, recurring: !alreadyCommitted, funded_by: 'sadqa', show_name_publicly: false })
     setGiving({ target: child })
   }
 
@@ -312,8 +320,13 @@ export default function PortalKafalatPage() {
 
       {/* ── Join the shared pool, no child named ────────────────────────
           The other half of the same choice: give without picking anyone,
-          and it goes toward whichever child in the register needs it most. */}
-      {position && (
+          and it goes toward whichever child in the register needs it most.
+          Only shown before a donor has a standing monthly share — once they
+          do, this same card would just be a second way to change or rename
+          the one they already have, which "My Kafalat giving" above already
+          does properly. A one-time top-up is still offered from a specific
+          child's own card below regardless. */}
+      {position && !alreadyCommitted && (
         <div className="bg-white border-2 border-dp-secondary/30 rounded-lg p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-2">
@@ -426,14 +439,18 @@ export default function PortalKafalatPage() {
               {t('pool.minimumIs').replace('{amt}', fmt(position.min_share))}
             </p>
 
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-1">
               {([['recurring', true, 'pool.recurringMonthly'], ['one_time', false, 'pool.oneTime']] as const).map(([key, val, label]) => (
-                <button key={key} onClick={() => setForm({ ...form, recurring: val })}
-                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer transition-all ${form.recurring === val ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
+                <button key={key} disabled={alreadyCommitted && val} onClick={() => setForm({ ...form, recurring: val })}
+                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all ${form.recurring === val ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'} ${alreadyCommitted && val ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
                   {t(label)}
                 </button>
               ))}
             </div>
+            {alreadyCommitted && (
+              <p className="font-sans text-[11px] text-dp-on-surface-variant mb-3">{t('pkf.alreadyMonthlyHint')}</p>
+            )}
+            {!alreadyCommitted && <div className="mb-4" />}
 
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pool.fundedBy')}</label>
             <select value={form.funded_by} onChange={(e) => setForm({ ...form, funded_by: e.target.value })} className="input-field mb-1.5">

@@ -291,10 +291,15 @@ export default function PortalWazifaPage() {
 
   useEffect(() => { loadSponsorship() }, [loadSponsorship])
 
+  // Only one standing monthly commitment per pool is possible — offering
+  // "monthly" again would silently rename or re-target the one that
+  // already exists rather than creating a second.
+  const alreadyCommitted = sponsorCommitments.some((c) => c.status === 'active')
+
   const openGive = (target: (typeof sponsorStudents)[number] | null) => {
     setGiveForm({
       amount: target ? Math.max(target.awarded_amount - target.already_named, sponsorPosition?.min_share ?? 1000) : (sponsorPosition?.suggested_share ?? 2000),
-      recurring: true, funded_by: 'sadqa', show_name_publicly: false,
+      recurring: !alreadyCommitted, funded_by: 'sadqa', show_name_publicly: false,
     })
     setGiving({ target })
   }
@@ -697,7 +702,7 @@ export default function PortalWazifaPage() {
           </div>
         )}
 
-        {sponsorPosition && (
+        {sponsorPosition && !alreadyCommitted && (
           <div className="bg-white border-2 border-dp-secondary/30 rounded-lg p-4 mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{t('pwz.sponsor.sharedTitle')}</p>
@@ -1774,14 +1779,17 @@ export default function PortalWazifaPage() {
               {t('pool.minimumIs').replace('{amt}', fmt(sponsorPosition.min_share))}
             </p>
 
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-1">
               {([['recurring', true, 'pool.recurringMonthly'], ['one_time', false, 'pool.oneTime']] as const).map(([key, val, label]) => (
-                <button key={key} onClick={() => setGiveForm({ ...giveForm, recurring: val })}
-                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer transition-all ${giveForm.recurring === val ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
+                <button key={key} disabled={alreadyCommitted && val} onClick={() => setGiveForm({ ...giveForm, recurring: val })}
+                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all ${giveForm.recurring === val ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'} ${alreadyCommitted && val ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
                   {t(label)}
                 </button>
               ))}
             </div>
+            {alreadyCommitted ? (
+              <p className="font-sans text-[11px] text-dp-on-surface-variant mb-3">{t('pkf.alreadyMonthlyHint')}</p>
+            ) : <div className="mb-4" />}
 
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pool.fundedBy')}</label>
             <select value={giveForm.funded_by} onChange={(e) => setGiveForm({ ...giveForm, funded_by: e.target.value })} className="input-field mb-3.5">
