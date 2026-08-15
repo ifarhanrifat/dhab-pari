@@ -231,7 +231,10 @@ export default function WazifaPage() {
     setCollAnnouncements(((ann ?? []) as typeof collAnnouncements).filter((a) => a.pool_code === 'POOL-WZF'))
   }, [supabase])
 
-  useEffect(() => { if (tab === 'collections') loadCollections() }, [tab, loadCollections])
+  // Loaded on mount, not gated on the tab being open — see the matching
+  // note on /admin/kafalat for why a badge that only knows its own count
+  // after you've already opened the tab is not a useful badge.
+  useEffect(() => { loadCollections() }, [loadCollections])
 
   const confirmCollAnnouncement = async (id: string) => {
     setBusy(true)

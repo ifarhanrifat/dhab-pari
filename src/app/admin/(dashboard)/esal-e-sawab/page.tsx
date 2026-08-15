@@ -328,7 +328,10 @@ export default function EsalESawabPage() {
     setAnnouncements(((ann ?? []) as Announcement[]).filter((a) => a.pool_code === 'POOL-SDQ'))
   }, [supabase])
 
-  useEffect(() => { if (tab === 'collections') loadCollections() }, [tab, loadCollections])
+  // Loaded on mount, not gated on the tab being open — see the matching
+  // note on /admin/kafalat for why a badge that only knows its own count
+  // after you've already opened the tab is not a useful badge.
+  useEffect(() => { loadCollections() }, [loadCollections])
 
   const confirmAnnouncement = async (id: string) => {
     setBusy(true)

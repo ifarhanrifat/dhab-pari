@@ -276,7 +276,13 @@ export default function KafalatPage() {
   }, [supabase])
 
   useEffect(() => { if (tab === 'operations' || tab === 'reverify') loadOperations() }, [tab, loadOperations])
-  useEffect(() => { if (tab === 'collections') loadCollections() }, [tab, loadCollections])
+  // Loaded on mount, not gated on the tab being open — the Collections tab
+  // shows a count badge of what's waiting, and a badge that only knows its
+  // own number after you've already clicked into it is not a badge, it's a
+  // reload button in disguise. This is exactly how a real announced-and-
+  // proof-attached payment sat invisible: correctly saved, correctly
+  // filtered, just never fetched until someone happened to open this tab.
+  useEffect(() => { loadCollections() }, [loadCollections])
 
   const confirmAnnouncement = async (id: string) => {
     setBusy(true)
