@@ -64,11 +64,16 @@ interface PackageLine {
   description: string | null; annual_amount_pkr: number
 }
 
-interface Share {
-  id: string; child_id: string; sponsor_name: string; is_anonymous: boolean
-  share_percent: number; annual_amount_pkr: number; funded_by: string
-  duration: string; starts_on: string; ends_on: string | null; status: string
+// What kafalat_sponsor_breakdown() returns per child — who has actually
+// named this child and given, replacing kafalat_shares (which nothing ever
+// wrote to and nothing ever confirmed a payment against).
+interface Sponsor {
+  name: string | null; is_anonymous: boolean; recurring: boolean; total_given: number
 }
+
+// What kafalat_children_for_naming() gives, for the same "how much of this
+// child's requirement is covered" figure the donor portal shows.
+interface NamingInfo { this_year_requirement: number; already_named: number }
 
 interface Nomination {
   id: string; child_name: string; guardian_name: string | null
@@ -101,7 +106,8 @@ export default function KafalatPage() {
 
   const [children, setChildren] = useState<Child[]>([])
   const [lines, setLines] = useState<PackageLine[]>([])
-  const [shares, setShares] = useState<Share[]>([])
+  const [sponsors, setSponsors] = useState<Record<string, Sponsor[]>>({})
+  const [naming, setNaming] = useState<Record<string, NamingInfo>>({})
   const [nominations, setNominations] = useState<Nomination[]>([])
   const [summary, setSummary] = useState<Record<string, number>>({})
   const [measuring, setMeasuring] = useState<Measuring | null>(null)
@@ -155,10 +161,11 @@ export default function KafalatPage() {
   }
 
   const load = useCallback(async () => {
-    const [{ data: cs }, { data: ls }, { data: ss }, { data: ns }, { data: sum }, { data: sch }, { data: meas }] = await Promise.all([
+    const [{ data: cs }, { data: ls }, { data: breakdown }, { data: named }, { data: ns }, { data: sum }, { data: sch }, { data: meas }] = await Promise.all([
       supabase.from('kafalat_children').select('*').order('created_at', { ascending: false }),
       supabase.from('kafalat_package_lines').select('*'),
-      supabase.from('kafalat_shares').select('*'),
+      supabase.rpc('kafalat_sponsor_breakdown'),
+      supabase.rpc('kafalat_children_for_naming'),
       supabase.from('kafalat_nominations').select('*').order('created_at', { ascending: false }),
       supabase.rpc('public_kafalat_summary'),
       supabase.from('schools').select('id, name, kind, location, monthly_fee_pkr, months_charged')
@@ -167,7 +174,10 @@ export default function KafalatPage() {
     ])
     setChildren((cs ?? []) as Child[])
     setLines((ls ?? []) as PackageLine[])
-    setShares((ss ?? []) as Share[])
+    setSponsors((breakdown ?? {}) as Record<string, Sponsor[]>)
+    setNaming(Object.fromEntries(
+      ((named ?? []) as (NamingInfo & { id: string })[]).map((n) => [n.id, n]),
+    ))
     setNominations((ns ?? []) as Nomination[])
     setSummary((sum ?? {}) as Record<string, number>)
     setSchools((sch ?? []) as { id: string; name: string; kind: string; location: string; monthly_fee_pkr: number; months_charged: number }[])
@@ -334,9 +344,15 @@ export default function KafalatPage() {
   const packageTotal = (childId: string) =>
     lines.filter((l) => l.child_id === childId).reduce((s, l) => s + Number(l.annual_amount_pkr || 0), 0)
 
-  const committed = (childId: string) =>
-    shares.filter((s) => s.child_id === childId && ['pledged', 'active'].includes(s.status))
-      .reduce((s, x) => s + Number(x.share_percent || 0), 0)
+  // Against the same measuring-account requirement the pool divides among
+  // donors, not the package total — a child can be fully named while their
+  // package total and this year's requirement differ (mid-year joiners,
+  // rate-card changes).
+  const committed = (childId: string) => {
+    const n = naming[childId]
+    if (!n || n.this_year_requirement <= 0) return 0
+    return Math.min(100, Math.round((n.already_named / n.this_year_requirement) * 100))
+  }
 
   const previewFee = async (schoolId: string, currentClass: string) => {
     if (!schoolId) { setFeePreview(null); return }
@@ -521,7 +537,7 @@ export default function KafalatPage() {
           {children.map((c) => {
             const total = packageTotal(c.id)
             const pct = committed(c.id)
-            const childShares = shares.filter((s) => s.child_id === c.id && ['pledged', 'active'].includes(s.status))
+            const childSponsors = sponsors[c.id] ?? []
             return (
               <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -560,9 +576,11 @@ export default function KafalatPage() {
                       <div className="h-2 w-full max-w-xs bg-dp-surface-container rounded-full overflow-hidden">
                         <div className="h-full bg-dp-secondary" style={{ width: `${Math.min(pct, 100)}%` }} />
                       </div>
-                      {childShares.length > 0 && (
+                      {childSponsors.length > 0 && (
                         <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">
-                          {childShares.map((s) => `${s.is_anonymous ? t('f.anonymousDonor') : s.sponsor_name} ${s.share_percent}%`).join(' · ')}
+                          {childSponsors.map((s) =>
+                            `${s.is_anonymous ? t('f.anonymousDonor') : s.name} — Rs ${fmt(s.total_given)}${s.recurring ? `/${t('pkf.month')}` : ''}`,
+                          ).join(' · ')}
                         </p>
                       )}
                     </div>
