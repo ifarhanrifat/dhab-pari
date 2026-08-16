@@ -11,7 +11,6 @@ import {
 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { printNodeInPopup } from '@/lib/receiptExport'
-import { SITE } from '@/lib/constants'
 import { FileAttachment } from '@/components/admin/FileAttachment'
 import Link from 'next/link'
 
@@ -682,12 +681,6 @@ export default function PortalWazifaPage() {
                       className="font-sans text-[12px] text-dp-on-surface-variant hover:underline cursor-pointer shrink-0">{t('pool.withdraw')}</button>
                   </div>
                   <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 print:hidden">
-                    <p className="font-sans text-[12px] font-bold text-dp-primary mb-1.5">{t('pool.sendTo.title')}</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 font-sans text-[12px] text-dp-on-surface mb-2.5">
-                      <p><span className="text-dp-on-surface-variant">{t('w.jazzcash')}: </span>{SITE.jazzcash} <span className="text-dp-on-surface-variant">({SITE.jazzcashName})</span></p>
-                      <p><span className="text-dp-on-surface-variant">{t('w.easypaisa')}: </span>{SITE.easypaisa} <span className="text-dp-on-surface-variant">({SITE.easypaisaName})</span></p>
-                      <p><span className="text-dp-on-surface-variant">{SITE.bankName}: </span>{SITE.bankAccount}</p>
-                    </div>
                     {a.has_proof ? (
                       <p className="font-sans text-[11.5px] text-dp-secondary font-semibold">{t('pool.proofAttached')}</p>
                     ) : (

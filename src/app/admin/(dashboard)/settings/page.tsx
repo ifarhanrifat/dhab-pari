@@ -84,9 +84,20 @@ const CATEGORIES: {
 const settingGroups: { label: string; keys: string[]; category: SettingsCategory }[] = [
   { label: 'Accounts Display Language', keys: ['display_language'], category: 'general' },
   { label: 'WhatsApp', keys: ['whatsapp_number', 'whatsapp_link'], category: 'payments' },
-  { label: 'JazzCash', keys: ['jazzcash_number', 'jazzcash_name'], category: 'payments' },
-  { label: 'Easypaisa', keys: ['easypaisa_number', 'easypaisa_name'], category: 'payments' },
-  { label: 'Bank Details', keys: ['bank_name', 'bank_account', 'bank_branch'], category: 'payments' },
+  {
+    label: 'Donor & Projects — Payment Accounts', keys: [
+      'donor_jazzcash_number', 'donor_jazzcash_name', 'donor_easypaisa_number', 'donor_easypaisa_name',
+      'donor_bank_name', 'donor_bank_account_title', 'donor_bank_account_number', 'donor_bank_iban',
+      'donor_bank_branch', 'donor_bank_branch_code',
+    ], category: 'payments',
+  },
+  {
+    label: 'Water Supply — Payment Accounts', keys: [
+      'water_jazzcash_number', 'water_jazzcash_name', 'water_easypaisa_number', 'water_easypaisa_name',
+      'water_bank_name', 'water_bank_account_title', 'water_bank_account_number', 'water_bank_iban',
+      'water_bank_branch', 'water_bank_branch_code',
+    ], category: 'payments',
+  },
   { label: 'Office', keys: ['office_hours'], category: 'general' },
   {
     label: 'Universal Slip — Language, Type Size & Printer', keys: [

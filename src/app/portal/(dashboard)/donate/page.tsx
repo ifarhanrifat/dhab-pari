@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { HeartHandshake, CheckCircle } from 'lucide-react'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
+import { PaymentAccountDetails } from '@/components/public/PaymentAccountDetails'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Project { id: string; title: string }
@@ -35,9 +36,17 @@ function PortalDonatePageInner() {
   const [projectId, setProjectId] = useState(searchParams.get('project') ?? '')
   const [method, setMethod] = useState('jazzcash')
   const [isAnonymous, setIsAnonymous] = useState(false)
+  const [international, setInternational] = useState(false)
   const [receiptPath, setReceiptPath] = useState('')
   const [saving, setSaving] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+
+  // Their profile's own donor_type is the best first guess — an overseas
+  // donor doesn't need to re-declare it every time — but it stays editable
+  // here in case they're travelling, or the profile is just out of date.
+  useEffect(() => {
+    if (user?.donor_type === 'overseas') { setInternational(true); setMethod('bank') }
+  }, [user])
 
   useEffect(() => {
     const supabase = createClient()
@@ -98,14 +107,21 @@ function PortalDonatePageInner() {
             {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
           </select>
         </div>
+        <label className="flex items-start gap-2.5 cursor-pointer font-sans text-[13.5px] text-dp-on-surface">
+          <input type="checkbox" checked={international}
+            onChange={(e) => { setInternational(e.target.checked); if (e.target.checked) setMethod('bank') }}
+            className="accent-dp-secondary mt-0.5" />
+          {t('p.sendingFromAbroad')}
+        </label>
         <div>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
-          <select value={method} onChange={(e) => setMethod(e.target.value)} className="input-field">
-            <option value="jazzcash">{t('w.jazzcash')}</option>
-            <option value="easypaisa">{t('w.easypaisa')}</option>
+          <select value={method} disabled={international} onChange={(e) => setMethod(e.target.value)} className="input-field disabled:opacity-60">
+            {!international && <option value="jazzcash">{t('w.jazzcash')}</option>}
+            {!international && <option value="easypaisa">{t('w.easypaisa')}</option>}
             <option value="bank">{t('w.bankTransfer')}</option>
-            <option value="cash">{t('w.cash')}</option>
+            {!international && <option value="cash">{t('w.cash')}</option>}
           </select>
+          <PaymentAccountDetails system="donors_projects" method={method} international={international} />
         </div>
         <DonationReceiptUpload onUpload={setReceiptPath} />
         <label className="flex items-center gap-2 cursor-pointer">

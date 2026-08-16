@@ -99,6 +99,7 @@ interface Cover { month: string; pool_code: string; amount: number; voucher_no: 
 interface Announcement {
   id: string; pool_code: string; donor_name: string | null; donor_phone: string | null
   amount: number; is_one_time: boolean; month: string; proof_url: string | null
+  payment_batch_id: string | null
 }
 
 // Every school-fee/books/medical/exam-fee/tuition line, budgeted against
@@ -167,6 +168,7 @@ export default function KafalatPage() {
   const [covers, setCovers] = useState<Cover[]>([])
   const [unrestrictedAvailable, setUnrestrictedAvailable] = useState(0)
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [batchSummary, setBatchSummary] = useState<Record<string, { count: number; total: number }>>({})
   const [covering, setCovering] = useState<ShortMonth | null>(null)
   const [coverAmount, setCoverAmount] = useState(0)
   const [coverNote, setCoverNote] = useState('')
@@ -272,7 +274,19 @@ export default function KafalatPage() {
     setShortMonths((s?.months ?? []).filter((m) => m.pool_code === 'POOL-KFL'))
     setLapsed((s?.lapsed ?? []).filter((l) => l.pool_code === 'POOL-KFL'))
     setCovers((s?.covers ?? []).filter((c) => c.pool_code === 'POOL-KFL'))
-    setAnnouncements(((ann ?? []) as Announcement[]).filter((a) => a.pool_code === 'POOL-KFL'))
+    const kflAnnouncements = ((ann ?? []) as Announcement[]).filter((a) => a.pool_code === 'POOL-KFL')
+    setAnnouncements(kflAnnouncements)
+    // A batch can span this pool, another pool, and a general donor pledge
+    // all at once — payment_batch_summary() aggregates across every table,
+    // so the total shown here is the real one even when part of the same
+    // payment lives on a different admin page.
+    const batchIds = Array.from(new Set(kflAnnouncements.filter((a) => a.payment_batch_id).map((a) => a.payment_batch_id as string)))
+    if (batchIds.length > 0) {
+      const { data: bs } = await supabase.rpc('payment_batch_summary', { p_batch_ids: batchIds })
+      setBatchSummary((bs ?? {}) as Record<string, { count: number; total: number }>)
+    } else {
+      setBatchSummary({})
+    }
   }, [supabase])
 
   useEffect(() => { if (tab === 'operations' || tab === 'reverify') loadOperations() }, [tab, loadOperations])
@@ -1042,6 +1056,12 @@ export default function KafalatPage() {
                         {a.donor_phone && <a href={`tel:${a.donor_phone}`} className="text-dp-secondary hover:underline">{a.donor_phone}</a>}
                         {' · '}Rs {fmt(a.amount)} · {a.is_one_time ? t('pool.oneTime') : t('pool.recurringMonthly')}
                       </p>
+                      {a.payment_batch_id && batchSummary[a.payment_batch_id]?.count > 1 && (
+                        <span title="Sent as one payment along with other pledges — some may be on other Collections tabs or /admin/donors"
+                          className="inline-block mt-1 text-[11px] font-bold px-2 py-0.5 rounded-full font-sans bg-amber-100 text-amber-800">
+                          Part of Rs {batchSummary[a.payment_batch_id].total.toLocaleString()} · {batchSummary[a.payment_batch_id].count} items
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       {a.proof_url && (

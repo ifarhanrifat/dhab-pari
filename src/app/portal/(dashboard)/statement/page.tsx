@@ -6,8 +6,9 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { HeartHandshake, X } from 'lucide-react'
+import { HeartHandshake, X, CheckSquare, Square } from 'lucide-react'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
+import { PaymentAccountDetails } from '@/components/public/PaymentAccountDetails'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface LedgerRow { id: string; entry_date: string; particular: string; debit: number; credit: number }
@@ -16,7 +17,13 @@ interface DonationRow { id: string; amount_pkr: number; date: string; payment_st
 // A Kafalat/Wazifa/Sadqa announcement, read the same way a project pledge
 // is — one "Pay Now" flow for every fund, with its own label attached.
 interface PoolPending { id: string; source: 'pool'; amount_pkr: number; date: string; has_proof: boolean; particular: string }
-type PayTarget = { kind: 'donor' | 'pool'; id: string; amount: number; particular: string | null }
+
+// Every still-unpaid pledge, whichever table it actually lives in, in one
+// shape — so a donor with a Kafalat share for two children and a Wazifa
+// share can select all three and send one bank transfer for the lot,
+// rather than three separate transfers because our own screens never
+// let them see it as one number.
+interface PendingItem { key: string; kind: 'donor' | 'pool'; id: string; amount: number; label: string; date: string }
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -39,13 +46,16 @@ function PortalStatementInner() {
   const [donations, setDonations] = useState<DonationRow[]>([])
   const [poolPending, setPoolPending] = useState<PoolPending[]>([])
   const [loading, setLoading] = useState(true)
-  const [payTarget, setPayTarget] = useState<PayTarget | null>(null)
+
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [showPay, setShowPay] = useState(false)
   const [payProof, setPayProof] = useState('')
   const [payMethod, setPayMethod] = useState('jazzcash')
+  const [international, setInternational] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   // Arrived here from a "Confirm your payment" button on a Kafalat/Wazifa/
-  // Sadqa card — open straight to that one pending payment instead of
-  // making them find it in the list themselves.
+  // Sadqa card — select just that one item and open straight to it, rather
+  // than making them find and tick it themselves.
   const [autoOpened, setAutoOpened] = useState(false)
 
   const load = async () => {
@@ -66,36 +76,6 @@ function PortalStatementInner() {
   }
   useEffect(() => { load() }, [user])
 
-  useEffect(() => {
-    if (autoOpened || loading) return
-    const payId = searchParams.get('pay')
-    if (!payId) return
-    const match = poolPending.find((p) => p.id === payId && !p.has_proof)
-    if (match) {
-      setPayTarget({ kind: 'pool', id: match.id, amount: match.amount_pkr, particular: match.particular })
-      setPayProof('')
-      setPayMethod('jazzcash')
-    }
-    setAutoOpened(true)
-  }, [autoOpened, loading, searchParams, poolPending])
-
-  const payPledge = async () => {
-    if (!payTarget || !payProof) { toast.error('Upload your payment slip'); return }
-    setSubmitting(true)
-    const supabase = createClient()
-    const { error } = payTarget.kind === 'donor'
-      ? await supabase.rpc('submit_pledge_payment', { p_donor_id: payTarget.id, p_payment_proof_url: payProof, p_payment_method: payMethod })
-      : await supabase.rpc('pool_submit_pledge_payment', { p_payment_id: payTarget.id, p_proof_url: payProof, p_method: payMethod })
-    setSubmitting(false)
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Payment submitted — awaiting verification')
-    setPayTarget(null)
-    setPayProof('')
-    load()
-  }
-
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
-
   const pledges = donations.filter((d) => d.payment_status === 'pledged')
   // Paid but not yet verified by the committee. Until now this showed nowhere:
   // the donor paid, uploaded proof, and the money vanished from their view —
@@ -103,12 +83,66 @@ function PortalStatementInner() {
   // (nothing posts to the ledger until an admin confirms). Silence at exactly
   // the moment a donor most wants reassurance.
   const awaiting = donations.filter((d) => d.payment_status !== 'pledged' && !d.is_verified)
-  // Kafalat/Wazifa/Sadqa announcements slot into the same two boxes as a
-  // general pledge: still needs sending (no proof yet) joins "Announced
-  // Pledges", already sent (proof attached) joins "Paid, awaiting
-  // confirmation" — one payment flow, every fund, with its own label.
   const poolNeedsPay = poolPending.filter((p) => !p.has_proof)
   const poolAwaiting = poolPending.filter((p) => p.has_proof)
+
+  const pendingItems: PendingItem[] = [
+    ...pledges.map((p): PendingItem => ({ key: `donor:${p.id}`, kind: 'donor', id: p.id, amount: p.amount_pkr, label: 'General giving', date: p.date })),
+    ...poolNeedsPay.map((p): PendingItem => ({ key: `pool:${p.id}`, kind: 'pool', id: p.id, amount: p.amount_pkr, label: p.particular, date: p.date })),
+  ]
+
+  // Every still-unpaid item is selected by default — most donors sending one
+  // transfer want it to cover everything they owe. Unticking one is one tap,
+  // for the donor who deliberately wants to send them separately.
+  useEffect(() => {
+    if (!loading) setSelected(new Set(pendingItems.map((i) => i.key)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, donations.length, poolPending.length])
+
+  useEffect(() => {
+    if (autoOpened || loading) return
+    const payId = searchParams.get('pay')
+    if (!payId) { setAutoOpened(true); return }
+    const match = pendingItems.find((i) => i.kind === 'pool' && i.id === payId)
+    if (match) {
+      setSelected(new Set([match.key]))
+      setPayProof('')
+      setPayMethod('jazzcash')
+      setShowPay(true)
+    }
+    setAutoOpened(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpened, loading, searchParams])
+
+  const toggleSelect = (key: string) => {
+    const next = new Set(selected)
+    if (next.has(key)) next.delete(key); else next.add(key)
+    setSelected(next)
+  }
+
+  const selectedItems = pendingItems.filter((i) => selected.has(i.key))
+  const selectedTotal = selectedItems.reduce((s, i) => s + i.amount, 0)
+
+  const payPledge = async () => {
+    if (selectedItems.length === 0) { toast.error('Select at least one item to pay'); return }
+    if (!payProof) { toast.error('Upload your payment slip'); return }
+    setSubmitting(true)
+    const supabase = createClient()
+    const donorIds = selectedItems.filter((i) => i.kind === 'donor').map((i) => i.id)
+    const poolIds = selectedItems.filter((i) => i.kind === 'pool').map((i) => i.id)
+    const { error } = await supabase.rpc('submit_combined_pledge_payment', {
+      p_donor_ids: donorIds, p_pool_payment_ids: poolIds, p_proof_url: payProof, p_method: payMethod,
+    })
+    setSubmitting(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success('Payment submitted — awaiting verification')
+    setShowPay(false)
+    setPayProof('')
+    load()
+  }
+
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+
   let running = account?.opening_balance ?? 0
   const withBalance = rows.map((r) => { running += Number(r.credit) - Number(r.debit); return { ...r, balance: running } })
   const total = withBalance.length > 0 ? withBalance[withBalance.length - 1].balance : 0
@@ -120,31 +154,35 @@ function PortalStatementInner() {
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{account?.donor_account_no ? `Donor Account: ${account.donor_account_no}` : 'No confirmed donations yet'}</p>
       </div>
 
-      {(pledges.length > 0 || poolNeedsPay.length > 0) && (
+      {pendingItems.length > 0 && (
         <div className="bg-white rounded-lg border border-amber-200 overflow-hidden mb-6">
-          <div className="px-5 py-3 border-b border-amber-200 bg-amber-50"><span className="font-sans text-[14px] font-bold text-amber-800">{t('p.announcedPledges')}</span></div>
-          {pledges.map((p) => (
-            <div key={p.id} className="flex items-center justify-between px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0">
-              <div>
-                <p className="font-sans text-[15px] font-bold">Rs. {fmt(p.amount_pkr)}</p>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant">Pledged {new Date(p.date).toLocaleDateString('en-GB')}</p>
+          <div className="px-5 py-3 border-b border-amber-200 bg-amber-50 flex items-center justify-between flex-wrap gap-2">
+            <span className="font-sans text-[14px] font-bold text-amber-800">{t('p.announcedPledges')}</span>
+            {pendingItems.length > 1 && (
+              <span className="font-sans text-[12px] text-amber-800">Sending one payment for several? Tick everything it covers below.</span>
+            )}
+          </div>
+          {pendingItems.map((item) => (
+            <button key={item.key} onClick={() => toggleSelect(item.key)}
+              className="w-full flex items-center justify-between gap-3 px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0 text-start cursor-pointer hover:bg-dp-surface-container-low/60 transition-all">
+              <div className="flex items-center gap-3 min-w-0">
+                {selected.has(item.key) ? <CheckSquare size={18} className="text-dp-secondary shrink-0" /> : <Square size={18} className="text-dp-on-surface-variant shrink-0" />}
+                <div className="min-w-0">
+                  <p className="font-sans text-[15px] font-bold">Rs. {fmt(item.amount)}</p>
+                  <p className="font-sans text-[12px] text-dp-on-surface-variant truncate">{item.label} · Pledged {new Date(item.date).toLocaleDateString('en-GB')}</p>
+                </div>
               </div>
-              <button onClick={() => { setPayTarget({ kind: 'donor', id: p.id, amount: p.amount_pkr, particular: null }); setPayProof(''); setPayMethod('jazzcash') }} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
-                {t('p.payNow')}
-              </button>
-            </div>
+            </button>
           ))}
-          {poolNeedsPay.map((p) => (
-            <div key={p.id} className="flex items-center justify-between px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0">
-              <div>
-                <p className="font-sans text-[15px] font-bold">Rs. {fmt(p.amount_pkr)}</p>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant">{p.particular} · Pledged {new Date(p.date).toLocaleDateString('en-GB')}</p>
-              </div>
-              <button onClick={() => { setPayTarget({ kind: 'pool', id: p.id, amount: p.amount_pkr, particular: p.particular }); setPayProof(''); setPayMethod('jazzcash') }} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
-                {t('p.payNow')}
-              </button>
-            </div>
-          ))}
+          <div className="px-5 py-3.5 bg-dp-surface-container-low flex items-center justify-between gap-3">
+            <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">
+              {selectedItems.length} selected · Total <span className="text-dp-secondary">Rs. {fmt(selectedTotal)}</span>
+            </p>
+            <button disabled={selectedItems.length === 0} onClick={() => { setPayProof(''); setPayMethod('jazzcash'); setShowPay(true) }}
+              className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+              {t('p.payNow')}
+            </button>
+          </div>
         </div>
       )}
 
@@ -215,25 +253,40 @@ function PortalStatementInner() {
         </>
       )}
 
-      {payTarget && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPayTarget(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+      {showPay && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowPay(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('p.payYourPledge')}</h2>
-              <button onClick={() => setPayTarget(null)} className="cursor-pointer"><X size={20} /></button>
+              <button onClick={() => setShowPay(false)} className="cursor-pointer"><X size={20} /></button>
             </div>
             <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
-              <p className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmt(payTarget.amount)}</p>
-              {payTarget.particular && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">{payTarget.particular}</p>}
+              <p className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmt(selectedTotal)}</p>
+              {selectedItems.length > 1 ? (
+                <div className="mt-1.5 space-y-0.5">
+                  {selectedItems.map((i) => (
+                    <p key={i.key} className="font-sans text-[11.5px] text-dp-on-surface-variant flex justify-between gap-2">
+                      <span className="truncate">{i.label}</span><span className="shrink-0">Rs. {fmt(i.amount)}</span>
+                    </p>
+                  ))}
+                </div>
+              ) : selectedItems[0] && (
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">{selectedItems[0].label}</p>
+              )}
             </div>
             <div className="space-y-4">
+              <label className="flex items-start gap-2 cursor-pointer font-sans text-[12.5px]">
+                <input type="checkbox" checked={international} onChange={(e) => { setInternational(e.target.checked); if (e.target.checked) setPayMethod('bank') }} className="accent-dp-secondary mt-0.5" />
+                <span>{t('p.sendingFromAbroad')}</span>
+              </label>
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
-                <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className="input-field">
-                  <option value="jazzcash">{t('w.jazzcash')}</option>
-                  <option value="easypaisa">{t('w.easypaisa')}</option>
+                <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} disabled={international} className="input-field disabled:opacity-60">
+                  {!international && <option value="jazzcash">{t('w.jazzcash')}</option>}
+                  {!international && <option value="easypaisa">{t('w.easypaisa')}</option>}
                   <option value="bank">{t('w.bankTransfer')}</option>
                 </select>
+                <PaymentAccountDetails system="donors_projects" method={payMethod} international={international} />
               </div>
               <DonationReceiptUpload onUpload={setPayProof} />
               <button onClick={payPledge} disabled={submitting} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">

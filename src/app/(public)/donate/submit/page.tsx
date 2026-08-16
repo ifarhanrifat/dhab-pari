@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { HeartHandshake, CheckCircle, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
+import { PaymentAccountDetails } from '@/components/public/PaymentAccountDetails'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type Lang = 'en' | 'ur'
@@ -33,6 +34,7 @@ const t: Record<string, { en: string; ur: string }> = {
   anonymous: { en: 'Keep my donation anonymous on the website', ur: 'ویب سائٹ پر میرا عطیہ گمنام رکھیں' },
   submit: { en: 'Submit Donation', ur: 'عطیہ جمع کروائیں' },
   submitting: { en: 'Submitting...', ur: 'جمع ہو رہا ہے...' },
+  international: { en: "I'm sending this from outside Pakistan (bank transfer only)", ur: 'میں یہ پاکستان سے باہر سے بھیج رہا/رہی ہوں (صرف بینک ٹرانسفر)' },
   errorRequired: { en: 'Name, WhatsApp number, amount, and payment receipt are required.', ur: 'نام، واٹس ایپ نمبر، رقم، اور رسید درکار ہیں۔' },
   errorFailed: { en: 'Failed to submit. Please try again.', ur: 'جمع نہیں ہو سکا۔ دوبارہ کوشش کریں۔' },
 }
@@ -59,6 +61,7 @@ function DonateSubmitPageInner() {
     payment_method: 'jazzcash', project_id: searchParams.get('project') ?? '', is_anonymous: false,
   })
   const [receiptPath, setReceiptPath] = useState('')
+  const [international, setInternational] = useState(false)
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
@@ -112,6 +115,7 @@ function DonateSubmitPageInner() {
       payment_proof_url: receiptPath,
       is_verified: false,
       submitted_via: 'public',
+      donor_type: international ? 'overseas' : 'villager',
     })
 
     if (insertErr) {
@@ -202,16 +206,24 @@ function DonateSubmitPageInner() {
                 </div>
               </div>
 
+              <label className="flex items-start gap-2.5 cursor-pointer font-sans text-[13.5px] text-dp-on-surface">
+                <input type="checkbox" checked={international}
+                  onChange={(e) => { setInternational(e.target.checked); if (e.target.checked) setForm({ ...form, payment_method: 'bank' }) }}
+                  className="accent-dp-secondary mt-0.5" />
+                {dt('international')}
+              </label>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{dt('paymentMethod')}</label>
-                  <select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
-                    className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px]">
-                    <option value="jazzcash">{tr('w.jazzcash')}</option>
-                    <option value="easypaisa">{tr('w.easypaisa')}</option>
+                  <select value={form.payment_method} disabled={international} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
+                    className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px] disabled:opacity-60">
+                    {!international && <option value="jazzcash">{tr('w.jazzcash')}</option>}
+                    {!international && <option value="easypaisa">{tr('w.easypaisa')}</option>}
                     <option value="bank">{tr('w.bankTransfer')}</option>
-                    <option value="cash">{tr('w.cash')}</option>
+                    {!international && <option value="cash">{tr('w.cash')}</option>}
                   </select>
+                  <PaymentAccountDetails system="donors_projects" method={form.payment_method} international={international} />
                 </div>
                 <div>
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{dt('project')}</label>

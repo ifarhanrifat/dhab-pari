@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { X, UploadCloud } from 'lucide-react'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
+import { PaymentAccountDetails } from '@/components/public/PaymentAccountDetails'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import Link from 'next/link'
 
@@ -183,6 +184,7 @@ export default function PortalWaterPage() {
                   <option value="bank">{t('w.bankTransfer')}</option>
                   <option value="cash">{t('w.cash')}</option>
                 </select>
+                <PaymentAccountDetails system="water_supply" method={claimMethod} />
               </div>
               <DonationReceiptUpload bucket="bill_payment_proofs" label="Upload Payment Slip" onUpload={setClaimProof} />
               <button onClick={submitClaim} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">

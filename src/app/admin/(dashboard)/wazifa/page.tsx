@@ -135,7 +135,9 @@ export default function WazifaPage() {
   const [collAnnouncements, setCollAnnouncements] = useState<{
     id: string; pool_code: string; donor_name: string | null; donor_phone: string | null
     amount: number; is_one_time: boolean; month: string; proof_url: string | null
+    payment_batch_id: string | null
   }[]>([])
+  const [collBatchSummary, setCollBatchSummary] = useState<Record<string, { count: number; total: number }>>({})
   const [collCovering, setCollCovering] = useState<(typeof collShortMonths)[number] | null>(null)
   const [collCoverAmount, setCollCoverAmount] = useState(0)
   const [collCoverNote, setCollCoverNote] = useState('')
@@ -228,7 +230,15 @@ export default function WazifaPage() {
     setCollShortMonths((s?.months ?? []).filter((m) => m.pool_code === 'POOL-WZF'))
     setCollLapsed((s?.lapsed ?? []).filter((l) => l.pool_code === 'POOL-WZF'))
     setCollCovers((s?.covers ?? []).filter((c) => c.pool_code === 'POOL-WZF'))
-    setCollAnnouncements(((ann ?? []) as typeof collAnnouncements).filter((a) => a.pool_code === 'POOL-WZF'))
+    const wzfAnnouncements = ((ann ?? []) as typeof collAnnouncements).filter((a) => a.pool_code === 'POOL-WZF')
+    setCollAnnouncements(wzfAnnouncements)
+    const batchIds = Array.from(new Set(wzfAnnouncements.filter((a) => a.payment_batch_id).map((a) => a.payment_batch_id as string)))
+    if (batchIds.length > 0) {
+      const { data: bs } = await supabase.rpc('payment_batch_summary', { p_batch_ids: batchIds })
+      setCollBatchSummary((bs ?? {}) as Record<string, { count: number; total: number }>)
+    } else {
+      setCollBatchSummary({})
+    }
   }, [supabase])
 
   // Loaded on mount, not gated on the tab being open — see the matching
@@ -875,6 +885,12 @@ const open = applications.filter((a) => ['submitted', 'screening', 'interview', 
                         {a.donor_phone && <a href={`tel:${a.donor_phone}`} className="text-dp-secondary hover:underline">{a.donor_phone}</a>}
                         {' · '}Rs {fmt(a.amount)} · {a.is_one_time ? t('pool.oneTime') : t('pool.recurringMonthly')}
                       </p>
+                      {a.payment_batch_id && collBatchSummary[a.payment_batch_id]?.count > 1 && (
+                        <span title="Sent as one payment along with other pledges — some may be on other Collections tabs or /admin/donors"
+                          className="inline-block mt-1 text-[11px] font-bold px-2 py-0.5 rounded-full font-sans bg-amber-100 text-amber-800">
+                          Part of Rs {collBatchSummary[a.payment_batch_id].total.toLocaleString()} · {collBatchSummary[a.payment_batch_id].count} items
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       {a.proof_url && (
