@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { RotateCcw, Trash2, Repeat, ListChecks } from 'lucide-react'
+import { RotateCcw, Trash2, Repeat, ListChecks, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
@@ -23,6 +24,18 @@ interface Schedule {
   is_active: boolean; last_run_at: string | null; amount_pkr: number
   consumer_id: string | null; donor_name: string | null; party_name: string | null; particular: string | null
 }
+
+// A Kafalat/Wazifa/Sadqa standing share — a different mechanism from
+// recurring_schedules (no next_run_date/last_run_at to speak of; a donor
+// announces each month themselves), shown in the same table so a donor
+// accountant sees every recurring commitment in one place instead of two.
+interface PoolLine {
+  id: string; pool_kind: string; pool: string; donor_name: string; donor_phone: string | null
+  monthly_amount: number; status: string; started_on: string; lapsed_at: string | null
+  named: string | null; months_given: number; total_given: number
+}
+const poolKindLabel: Record<string, string> = { kafalat: 'Kafalat', wazifa: 'Wazifa', general: 'Sadqa Upkeep' }
+const poolKindLink: Record<string, string> = { kafalat: '/admin/kafalat', wazifa: '/admin/wazifa', general: '/admin/esal-e-sawab' }
 
 interface TxnRow { id: string; date: string; label: string; particular: string; amount: number }
 
@@ -47,6 +60,7 @@ export default function RecurringPage() {
   }, [access.loading, access.defaultSystem, access.canWaterSupply, access.canDonorsProjects, systemOverride])
   const [tab, setTab] = useState<'schedules' | 'transactions'>('schedules')
   const [schedules, setSchedules] = useState<Schedule[]>([])
+  const [poolLines, setPoolLines] = useState<PoolLine[]>([])
   const [consumerNames, setConsumerNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null)
@@ -61,13 +75,15 @@ export default function RecurringPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: schedulesData }, { data: consumersData }] = await Promise.all([
+    const [{ data: schedulesData }, { data: consumersData }, { data: poolData }] = await Promise.all([
       supabase.from('recurring_schedules').select('id, schedule_type, frequency, next_run_date, is_active, last_run_at, amount_pkr, consumer_id, donor_name, party_name, particular')
         .eq('system', system).order('next_run_date'),
       system === 'water_supply' ? supabase.from('consumers').select('consumer_id, name') : Promise.resolve({ data: [] }),
+      system === 'donors_projects' ? supabase.rpc('admin_pool_recurring_lines') : Promise.resolve({ data: [] }),
     ])
     setSchedules(schedulesData ?? [])
     setConsumerNames(Object.fromEntries((consumersData ?? []).map((c) => [c.consumer_id, c.name])))
+    setPoolLines((poolData ?? []) as PoolLine[])
     setLoading(false)
   }, [system, supabase])
 
@@ -185,7 +201,7 @@ export default function RecurringPage() {
               </thead>
               <tbody>
                 {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</td></tr>}
-                {!loading && schedules.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('rc.noSchedules')}</td></tr>}
+                {!loading && schedules.length === 0 && poolLines.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('rc.noSchedules')}</td></tr>}
                 {!loading && schedules.map((s) => (
                   <tr key={s.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${!s.is_active ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-3 font-semibold">{scheduleLabel(s)}</td>
@@ -202,6 +218,33 @@ export default function RecurringPage() {
                         <button disabled={resettingId === s.id} onClick={() => resetSchedule(s.id)} title="Reset — recalculate next occurrence from today" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer disabled:opacity-40"><RotateCcw size={15} /></button>
                         <button onClick={() => setConfirmRemoveId(s.id)} title="Remove schedule" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
                       </div>
+                    </td>
+                  </tr>
+                ))}
+                {/* Kafalat/Wazifa/Sadqa standing shares — announced monthly by
+                    the donor themselves rather than run on a schedule, so
+                    there's no next/last-run date to show. Managed from each
+                    programme's own Collections tab, linked out to rather than
+                    duplicated here. */}
+                {!loading && poolLines.map((p) => (
+                  <tr key={p.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${p.status === 'lapsed' ? 'opacity-50' : ''}`}>
+                    <td className="px-4 py-3 font-semibold">
+                      {p.donor_name}
+                      <span className="block font-normal text-dp-on-surface-variant text-[12px]">{p.named ?? 'Shared giving'}</span>
+                    </td>
+                    <td className="px-4 py-3 text-dp-on-surface-variant">{poolKindLabel[p.pool_kind] ?? p.pool_kind}</td>
+                    <td className="px-4 py-3 text-dp-on-surface-variant">Monthly</td>
+                    <td className="px-4 py-3 text-end font-bold">{fmtAmount(p.monthly_amount)}</td>
+                    <td className="px-4 py-3 text-dp-on-surface-variant">—</td>
+                    <td className="px-4 py-3 text-dp-on-surface-variant">—</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${p.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{p.status === 'active' ? 'Active' : 'Lapsed'}</span>
+                    </td>
+                    <td className="px-4 py-3 text-end">
+                      <Link href={poolKindLink[p.pool_kind] ?? '/admin/kafalat'} title="Manage on its own page"
+                        className="inline-flex items-center gap-1 text-dp-secondary hover:underline text-[12.5px] font-semibold">
+                        <ExternalLink size={13} /> Manage
+                      </Link>
                     </td>
                   </tr>
                 ))}
