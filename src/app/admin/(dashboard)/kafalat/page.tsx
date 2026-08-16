@@ -115,6 +115,7 @@ interface Nomination {
   id: string; child_name: string; guardian_name: string | null
   approximate_age: number | null; gender: string | null
   address_hint: string | null; reason: string; status: string; created_at: string
+  referrer_name: string | null; referrer_phone: string | null
 }
 
 const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -227,7 +228,7 @@ export default function KafalatPage() {
       supabase.from('kafalat_package_lines').select('*'),
       supabase.rpc('kafalat_sponsor_breakdown'),
       supabase.rpc('kafalat_children_for_naming'),
-      supabase.from('kafalat_nominations').select('*').order('created_at', { ascending: false }),
+      supabase.rpc('kafalat_nominations_with_referrer'),
       supabase.rpc('public_kafalat_summary'),
       supabase.from('schools').select('id, name, kind, location, monthly_fee_pkr, months_charged')
         .eq('is_active', true).order('location').order('name'),
@@ -667,8 +668,9 @@ export default function KafalatPage() {
   }
 
   const reviewNomination = async (n: Nomination, status: string) => {
+    const { data: adminId } = await supabase.rpc('current_admin_user_id')
     const { error } = await supabase.from('kafalat_nominations')
-      .update({ status, reviewed_at: new Date().toISOString() }).eq('id', n.id)
+      .update({ status, reviewed_at: new Date().toISOString(), reviewed_by: adminId ?? null }).eq('id', n.id)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('kf.ok.nominationReviewed'))
     load()
@@ -891,7 +893,13 @@ export default function KafalatPage() {
                   {n.child_name}
                   {n.approximate_age && <span className="font-normal text-dp-on-surface-variant"> · {n.approximate_age} {t('kf.years')}</span>}
                 </p>
-                {n.guardian_name && <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('kf.guardian')}: {n.guardian_name}</p>}
+                <p className="font-sans text-[11.5px] mt-0.5">
+                  <span className={`px-1.5 py-0.5 rounded font-bold ${n.referrer_name ? 'bg-sky-100 text-sky-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>
+                    {n.referrer_name ? `Referred by ${n.referrer_name}` : 'Referred by committee'}
+                  </span>
+                  {n.referrer_phone && <span className="text-dp-on-surface-variant"> · {n.referrer_phone}</span>}
+                </p>
+                {n.guardian_name && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{t('kf.guardian')}: {n.guardian_name}</p>}
                 {n.address_hint && <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{n.address_hint}</p>}
                 <p className="font-sans text-[13px] text-dp-on-surface mt-1.5 italic">{n.reason}</p>
               </div>

@@ -455,9 +455,18 @@ export default function ConnectionsPage() {
       else recurringScheduleId = sched.id
     }
 
-    await supabase.from('connection_requests').update({
-      status: 'installed', recurring_schedule_id: recurringScheduleId,
-    }).eq('id', r.id)
+    // The status flip only happens inside this RPC now — it refuses to
+    // activate a connection whose charges bill isn't fully paid, or whose
+    // security deposit hasn't actually been recorded, rather than trusting
+    // that the Receive Cash step earlier definitely succeeded.
+    const { error: activateErr } = await supabase.rpc('activate_connection', {
+      p_request_id: r.id, p_recurring_schedule_id: recurringScheduleId,
+    })
+    if (activateErr) {
+      setActivating(false)
+      toast.error(friendlyError(activateErr))
+      return
+    }
 
     const intl = normalizePakPhoneLocal(activationForm.whatsapp_number)
     if (intl) {
