@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Users, ArrowRight } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -21,6 +22,13 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
  *
  * Styled as a quiet standing notice rather than an alarm. Something red and
  * urgent on every page for months stops being read within a week.
+ *
+ * Lives in the dashboard layout, so it mounts once and never remounts across
+ * client-side navigation between portal pages — a plain "fetch once on
+ * mount" left it showing whatever was true the moment the tab was opened,
+ * not "not one moment before". It refetches on every route change and every
+ * time the tab regains focus, so a child approved or a pledge confirmed
+ * elsewhere shows up here without needing a hard reload.
  */
 
 interface Alert {
@@ -48,10 +56,25 @@ const ROUTE_FOR: Record<string, string> = {
 export function PoolAppealBanner() {
   const { t, isUrdu } = useLocale()
   const [alerts, setAlerts] = useState<Alert[]>([])
+  const pathname = usePathname()
 
   useEffect(() => {
-    createClient().rpc('pool_alerts').then(({ data }) => setAlerts((data ?? []) as Alert[]))
-  }, [])
+    const load = () => {
+      createClient().rpc('pool_alerts').then(({ data }) => setAlerts((data ?? []) as Alert[]))
+    }
+    load()
+
+    // A tab left open across a session doesn't otherwise hear about a child
+    // being approved or a pledge confirmed in another tab — refresh whenever
+    // this one becomes active again.
+    const onFocus = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', onFocus)
+    window.addEventListener('focus', load)
+    return () => {
+      document.removeEventListener('visibilitychange', onFocus)
+      window.removeEventListener('focus', load)
+    }
+  }, [pathname])
 
   if (!alerts.length) return null
 
