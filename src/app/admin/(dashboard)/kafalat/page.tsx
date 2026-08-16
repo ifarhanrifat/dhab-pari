@@ -307,6 +307,19 @@ export default function KafalatPage() {
     loadCollections()
   }
 
+  // pool_payments.proof_url is a path in the same private donation_receipts
+  // bucket a general pledge's slip lives in (both now upload through
+  // /portal/statement) — never a plain public URL, so it needs a signed
+  // link minted per view, the same way /admin/donors already does it.
+  const [viewingProofId, setViewingProofId] = useState<string | null>(null)
+  const viewProof = async (id: string, path: string) => {
+    setViewingProofId(id)
+    const { data, error } = await supabase.storage.from('donation_receipts').createSignedUrl(path, 300)
+    setViewingProofId(null)
+    if (error || !data?.signedUrl) { toast.error('Could not open the payment screenshot'); return }
+    window.open(data.signedUrl, '_blank', 'noopener')
+  }
+
   const declineAnnouncement = async (id: string) => {
     const reason = prompt(t('pool.declineReasonPrompt'))
     if (!reason) return
@@ -1065,7 +1078,10 @@ export default function KafalatPage() {
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       {a.proof_url && (
-                        <a href={a.proof_url} target="_blank" rel="noreferrer" className="font-sans text-[12px] font-bold text-dp-secondary hover:underline">{t('pool.viewProof')}</a>
+                        <button onClick={() => viewProof(a.id, a.proof_url!)} disabled={viewingProofId === a.id}
+                          className="font-sans text-[12px] font-bold text-dp-secondary hover:underline cursor-pointer disabled:opacity-50">
+                          {viewingProofId === a.id ? '...' : t('pool.viewProof')}
+                        </button>
                       )}
                       <button onClick={() => confirmAnnouncement(a.id)} disabled={busy}
                         className="bg-dp-secondary text-white font-sans text-[12px] font-bold px-3 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer">

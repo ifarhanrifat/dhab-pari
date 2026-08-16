@@ -44,6 +44,14 @@ function fundBadge(d: Donor): { label: string; className: string } | null {
   return null
 }
 interface Project { id: string; title: string }
+// One real-world bank transfer covering several pledges (migration 254) —
+// the review unit this panel works in, rather than the individual rows
+// each pledge still is everywhere else in the app.
+interface PendingBatch {
+  batch_id: string; donor_name: string | null; proof_url: string | null
+  method: string | null; total: number; count: number; earliest: string
+}
+interface BatchItem { kind: 'donor' | 'pool'; id: string; amount: number; label: string }
 type SortKey = 'name' | 'account' | 'amount' | 'date' | 'status'
 
 const empty = {
@@ -94,6 +102,11 @@ function AdminDonorsPageInner() {
   const [confirmedWhatsapp, setConfirmedWhatsapp] = useState<string | null>(null)
   const [thankYouMessage, setThankYouMessage] = useState<string | null>(null)
   const [batchSummary, setBatchSummary] = useState<Record<string, { count: number; total: number }>>({})
+  const [pendingBatches, setPendingBatches] = useState<PendingBatch[]>([])
+  const [reviewBatch, setReviewBatch] = useState<PendingBatch | null>(null)
+  const [batchItems, setBatchItems] = useState<BatchItem[] | null>(null)
+  const [batchProofUrl, setBatchProofUrl] = useState<string | null>(null)
+  const [confirmingBatch, setConfirmingBatch] = useState(false)
   const supabase = createClient()
 
   const load = async () => {
@@ -116,6 +129,8 @@ function AdminDonorsPageInner() {
     } else {
       setBatchSummary({})
     }
+    const { data: pb } = await supabase.rpc('pending_payment_batches')
+    setPendingBatches((pb ?? []) as PendingBatch[])
     setLoading(false)
   }
   useEffect(() => { load() }, [])
@@ -210,6 +225,36 @@ function AdminDonorsPageInner() {
     setProofLoadingId(null)
     if (error || !data?.signedUrl) { toast.error('Could not open the payment screenshot'); return }
     window.open(data.signedUrl, '_blank', 'noopener')
+  }
+
+  // ── Combined payments — one real slip, several pledges ──────────────────
+  const openBatchReview = async (b: PendingBatch) => {
+    setReviewBatch(b)
+    setBatchItems(null)
+    setBatchProofUrl(null)
+    const [{ data: items }, signed] = await Promise.all([
+      supabase.rpc('payment_batch_items', { p_batch_id: b.batch_id }),
+      b.proof_url ? supabase.storage.from('donation_receipts').createSignedUrl(b.proof_url, 300) : Promise.resolve({ data: null }),
+    ])
+    setBatchItems((items ?? []) as BatchItem[])
+    setBatchProofUrl(signed?.data?.signedUrl ?? null)
+  }
+
+  const confirmWholeBatch = async () => {
+    if (!batchItems || batchItems.length === 0) return
+    setConfirmingBatch(true)
+    let failed = 0
+    for (const item of batchItems) {
+      const { error } = item.kind === 'donor'
+        ? await supabase.rpc('confirm_donation', { p_donor_id: item.id, p_edits: {} })
+        : await supabase.rpc('pool_confirm_payment', { p_payment_id: item.id })
+      if (error) failed += 1
+    }
+    setConfirmingBatch(false)
+    if (failed > 0) toast.error(`${failed} of ${batchItems.length} couldn't be confirmed — check them individually`)
+    else toast.success(`All ${batchItems.length} items confirmed`)
+    setReviewBatch(null)
+    load()
   }
 
   const saveEdits = async () => {
@@ -334,6 +379,33 @@ function AdminDonorsPageInner() {
         </div>
         <button onClick={() => { setForm(empty); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('dn.addDonor')}</button>
       </div>
+
+      {/* ── Combined payments ─────────────────────────────────────────────
+          One real bank transfer covering several pledges at once — a batch
+          of exactly one is just an ordinary payment and never shows up
+          here (pending_payment_batches() already filters those out). This
+          is specifically the "how do I know these 3 rows are really the
+          same Rs 8,700 slip" answer: one screen, the real proof, every
+          item it covers, one Confirm All. */}
+      {pendingBatches.length > 0 && (
+        <div className="bg-white rounded-lg border border-sky-200 overflow-hidden mb-4">
+          <div className="px-5 py-3 border-b border-sky-200 bg-sky-50">
+            <span className="font-sans text-[14px] font-bold text-sky-800">Combined Payments — {pendingBatches.length} to review</span>
+            <p className="font-sans text-[12px] text-sky-800 mt-0.5">A donor sent one payment covering several pledges at once. Open each to see the real slip and confirm them together.</p>
+          </div>
+          {pendingBatches.map((b) => (
+            <button key={b.batch_id} onClick={() => openBatchReview(b)}
+              className="w-full flex items-center justify-between gap-3 px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0 text-start cursor-pointer hover:bg-dp-surface-container-low/60 transition-all">
+              <div className="min-w-0">
+                <p className="font-sans text-[14px] font-bold text-dp-on-surface">{b.donor_name ?? '—'}</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant">{b.count} items · {new Date(b.earliest).toLocaleDateString('en-GB')} · {b.method}</p>
+              </div>
+              <p className="font-heading text-[18px] font-bold text-dp-secondary shrink-0">Rs {b.total.toLocaleString()}</p>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="relative mb-4">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
         <input
@@ -550,6 +622,61 @@ function AdminDonorsPageInner() {
           <button onClick={sendThankYou} className="px-4 py-3 bg-emerald-600 text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-emerald-700 transition-all shadow-lg">
             {t('dn.sendThanks')}
           </button>
+        </div>
+      )}
+
+      {/* ── Review one combined payment ────────────────────────────────── */}
+      {reviewBatch && (
+        <div className="fixed inset-0 bg-black/50 z-[120] flex items-center justify-center p-4" onClick={() => setReviewBatch(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="font-heading text-[19px] font-bold text-dp-primary">{reviewBatch.donor_name ?? '—'}</h2>
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">
+                  {new Date(reviewBatch.earliest).toLocaleDateString('en-GB')} · {reviewBatch.method}
+                </p>
+              </div>
+              <button onClick={() => setReviewBatch(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+
+            <div className="bg-dp-surface-container-low rounded-lg px-4 py-3 mb-4 flex items-center justify-between">
+              <p className="font-sans text-[13px] font-semibold text-dp-on-surface">One payment, total</p>
+              <p className="font-heading text-[22px] font-bold text-dp-secondary">Rs {reviewBatch.total.toLocaleString()}</p>
+            </div>
+
+            {reviewBatch.proof_url && (
+              batchProofUrl ? (
+                <a href={batchProofUrl} target="_blank" rel="noreferrer" className="block mb-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={batchProofUrl} alt="Payment slip" className="w-full max-h-64 object-contain rounded-lg border border-dp-outline-variant bg-dp-surface-container" />
+                </a>
+              ) : (
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">Loading the slip…</p>
+              )
+            )}
+
+            <p className="font-sans text-[12px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-2">This one payment covers</p>
+            {!batchItems ? (
+              <p className="font-sans text-[13px] text-dp-on-surface-variant py-4 text-center">Loading…</p>
+            ) : (
+              <div className="border border-dp-outline-variant rounded-lg divide-y divide-dp-outline-variant overflow-hidden mb-5">
+                {batchItems.map((item) => (
+                  <div key={`${item.kind}-${item.id}`} className="flex items-center justify-between px-3.5 py-2.5">
+                    <p className="font-sans text-[13px] text-dp-on-surface">{item.label}</p>
+                    <p className="font-sans text-[13px] font-bold text-dp-on-surface shrink-0 ms-3">Rs {item.amount.toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button disabled={confirmingBatch || !batchItems} onClick={confirmWholeBatch}
+              className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+              <CheckCircle size={16} /> {confirmingBatch ? 'Confirming…' : `Confirm All ${batchItems?.length ?? ''} Items`}
+            </button>
+            <p className="font-sans text-[11px] text-dp-on-surface-variant mt-2.5 text-center">
+              Each item still posts to its own correct fund account — this just confirms them all at once instead of one at a time.
+            </p>
+          </div>
         </div>
       )}
     </>
