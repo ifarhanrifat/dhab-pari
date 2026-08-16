@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { X, UploadCloud } from 'lucide-react'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import Link from 'next/link'
 
 interface Bill {
   id: string; month: number; year: number; amount_pkr: number; paid_amount: number
@@ -80,7 +81,10 @@ export default function PortalWaterPage() {
   if (!user?.consumer_id) {
     return (
       <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">
-        <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('p.noWaterConnection')}</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mb-3">{t('p.noWaterConnection')}</p>
+        <Link href="/portal/profile" className="inline-block bg-dp-secondary text-white px-5 py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all">
+          {t('p.waterConnection')}
+        </Link>
       </div>
     )
   }

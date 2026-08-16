@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, use as usePromise } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Eye, FileText, Printer, PlusCircle, X, Save, Banknote } from 'lucide-react'
+import { ArrowLeft, Eye, FileText, Printer, PlusCircle, X, Save, Banknote, Link2, Search, Unlink } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
@@ -30,6 +30,7 @@ interface LedgerRow {
   voucher_type?: string | null; voucher_no?: string | null
 }
 interface BillStatus { status: string; paid_amount: number; amount_pkr: number; discount_amount: number }
+interface PortalUserMatch { id: string; full_name: string; mobile: string; whatsapp_number: string | null; consumer_id: string | null }
 
 const systemLabels: Record<string, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects System' }
 
@@ -62,6 +63,18 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
   const statementRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
+  // The fallback for when signup's own auto-match by mobile/WhatsApp number
+  // misses — a consumer whose water connection is registered under a
+  // different or older number than the one they signed up to the portal
+  // with. Search only ever returns real, already-verified portal_users
+  // rows; nothing here is a free-text number a staff member could mistype.
+  const [linkedPortalUser, setLinkedPortalUser] = useState<{ id: string; full_name: string; mobile: string } | null>(null)
+  const [showLinkSearch, setShowLinkSearch] = useState(false)
+  const [linkQuery, setLinkQuery] = useState('')
+  const [linkResults, setLinkResults] = useState<PortalUserMatch[]>([])
+  const [linkSearching, setLinkSearching] = useState(false)
+  const [linking, setLinking] = useState<string | null>(null)
+
   const load = useCallback(async () => {
     const { data: acc } = await supabase.from('accounts').select('*').eq('id', id).single()
     setAccount(acc)
@@ -76,8 +89,11 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
     if (acc?.type === 'consumer' && acc.consumer_id) {
       const { data: c } = await supabase.from('consumers').select('consumer_id, mobile, address, connections').eq('consumer_id', acc.consumer_id).single()
       setConsumerInfo(c)
+      const { data: linked } = await supabase.rpc('admin_portal_user_for_consumer', { p_consumer_id: acc.consumer_id })
+      setLinkedPortalUser((linked ?? null) as { id: string; full_name: string; mobile: string } | null)
     } else {
       setConsumerInfo(null)
+      setLinkedPortalUser(null)
     }
 
     const { data: entries } = await supabase
@@ -285,6 +301,41 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
     load()
   }
 
+  const searchPortalUsers = async (q: string) => {
+    setLinkQuery(q)
+    if (q.trim().length < 3) { setLinkResults([]); return }
+    setLinkSearching(true)
+    const { data, error } = await supabase.rpc('admin_search_portal_users', { p_query: q.trim() })
+    setLinkSearching(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    setLinkResults((data ?? []) as PortalUserMatch[])
+  }
+
+  const linkPortalUser = async (match: PortalUserMatch) => {
+    if (!account?.consumer_id) return
+    if (match.consumer_id && match.consumer_id !== account.consumer_id) {
+      if (!confirm(`${match.full_name} is already linked to consumer account ${match.consumer_id}. Re-link to ${account.consumer_id} instead?`)) return
+    }
+    setLinking(match.id)
+    const { error } = await supabase.rpc('admin_link_portal_account', { p_portal_user_id: match.id, p_consumer_id: account.consumer_id })
+    setLinking(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(`Linked to ${match.full_name}'s portal account`)
+    setShowLinkSearch(false)
+    setLinkQuery('')
+    setLinkResults([])
+    load()
+  }
+
+  const unlinkPortalUser = async () => {
+    if (!linkedPortalUser) return
+    if (!confirm(`Unlink ${linkedPortalUser.full_name} from this water account? They'll stop seeing their bills on the portal until re-linked.`)) return
+    const { error } = await supabase.rpc('admin_unlink_portal_account', { p_portal_user_id: linkedPortalUser.id })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success('Unlinked')
+    load()
+  }
+
   if (loading) {
     return <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">{t('y.loadingAccount')}</div>
   }
@@ -320,6 +371,70 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
           </button>
         </div>
       </div>
+
+      {/* ── Portal account link ──────────────────────────────────────────
+          Consumer accounts only. Signup already tries to auto-match by
+          mobile/WhatsApp; this is the manual fallback for when a
+          connection is registered under a different number. Search results
+          are real portal_users rows — nothing here is a number typed by
+          hand, so a mistyped digit can never attach the wrong person. */}
+      {account.type === 'consumer' && (
+        <div className="bg-white rounded-lg border border-dp-outline-variant p-5 mb-4 print:hidden">
+          <h2 className="font-heading text-[15px] font-bold text-dp-primary flex items-center gap-2 mb-3">
+            <Link2 size={16} className="text-dp-secondary" /> Portal Account
+          </h2>
+          {linkedPortalUser ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="font-sans text-[13.5px] text-dp-on-surface">
+                Linked to <span className="font-bold">{linkedPortalUser.full_name}</span>
+                <span className="text-dp-on-surface-variant"> · {linkedPortalUser.mobile}</span>
+              </p>
+              <button onClick={unlinkPortalUser} className="flex items-center gap-1.5 text-dp-on-surface-variant hover:text-dp-error font-sans text-[12.5px] font-semibold cursor-pointer">
+                <Unlink size={13} /> Unlink
+              </button>
+            </div>
+          ) : !showLinkSearch ? (
+            <div className="flex items-center justify-between gap-3">
+              <p className="font-sans text-[13px] text-dp-on-surface-variant">No portal account linked yet — this consumer can't see their bills online.</p>
+              <button onClick={() => setShowLinkSearch(true)} className="flex items-center gap-1.5 px-3 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer shrink-0">
+                <Link2 size={13} /> Link Portal Account
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div className="relative mb-2">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+                <input autoFocus value={linkQuery} onChange={(e) => searchPortalUsers(e.target.value)}
+                  placeholder="Search by name or mobile number..." className="input-field !ps-9 !py-2 text-[13.5px]" />
+              </div>
+              {linkSearching && <p className="font-sans text-[12.5px] text-dp-on-surface-variant py-2">Searching…</p>}
+              {!linkSearching && linkQuery.trim().length >= 3 && linkResults.length === 0 && (
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant py-2">No portal accounts match that.</p>
+              )}
+              {linkResults.length > 0 && (
+                <div className="border border-dp-outline-variant rounded-lg divide-y divide-dp-outline-variant overflow-hidden mb-2">
+                  {linkResults.map((m) => (
+                    <div key={m.id} className="flex items-center justify-between gap-2 px-3.5 py-2.5">
+                      <div className="min-w-0">
+                        <p className="font-sans text-[13px] font-semibold text-dp-on-surface truncate">{m.full_name}</p>
+                        <p className="font-sans text-[12px] text-dp-on-surface-variant">
+                          {m.mobile}
+                          {m.consumer_id && <span className="text-amber-700"> · already linked to {m.consumer_id}</span>}
+                        </p>
+                      </div>
+                      <button disabled={linking === m.id} onClick={() => linkPortalUser(m)}
+                        className="shrink-0 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+                        {linking === m.id ? 'Linking…' : 'Link'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button onClick={() => { setShowLinkSearch(false); setLinkQuery(''); setLinkResults([]) }} className="font-sans text-[12px] text-dp-on-surface-variant hover:underline cursor-pointer">Cancel</button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div ref={statementRef} dir={lang === 'ur' ? 'rtl' : 'ltr'} style={lang === 'ur' ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
       <div className="bg-white rounded-lg border border-dp-outline-variant p-6 mb-4">

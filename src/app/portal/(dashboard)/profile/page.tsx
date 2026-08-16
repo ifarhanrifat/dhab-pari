@@ -5,9 +5,10 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { UserCog, KeyRound } from 'lucide-react'
+import { UserCog, KeyRound, Droplets, CheckCircle2, Copy } from 'lucide-react'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { SITE } from '@/lib/constants'
 
 function syntheticEmail(mobile: string) {
   return `${mobile.replace(/[^0-9]/g, '')}@portal.dhabpari.local`
@@ -147,6 +148,48 @@ export default function PortalProfilePage() {
         <button onClick={save} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
           {saving ? 'Saving...' : 'Save Changes'}
         </button>
+      </div>
+
+      {/* ── Water connection ─────────────────────────────────────────────
+          Signup already tries to auto-match a new account to an existing
+          consumer record by mobile/WhatsApp number — this is the fallback
+          for when that fails (the connection is registered under a
+          different, older, or a family member's number, which is common).
+          The number here is read-only, pulled straight from this account —
+          never a box to retype it into — so nobody can accidentally attach
+          themselves to somebody else's real water usage history. */}
+      <div className="bg-white border border-dp-outline-variant rounded-lg p-6 max-w-md mt-6">
+        <h2 className="font-heading text-[18px] font-bold text-dp-primary flex items-center gap-2 mb-1">
+          <Droplets size={18} className="text-dp-secondary" /> {t('p.waterConnection')}
+        </h2>
+        {user.consumer_id ? (
+          <div className="flex items-start gap-2.5 mt-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
+            <CheckCircle2 size={17} className="text-emerald-600 shrink-0 mt-0.5" />
+            <p className="font-sans text-[13.5px] text-emerald-900">
+              {t('p.waterLinked')} <span className="font-mono font-bold">{user.consumer_id}</span>
+            </p>
+          </div>
+        ) : (
+          <div className="mt-3">
+            <p className="font-sans text-[13.5px] text-dp-on-surface-variant leading-relaxed mb-3">{t('p.waterNotLinked')}</p>
+            <div className="bg-dp-surface-container-low rounded-lg px-4 py-3 mb-3">
+              <p className="font-sans text-[11px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-1">{t('p.yourRegisteredNumber')}</p>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-[16px] font-bold text-dp-on-surface">{user.mobile}</span>
+                <button
+                  onClick={async () => { await navigator.clipboard.writeText(user.mobile); toast.success(t('p.copied')) }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12px] font-semibold text-dp-on-surface hover:border-dp-secondary transition-all cursor-pointer"
+                >
+                  <Copy size={13} /> {t('p.copy')}
+                </button>
+              </div>
+            </div>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">
+              {t('p.waterLinkInstructions')} <a href={SITE.whatsappLink} target="_blank" rel="noreferrer" className="font-semibold text-dp-secondary hover:underline">{SITE.whatsapp}</a>
+              {' · '}{SITE.location} ({SITE.officeHours})
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="bg-white border border-dp-outline-variant rounded-lg p-6 max-w-md mt-6 space-y-4">
