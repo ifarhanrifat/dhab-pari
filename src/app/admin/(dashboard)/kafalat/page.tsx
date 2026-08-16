@@ -116,6 +116,7 @@ interface Nomination {
   approximate_age: number | null; gender: string | null
   address_hint: string | null; reason: string; status: string; created_at: string
   referrer_name: string | null; referrer_phone: string | null
+  child_id: string | null; child_code: string | null
 }
 
 const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -197,6 +198,11 @@ export default function KafalatPage() {
   const [disbursementForm, setDisbursementForm] = useState({ method: 'cash', signed_by: '', driver_name: '', signed_note: '' })
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyChild)
+  // Set only while Add Child was opened from a nomination's "Register this
+  // Child" — closes the loop nothing used to close: on success the
+  // nomination gets marked Accepted and linked to the child it became,
+  // instead of sitting in Screening forever with no way forward.
+  const [registeringNomination, setRegisteringNomination] = useState<Nomination | null>(null)
   const [busy, setBusy] = useState(false)
   const [packageChild, setPackageChild] = useState<Child | null>(null)
   const [editLines, setEditLines] = useState<{ category: string; annual_amount_pkr: number }[]>([])
@@ -617,11 +623,38 @@ export default function KafalatPage() {
     await supabase.rpc('kafalat_default_package', {
       p_child_id: data.id, p_academic_year: currentAcademicYear(),
     })
+
+    if (registeringNomination) {
+      const { error: acceptErr } = await supabase.rpc('kafalat_accept_nomination', {
+        p_nomination_id: registeringNomination.id, p_child_id: data.id,
+      })
+      if (acceptErr) toast.error(`Child registered, but the nomination couldn't be marked Accepted: ${acceptErr.message}`)
+      setRegisteringNomination(null)
+    }
+
     setBusy(false)
     toast.success(t('kf.ok.added'))
     setShowForm(false)
     setForm(emptyChild)
     load()
+  }
+
+  // Pre-fills Add Child from a nomination's own submitted details, so the
+  // committee isn't retyping a name/guardian/address it already has on
+  // file. Date of birth is deliberately left blank rather than guessed
+  // from an approximate age — that's exactly the kind of thing screening
+  // in person is supposed to actually verify.
+  const openRegisterFromNomination = (n: Nomination) => {
+    setForm({
+      ...emptyChild,
+      first_name: n.child_name.split(' ')[0] || n.child_name,
+      full_name: n.child_name,
+      guardian_name: n.guardian_name || '',
+      gender: n.gender === 'female' ? 'female' : 'male',
+      address: n.address_hint || '',
+    })
+    setRegisteringNomination(n)
+    setShowForm(true)
   }
 
   const openPackage = (c: Child) => {
@@ -691,7 +724,7 @@ export default function KafalatPage() {
             <HelpCircle size={16} /> {t('kf.guide.toggle')}
             <ChevronDown size={14} className={`transition-transform ${showGuide ? 'rotate-180' : ''}`} />
           </button>
-          <button onClick={() => setShowForm(true)}
+          <button onClick={() => { setForm(emptyChild); setRegisteringNomination(null); setShowForm(true) }}
             className="flex items-center gap-1.5 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
             <UserPlus size={16} /> {t('kf.addChild')}
           </button>
@@ -914,6 +947,22 @@ export default function KafalatPage() {
                     {t('es.decline')}
                   </button>
                 </div>
+              ) : n.status === 'screening' ? (
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[11px] font-bold">{t(`kf.nstatus.${n.status}`)}</span>
+                  <button onClick={() => openRegisterFromNomination(n)}
+                    className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                    Register this Child
+                  </button>
+                  <button onClick={() => reviewNomination(n, 'declined')}
+                    className="px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-error transition-all cursor-pointer">
+                    {t('es.decline')}
+                  </button>
+                </div>
+              ) : n.status === 'accepted' && n.child_code ? (
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-bold shrink-0">
+                  {t('kf.nstatus.accepted')} → {n.child_code}
+                </span>
               ) : (
                 <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[11px] font-bold shrink-0">{t(`kf.nstatus.${n.status}`)}</span>
               )}
@@ -1213,12 +1262,20 @@ export default function KafalatPage() {
 
       {/* ── Add a child ─────────────────────────────────────────────────── */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => { setShowForm(false); setRegisteringNomination(null) }}>
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-heading text-[22px] font-bold text-dp-primary">{t('kf.addChild')}</h2>
-              <button onClick={() => setShowForm(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+              <button onClick={() => { setShowForm(false); setRegisteringNomination(null) }} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
+
+            {registeringNomination && (
+              <div className="bg-sky-50 border border-sky-200 rounded-lg px-4 py-3 mb-4">
+                <p className="font-sans text-[12.5px] font-bold text-sky-800">Registering from a nomination</p>
+                <p className="font-sans text-[12px] text-sky-800 mt-0.5 italic">&ldquo;{registeringNomination.reason}&rdquo;</p>
+                <p className="font-sans text-[11.5px] text-sky-700 mt-1">Saving will mark that nomination Accepted and link it to this child.</p>
+              </div>
+            )}
 
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
