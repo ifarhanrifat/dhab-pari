@@ -97,7 +97,12 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
   // A salary slip without payroll data would render an empty body — fall back
   // to the hero amount rather than printing a blank grid.
   const payroll = data.kind === 'salary' ? data.payroll : undefined
-  const body: 'itemized' | 'hero' | 'payroll' = payroll ? 'payroll' : isBill ? 'itemized' : 'hero'
+  // A bill is always itemized even with one line; anything else earns the
+  // itemized table only when it actually has real lineItems to show — a
+  // multi-category voucher (Kafalat's monthly payment, a water_supply
+  // multi-line expense) or a multi-item purchase, not every plain receipt.
+  const hasRealLineItems = !!data.lineItems && data.lineItems.length > 0
+  const body: 'itemized' | 'hero' | 'payroll' = payroll ? 'payroll' : (isBill || hasRealLineItems) ? 'itemized' : 'hero'
 
   const titleKey: DocStringKey = data.kind === 'salary' ? 'titleSalarySlip' : isBill ? 'titleBill' : isPurchase ? 'titlePaymentVoucher' : 'titleReceipt'
   const partyKey: DocStringKey = data.kind === 'salary' ? 'employee' : isPurchase ? 'paidTo' : isDonation ? 'donor' : isBill ? 'billedTo' : 'receivedFrom'

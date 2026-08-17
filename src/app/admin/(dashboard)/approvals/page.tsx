@@ -9,7 +9,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface ApprovalRequest {
-  id: string; system: string; kind: string; particular: string; amount_pkr: number
+  id: string; reference_id: string; system: string; kind: string; particular: string; amount_pkr: number
   created_at: string; deadline_at: string; status: string
 }
 interface MyConfirmation { id: string; approval_request_id: string; request: ApprovalRequest }
@@ -74,12 +74,14 @@ export default function ApprovalsPage() {
     setMine(myList)
     setAllPending(pendingRequests ?? [])
 
-    // approval_requests.reference_id points at the real voucher/purchase row,
-    // and (per the UNIQUE(kind, reference_id) constraint) is exactly the same
-    // as the request's own id for how we look them up here.
+    // approval_requests.reference_id points at the real voucher/purchase row --
+    // NOT the same as the request's own id (that's just this gate's own PK).
+    // Looking these queries up by r.id instead meant vouchers/purchases here
+    // never matched anything real, so the breakdown (and the from/to accounts,
+    // and the attached bill) silently never showed for any approval, ever.
     const allRequests = [...myList.map((m) => m.request), ...(pendingRequests ?? [])]
-    const voucherRequestIds = allRequests.filter((r) => r.kind === 'voucher').map((r) => r.id)
-    const purchaseRequestIds = allRequests.filter((r) => r.kind === 'purchase').map((r) => r.id)
+    const voucherRequestIds = allRequests.filter((r) => r.kind === 'voucher').map((r) => r.reference_id)
+    const purchaseRequestIds = allRequests.filter((r) => r.kind === 'purchase').map((r) => r.reference_id)
 
     if (voucherRequestIds.length > 0) {
       const { data } = await supabase.from('vouchers').select('id, voucher_type, from_account_id, to_account_id, party_name, attachment_url').in('id', voucherRequestIds)
@@ -180,10 +182,10 @@ export default function ApprovalsPage() {
           <div className="space-y-3">
             {mine.map((c) => {
               const r = c.request
-              const v = voucherDetails[r.id]
-              const lines = purchaseLines[r.id]
-              const vLines = voucherLines[r.id]
-              const attachmentUrl = r.kind === 'purchase' ? purchaseAttachments[r.id] : v?.attachment_url
+              const v = voucherDetails[r.reference_id]
+              const lines = purchaseLines[r.reference_id]
+              const vLines = voucherLines[r.reference_id]
+              const attachmentUrl = r.kind === 'purchase' ? purchaseAttachments[r.reference_id] : v?.attachment_url
               return (
                 <div key={c.id} className="bg-white rounded-lg border border-amber-300 overflow-hidden">
                   <div className="px-5 py-3.5 flex items-start justify-between gap-3 flex-wrap">
@@ -263,9 +265,9 @@ export default function ApprovalsPage() {
                   {otherPending.map((r) => {
                     const roster = rosterByRequest[r.id] ?? []
                     const waiting = roster.filter((a) => a.confirmed === null)
-                    const v = voucherDetails[r.id]
-                    const lines = purchaseLines[r.id]
-                    const vLines = voucherLines[r.id]
+                    const v = voucherDetails[r.reference_id]
+                    const lines = purchaseLines[r.reference_id]
+                    const vLines = voucherLines[r.reference_id]
                     const hasDetail = !!v || !!(lines && lines.length > 0)
                     const expanded = expandedId === r.id
                     return (
