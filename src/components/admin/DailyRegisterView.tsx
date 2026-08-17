@@ -7,7 +7,6 @@ import { ArrowLeft, Printer } from 'lucide-react'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import { entryTypeLabel } from '@/lib/ledgerLabels'
-import { fetchBrandingSettings } from '@/lib/branding'
 import { dt, type Lang } from '@/lib/docTranslations'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
@@ -31,19 +30,23 @@ interface DailyRegisterViewProps {
 // linked from within that workflow) and the standalone sidebar entry (/admin/register, with
 // its own system switcher) — same cash/bank running-balance ledger, two entry points.
 export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [from, setFrom] = useState(today())
   const [to, setTo] = useState(today())
   const [rows, setRows] = useState<Row[]>([])
   const [openingBalance, setOpeningBalance] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [lang, setLang] = useState<Lang>('en')
+  // An internal register, not a bill mailed to a villager — it follows
+  // whatever language the accountant is actually browsing the admin in,
+  // not the site's public-document branding default (which is Urdu, meant
+  // for water bills, and was leaking into this screen regardless of the
+  // admin's own language choice).
+  const lang: Lang = isUrdu ? 'ur' : 'en'
   const printRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
   const load = useCallback(async () => {
     setLoading(true)
-    fetchBrandingSettings().then((b) => setLang(b.language))
     const { data: cashBankAccounts } = await supabase
       .from('accounts').select('id, name, opening_balance').eq('system', system).in('type', ['cash', 'bank'])
     const accts = cashBankAccounts ?? []
@@ -75,13 +78,28 @@ export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) 
       voucherById = Object.fromEntries((vouchersData ?? []).map((v) => [v.id, { voucher_type: v.voucher_type, voucher_no: v.voucher_no }]))
     }
 
+    // Cash coming in through confirm_donation() posts with reference_type
+    // 'donation', not 'voucher' — the lookup above never covered it, so
+    // every donation-driven row here showed no number at all even though
+    // donors.voucher_no (DP-INC-V-xxxx) is assigned and real.
+    const donationIds = Array.from(new Set((rangeEntries ?? [])
+      .filter((e) => e.reference_type === 'donation' && e.reference_id)
+      .map((e) => e.reference_id as string)))
+    let donationVoucherNoById: Record<string, string | null> = {}
+    if (donationIds.length > 0) {
+      const { data: donationsData } = await supabase.from('donors').select('id, voucher_no').in('id', donationIds)
+      donationVoucherNoById = Object.fromEntries((donationsData ?? []).map((d) => [d.id, d.voucher_no]))
+    }
+
     let running = opening
     const withBalance: Row[] = (rangeEntries ?? []).map((e) => {
       running += Number(e.debit) - Number(e.credit)
       const v = e.reference_id ? voucherById[e.reference_id] : undefined
+      const donationVoucherNo = e.reference_id ? donationVoucherNoById[e.reference_id] : undefined
       return {
         id: e.id, entry_date: e.entry_date, particular: e.particular, bill_number: e.bill_number, receipt_no: e.receipt_no,
-        reference_type: e.reference_type, voucher_type: v?.voucher_type ?? null, voucher_no: v?.voucher_no ?? null,
+        reference_type: e.reference_type, voucher_type: v?.voucher_type ?? null,
+        voucher_no: v?.voucher_no ?? donationVoucherNo ?? null,
         account_name: accountsById[e.account_id] ?? '—', debit: Number(e.debit), credit: Number(e.credit), balance: running,
       }
     })
