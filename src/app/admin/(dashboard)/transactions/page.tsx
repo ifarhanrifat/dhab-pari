@@ -7,7 +7,7 @@ import { Search, FileText, Eye, Pencil, Trash2 } from 'lucide-react'
 import { billBadge, billBadgeClass, type BillBadgeTone } from '@/lib/billStatus'
 import { donationBadge } from '@/lib/donationStatus'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
-import { voucherTypeLabels, voucherReceiptKind } from '@/lib/ledgerLabels'
+import { voucherReceiptKind, entryTypeLabel } from '@/lib/ledgerLabels'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { donorReceiptTotals } from '@/lib/donorReceiptTotals'
@@ -61,7 +61,7 @@ const yearStart = (y: number) => `${y}-01-01`
 const yearEnd = (y: number) => `${y}-12-31`
 
 export default function AllTransactionsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const access = useSystemAccess()
   const [system, setSystem] = useState<SystemTab>('water_supply')
   const [systemOverride] = useState<SystemTab | null>(() => {
@@ -183,7 +183,7 @@ export default function AllTransactionsPage() {
       const docLabel = isSecurityDeposit
         ? (v.receipt_no ? `Receipt # ${v.receipt_no}` : 'Receipt')
         : (v.voucher_no ? `Voucher # ${v.voucher_no}` : 'Voucher')
-      const label = voucherTypeLabels[v.voucher_type] ?? v.voucher_type.replace(/_/g, ' ')
+      const label = entryTypeLabel('voucher', v.voucher_type, isUrdu ? 'ur' : 'en')
       result.push({
         id: `voucher-${v.id}`, kind: 'voucher', voucherType: v.voucher_type, isRecurring: !!v.recurring_schedule_id,
         borderColor: isSecurityDeposit ? 'border-cyan-500' : 'border-slate-400',

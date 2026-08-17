@@ -252,6 +252,13 @@ export const DOC_STRINGS = {
   typeInventory: { en: 'Inventory', ur: 'انوینٹری' },
   typeCollectorSettlement: { en: 'Collector Settlement', ur: 'کلکٹر تصفیہ' },
   typeVoucher: { en: 'Voucher', ur: 'واؤچر' },
+  typeKafalatPayment: { en: 'Kafalat Payment', ur: 'کفالت ادائیگی' },
+  typeWazifaPayment: { en: 'Wazifa Payment', ur: 'وظیفہ ادائیگی' },
+  typeWazifaRepayment: { en: 'Wazifa Repayment', ur: 'وظیفہ واپسی' },
+  typeWazifaContribution: { en: 'Wazifa Contribution', ur: 'وظیفہ حصہ' },
+  typeZakatDisbursement: { en: 'Zakat Disbursement', ur: 'زکوٰۃ ادائیگی' },
+  typeUshrDisbursement: { en: 'Ushr Disbursement', ur: 'عشر ادائیگی' },
+  typeEsalESawab: { en: 'Esal-e-Sawab', ur: 'ایصالِ ثواب' },
 
   // Running Capital
   runningCapital: { en: 'Running Capital', ur: 'چلتا سرمایہ' },

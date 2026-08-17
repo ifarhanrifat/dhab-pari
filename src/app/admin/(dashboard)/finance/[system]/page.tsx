@@ -19,7 +19,7 @@ import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { billBadge, billBadgeClass, type BillBadgeTone } from '@/lib/billStatus'
 import { donationBadge } from '@/lib/donationStatus'
 import { QuickAddAccountModal, type NewAccount } from '@/components/admin/QuickAddAccountModal'
-import { voucherTypeLabels as sharedVoucherTypeLabels, voucherReceiptKind } from '@/lib/ledgerLabels'
+import { voucherReceiptKind, entryTypeLabel } from '@/lib/ledgerLabels'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { fetchPeriodLockRule, periodIsLocked, dateIsLocked, DEFAULT_PERIOD_LOCK, type PeriodLockRule } from '@/lib/periodLock'
 import { renderTemplate } from '@/lib/messageTemplates'
@@ -158,7 +158,7 @@ export default function TransactionsWorkspace({ params }: { params: Promise<{ sy
 }
 
 function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: string }> }) {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { system: rawSystem } = usePromise(params)
   const system = (rawSystem === 'donors_projects' ? 'donors_projects' : 'water_supply') as SystemTab
   const searchParams = useSearchParams()
@@ -391,7 +391,11 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       // which isn't one of the 5 types in voucherConfig — fall back to a formatted
       // label instead of the raw snake_case value.
       const cfg = voucherConfig[v.voucher_type as VoucherType] as (typeof voucherConfig)[VoucherType] | undefined
-      const fallbackLabel = sharedVoucherTypeLabels[v.voucher_type] ?? v.voucher_type.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+      // entryTypeLabel() knows the real Urdu name for every voucher type this
+      // page can show — voucherConfig.label (used below only as a party-name
+      // placeholder) stays English-only, it's shared with the create-voucher
+      // form, out of scope here.
+      const fallbackLabel = entryTypeLabel('voucher', v.voucher_type, isUrdu ? 'ur' : 'en')
       // A security deposit is cash actually received — it should read as a Receipt
       // (same numbering as a bill payment), not its own separate internal voucher
       // series. The voucher_no still exists in the database for internal reference,
@@ -402,7 +406,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         : (v.voucher_no ? `Voucher # ${v.voucher_no}` : 'Voucher')
       cards.push({
         id: `voucher-${v.id}`, kind: 'voucher', borderColor: isSecurityDeposit ? 'border-cyan-500' : 'border-slate-400', isRecurring: !!v.recurring_schedule_id,
-        typeLabel: cfg?.label ?? fallbackLabel,
+        typeLabel: fallbackLabel,
         partyName: v.party_name || cfg?.label || fallbackLabel,
         docLabel,
         date: v.voucher_date, description: v.particular, amount: v.amount_pkr,

@@ -35,15 +35,21 @@ export const referenceTypeLabels: Record<string, string> = {
   collector_settlement: 'Collector Settlement',
 }
 
-// lang defaults to 'en' for admin-dashboard callers (out of scope for
-// translation); the printable Daily Register / Account Statement pass the
-// real display_language explicitly.
+// lang defaults to 'en'; callers that know the admin's actual chosen
+// language (Recent Transactions, All Transactions) now pass it explicitly
+// (isUrdu from useLocale()) instead of always rendering English regardless
+// of locale — that mismatch, sitting next to properly-translated labels
+// elsewhere on the same page, was the "some English, some Urdu" report.
 const voucherTypeDocKeys: Record<string, DocStringKey> = {
   expense: 'typeExpense', income: 'typeIncome', contra: 'typeBankTransfer',
   withdrawal: 'typeCashWithdrawal', deposit: 'typeCashDeposit',
   security_deposit: 'typeSecurityDeposit', security_deposit_refund: 'typeSecurityDepositRefund',
   advance: 'typeAdvancePayment', advance_settlement: 'typeExpense',
   complaint_waiver: 'typeComplaintWaiver', project_transfer: 'typeProjectTransfer',
+  kafalat_payment: 'typeKafalatPayment', wazifa_payment: 'typeWazifaPayment',
+  wazifa_repayment: 'typeWazifaRepayment', wazifa_contribution: 'typeWazifaContribution',
+  zakat_disbursement: 'typeZakatDisbursement', ushr_disbursement: 'typeUshrDisbursement',
+  esal_e_sawab: 'typeEsalESawab',
 }
 const referenceTypeDocKeys: Record<string, DocStringKey> = {
   bill: 'typeBill', payment: 'typeReceipt', donation: 'typeDonation',
