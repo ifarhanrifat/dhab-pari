@@ -176,6 +176,22 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
     }
     if (consumerInfo) phone = consumerInfo.mobile
 
+    // A multi-category voucher (Kafalat's monthly payment, a water_supply
+    // multi-line expense) posts through voucher_line_items -- without this
+    // the statement's own receipt view showed the same bare lump total the
+    // Transactions Workspace's did before that got the same fix.
+    let lineItems: { description: string; quantity: number; unitPrice: number }[] | undefined
+    if (row.reference_type === 'voucher' && row.reference_id) {
+      const { data: items } = await supabase.from('voucher_line_items')
+        .select('description, category, amount').eq('voucher_id', row.reference_id)
+      if (items && items.length > 0) {
+        lineItems = items.map((l) => ({
+          description: l.description || (l.category ? l.category.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Item'),
+          quantity: 1, unitPrice: Number(l.amount),
+        }))
+      }
+    }
+
     // What this donation was earmarked for — a project, or, for Kafalat/
     // Wazifa/Sadqa giving (which has no project of its own), the pool it
     // fed and who it was named for. Left unset only for genuinely
@@ -227,6 +243,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
       balanceAfter: row.balance,
       billOutstandingAfter,
       projectName,
+      lineItems,
     })
     void phone
   }
