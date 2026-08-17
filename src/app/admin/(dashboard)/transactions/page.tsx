@@ -279,11 +279,26 @@ export default function AllTransactionsPage() {
         particular: r.description, amount: r.amount, balanceAfter: 0,
       })
     } else if (r.kind === 'voucher' && r.voucherId) {
+      // A multi-category voucher (Kafalat's monthly payment, a water_supply
+      // multi-line expense) posts through voucher_line_items -- this is the
+      // third, independent place a voucher's receipt gets built (the
+      // Transactions Workspace and the account statement page each had
+      // their own copy of this same gap) and it never had the breakdown
+      // wired in either.
+      const { data: items } = await supabase.from('voucher_line_items')
+        .select('description, category, amount').eq('voucher_id', r.voucherId)
+      const lineItems = items && items.length > 0
+        ? items.map((l) => ({
+            description: l.description || (l.category ? l.category.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Item'),
+            quantity: 1, unitPrice: Number(l.amount),
+          }))
+        : undefined
       setViewReceipt({
         kind: voucherReceiptKind[r.voucherType ?? ''] ?? 'manual',
         receiptNo: r.receiptNo ?? r.docLabel.replace(/^(Voucher # |Receipt # )/, '') ?? r.voucherId.slice(0, 8).toUpperCase(),
         date: r.date, systemLabel: systemLabels[system], accountName: r.partyName,
         particular: r.description, amount: r.amount, balanceAfter: 0,
+        lineItems,
       })
     } else if (r.kind === 'purchase' && r.purchaseId) {
       setViewReceipt({
