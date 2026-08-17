@@ -345,12 +345,21 @@ export default function KafalatPage() {
   // filtered, just never fetched until someone happened to open this tab.
   useEffect(() => { loadCollections() }, [loadCollections])
 
-  const confirmAnnouncement = async (id: string) => {
+  const confirmAnnouncement = async (a: Announcement) => {
+    // What actually arrived, not just a rubber stamp on what was announced —
+    // a donor who pledges 10,000 and sends 9,000 needs that gap recorded,
+    // not silently rounded up to the pledge.
+    const entered = prompt(t('pool.confirmAmountPrompt').replace('{amt}', fmt(a.amount)), String(a.amount))
+    if (entered === null) return
+    const confirmedAmount = Number(entered)
+    if (!confirmedAmount || confirmedAmount <= 0) { toast.error(t('pool.confirmAmountInvalid')); return }
     setBusy(true)
-    const { error } = await supabase.rpc('pool_confirm_payment', { p_payment_id: id })
+    const { error } = await supabase.rpc('pool_confirm_payment', {
+      p_payment_id: a.id, p_confirmed_amount: confirmedAmount !== a.amount ? confirmedAmount : null,
+    })
     setBusy(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('pool.ok.confirmed'))
+    toast.success(confirmedAmount < a.amount ? t('pool.ok.confirmedPartial').replace('{amt}', fmt(confirmedAmount)) : t('pool.ok.confirmed'))
     loadCollections()
   }
 
@@ -1260,7 +1269,7 @@ export default function KafalatPage() {
                           {viewingProofId === a.id ? '...' : t('pool.viewProof')}
                         </button>
                       )}
-                      <button onClick={() => confirmAnnouncement(a.id)} disabled={busy}
+                      <button onClick={() => confirmAnnouncement(a)} disabled={busy}
                         className="bg-dp-secondary text-white font-sans text-[12px] font-bold px-3 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer">
                         {t('pool.confirmThis')}
                       </button>

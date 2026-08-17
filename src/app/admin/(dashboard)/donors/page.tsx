@@ -2,7 +2,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, CheckCircle, XCircle, ShieldCheck, Image as ImageIcon, Search, Clock, Paperclip } from 'lucide-react'
+import { PlusCircle, X, CheckCircle, XCircle, ShieldCheck, Image as ImageIcon, Search, Clock, Paperclip, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { BulkActionsBar } from '@/components/admin/BulkActionsBar'
@@ -22,6 +22,7 @@ interface Donor {
   project_id: string | null; payment_proof_url: string | null; submitted_via: string; voucher_no: string | null
   payment_status: string | null
   recurring_schedule_id: string | null
+  announced_amount_pkr: number
   confirmed_at: string | null
   fund_type: string | null
   payment_batch_id: string | null
@@ -321,8 +322,12 @@ function AdminDonorsPageInner() {
     window.open(`https://wa.me/${intl}?text=${encodeURIComponent(thankYouMessage)}`, '_blank')
   }
 
-  const donorStatus = (d: Donor): 'received' | 'announced' | 'awaiting' =>
-    d.is_verified ? 'received' : d.payment_status === 'pledged' ? 'announced' : 'awaiting'
+  // A donor who pledges 10,000 and sends 9,000 is neither an unrelated new
+  // number nor a full 'received' — announced_amount_pkr is the pledge,
+  // frozen at announce time; amount_pkr is what was actually confirmed.
+  const donorStatus = (d: Donor): 'received' | 'partial' | 'announced' | 'awaiting' =>
+    d.is_verified ? (d.amount_pkr < d.announced_amount_pkr ? 'partial' : 'received')
+    : d.payment_status === 'pledged' ? 'announced' : 'awaiting'
 
   const pendingCount = useMemo(() => donors.filter((d) => !d.is_verified).length, [donors])
   const awaitingCount = useMemo(() => donors.filter((d) => donorStatus(d) === 'awaiting').length, [donors])
@@ -331,7 +336,7 @@ function AdminDonorsPageInner() {
   // so the box at the top matches what someone is actually looking at.
   const visibleDonors = useMemo(() => {
     const q = donorSearch.trim().toLowerCase()
-    const statusRank = { announced: 0, awaiting: 1, received: 2 }
+    const statusRank = { announced: 0, awaiting: 1, partial: 2, received: 3 }
     const filtered = q
       ? donors.filter((d) => [
           d.name, d.is_anonymous ? 'anonymous' : '', d.recurring_schedule_id ? 'recurring' : '', d.phone ?? '', d.name_ur ?? '',
@@ -472,6 +477,7 @@ function AdminDonorsPageInner() {
                   </td>
                   <td className="p-4 border-b border-dp-outline-variant">
                     {donorStatus(d) === 'received' && <span className="inline-flex items-center gap-1 text-dp-secondary text-[12px] font-bold"><CheckCircle size={14} /> {t('dn.received')}</span>}
+                    {donorStatus(d) === 'partial' && <span className="inline-flex items-center gap-1 text-orange-700 text-[12px] font-bold" title={t('dn.partialTooltip').replace('{amt}', `Rs ${(d.announced_amount_pkr - d.amount_pkr).toLocaleString()}`)}><AlertTriangle size={14} /> {t('dn.partial')}</span>}
                     {donorStatus(d) === 'announced' && <span className="inline-flex items-center gap-1 text-amber-700 text-[12px] font-bold" title="Donor has promised this — no money sent yet"><XCircle size={14} /> {t('dn.announced')}</span>}
                     {donorStatus(d) === 'awaiting' && <span className="inline-flex items-center gap-1 text-dp-on-surface-variant text-[12px] font-bold" title="Donor has paid — waiting on the committee to confirm"><Clock size={14} /> {t('dn.awaiting')}</span>}
                   </td>

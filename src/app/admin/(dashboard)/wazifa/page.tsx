@@ -246,12 +246,18 @@ export default function WazifaPage() {
   // after you've already opened the tab is not a useful badge.
   useEffect(() => { loadCollections() }, [loadCollections])
 
-  const confirmCollAnnouncement = async (id: string) => {
+  const confirmCollAnnouncement = async (a: { id: string; amount: number }) => {
+    const entered = prompt(t('pool.confirmAmountPrompt').replace('{amt}', fmt(a.amount)), String(a.amount))
+    if (entered === null) return
+    const confirmedAmount = Number(entered)
+    if (!confirmedAmount || confirmedAmount <= 0) { toast.error(t('pool.confirmAmountInvalid')); return }
     setBusy(true)
-    const { error } = await supabase.rpc('pool_confirm_payment', { p_payment_id: id })
+    const { error } = await supabase.rpc('pool_confirm_payment', {
+      p_payment_id: a.id, p_confirmed_amount: confirmedAmount !== a.amount ? confirmedAmount : null,
+    })
     setBusy(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('pool.ok.confirmed'))
+    toast.success(confirmedAmount < a.amount ? t('pool.ok.confirmedPartial').replace('{amt}', fmt(confirmedAmount)) : t('pool.ok.confirmed'))
     loadCollections()
   }
 
@@ -912,7 +918,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'interview', 
                           {viewingProofId === a.id ? '...' : t('pool.viewProof')}
                         </button>
                       )}
-                      <button onClick={() => confirmCollAnnouncement(a.id)} disabled={busy}
+                      <button onClick={() => confirmCollAnnouncement(a)} disabled={busy}
                         className="bg-dp-secondary text-white font-sans text-[12px] font-bold px-3 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer">
                         {t('pool.confirmThis')}
                       </button>

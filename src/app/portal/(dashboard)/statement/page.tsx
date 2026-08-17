@@ -13,7 +13,11 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface LedgerRow { id: string; entry_date: string; particular: string; debit: number; credit: number }
 interface AccountInfo { donor_account_no: string | null; opening_balance: number }
-interface DonationRow { id: string; amount_pkr: number; date: string; payment_status: string; is_verified: boolean; project_id: string | null }
+interface DonationRow { id: string; amount_pkr: number; date: string; payment_status: string; is_verified: boolean; project_id: string | null; announced_amount_pkr: number }
+// A confirmed Kafalat/Wazifa/Sadqa payment — announced_amount_pkr is what
+// was pledged, frozen the moment it was announced; amount_pkr is what the
+// committee actually confirmed, which can be less.
+interface PoolReceipt { id: string; pool: string; pool_ur: string | null; particular: string; amount_pkr: number; announced_amount_pkr: number; confirmed_at: string }
 // A Kafalat/Wazifa/Sadqa announcement, read the same way a project pledge
 // is — one "Pay Now" flow for every fund, with its own label attached.
 interface PoolPending { id: string; source: 'pool'; amount_pkr: number; date: string; has_proof: boolean; particular: string }
@@ -45,6 +49,7 @@ function PortalStatementInner() {
   const [rows, setRows] = useState<LedgerRow[]>([])
   const [donations, setDonations] = useState<DonationRow[]>([])
   const [poolPending, setPoolPending] = useState<PoolPending[]>([])
+  const [poolReceipts, setPoolReceipts] = useState<PoolReceipt[]>([])
   const [loading, setLoading] = useState(true)
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -61,17 +66,19 @@ function PortalStatementInner() {
   const load = async () => {
     if (!user) return
     const supabase = createClient()
-    const [donationsRes, acctRes, ledgerRes, poolRes] = await Promise.all([
-      supabase.from('donors').select('id, amount_pkr, date, payment_status, is_verified, project_id').eq('portal_user_id', user.id).order('date', { ascending: false }),
+    const [donationsRes, acctRes, ledgerRes, poolRes, poolReceiptsRes] = await Promise.all([
+      supabase.from('donors').select('id, amount_pkr, date, payment_status, is_verified, project_id, announced_amount_pkr').eq('portal_user_id', user.id).order('date', { ascending: false }),
       user.donor_account_id ? supabase.from('accounts').select('donor_account_no, opening_balance').eq('id', user.donor_account_id).single() : Promise.resolve({ data: null }),
       user.donor_account_id ? supabase.from('ledger_entries').select('id, entry_date, particular, debit, credit').eq('account_id', user.donor_account_id)
         .order('entry_date', { ascending: true }).order('created_at', { ascending: true }) : Promise.resolve({ data: [] }),
       supabase.rpc('my_pool_pending_payments'),
+      supabase.rpc('my_recent_pool_receipts'),
     ])
     setDonations(donationsRes.data ?? [])
     setAccount(acctRes.data ?? null)
     setRows((ledgerRes.data as LedgerRow[]) ?? [])
     setPoolPending((poolRes.data ?? []) as PoolPending[])
+    setPoolReceipts((poolReceiptsRes.data ?? []) as PoolReceipt[])
     setLoading(false)
   }
   useEffect(() => { load() }, [user])
@@ -85,6 +92,12 @@ function PortalStatementInner() {
   const awaiting = donations.filter((d) => d.payment_status !== 'pledged' && !d.is_verified)
   const poolNeedsPay = poolPending.filter((p) => !p.has_proof)
   const poolAwaiting = poolPending.filter((p) => p.has_proof)
+
+  // Confirmed, but for less than what was pledged — announced_amount_pkr is
+  // frozen at announce/pledge time, so a shortfall stays visible here
+  // instead of a single ambiguous "confirmed" number quietly covering it up.
+  const partialDonations = donations.filter((d) => d.is_verified && d.amount_pkr < d.announced_amount_pkr)
+  const partialPoolReceipts = poolReceipts.filter((p) => p.amount_pkr < p.announced_amount_pkr)
 
   const pendingItems: PendingItem[] = [
     ...pledges.map((p): PendingItem => ({ key: `donor:${p.id}`, kind: 'donor', id: p.id, amount: p.amount_pkr, label: 'General giving', date: p.date })),
@@ -183,6 +196,31 @@ function PortalStatementInner() {
               {t('p.payNow')}
             </button>
           </div>
+        </div>
+      )}
+
+      {(partialDonations.length > 0 || partialPoolReceipts.length > 0) && (
+        <div className="bg-white rounded-lg border border-orange-200 overflow-hidden mb-6">
+          <div className="px-5 py-3 border-b border-orange-200 bg-orange-50">
+            <span className="font-sans text-[14px] font-bold text-orange-800">{t('p.partialReceived')}</span>
+            <p className="font-sans text-[12px] text-orange-800 mt-0.5">{t('p.partialReceivedBlurb')}</p>
+          </div>
+          {partialDonations.map((d) => (
+            <div key={`d-${d.id}`} className="px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0">
+              <p className="font-sans text-[13.5px] text-dp-on-surface">
+                <span className="font-bold text-dp-secondary">Rs. {fmt(d.amount_pkr)}</span> {t('p.receivedOf')} <span className="font-bold">Rs. {fmt(d.announced_amount_pkr)}</span> {t('p.pledgedWord')}
+              </p>
+              <p className="font-sans text-[12px] text-orange-700 mt-0.5">{t('p.stillOwed').replace('{amt}', fmt(d.announced_amount_pkr - d.amount_pkr))}</p>
+            </div>
+          ))}
+          {partialPoolReceipts.map((p) => (
+            <div key={`p-${p.id}`} className="px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0">
+              <p className="font-sans text-[13.5px] text-dp-on-surface">
+                <span className="font-bold text-dp-secondary">Rs. {fmt(p.amount_pkr)}</span> {t('p.receivedOf')} <span className="font-bold">Rs. {fmt(p.announced_amount_pkr)}</span> {t('p.pledgedWord')} — {p.particular}
+              </p>
+              <p className="font-sans text-[12px] text-orange-700 mt-0.5">{t('p.stillOwed').replace('{amt}', fmt(p.announced_amount_pkr - p.amount_pkr))}</p>
+            </div>
+          ))}
         </div>
       )}
 
