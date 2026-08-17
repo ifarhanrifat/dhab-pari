@@ -508,16 +508,42 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [system, consumers.length, defaultTemplateItems.length])
 
-  // Deep link from All Transactions, whose Edit button hands the record back to
-  // the page that owns its edit form rather than keeping a second copy of it.
-  // Waits for cards to load, since the edit modal is populated from the card.
+  // Bills with cash already received can't be deleted (the DB itself refuses) — check
+  // for payments up front and name every receipt blocking it, rather than surfacing a
+  // generic "N payment(s) recorded" error after the fact.
+  const attemptDeleteBill = async (billId: string) => {
+    const { data: pays } = await supabase.from('payments').select('receipt_no').eq('bill_id', billId).order('created_at')
+    if (pays && pays.length > 0) {
+      const { data: billRow } = await supabase.from('bills').select('bill_number').eq('id', billId).single()
+      setBillDeleteBlock({ billNumber: billRow?.bill_number ?? null, receipts: pays.map((p) => p.receipt_no).filter(Boolean) as string[] })
+      return
+    }
+    setConfirmDeleteBillId(billId)
+  }
+
+  // Deep link from All Transactions, whose Edit/Delete buttons hand the
+  // record back to the page that owns its form/rules rather than keeping a
+  // second copy of either. Waits for cards to load, since the edit modal is
+  // populated from the card.
   useEffect(() => {
     const voucherParam = searchParams.get('edit_voucher')
     if (voucherParam) { openEditVoucher(voucherParam); return }
     const paymentParam = searchParams.get('edit_payment')
-    if (!paymentParam || txnCards.length === 0) return
-    const card = txnCards.find((c) => c.paymentId === paymentParam)
-    if (card) openEditPayment(card)
+    if (paymentParam && txnCards.length > 0) {
+      const card = txnCards.find((c) => c.paymentId === paymentParam)
+      if (card) openEditPayment(card)
+    }
+    // Delete goes through the exact same functions/state a click here
+    // always has — attemptDeleteBill's payments-must-go-first check included,
+    // not a second copy of that rule.
+    const deleteVoucherParam = searchParams.get('delete_voucher')
+    if (deleteVoucherParam) setConfirmDeleteVoucherId(deleteVoucherParam)
+    const deletePaymentParam = searchParams.get('delete_payment')
+    if (deletePaymentParam) setConfirmDeletePaymentId(deletePaymentParam)
+    const deleteBillParam = searchParams.get('delete_bill')
+    if (deleteBillParam) attemptDeleteBill(deleteBillParam)
+    const deleteDonationParam = searchParams.get('delete_donation')
+    if (deleteDonationParam) setConfirmDeleteDonationId(deleteDonationParam)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, txnCards.length])
 
@@ -1497,19 +1523,6 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     load()
   }
 
-  // Bills with cash already received can't be deleted (the DB itself refuses) — check
-  // for payments up front and name every receipt blocking it, rather than surfacing a
-  // generic "N payment(s) recorded" error after the fact.
-  const attemptDeleteBill = async (billId: string) => {
-    const { data: pays } = await supabase.from('payments').select('receipt_no').eq('bill_id', billId).order('created_at')
-    if (pays && pays.length > 0) {
-      const { data: billRow } = await supabase.from('bills').select('bill_number').eq('id', billId).single()
-      setBillDeleteBlock({ billNumber: billRow?.bill_number ?? null, receipts: pays.map((p) => p.receipt_no).filter(Boolean) as string[] })
-      return
-    }
-    setConfirmDeleteBillId(billId)
-  }
-
   const deleteBill = async () => {
     if (!confirmDeleteBillId) return
     const { error } = await supabase.from('bills').delete().eq('id', confirmDeleteBillId)
@@ -2474,6 +2487,13 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         {c.kind === 'payment' && (
                           <>
                             <button onClick={() => openPaymentReceipt(c)} title="View receipt" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><FileText size={15} /></button>
+                            {/* Which bill this payment was actually against —
+                                dropped when the receipt/View pair above was
+                                added, brought back here instead of only on
+                                All Transactions. */}
+                            {c.billId && (
+                              <Link href={`/admin/invoice/bill/${c.billId}`} title="View bill" className="inline-block p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Receipt size={15} /></Link>
+                            )}
                             <button onClick={() => openEditPayment(c)} title="Edit payment" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></button>
                             <button onClick={() => setConfirmDeletePaymentId(c.paymentId!)} title="Delete payment" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
                           </>

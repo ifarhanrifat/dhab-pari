@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Search, FileText, Eye } from 'lucide-react'
+import { Search, FileText, Eye, Pencil, Trash2 } from 'lucide-react'
 import { billBadge, billBadgeClass, type BillBadgeTone } from '@/lib/billStatus'
 import { donationBadge } from '@/lib/donationStatus'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
@@ -12,6 +12,7 @@ import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { donorReceiptTotals } from '@/lib/donorReceiptTotals'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { fetchPeriodLockRule, dateIsLocked, DEFAULT_PERIOD_LOCK, type PeriodLockRule } from '@/lib/periodLock'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 
@@ -43,6 +44,10 @@ interface TxnRow {
   autoPosted?: boolean
   fullyApproved?: boolean
   createdAt: string
+  // A multi-category voucher (Kafalat's monthly payment, a water_supply
+  // multi-line expense) -- edit_voucher() refuses to touch these (migration
+  // 175), so Edit is hidden rather than offered and rejected.
+  hasLineItems?: boolean
 }
 
 const systemLabels: Record<SystemTab, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects System' }
@@ -79,7 +84,10 @@ export default function AllTransactionsPage() {
   const [rows, setRows] = useState<TxnRow[]>([])
   const [viewReceipt, setViewReceipt] = useState<ReceiptData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [lockRule, setLockRule] = useState<PeriodLockRule>(DEFAULT_PERIOD_LOCK)
   const supabase = createClient()
+
+  useEffect(() => { fetchPeriodLockRule(supabase).then(setLockRule) }, [supabase])
 
   const applyYear = (y: string) => {
     if (!y) return
@@ -129,6 +137,11 @@ export default function AllTransactionsPage() {
     const depositReceiptByVoucherId = Object.fromEntries(
       (vouchersRes.data ?? []).filter((v) => v.voucher_type === 'security_deposit').map((v) => [v.id, v.receipt_no])
     )
+    const voucherIdsForLines = (vouchersRes.data ?? []).map((v) => v.id)
+    const { data: lineRows } = voucherIdsForLines.length > 0
+      ? await supabase.from('voucher_line_items').select('voucher_id').in('voucher_id', voucherIdsForLines)
+      : { data: [] as { voucher_id: string }[] }
+    const voucherIdsWithLines = new Set((lineRows ?? []).map((l) => l.voucher_id))
     const result: TxnRow[] = []
 
     for (const b of billsRes.data ?? []) {
@@ -177,6 +190,7 @@ export default function AllTransactionsPage() {
         typeLabel: label, partyName: v.party_name || label, docLabel,
         date: v.voucher_date, description: v.particular, amount: v.amount_pkr,
         badge: null, note: null, voucherId: v.id, receiptNo: v.receipt_no, autoPosted: autoPostedIds.has(v.id), fullyApproved: fullyApprovedIds.has(v.id), createdAt: v.created_at,
+        hasLineItems: voucherIdsWithLines.has(v.id),
         searchBlob: `${v.party_name ?? ''} ${label} ${v.voucher_no ?? ''} ${v.receipt_no ?? ''} ${v.particular ?? ''}`.toLowerCase(),
       })
     }
@@ -449,12 +463,12 @@ export default function AllTransactionsPage() {
                     )}
                   </div>
                 </div>
-                {/* Editing and deleting are deliberately absent. This is the
-                    register — the record of what happened — and a screen that
-                    lists every document is the wrong place to change one. Each
-                    document is edited on the screen that owns it, where its
-                    own rules (a paid bill is locked, a closed month is locked)
-                    are enforced and visible. */}
+                {/* Edit/Delete hand the record back to the screen that owns
+                    its form and its rules — a bill's Delete still goes
+                    through attemptDeleteBill's own payments-must-go-first
+                    check, a closed month still shows nothing here rather
+                    than a control that would fail — instead of keeping a
+                    second copy of any of that logic on this list. */}
                 {(r.billId || r.kind === 'payment' || r.kind === 'voucher' || r.kind === 'purchase' || r.kind === 'donation') && (
                   <div className="flex justify-end items-center gap-1 mt-2 pt-2 border-t border-dp-outline-variant/60">
                     {r.billId && (
@@ -463,7 +477,35 @@ export default function AllTransactionsPage() {
                     {(r.kind === 'payment' || r.kind === 'voucher' || r.kind === 'purchase' || r.kind === 'donation') && (
                       <button onClick={() => openRowReceipt(r)} title="View receipt" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Eye size={15} /></button>
                     )}
-
+                    {!dateIsLocked(r.date, lockRule) && (
+                      <>
+                        {r.kind === 'bill' && r.billId && (
+                          <>
+                            <Link href={`/admin/finance/${system}?action=generate_bill&bill=${r.billId}`} title="Edit bill" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
+                            <Link href={`/admin/finance/${system}?delete_bill=${r.billId}`} title="Delete bill" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></Link>
+                          </>
+                        )}
+                        {r.kind === 'payment' && r.paymentId && (
+                          <>
+                            <Link href={`/admin/finance/${system}?edit_payment=${r.paymentId}`} title="Edit payment" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
+                            <Link href={`/admin/finance/${system}?delete_payment=${r.paymentId}`} title="Delete payment" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></Link>
+                          </>
+                        )}
+                        {r.kind === 'voucher' && r.voucherId && (
+                          <>
+                            {r.hasLineItems ? (
+                              <span title="This voucher has itemised lines — edit isn't available here; correct it with a reversal instead" className="p-1.5 text-dp-on-surface-variant/40 cursor-not-allowed"><Pencil size={15} /></span>
+                            ) : (
+                              <Link href={`/admin/finance/${system}?edit_voucher=${r.voucherId}`} title="Edit voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
+                            )}
+                            <Link href={`/admin/finance/${system}?delete_voucher=${r.voucherId}`} title="Delete voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></Link>
+                          </>
+                        )}
+                        {r.kind === 'donation' && r.donationId && (
+                          <Link href={`/admin/donors?edit=${r.donationId}`} title={r.donationVerified ? 'Edit donation' : 'Review & confirm'} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
+                        )}
+                      </>
+                    )}
                   </div>
                 )}
               </div>
