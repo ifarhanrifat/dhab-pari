@@ -111,6 +111,32 @@ interface FeeQueueItem {
   category: string; description: string | null; budgeted: number; paid_so_far: number
 }
 
+// kafalat_child_payment_form_data() — everything one child could owe right
+// now, across the three tables above, in one call.
+interface MonthlyFormData {
+  fee_items: { line_id: string; category: string; description: string | null; budgeted: number; paid_so_far: number; covered_until: string | null }[]
+  disbursements_due: { id: string; category: string; month: string; amount: number }[]
+  uniform_due: { id: string; issue_no: number; academic_year: string; amount: number }[]
+}
+interface MonthlyItemEntry {
+  kind: 'fee' | 'disbursement' | 'uniform'
+  ref_id: string
+  category: string
+  label: string
+  selected: boolean
+  amount: number
+  months_covered: number
+  attachment_url: string
+  paid_to: string
+  note: string
+}
+interface MonthlyOtherEntry {
+  description: string
+  amount: number
+  attachment_url: string
+  paid_to: string
+}
+
 interface Nomination {
   id: string; child_name: string; guardian_name: string | null
   approximate_age: number | null; gender: string | null
@@ -120,7 +146,7 @@ interface Nomination {
 }
 
 const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
-const CATEGORIES = ['school_fee', 'uniform', 'books', 'transport', 'pocket_money', 'medical', 'exam_fee', 'tuition', 'other'] as const
+const CATEGORIES = ['school_fee', 'uniform', 'books', 'stationery', 'transport', 'pocket_money', 'medical', 'exam_fee', 'tuition', 'other'] as const
 const currentAcademicYear = () => {
   // The Punjab school year runs April to March, so a date in January still
   // belongs to the session that started last April.
@@ -180,6 +206,19 @@ export default function KafalatPage() {
   const [feeQueue, setFeeQueue] = useState<FeeQueueItem[]>([])
   const [payingFee, setPayingFee] = useState<FeeQueueItem | null>(null)
   const [feeForm, setFeeForm] = useState({ amount: 0, method: 'cash', paid_to: '', signed_by: '', proof_url: '', note: '' })
+
+  // ── One child, one form, one combined voucher — everything due this
+  // month picked in a single sitting instead of paid one category at a
+  // time. Reuses the same underlying fee/disbursement/uniform tables the
+  // per-item flows above already write to (kafalat_record_monthly_payment),
+  // so the queues here and on the Operations tab never disagree about
+  // what's still owed.
+  const [monthlyChild, setMonthlyChild] = useState<Child | null>(null)
+  const [monthlyData, setMonthlyData] = useState<MonthlyFormData | null>(null)
+  const [monthlyMethod, setMonthlyMethod] = useState('cash')
+  const [monthlyItems, setMonthlyItems] = useState<MonthlyItemEntry[]>([])
+  const [monthlyOthers, setMonthlyOthers] = useState<MonthlyOtherEntry[]>([])
+  const [monthlyBusy, setMonthlyBusy] = useState(false)
 
   const [printingChild, setPrintingChild] = useState<Child | null>(null)
   const [dueList, setDueList] = useState<ReverificationDue[]>([])
@@ -374,6 +413,80 @@ export default function KafalatPage() {
     toast.success(t('kf.ok.feePaid').replace('{v}', r.voucher_no))
     setPayingFee(null)
     loadOperations()
+  }
+
+  const openMonthlyPayment = async (c: Child) => {
+    setMonthlyChild(c)
+    setMonthlyData(null)
+    setMonthlyMethod('cash')
+    setMonthlyOthers([])
+    setMonthlyItems([])
+    const { data, error } = await supabase.rpc('kafalat_child_payment_form_data', { p_child_id: c.id })
+    if (error) { toast.error(friendlyError(error)); setMonthlyChild(null); return }
+    const d = data as MonthlyFormData
+    setMonthlyData(d)
+    setMonthlyItems([
+      ...d.fee_items.map((f): MonthlyItemEntry => ({
+        kind: 'fee', ref_id: f.line_id, category: f.category,
+        label: `${t(`kf.cat.${f.category}`)}${f.description ? ' — ' + f.description : ''}`,
+        selected: false, amount: Math.max(f.budgeted - f.paid_so_far, 0) || f.budgeted,
+        months_covered: 1, attachment_url: '', paid_to: '', note: '',
+      })),
+      ...d.disbursements_due.map((x): MonthlyItemEntry => ({
+        kind: 'disbursement', ref_id: x.id, category: x.category,
+        label: `${t(`kf.cat.${x.category}`)} — ${new Date(x.month).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}`,
+        selected: false, amount: x.amount, months_covered: 1, attachment_url: '', paid_to: '', note: '',
+      })),
+      ...d.uniform_due.map((x): MonthlyItemEntry => ({
+        kind: 'uniform', ref_id: x.id, category: 'uniform',
+        label: `${t('kf.cat.uniform')} ${x.issue_no}/2, ${x.academic_year}`,
+        selected: false, amount: x.amount, months_covered: 1, attachment_url: '', paid_to: '', note: '',
+      })),
+    ])
+  }
+
+  const updateMonthlyItem = (idx: number, patch: Partial<MonthlyItemEntry>) => {
+    setMonthlyItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
+  }
+
+  const addOtherRow = () => setMonthlyOthers((prev) => [...prev, { description: '', amount: 0, attachment_url: '', paid_to: '' }])
+  const updateOtherRow = (idx: number, patch: Partial<MonthlyOtherEntry>) =>
+    setMonthlyOthers((prev) => prev.map((o, i) => (i === idx ? { ...o, ...patch } : o)))
+  const removeOtherRow = (idx: number) => setMonthlyOthers((prev) => prev.filter((_, i) => i !== idx))
+
+  const monthlyTotal = () =>
+    monthlyItems.filter((i) => i.selected).reduce((s, i) => s + (i.amount || 0), 0)
+    + monthlyOthers.reduce((s, o) => s + (o.amount || 0), 0)
+
+  const submitMonthlyPayment = async () => {
+    if (!monthlyChild) return
+    const selected = monthlyItems.filter((i) => i.selected && i.amount > 0)
+    const others = monthlyOthers.filter((o) => o.amount > 0 && o.description.trim())
+    if (selected.length === 0 && others.length === 0) { toast.error(t('kf.monthly.nothingSelected')); return }
+
+    setMonthlyBusy(true)
+    const items = [
+      ...selected.map((i) => ({
+        kind: i.kind, ref_id: i.ref_id, line_id: i.ref_id, category: i.category,
+        amount: i.amount, months_covered: i.months_covered, attachment_url: i.attachment_url || null,
+        paid_to: i.paid_to || null, note: i.note || null,
+      })),
+      ...others.map((o) => ({
+        kind: 'other', category: 'other', amount: o.amount, description: o.description,
+        attachment_url: o.attachment_url || null, paid_to: o.paid_to || null,
+      })),
+    ]
+    const { data, error } = await supabase.rpc('kafalat_record_monthly_payment', {
+      p_child_id: monthlyChild.id, p_method: monthlyMethod, p_items: items,
+    })
+    setMonthlyBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    const r = data as { voucher_no: string | null; status: string }
+    toast.success(t('kf.monthly.ok').replace('{v}', r.voucher_no ?? (r.status === 'pending' ? 'pending approval' : r.status)))
+    setMonthlyChild(null)
+    setMonthlyData(null)
+    loadOperations()
+    loadCollections()
   }
 
   const [record, setRecord] = useState<{
@@ -882,6 +995,12 @@ export default function KafalatPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 shrink-0">
+                    {c.status === 'active' && (
+                      <button onClick={() => openMonthlyPayment(c)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer whitespace-nowrap">
+                        <HandCoins size={13} /> {t('kf.monthly.button')}
+                      </button>
+                    )}
                     {c.status === 'active' && (
                       <button onClick={() => openPrintRecord(c)}
                         className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer whitespace-nowrap">
@@ -1776,6 +1895,124 @@ export default function KafalatPage() {
               className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 disabled:opacity-50 cursor-pointer">
               {busy ? t('action.saving') : t('kf.confirmPay')}
             </button>
+          </div>
+        </div>
+      )}
+
+      {monthlyChild && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setMonthlyChild(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-heading text-[17px] font-bold text-dp-primary">{t('kf.monthly.title')}</h2>
+              <button onClick={() => setMonthlyChild(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={18} /></button>
+            </div>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
+              {monthlyChild.first_name} ({monthlyChild.code})
+            </p>
+
+            {!monthlyData ? (
+              <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[13px]">{t('action.loading')}</p>
+            ) : monthlyItems.length === 0 && monthlyOthers.length === 0 ? (
+              <p className="text-center py-6 text-dp-on-surface-variant font-sans text-[13px]">{t('kf.monthly.nothingDue')}</p>
+            ) : null}
+
+            {monthlyData && (
+              <>
+                {['fee', 'disbursement', 'uniform'].map((kind) => {
+                  const rows = monthlyItems.map((it, idx) => ({ it, idx })).filter((r) => r.it.kind === kind)
+                  if (rows.length === 0) return null
+                  const heading = kind === 'fee' ? t('kf.monthly.budgeted') : kind === 'disbursement' ? t('kf.monthly.dueThisMonth') : t('kf.monthly.uniform')
+                  return (
+                    <div key={kind} className="mb-4">
+                      <p className="font-sans text-[11px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-2">{heading}</p>
+                      <div className="space-y-3">
+                        {rows.map(({ it, idx }) => (
+                          <div key={idx} className={`border rounded-lg p-3 ${it.selected ? 'border-dp-secondary bg-dp-secondary-container/10' : 'border-dp-outline-variant'}`}>
+                            <label className="flex items-center gap-2 cursor-pointer mb-2">
+                              <input type="checkbox" checked={it.selected} className="accent-dp-secondary cursor-pointer"
+                                onChange={(e) => updateMonthlyItem(idx, { selected: e.target.checked })} />
+                              <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface flex-1">{it.label}</span>
+                            </label>
+                            {kind === 'fee' && monthlyData.fee_items.find((f) => f.line_id === it.ref_id)?.covered_until && (
+                              <p className="font-sans text-[11.5px] text-dp-secondary mb-2 ms-6">
+                                {t('kf.monthly.coveredUntil').replace('{date}', new Date(monthlyData.fee_items.find((f) => f.line_id === it.ref_id)!.covered_until!).toLocaleDateString())}
+                              </p>
+                            )}
+                            {it.selected && (
+                              <div className="ms-6 grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">{t('pool.amount')}</label>
+                                  <input type="number" min={1} value={it.amount}
+                                    onChange={(e) => updateMonthlyItem(idx, { amount: Number(e.target.value) })} className="input-field !py-1.5 text-[13.5px]" />
+                                </div>
+                                {(kind === 'fee' || kind === 'disbursement') && (
+                                  <div>
+                                    <label className="block font-sans text-[11px] font-semibold text-dp-on-surface-variant mb-1">{t('kf.monthly.months')}</label>
+                                    <input type="number" min={1} max={12} value={it.months_covered}
+                                      onChange={(e) => updateMonthlyItem(idx, { months_covered: Math.max(Number(e.target.value), 1) })} className="input-field !py-1.5 text-[13.5px]" />
+                                  </div>
+                                )}
+                                <div className="col-span-2">
+                                  <ImageUpload bucket="images" currentUrl={it.attachment_url || undefined}
+                                    onUpload={(url) => updateMonthlyItem(idx, { attachment_url: url })} label={t('kf.monthly.attachment')} />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+
+                <div className="mb-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-sans text-[11px] font-bold uppercase tracking-wide text-dp-on-surface-variant">{t('kf.monthly.other')}</p>
+                    <button onClick={addOtherRow} className="font-sans text-[12.5px] font-semibold text-dp-secondary cursor-pointer hover:underline">{t('kf.monthly.addOther')}</button>
+                  </div>
+                  <div className="space-y-3">
+                    {monthlyOthers.map((o, idx) => (
+                      <div key={idx} className="border border-dp-outline-variant rounded-lg p-3">
+                        <div className="flex items-start gap-2 mb-2">
+                          <input value={o.description} placeholder={t('kf.monthly.description')}
+                            onChange={(e) => updateOtherRow(idx, { description: e.target.value })} className="input-field !py-1.5 text-[13.5px] flex-1" />
+                          <button onClick={() => removeOtherRow(idx)} className="text-dp-on-surface-variant cursor-pointer p-1.5"><X size={16} /></button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input type="number" min={1} value={o.amount || ''} placeholder={t('pool.amount')}
+                            onChange={(e) => updateOtherRow(idx, { amount: Number(e.target.value) })} className="input-field !py-1.5 text-[13.5px]" />
+                          <input value={o.paid_to} placeholder={t('kf.monthly.paidTo')}
+                            onChange={(e) => updateOtherRow(idx, { paid_to: e.target.value })} className="input-field !py-1.5 text-[13.5px]" />
+                          <div className="col-span-2">
+                            <ImageUpload bucket="images" currentUrl={o.attachment_url || undefined}
+                              onUpload={(url) => updateOtherRow(idx, { attachment_url: url })} label={t('kf.monthly.attachment')} />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5 mt-4">{t('kf.monthly.method')}</label>
+                <select value={monthlyMethod} onChange={(e) => setMonthlyMethod(e.target.value)} className="input-field mb-4">
+                  <option value="cash">{t('pool.method.cash')}</option>
+                  <option value="bank">{t('pool.method.bank')}</option>
+                  <option value="jazzcash">JazzCash</option>
+                  <option value="easypaisa">EasyPaisa</option>
+                </select>
+
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <span className="font-sans text-[13px] font-semibold text-dp-on-surface-variant">{t('kf.monthly.total')}</span>
+                  <span className="font-heading text-[19px] font-bold text-dp-primary">Rs {fmt(monthlyTotal())}</span>
+                </div>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-3">{t('kf.monthly.approvalNote')}</p>
+
+                <button disabled={monthlyBusy} onClick={submitMonthlyPayment}
+                  className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 disabled:opacity-50 cursor-pointer">
+                  {monthlyBusy ? t('action.saving') : t('kf.monthly.save')}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
