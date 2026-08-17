@@ -131,6 +131,7 @@ interface MonthlyItemEntry {
   note: string
 }
 interface MonthlyOtherEntry {
+  category: 'admission_fee' | 'other'
   description: string
   amount: number
   attachment_url: string
@@ -449,7 +450,7 @@ export default function KafalatPage() {
     setMonthlyItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
   }
 
-  const addOtherRow = () => setMonthlyOthers((prev) => [...prev, { description: '', amount: 0, attachment_url: '', paid_to: '' }])
+  const addOtherRow = () => setMonthlyOthers((prev) => [...prev, { category: 'other', description: '', amount: 0, attachment_url: '', paid_to: '' }])
   const updateOtherRow = (idx: number, patch: Partial<MonthlyOtherEntry>) =>
     setMonthlyOthers((prev) => prev.map((o, i) => (i === idx ? { ...o, ...patch } : o)))
   const removeOtherRow = (idx: number) => setMonthlyOthers((prev) => prev.filter((_, i) => i !== idx))
@@ -472,7 +473,7 @@ export default function KafalatPage() {
         paid_to: i.paid_to || null, note: i.note || null,
       })),
       ...others.map((o) => ({
-        kind: 'other', category: 'other', amount: o.amount, description: o.description,
+        kind: 'other', category: o.category, amount: o.amount, description: o.description,
         attachment_url: o.attachment_url || null, paid_to: o.paid_to || null,
       })),
     ]
@@ -1974,6 +1975,11 @@ export default function KafalatPage() {
                     {monthlyOthers.map((o, idx) => (
                       <div key={idx} className="border border-dp-outline-variant rounded-lg p-3">
                         <div className="flex items-start gap-2 mb-2">
+                          <select value={o.category} onChange={(e) => updateOtherRow(idx, { category: e.target.value as MonthlyOtherEntry['category'] })}
+                            className="input-field !py-1.5 text-[13.5px] w-auto">
+                            <option value="admission_fee">{t('kf.cat.admission_fee')}</option>
+                            <option value="other">{t('kf.cat.other')}</option>
+                          </select>
                           <input value={o.description} placeholder={t('kf.monthly.description')}
                             onChange={(e) => updateOtherRow(idx, { description: e.target.value })} className="input-field !py-1.5 text-[13.5px] flex-1" />
                           <button onClick={() => removeOtherRow(idx)} className="text-dp-on-surface-variant cursor-pointer p-1.5"><X size={16} /></button>

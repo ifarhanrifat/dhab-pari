@@ -1324,6 +1324,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'kf.cat.medical': 'Medical',
     'kf.cat.exam_fee': 'Exam fee',
     'kf.cat.tuition': 'Tuition',
+    'kf.cat.admission_fee': 'Admission fee',
     'kf.cat.other': 'Other',
 
     'kf.monthly.button': 'Monthly Payment',
@@ -3836,6 +3837,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'kf.cat.medical': 'طبی',
     'kf.cat.exam_fee': 'امتحانی فیس',
     'kf.cat.tuition': 'ٹیوشن',
+    'kf.cat.admission_fee': 'داخلہ فیس',
     'kf.cat.other': 'دیگر',
 
     'kf.monthly.button': 'ماہانہ ادائیگی',
