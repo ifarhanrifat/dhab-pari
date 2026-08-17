@@ -286,11 +286,9 @@ export default function PortalKafalatPage() {
               <p className="font-sans text-[11px] text-dp-on-surface-variant mt-0.5">{t('pkf.stats.outstanding').replace('{amt}', fmt(dashboard.outstanding))}</p>
             )}
           </div>
-          <div className={`rounded-lg px-4 py-3.5 flex flex-col justify-center ${dashboard.on_track ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`}>
-            <p className={`flex items-center gap-1.5 font-sans text-[13.5px] font-bold ${dashboard.on_track ? 'text-emerald-700' : 'text-amber-800'}`}>
-              {dashboard.on_track ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
-              {dashboard.on_track ? t('pkf.stats.onTrack') : t('pkf.stats.behind')}
-            </p>
+          <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3.5">
+            <p className="font-sans text-[11px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-1">{t('pkf.stats.monthly')}</p>
+            <p className="font-heading text-[24px] font-bold text-dp-primary">Rs {fmt(dashboard.monthly_target)}</p>
           </div>
         </div>
       )}
