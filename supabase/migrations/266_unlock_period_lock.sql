@@ -1,0 +1,12 @@
+-- Migration 266: turn the period lock off.
+--
+-- period_is_locked()/period_lock.ts both read this same setting, at the DB
+-- trigger level and the UI level -- flipping it here is the whole change,
+-- no code to touch on either side. Explicit committee decision: the audit
+-- log already captures every change, a bill with a payment already can't be
+-- deleted, deleting a payment leaves the consumer/donor account visibly
+-- outstanding, and deleting an old month's entry would leave this month's
+-- opening cash not matching last month's reported closing cash on Running
+-- Capital -- all of it self-detecting without a hard lock forcing a
+-- reversal instead of a direct correction.
+UPDATE site_settings SET value = 'false' WHERE key = 'period_lock_enabled';
