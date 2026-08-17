@@ -9,7 +9,6 @@ import {
   FileText, UserCheck, UserPlus, MessageSquareWarning, ClipboardList, Heart, FolderKanban, ArrowDownToLine, ArrowUpFromLine, AlertTriangle, RefreshCw,
 } from 'lucide-react'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
-import { fetchBrandingSettings } from '@/lib/branding'
 import { dt, type Lang } from '@/lib/docTranslations'
 import {
   buildClosingNarrative, buildDonorClosingNarrative, expenseCashOutCategories, urduDate,
@@ -316,12 +315,14 @@ function OtherOutgoingPayments({ breakdown }: { breakdown: CashCategoryAmount[] 
 }
 
 export default function RunningCapitalPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const access = useSystemAccess()
   const [system, setSystem] = useState<SystemTab>('water_supply')
   useEffect(() => { if (!access.loading) setSystem(access.defaultSystem) }, [access.loading, access.defaultSystem])
 
-  const [lang, setLang] = useState<Lang>('en')
+  // An internal report -- follows the admin's own chosen language rather
+  // than the site's public-document branding default.
+  const lang: Lang = isUrdu ? 'ur' : 'en'
   const [live, setLive] = useState<ClosingReportData | null>(null)
   const [loadingLive, setLoadingLive] = useState(true)
   const [reports, setReports] = useState<ClosingRow[]>([])
@@ -336,8 +337,6 @@ export default function RunningCapitalPage() {
   const [regenerating, setRegenerating] = useState(false)
   const printRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
-
-  useEffect(() => { fetchBrandingSettings().then((b) => setLang(b.language)) }, [])
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {

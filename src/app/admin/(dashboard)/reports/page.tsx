@@ -7,7 +7,6 @@ import { createClient } from '@/lib/supabase/client'
 import { Printer, ExternalLink } from 'lucide-react'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
-import { fetchBrandingSettings } from '@/lib/branding'
 import { dt, type Lang, type DocStringKey } from '@/lib/docTranslations'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -67,7 +66,7 @@ export default function ReportsPage() {
 }
 
 function ReportsPageInner() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const searchParams = useSearchParams()
   const access = useSystemAccess()
   const initialReport = (searchParams.get('report') as ReportType) || 'trial_balance'
@@ -103,11 +102,11 @@ function ReportsPageInner() {
   const [statementRows, setStatementRows] = useState<LedgerRow[]>([])
   const [statementOpening, setStatementOpening] = useState(0)
 
-  const [lang, setLang] = useState<Lang>('en')
+  // An internal report -- follows the admin's own chosen language rather
+  // than the site's public-document branding default.
+  const lang: Lang = isUrdu ? 'ur' : 'en'
   const printRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
-
-  useEffect(() => { fetchBrandingSettings().then((b) => setLang(b.language)) }, [])
 
   const load = useCallback(async () => {
     setLoading(true)

@@ -9,7 +9,6 @@ import { friendlyError } from '@/lib/errors'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
-import { fetchBrandingSettings } from '@/lib/branding'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { entryTypeLabel } from '@/lib/ledgerLabels'
 import { dt } from '@/lib/docTranslations'
@@ -42,7 +41,7 @@ function fmtDate(d: string) {
 }
 
 export default function ViewAccountPage({ params }: { params: Promise<{ id: string }> }) {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { id } = usePromise(params)
   const [account, setAccount] = useState<Account | null>(null)
   const [consumerInfo, setConsumerInfo] = useState<ConsumerInfo | null>(null)
@@ -58,7 +57,12 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
   const [showManualForm, setShowManualForm] = useState(false)
   const [manualForm, setManualForm] = useState({ entry_date: new Date().toISOString().slice(0, 10), particular: '', debit: 0, credit: 0 })
   const [printing, setPrinting] = useState(false)
-  const [lang, setLang] = useState<'en' | 'ur'>('en')
+  // An account statement, viewed internally -- follows the admin's own
+  // chosen language rather than the site's public-document branding
+  // default (Urdu, meant for water bills mailed to consumers), which was
+  // leaking in here regardless of what language the admin was actually
+  // browsing in.
+  const lang: 'en' | 'ur' = isUrdu ? 'ur' : 'en'
   const [channels, setChannels] = useState<{ payment_method: string; total_pkr: number }[]>([])
   const statementRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
@@ -82,9 +86,6 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
       const { data: ch } = await supabase.rpc('project_donation_channels_pkr', { p_project_id: acc.project_id })
       setChannels(ch ?? [])
     }
-
-    const brandingSettings = await fetchBrandingSettings()
-    if (brandingSettings.language === 'ur') setLang('ur')
 
     if (acc?.type === 'consumer' && acc.consumer_id) {
       const { data: c } = await supabase.from('consumers').select('consumer_id, mobile, address, connections').eq('consumer_id', acc.consumer_id).single()

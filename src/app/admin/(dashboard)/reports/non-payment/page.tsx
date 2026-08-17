@@ -8,7 +8,6 @@ import { billBadge } from '@/lib/billStatus'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import { useRef } from 'react'
-import { fetchBrandingSettings } from '@/lib/branding'
 import { dt, type Lang } from '@/lib/docTranslations'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
@@ -30,16 +29,16 @@ function outstanding(bill: BillRow) {
 const monthName = (m: number) => new Date(2000, m - 1, 1).toLocaleDateString('en-US', { month: 'long' })
 
 export default function NonPaymentReportPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [consumers, setConsumers] = useState<ConsumerRow[]>([])
   const [bills, setBills] = useState<BillRow[]>([])
   const [loading, setLoading] = useState(true)
   const [sectorFilter, setSectorFilter] = useState('')
-  const [lang, setLang] = useState<Lang>('en')
+  // An internal report -- follows the admin's own chosen language rather
+  // than the site's public-document branding default.
+  const lang: Lang = isUrdu ? 'ur' : 'en'
   const printRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
-
-  useEffect(() => { fetchBrandingSettings().then((b) => setLang(b.language)) }, [])
 
   useEffect(() => {
     setLoading(true)
