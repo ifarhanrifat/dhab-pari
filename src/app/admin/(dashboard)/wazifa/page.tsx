@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import {
   BookOpen, X, Award, Calculator, HandCoins, Plus, Save, ClipboardCheck, Gavel, CalendarClock, Users, FileText, Printer, Ban, RotateCcw,
-  HelpCircle, ChevronDown, Phone, AlertTriangle, Wallet, Info, Pencil, Send, UserCheck,
+  HelpCircle, ChevronDown, Phone, AlertTriangle, Wallet, Info, Pencil, Send, UserCheck, ShieldCheck, PhoneCall, Briefcase, StopCircle,
 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { printNodeInPopup } from '@/lib/receiptExport'
@@ -25,10 +25,12 @@ import { printNodeInPopup } from '@/lib/receiptExport'
  */
 
 interface Student {
-  id: string; code: string; full_name: string; father_name: string | null
+  id: string; code: string; full_name: string; father_name: string | null; mother_name: string | null
   phone: string | null; gender: string | null; is_orphan: boolean
   household_monthly_income_pkr: number | null; siblings_studying: number
   status: string; created_at: string
+  is_zakat_family: boolean; zakat_match_register_id: string | null
+  employment_status?: string
 }
 
 interface Application {
@@ -38,13 +40,29 @@ interface Application {
   last_exam_percent: number | null; requested_amount_pkr: number
   need_statement: string | null; status: string
   merit_score: number | null; need_score: number | null; total_score: number | null
+  declared_cnic: string | null
+  institute_phone: string | null; is_in_hostel: boolean; hostel_name: string | null; hostel_phone: string | null
 }
 
 interface AwardRow {
   id: string; application_id: string; student_id: string; academic_year: string
   awarded_amount_pkr: number; funded_by: string; status: string
   student_monthly_contribution_pkr?: number; installment_due_day?: number | null
-  installment_active?: boolean
+  installment_active?: boolean; is_loan?: boolean; repaid_pkr?: number
+}
+
+interface ZakatCandidate {
+  register_id: string; code: string; head_name: string; father_husband_name: string | null
+  asnaf_category: string; phone: string | null; address: string | null; match_strength: number
+}
+
+interface InterimGrant {
+  id: string; award_id: string; months_awarded: number; monthly_amount_pkr: number
+  pay_to: string; status: string; started_on: string; stopped_reason: string | null
+}
+
+interface CheckIn {
+  id: string; award_id: string; method: string; confirmed: boolean; note: string | null; checked_on: string
 }
 
 // A snapshot of what was actually sent, not a live join (migration 269) —
@@ -109,10 +127,14 @@ const emptyVerification: Record<string, string | number> = Object.fromEntries([
 ])
 
 const emptyStudent = {
-  full_name: '', full_name_ur: '', father_name: '', phone: '', gender: 'male',
+  full_name: '', full_name_ur: '', father_name: '', mother_name: '', phone: '', gender: 'male',
   is_orphan: false, household_monthly_income_pkr: 0, siblings_studying: 0,
   level: 'bachelors', institution: '', programme: '', city: '',
   last_exam_name: '', last_exam_percent: 0, requested_amount_pkr: 0, need_statement: '',
+  // Only a parent applies for a child, in person, at the house — a walk-in
+  // paper form recorded here is the one place applicant_for/relation are
+  // actually set (the portal itself only ever submits 'self', migration 227).
+  applicant_for: 'self', applicant_relation: '',
 }
 
 export default function WazifaPage() {
@@ -206,9 +228,30 @@ export default function WazifaPage() {
   const [agreementTarget, setAgreementTarget] = useState<AwardRow | null>(null)
   const [agreementForm, setAgreementForm] = useState({ terms_text: '', terms_text_ur: '' })
 
+  // Zakat-track machinery: screening's zakat-family check, the interim
+  // grant that funds a confirmed zakat family while studying, and the
+  // check-in log that decides whether it keeps running (migration 275-277).
+  const [interimGrants, setInterimGrants] = useState<InterimGrant[]>([])
+  const [checkIns, setCheckIns] = useState<CheckIn[]>([])
+  const [repaymentSchedule, setRepaymentSchedule] = useState<
+    { id: string; award_id: string; due_on: string; amount_pkr: number; paid_pkr: number; status: string }[]
+  >([])
+  const [screenTarget, setScreenTarget] = useState<Application | null>(null)
+  const [screenCandidates, setScreenCandidates] = useState<ZakatCandidate[]>([])
+  const [screenLoading, setScreenLoading] = useState(false)
+  const [grantTarget, setGrantTarget] = useState<AwardRow | null>(null)
+  const [grantForm, setGrantForm] = useState({ months: 3, monthly_amount: 0, pay_to: 'institution' })
+  const [stopGrantTarget, setStopGrantTarget] = useState<InterimGrant | null>(null)
+  const [stopGrantReason, setStopGrantReason] = useState('')
+  const [checkInTarget, setCheckInTarget] = useState<AwardRow | null>(null)
+  const [checkInForm, setCheckInForm] = useState({ method: 'phone_institute', confirmed: true, note: '' })
+  const [employTarget, setEmployTarget] = useState<Student | null>(null)
+  const [employForm, setEmployForm] = useState({ monthly_amount: 0, note: '' })
+
   const load = useCallback(async () => {
     const [{ data: st }, { data: ap }, { data: aw }, { data: ins }, { data: sum }, { data: vf }, { data: dc },
-           { data: docs }, { data: cm }, { data: minV }, { data: sch }, { data: ags }, { data: charges }] = await Promise.all([
+           { data: docs }, { data: cm }, { data: minV }, { data: sch }, { data: ags }, { data: charges },
+           { data: grants }, { data: checks }, { data: repay }] = await Promise.all([
       supabase.from('wazifa_students').select('*').order('created_at', { ascending: false }),
       supabase.from('wazifa_applications').select('*').order('total_score', { ascending: false, nullsFirst: false }),
       supabase.from('wazifa_awards').select('*').order('created_at', { ascending: false }),
@@ -224,6 +267,9 @@ export default function WazifaPage() {
         .order('sent_at', { ascending: false }),
       supabase.from('wazifa_installment_charges').select('id, award_id, due_on, amount_pkr, paid_pkr, status')
         .order('due_on', { ascending: false }),
+      supabase.from('wazifa_interim_grant').select('*').order('created_at', { ascending: false }),
+      supabase.from('wazifa_check_ins').select('*').order('checked_on', { ascending: false }),
+      supabase.from('wazifa_repayment_schedule').select('id, award_id, due_on, amount_pkr, paid_pkr, status'),
     ])
     setStudents((st ?? []) as Student[])
     setApplications((ap ?? []) as Application[])
@@ -231,6 +277,9 @@ export default function WazifaPage() {
     setInstalments((ins ?? []) as Instalment[])
     setAgreements((ags ?? []) as AgreementRow[])
     setInstallmentCharges((charges ?? []) as typeof installmentCharges)
+    setInterimGrants((grants ?? []) as InterimGrant[])
+    setCheckIns((checks ?? []) as CheckIn[])
+    setRepaymentSchedule((repay ?? []) as typeof repaymentSchedule)
     setSummary((sum ?? {}) as Record<string, number>)
     setVerifications((vf ?? []) as Verification[])
     const dmap: Record<string, DecisionRow> = {}
@@ -380,6 +429,89 @@ export default function WazifaPage() {
     load()
   }
 
+  // ── Screening: the zakat-family check, run as part of the same action
+  // that moves the application off "just submitted" (migration 275). ─────
+  const openScreen = async (a: Application) => {
+    setScreenTarget(a)
+    setScreenCandidates([])
+    setScreenLoading(true)
+    const { data, error } = await supabase.rpc('wazifa_screen_application', { p_application_id: a.id })
+    setScreenLoading(false)
+    if (error) { toast.error(friendlyError(error)); setScreenTarget(null); return }
+    setScreenCandidates(((data as { candidates: ZakatCandidate[] })?.candidates) ?? [])
+    load()
+  }
+  const confirmZakatMatch = async (studentId: string, registerId: string | null) => {
+    const { error } = await supabase.rpc('wazifa_confirm_zakat_match', { p_student_id: studentId, p_register_id: registerId })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(registerId ? t('wz.zakat.matched') : t('wz.zakat.cleared'))
+    setScreenTarget(null)
+    load()
+  }
+
+  // ── The interim grant — zakat-track only, 1-12 months, stoppable
+  // (migration 276). Paying a raised month reuses the existing pay flow
+  // (setPayTarget), since a month is an ordinary wazifa_instalment. ───────
+  const startGrant = async () => {
+    if (!grantTarget || grantForm.monthly_amount <= 0) { toast.error(t('wz.err.amount')); return }
+    setBusy(true)
+    const { error } = await supabase.rpc('wazifa_start_interim_grant', {
+      p_award_id: grantTarget.id, p_months: grantForm.months,
+      p_monthly_amount: grantForm.monthly_amount, p_pay_to: grantForm.pay_to,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.grant.started'))
+    setGrantTarget(null)
+    load()
+  }
+  const stopGrant = async () => {
+    if (!stopGrantTarget || !stopGrantReason.trim()) { toast.error(t('wz.grant.reasonRequired')); return }
+    setBusy(true)
+    const { error } = await supabase.rpc('wazifa_stop_interim_grant', {
+      p_grant_id: stopGrantTarget.id, p_reason: stopGrantReason.trim(),
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.grant.stopped'))
+    setStopGrantTarget(null)
+    setStopGrantReason('')
+    load()
+  }
+
+  // ── A check-in — a phone call, written down, independent of who got
+  // paid (migration 277). ──────────────────────────────────────────────
+  const submitCheckIn = async () => {
+    if (!checkInTarget) return
+    setBusy(true)
+    const { error } = await supabase.rpc('wazifa_record_check_in', {
+      p_award_id: checkInTarget.id, p_method: checkInForm.method,
+      p_confirmed: checkInForm.confirmed, p_note: checkInForm.note || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.checkin.saved'))
+    setCheckInTarget(null)
+    setCheckInForm({ method: 'phone_institute', confirmed: true, note: '' })
+    load()
+  }
+
+  // ── The one button that turns on repayment — already existed
+  // (wazifa_mark_employed, migration 235), never had a button until now. ──
+  const submitMarkEmployed = async () => {
+    if (!employTarget || employForm.monthly_amount <= 0) { toast.error(t('wz.err.amount')); return }
+    setBusy(true)
+    const { error } = await supabase.rpc('wazifa_mark_employed', {
+      p_student_id: employTarget.id, p_monthly_amount: employForm.monthly_amount,
+      p_employer_note: employForm.note || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.employ.started'))
+    setEmployTarget(null)
+    load()
+  }
+
   const studentOf = (id: string) => students.find((s) => s.id === id)
   // One typed-up row, several signatures on the paper. The count is the
   // person who entered it plus everyone they named.
@@ -396,10 +528,15 @@ export default function WazifaPage() {
     if (!form.full_name.trim() || !form.institution.trim() || !form.programme.trim()) {
       toast.error(t('wz.err.required')); return
     }
+    // Only a father or mother, in person — no other relation is recorded
+    // as the one applying for a child (migration 274).
+    if (form.applicant_for === 'own_child' && !['father', 'mother'].includes(form.applicant_relation)) {
+      toast.error(t('wz.err.applicantRelation')); return
+    }
     setBusy(true)
     const { data: student, error } = await supabase.from('wazifa_students').insert({
       full_name: form.full_name, full_name_ur: form.full_name_ur || null,
-      father_name: form.father_name || null, phone: form.phone || null,
+      father_name: form.father_name || null, mother_name: form.mother_name || null, phone: form.phone || null,
       gender: form.gender, is_orphan: form.is_orphan,
       household_monthly_income_pkr: form.household_monthly_income_pkr,
       siblings_studying: form.siblings_studying,
@@ -414,6 +551,8 @@ export default function WazifaPage() {
       last_exam_percent: form.last_exam_percent || null,
       requested_amount_pkr: form.requested_amount_pkr,
       need_statement: form.need_statement || null,
+      applicant_for: form.applicant_for,
+      applicant_relation: form.applicant_for === 'own_child' ? form.applicant_relation : null,
       status: 'submitted',
     }).select('id').single()
     if (appErr) { setBusy(false); toast.error(friendlyError(appErr)); return }
@@ -717,7 +856,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
       {/* ── This month's instalment collection — the accountant's worklist,
           not a separate report page. Computed client-side from what load()
           already fetched; no new query. */}
-      {installmentCharges.length > 0 && (() => {
+      {(installmentCharges.length > 0 || repaymentSchedule.length > 0) && (() => {
         const now = new Date()
         const monthCharges = installmentCharges.filter((c) => {
           const d = new Date(c.due_on)
@@ -725,10 +864,17 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
         })
         const collected = monthCharges.reduce((s, c) => s + Number(c.paid_pkr), 0)
         const due = monthCharges.reduce((s, c) => s + Number(c.amount_pkr), 0)
+        // Standard-track instalments overdue, and zakat-track repayments
+        // overdue (migration 235) — two different tables, one worklist,
+        // since an accountant does not think in tables, only in "who is
+        // behind." No penalty is computed or implied here — a committee
+        // decides what, if anything, follows from being on this list.
         const overdue = installmentCharges.filter((c) => c.status !== 'paid' && new Date(c.due_on) < now)
         const overdueAmt = overdue.reduce((s, c) => s + (Number(c.amount_pkr) - Number(c.paid_pkr)), 0)
+        const repayOverdue = repaymentSchedule.filter((r) => r.status !== 'paid' && new Date(r.due_on) < now)
+        const repayOverdueAmt = repayOverdue.reduce((s, r) => s + (Number(r.amount_pkr) - Number(r.paid_pkr)), 0)
         return (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-5">
             <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3">
               <p className="font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('wz.ins.report.dueThisMonth')}</p>
               <p className="font-heading text-[22px] font-bold text-dp-primary">Rs {fmt(due)}</p>
@@ -741,6 +887,12 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
               <p className="font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('wz.ins.report.overdue')}</p>
               <p className={`font-heading text-[22px] font-bold ${overdue.length > 0 ? 'text-dp-error' : 'text-dp-primary'}`}>
                 Rs {fmt(overdueAmt)} <span className="text-[13px] font-sans font-semibold text-dp-on-surface-variant">({overdue.length})</span>
+              </p>
+            </div>
+            <div className={`bg-white border rounded-lg px-4 py-3 ${repayOverdue.length > 0 ? 'border-dp-error' : 'border-dp-outline-variant'}`}>
+              <p className="font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('wz.ins.report.repayOverdue')}</p>
+              <p className={`font-heading text-[22px] font-bold ${repayOverdue.length > 0 ? 'text-dp-error' : 'text-dp-primary'}`}>
+                Rs {fmt(repayOverdueAmt)} <span className="text-[13px] font-sans font-semibold text-dp-on-surface-variant">({repayOverdue.length})</span>
               </p>
             </div>
           </div>
@@ -779,6 +931,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                     <span className="font-sans text-[15px] font-bold text-dp-on-surface">{s?.full_name}</span>
                     {s?.is_orphan && <span className="px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 text-[10.5px] font-bold">{t('kf.orphan')}</span>}
                     {s?.gender === 'female' && <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[10.5px] font-bold">{t('wz.girl')}</span>}
+                    {s?.is_zakat_family && <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10.5px] font-bold">{t('wz.zakat.badge')}</span>}
                   </div>
                   <p className="font-sans text-[13.5px] text-dp-on-surface">
                     {t(`wz.level.${a.level}`)} · {a.programme} · <span className="text-dp-on-surface-variant">{a.institution}{a.city ? `, ${a.city}` : ''}</span>
@@ -827,6 +980,15 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                   <button onClick={() => openSheet(a)}
                     className="flex items-center gap-1.5 px-3.5 py-2 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[13px] font-semibold hover:text-dp-primary transition-all cursor-pointer whitespace-nowrap">
                     <FileText size={15} /> {t('wz.viewApplication')}
+                  </button>
+                  {/* Screening runs the zakat-family check as part of moving
+                      the application off "just submitted" — the one thing
+                      that decides which of the two tracks this award ends
+                      up on (migration 275). */}
+                  <button onClick={() => openScreen(a)}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                      s?.is_zakat_family ? 'border border-emerald-600 text-emerald-700' : 'border border-dp-outline-variant text-dp-on-surface-variant hover:text-dp-primary'}`}>
+                    <ShieldCheck size={15} /> {a.status === 'submitted' ? t('wz.screen.button') : t('wz.screen.recheck')}
                   </button>
                   <button onClick={() => runFamilyCheck(a)}
                     className="flex items-center gap-1.5 px-3.5 py-2 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[13px] font-semibold hover:text-dp-primary transition-all cursor-pointer whitespace-nowrap">
@@ -965,10 +1127,10 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                   </div>
                 )}
 
-                {/* ── The fixed monthly instalment — set it, send the
-                    agreement, activate once signed. Three buttons, each the
-                    one action available at that stage (migration 269/270). */}
-                {(() => {
+                {/* ── The fixed monthly instalment — standard track only.
+                    A confirmed zakat family gets the interim-grant block
+                    below instead; the two never both apply to one award. */}
+                {!studentOf(aw.student_id)?.is_zakat_family && (() => {
                   const monthly = Number(aw.student_monthly_contribution_pkr ?? 0)
                   const dueDay = aw.installment_due_day ?? null
                   const ag = latestAgreementFor(aw.id)
@@ -1010,6 +1172,74 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                           </button>
                         )}
                       </div>
+                    </div>
+                  )
+                })()}
+
+                {/* ── Zakat track: interim support while studying, then
+                    repayment once employed (migration 235/276). ─────────── */}
+                {studentOf(aw.student_id)?.is_zakat_family && (() => {
+                  const student = studentOf(aw.student_id)!
+                  const activeGrant = interimGrants.find((g) => g.award_id === aw.id && g.status === 'active')
+                  const lastGrant = interimGrants.filter((g) => g.award_id === aw.id).sort((a, b) => a.id < b.id ? 1 : -1)[0]
+                  const raisedMonths = instalments.filter((i) => i.award_id === aw.id && (i as Instalment & { interim_grant_id?: string }).interim_grant_id === activeGrant?.id).length
+                  const myCheckIns = checkIns.filter((c) => c.award_id === aw.id).slice(0, 3)
+                  return (
+                    <div className="border-t border-dp-outline-variant pt-3 mt-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <div className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                          {activeGrant ? (
+                            <>
+                              {t('wz.grant.running')} <strong className="text-dp-on-surface">Rs {fmt(activeGrant.monthly_amount_pkr)}/mo</strong>
+                              {' · '}{raisedMonths}/{activeGrant.months_awarded} {t('wz.grant.monthsRaised')}
+                              {' · '}{t(`wz.payTo.${activeGrant.pay_to}`)}
+                            </>
+                          ) : lastGrant?.status === 'stopped' ? (
+                            <span className="text-dp-error">{t('wz.grant.wasStopped')}: {lastGrant.stopped_reason}</span>
+                          ) : lastGrant?.status === 'completed' ? (
+                            <span>{t('wz.grant.completed')}</span>
+                          ) : (
+                            <span>{t('wz.grant.none')}</span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {!activeGrant && student.employment_status !== 'employed' && (
+                            <button onClick={() => { setGrantTarget(aw); setGrantForm({ months: 3, monthly_amount: 0, pay_to: 'institution' }) }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
+                              <Plus size={13} /> {t('wz.grant.start')}
+                            </button>
+                          )}
+                          {activeGrant && (
+                            <button onClick={() => { setStopGrantTarget(activeGrant); setStopGrantReason('') }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-error text-dp-error rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-error hover:text-white transition-all cursor-pointer">
+                              <StopCircle size={13} /> {t('wz.grant.stop')}
+                            </button>
+                          )}
+                          <button onClick={() => setCheckInTarget(aw)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
+                            <PhoneCall size={13} /> {t('wz.checkin.record')}
+                          </button>
+                          {student.employment_status !== 'employed' ? (
+                            <button onClick={() => { setEmployTarget(student); setEmployForm({ monthly_amount: 0, note: '' }) }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
+                              <Briefcase size={13} /> {t('wz.employ.button')}
+                            </button>
+                          ) : (
+                            <span className="px-2.5 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 text-[12.5px] font-bold">
+                              {t('wz.employ.badge')} · {t('pwz.loanRepaid')} Rs {fmt(Number(aw.repaid_pkr ?? 0))}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {myCheckIns.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {myCheckIns.map((c) => (
+                            <span key={c.id} className={`px-2 py-0.5 rounded text-[11px] font-semibold ${c.confirmed ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-dp-error'}`}>
+                              {new Date(c.checked_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {t(`wz.checkin.method.${c.method}`)} · {c.confirmed ? t('wz.checkin.ok') : t('wz.checkin.notOk')}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )
                 })()}
@@ -1420,6 +1650,156 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
             <button disabled={busy} onClick={sendAgreement}
               className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
               <Send size={16} /> {busy ? t('action.saving') : t('wz.ins.sendAgreement')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Screening: the zakat-family check ────────────────────────── */}
+      {screenTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setScreenTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('wz.screen.title')}</h2>
+              <button onClick={() => setScreenTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('wz.screen.help')}</p>
+
+            {screenLoading ? (
+              <p className="font-sans text-dp-on-surface-variant text-[13px]">{t('action.loading')}</p>
+            ) : screenCandidates.length === 0 ? (
+              <div className="bg-dp-surface-container-low rounded-lg px-4 py-3.5 mb-3">
+                <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('wz.screen.noMatch')}</p>
+              </div>
+            ) : (
+              <div className="space-y-2 mb-4">
+                {screenCandidates.map((c) => (
+                  <div key={c.register_id} className="border border-dp-outline-variant rounded-lg px-3.5 py-3 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{c.head_name} <span className="font-mono text-[11px] text-dp-on-surface-variant">{c.code}</span></p>
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant">
+                        {c.father_husband_name && `${c.father_husband_name} · `}{c.asnaf_category}
+                        {c.phone ? ` · ${c.phone}` : ''}
+                      </p>
+                    </div>
+                    <button onClick={() => confirmZakatMatch(studentOf(screenTarget.student_id)!.id, c.register_id)}
+                      className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
+                      <ShieldCheck size={13} /> {t('wz.screen.thisIsThem')}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {studentOf(screenTarget.student_id)?.is_zakat_family && (
+              <button onClick={() => confirmZakatMatch(studentOf(screenTarget.student_id)!.id, null)}
+                className="w-full flex items-center justify-center gap-2 border border-dp-outline-variant text-dp-on-surface-variant py-2 rounded-lg font-sans text-[13px] font-semibold hover:text-dp-error transition-all cursor-pointer">
+                {t('wz.screen.clearMatch')}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Start the interim grant ──────────────────────────────────── */}
+      {grantTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setGrantTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('wz.grant.start')}</h2>
+              <button onClick={() => setGrantTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.grant.months')}</label>
+            <input type="number" min={1} max={12} value={grantForm.months || ''}
+              onChange={(e) => setGrantForm({ ...grantForm, months: +e.target.value })} className="input-field mb-3" />
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.grant.monthlyAmount')}</label>
+            <input type="number" min={1} value={grantForm.monthly_amount || ''}
+              onChange={(e) => setGrantForm({ ...grantForm, monthly_amount: +e.target.value })} className="input-field mb-3" />
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.grant.payTo')}</label>
+            <select value={grantForm.pay_to} onChange={(e) => setGrantForm({ ...grantForm, pay_to: e.target.value })} className="input-field mb-4">
+              <option value="institution">{t('wz.payTo.institution')}</option>
+              <option value="student">{t('wz.payTo.student')}</option>
+              <option value="hostel">{t('wz.payTo.hostel')}</option>
+            </select>
+            <button disabled={busy} onClick={startGrant}
+              className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              {busy ? t('action.saving') : t('wz.grant.start')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Stop it — a reason is required, the whole point of this being
+          a plan instead of a lump sum handed over at once ─────────────── */}
+      {stopGrantTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setStopGrantTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('wz.grant.stop')}</h2>
+              <button onClick={() => setStopGrantTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('wz.grant.stopHelp')}</p>
+            <textarea value={stopGrantReason} onChange={(e) => setStopGrantReason(e.target.value)}
+              rows={3} placeholder={t('wz.grant.stopReasonPlaceholder')} className="input-field mb-4" />
+            <button disabled={busy} onClick={stopGrant}
+              className="w-full flex items-center justify-center gap-2 bg-dp-error text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 transition-all cursor-pointer disabled:opacity-50">
+              <StopCircle size={16} /> {busy ? t('action.saving') : t('wz.grant.stop')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Record a check-in ────────────────────────────────────────── */}
+      {checkInTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setCheckInTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('wz.checkin.record')}</h2>
+              <button onClick={() => setCheckInTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.checkin.method')}</label>
+            <select value={checkInForm.method} onChange={(e) => setCheckInForm({ ...checkInForm, method: e.target.value })} className="input-field mb-3">
+              <option value="phone_institute">{t('wz.checkin.method.phone_institute')}</option>
+              <option value="phone_hostel">{t('wz.checkin.method.phone_hostel')}</option>
+              <option value="phone_student">{t('wz.checkin.method.phone_student')}</option>
+              <option value="visit">{t('wz.checkin.method.visit')}</option>
+            </select>
+            <div className="flex gap-2 mb-3">
+              {([[true, 'wz.checkin.ok'], [false, 'wz.checkin.notOk']] as const).map(([val, label]) => (
+                <button key={String(val)} onClick={() => setCheckInForm({ ...checkInForm, confirmed: val })}
+                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all cursor-pointer ${
+                    checkInForm.confirmed === val ? (val ? 'bg-emerald-600 text-white' : 'bg-dp-error text-white') : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
+                  {t(label)}
+                </button>
+              ))}
+            </div>
+            <textarea value={checkInForm.note} onChange={(e) => setCheckInForm({ ...checkInForm, note: e.target.value })}
+              rows={2} placeholder={t('wz.checkin.notePlaceholder')} className="input-field mb-4" />
+            <button disabled={busy} onClick={submitCheckIn}
+              className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              {busy ? t('action.saving') : t('action.save')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Mark employed — the one button that turns repayment on ──────── */}
+      {employTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setEmployTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('wz.employ.title')}</h2>
+              <button onClick={() => setEmployTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('wz.employ.help')}</p>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.employ.monthlyAmount')}</label>
+            <input type="number" min={1} value={employForm.monthly_amount || ''}
+              onChange={(e) => setEmployForm({ ...employForm, monthly_amount: +e.target.value })} className="input-field mb-3" />
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.employ.note')}</label>
+            <input value={employForm.note} onChange={(e) => setEmployForm({ ...employForm, note: e.target.value })} className="input-field mb-4" />
+            <button disabled={busy} onClick={submitMarkEmployed}
+              className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-50">
+              <Briefcase size={16} /> {busy ? t('action.saving') : t('wz.employ.button')}
             </button>
           </div>
         </div>
@@ -1898,6 +2278,32 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('nr.f.fatherHusband')}</label>
                   <input value={form.father_name} onChange={(e) => setForm({ ...form, father_name: e.target.value })} className="input-field" />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pwz.f.motherName')}</label>
+                  <input value={form.mother_name} onChange={(e) => setForm({ ...form, mother_name: e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.applicantFor')}</label>
+                  <select value={form.applicant_for}
+                    onChange={(e) => setForm({ ...form, applicant_for: e.target.value, applicant_relation: '' })} className="input-field">
+                    <option value="self">{t('wz.applicantFor.self')}</option>
+                    <option value="own_child">{t('wz.applicantFor.ownChild')}</option>
+                  </select>
+                </div>
+                {form.applicant_for === 'own_child' && (
+                  <div>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.applicantRelation')}</label>
+                    <select value={form.applicant_relation}
+                      onChange={(e) => setForm({ ...form, applicant_relation: e.target.value })} className="input-field">
+                      <option value="">—</option>
+                      <option value="father">{t('es.rel.father')}</option>
+                      <option value="mother">{t('es.rel.mother')}</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">

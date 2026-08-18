@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import {
   BookOpen, Send, Plus, Trash2, Printer, HandCoins, RotateCcw, Save, Lock, Info, UserCheck,
-  HelpCircle, ChevronDown, TrendingUp, Calendar, ShieldCheck, AlertTriangle, Heart, X,
+  HelpCircle, ChevronDown, TrendingUp, Calendar, ShieldCheck, AlertTriangle, Heart, X, FileText,
 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { printNodeInPopup } from '@/lib/receiptExport'
@@ -156,7 +156,7 @@ export default function PortalWazifaPage() {
   const [form, setForm] = useState({
     applicant_for: 'self',
     applicant_name: '', applicant_relation: '', applicant_phone: '',
-    student_full_name: '', student_full_name_ur: '', father_name: '', gender: 'male', student_phone: '',
+    student_full_name: '', student_full_name_ur: '', father_name: '', mother_name: '', gender: 'male', student_phone: '',
     declared_cnic: '', declared_b_form_no: '', declared_dob: '', declared_address: '',
     offered_monthly_contribution_pkr: 0, institution_monthly_fee_pkr: 0,
     father_alive: true, father_occupation: '', mother_occupation: '',
@@ -166,13 +166,19 @@ export default function PortalWazifaPage() {
     family_receives_zakat: false, zakat_sources: [] as string[], zakat_monthly_pkr: 0,
     level: 'bachelors', institution: '', programme: '', city: '', admission_status: 'seeking',
     requested_amount_pkr: 0, need_statement: '', achievements: '',
+    institute_phone: '', institute_address: '', institute_registration_no: '',
+    institute_bank_account_title: '', institute_bank_account_no: '', institute_payment_number: '',
+    is_in_hostel: false, hostel_name: '', hostel_room_no: '', hostel_monthly_charges_pkr: 0,
+    hostel_phone: '', hostel_beneficiary_name: '', hostel_bank_account_title: '',
+    hostel_bank_account_no: '', hostel_payment_number: '',
     repayment_pledge: false, repayment_note: '',
-    requested_as: 'grant',
+    requested_as: 'loan',
     has_family_business: false, family_business_kind: '', family_business_share_pkr: 0, family_business_note: '',
     loan_terms_accepted: false, loan_terms_signature: '',
   })
   const [docs, setDocs] = useState<{ kind: string; label: string; url: string }[]>([])
   const [loanTerms, setLoanTerms] = useState({ ur: '', en: '' })
+  const [minVerifiers, setMinVerifiers] = useState(2)
   const [family, setFamily] = useState<FamilyRow[]>([{ ...emptyFamilyRow }])
   const [academics, setAcademics] = useState<AcademicRow[]>([{ ...emptyAcademicRow }])
 
@@ -192,7 +198,7 @@ export default function PortalWazifaPage() {
       supabase.rpc('my_wazifa_decisions'),
       supabase.rpc('my_wazifa_loans'),
       supabase.from('site_settings').select('key, value')
-        .in('key', ['wazifa_loan_terms_ur', 'wazifa_loan_terms_en']),
+        .in('key', ['wazifa_loan_terms_ur', 'wazifa_loan_terms_en', 'wazifa_min_verifiers']),
       supabase.rpc('my_wazifa_application'),
       supabase.rpc('my_wazifa_dues'),
       supabase.rpc('my_wazifa_agreements'),
@@ -219,6 +225,7 @@ export default function PortalWazifaPage() {
         student_full_name: (st?.full_name as string) ?? '',
         student_full_name_ur: (st?.full_name_ur as string) ?? '',
         father_name: (st?.father_name as string) ?? '',
+        mother_name: (st?.mother_name as string) ?? '',
         gender: (st?.gender as string) ?? f.gender,
         student_phone: (st?.phone as string) ?? '',
         declared_cnic: (a.declared_cnic as string) ?? '',
@@ -248,6 +255,21 @@ export default function PortalWazifaPage() {
         requested_amount_pkr: Number(a.requested_amount_pkr ?? 0),
         need_statement: (a.need_statement as string) ?? '',
         achievements: (a.achievements as string) ?? '',
+        institute_phone: (a.institute_phone as string) ?? '',
+        institute_address: (a.institute_address as string) ?? '',
+        institute_registration_no: (a.institute_registration_no as string) ?? '',
+        institute_bank_account_title: (a.institute_bank_account_title as string) ?? '',
+        institute_bank_account_no: (a.institute_bank_account_no as string) ?? '',
+        institute_payment_number: (a.institute_payment_number as string) ?? '',
+        is_in_hostel: Boolean(a.is_in_hostel),
+        hostel_name: (a.hostel_name as string) ?? '',
+        hostel_room_no: (a.hostel_room_no as string) ?? '',
+        hostel_monthly_charges_pkr: Number(a.hostel_monthly_charges_pkr ?? 0),
+        hostel_phone: (a.hostel_phone as string) ?? '',
+        hostel_beneficiary_name: (a.hostel_beneficiary_name as string) ?? '',
+        hostel_bank_account_title: (a.hostel_bank_account_title as string) ?? '',
+        hostel_bank_account_no: (a.hostel_bank_account_no as string) ?? '',
+        hostel_payment_number: (a.hostel_payment_number as string) ?? '',
         repayment_pledge: Boolean(a.repayment_pledge),
         repayment_note: (a.repayment_note as string) ?? '',
         requested_as: (a.requested_as as string) ?? f.requested_as,
@@ -302,6 +324,7 @@ export default function PortalWazifaPage() {
     setLoans((lns ?? []) as Loan[])
     const tm = Object.fromEntries(((terms ?? []) as { key: string; value: string }[]).map((r) => [r.key, r.value]))
     setLoanTerms({ ur: tm.wazifa_loan_terms_ur ?? '', en: tm.wazifa_loan_terms_en ?? '' })
+    setMinVerifiers(Number(tm.wazifa_min_verifiers ?? 2))
   }, [supabase])
 
   useEffect(() => { load() }, [load])
@@ -330,7 +353,6 @@ export default function PortalWazifaPage() {
   // target, never the whole page at once.
   const commitmentFor = (target: (typeof sponsorStudents)[number] | null) =>
     sponsorCommitments.find((c) => c.status === 'active' && (target ? c.wazifa_student_id === target.student_id : !c.wazifa_student_id))
-  const alreadySharedCommitted = !!commitmentFor(null)
 
   const openGive = (target: (typeof sponsorStudents)[number] | null) => {
     const existing = commitmentFor(target)
@@ -454,25 +476,33 @@ export default function PortalWazifaPage() {
       .select('id').eq('portal_user_id', portalUser.id).maybeSingle()
 
     let studentId = existing?.id
+    // Identity fields the zakat-family check reads at screening — father's
+    // and mother's name in particular (migration 275) — so a correction on
+    // a later save has to actually reach wazifa_students, not just the
+    // application row. Insert once, then keep both in sync on every save.
+    const studentFields = {
+      full_name: form.student_full_name.trim(),
+      full_name_ur: form.student_full_name_ur || null,
+      cnic: form.declared_cnic || null,
+      b_form_no: form.declared_b_form_no || null,
+      date_of_birth: form.declared_dob || null,
+      address: form.declared_address || null,
+      father_name: form.father_name || null,
+      mother_name: form.mother_name || null,
+      phone: form.student_phone || portalUser.mobile || null,
+      gender: form.gender,
+      is_orphan: !form.father_alive,
+      household_monthly_income_pkr: monthlyIncome || form.family_monthly_income_pkr,
+      siblings_studying: family.filter((f) => f.is_studying).length,
+    }
     if (!studentId) {
       const { data: created, error } = await supabase.from('wazifa_students').insert({
-        full_name: form.student_full_name.trim(),
-        full_name_ur: form.student_full_name_ur || null,
-        cnic: form.declared_cnic || null,
-        b_form_no: form.declared_b_form_no || null,
-        date_of_birth: form.declared_dob || null,
-        address: form.declared_address || null,
-        father_name: form.father_name || null,
-        phone: form.student_phone || portalUser.mobile || null,
-        gender: form.gender,
-        is_orphan: !form.father_alive,
-        household_monthly_income_pkr: monthlyIncome || form.family_monthly_income_pkr,
-        siblings_studying: family.filter((f) => f.is_studying).length,
-        portal_user_id: portalUser.id,
-        status: 'applicant',
+        ...studentFields, portal_user_id: portalUser.id, status: 'applicant',
       }).select('id').single()
       if (error) { setBusy(false); toast.error(friendlyError(error)); return }
       studentId = created.id
+    } else {
+      await supabase.from('wazifa_students').update(studentFields).eq('id', studentId)
     }
 
     const year = `${new Date().getFullYear()}-${String((new Date().getFullYear() + 1) % 100).padStart(2, '0')}`
@@ -488,6 +518,21 @@ export default function PortalWazifaPage() {
       requested_amount_pkr: form.requested_amount_pkr,
       need_statement: form.need_statement.trim(),
       achievements: form.achievements || null,
+      institute_phone: form.institute_phone || null,
+      institute_address: form.institute_address || null,
+      institute_registration_no: form.institute_registration_no || null,
+      institute_bank_account_title: form.institute_bank_account_title || null,
+      institute_bank_account_no: form.institute_bank_account_no || null,
+      institute_payment_number: form.institute_payment_number || null,
+      is_in_hostel: form.is_in_hostel,
+      hostel_name: form.is_in_hostel ? (form.hostel_name || null) : null,
+      hostel_room_no: form.is_in_hostel ? (form.hostel_room_no || null) : null,
+      hostel_monthly_charges_pkr: form.is_in_hostel ? (form.hostel_monthly_charges_pkr || 0) : 0,
+      hostel_phone: form.is_in_hostel ? (form.hostel_phone || null) : null,
+      hostel_beneficiary_name: form.is_in_hostel ? (form.hostel_beneficiary_name || null) : null,
+      hostel_bank_account_title: form.is_in_hostel ? (form.hostel_bank_account_title || null) : null,
+      hostel_bank_account_no: form.is_in_hostel ? (form.hostel_bank_account_no || null) : null,
+      hostel_payment_number: form.is_in_hostel ? (form.hostel_payment_number || null) : null,
       family_monthly_income_pkr: monthlyIncome || form.family_monthly_income_pkr,
       father_alive: form.father_alive,
       father_occupation: form.father_occupation || null,
@@ -658,6 +703,54 @@ export default function PortalWazifaPage() {
         ))}
       </div>
 
+      {/* ── My Application — always here, at the top, whether there is one
+          yet or not. Small View/Print, not two big buttons and a second
+          screen to get to them: this is a status card, not a second copy
+          of the form. */}
+      <div className="mb-6 print:hidden">
+        {savedId ? (
+          <div className="bg-white border border-dp-outline-variant rounded-lg px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                <h2 className="font-heading text-[15px] font-bold text-dp-primary">{t('pwz.savedTitle')}</h2>
+                <span className="px-2 py-0.5 rounded-full bg-dp-surface-container-low font-sans text-[11px] font-bold text-dp-on-surface">
+                  {t(`pwz.status.${savedStatus ?? 'draft'}`)}
+                </span>
+              </div>
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                {form.institution || t('pwz.noInstitutionYet')}{form.programme ? ` · ${form.programme}` : ''}
+              </p>
+              {!isEditable && lockedReason && (
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1 flex items-start gap-1.5">
+                  <Lock size={12} className="shrink-0 mt-0.5" /> {lockedReason}
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2 shrink-0">
+              {isEditable && (
+                <button onClick={openForm}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-primary text-white font-sans text-[12.5px] font-bold rounded-lg hover:opacity-90 cursor-pointer">
+                  {t('pwz.continueEditing')}
+                </button>
+              )}
+              <button onClick={openForm}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface font-sans text-[12.5px] font-bold rounded-lg hover:text-dp-primary cursor-pointer">
+                <FileText size={13} /> {t('pwz.viewApplication')}
+              </button>
+              <button onClick={() => { openForm(); setTimeout(printForm, 300) }}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface font-sans text-[12.5px] font-bold rounded-lg hover:text-dp-primary cursor-pointer">
+                <Printer size={13} /> {t('pwz.print')}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={openForm}
+            className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-dp-outline-variant hover:border-dp-secondary text-dp-primary py-4 rounded-lg font-sans font-semibold transition-colors cursor-pointer">
+            <Plus size={17} /> {t('pwz.startApplication')}
+          </button>
+        )}
+      </div>
+
       {/* ── Sponsoring a student — a different visitor to this page than
           the one applying below: name a specific student, or join the
           shared pool with no name attached. */}
@@ -765,21 +858,10 @@ export default function PortalWazifaPage() {
           </div>
         )}
 
-        {sponsorPosition && !alreadySharedCommitted && (
-          <div className="bg-white border-2 border-dp-secondary/30 rounded-lg p-4 mb-3 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{t('pwz.sponsor.sharedTitle')}</p>
-              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">
-                {t('pool.nDonors').replace('{n}', String(sponsorPosition.donors))} · {sponsorPosition.coverage_percent}%
-              </p>
-            </div>
-            <button onClick={() => openGive(null)}
-              className="flex items-center gap-2 bg-dp-secondary text-white px-4 py-2 rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer shrink-0">
-              <HandCoins size={14} /> {t('pool.join')}
-            </button>
-          </div>
-        )}
-
+        {/* Named cards only — one per student, no unnamed "join the shared
+            pool" option. A donor picks who they're giving to, the same way
+            Kafalat already works, rather than a pool with nobody's face on
+            it. */}
         {sponsorStudents.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {sponsorStudents.map((s) => (
@@ -1074,49 +1156,7 @@ export default function PortalWazifaPage() {
       {/* ── The application already on file ────────────────────────────
           Shown before the form, because somebody coming back wants to know
           where their application stands — not a blank eleven-section form. */}
-      {savedId && !showForm && (
-        <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-5 print:hidden">
-          <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-            <div>
-              <h2 className="font-heading text-[17px] font-bold text-dp-primary">
-                {t('pwz.savedTitle')}
-              </h2>
-              <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">
-                {form.institution || t('pwz.noInstitutionYet')}
-                {form.programme ? ` · ${form.programme}` : ''}
-              </p>
-            </div>
-            <span className="px-2.5 py-1 rounded-full bg-dp-surface-container-low font-sans text-[11.5px] font-bold text-dp-on-surface">
-              {t(`pwz.status.${savedStatus ?? 'draft'}`)}
-            </span>
-          </div>
-
-          {!isEditable && lockedReason && (
-            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3 flex items-start gap-2">
-              <Lock size={14} className="shrink-0 mt-0.5" /> {lockedReason}
-            </p>
-          )}
-
-          <div className="flex flex-wrap gap-3">
-            <button onClick={openForm}
-              className="bg-dp-primary text-white font-sans text-[13px] font-bold px-4 py-2 rounded-lg hover:opacity-90">
-              {isEditable ? t('pwz.continueEditing') : t('pwz.viewApplication')}
-            </button>
-            <button onClick={() => { openForm(); setTimeout(printForm, 300) }}
-              className="border border-dp-outline-variant font-sans text-[13px] font-bold px-4 py-2 rounded-lg text-dp-on-surface">
-              <Printer size={14} className="inline me-1.5" />{t('pwz.print')}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Nothing on file yet: one button rather than a wall of fields. */}
-      {!savedId && !showForm && (
-        <button onClick={openForm}
-          className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-dp-outline-variant hover:border-dp-secondary text-dp-primary py-4 rounded-lg font-sans font-semibold transition-colors print:hidden">
-          <Plus size={17} /> {t('pwz.startApplication')}
-        </button>
-      )}
+      {/* My Application now lives once, at the top of the page — see above. */}
 
       {/* ══════ The form itself — this whole block is what prints ══════ */}
       <div ref={formRef} className={showForm ? '' : 'hidden print:block'}>
@@ -1179,6 +1219,16 @@ export default function PortalWazifaPage() {
             <div>
               <label className={label}>{t('nr.f.fatherHusband')}</label>
               <input value={form.father_name} onChange={(e) => setForm({ ...form, father_name: e.target.value })} className="input-field" />
+            </div>
+          </div>
+
+          {/* Both parents' names, so a household already on the zakat
+              register can be matched at screening (migration 275) — that
+              register is kept by household head, not always the father. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className={label}>{t('pwz.f.motherName')}</label>
+              <input value={form.mother_name} onChange={(e) => setForm({ ...form, mother_name: e.target.value })} className="input-field" />
             </div>
           </div>
 
@@ -1561,6 +1611,94 @@ export default function PortalWazifaPage() {
             </div>
           </div>
 
+          {/* Enough for the committee to pay the institute directly, and
+              enough to call and ask if he is still there — the same
+              details power both (migration 274). */}
+          <div className="border border-dp-outline-variant rounded-lg p-3.5 mb-3">
+            <p className="font-sans text-[12.5px] font-bold text-dp-on-surface mb-2.5">{t('pwz.f.instituteDetails')}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className={label}>{t('pwz.f.institutePhone')}</label>
+                <input value={form.institute_phone} onChange={(e) => setForm({ ...form, institute_phone: e.target.value })} className="input-field" />
+              </div>
+              <div>
+                <label className={label}>{t('pwz.f.instituteRegNo')}</label>
+                <input value={form.institute_registration_no} onChange={(e) => setForm({ ...form, institute_registration_no: e.target.value })} className="input-field" />
+              </div>
+            </div>
+            <div className="mb-3">
+              <label className={label}>{t('pwz.f.instituteAddress')}</label>
+              <input value={form.institute_address} onChange={(e) => setForm({ ...form, institute_address: e.target.value })} className="input-field" />
+            </div>
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2">{t('pwz.f.instituteBankHint')}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className={label}>{t('pwz.f.bankAccountTitle')}</label>
+                <input value={form.institute_bank_account_title} onChange={(e) => setForm({ ...form, institute_bank_account_title: e.target.value })} className="input-field" />
+              </div>
+              <div>
+                <label className={label}>{t('pwz.f.bankAccountNo')}</label>
+                <input value={form.institute_bank_account_no} onChange={(e) => setForm({ ...form, institute_bank_account_no: e.target.value })} className="input-field" />
+              </div>
+              <div>
+                <label className={label}>{t('pwz.f.paymentNumber')}</label>
+                <input value={form.institute_payment_number} onChange={(e) => setForm({ ...form, institute_payment_number: e.target.value })} className="input-field" />
+              </div>
+            </div>
+          </div>
+
+          {/* Hostel details — only asked when it applies. */}
+          <label className="flex items-center gap-2 cursor-pointer font-sans text-[13px] font-semibold text-dp-on-surface mb-3">
+            <input type="checkbox" checked={form.is_in_hostel}
+              onChange={(e) => setForm({ ...form, is_in_hostel: e.target.checked })} className="accent-dp-secondary" />
+            {t('pwz.f.isInHostel')}
+          </label>
+          {form.is_in_hostel && (
+            <div className="border border-dp-outline-variant rounded-lg p-3.5 mb-3">
+              <p className="font-sans text-[12.5px] font-bold text-dp-on-surface mb-2.5">{t('pwz.f.hostelDetails')}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                <div>
+                  <label className={label}>{t('pwz.f.hostelName')}</label>
+                  <input value={form.hostel_name} onChange={(e) => setForm({ ...form, hostel_name: e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className={label}>{t('pwz.f.hostelRoomNo')}</label>
+                  <input value={form.hostel_room_no} onChange={(e) => setForm({ ...form, hostel_room_no: e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className={label}>{t('pwz.f.hostelPhone')}</label>
+                  <input value={form.hostel_phone} onChange={(e) => setForm({ ...form, hostel_phone: e.target.value })} className="input-field" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className={label}>{t('pwz.f.hostelCharges')}</label>
+                  <input type="number" min={0} value={form.hostel_monthly_charges_pkr || ''}
+                    onChange={(e) => setForm({ ...form, hostel_monthly_charges_pkr: +e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className={label}>{t('pwz.f.hostelBeneficiary')}</label>
+                  <input value={form.hostel_beneficiary_name} onChange={(e) => setForm({ ...form, hostel_beneficiary_name: e.target.value })} className="input-field" />
+                </div>
+              </div>
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2">{t('pwz.f.instituteBankHint')}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className={label}>{t('pwz.f.bankAccountTitle')}</label>
+                  <input value={form.hostel_bank_account_title} onChange={(e) => setForm({ ...form, hostel_bank_account_title: e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className={label}>{t('pwz.f.bankAccountNo')}</label>
+                  <input value={form.hostel_bank_account_no} onChange={(e) => setForm({ ...form, hostel_bank_account_no: e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className={label}>{t('pwz.f.paymentNumber')}</label>
+                  <input value={form.hostel_payment_number} onChange={(e) => setForm({ ...form, hostel_payment_number: e.target.value })} className="input-field" />
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={label}>{t('pwz.f.admissionStatus')}</label>
@@ -1676,27 +1814,14 @@ export default function PortalWazifaPage() {
         <div className={section}>
           <StepHead n={10} title={t('pwz.s.qarz')} urdu={t('pwz.qarzUrdu')} help={t('pwz.qarzEnglish')} />
 
-          {/* A three-way choice rather than a checkbox. Asking "do you want
-              this as a gift or as a loan you will return?" out loud is a
-              fairer question than a tickbox somebody scrolls past. */}
-          <div className="space-y-2.5 mb-4">
-            {([
-              ['grant', 'pwz.as.grant', 'pwz.as.grantHelp'],
-              ['loan', 'pwz.as.loan', 'pwz.as.loanHelp'],
-              ['either', 'pwz.as.either', 'pwz.as.eitherHelp'],
-            ] as const).map(([value, lbl, help]) => (
-              <label key={value}
-                className={`flex items-start gap-2.5 px-4 py-3.5 rounded-lg border-2 cursor-pointer transition-all ${form.requested_as === value ? (value === 'grant' ? 'border-dp-secondary bg-dp-secondary/5' : 'border-emerald-500 bg-emerald-50') : 'border-dp-outline-variant'}`}>
-                <input type="radio" name="requested_as" checked={form.requested_as === value}
-                  onChange={() => setForm({ ...form, requested_as: value })} className="accent-dp-secondary mt-0.5" />
-                <span className="min-w-0">
-                  <span className="flex items-center gap-1.5 font-sans text-[14px] font-bold text-dp-on-surface">
-                    {value !== 'grant' && <HandCoins size={15} />} {t(lbl)}
-                  </span>
-                  <span className="block font-sans text-[12.5px] text-dp-on-surface-variant mt-1 leading-relaxed">{t(help)}</span>
-                </span>
-              </label>
-            ))}
+          {/* No "as a gift" choice any more — every award is repayable, one
+              of two ways: a zakat family repays once employed (decided at
+              screening, migration 275), everyone else on a fixed monthly
+              instalment starting once activated. Which applies is the
+              committee's finding, not something asked here. */}
+          <div className="flex items-start gap-2.5 px-4 py-3.5 rounded-lg border-2 border-emerald-500 bg-emerald-50 mb-4">
+            <HandCoins size={17} className="text-emerald-700 shrink-0 mt-0.5" />
+            <span className="font-sans text-[13px] text-emerald-900 leading-relaxed">{t('pwz.as.loanHelp')}</span>
           </div>
 
           <p className="font-sans text-[12px] text-dp-on-surface-variant mb-4">{t('pwz.f.repaymentNoPressure')}</p>
@@ -1704,9 +1829,9 @@ export default function PortalWazifaPage() {
           {/* ── The agreement ────────────────────────────────────────────
               Shown in full, not behind a link. Somebody is being asked to
               commit to returning money over years; the terms belong on the
-              same screen as the box they tick. */}
-          {form.requested_as !== 'grant' && (
-            <div className="border-2 border-emerald-500 rounded-lg overflow-hidden">
+              same screen as the box they tick. Unconditional now — every
+              award is repayable, so every applicant sees and signs this. */}
+          <div className="border-2 border-emerald-500 rounded-lg overflow-hidden">
               <div className="bg-emerald-50 px-4 py-3 border-b border-emerald-200">
                 <h3 className="font-sans text-[14px] font-bold text-emerald-900">{t('pwz.terms.title')}</h3>
               </div>
@@ -1749,7 +1874,6 @@ export default function PortalWazifaPage() {
                 </div>
               </div>
             </div>
-          )}
         </div>
 
         {/* ── For office use ────────────────────────────────────────────
@@ -1863,15 +1987,24 @@ export default function PortalWazifaPage() {
             style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
             {t('pwz.declarationUrdu')}
           </p>
+          {/* One line per verifier this committee actually requires
+              (wazifa_min_verifiers), not two fixed lines — a village that
+              asks for three signatures gets three blank lines to fill in
+              by hand, not a single "committee" line standing in for all
+              of them. */}
           <div className="grid grid-cols-2 gap-8 mt-8">
             <div>
               <div className="border-b border-dp-outline h-8" />
               <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('pwz.signApplicant')}</p>
             </div>
-            <div>
-              <div className="border-b border-dp-outline h-8" />
-              <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('pwz.signCommittee')}</p>
-            </div>
+            {Array.from({ length: Math.max(minVerifiers, 1) }).map((_, i) => (
+              <div key={i}>
+                <div className="border-b border-dp-outline h-8" />
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">
+                  {t('pwz.signVerifier')} {minVerifiers > 1 ? i + 1 : ''}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
