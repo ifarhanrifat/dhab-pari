@@ -124,6 +124,7 @@ export default function PortalWazifaPage() {
   const [sponsorStudents, setSponsorStudents] = useState<{
     student_id: string; code: string; full_name: string; institution: string | null
     programme: string | null; level: string | null; awarded_amount: number; is_loan: boolean; already_named: number
+    is_zakat_family: boolean
   }[]>([])
   const [sponsorCommitments, setSponsorCommitments] = useState<{
     id: string; pool_id: string; monthly_amount: number; status: string
@@ -134,6 +135,16 @@ export default function PortalWazifaPage() {
     named_student: string | null; wazifa_student_id: string | null; has_proof: boolean
   }[]>([])
   const [giving, setGiving] = useState<{ target: (typeof sponsorStudents)[number] | null } | null>(null)
+  // What has come back on a qarz-e-hasana gift, and what the donor can do
+  // with it (migration 280).
+  const [qarzList, setQarzList] = useState<{
+    commitment_id: string; student_name: string; given: number; reclaimed: number
+    actioned: number; available: number; status: string
+    pending_actions: { id: string; action: string; amount: number; status: string }[] | null
+  }[]>([])
+  const [qarzActionTarget, setQarzActionTarget] = useState<(typeof qarzList)[number] | null>(null)
+  const [qarzActionForm, setQarzActionForm] = useState({ action: 'withdraw', amount: 0, project_id: '', note: '' })
+  const [projectsList, setProjectsList] = useState<{ id: string; title: string }[]>([])
   const [giveForm, setGiveForm] = useState({ amount: 0, recurring: true, funded_by: 'sadqa', show_name_publicly: false })
   const [changingShare, setChangingShare] = useState<(typeof sponsorCommitments)[number] | null>(null)
   const [changeAmount, setChangeAmount] = useState(0)
@@ -333,16 +344,20 @@ export default function PortalWazifaPage() {
     const { data: pool } = await supabase.from('support_pools').select('id').eq('code', 'POOL-WZF').single()
     const pid = (pool as { id: string } | null)?.id ?? null
     setSponsorPoolId(pid)
-    const [{ data: pos }, { data: students }, { data: myC }, { data: myA }] = await Promise.all([
+    const [{ data: pos }, { data: students }, { data: myC }, { data: myA }, { data: qarz }, { data: projs }] = await Promise.all([
       pid ? supabase.rpc('pool_position', { p_pool_id: pid }) : Promise.resolve({ data: null }),
       supabase.rpc('wazifa_students_for_naming'),
       supabase.rpc('my_pool_commitments'),
       supabase.rpc('my_pool_announcements'),
+      supabase.rpc('my_qarz_e_hasana'),
+      supabase.from('projects').select('id, title').eq('status', 'ongoing').order('title'),
     ])
     setSponsorPosition((pos ?? null) as typeof sponsorPosition)
     setSponsorStudents((students ?? []) as typeof sponsorStudents)
     setSponsorCommitments(((myC ?? []) as typeof sponsorCommitments).filter((c) => c.pool_id === pid))
     setSponsorAnnouncements(((myA ?? []) as typeof sponsorAnnouncements).filter((a) => a.pool_id === pid))
+    setQarzList((qarz ?? []) as typeof qarzList)
+    setProjectsList((projs ?? []) as typeof projectsList)
   }, [supabase])
 
   useEffect(() => { loadSponsorship() }, [loadSponsorship])
@@ -378,6 +393,25 @@ export default function PortalWazifaPage() {
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('pool.announced'))
     setGiving(null)
+    loadSponsorship()
+  }
+
+  const submitQarzAction = async () => {
+    if (!qarzActionTarget || qarzActionForm.amount <= 0) return
+    if (qarzActionForm.action === 'redirect_project' && !qarzActionForm.project_id) {
+      toast.error(t('pool.qarz.chooseProject')); return
+    }
+    setBusy(true)
+    const { error } = await supabase.rpc('wazifa_request_qarz_action', {
+      p_commitment_id: qarzActionTarget.commitment_id, p_action: qarzActionForm.action,
+      p_amount: qarzActionForm.amount,
+      p_target_project_id: qarzActionForm.action === 'redirect_project' ? qarzActionForm.project_id : null,
+      p_note: qarzActionForm.note || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pool.qarz.requested'))
+    setQarzActionTarget(null)
     loadSponsorship()
   }
 
@@ -880,6 +914,53 @@ export default function PortalWazifaPage() {
           </div>
         )}
       </div>
+
+      {/* ── My Qarz-e-Hasana — what has come back on a returnable gift,
+          and what to do with it (migration 280). Only shows once there is
+          at least one qarz-e-hasana commitment to show. */}
+      {qarzList.length > 0 && (
+        <div className="mb-6 print:hidden">
+          <h2 className="font-heading text-[20px] font-bold text-dp-primary mb-1 flex items-center gap-2">
+            <HandCoins size={18} className="text-dp-secondary" /> {t('pool.qarz.title')}
+          </h2>
+          <p className="font-sans text-[13px] text-dp-on-surface-variant mb-3 leading-relaxed">{t('pool.qarz.blurb')}</p>
+          <div className="space-y-2.5">
+            {qarzList.map((q) => (
+              <div key={q.commitment_id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <p className="font-sans text-[14px] font-bold text-dp-on-surface">{q.student_name}</p>
+                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${q.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>
+                    {t(`pool.qarz.status.${q.status}`)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  <div>
+                    <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('pool.qarz.given')}</p>
+                    <p className="font-heading text-[16px] font-bold text-dp-primary">Rs {fmt(q.given)}</p>
+                  </div>
+                  <div>
+                    <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('pool.qarz.reclaimed')}</p>
+                    <p className="font-heading text-[16px] font-bold text-emerald-700">Rs {fmt(q.reclaimed)}</p>
+                  </div>
+                  <div>
+                    <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('pool.qarz.available')}</p>
+                    <p className="font-heading text-[16px] font-bold text-dp-secondary">Rs {fmt(q.available)}</p>
+                  </div>
+                </div>
+                {q.available > 0 && (
+                  <button onClick={() => { setQarzActionTarget(q); setQarzActionForm({ action: 'withdraw', amount: q.available, project_id: '', note: '' }) }}
+                    className="w-full flex items-center justify-center gap-1.5 border border-dp-secondary text-dp-secondary py-1.5 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
+                    {t('pool.qarz.doSomething')}
+                  </button>
+                )}
+                {q.pending_actions?.some((a) => a.status === 'pending') && (
+                  <p className="font-sans text-[11.5px] text-amber-700 mt-2">{t('pool.qarz.hasPending')}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── One line that speaks to the person, not the process ─────────
           Everything else on this page is status: submitted, screening,
@@ -2101,10 +2182,24 @@ export default function PortalWazifaPage() {
             ) : <div className="mb-4" />}
 
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pool.fundedBy')}</label>
-            <select value={giveForm.funded_by} onChange={(e) => setGiveForm({ ...giveForm, funded_by: e.target.value })} className="input-field mb-3.5">
+            <select value={giveForm.funded_by} onChange={(e) => setGiveForm({ ...giveForm, funded_by: e.target.value })} className="input-field mb-1.5">
               <option value="sadqa">{t('pool.fundedBy.sadqa')}</option>
               <option value="general">{t('pool.fundedBy.general')}</option>
+              {/* Only for a named, non-zakat student — this is the
+                  donor's own choice to want the money back as the
+                  student repays (migration 280), not something that
+                  makes sense for the shared pool or a zakat family. */}
+              {giving.target && !giving.target.is_zakat_family && (
+                <option value="qarz_e_hasana">{t('pool.fundedBy.qarzEHasana')}</option>
+              )}
             </select>
+            {giving.target?.is_zakat_family ? (
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-3.5">{t('pool.qarzHiddenZakatNote')}</p>
+            ) : giveForm.funded_by === 'qarz_e_hasana' ? (
+              <p className="font-sans text-[11.5px] text-dp-secondary mb-3.5">{t('pool.qarzEHasanaHint')}</p>
+            ) : (
+              <div className="mb-3.5" />
+            )}
 
             <label className="flex items-start gap-2 cursor-pointer font-sans text-[12.5px] mb-5">
               <input type="checkbox" checked={giveForm.show_name_publicly}
@@ -2121,6 +2216,53 @@ export default function PortalWazifaPage() {
       )}
 
       {/* ── Change my standing amount ────────────────────────────────── */}
+      {/* ── What to do with a qarz-e-hasana that has come back ──────────── */}
+      {qarzActionTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setQarzActionTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('pool.qarz.doSomething')}</h2>
+              <button onClick={() => setQarzActionTarget(null)} className="cursor-pointer"><X size={18} /></button>
+            </div>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">
+              {t('pool.qarz.available')}: Rs {fmt(qarzActionTarget.available)}
+            </p>
+
+            <div className="space-y-2 mb-3">
+              {(['withdraw', 'convert_sadqa', 'redirect_project'] as const).map((a) => (
+                <label key={a} className={`flex items-start gap-2.5 px-3.5 py-2.5 rounded-lg border-2 cursor-pointer transition-all ${qarzActionForm.action === a ? 'border-dp-secondary bg-dp-secondary/5' : 'border-dp-outline-variant'}`}>
+                  <input type="radio" checked={qarzActionForm.action === a}
+                    onChange={() => setQarzActionForm({ ...qarzActionForm, action: a })} className="accent-dp-secondary mt-0.5" />
+                  <span>
+                    <span className="block font-sans text-[13px] font-bold text-dp-on-surface">{t(`pool.qarz.action.${a}`)}</span>
+                    <span className="block font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">{t(`pool.qarz.action.${a}Help`)}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            {qarzActionForm.action === 'redirect_project' && (
+              <>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pool.qarz.chooseProject')}</label>
+                <select value={qarzActionForm.project_id} onChange={(e) => setQarzActionForm({ ...qarzActionForm, project_id: e.target.value })} className="input-field mb-3">
+                  <option value="">—</option>
+                  {projectsList.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                </select>
+              </>
+            )}
+
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
+            <input type="number" min={1} max={qarzActionTarget.available} value={qarzActionForm.amount || ''}
+              onChange={(e) => setQarzActionForm({ ...qarzActionForm, amount: +e.target.value })} className="input-field mb-4" />
+
+            <button disabled={busy} onClick={submitQarzAction}
+              className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              {busy ? t('action.saving') : t('pool.qarz.submitRequest')}
+            </button>
+          </div>
+        </div>
+      )}
+
       {changingShare && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 print:hidden" onClick={() => setChangingShare(null)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>

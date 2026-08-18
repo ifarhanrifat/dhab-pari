@@ -172,6 +172,12 @@ export default function WazifaPage() {
     payment_batch_id: string | null
   }[]>([])
   const [collBatchSummary, setCollBatchSummary] = useState<Record<string, { count: number; total: number }>>({})
+  const [qarzActions, setQarzActions] = useState<{
+    id: string; commitment_id: string; action: string; amount_pkr: number; status: string
+    note: string | null; requested_at: string; donor_name: string; student_name: string
+  }[]>([])
+  const [declineQarzTarget, setDeclineQarzTarget] = useState<string | null>(null)
+  const [declineQarzReason, setDeclineQarzReason] = useState('')
   const [collCovering, setCollCovering] = useState<(typeof collShortMonths)[number] | null>(null)
   const [collCoverAmount, setCollCoverAmount] = useState(0)
   const [collCoverNote, setCollCoverNote] = useState('')
@@ -260,6 +266,10 @@ export default function WazifaPage() {
   // money changing hands is the one thing that should be.
   const [payChargeTarget, setPayChargeTarget] = useState<{ id: string; award_id: string; amount_pkr: number; paid_pkr: number; due_on: string } | null>(null)
   const [payChargeForm, setPayChargeForm] = useState({ amount: 0, method: 'cash' })
+  // Monthly cash, or several months at once — the same one voucher either
+  // way (migration 282).
+  const [advancePayTarget, setAdvancePayTarget] = useState<AwardRow | null>(null)
+  const [advancePayForm, setAdvancePayForm] = useState({ months: 6, method: 'cash' })
 
   const load = useCallback(async () => {
     const [{ data: st }, { data: ap }, { data: aw }, { data: ins }, { data: sum }, { data: vf }, { data: dc },
@@ -331,12 +341,48 @@ export default function WazifaPage() {
     } else {
       setCollBatchSummary({})
     }
+
+    // Pending qarz-e-hasana requests — donor and student names joined
+    // client-side since wazifa_qarz_actions only holds the commitment id
+    // (migration 280).
+    const { data: qa } = await supabase.from('wazifa_qarz_actions')
+      .select('id, commitment_id, action, amount_pkr, status, note, requested_at, target_project_id')
+      .eq('status', 'pending').order('requested_at')
+    const commitmentIds = Array.from(new Set((qa ?? []).map((a) => a.commitment_id)))
+    let commitmentMap: Record<string, { donor_name: string; wazifa_student_id: string | null }> = {}
+    if (commitmentIds.length > 0) {
+      const { data: cs } = await supabase.from('pool_commitments').select('id, donor_name, wazifa_student_id').in('id', commitmentIds)
+      commitmentMap = Object.fromEntries((cs ?? []).map((c) => [c.id, c]))
+    }
+    setQarzActions((qa ?? []).map((a) => ({
+      ...a,
+      donor_name: commitmentMap[a.commitment_id]?.donor_name ?? '—',
+      student_name: studentOf(commitmentMap[a.commitment_id]?.wazifa_student_id ?? '')?.full_name ?? '—',
+    })))
   }, [supabase])
 
   // Loaded on mount, not gated on the tab being open — see the matching
   // note on /admin/kafalat for why a badge that only knows its own count
   // after you've already opened the tab is not a useful badge.
   useEffect(() => { loadCollections() }, [loadCollections])
+
+  const fulfillQarz = async (id: string) => {
+    const { error } = await supabase.rpc('wazifa_fulfill_qarz_action', { p_action_id: id })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.qarz.fulfilled'))
+    loadCollections()
+  }
+  const declineQarz = async () => {
+    if (!declineQarzTarget || !declineQarzReason.trim()) { toast.error(t('wz.qarz.reasonRequired')); return }
+    const { error } = await supabase.rpc('wazifa_decline_qarz_action', {
+      p_action_id: declineQarzTarget, p_reason: declineQarzReason.trim(),
+    })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.qarz.declined'))
+    setDeclineQarzTarget(null)
+    setDeclineQarzReason('')
+    loadCollections()
+  }
 
   const confirmCollAnnouncement = async (a: { id: string; amount: number }) => {
     const entered = prompt(t('pool.confirmAmountPrompt').replace('{amt}', fmt(a.amount)), String(a.amount))
@@ -554,6 +600,20 @@ export default function WazifaPage() {
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('wz.ins.paySuccess'))
     setPayChargeTarget(null)
+    load()
+  }
+
+  const submitAdvancePay = async () => {
+    if (!advancePayTarget) return
+    setBusy(true)
+    const { data, error } = await supabase.rpc('wazifa_pay_installment_advance', {
+      p_award_id: advancePayTarget.id, p_months: advancePayForm.months, p_method: advancePayForm.method,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    const r = data as { months_paid: number; total: number }
+    toast.success(t('wz.ins.advancePaid').replace('{months}', String(r.months_paid)).replace('{amount}', fmt(r.total)))
+    setAdvancePayTarget(null)
     load()
   }
 
@@ -1276,6 +1336,12 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                           ))}
                         </div>
                       )}
+                      {aw.installment_active && (
+                        <button onClick={() => { setAdvancePayTarget(aw); setAdvancePayForm({ months: 6, method: 'cash' }) }}
+                          className="mt-2.5 flex items-center gap-1.5 px-2.5 py-1 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[11.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
+                          <CalendarClock size={12} /> {t('wz.ins.payAdvance')}
+                        </button>
+                      )}
                     </div>
                   )
                 })()}
@@ -1358,6 +1424,41 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
           /admin/pools screen, scoped to just Wazifa's shared pool. */}
       {!loading && tab === 'collections' && (
         <div className="space-y-6">
+          {/* ── Qarz-e-Hasana requests — a donor asking for money back,
+              converting it to sadqa, or moving it to a project
+              (migration 280). Shown first: real money waiting on a
+              committee decision outranks the routine collection view. */}
+          {qarzActions.length > 0 && (
+            <div className="bg-white border-2 border-dp-secondary/40 rounded-lg p-4">
+              <h3 className="font-heading text-[16px] font-bold text-dp-primary mb-3">{t('wz.qarz.pendingTitle')}</h3>
+              <div className="space-y-2.5">
+                {qarzActions.map((a) => (
+                  <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 border border-dp-outline-variant rounded-lg px-3.5 py-3">
+                    <div>
+                      <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">
+                        {a.donor_name} · {t(`pool.qarz.action.${a.action}`)} · Rs {fmt(a.amount_pkr)}
+                      </p>
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant">
+                        {a.student_name} · {new Date(a.requested_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {a.note ? ` · ${a.note}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button onClick={() => fulfillQarz(a.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
+                        {t('wz.qarz.fulfill')}
+                      </button>
+                      <button onClick={() => { setDeclineQarzTarget(a.id); setDeclineQarzReason('') }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-error transition-all cursor-pointer">
+                        {t('wz.qarz.decline')}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {collPosition && (
             <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
@@ -1492,6 +1593,24 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
               <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('kf.collections.allClear')}</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Decline a qarz-e-hasana request ──────────────────────────── */}
+      {declineQarzTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setDeclineQarzTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('wz.qarz.decline')}</h2>
+              <button onClick={() => setDeclineQarzTarget(null)} className="cursor-pointer"><X size={18} /></button>
+            </div>
+            <textarea value={declineQarzReason} onChange={(e) => setDeclineQarzReason(e.target.value)}
+              rows={2} placeholder={t('wz.qarz.reasonPlaceholder')} className="input-field mb-4" />
+            <button onClick={declineQarz}
+              className="w-full bg-dp-error text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 transition-all cursor-pointer">
+              {t('wz.qarz.decline')}
+            </button>
+          </div>
         </div>
       )}
 
@@ -1932,6 +2051,40 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
       )}
 
       {/* ── Recording a payment against an already-raised charge ────────── */}
+      {/* ── Several months at once — monthly cash, or 6 months, or a
+          year in advance, all in one voucher (migration 282). ─────────── */}
+      {advancePayTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setAdvancePayTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('wz.ins.payAdvance')}</h2>
+              <button onClick={() => setAdvancePayTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('wz.ins.payAdvanceHelp')}</p>
+            <div className="flex gap-2 mb-3">
+              {[1, 3, 6, 12].map((m) => (
+                <button key={m} onClick={() => setAdvancePayForm({ ...advancePayForm, months: m })}
+                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all cursor-pointer ${
+                    advancePayForm.months === m ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
+                  {m}
+                </button>
+              ))}
+            </div>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
+            <select value={advancePayForm.method} onChange={(e) => setAdvancePayForm({ ...advancePayForm, method: e.target.value })} className="input-field mb-4">
+              <option value="cash">{t('w.cash')}</option>
+              <option value="bank">{t('a.bank')}</option>
+              <option value="jazzcash">{t('w.jazzcash')}</option>
+              <option value="easypaisa">{t('w.easypaisa')}</option>
+            </select>
+            <button disabled={busy} onClick={submitAdvancePay}
+              className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              <CalendarClock size={16} /> {busy ? t('action.saving') : t('wz.ins.payAdvance')}
+            </button>
+          </div>
+        </div>
+      )}
+
       {payChargeTarget && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPayChargeTarget(null)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
