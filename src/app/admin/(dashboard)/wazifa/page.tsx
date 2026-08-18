@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import {
   BookOpen, X, Award, Calculator, HandCoins, Plus, Save, ClipboardCheck, Gavel, CalendarClock, Users, FileText, Printer, Ban, RotateCcw,
-  HelpCircle, ChevronDown, Phone, AlertTriangle, Wallet, Info,
+  HelpCircle, ChevronDown, Phone, AlertTriangle, Wallet, Info, Pencil, Send, UserCheck,
 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { printNodeInPopup } from '@/lib/receiptExport'
@@ -43,6 +43,16 @@ interface Application {
 interface AwardRow {
   id: string; application_id: string; student_id: string; academic_year: string
   awarded_amount_pkr: number; funded_by: string; status: string
+  student_monthly_contribution_pkr?: number; installment_due_day?: number | null
+  installment_active?: boolean
+}
+
+// A snapshot of what was actually sent, not a live join (migration 269) —
+// so admin's own read matches exactly what the student saw and signed.
+interface AgreementRow {
+  id: string; award_id: string; monthly_amount_pkr: number; due_day: number
+  status: 'pending' | 'signed' | 'superseded'
+  student_signed_name: string | null; student_signed_at: string | null
 }
 
 interface Verification {
@@ -182,9 +192,23 @@ export default function WazifaPage() {
   const [familyCheck, setFamilyCheck] = useState<Record<string, { code: string; name?: string; status: string; awarded?: number }[]> | null>(null)
   const [instalmentForm, setInstalmentForm] = useState({ purpose: 'admission_fee', description: '', due_on: '', amount: 0 })
 
+  // Committee-fixed monthly instalment: set the figure, send the agreement,
+  // activate once signed (migration 269/270). Three small steps instead of
+  // one wide modal, because each is a different person's decision at a
+  // different time — the committee sets it, the student signs it, the
+  // committee activates it.
+  const [agreements, setAgreements] = useState<AgreementRow[]>([])
+  const [installmentCharges, setInstallmentCharges] = useState<
+    { id: string; award_id: string; due_on: string; amount_pkr: number; paid_pkr: number; status: string }[]
+  >([])
+  const [planAwardTarget, setPlanAwardTarget] = useState<AwardRow | null>(null)
+  const [planAwardForm, setPlanAwardForm] = useState({ amount: 0, due_day: 10 })
+  const [agreementTarget, setAgreementTarget] = useState<AwardRow | null>(null)
+  const [agreementForm, setAgreementForm] = useState({ terms_text: '', terms_text_ur: '' })
+
   const load = useCallback(async () => {
     const [{ data: st }, { data: ap }, { data: aw }, { data: ins }, { data: sum }, { data: vf }, { data: dc },
-           { data: docs }, { data: cm }, { data: minV }, { data: sch }] = await Promise.all([
+           { data: docs }, { data: cm }, { data: minV }, { data: sch }, { data: ags }, { data: charges }] = await Promise.all([
       supabase.from('wazifa_students').select('*').order('created_at', { ascending: false }),
       supabase.from('wazifa_applications').select('*').order('total_score', { ascending: false, nullsFirst: false }),
       supabase.from('wazifa_awards').select('*').order('created_at', { ascending: false }),
@@ -196,11 +220,17 @@ export default function WazifaPage() {
       supabase.from('admin_users').select('id, full_name').eq('is_active', true).order('full_name'),
       supabase.from('site_settings').select('value').eq('key', 'wazifa_min_verifiers').maybeSingle(),
       supabase.from('schools').select('id, name').eq('is_active', true).order('name'),
+      supabase.from('wazifa_agreements').select('id, award_id, monthly_amount_pkr, due_day, status, student_signed_name, student_signed_at')
+        .order('sent_at', { ascending: false }),
+      supabase.from('wazifa_installment_charges').select('id, award_id, due_on, amount_pkr, paid_pkr, status')
+        .order('due_on', { ascending: false }),
     ])
     setStudents((st ?? []) as Student[])
     setApplications((ap ?? []) as Application[])
     setAwards((aw ?? []) as AwardRow[])
     setInstalments((ins ?? []) as Instalment[])
+    setAgreements((ags ?? []) as AgreementRow[])
+    setInstallmentCharges((charges ?? []) as typeof installmentCharges)
     setSummary((sum ?? {}) as Record<string, number>)
     setVerifications((vf ?? []) as Verification[])
     const dmap: Record<string, DecisionRow> = {}
@@ -307,6 +337,46 @@ export default function WazifaPage() {
     const { error } = await supabase.rpc('wazifa_start_renewal', { p_award_id: aw.id })
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('wz.ok.renewalStarted'))
+    load()
+  }
+
+  // Three separate, small actions rather than one form — the figure, the
+  // agreement, and the activation each happen at a different moment and are
+  // each somebody else's decision (migration 269/270).
+  const latestAgreementFor = (awardId: string) => agreements.find((a) => a.award_id === awardId)
+
+  const saveInstalmentPlan = async () => {
+    if (!planAwardTarget || planAwardForm.amount <= 0) { toast.error(t('wz.err.amount')); return }
+    setBusy(true)
+    const { error } = await supabase.rpc('wazifa_set_monthly_installment', {
+      p_award_id: planAwardTarget.id, p_amount: planAwardForm.amount, p_due_day: planAwardForm.due_day,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.ins.planSaved'))
+    setPlanAwardTarget(null)
+    load()
+  }
+
+  const sendAgreement = async () => {
+    if (!agreementTarget || !agreementForm.terms_text.trim()) { toast.error(t('wz.err.terms')); return }
+    setBusy(true)
+    const { error } = await supabase.rpc('wazifa_send_agreement', {
+      p_award_id: agreementTarget.id, p_terms_text: agreementForm.terms_text.trim(),
+      p_terms_text_ur: agreementForm.terms_text_ur.trim() || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.ins.agreementSent'))
+    setAgreementTarget(null)
+    load()
+  }
+
+  const activateAward = async (aw: AwardRow) => {
+    if (!confirm(t('wz.ins.activateConfirm'))) return
+    const { error } = await supabase.rpc('wazifa_activate_award', { p_award_id: aw.id })
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.ins.activated'))
     load()
   }
 
@@ -639,6 +709,39 @@ const open = applications.filter((a) => ['submitted', 'screening', 'interview', 
         ))}
       </div>
 
+      {/* ── This month's instalment collection — the accountant's worklist,
+          not a separate report page. Computed client-side from what load()
+          already fetched; no new query. */}
+      {installmentCharges.length > 0 && (() => {
+        const now = new Date()
+        const monthCharges = installmentCharges.filter((c) => {
+          const d = new Date(c.due_on)
+          return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+        })
+        const collected = monthCharges.reduce((s, c) => s + Number(c.paid_pkr), 0)
+        const due = monthCharges.reduce((s, c) => s + Number(c.amount_pkr), 0)
+        const overdue = installmentCharges.filter((c) => c.status !== 'paid' && new Date(c.due_on) < now)
+        const overdueAmt = overdue.reduce((s, c) => s + (Number(c.amount_pkr) - Number(c.paid_pkr)), 0)
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+            <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3">
+              <p className="font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('wz.ins.report.dueThisMonth')}</p>
+              <p className="font-heading text-[22px] font-bold text-dp-primary">Rs {fmt(due)}</p>
+            </div>
+            <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3">
+              <p className="font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('wz.ins.report.collected')}</p>
+              <p className="font-heading text-[22px] font-bold text-emerald-700">Rs {fmt(collected)}</p>
+            </div>
+            <div className={`bg-white border rounded-lg px-4 py-3 ${overdue.length > 0 ? 'border-dp-error' : 'border-dp-outline-variant'}`}>
+              <p className="font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('wz.ins.report.overdue')}</p>
+              <p className={`font-heading text-[22px] font-bold ${overdue.length > 0 ? 'text-dp-error' : 'text-dp-primary'}`}>
+                Rs {fmt(overdueAmt)} <span className="text-[13px] font-sans font-semibold text-dp-on-surface-variant">({overdue.length})</span>
+              </p>
+            </div>
+          </div>
+        )
+      })()}
+
       <div className="flex flex-wrap gap-2 mb-4">
         {([
           ['applications', `${t('wz.tab.applications')} (${open.length})`],
@@ -856,6 +959,55 @@ const open = applications.filter((a) => ['submitted', 'screening', 'interview', 
                     ))}
                   </div>
                 )}
+
+                {/* ── The fixed monthly instalment — set it, send the
+                    agreement, activate once signed. Three buttons, each the
+                    one action available at that stage (migration 269/270). */}
+                {(() => {
+                  const monthly = Number(aw.student_monthly_contribution_pkr ?? 0)
+                  const dueDay = aw.installment_due_day ?? null
+                  const ag = latestAgreementFor(aw.id)
+                  return (
+                    <div className="border-t border-dp-outline-variant pt-3 mt-3 flex flex-wrap items-center justify-between gap-2">
+                      <div className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                        {monthly > 0 ? (
+                          <>
+                            {t('wz.ins.fixed')} <strong className="text-dp-on-surface">Rs {fmt(monthly)}</strong> · {t('wz.ins.dueDay')} {dueDay ?? '—'}
+                            {aw.installment_active ? (
+                              <span className="ms-2 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">{t('wz.ins.active')}</span>
+                            ) : ag?.status === 'signed' ? (
+                              <span className="ms-2 px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 text-[11px] font-bold">{t('wz.ins.readyToActivate')}</span>
+                            ) : ag?.status === 'pending' ? (
+                              <span className="ms-2 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold">{t('wz.ins.awaitingSignature')}</span>
+                            ) : (
+                              <span className="ms-2 px-2 py-0.5 rounded-full bg-dp-surface-container-high text-dp-on-surface-variant text-[11px] font-bold">{t('wz.ins.notSent')}</span>
+                            )}
+                          </>
+                        ) : (
+                          <span>{t('wz.ins.notSet')}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button onClick={() => { setPlanAwardTarget(aw); setPlanAwardForm({ amount: monthly || 0, due_day: dueDay || 10 }) }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
+                          <Pencil size={13} /> {monthly > 0 ? t('wz.ins.revise') : t('wz.ins.setPlan')}
+                        </button>
+                        {monthly > 0 && !aw.installment_active && (
+                          <button onClick={() => { setAgreementTarget(aw); setAgreementForm({ terms_text: '', terms_text_ur: '' }) }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
+                            <Send size={13} /> {ag?.status === 'pending' ? t('wz.ins.resend') : t('wz.ins.sendAgreement')}
+                          </button>
+                        )}
+                        {ag?.status === 'signed' && !aw.installment_active && (
+                          <button onClick={() => activateAward(aw)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
+                            <UserCheck size={13} /> {t('wz.ins.activate')}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
             )
           })}
@@ -1222,6 +1374,52 @@ const open = applications.filter((a) => ['submitted', 'screening', 'interview', 
       )}
 
       {/* ── The student's own monthly share ─────────────────────────────── */}
+      {/* ── Fix the monthly figure and due day ─────────────────────────── */}
+      {planAwardTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPlanAwardTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('wz.ins.setPlan')}</h2>
+              <button onClick={() => setPlanAwardTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.monthly')}</label>
+            <input type="number" min={1} value={planAwardForm.amount || ''}
+              onChange={(e) => setPlanAwardForm({ ...planAwardForm, amount: +e.target.value })} className="input-field mb-3" />
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.dueDay')}</label>
+            <input type="number" min={1} max={28} value={planAwardForm.due_day || ''}
+              onChange={(e) => setPlanAwardForm({ ...planAwardForm, due_day: +e.target.value })} className="input-field mb-1" />
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-4">{t('wz.ins.dueDayHint')}</p>
+            <button disabled={busy} onClick={saveInstalmentPlan}
+              className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              {busy ? t('action.saving') : t('action.save')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Send the agreement the student will sign ──────────────────── */}
+      {agreementTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setAgreementTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('wz.ins.sendAgreement')}</h2>
+              <button onClick={() => setAgreementTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('wz.ins.agreementHint')}</p>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.termsUr')}</label>
+            <textarea value={agreementForm.terms_text_ur} onChange={(e) => setAgreementForm({ ...agreementForm, terms_text_ur: e.target.value })}
+              rows={3} className="input-field mb-3" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.termsEn')}</label>
+            <textarea value={agreementForm.terms_text} onChange={(e) => setAgreementForm({ ...agreementForm, terms_text: e.target.value })}
+              rows={3} className="input-field mb-4" />
+            <button disabled={busy} onClick={sendAgreement}
+              className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              <Send size={16} /> {busy ? t('action.saving') : t('wz.ins.sendAgreement')}
+            </button>
+          </div>
+        </div>
+      )}
+
       {contribTarget && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setContribTarget(null)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>

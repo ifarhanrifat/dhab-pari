@@ -60,6 +60,21 @@ interface Dues {
   total_outstanding: number
 }
 
+// A snapshot, not a live join (migration 269) — what was actually shown at
+// the moment the committee sent it, so a later revision of the award's
+// terms never rewrites what somebody already agreed to.
+interface WazifaAgreement {
+  agreement_id: string; award_id: string; academic_year: string
+  awarded_amount_pkr: number; monthly_amount_pkr: number; due_day: number
+  terms_text: string; terms_text_ur: string | null
+  status: 'pending' | 'signed' | 'superseded'
+  student_signed_name: string | null; student_signed_at: string | null
+  installment_active: boolean
+}
+
+interface StatementEntry { date: string; particular: string; debit: number; credit: number; balance: number }
+interface Statement { has_account: boolean; entries: StatementEntry[]; balance: number }
+
 const LEVELS = ['intermediate', 'diploma', 'bachelors', 'masters', 'technical_certificate', 'medical', 'engineering', 'other'] as const
 const EXAMS = ['matric', 'fsc', 'fa', 'ics', 'icom', 'dae', 'ba', 'bsc', 'bs', 'bcom', 'masters', 'other'] as const
 const RELATIONS = ['father', 'mother', 'brother', 'sister', 'spouse', 'son', 'daughter', 'grandparent', 'other'] as const
@@ -129,6 +144,10 @@ export default function PortalWazifaPage() {
   // the committee starts reviewing, and closes for good after that, because
   // what they verified in person has to keep matching what is on the record.
   const [showForm, setShowForm] = useState(false)
+  // What the form looked like the moment it was opened, so "Close" can tell
+  // an untouched visit (no confirmation needed) from one where something was
+  // typed and would otherwise vanish silently.
+  const openSnapshotRef = useRef<string>('')
   const [savedId, setSavedId] = useState<string | null>(null)
   const [savedStatus, setSavedStatus] = useState<string | null>(null)
   const [isEditable, setIsEditable] = useState(true)
@@ -157,8 +176,18 @@ export default function PortalWazifaPage() {
   const [family, setFamily] = useState<FamilyRow[]>([{ ...emptyFamilyRow }])
   const [academics, setAcademics] = useState<AcademicRow[]>([{ ...emptyAcademicRow }])
 
+  // The agreement a student signs once the committee has decided and fixed
+  // a monthly figure, and the read-only statement of everything posted to
+  // their own account since — migrations 269/271.
+  const [agreements, setAgreements] = useState<WazifaAgreement[]>([])
+  const [signing, setSigning] = useState<WazifaAgreement | null>(null)
+  const [signName, setSignName] = useState('')
+  const [signAgree, setSignAgree] = useState(false)
+  const [statement, setStatement] = useState<Statement | null>(null)
+
   const load = useCallback(async () => {
-    const [{ data: sum }, { data: dec }, { data: lns }, { data: terms }, { data: saved }, { data: due }] = await Promise.all([
+    const [{ data: sum }, { data: dec }, { data: lns }, { data: terms }, { data: saved }, { data: due },
+           { data: ags }, { data: stmt }] = await Promise.all([
       supabase.rpc('public_wazifa_summary'),
       supabase.rpc('my_wazifa_decisions'),
       supabase.rpc('my_wazifa_loans'),
@@ -166,8 +195,12 @@ export default function PortalWazifaPage() {
         .in('key', ['wazifa_loan_terms_ur', 'wazifa_loan_terms_en']),
       supabase.rpc('my_wazifa_application'),
       supabase.rpc('my_wazifa_dues'),
+      supabase.rpc('my_wazifa_agreements'),
+      supabase.rpc('my_wazifa_statement'),
     ])
     setDues((due ?? null) as Dues | null)
+    setAgreements((ags ?? []) as WazifaAgreement[])
+    setStatement((stmt ?? null) as Statement | null)
 
     if (saved) {
       const a = saved.application as Record<string, unknown>
@@ -335,6 +368,28 @@ export default function PortalWazifaPage() {
     toast.success(t('pool.shareChanged'))
     setChangingShare(null)
     loadSponsorship()
+  }
+
+  // Clicked, not drawn — a typed full name plus a timestamp, the same
+  // weight the loan terms signature elsewhere on this page already rests
+  // on. wazifa_sign_agreement() (migration 269) checks ownership itself, so
+  // there is nothing more to validate here beyond "did they actually type
+  // something and tick the box."
+  const submitSign = async () => {
+    if (!signing) return
+    if (!signAgree) { toast.error(t('pwz.ag.mustTick')); return }
+    if (!signName.trim()) { toast.error(t('pwz.ag.mustType')); return }
+    setBusy(true)
+    const { error } = await supabase.rpc('wazifa_sign_agreement', {
+      p_agreement_id: signing.agreement_id, p_typed_name: signName.trim(),
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pwz.ag.signed'))
+    setSigning(null)
+    setSignName('')
+    setSignAgree(false)
+    load()
   }
 
   const stopSponsoring = async (c: (typeof sponsorCommitments)[number]) => {
@@ -532,7 +587,22 @@ export default function PortalWazifaPage() {
     toast.success(asDraft ? t('pwz.ok.draftSaved')
       : reapplyOf ? t('pwz.ok.reapplied') : t('pwz.ok.submitted'))
     setReapplyOf(null)
+    // A save is the new baseline — closing right after no longer asks
+    // "discard your changes?" about changes that are already on record.
+    openSnapshotRef.current = JSON.stringify({ form, family, academics })
     load()
+  }
+
+  // Opening snapshots what's on screen so Close can tell whether anything
+  // actually changed; closing asks first only when something did.
+  const openForm = () => {
+    openSnapshotRef.current = JSON.stringify({ form, family, academics })
+    setShowForm(true)
+  }
+  const closeForm = () => {
+    const dirty = JSON.stringify({ form, family, academics }) !== openSnapshotRef.current
+    if (dirty && !confirm(t('pwz.closeConfirm'))) return
+    setShowForm(false)
   }
 
   const label = 'block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5'
@@ -897,6 +967,96 @@ export default function PortalWazifaPage() {
         </div>
       )}
 
+      {/* ── The agreement — waiting for a signature, or already signed ──
+          The one step between "the committee decided" and "the monthly
+          instalment actually starts." Nothing here is editable — the terms
+          were fixed when the committee sent it (migration 269). */}
+      {agreements.length > 0 && (
+        <div className="mb-6 print:hidden">
+          <h2 className="font-heading text-[20px] font-bold text-dp-primary mb-3">{t('pwz.ag.heading')}</h2>
+          <div className="space-y-3">
+            {agreements.map((ag) => (
+              <div key={ag.agreement_id}
+                className={`bg-white border rounded-lg px-4 py-4 ${ag.status === 'pending' ? 'border-amber-300' : 'border-emerald-300'}`}>
+                <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                  <p className="font-sans text-[14.5px] font-bold text-dp-on-surface">{ag.academic_year}</p>
+                  <span className={`px-2.5 py-1 rounded-full text-[11.5px] font-bold ${
+                    ag.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'}`}>
+                    {ag.status === 'pending' ? t('pwz.ag.awaiting') : t('pwz.ag.signedBadge')}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('pwz.ag.monthly')}</p>
+                    <p className="font-heading text-[19px] font-bold text-dp-primary">Rs {fmt(ag.monthly_amount_pkr)}</p>
+                  </div>
+                  <div>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('pwz.ag.dueDay')}</p>
+                    <p className="font-heading text-[19px] font-bold text-dp-primary">{ag.due_day}</p>
+                  </div>
+                </div>
+                {ag.status === 'pending' ? (
+                  <button onClick={() => { setSigning(ag); setSignName(portalUser?.full_name ?? ''); setSignAgree(false) }}
+                    className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                    <UserCheck size={15} /> {t('pwz.ag.reviewAndSign')}
+                  </button>
+                ) : (
+                  <p className="font-sans text-[12px] text-dp-on-surface-variant">
+                    {t('pwz.ag.signedBy')} {ag.student_signed_name}
+                    {ag.student_signed_at ? ` · ${new Date(ag.student_signed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}
+                    {!ag.installment_active && ` · ${t('pwz.ag.waitingActivation')}`}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── The statement — every debit and credit on his own account,
+          the same copy of the ledger a donor accountant would have of
+          him (migration 271). Read-only, printable, nothing to act on. */}
+      {statement?.has_account && (
+        <div className="mb-6 print:hidden">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('pwz.stmt.heading')}</h2>
+            <p className="font-sans text-[13px] font-semibold text-dp-on-surface-variant">
+              {t('pwz.stmt.balance')}: <span className="text-dp-primary font-bold">Rs {fmt(statement.balance)}</span>
+            </p>
+          </div>
+          <div className="bg-white border border-dp-outline-variant rounded-lg overflow-x-auto">
+            {statement.entries.length === 0 ? (
+              <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('pwz.stmt.empty')}</p>
+            ) : (
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-dp-outline-variant bg-dp-surface-container-low">
+                    <th className="text-start font-sans font-bold text-dp-on-surface-variant px-4 py-2.5 text-[11.5px] uppercase tracking-[0.04em]">{t('pwz.stmt.date')}</th>
+                    <th className="text-start font-sans font-bold text-dp-on-surface-variant px-4 py-2.5 text-[11.5px] uppercase tracking-[0.04em]">{t('pwz.stmt.particular')}</th>
+                    <th className="text-end font-sans font-bold text-dp-on-surface-variant px-4 py-2.5 text-[11.5px] uppercase tracking-[0.04em]">{t('pwz.stmt.debit')}</th>
+                    <th className="text-end font-sans font-bold text-dp-on-surface-variant px-4 py-2.5 text-[11.5px] uppercase tracking-[0.04em]">{t('pwz.stmt.credit')}</th>
+                    <th className="text-end font-sans font-bold text-dp-on-surface-variant px-4 py-2.5 text-[11.5px] uppercase tracking-[0.04em]">{t('pwz.stmt.balance')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {statement.entries.map((e, i) => (
+                    <tr key={i} className="border-b border-dp-outline-variant last:border-b-0">
+                      <td className="px-4 py-2.5 text-dp-on-surface-variant whitespace-nowrap" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </td>
+                      <td className="px-4 py-2.5 text-dp-on-surface">{e.particular}</td>
+                      <td className="px-4 py-2.5 text-end text-dp-on-surface" style={{ fontVariantNumeric: 'tabular-nums' }}>{e.debit > 0 ? fmt(e.debit) : ''}</td>
+                      <td className="px-4 py-2.5 text-end text-emerald-700" style={{ fontVariantNumeric: 'tabular-nums' }}>{e.credit > 0 ? fmt(e.credit) : ''}</td>
+                      <td className="px-4 py-2.5 text-end font-semibold text-dp-on-surface" style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(e.balance)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Reapplying: say so at the top of the form, so nobody fills in a
           second application without realising it is a second application. */}
       {reapplyOf && (
@@ -938,11 +1098,11 @@ export default function PortalWazifaPage() {
           )}
 
           <div className="flex flex-wrap gap-3">
-            <button onClick={() => setShowForm(true)}
+            <button onClick={openForm}
               className="bg-dp-primary text-white font-sans text-[13px] font-bold px-4 py-2 rounded-lg hover:opacity-90">
               {isEditable ? t('pwz.continueEditing') : t('pwz.viewApplication')}
             </button>
-            <button onClick={() => { setShowForm(true); setTimeout(printForm, 300) }}
+            <button onClick={() => { openForm(); setTimeout(printForm, 300) }}
               className="border border-dp-outline-variant font-sans text-[13px] font-bold px-4 py-2 rounded-lg text-dp-on-surface">
               <Printer size={14} className="inline me-1.5" />{t('pwz.print')}
             </button>
@@ -952,7 +1112,7 @@ export default function PortalWazifaPage() {
 
       {/* Nothing on file yet: one button rather than a wall of fields. */}
       {!savedId && !showForm && (
-        <button onClick={() => setShowForm(true)}
+        <button onClick={openForm}
           className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-dp-outline-variant hover:border-dp-secondary text-dp-primary py-4 rounded-lg font-sans font-semibold transition-colors print:hidden">
           <Plus size={17} /> {t('pwz.startApplication')}
         </button>
@@ -960,6 +1120,19 @@ export default function PortalWazifaPage() {
 
       {/* ══════ The form itself — this whole block is what prints ══════ */}
       <div ref={formRef} className={showForm ? '' : 'hidden print:block'}>
+        {/* A way back out, from the top, before anyone has to scroll past
+            eleven sections to find it. */}
+        {showForm && (
+          <div className="print:hidden flex items-center justify-between bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-2.5 mb-4 sticky top-0 z-10">
+            <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface-variant">
+              {savedId ? t('pwz.savedTitle') : t('pwz.startApplication')}
+            </p>
+            <button onClick={closeForm} type="button"
+              className="flex items-center gap-1.5 font-sans text-[12.5px] font-bold text-dp-on-surface hover:text-dp-primary cursor-pointer">
+              {t('pwz.close')} <X size={16} />
+            </button>
+          </div>
+        )}
         <div className="hidden print:block mb-4">
           <h2 className="font-heading text-[22px] font-bold">{t('pwz.printHeading')}</h2>
           <p className="font-sans text-[12px]">{t('pwz.printSubheading')}</p>
@@ -1727,21 +1900,31 @@ export default function PortalWazifaPage() {
                 : savedStatus === 'submitted' ? t('pwz.saveChanges') : t('pwz.submit')}
             </button>
           </div>
+          <button disabled={busy} onClick={closeForm} type="button"
+            className="w-full text-center font-sans text-[13px] font-semibold text-dp-on-surface-variant hover:text-dp-primary cursor-pointer disabled:opacity-50">
+            {t('pwz.close')}
+          </button>
         </div>
       ) : (
         /* Locked. The reason is spelled out rather than left as a greyed-out
            button, because "why can I not change this?" is the next question
            and a disabled control never answers it. */
-        <div className="print:hidden flex items-start gap-2.5 bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3.5">
-          <Lock size={17} className="text-dp-secondary shrink-0 mt-0.5" />
-          <div>
-            <p className="font-sans text-[13.5px] font-bold text-dp-primary mb-0.5">
-              {t('pwz.lockedTitle')}
-            </p>
-            <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">
-              {lockedReason ?? t('pwz.lockedGeneric')} {t('pwz.lockedHelp')}
-            </p>
+        <div className="print:hidden space-y-3">
+          <div className="flex items-start gap-2.5 bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3.5">
+            <Lock size={17} className="text-dp-secondary shrink-0 mt-0.5" />
+            <div>
+              <p className="font-sans text-[13.5px] font-bold text-dp-primary mb-0.5">
+                {t('pwz.lockedTitle')}
+              </p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">
+                {lockedReason ?? t('pwz.lockedGeneric')} {t('pwz.lockedHelp')}
+              </p>
+            </div>
           </div>
+          <button onClick={closeForm} type="button"
+            className="w-full text-center font-sans text-[13px] font-semibold text-dp-on-surface-variant hover:text-dp-primary cursor-pointer">
+            {t('pwz.close')}
+          </button>
         </div>
       )}
 
@@ -1817,6 +2000,53 @@ export default function PortalWazifaPage() {
             <button disabled={busy} onClick={submitChangeShare}
               className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
               {busy ? t('action.saving') : t('action.save')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Review & sign the agreement ──────────────────────────────────
+          Clicked, not drawn: a ticked box, a typed full name, one button.
+          wazifa_sign_agreement() stamps the timestamp server-side. */}
+      {signing && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 print:hidden" onClick={() => setSigning(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('pwz.ag.reviewAndSign')}</h2>
+              <button onClick={() => setSigning(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+
+            <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4 grid grid-cols-2 gap-3">
+              <div>
+                <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('pwz.ag.monthly')}</p>
+                <p className="font-sans text-[15px] font-bold text-dp-primary">Rs {fmt(signing.monthly_amount_pkr)}</p>
+              </div>
+              <div>
+                <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('pwz.ag.dueDay')}</p>
+                <p className="font-sans text-[15px] font-bold text-dp-primary">{signing.due_day}</p>
+              </div>
+            </div>
+
+            {signing.terms_text_ur && (
+              <p className="font-sans text-[14.5px] leading-[2] text-dp-on-surface mb-3"
+                style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                {signing.terms_text_ur}
+              </p>
+            )}
+            <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed mb-4">{signing.terms_text}</p>
+
+            <label className="flex items-start gap-2 cursor-pointer font-sans text-[12.5px] mb-4">
+              <input type="checkbox" checked={signAgree}
+                onChange={(e) => setSignAgree(e.target.checked)} className="accent-dp-secondary mt-0.5" />
+              <span>{t('pwz.ag.tickLabel')}</span>
+            </label>
+
+            <label className={label}>{t('pwz.ag.typeYourName')}</label>
+            <input value={signName} onChange={(e) => setSignName(e.target.value)} className="input-field mb-5" />
+
+            <button disabled={busy || !signAgree || !signName.trim()} onClick={submitSign}
+              className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              <UserCheck size={16} /> {busy ? t('action.saving') : t('pwz.ag.signButton')}
             </button>
           </div>
         </div>

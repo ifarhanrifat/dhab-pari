@@ -5,10 +5,11 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { PlusCircle, X, Pause, Play, Trash2, Pencil } from 'lucide-react'
+import { PlusCircle, X, Pause, Play, Trash2, Pencil, Lock } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import Link from 'next/link'
 
 interface Schedule {
   id: string; amount_pkr: number; frequency: string; next_run_date: string; is_active: boolean
@@ -18,6 +19,16 @@ interface Project { id: string; title: string }
 // A standing Kafalat/Wazifa/Sadqa share, read the same way a project
 // recurring schedule is — one list, one place a donor manages what repeats.
 interface PoolLine { id: string; source: 'pool'; amount_pkr: number; is_active: boolean; particular: string; pool_code: string }
+// Fixed by the committee, not the student — my_wazifa_installments() only
+// ever returns an award once it is installment_active, i.e. once the
+// student has signed the agreement and the committee has activated it.
+// There is deliberately no id to act on here: nothing this page renders for
+// a WazifaLine is ever clickable to pause, change, or stop.
+interface WazifaLine {
+  award_id: string; academic_year: string; monthly_amount_pkr: number; due_day: number
+  due_soon: { id: string; due_on: string; amount: number; paid: number; status: string }[] | null
+  total_overdue: number
+}
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -29,6 +40,7 @@ export default function PortalRecurringPage() {
   const { user, loading: userLoading } = usePortalUser()
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [poolLines, setPoolLines] = useState<PoolLine[]>([])
+  const [wazifaLines, setWazifaLines] = useState<WazifaLine[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -47,16 +59,18 @@ export default function PortalRecurringPage() {
   const load = async () => {
     if (!user) return
     const supabase = createClient()
-    const [{ data: sched }, { data: proj }, { data: pol }, { data: pool }] = await Promise.all([
+    const [{ data: sched }, { data: proj }, { data: pol }, { data: pool }, { data: wazifa }] = await Promise.all([
       supabase.from('recurring_schedules').select('id, amount_pkr, frequency, next_run_date, is_active, project_id, payment_method, particular')
         .eq('created_by_portal_user_id', user.id).order('next_run_date', { ascending: true }),
       supabase.from('projects').select('id, title').neq('status', 'upcoming').order('title'),
       supabase.from('site_settings').select('key, value').in('key', ['recurring_policy_en', 'recurring_policy_ur']),
       supabase.rpc('my_pool_recurring_lines'),
+      supabase.rpc('my_wazifa_installments'),
     ])
     setSchedules(sched ?? [])
     setProjects(proj ?? [])
     setPoolLines((pool ?? []) as PoolLine[])
+    setWazifaLines((wazifa ?? []) as WazifaLine[])
     const v = Object.fromEntries((pol ?? []).map((x) => [x.key, x.value ?? '']))
     setPolicy({ en: v.recurring_policy_en ?? '', ur: v.recurring_policy_ur ?? '' })
     setLoading(false)
@@ -144,7 +158,7 @@ export default function PortalRecurringPage() {
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-        {schedules.length === 0 && poolLines.length === 0 ? (
+        {schedules.length === 0 && poolLines.length === 0 && wazifaLines.length === 0 ? (
           <p className="px-5 py-8 text-center font-sans text-[14px] text-dp-on-surface-variant">{t('p.noRecurring')}</p>
         ) : (
           <>
@@ -182,6 +196,37 @@ export default function PortalRecurringPage() {
                     <Pencil size={16} />
                   </button>
                   <button onClick={() => setConfirmStopPool(p.id)} className="p-2 text-dp-on-surface-variant hover:text-dp-error cursor-pointer" title="Stop"><Trash2 size={16} /></button>
+                </div>
+              </div>
+            ))}
+            {/* Taleemi Wazifa's fixed monthly instalment — set by the
+                committee once the student has signed the agreement, not by
+                the student. No Pencil, no Trash2: there is nothing here to
+                act on, which is the whole point of it being here at all. */}
+            {wazifaLines.map((w) => (
+              <div key={w.award_id} className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant last:border-b-0">
+                <div>
+                  <p className="font-sans text-[15px] font-bold text-dp-on-surface">
+                    Rs. {fmt(w.monthly_amount_pkr)} · {isUrdu ? 'ماہانہ' : 'monthly'}
+                  </p>
+                  <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">
+                    {isUrdu ? 'تعلیمی وظیفہ' : 'Taleemi Wazifa'} {w.academic_year}
+                    {' · '}{isUrdu ? `ہر ماہ کی ${w.due_day} تاریخ تک` : `due by the ${w.due_day}${w.due_day === 1 ? 'st' : w.due_day === 2 ? 'nd' : w.due_day === 3 ? 'rd' : 'th'} of each month`}
+                    {w.total_overdue > 0 && (
+                      <span className="text-dp-error font-semibold">
+                        {' · '}{isUrdu ? `Rs ${fmt(w.total_overdue)} واجب الادا` : `Rs. ${fmt(w.total_overdue)} overdue`}
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${w.total_overdue > 0 ? 'bg-red-100 text-dp-error' : 'bg-emerald-100 text-emerald-700'}`}>
+                    {isUrdu ? 'کمیٹی کی مقرر کردہ' : 'Committee-fixed'}
+                  </span>
+                  <Link href="/portal/wazifa" title={isUrdu ? 'گوشوارہ دیکھیں' : 'View statement'}
+                    className="p-2 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
+                    <Lock size={16} />
+                  </Link>
                 </div>
               </div>
             ))}
