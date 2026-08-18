@@ -44,6 +44,7 @@ interface Application {
   institute_phone: string | null; is_in_hostel: boolean; hostel_name: string | null; hostel_phone: string | null
   offered_monthly_contribution_pkr: number
   offered_contribution_status: 'pending' | 'approved' | 'declined'
+  actual_course_cost_pkr?: number | null; family_monthly_capacity_pkr?: number | null
 }
 
 interface AwardRow {
@@ -55,6 +56,10 @@ interface AwardRow {
   installment_start_date?: string | null; installment_end_date?: string | null
   installment_pay_to?: string | null
   contributed_pkr?: number; written_off_pkr?: number
+  plan_type?: 'collect_now' | 'disburse_then_settle'
+  disbursement_monthly_pkr?: number | null; disbursement_start_date?: string | null; disbursement_end_date?: string | null
+  disbursement_due_day?: number | null; disbursement_pay_to?: string | null; disbursement_active?: boolean
+  disbursed_pkr?: number; settlement_trigger?: 'course_end' | 'employment' | 'none' | null
 }
 
 interface ZakatCandidate {
@@ -176,12 +181,6 @@ export default function WazifaPage() {
     payment_batch_id: string | null
   }[]>([])
   const [collBatchSummary, setCollBatchSummary] = useState<Record<string, { count: number; total: number }>>({})
-  const [qarzActions, setQarzActions] = useState<{
-    id: string; commitment_id: string; action: string; amount_pkr: number; status: string
-    note: string | null; requested_at: string; donor_name: string; student_name: string
-  }[]>([])
-  const [declineQarzTarget, setDeclineQarzTarget] = useState<string | null>(null)
-  const [declineQarzReason, setDeclineQarzReason] = useState('')
   const [collCovering, setCollCovering] = useState<(typeof collShortMonths)[number] | null>(null)
   const [collCoverAmount, setCollCoverAmount] = useState(0)
   const [collCoverNote, setCollCoverNote] = useState('')
@@ -205,6 +204,14 @@ export default function WazifaPage() {
     // instead (migration 276), set once screening confirms the match.
     set_plan: false, installment_basis: 'full', installment_percentage: 50,
     installment_start_date: '', installment_end_date: '', installment_due_day: 10, installment_pay_to: 'student',
+    // "Pay while studying, then settle" (migration 287) — the other shape
+    // a plan can take. plan_kind picks which one set_plan actually sets;
+    // the fields above stay for collect_now, these are only read when
+    // plan_kind is disburse_then_settle.
+    plan_kind: 'collect_now' as 'collect_now' | 'disburse_then_settle',
+    disbursement_monthly: 0, disbursement_start_date: '', disbursement_end_date: '',
+    disbursement_due_day: 10, disbursement_pay_to: 'student',
+    settlement_monthly: 0, settlement_trigger: 'course_end' as 'course_end' | 'employment' | 'none', settlement_due_day: 10,
   })
   const [planTarget, setPlanTarget] = useState<AwardRow | null>(null)
   const [planForm, setPlanForm] = useState({ starts_on: '', instalments: 12 })
@@ -241,6 +248,14 @@ export default function WazifaPage() {
   const [installmentCharges, setInstallmentCharges] = useState<
     { id: string; award_id: string; due_on: string; amount_pkr: number; paid_pkr: number; status: string }[]
   >([])
+  // The disbursement half of a "pay while studying, then settle" plan
+  // (migration 287) — the monthly job raises these, releasing the actual
+  // cash stays a deliberate action, same shape as payChargeTarget below.
+  const [disbursementCharges, setDisbursementCharges] = useState<
+    { id: string; award_id: string; due_on: string; amount_pkr: number; paid_pkr: number; status: string }[]
+  >([])
+  const [payDisbursementTarget, setPayDisbursementTarget] = useState<{ id: string; award_id: string; amount_pkr: number; due_on: string } | null>(null)
+  const [payDisbursementForm, setPayDisbursementForm] = useState({ method: 'cash' })
   const [planAwardTarget, setPlanAwardTarget] = useState<AwardRow | null>(null)
   const [planAwardForm, setPlanAwardForm] = useState({
     basis: 'full', percentage: 50, start_date: '', end_date: '', due_day: 10, pay_to: 'student',
@@ -278,7 +293,7 @@ export default function WazifaPage() {
   const load = useCallback(async () => {
     const [{ data: st }, { data: ap }, { data: aw }, { data: ins }, { data: sum }, { data: vf }, { data: dc },
            { data: docs }, { data: cm }, { data: minV }, { data: sch }, { data: ags }, { data: charges },
-           { data: grants }, { data: checks }, { data: repay }] = await Promise.all([
+           { data: grants }, { data: checks }, { data: repay }, { data: dcharges }] = await Promise.all([
       supabase.from('wazifa_students').select('*').order('created_at', { ascending: false }),
       supabase.from('wazifa_applications').select('*').order('total_score', { ascending: false, nullsFirst: false }),
       supabase.from('wazifa_awards').select('*').order('created_at', { ascending: false }),
@@ -297,6 +312,8 @@ export default function WazifaPage() {
       supabase.from('wazifa_interim_grant').select('*').order('created_at', { ascending: false }),
       supabase.from('wazifa_check_ins').select('*').order('checked_on', { ascending: false }),
       supabase.from('wazifa_repayment_schedule').select('id, award_id, due_on, amount_pkr, paid_pkr, status'),
+      supabase.from('wazifa_disbursement_charges').select('id, award_id, due_on, amount_pkr, paid_pkr, status')
+        .order('due_on', { ascending: false }),
     ])
     setStudents((st ?? []) as Student[])
     setApplications((ap ?? []) as Application[])
@@ -307,6 +324,7 @@ export default function WazifaPage() {
     setInterimGrants((grants ?? []) as InterimGrant[])
     setCheckIns((checks ?? []) as CheckIn[])
     setRepaymentSchedule((repay ?? []) as typeof repaymentSchedule)
+    setDisbursementCharges((dcharges ?? []) as typeof disbursementCharges)
     setSummary((sum ?? {}) as Record<string, number>)
     setVerifications((vf ?? []) as Verification[])
     const dmap: Record<string, DecisionRow> = {}
@@ -346,47 +364,12 @@ export default function WazifaPage() {
       setCollBatchSummary({})
     }
 
-    // Pending qarz-e-hasana requests — donor and student names joined
-    // client-side since wazifa_qarz_actions only holds the commitment id
-    // (migration 280).
-    const { data: qa } = await supabase.from('wazifa_qarz_actions')
-      .select('id, commitment_id, action, amount_pkr, status, note, requested_at, target_project_id')
-      .eq('status', 'pending').order('requested_at')
-    const commitmentIds = Array.from(new Set((qa ?? []).map((a) => a.commitment_id)))
-    let commitmentMap: Record<string, { donor_name: string; wazifa_student_id: string | null }> = {}
-    if (commitmentIds.length > 0) {
-      const { data: cs } = await supabase.from('pool_commitments').select('id, donor_name, wazifa_student_id').in('id', commitmentIds)
-      commitmentMap = Object.fromEntries((cs ?? []).map((c) => [c.id, c]))
-    }
-    setQarzActions((qa ?? []).map((a) => ({
-      ...a,
-      donor_name: commitmentMap[a.commitment_id]?.donor_name ?? '—',
-      student_name: studentOf(commitmentMap[a.commitment_id]?.wazifa_student_id ?? '')?.full_name ?? '—',
-    })))
   }, [supabase])
 
   // Loaded on mount, not gated on the tab being open — see the matching
   // note on /admin/kafalat for why a badge that only knows its own count
   // after you've already opened the tab is not a useful badge.
   useEffect(() => { loadCollections() }, [loadCollections])
-
-  const fulfillQarz = async (id: string) => {
-    const { error } = await supabase.rpc('wazifa_fulfill_qarz_action', { p_action_id: id })
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('wz.qarz.fulfilled'))
-    loadCollections()
-  }
-  const declineQarz = async () => {
-    if (!declineQarzTarget || !declineQarzReason.trim()) { toast.error(t('wz.qarz.reasonRequired')); return }
-    const { error } = await supabase.rpc('wazifa_decline_qarz_action', {
-      p_action_id: declineQarzTarget, p_reason: declineQarzReason.trim(),
-    })
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('wz.qarz.declined'))
-    setDeclineQarzTarget(null)
-    setDeclineQarzReason('')
-    loadCollections()
-  }
 
   const confirmCollAnnouncement = async (a: { id: string; amount: number }) => {
     const entered = prompt(t('pool.confirmAmountPrompt').replace('{amt}', fmt(a.amount)), String(a.amount))
@@ -602,6 +585,35 @@ export default function WazifaPage() {
     load()
   }
 
+  // ── Releasing a month's support to a student on the disburse-then-
+  // settle plan (migration 287) — same "raised automatically, paid on a
+  // deliberate click" shape as submitPayCharge, opposite direction. ──────
+  const submitPayDisbursement = async () => {
+    if (!payDisbursementTarget) return
+    setBusy(true)
+    const { error } = await supabase.rpc('wazifa_pay_disbursement_charge', {
+      p_charge_id: payDisbursementTarget.id, p_method: payDisbursementForm.method,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.ins.paySuccess'))
+    setPayDisbursementTarget(null)
+    load()
+  }
+
+  // The one manual step on the "settle once employed" trigger — nobody
+  // can put a date on it in advance, so an admin confirming it is the
+  // date (migration 287).
+  const triggerSettlement = async (aw: AwardRow) => {
+    if (!confirm(t('wz.plan.confirmTrigger'))) return
+    setBusy(true)
+    const { error } = await supabase.rpc('wazifa_trigger_settlement', { p_award_id: aw.id })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.plan.triggered'))
+    load()
+  }
+
   const submitAdvancePay = async () => {
     if (!advancePayTarget) return
     setBusy(true)
@@ -798,11 +810,16 @@ export default function WazifaPage() {
 
   const recordDecision = async () => {
     if (!decideTarget) return
-    if (dForm.set_plan && (!dForm.installment_start_date || !dForm.installment_end_date)) {
+    const settingCollectNow = dForm.set_plan && dForm.plan_kind === 'collect_now'
+    const settingDisburseThenSettle = dForm.set_plan && dForm.plan_kind === 'disburse_then_settle'
+    if (settingCollectNow && (!dForm.installment_start_date || !dForm.installment_end_date)) {
+      toast.error(t('wz.ins.err.dates')); return
+    }
+    if (settingDisburseThenSettle && (!dForm.disbursement_start_date || !dForm.disbursement_end_date || dForm.disbursement_monthly <= 0)) {
       toast.error(t('wz.ins.err.dates')); return
     }
     setBusy(true)
-    const { error } = await supabase.rpc('wazifa_record_decision', {
+    const { data, error } = await supabase.rpc('wazifa_record_decision', {
       p_application_id: decideTarget.id,
       p_decision: dForm.decision,
       p_amount: dForm.amount,
@@ -813,18 +830,48 @@ export default function WazifaPage() {
       p_internal_note: dForm.internal_note || null,
       p_meeting_id: null,
       p_shortfall_note: dForm.shortfall_note || null,
-      // Nothing left to come back for — approving and setting the whole
-      // plan happen in this one call (migration 278). Sent only when the
-      // committee actually ticked "set the plan now."
-      p_installment_basis: dForm.set_plan ? dForm.installment_basis : null,
-      p_installment_percentage: dForm.set_plan && dForm.installment_basis === 'percentage' ? dForm.installment_percentage : null,
-      p_installment_start_date: dForm.set_plan ? dForm.installment_start_date : null,
-      p_installment_end_date: dForm.set_plan ? dForm.installment_end_date : null,
-      p_installment_due_day: dForm.set_plan ? dForm.installment_due_day : null,
-      p_installment_pay_to: dForm.set_plan ? dForm.installment_pay_to : 'student',
+      // The collect-now plan is set in this same call (migration 278).
+      // Disburse-then-settle (migration 287) is a second call right below
+      // instead — it needed three more parameters than collect-now ever
+      // did, and wazifa_record_decision already carries the scars of one
+      // round of "just add another optional param here" (the dead
+      // pre-284 overload cleaned up in migration 285); it doesn't need a
+      // second one.
+      p_installment_basis: settingCollectNow ? dForm.installment_basis : null,
+      p_installment_percentage: settingCollectNow && dForm.installment_basis === 'percentage' ? dForm.installment_percentage : null,
+      p_installment_start_date: settingCollectNow ? dForm.installment_start_date : null,
+      p_installment_end_date: settingCollectNow ? dForm.installment_end_date : null,
+      p_installment_due_day: settingCollectNow ? dForm.installment_due_day : null,
+      p_installment_pay_to: settingCollectNow ? dForm.installment_pay_to : 'student',
     })
+    if (error) { setBusy(false); toast.error(friendlyError(error)); return }
+
+    if (settingDisburseThenSettle) {
+      const awardId = (data as { award_id?: string } | null)?.award_id
+      if (awardId) {
+        const { error: planError } = await supabase.rpc('wazifa_set_disbursement_settlement_plan', {
+          p_award_id: awardId,
+          p_disbursement_monthly: dForm.disbursement_monthly,
+          p_disbursement_start: dForm.disbursement_start_date,
+          p_disbursement_end: dForm.disbursement_end_date,
+          p_disbursement_due_day: dForm.disbursement_due_day,
+          p_disbursement_pay_to: dForm.disbursement_pay_to,
+          p_settlement_monthly: dForm.settlement_trigger === 'none' ? null : dForm.settlement_monthly,
+          p_settlement_trigger: dForm.settlement_trigger,
+          p_settlement_due_day: dForm.settlement_due_day,
+        })
+        if (planError) {
+          setBusy(false)
+          toast.error(friendlyError(planError))
+          toast.error(t('wz.ok.decided'))
+          setDecideTarget(null)
+          load()
+          return
+        }
+      }
+    }
+
     setBusy(false)
-    if (error) { toast.error(friendlyError(error)); return }
     toast.success(dForm.set_plan ? t('wz.ok.decidedWithPlan') : t('wz.ok.decided'))
     setDecideTarget(null)
     load()
@@ -1166,6 +1213,20 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                         reason: '', reason_ur: '', internal_note: '', shortfall_note: '',
                         set_plan: false, installment_basis: 'full', installment_percentage: 50,
                         installment_start_date: '', installment_end_date: '', installment_due_day: 10, installment_pay_to: 'student',
+                        plan_kind: 'disburse_then_settle', disbursement_monthly: 0,
+                        disbursement_start_date: '', disbursement_end_date: '', disbursement_due_day: 10, disbursement_pay_to: 'student',
+                        // The family's own proven monthly capacity, carried
+                        // straight from the application — the whole point
+                        // being that this figure is not recomputed, it's
+                        // what they already showed they could sustain.
+                        // "What the student can manage themselves" — already
+                        // asked on the application form (offered_monthly_
+                        // contribution_pkr) for the running-share purpose;
+                        // it's the same proven figure this plan wants, so
+                        // it's reused rather than asking the family the
+                        // same question under a second name.
+                        settlement_monthly: Number(a.family_monthly_capacity_pkr || a.offered_monthly_contribution_pkr) || 0,
+                        settlement_trigger: 'course_end', settlement_due_day: 10,
                       })
                     }}
                     className="flex items-center gap-1.5 px-3.5 py-2 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
@@ -1195,14 +1256,20 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
             // it for a standard-track award's "paid so far" is why that
             // figure sat at Rs 0 forever no matter what was actually paid
             // (migration 285).
-            const onPlan = !!aw.installment_basis
+            const isDisburseThenSettle = aw.plan_type === 'disburse_then_settle'
+            const onPlan = !!aw.installment_basis || isDisburseThenSettle
             const mine = instalments.filter((i) => i.award_id === aw.id)
             const paid = onPlan
               ? Number(aw.contributed_pkr ?? 0)
               : mine.filter((i) => i.status === 'paid').reduce((x, i) => x + Number(i.amount_pkr), 0)
-            const planTotal = aw.installment_basis === 'percentage'
-              ? Math.round(aw.awarded_amount_pkr * (aw.installment_percentage ?? 100) / 100)
-              : aw.awarded_amount_pkr
+            // A disburse-then-settle plan's "total to settle" is what was
+            // actually paid out — not a percentage of the award, which
+            // this plan never used (migration 287).
+            const planTotal = isDisburseThenSettle
+              ? Number(aw.disbursed_pkr ?? 0)
+              : aw.installment_basis === 'percentage'
+                ? Math.round(aw.awarded_amount_pkr * (aw.installment_percentage ?? 100) / 100)
+                : aw.awarded_amount_pkr
             return (
               <div key={aw.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
@@ -1365,13 +1432,46 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                             <Pencil size={13} /> {monthly > 0 ? t('wz.ins.revise') : t('wz.ins.setPlan')}
                           </button>
                         )}
-                        {ag?.status === 'signed' && !aw.installment_active && (
+                        {ag?.status === 'signed' && !aw.installment_active && !isDisburseThenSettle && (
                           <button onClick={() => activateAward(aw)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
                             <UserCheck size={13} /> {t('wz.ins.activate')}
                           </button>
                         )}
+                        {isDisburseThenSettle && aw.settlement_trigger === 'employment' && !aw.installment_active && (
+                          <button onClick={() => triggerSettlement(aw)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
+                            <UserCheck size={13} /> {t('wz.plan.markEmployed')}
+                          </button>
+                        )}
                       </div>
+
+                      {/* ── The disbursement half: what's due to go out to
+                          the student this month, while they're still
+                          studying (migration 287). ──────────────────────── */}
+                      {isDisburseThenSettle && (
+                        <div className="mt-2.5">
+                          <p className="font-sans text-[12px] text-dp-on-surface-variant">
+                            {t('wz.plan.supportGiven')} <strong className="text-dp-on-surface">Rs {fmt(aw.disbursed_pkr ?? 0)}</strong>
+                            {aw.disbursement_monthly_pkr ? ` · Rs ${fmt(aw.disbursement_monthly_pkr)}/${t('pkf.month')}` : ''}
+                            {aw.settlement_trigger === 'employment' && !aw.installment_active && (
+                              <span className="ms-1.5 text-amber-700 font-semibold">· {t('wz.plan.awaitingEmployment')}</span>
+                            )}
+                          </p>
+                          {disbursementCharges.filter((c) => c.award_id === aw.id && c.status !== 'paid').length > 0 && (
+                            <div className="mt-1.5 flex flex-wrap gap-2">
+                              {disbursementCharges.filter((c) => c.award_id === aw.id && c.status !== 'paid').map((c) => (
+                                <button key={c.id} onClick={() => setPayDisbursementTarget(c)}
+                                  className="flex items-center gap-1.5 px-2.5 py-1 border border-emerald-600 text-emerald-700 rounded-lg font-sans text-[11.5px] font-semibold hover:bg-emerald-600 hover:text-white transition-all cursor-pointer">
+                                  <HandCoins size={12} />
+                                  {t('wz.plan.release')} {new Date(c.due_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · Rs {fmt(c.amount_pkr - c.paid_pkr)}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Charges the automated plan has already raised —
                           recording a payment is the one manual step left
                           in this whole flow. */}
@@ -1493,40 +1593,6 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
           /admin/pools screen, scoped to just Wazifa's shared pool. */}
       {!loading && tab === 'collections' && (
         <div className="space-y-6">
-          {/* ── Qarz-e-Hasana requests — a donor asking for money back,
-              converting it to sadqa, or moving it to a project
-              (migration 280). Shown first: real money waiting on a
-              committee decision outranks the routine collection view. */}
-          {qarzActions.length > 0 && (
-            <div className="bg-white border-2 border-dp-secondary/40 rounded-lg p-4">
-              <h3 className="font-heading text-[16px] font-bold text-dp-primary mb-3">{t('wz.qarz.pendingTitle')}</h3>
-              <div className="space-y-2.5">
-                {qarzActions.map((a) => (
-                  <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 border border-dp-outline-variant rounded-lg px-3.5 py-3">
-                    <div>
-                      <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">
-                        {a.donor_name} · {t(`pool.qarz.action.${a.action}`)} · Rs {fmt(a.amount_pkr)}
-                      </p>
-                      <p className="font-sans text-[12px] text-dp-on-surface-variant">
-                        {a.student_name} · {new Date(a.requested_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        {a.note ? ` · ${a.note}` : ''}
-                      </p>
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      <button onClick={() => fulfillQarz(a.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
-                        {t('wz.qarz.fulfill')}
-                      </button>
-                      <button onClick={() => { setDeclineQarzTarget(a.id); setDeclineQarzReason('') }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-error transition-all cursor-pointer">
-                        {t('wz.qarz.decline')}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {collPosition && (
             <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
@@ -1666,23 +1732,6 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
       )}
 
       {/* ── Decline a qarz-e-hasana request ──────────────────────────── */}
-      {declineQarzTarget && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setDeclineQarzTarget(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('wz.qarz.decline')}</h2>
-              <button onClick={() => setDeclineQarzTarget(null)} className="cursor-pointer"><X size={18} /></button>
-            </div>
-            <textarea value={declineQarzReason} onChange={(e) => setDeclineQarzReason(e.target.value)}
-              rows={2} placeholder={t('wz.qarz.reasonPlaceholder')} className="input-field mb-4" />
-            <button onClick={declineQarz}
-              className="w-full bg-dp-error text-white py-2.5 rounded-lg font-sans font-semibold hover:opacity-90 transition-all cursor-pointer">
-              {t('wz.qarz.decline')}
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* ── Committee covers a shortfall ──────────────────────────────── */}
       {collCovering && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setCollCovering(null)}>
@@ -2202,6 +2251,32 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
         </div>
       )}
 
+      {payDisbursementTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPayDisbursementTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('wz.plan.releaseTitle')}</h2>
+              <button onClick={() => setPayDisbursementTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">
+              {t('wz.ins.due')} {new Date(payDisbursementTarget.due_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+              {' · '}Rs {fmt(payDisbursementTarget.amount_pkr)}
+            </p>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
+            <select value={payDisbursementForm.method} onChange={(e) => setPayDisbursementForm({ method: e.target.value })} className="input-field mb-4">
+              <option value="cash">{t('w.cash')}</option>
+              <option value="bank">{t('a.bank')}</option>
+              <option value="jazzcash">{t('w.jazzcash')}</option>
+              <option value="easypaisa">{t('w.easypaisa')}</option>
+            </select>
+            <button disabled={busy} onClick={submitPayDisbursement}
+              className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-50">
+              <HandCoins size={16} /> {busy ? t('action.saving') : t('wz.plan.releaseTitle')}
+            </button>
+          </div>
+        </div>
+      )}
+
       {contribTarget && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setContribTarget(null)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
@@ -2565,56 +2640,152 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                     {dForm.set_plan && (
                       <div className="mt-3 space-y-3">
                         <div className="flex gap-2">
-                          {(['full', 'percentage'] as const).map((b) => (
-                            <button key={b} type="button" onClick={() => setDForm({ ...dForm, installment_basis: b })}
-                              className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all cursor-pointer ${
-                                dForm.installment_basis === b ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
-                              {b === 'full' ? t('wz.ins.basisFull') : t('wz.ins.basisPercentage')}
+                          {(['disburse_then_settle', 'collect_now'] as const).map((k) => (
+                            <button key={k} type="button" onClick={() => setDForm({ ...dForm, plan_kind: k })}
+                              className={`flex-1 py-2 rounded-lg font-sans text-[12.5px] font-semibold transition-all cursor-pointer ${
+                                dForm.plan_kind === k ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
+                              {k === 'disburse_then_settle' ? t('wz.plan.kindDisburse') : t('wz.plan.kindCollect')}
                             </button>
                           ))}
                         </div>
-                        {dForm.installment_basis === 'percentage' && (
-                          <div>
-                            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.percentage')}</label>
-                            <input type="number" min={1} max={100} value={dForm.installment_percentage || ''}
-                              onChange={(e) => setDForm({ ...dForm, installment_percentage: +e.target.value })} className="input-field" />
-                          </div>
+
+                        {dForm.plan_kind === 'disburse_then_settle' ? (
+                          <>
+                            <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('wz.plan.disburseHelp')}</p>
+                            {(decideTarget.actual_course_cost_pkr || decideTarget.family_monthly_capacity_pkr || decideTarget.offered_monthly_contribution_pkr) ? (
+                              <p className="font-sans text-[12px] text-dp-secondary bg-dp-secondary/10 rounded-lg px-3 py-2">
+                                {decideTarget.actual_course_cost_pkr ? `${t('wz.f.actualCourseCost')}: Rs ${fmt(decideTarget.actual_course_cost_pkr)} · ` : ''}
+                                {t('wz.f.familyCapacity')}: Rs {fmt(decideTarget.family_monthly_capacity_pkr || decideTarget.offered_monthly_contribution_pkr)}/{t('pkf.month')}
+                              </p>
+                            ) : null}
+                            <p className="font-sans text-[12px] font-bold uppercase tracking-wide text-dp-on-surface-variant">{t('wz.plan.whileStudying')}</p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.plan.monthlySupport')}</label>
+                                <input type="number" min={1} value={dForm.disbursement_monthly || ''}
+                                  onChange={(e) => setDForm({ ...dForm, disbursement_monthly: +e.target.value })} className="input-field" />
+                              </div>
+                              <div>
+                                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.dueDay')}</label>
+                                <input type="number" min={1} max={28} value={dForm.disbursement_due_day || ''}
+                                  onChange={(e) => setDForm({ ...dForm, disbursement_due_day: +e.target.value })} className="input-field" />
+                              </div>
+                              <div>
+                                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.startDate')}</label>
+                                <input type="date" value={dForm.disbursement_start_date}
+                                  onChange={(e) => setDForm({ ...dForm, disbursement_start_date: e.target.value })} className="input-field" />
+                              </div>
+                              <div>
+                                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.endDate')}</label>
+                                <input type="date" value={dForm.disbursement_end_date}
+                                  onChange={(e) => setDForm({ ...dForm, disbursement_end_date: e.target.value })} className="input-field" />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.grant.payTo')}</label>
+                              <select value={dForm.disbursement_pay_to} onChange={(e) => setDForm({ ...dForm, disbursement_pay_to: e.target.value })} className="input-field">
+                                <option value="institution">{t('wz.payTo.institution')}</option>
+                                <option value="student">{t('wz.payTo.student')}</option>
+                                <option value="hostel">{t('wz.payTo.hostel')}</option>
+                              </select>
+                            </div>
+
+                            <p className="font-sans text-[12px] font-bold uppercase tracking-wide text-dp-on-surface-variant pt-1">{t('wz.plan.afterwards')}</p>
+                            <div className="flex gap-2">
+                              {(['course_end', 'employment', 'none'] as const).map((tr) => (
+                                <button key={tr} type="button" onClick={() => setDForm({ ...dForm, settlement_trigger: tr })}
+                                  disabled={tr !== 'course_end' && !studentOf(decideTarget.student_id)?.is_zakat_family}
+                                  className={`flex-1 py-2 rounded-lg font-sans text-[11.5px] font-semibold transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                                    dForm.settlement_trigger === tr ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
+                                  {t(`wz.plan.trigger.${tr}`)}
+                                </button>
+                              ))}
+                            </div>
+                            {dForm.settlement_trigger !== 'none' && (
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.plan.monthlySettlement')}</label>
+                                  <input type="number" min={1} value={dForm.settlement_monthly || ''}
+                                    onChange={(e) => setDForm({ ...dForm, settlement_monthly: +e.target.value })} className="input-field" />
+                                </div>
+                                <div>
+                                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.dueDay')}</label>
+                                  <input type="number" min={1} max={28} value={dForm.settlement_due_day || ''}
+                                    onChange={(e) => setDForm({ ...dForm, settlement_due_day: +e.target.value })} className="input-field" />
+                                </div>
+                              </div>
+                            )}
+                            {dForm.settlement_trigger === 'employment' && (
+                              <p className="font-sans text-[11.5px] text-amber-700">{t('wz.plan.employmentHint')}</p>
+                            )}
+                            {dForm.disbursement_monthly > 0 && dForm.disbursement_start_date && dForm.disbursement_end_date && (() => {
+                              const s = new Date(dForm.disbursement_start_date), e = new Date(dForm.disbursement_end_date)
+                              const months = Math.max(1, (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1)
+                              return (
+                                <p className="font-sans text-[13px] text-dp-on-surface bg-dp-secondary/10 rounded-lg px-3.5 py-2.5">
+                                  {t('wz.plan.preview')
+                                    .replace('{monthly}', fmt(dForm.disbursement_monthly))
+                                    .replace('{months}', String(months))
+                                    .replace('{total}', fmt(dForm.disbursement_monthly * months))}
+                                </p>
+                              )
+                            })()}
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex gap-2">
+                              {(['full', 'percentage'] as const).map((b) => (
+                                <button key={b} type="button" onClick={() => setDForm({ ...dForm, installment_basis: b })}
+                                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all cursor-pointer ${
+                                    dForm.installment_basis === b ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
+                                  {b === 'full' ? t('wz.ins.basisFull') : t('wz.ins.basisPercentage')}
+                                </button>
+                              ))}
+                            </div>
+                            {dForm.installment_basis === 'percentage' && (
+                              <div>
+                                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.percentage')}</label>
+                                <input type="number" min={1} max={100} value={dForm.installment_percentage || ''}
+                                  onChange={(e) => setDForm({ ...dForm, installment_percentage: +e.target.value })} className="input-field" />
+                              </div>
+                            )}
+                            <div className="grid grid-cols-3 gap-3">
+                              <div>
+                                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.startDate')}</label>
+                                <input type="date" value={dForm.installment_start_date}
+                                  onChange={(e) => setDForm({ ...dForm, installment_start_date: e.target.value })} className="input-field" />
+                              </div>
+                              <div>
+                                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.endDate')}</label>
+                                <input type="date" value={dForm.installment_end_date}
+                                  onChange={(e) => setDForm({ ...dForm, installment_end_date: e.target.value })} className="input-field" />
+                              </div>
+                              <div>
+                                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.dueDay')}</label>
+                                <input type="number" min={1} max={28} value={dForm.installment_due_day || ''}
+                                  onChange={(e) => setDForm({ ...dForm, installment_due_day: +e.target.value })} className="input-field" />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.grant.payTo')}</label>
+                              <select value={dForm.installment_pay_to} onChange={(e) => setDForm({ ...dForm, installment_pay_to: e.target.value })} className="input-field">
+                                <option value="institution">{t('wz.payTo.institution')}</option>
+                                <option value="student">{t('wz.payTo.student')}</option>
+                                <option value="hostel">{t('wz.payTo.hostel')}</option>
+                              </select>
+                            </div>
+                            {dForm.amount > 0 && dForm.installment_start_date && dForm.installment_end_date && (() => {
+                              const total = dForm.installment_basis === 'full' ? dForm.amount : dForm.amount * dForm.installment_percentage / 100
+                              const s = new Date(dForm.installment_start_date), e = new Date(dForm.installment_end_date)
+                              const months = Math.max(1, (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1)
+                              return (
+                                <p className="font-sans text-[13px] text-dp-on-surface bg-dp-secondary/10 rounded-lg px-3.5 py-2.5">
+                                  {t('wz.ins.preview')} <strong>Rs {fmt(Math.round(total / months))}</strong>/{t('pkf.month')} · {months} {t('wz.ins.monthsLabel')}
+                                </p>
+                              )
+                            })()}
+                          </>
                         )}
-                        <div className="grid grid-cols-3 gap-3">
-                          <div>
-                            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.startDate')}</label>
-                            <input type="date" value={dForm.installment_start_date}
-                              onChange={(e) => setDForm({ ...dForm, installment_start_date: e.target.value })} className="input-field" />
-                          </div>
-                          <div>
-                            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.endDate')}</label>
-                            <input type="date" value={dForm.installment_end_date}
-                              onChange={(e) => setDForm({ ...dForm, installment_end_date: e.target.value })} className="input-field" />
-                          </div>
-                          <div>
-                            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.dueDay')}</label>
-                            <input type="number" min={1} max={28} value={dForm.installment_due_day || ''}
-                              onChange={(e) => setDForm({ ...dForm, installment_due_day: +e.target.value })} className="input-field" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.grant.payTo')}</label>
-                          <select value={dForm.installment_pay_to} onChange={(e) => setDForm({ ...dForm, installment_pay_to: e.target.value })} className="input-field">
-                            <option value="institution">{t('wz.payTo.institution')}</option>
-                            <option value="student">{t('wz.payTo.student')}</option>
-                            <option value="hostel">{t('wz.payTo.hostel')}</option>
-                          </select>
-                        </div>
-                        {dForm.amount > 0 && dForm.installment_start_date && dForm.installment_end_date && (() => {
-                          const total = dForm.installment_basis === 'full' ? dForm.amount : dForm.amount * dForm.installment_percentage / 100
-                          const s = new Date(dForm.installment_start_date), e = new Date(dForm.installment_end_date)
-                          const months = Math.max(1, (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1)
-                          return (
-                            <p className="font-sans text-[13px] text-dp-on-surface bg-dp-secondary/10 rounded-lg px-3.5 py-2.5">
-                              {t('wz.ins.preview')} <strong>Rs {fmt(Math.round(total / months))}</strong>/{t('pkf.month')} · {months} {t('wz.ins.monthsLabel')}
-                            </p>
-                          )
-                        })()}
                         <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('wz.ins.autoSendHint')}</p>
                       </div>
                     )}
