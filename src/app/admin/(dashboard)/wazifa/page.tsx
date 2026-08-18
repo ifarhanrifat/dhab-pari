@@ -429,7 +429,7 @@ export default function WazifaPage() {
 
   const rescoreAll = async () => {
     setBusy(true)
-    for (const a of applications.filter((x) => ['submitted', 'screening', 'interview'].includes(x.status))) {
+    for (const a of applications.filter((x) => ['submitted', 'screening', 'verified', 'interview'].includes(x.status))) {
       await supabase.rpc('wazifa_score_application', { p_application_id: a.id })
     }
     setBusy(false)
@@ -651,7 +651,12 @@ export default function WazifaPage() {
     load()
   }
 
-const open = applications.filter((a) => ['submitted', 'screening', 'interview', 'waitlisted'].includes(a.status))
+// 'verified' (migration 216) sat between "somebody has been" and "the
+// committee has decided" — the committee's own queue to work from, per
+// that migration's own comment — but was never added here, so a verified
+// application simply disappeared from this tab the moment a verifier
+// recorded their visit, with no decision ever possible on it.
+const open = applications.filter((a) => ['submitted', 'screening', 'verified', 'interview', 'waitlisted'].includes(a.status))
 
   return (
     <>
