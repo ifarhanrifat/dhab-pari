@@ -54,6 +54,7 @@ interface AwardRow {
   installment_basis?: string | null; installment_percentage?: number | null
   installment_start_date?: string | null; installment_end_date?: string | null
   installment_pay_to?: string | null
+  contributed_pkr?: number; written_off_pkr?: number
 }
 
 interface ZakatCandidate {
@@ -1186,8 +1187,22 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
           )}
           {awards.map((aw) => {
             const s = studentOf(aw.student_id)
+            // The automated plan (migration 278/284) tracks what it has
+            // collected in contributed_pkr and wazifa_installment_charges,
+            // not in this instalments/wazifa_instalments list — that table
+            // is for the zakat track's one-off costs (interim grant
+            // admission fees etc.), a genuinely different thing. Reading
+            // it for a standard-track award's "paid so far" is why that
+            // figure sat at Rs 0 forever no matter what was actually paid
+            // (migration 285).
+            const onPlan = !!aw.installment_basis
             const mine = instalments.filter((i) => i.award_id === aw.id)
-            const paid = mine.filter((i) => i.status === 'paid').reduce((x, i) => x + Number(i.amount_pkr), 0)
+            const paid = onPlan
+              ? Number(aw.contributed_pkr ?? 0)
+              : mine.filter((i) => i.status === 'paid').reduce((x, i) => x + Number(i.amount_pkr), 0)
+            const planTotal = aw.installment_basis === 'percentage'
+              ? Math.round(aw.awarded_amount_pkr * (aw.installment_percentage ?? 100) / 100)
+              : aw.awarded_amount_pkr
             return (
               <div key={aw.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
@@ -1203,10 +1218,22 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                     {aw.funded_by === 'zakat' && (
                       <p className="font-sans text-[12px] text-amber-700 mt-1">{t('wz.zakatRouting')}</p>
                     )}
-                    {(aw as AwardRow & { is_loan?: boolean; repaid_pkr?: number }).is_loan && (
+                    {aw.is_loan && onPlan && (
+                      // Standard track: nothing was ever "lent" to be
+                      // "returned" — the plan owes from day one, so this
+                      // reads as progress against the plan total (the
+                      // qarz-e-hasana share of the award, not the full
+                      // amount — half of it on a 50% plan) rather than the
+                      // old Lent/Returned framing that only fits the
+                      // zakat/pre-278 loan shape below.
                       <p className="font-sans text-[12.5px] text-emerald-700 mt-1 font-semibold">
-                        {t('pwz.qarzBadge')} · {t('pwz.loanRepaid')} Rs {fmt(Number((aw as AwardRow & { repaid_pkr?: number }).repaid_pkr ?? 0))}
-                        {' · '}{t('pwz.loanOutstanding')} Rs {fmt(aw.awarded_amount_pkr - Number((aw as AwardRow & { repaid_pkr?: number }).repaid_pkr ?? 0))}
+                        {t('pwz.qarzBadge')} · {t('wz.planPaidOf').replace('{paid}', fmt(paid)).replace('{total}', fmt(planTotal))}
+                      </p>
+                    )}
+                    {aw.is_loan && !onPlan && (
+                      <p className="font-sans text-[12.5px] text-emerald-700 mt-1 font-semibold">
+                        {t('pwz.qarzBadge')} · {t('pwz.loanRepaid')} Rs {fmt(Number(aw.repaid_pkr ?? 0))}
+                        {' · '}{t('pwz.loanOutstanding')} Rs {fmt(aw.awarded_amount_pkr - Number(aw.repaid_pkr ?? 0))}
                       </p>
                     )}
                   </div>

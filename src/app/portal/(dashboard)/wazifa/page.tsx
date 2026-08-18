@@ -740,9 +740,31 @@ export default function PortalWazifaPage() {
       {/* ── My Application — always here, at the top, whether there is one
           yet or not. Small View/Print, not two big buttons and a second
           screen to get to them: this is a status card, not a second copy
-          of the form. */}
+          of the form.
+          Once the committee has actually decided, "My applications" below
+          carries the full picture (amount, qarz-e-hasana note, the
+          committee's own reason) — repeating the institution/programme/
+          status here too just showed the same application twice on one
+          page (migration 285's audit). So once decided, this shrinks to
+          the one thing it alone can do: open the actual form to view or
+          print it. */}
       <div className="mb-6 print:hidden">
         {savedId ? (
+          decisions.find((d) => d.application_id === savedId)?.decision ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-dp-outline-variant rounded-lg px-5 py-3">
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('pwz.seeApplicationBelow')}</p>
+              <div className="flex gap-2 shrink-0">
+                <button onClick={openForm}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface font-sans text-[12.5px] font-bold rounded-lg hover:text-dp-primary cursor-pointer">
+                  <FileText size={13} /> {t('pwz.viewApplication')}
+                </button>
+                <button onClick={() => { openForm(); setTimeout(printForm, 300) }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface font-sans text-[12.5px] font-bold rounded-lg hover:text-dp-primary cursor-pointer">
+                  <Printer size={13} /> {t('pwz.print')}
+                </button>
+              </div>
+            </div>
+          ) : (
           <div className="bg-white border border-dp-outline-variant rounded-lg px-5 py-4 flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-0.5">
@@ -777,6 +799,7 @@ export default function PortalWazifaPage() {
               </button>
             </div>
           </div>
+          )
         ) : (
           <button onClick={openForm}
             className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-dp-outline-variant hover:border-dp-secondary text-dp-primary py-4 rounded-lg font-sans font-semibold transition-colors cursor-pointer">
@@ -896,21 +919,43 @@ export default function PortalWazifaPage() {
             pool" option. A donor picks who they're giving to, the same way
             Kafalat already works, rather than a pool with nobody's face on
             it. */}
+        {/* Brought up to the same weight Kafalat's card already has —
+            a face (an initial, absent a photo field), how much of this
+            student's need is already covered, and what's left — instead
+            of a name and an institution with nothing to weigh a decision
+            against (migration 285's audit). */}
         {sponsorStudents.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {sponsorStudents.map((s) => (
-              <div key={s.student_id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
-                <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{s.full_name}</p>
-                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2">
-                  {[s.institution, s.programme].filter(Boolean).join(' · ')}
-                  {s.is_loan && <span className="ms-1.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-bold">{t('pwz.sponsor.loan')}</span>}
-                </p>
-                <button onClick={() => openGive(s)}
-                  className="w-full flex items-center justify-center gap-1.5 bg-dp-secondary text-white py-1.5 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-                  <Heart size={13} /> {s.already_named > 0 ? t('pkf.joinShare') : t('pkf.sponsor')}
-                </button>
-              </div>
-            ))}
+            {sponsorStudents.map((s) => {
+              const pct = s.awarded_amount > 0 ? Math.min((s.already_named / s.awarded_amount) * 100, 100) : 0
+              const remaining = Math.max(s.awarded_amount - s.already_named, 0)
+              return (
+                <div key={s.student_id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+                  <div className="flex items-start gap-2.5 mb-2.5">
+                    <div className="w-9 h-9 rounded-full bg-dp-secondary/15 text-dp-secondary flex items-center justify-center font-heading text-[15px] font-bold shrink-0">
+                      {s.full_name.trim().charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-sans text-[13.5px] font-bold text-dp-on-surface leading-tight">{s.full_name}</p>
+                      <p className="font-sans text-[11.5px] text-dp-on-surface-variant">
+                        {[s.institution, s.programme].filter(Boolean).join(' · ')}
+                        {s.is_loan && <span className="ms-1.5 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-bold align-middle">{t('pwz.sponsor.loan')}</span>}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="h-1.5 w-full bg-dp-surface-container rounded-full overflow-hidden mb-1.5">
+                    <div className="h-full bg-dp-secondary" style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="font-sans text-[11px] text-dp-on-surface-variant mb-2.5">
+                    {remaining > 0 ? t('pwz.sponsor.remaining').replace('{amt}', fmt(remaining)) : t('pwz.sponsor.fullySponsored')}
+                  </p>
+                  <button onClick={() => openGive(s)}
+                    className="w-full flex items-center justify-center gap-1.5 bg-dp-secondary text-white py-1.5 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                    <Heart size={13} /> {s.already_named > 0 ? t('pkf.joinShare') : t('pkf.sponsor')}
+                  </button>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
