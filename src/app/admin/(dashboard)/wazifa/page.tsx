@@ -51,6 +51,9 @@ interface AwardRow {
   awarded_amount_pkr: number; funded_by: string; status: string
   student_monthly_contribution_pkr?: number; installment_due_day?: number | null
   installment_active?: boolean; is_loan?: boolean; repaid_pkr?: number
+  installment_basis?: string | null; installment_percentage?: number | null
+  installment_start_date?: string | null; installment_end_date?: string | null
+  installment_pay_to?: string | null
 }
 
 interface ZakatCandidate {
@@ -200,7 +203,7 @@ export default function WazifaPage() {
     // Standard track only; a zakat-family award uses interim support
     // instead (migration 276), set once screening confirms the match.
     set_plan: false, installment_basis: 'full', installment_percentage: 50,
-    installment_start_date: '', installment_end_date: '', installment_due_day: 10,
+    installment_start_date: '', installment_end_date: '', installment_due_day: 10, installment_pay_to: 'student',
   })
   const [planTarget, setPlanTarget] = useState<AwardRow | null>(null)
   const [planForm, setPlanForm] = useState({ starts_on: '', instalments: 12 })
@@ -238,9 +241,9 @@ export default function WazifaPage() {
     { id: string; award_id: string; due_on: string; amount_pkr: number; paid_pkr: number; status: string }[]
   >([])
   const [planAwardTarget, setPlanAwardTarget] = useState<AwardRow | null>(null)
-  const [planAwardForm, setPlanAwardForm] = useState({ amount: 0, due_day: 10 })
-  const [agreementTarget, setAgreementTarget] = useState<AwardRow | null>(null)
-  const [agreementForm, setAgreementForm] = useState({ terms_text: '', terms_text_ur: '' })
+  const [planAwardForm, setPlanAwardForm] = useState({
+    basis: 'full', percentage: 50, start_date: '', end_date: '', due_day: 10, pay_to: 'student',
+  })
 
   // Zakat-track machinery: screening's zakat-family check, the interim
   // grant that funds a confirmed zakat family while studying, and the
@@ -453,30 +456,25 @@ export default function WazifaPage() {
   // each somebody else's decision (migration 269/270).
   const latestAgreementFor = (awardId: string) => agreements.find((a) => a.award_id === awardId)
 
+  // The one place a standard-track plan is set or revised — same function
+  // the decision form uses inline (migration 278/284), so there is only
+  // ever one way this figure gets computed and one place an agreement
+  // gets (re-)sent from.
   const saveInstalmentPlan = async () => {
-    if (!planAwardTarget || planAwardForm.amount <= 0) { toast.error(t('wz.err.amount')); return }
+    if (!planAwardTarget || !planAwardForm.start_date || !planAwardForm.end_date) {
+      toast.error(t('wz.ins.err.dates')); return
+    }
     setBusy(true)
-    const { error } = await supabase.rpc('wazifa_set_monthly_installment', {
-      p_award_id: planAwardTarget.id, p_amount: planAwardForm.amount, p_due_day: planAwardForm.due_day,
+    const { error } = await supabase.rpc('wazifa_set_installment_plan', {
+      p_award_id: planAwardTarget.id, p_basis: planAwardForm.basis,
+      p_percentage: planAwardForm.basis === 'percentage' ? planAwardForm.percentage : null,
+      p_start_date: planAwardForm.start_date, p_end_date: planAwardForm.end_date,
+      p_due_day: planAwardForm.due_day, p_pay_to: planAwardForm.pay_to,
     })
     setBusy(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('wz.ins.planSaved'))
     setPlanAwardTarget(null)
-    load()
-  }
-
-  const sendAgreement = async () => {
-    if (!agreementTarget || !agreementForm.terms_text.trim()) { toast.error(t('wz.err.terms')); return }
-    setBusy(true)
-    const { error } = await supabase.rpc('wazifa_send_agreement', {
-      p_award_id: agreementTarget.id, p_terms_text: agreementForm.terms_text.trim(),
-      p_terms_text_ur: agreementForm.terms_text_ur.trim() || null,
-    })
-    setBusy(false)
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('wz.ins.agreementSent'))
-    setAgreementTarget(null)
     load()
   }
 
@@ -822,6 +820,7 @@ export default function WazifaPage() {
       p_installment_start_date: dForm.set_plan ? dForm.installment_start_date : null,
       p_installment_end_date: dForm.set_plan ? dForm.installment_end_date : null,
       p_installment_due_day: dForm.set_plan ? dForm.installment_due_day : null,
+      p_installment_pay_to: dForm.set_plan ? dForm.installment_pay_to : 'student',
     })
     setBusy(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -1165,7 +1164,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                         as_loan: false, funded_by: 'sadqa',
                         reason: '', reason_ur: '', internal_note: '', shortfall_note: '',
                         set_plan: false, installment_basis: 'full', installment_percentage: 50,
-                        installment_start_date: '', installment_end_date: '', installment_due_day: 10,
+                        installment_start_date: '', installment_end_date: '', installment_due_day: 10, installment_pay_to: 'student',
                       })
                     }}
                     className="flex items-center gap-1.5 px-3.5 py-2 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
@@ -1220,20 +1219,37 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                       className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
                       <RotateCcw size={14} /> {t('wz.startRenewal')}
                     </button>
-                    <button onClick={() => setInstalmentTarget(aw)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
-                      <Plus size={14} /> {t('wz.addInstalment')}
-                    </button>
-                    {Number((aw as AwardRow & { student_monthly_contribution_pkr?: number }).student_monthly_contribution_pkr ?? 0) > 0 && (
-                      <button onClick={() => { setContribTarget(aw); setContribForm({ amount: Number((aw as AwardRow & { student_monthly_contribution_pkr?: number }).student_monthly_contribution_pkr ?? 0), method: 'cash', note: '' }) }}
+                    {/* ── Everything below here only applies to the
+                        zakat track (interim support, one-off costs, and
+                        post-employment repayment — migration 235/276) or
+                        to a loan that predates the automated plan. A
+                        standard-track award now runs entirely on the
+                        instalment plan further down this card — showing
+                        these too was exactly the "why so many options"
+                        confusion; they're either the wrong tool for that
+                        award or already superseded. */}
+                    {studentOf(aw.student_id)?.is_zakat_family && (
+                      <button onClick={() => setInstalmentTarget(aw)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
+                        <Plus size={14} /> {t('wz.addInstalment')}
+                      </button>
+                    )}
+                    {/* The student's own voluntary top-up — only once the
+                        committee has approved (or reallocated) the figure
+                        they offered on the application (migration 279).
+                        Not the plan's own committee-fixed instalment,
+                        which pays itself via the charges below. */}
+                    {applications.find((a) => a.id === aw.application_id)?.offered_contribution_status === 'approved' && (
+                      <button onClick={() => { setContribTarget(aw); setContribForm({ amount: Number(applications.find((a) => a.id === aw.application_id)?.offered_monthly_contribution_pkr ?? 0), method: 'cash', note: '' }) }}
                         className="flex items-center gap-1.5 px-3 py-1.5 border border-emerald-600 text-emerald-700 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-600 hover:text-white transition-all cursor-pointer">
                         <HandCoins size={14} /> {t('wz.contribution')}
                       </button>
                     )}
-                    {/* Only a qarz-e-hasana has anything to repay. A grant
-                        shows neither button, so nobody can start chasing a
-                        student who owes nothing. */}
-                    {(aw as AwardRow & { is_loan?: boolean }).is_loan && (
+                    {/* Post-employment repayment only — the standard
+                        track's own repayment is the instalment plan, not
+                        this. Only a qarz-e-hasana has anything to repay at
+                        all; a grant shows none of these. */}
+                    {aw.is_loan && studentOf(aw.student_id)?.is_zakat_family && (
                       <>
                         <button onClick={() => { setPlanTarget(aw); setPlanForm({ starts_on: '', instalments: 12 }) }}
                           className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
@@ -1305,14 +1321,21 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                         )}
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <button onClick={() => { setPlanAwardTarget(aw); setPlanAwardForm({ amount: monthly || 0, due_day: dueDay || 10 }) }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
-                          <Pencil size={13} /> {monthly > 0 ? t('wz.ins.revise') : t('wz.ins.setPlan')}
-                        </button>
-                        {monthly > 0 && !aw.installment_active && (
-                          <button onClick={() => { setAgreementTarget(aw); setAgreementForm({ terms_text: '', terms_text_ur: '' }) }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
-                            <Send size={13} /> {ag?.status === 'pending' ? t('wz.ins.resend') : t('wz.ins.sendAgreement')}
+                        {/* Only before it's live — setting or revising the
+                            plan already sends the agreement itself
+                            (migration 278/284), so there is nothing left
+                            for a separate "Send Agreement" button to do,
+                            and once active this is a bigger decision than
+                            a quick edit (see wz.ins.revise's own note). */}
+                        {!aw.installment_active && (
+                          <button onClick={() => { setPlanAwardTarget(aw)
+                              setPlanAwardForm({
+                                basis: aw.installment_basis ?? 'full', percentage: aw.installment_percentage ?? 50,
+                                start_date: aw.installment_start_date ?? '', end_date: aw.installment_end_date ?? '',
+                                due_day: dueDay || 10, pay_to: aw.installment_pay_to ?? 'student',
+                              }) }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
+                            <Pencil size={13} /> {monthly > 0 ? t('wz.ins.revise') : t('wz.ins.setPlan')}
                           </button>
                         )}
                         {ag?.status === 'signed' && !aw.installment_active && (
@@ -1337,10 +1360,29 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                         </div>
                       )}
                       {aw.installment_active && (
-                        <button onClick={() => { setAdvancePayTarget(aw); setAdvancePayForm({ months: 6, method: 'cash' }) }}
-                          className="mt-2.5 flex items-center gap-1.5 px-2.5 py-1 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[11.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
-                          <CalendarClock size={12} /> {t('wz.ins.payAdvance')}
-                        </button>
+                        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                          <button onClick={() => { setAdvancePayTarget(aw); setAdvancePayForm({ months: 6, method: 'cash' }) }}
+                            className="flex items-center gap-1.5 px-2.5 py-1 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[11.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
+                            <CalendarClock size={12} /> {t('wz.ins.payAdvance')}
+                          </button>
+                          {/* Whether he's still actually studying is a
+                              separate question from whether he's been paid
+                              — the same check-in log the zakat track uses
+                              (migration 277), not tied to any one track. */}
+                          <button onClick={() => setCheckInTarget(aw)}
+                            className="flex items-center gap-1.5 px-2.5 py-1 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[11.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
+                            <PhoneCall size={12} /> {t('wz.checkin.record')}
+                          </button>
+                        </div>
+                      )}
+                      {checkIns.filter((c) => c.award_id === aw.id).length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {checkIns.filter((c) => c.award_id === aw.id).slice(0, 3).map((c) => (
+                            <span key={c.id} className={`px-2 py-0.5 rounded text-[11px] font-semibold ${c.confirmed ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-dp-error'}`}>
+                              {new Date(c.checked_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {t(`wz.checkin.method.${c.method}`)} · {c.confirmed ? t('wz.checkin.ok') : t('wz.checkin.notOk')}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
                   )
@@ -1833,6 +1875,11 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
 
       {/* ── The student's own monthly share ─────────────────────────────── */}
       {/* ── Fix the monthly figure and due day ─────────────────────────── */}
+      {/* Setting or revising a standard-track plan — the one place this
+          happens outside the decision form itself, and the same function
+          either way (wazifa_set_installment_plan), which sends the
+          agreement on its own. There is no separate "send agreement"
+          action any more — it was never anything but this same call. */}
       {planAwardTarget && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPlanAwardTarget(null)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
@@ -1840,39 +1887,53 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
               <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('wz.ins.setPlan')}</h2>
               <button onClick={() => setPlanAwardTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.monthly')}</label>
-            <input type="number" min={1} value={planAwardForm.amount || ''}
-              onChange={(e) => setPlanAwardForm({ ...planAwardForm, amount: +e.target.value })} className="input-field mb-3" />
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.dueDay')}</label>
-            <input type="number" min={1} max={28} value={planAwardForm.due_day || ''}
-              onChange={(e) => setPlanAwardForm({ ...planAwardForm, due_day: +e.target.value })} className="input-field mb-1" />
-            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-4">{t('wz.ins.dueDayHint')}</p>
+            <div className="flex gap-2 mb-3">
+              {(['full', 'percentage'] as const).map((b) => (
+                <button key={b} type="button" onClick={() => setPlanAwardForm({ ...planAwardForm, basis: b })}
+                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all cursor-pointer ${
+                    planAwardForm.basis === b ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
+                  {b === 'full' ? t('wz.ins.basisFull') : t('wz.ins.basisPercentage')}
+                </button>
+              ))}
+            </div>
+            {planAwardForm.basis === 'percentage' && (
+              <>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.percentage')}</label>
+                <input type="number" min={1} max={100} value={planAwardForm.percentage || ''}
+                  onChange={(e) => setPlanAwardForm({ ...planAwardForm, percentage: +e.target.value })} className="input-field mb-3" />
+              </>
+            )}
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.startDate')}</label>
+                <input type="date" value={planAwardForm.start_date}
+                  onChange={(e) => setPlanAwardForm({ ...planAwardForm, start_date: e.target.value })} className="input-field" />
+              </div>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.endDate')}</label>
+                <input type="date" value={planAwardForm.end_date}
+                  onChange={(e) => setPlanAwardForm({ ...planAwardForm, end_date: e.target.value })} className="input-field" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-1">
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.dueDay')}</label>
+                <input type="number" min={1} max={28} value={planAwardForm.due_day || ''}
+                  onChange={(e) => setPlanAwardForm({ ...planAwardForm, due_day: +e.target.value })} className="input-field" />
+              </div>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.grant.payTo')}</label>
+                <select value={planAwardForm.pay_to} onChange={(e) => setPlanAwardForm({ ...planAwardForm, pay_to: e.target.value })} className="input-field">
+                  <option value="institution">{t('wz.payTo.institution')}</option>
+                  <option value="student">{t('wz.payTo.student')}</option>
+                  <option value="hostel">{t('wz.payTo.hostel')}</option>
+                </select>
+              </div>
+            </div>
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-4">{t('wz.ins.autoSendHint')}</p>
             <button disabled={busy} onClick={saveInstalmentPlan}
               className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
               {busy ? t('action.saving') : t('action.save')}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Send the agreement the student will sign ──────────────────── */}
-      {agreementTarget && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setAgreementTarget(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('wz.ins.sendAgreement')}</h2>
-              <button onClick={() => setAgreementTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
-            </div>
-            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('wz.ins.agreementHint')}</p>
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.termsUr')}</label>
-            <textarea value={agreementForm.terms_text_ur} onChange={(e) => setAgreementForm({ ...agreementForm, terms_text_ur: e.target.value })}
-              rows={3} className="input-field mb-3" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.ins.termsEn')}</label>
-            <textarea value={agreementForm.terms_text} onChange={(e) => setAgreementForm({ ...agreementForm, terms_text: e.target.value })}
-              rows={3} className="input-field mb-4" />
-            <button disabled={busy} onClick={sendAgreement}
-              className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-              <Send size={16} /> {busy ? t('action.saving') : t('wz.ins.sendAgreement')}
             </button>
           </div>
         </div>
@@ -2508,6 +2569,14 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                             <input type="number" min={1} max={28} value={dForm.installment_due_day || ''}
                               onChange={(e) => setDForm({ ...dForm, installment_due_day: +e.target.value })} className="input-field" />
                           </div>
+                        </div>
+                        <div>
+                          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.grant.payTo')}</label>
+                          <select value={dForm.installment_pay_to} onChange={(e) => setDForm({ ...dForm, installment_pay_to: e.target.value })} className="input-field">
+                            <option value="institution">{t('wz.payTo.institution')}</option>
+                            <option value="student">{t('wz.payTo.student')}</option>
+                            <option value="hostel">{t('wz.payTo.hostel')}</option>
+                          </select>
                         </div>
                         {dForm.amount > 0 && dForm.installment_start_date && dForm.installment_end_date && (() => {
                           const total = dForm.installment_basis === 'full' ? dForm.amount : dForm.amount * dForm.installment_percentage / 100
