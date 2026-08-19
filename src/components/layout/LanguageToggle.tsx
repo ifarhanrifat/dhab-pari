@@ -39,7 +39,11 @@ export function LanguageToggle({ compact = false }: { compact?: boolean }) {
         aria-pressed={locale === 'ur'}
         // Always rendered in Nastaliq regardless of the current language, so
         // an Urdu reader can find it while the interface is still English.
-        className={`px-2.5 h-full text-[13.5px] font-semibold cursor-pointer transition-colors ${
+        // Nastaliq renders visibly larger than a Latin face at the same px
+        // (see globals.css's own note on this) — sized down from "EN"'s
+        // 12.5px rather than up, so the pill stays the fixed height it's
+        // set to instead of the glyph pushing past it.
+        className={`px-2.5 h-full flex items-center text-[11px] font-semibold cursor-pointer transition-colors leading-none ${
           locale === 'ur' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant hover:bg-dp-surface-container-low'
         }`}
         style={{ fontFamily: 'var(--font-urdu), serif' }}

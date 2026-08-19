@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { MessageCircle, Menu, UserCircle2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { MessageCircle, Menu, UserCircle2, ChevronDown } from 'lucide-react'
 import { SITE } from '@/lib/constants'
 import { MobileNav } from './MobileNav'
 import { useMobileNav } from './MobileNavContext'
@@ -28,11 +28,29 @@ const navLinks: { href: string; label: string; tKey: string }[] = [
   { href: '/about', label: 'Committee', tKey: 'site.committee' },
 ]
 
+// The row has broken this way three times now as links were added (first
+// "Home" vanished behind the logo, then "Water Bill" too) — a fixed-width
+// row of 12 links was never going to keep fitting a 1200px container
+// forever. Rather than another band-aid, the two least time-critical
+// destinations move into a "More" trigger: that's one compact item taking
+// the nav row's space instead of two full labels, and — unlike hiding them
+// below a breakpoint — both stay reachable at every width, just one click
+// deeper instead of silently invisible.
+const OVERFLOW_HREFS = new Set(['/gallery', '/about'])
+
 export function Header() {
   const { t } = useLocale()
   const pathname = usePathname()
   const { open: mobileOpen, setOpen: setMobileOpen } = useMobileNav()
   const [isPortalUser, setIsPortalUser] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const moreRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const onClickOutside = (e: MouseEvent) => { if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false) }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
 
   // A registered donor/consumer is a website user too — surface a single
   // "My Portal" entry point when logged in, rather than duplicating the
@@ -84,7 +102,7 @@ export function Header() {
               rather than invisible — Home and Water Bill are now always the
               first, always-visible items right after the logo. */}
           <nav className="hidden lg:flex flex-1 min-w-0 justify-start items-center gap-3.5 xl:gap-5 overflow-x-auto hide-scrollbar relative z-0 ps-3">
-            {navLinks.map((link) => {
+            {navLinks.filter((l) => !OVERFLOW_HREFS.has(l.href)).map((link) => {
               const isActive = pathname === link.href
               return (
                 <Link
@@ -100,6 +118,32 @@ export function Header() {
                 </Link>
               )
             })}
+            {(() => {
+              const overflowLinks = navLinks.filter((l) => OVERFLOW_HREFS.has(l.href))
+              const isOverflowActive = overflowLinks.some((l) => l.href === pathname)
+              return (
+                <div ref={moreRef} className="relative shrink-0">
+                  <button onClick={() => setMoreOpen((v) => !v)}
+                    className={`flex items-center gap-1 text-[13.5px] font-sans tracking-[0.02em] whitespace-nowrap cursor-pointer transition-colors ${
+                      isOverflowActive ? 'text-[#86f8c9] font-bold border-b-2 border-[#86f8c9] pb-1' : 'text-white/80 hover:text-white'
+                    }`}>
+                    {t('site.more', 'More')} <ChevronDown size={13} className={`transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {moreOpen && (
+                    <div className="absolute top-full mt-2 end-0 bg-white rounded-lg border border-dp-outline-variant shadow-lg overflow-hidden min-w-[140px] z-50">
+                      {overflowLinks.map((link) => (
+                        <Link key={link.href} href={link.href} onClick={() => setMoreOpen(false)}
+                          className={`block px-4 py-2.5 font-sans text-[13.5px] whitespace-nowrap ${
+                            pathname === link.href ? 'text-dp-secondary font-bold bg-dp-secondary/5' : 'text-dp-on-surface hover:bg-dp-surface-container-low'
+                          }`}>
+                          {t(link.tKey, link.label)}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
           </nav>
 
           {/* Right Actions — Login/My Portal is deliberately last, the true

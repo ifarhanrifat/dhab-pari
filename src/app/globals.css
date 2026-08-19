@@ -413,3 +413,40 @@ html[lang='ur'] .font-mono {
   display: inline-block;
   line-height: 1.4;
 }
+
+/* Page and section headings set with Tailwind's arbitrary text-[Npx]
+   utilities render very large in Nastaliq — body's own 0.92em above never
+   reaches them, because an arbitrary utility sets an absolute font-size
+   that overrides inheritance rather than scaling with it. Down-scaled
+   explicitly here, same idea as .admin-shell's own up-scale table further
+   up this file, just the opposite direction and everywhere (not admin-
+   only, not mobile-only) since headings this size are the ones actually
+   reported as oversized, on every part of the site. */
+html[lang='ur'] .text-\[18px\] { font-size: 15px !important; }
+html[lang='ur'] .text-\[19px\] { font-size: 16px !important; }
+html[lang='ur'] .text-\[20px\] { font-size: 17px !important; }
+html[lang='ur'] .text-\[22px\] { font-size: 18px !important; }
+html[lang='ur'] .text-\[23px\] { font-size: 19px !important; }
+html[lang='ur'] .text-\[24px\] { font-size: 20px !important; }
+html[lang='ur'] .text-\[26px\] { font-size: 21px !important; }
+html[lang='ur'] .text-\[28px\] { font-size: 23px !important; }
+html[lang='ur'] .text-\[30px\] { font-size: 24px !important; }
+html[lang='ur'] .text-\[32px\] { font-size: 26px !important; }
+html[lang='ur'] .text-\[34px\] { font-size: 28px !important; }
+html[lang='ur'] .text-\[36px\] { font-size: 29px !important; }
+html[lang='ur'] .text-\[38px\] { font-size: 31px !important; }
+html[lang='ur'] .text-\[40px\] { font-size: 33px !important; }
+html[lang='ur'] .text-\[42px\] { font-size: 34px !important; }
+html[lang='ur'] .text-\[48px\] { font-size: 39px !important; }
+
+/* The section-title accent bar (::before) is always first in the DOM, so
+   it always rendered before the heading text — fine left-to-right,
+   backwards for Urdu, where the accent belongs on the reading "start"
+   side (the right), trailing the text rather than leading it. Row-reverse
+   alone puts it there without moving the section itself; any icon that
+   sits before the heading (Briefcase, Trophy, ShieldCheck, ...) lands
+   between the bar and the text, still clearly grouped with the heading. */
+html[lang='ur'] .section-title {
+  flex-direction: row-reverse;
+  text-align: right;
+}
