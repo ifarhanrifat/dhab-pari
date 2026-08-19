@@ -74,12 +74,16 @@ export function Header() {
           </div>
 
           {/* Desktop Nav
-              flex-1 + min-w-0 + scroll: adding an 11th link (Blood) pushed the
-              row past the 1200px container at lg, and because the logo block is
-              shrink-0 the nav ran underneath it — "Home" disappeared behind
-              "Dhab Pari". Now the nav takes the space that is left and scrolls
-              inside itself rather than overlapping its neighbours. */}
-          <nav className="hidden lg:flex flex-1 min-w-0 justify-end items-center gap-3.5 xl:gap-5 overflow-x-auto hide-scrollbar relative z-0 ps-3">
+              flex-1 + min-w-0 + scroll: when there are more links than room
+              (Blood, then later Water Bill), the row overflows and needs to
+              scroll somewhere. justify-end pushed the START of the list off
+              the LEFT edge, under the logo's opaque z-10 layer — first "Home"
+              disappeared behind "Dhab Pari", then "Water Bill" too. justify-
+              start means whatever gets pushed off instead is the END of the
+              list (the least-visited links, Gallery/Committee), scrollable
+              rather than invisible — Home and Water Bill are now always the
+              first, always-visible items right after the logo. */}
+          <nav className="hidden lg:flex flex-1 min-w-0 justify-start items-center gap-3.5 xl:gap-5 overflow-x-auto hide-scrollbar relative z-0 ps-3">
             {navLinks.map((link) => {
               const isActive = pathname === link.href
               return (

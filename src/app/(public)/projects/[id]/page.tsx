@@ -38,9 +38,7 @@ type Lang = 'en' | 'ur'
 // Same site-wide "Accounts Display Language" toggle /water/apply and
 // propose-project already respect (site_settings.display_language).
 const t: Record<string, { en: string; ur: string }> = {
-  announcedHeading: { en: 'Announced — Pledged, Not Yet Received', ur: 'اعلان شدہ — وعدہ کیا گیا، ابھی رقم موصول نہیں ہوئی' },
   announcedSub: { en: "These donors have announced their funding, but it hasn't reached the project account yet.", ur: 'ان عطیہ دہندگان نے فنڈنگ کا اعلان کیا ہے، لیکن رقم ابھی تک منصوبے کے اکاؤنٹ میں نہیں پہنچی۔' },
-  confirmedHeading: { en: 'Confirmed — Received in Project Account', ur: 'موصول شدہ — منصوبے کے اکاؤنٹ میں پہنچ چکی' },
   confirmedSub: { en: "This donor's amount has already arrived in the project's account.", ur: 'اس عطیہ دہندہ کی رقم منصوبے کے اکاؤنٹ میں پہنچ چکی ہے۔' },
   expensesHeading: { en: 'Expenses', ur: 'اخراجات' },
   discussionHeading: { en: 'Discussion', ur: 'تبادلہ خیال' },
@@ -383,7 +381,6 @@ export default function ProjectDetailPage() {
           display_language setting. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div dir={isUrdu ? 'rtl' : 'ltr'}>
-          <p className="font-sans text-[14px] font-bold text-amber-700 mb-0.5" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('announcedHeading')}</p>
           <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('announcedSub')}</p>
           <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
             {announced.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('noAnnounced')}</p>}
@@ -399,7 +396,6 @@ export default function ProjectDetailPage() {
           </div>
         </div>
         <div dir={isUrdu ? 'rtl' : 'ltr'}>
-          <p className="font-sans text-[14px] font-bold text-dp-secondary mb-0.5" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('confirmedHeading')}</p>
           <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('confirmedSub')}</p>
           <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
             {verified.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('noConfirmed')}</p>}
