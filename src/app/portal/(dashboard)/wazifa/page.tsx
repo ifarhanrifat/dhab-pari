@@ -1308,13 +1308,13 @@ export default function PortalWazifaPage() {
             <UserCheck size={17} className="text-dp-secondary shrink-0 mt-0.5" />
             <div className="min-w-0">
               <p className="font-sans text-[15px] leading-[2] text-dp-on-surface font-bold"
-                style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }}>
                 {t('pwz.selfOnlyUr')}
               </p>
               <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed mt-1">
                 {t('pwz.selfOnly')}
               </p>
-              <p className="font-sans text-[12.5px] text-dp-on-surface mt-2">
+              <p className="font-sans text-[12.5px] text-dp-on-surface mt-2" dir={isUrdu ? 'rtl' : 'ltr'}>
                 <span className="font-semibold">{t('pwz.applyingAs')}</span>{' '}
                 {portalUser?.full_name ?? '—'}
                 {portalUser?.mobile ? ` · ${portalUser.mobile}` : ''}
