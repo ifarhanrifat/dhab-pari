@@ -582,7 +582,10 @@ export default function PortalWazifaPage() {
       declared_b_form_no: form.declared_b_form_no || null,
       declared_dob: form.declared_dob || null,
       declared_address: form.declared_address || null,
-      offered_monthly_contribution_pkr: form.offered_monthly_contribution_pkr || 0,
+      // No longer solicited on the form — the committee pays the full
+      // monthly cost while the student studies, verified by a monthly
+      // phone call instead of a co-payment (see pwz.s.share below).
+      offered_monthly_contribution_pkr: 0,
       institution_monthly_fee_pkr: form.institution_monthly_fee_pkr || 0,
       repayment_pledge: form.requested_as !== 'grant',
       repayment_note: form.repayment_note || null,
@@ -1845,12 +1848,15 @@ export default function PortalWazifaPage() {
             </div>
           </div>
 
-          {/* ── What the student can manage themselves ──────────────────
-              The single most useful question on the form. A student who pays
-              a share every month is telling the committee they are still
-              enrolled and still serious — and when the payments stop, the
-              committee finds out something is wrong months before a result
-              would have told it. */}
+          {/* ── The monthly cost, and how the committee stays satisfied the
+              student is still enrolled — the committee pays this in full,
+              every month, direct to the institution or the student;
+              nothing comes back the other way until the course is over.
+              Seriousness is checked with a monthly phone call (the same
+              check-in log the admin "Verify" action already keeps, with
+              every number on file), not a co-payment — that check-in and
+              the actual repayment afterward are what replace the old
+              "pay a share while studying" idea this box used to ask for. */}
           <div className="mt-4 border-2 border-dp-secondary/40 bg-dp-secondary/5 rounded-lg p-4">
             <p className="font-sans text-[14px] font-bold text-dp-on-surface mb-1">{t('pwz.s.share')}</p>
             <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mb-1"
@@ -1859,7 +1865,7 @@ export default function PortalWazifaPage() {
             </p>
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3 leading-relaxed">{t('pwz.shareEnglish')}</p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className={label}>{t('pwz.f.instituteMonthlyFee')}</label>
                 <input type="number" min={0} value={form.institution_monthly_fee_pkr || ''}
@@ -1870,17 +1876,11 @@ export default function PortalWazifaPage() {
                 <input type="number" min={0} value={form.transport_monthly_cost_pkr || ''}
                   onChange={(e) => setForm({ ...form, transport_monthly_cost_pkr: +e.target.value })} className="input-field" />
               </div>
-              <div>
-                <label className={label}>{t('pwz.f.myShare')}</label>
-                <input type="number" min={0} value={form.offered_monthly_contribution_pkr || ''}
-                  onChange={(e) => setForm({ ...form, offered_monthly_contribution_pkr: +e.target.value })} className="input-field" />
-              </div>
             </div>
 
-            {/* The real monthly cost the committee is actually being asked
-                to help with — tuition, hostel if applicable, and transport
-                together, not tuition alone. This is what the committee sees;
-                "my share" above is what comes off it. */}
+            {/* What the committee will actually be paying out each month —
+                tuition, hostel if applicable, and transport together, in
+                full, not a figure with a co-payment subtracted from it. */}
             {(() => {
               const totalMonthly = form.institution_monthly_fee_pkr
                 + (form.is_in_hostel ? form.hostel_monthly_charges_pkr : 0)
@@ -1891,12 +1891,11 @@ export default function PortalWazifaPage() {
                     {t('pwz.f.realMonthlyCost')} <strong className="text-dp-on-surface">Rs {fmt(totalMonthly)}</strong>
                   </p>
                   <p className="font-sans text-[13px] text-dp-on-surface">
-                    {t('pwz.f.committeeWouldPay')} <strong>Rs {fmt(Math.max(totalMonthly - form.offered_monthly_contribution_pkr, 0))}</strong>/{t('pkf.month')}
+                    {t('pwz.f.committeeWouldPay')} <strong>Rs {fmt(totalMonthly)}</strong>/{t('pkf.month')}
                   </p>
                 </div>
               ) : null
             })()}
-            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">{t('pwz.f.shareZeroOk')}</p>
           </div>
 
           <div className="hidden">
