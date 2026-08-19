@@ -866,7 +866,32 @@ export default function MeetingsAgendaPage() {
                 </button>
 
                 {isOpen && (
-                  <div className="border-t border-dp-outline-variant p-4 space-y-5">
+                  // A meeting's own detail — agenda scans, tasks, suggestions,
+                  // minutes — is genuinely a full screen of content, not a
+                  // small aside; pushing it down inline under a fixed-width
+                  // card meant you had to scroll past every other meeting's
+                  // row just to reach whatever you'd already opened. A
+                  // full-screen takeover panel gives it a real page instead,
+                  // without the risk of splitting the list's already-loaded
+                  // data (members, admin users, complaints, activity, project
+                  // discussions — a dozen-plus queries this page loads once)
+                  // across a separate route.
+                  <div className="fixed inset-0 z-[100] bg-[#F5F8F6] overflow-y-auto print:static print:bg-white">
+                    <div className="sticky top-0 z-10 bg-white border-b border-dp-outline-variant px-4 py-3 flex items-center gap-3 print:hidden">
+                      <button onClick={() => setExpanded(null)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer shrink-0">
+                        <ChevronDown size={16} className="rotate-90" /> {t('mt.backToMeetings', 'Back to meetings')}
+                      </button>
+                      <div className="min-w-0">
+                        <p className="font-sans text-[14.5px] font-bold text-dp-on-surface truncate">
+                          {new Date(meeting.meeting_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {meeting.title ? ` — ${meeting.title}` : ''}
+                        </p>
+                      </div>
+                      {meeting.status === 'finalized' && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-dp-surface-container-high text-dp-on-surface-variant flex items-center gap-1 shrink-0"><Lock size={10} /> {t('mt.finalized')}</span>}
+                      {meeting.status === 'cancelled' && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 flex items-center gap-1 shrink-0"><Ban size={10} /> {t('mt.cancelled')}</span>}
+                    </div>
+                    <div className="max-w-3xl mx-auto p-4 space-y-5">
                     {/* Agenda scans — an open meeting can keep adding photographed
                         pages any time up to finalization (not just at creation),
                         each one immediately available to "Extract with AI" below.
@@ -1100,6 +1125,7 @@ export default function MeetingsAgendaPage() {
                     <button onClick={() => setPrintMeetingId(meeting.id)} className="inline-flex items-center gap-2 text-[12.5px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer">
                       <FileText size={14} /> {t('mt.viewPrintMinutes')}
                     </button>
+                    </div>
                   </div>
                 )}
               </div>
