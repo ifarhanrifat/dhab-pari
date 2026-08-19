@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo, Suspense } from 'react'
+import { useEffect, useRef, useState, useMemo, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -128,6 +128,18 @@ function BillingPageInner() {
   const [sectorFilter, setSectorFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [selectedConsumer, setSelectedConsumer] = useState<Consumer | null>(null)
+  // On a phone the list and the detail panel are the same full-width block
+  // (`hidden md:flex` on the list — see the two-column div below), swapped
+  // by tapping a consumer rather than shown side by side. Without this, the
+  // swap happens wherever the page was already scrolled to — often well
+  // past the top, on the list — so the detail that just replaced it never
+  // enters view and reads as "nothing happened" until scrolled to manually.
+  const detailPanelRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!selectedConsumer) return
+    if (window.innerWidth >= 768) return
+    detailPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [selectedConsumer])
   // A single exclusive quick-filter rather than 5 independent booleans — these
   // read as tabs ("click a card, see that slice of consumers"), so combining a
   // stale filter left on from a previous click with a new one via AND silently
@@ -800,7 +812,7 @@ function BillingPageInner() {
 
         {/* Consumer detail panel */}
         {selectedConsumer ? (
-          <div className="flex-1 bg-white rounded-lg border border-dp-outline-variant overflow-hidden flex flex-col min-h-0">
+          <div ref={detailPanelRef} className="flex-1 bg-white rounded-lg border border-dp-outline-variant overflow-hidden flex flex-col min-h-0">
             {/* Consumer header */}
             <div className="bg-dp-surface-container-low px-6 py-4 border-b border-dp-outline-variant">
               <div className="flex items-start justify-between gap-4">

@@ -101,7 +101,7 @@ const emptyAcademicRow: AcademicRow = {
 }
 
 export default function PortalWazifaPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const { user: portalUser } = usePortalUser()
   const formRef = useRef<HTMLDivElement>(null)
@@ -684,26 +684,32 @@ export default function PortalWazifaPage() {
     setShowForm(false)
   }
 
-  const label = 'block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5'
+  // The page's own template and sidebar stay put in Urdu (RTL_READY is
+  // deliberately off — see LocaleProvider) — but within a row, the text
+  // itself should still read right-to-left rather than sit pinned to the
+  // left edge underneath left-to-right script. label/heading right-align
+  // themselves; StepHead below reorders its own row (badge to the right,
+  // heading text flowing from it) without moving the section box itself.
+  const label = `block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5${isUrdu ? ' text-right' : ''}`
   const section = 'bg-white border border-dp-outline-variant rounded-lg p-5 sm:p-6 mb-4'
-  const heading = 'font-heading text-[18px] font-bold text-dp-primary mb-1'
+  const heading = `font-heading text-[18px] font-bold text-dp-primary mb-1${isUrdu ? ' text-right' : ''}`
 
   // Every section carries its number, so a form this long reads as a sequence
   // with an end rather than an unbroken wall. The number is also what a
   // committee member says on the phone: "section four, the brothers".
   const StepHead = ({ n, title, help, urdu }: { n: number; title: string; help?: string; urdu?: string }) => (
     <div className="mb-4 pb-3 border-b border-dp-outline-variant">
-      <div className="flex items-start gap-3">
+      <div className={`flex items-start gap-3 ${isUrdu ? 'flex-row-reverse' : ''}`}>
         <span className="shrink-0 w-7 h-7 rounded-full bg-dp-secondary text-white flex items-center justify-center font-sans text-[13px] font-bold mt-0.5">
           {n}
         </span>
-        <div className="min-w-0">
+        <div className="min-w-0" dir={isUrdu ? 'rtl' : 'ltr'}>
           <h2 className={heading}>{title}</h2>
           {urdu && (
-            <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mt-1"
+            <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mt-1 text-right"
               style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>{urdu}</p>
           )}
-          {help && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1 leading-relaxed">{help}</p>}
+          {help && <p className={`font-sans text-[12.5px] text-dp-on-surface-variant mt-1 leading-relaxed${isUrdu ? ' text-right' : ''}`}>{help}</p>}
         </div>
       </div>
     </div>

@@ -53,7 +53,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [badges, setBadges] = useState<Record<string, number>>({})
 
   // Keyed by the last segment of each href, because the server buckets unread
@@ -89,9 +89,17 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
     return matches.sort((a, b) => b.length - a.length)[0] ?? null
   })()
 
+  // The sidebar itself stays pinned to the left edge of the screen in Urdu
+  // too — RTL_READY is deliberately off, so nobody has to relearn where the
+  // menu lives just for switching language (see LocaleProvider). What does
+  // change: each row's own icon/text order and margins, via a plain `dir`
+  // on the row — every one of these already uses logical spacing (me-*,
+  // ms-auto), so that alone is enough to put the icon on the reading
+  // "start" side (the right, in Urdu) without moving the menu itself.
+  const rowDir = isUrdu ? 'rtl' : 'ltr'
   const sidebarContent = (
     <>
-      <nav className="flex-1 space-y-1 overflow-y-auto">
+      <nav className="flex-1 space-y-1 overflow-y-auto" dir={rowDir}>
         {visibleMenuItems.map((item) => {
           const Icon = item.icon
           const isActive = item.href === activeHref
@@ -116,7 +124,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
         })}
       </nav>
 
-      <div className="px-2 pt-2 shrink-0">
+      <div className="px-2 pt-2 shrink-0" dir={rowDir}>
         <a href="/" className="flex items-center px-2 py-2.5 rounded-lg text-white/70 hover:bg-dp-primary-container hover:text-white transition-all text-[13.5px] font-sans">
           <ArrowLeftCircle size={17} className="me-3 shrink-0" /> {t('nav.backToWebsite')}
         </a>
@@ -128,7 +136,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
 
       {/* Persistent profile — a registered user's identity stays visible
           throughout the portal, same as staff in /admin. */}
-      <div className="px-4 pt-4 mt-auto border-t border-white/10 shrink-0">
+      <div className="px-4 pt-4 mt-auto border-t border-white/10 shrink-0" dir={rowDir}>
         <Link href="/portal/profile" onClick={onMobileClose} className="bg-dp-primary-container p-3 rounded-lg mb-3 flex items-center hover:opacity-90 transition-opacity">
           {user?.avatar_url ? (
             <Image src={user.avatar_url} alt="" width={32} height={32} className="w-8 h-8 rounded-full object-cover me-2 shrink-0" />

@@ -145,7 +145,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
   // system still saw the other one's whole menu, and a secondary role was
   // ignored entirely.
   const access = useSystemAccess()
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [badges, setBadges] = useState<Record<string, number>>({})
 
   useEffect(() => {
@@ -231,10 +231,16 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
     return matches.sort((a, b) => b.length - a.length)[0] ?? null
   })()
 
+  // The sidebar stays pinned to the left edge in Urdu too (RTL_READY is
+  // deliberately off — see LocaleProvider); only each row's own icon/text
+  // order and margins flip, via a plain `dir` on the row — every one of
+  // these already uses logical spacing (me-*, ms-auto), so that alone
+  // puts the icon on the reading "start" side without moving the menu.
+  const rowDir = isUrdu ? 'rtl' : 'ltr'
   const sidebarContent = (
     <>
       {/* Menu */}
-      <nav className="flex-1 space-y-1 overflow-y-auto">
+      <nav className="flex-1 space-y-1 overflow-y-auto" dir={rowDir}>
         {visibleMenuItems.map((item) => {
           const Icon = item.icon
           const isActive = item.href === activeHref
@@ -273,7 +279,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
       </div>
 
       {/* Current User + Logout */}
-      <div className="px-4 pt-4 mt-auto border-t border-white/10 shrink-0">
+      <div className="px-4 pt-4 mt-auto border-t border-white/10 shrink-0" dir={rowDir}>
         <div className="bg-dp-primary-container p-3 rounded-lg mb-3">
           <div className="flex items-center">
             <div className="w-8 h-8 rounded-full bg-[#5bc8a3] text-dp-primary flex items-center justify-center font-bold text-[12px] font-sans me-2 shrink-0">
