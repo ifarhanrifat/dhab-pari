@@ -39,7 +39,9 @@ interface Application {
   admission_status: string; last_exam_name: string | null
   last_exam_percent: number | null; requested_amount_pkr: number
   need_statement: string | null; status: string
-  merit_score: number | null; need_score: number | null; total_score: number | null
+  merit_score: number | null; need_score: number | null; total_score: number | null; capacity_score: number | null
+  course_start_date?: string | null; course_end_date?: string | null
+  admission_fee_pkr?: number; transport_monthly_cost_pkr?: number
   declared_cnic: string | null
   institute_phone: string | null; is_in_hostel: boolean; hostel_name: string | null; hostel_phone: string | null
   offered_monthly_contribution_pkr: number
@@ -1183,8 +1185,16 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                     <span className="px-2 py-0.5 rounded bg-dp-surface-container-low text-[11.5px] font-semibold">
                       {t('wz.merit')} {a.merit_score ?? '—'}
                     </span>
+                    {/* Which one counts toward the total below depends on
+                        the track: need for a zakat family (a grant — the
+                        question is how much they need), capacity otherwise
+                        (a loan — the question is how safely they can repay
+                        it). Both are computed and stored either way, but
+                        only the relevant one is worth showing here. */}
                     <span className="px-2 py-0.5 rounded bg-dp-surface-container-low text-[11.5px] font-semibold">
-                      {t('wz.need')} {a.need_score ?? '—'}
+                      {studentOf(a.student_id)?.is_zakat_family
+                        ? <>{t('wz.need')} {a.need_score ?? '—'}</>
+                        : <>{t('wz.capacity')} {a.capacity_score ?? '—'}</>}
                     </span>
                     <span className="px-2 py-0.5 rounded bg-dp-secondary/10 text-dp-secondary text-[11.5px] font-bold">
                       {t('wz.score')} {a.total_score ?? '—'}
@@ -1312,6 +1322,19 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                     <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">
                       {aw.academic_year} · {t('wz.awarded')} <strong>Rs {fmt(aw.awarded_amount_pkr)}</strong> · {t('wz.paidSoFar')} Rs {fmt(paid)}
                     </p>
+                    {(() => {
+                      const app = applications.find((a) => a.id === aw.application_id)
+                      const start = app?.course_start_date, end = app?.course_end_date
+                      const planStart = aw.installment_start_date || aw.disbursement_start_date
+                      if (!start && !end && !planStart) return null
+                      return (
+                        <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">
+                          {start && end && `${t('wz.f.courseDuration')} ${new Date(start).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })} – ${new Date(end).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}`}
+                          {start && end && planStart && ' · '}
+                          {planStart && `${t('wz.f.instalmentsStart')} ${new Date(planStart).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}`}
+                        </p>
+                      )
+                    })()}
                     {aw.funded_by === 'zakat' && (
                       <p className="font-sans text-[12px] text-amber-700 mt-1">{t('wz.zakatRouting')}</p>
                     )}

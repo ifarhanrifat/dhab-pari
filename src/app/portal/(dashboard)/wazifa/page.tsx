@@ -167,6 +167,7 @@ export default function PortalWazifaPage() {
     family_receives_zakat: false, zakat_sources: [] as string[], zakat_monthly_pkr: 0,
     level: 'bachelors', institution: '', programme: '', city: '', admission_status: 'seeking',
     requested_amount_pkr: 0, actual_course_cost_pkr: 0, need_statement: '', achievements: '',
+    course_start_date: '', course_end_date: '', admission_fee_pkr: 0, transport_monthly_cost_pkr: 0,
     institute_phone: '', institute_address: '', institute_registration_no: '',
     institute_bank_account_title: '', institute_bank_account_no: '', institute_payment_number: '',
     is_in_hostel: false, hostel_name: '', hostel_room_no: '', hostel_monthly_charges_pkr: 0,
@@ -255,6 +256,10 @@ export default function PortalWazifaPage() {
         admission_status: (a.admission_status as string) ?? f.admission_status,
         requested_amount_pkr: Number(a.requested_amount_pkr ?? 0),
         actual_course_cost_pkr: Number(a.actual_course_cost_pkr ?? 0),
+        course_start_date: (a.course_start_date as string) ?? '',
+        course_end_date: (a.course_end_date as string) ?? '',
+        admission_fee_pkr: Number(a.admission_fee_pkr ?? 0),
+        transport_monthly_cost_pkr: Number(a.transport_monthly_cost_pkr ?? 0),
         need_statement: (a.need_statement as string) ?? '',
         achievements: (a.achievements as string) ?? '',
         institute_phone: (a.institute_phone as string) ?? '',
@@ -462,13 +467,9 @@ export default function PortalWazifaPage() {
       if (!form.institution.trim() || !form.programme.trim()) { toast.error(t('pwz.err.required')); return }
       if (!form.need_statement.trim()) { toast.error(t('pwz.err.statement')); return }
     }
-    // A loan without an accepted agreement is a promise nobody wrote down.
-    if (!asDraft && form.requested_as !== 'grant' && !form.loan_terms_accepted) {
-      toast.error(t('pwz.err.termsNotAccepted')); return
-    }
-    if (form.requested_as !== 'grant' && !form.loan_terms_signature.trim()) {
-      toast.error(t('pwz.err.signature')); return
-    }
+    // The real agreement — amount, schedule, and every signature it needs —
+    // only exists once the committee has decided (Phase 2). Nothing to
+    // accept or sign at application time any more.
     setBusy(true)
 
     // The student is the subject of the record, not whoever held the pen. A
@@ -519,6 +520,10 @@ export default function PortalWazifaPage() {
       admission_status: form.admission_status,
       requested_amount_pkr: form.requested_amount_pkr,
       actual_course_cost_pkr: form.actual_course_cost_pkr || null,
+      course_start_date: form.course_start_date || null,
+      course_end_date: form.course_end_date || null,
+      admission_fee_pkr: form.admission_fee_pkr || 0,
+      transport_monthly_cost_pkr: form.transport_monthly_cost_pkr || 0,
       need_statement: form.need_statement.trim(),
       achievements: form.achievements || null,
       institute_phone: form.institute_phone || null,
@@ -1770,6 +1775,22 @@ export default function PortalWazifaPage() {
                 onChange={(e) => setForm({ ...form, actual_course_cost_pkr: +e.target.value })} className="input-field" />
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('pwz.f.actualCourseCostHint')}</p>
             </div>
+            <div>
+              <label className={label}>{t('pwz.f.courseStart')}</label>
+              <input type="date" value={form.course_start_date}
+                onChange={(e) => setForm({ ...form, course_start_date: e.target.value })} className="input-field" />
+            </div>
+            <div>
+              <label className={label}>{t('pwz.f.courseEnd')}</label>
+              <input type="date" value={form.course_end_date}
+                onChange={(e) => setForm({ ...form, course_end_date: e.target.value })} className="input-field" />
+            </div>
+            <div>
+              <label className={label}>{t('pwz.f.admissionFee')}</label>
+              <input type="number" min={0} value={form.admission_fee_pkr || ''}
+                onChange={(e) => setForm({ ...form, admission_fee_pkr: +e.target.value })} className="input-field" />
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('pwz.f.admissionFeeHint')}</p>
+            </div>
           </div>
 
           {/* ── What the student can manage themselves ──────────────────
@@ -1786,11 +1807,16 @@ export default function PortalWazifaPage() {
             </p>
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3 leading-relaxed">{t('pwz.shareEnglish')}</p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className={label}>{t('pwz.f.instituteMonthlyFee')}</label>
                 <input type="number" min={0} value={form.institution_monthly_fee_pkr || ''}
                   onChange={(e) => setForm({ ...form, institution_monthly_fee_pkr: +e.target.value })} className="input-field" />
+              </div>
+              <div>
+                <label className={label}>{t('pwz.f.transportMonthly')}</label>
+                <input type="number" min={0} value={form.transport_monthly_cost_pkr || ''}
+                  onChange={(e) => setForm({ ...form, transport_monthly_cost_pkr: +e.target.value })} className="input-field" />
               </div>
               <div>
                 <label className={label}>{t('pwz.f.myShare')}</label>
@@ -1799,11 +1825,25 @@ export default function PortalWazifaPage() {
               </div>
             </div>
 
-            {form.institution_monthly_fee_pkr > 0 && (
-              <p className="font-sans text-[13px] text-dp-on-surface mt-3 bg-white rounded-lg px-3.5 py-2.5">
-                {t('pwz.f.committeeWouldPay')} <strong>Rs {fmt(Math.max(form.institution_monthly_fee_pkr - form.offered_monthly_contribution_pkr, 0))}</strong>/{t('pkf.month')}
-              </p>
-            )}
+            {/* The real monthly cost the committee is actually being asked
+                to help with — tuition, hostel if applicable, and transport
+                together, not tuition alone. This is what the committee sees;
+                "my share" above is what comes off it. */}
+            {(() => {
+              const totalMonthly = form.institution_monthly_fee_pkr
+                + (form.is_in_hostel ? form.hostel_monthly_charges_pkr : 0)
+                + form.transport_monthly_cost_pkr
+              return totalMonthly > 0 ? (
+                <div className="mt-3 bg-white rounded-lg px-3.5 py-2.5 space-y-1">
+                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                    {t('pwz.f.realMonthlyCost')} <strong className="text-dp-on-surface">Rs {fmt(totalMonthly)}</strong>
+                  </p>
+                  <p className="font-sans text-[13px] text-dp-on-surface">
+                    {t('pwz.f.committeeWouldPay')} <strong>Rs {fmt(Math.max(totalMonthly - form.offered_monthly_contribution_pkr, 0))}</strong>/{t('pkf.month')}
+                  </p>
+                </div>
+              ) : null
+            })()}
             <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">{t('pwz.f.shareZeroOk')}</p>
           </div>
 
@@ -1865,70 +1905,21 @@ export default function PortalWazifaPage() {
           </p>
         </div>
 
-        {/* ── Qarz-e-Hasana ─────────────────────────────────────────────── */}
+        {/* ── Qarz-e-Hasana — a notice now, not a signature ─────────────────
+            The actual agreement, with the real amount and schedule, only
+            exists once the committee has decided — asking for a binding
+            signature here meant signing something before the numbers it's
+            about even existed. That agreement, with the family's, the
+            witnesses', and the student's own signatures, now happens once
+            the committee has decided (Phase 2 of this redesign) — this is
+            just telling the applicant what to expect. */}
         <div className={section}>
           <StepHead n={10} title={t('pwz.s.qarz')} urdu={t('pwz.qarzUrdu')} help={t('pwz.qarzEnglish')} />
-
-          {/* No "as a gift" choice any more — every award is repayable, one
-              of two ways: a zakat family repays once employed (decided at
-              screening, migration 275), everyone else on a fixed monthly
-              instalment starting once activated. Which applies is the
-              committee's finding, not something asked here. */}
-          <div className="flex items-start gap-2.5 px-4 py-3.5 rounded-lg border-2 border-emerald-500 bg-emerald-50 mb-4">
+          <div className="flex items-start gap-2.5 px-4 py-3.5 rounded-lg border-2 border-emerald-500 bg-emerald-50">
             <HandCoins size={17} className="text-emerald-700 shrink-0 mt-0.5" />
             <span className="font-sans text-[13px] text-emerald-900 leading-relaxed">{t('pwz.as.loanHelp')}</span>
           </div>
-
-          <p className="font-sans text-[12px] text-dp-on-surface-variant mb-4">{t('pwz.f.repaymentNoPressure')}</p>
-
-          {/* ── The agreement ────────────────────────────────────────────
-              Shown in full, not behind a link. Somebody is being asked to
-              commit to returning money over years; the terms belong on the
-              same screen as the box they tick. Unconditional now — every
-              award is repayable, so every applicant sees and signs this. */}
-          <div className="border-2 border-emerald-500 rounded-lg overflow-hidden">
-              <div className="bg-emerald-50 px-4 py-3 border-b border-emerald-200">
-                <h3 className="font-sans text-[14px] font-bold text-emerald-900">{t('pwz.terms.title')}</h3>
-              </div>
-
-              <div className="p-4 max-h-[280px] overflow-y-auto print:max-h-none print:overflow-visible">
-                {loanTerms.ur && (
-                  <p className="font-sans text-[13.5px] text-dp-on-surface leading-[2.1] whitespace-pre-line"
-                    style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
-                    {loanTerms.ur}
-                  </p>
-                )}
-                {loanTerms.en && (
-                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed whitespace-pre-line mt-4 pt-4 border-t border-dp-outline-variant">
-                    {loanTerms.en}
-                  </p>
-                )}
-                {!loanTerms.ur && !loanTerms.en && (
-                  <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('pwz.terms.notLoaded')}</p>
-                )}
-              </div>
-
-              <div className="px-4 py-4 border-t border-emerald-200 bg-white">
-                <label className="flex items-start gap-2.5 cursor-pointer mb-3">
-                  <input type="checkbox" checked={form.loan_terms_accepted}
-                    onChange={(e) => setForm({ ...form, loan_terms_accepted: e.target.checked })}
-                    className="accent-emerald-600 mt-0.5" />
-                  <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{t('pwz.terms.accept')}</span>
-                </label>
-
-                <label className={label}>{t('pwz.terms.signature')}</label>
-                <input value={form.loan_terms_signature}
-                  onChange={(e) => setForm({ ...form, loan_terms_signature: e.target.value })}
-                  placeholder={t('pwz.terms.signaturePlaceholder')} className="input-field max-w-sm" />
-                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('pwz.terms.signatureHint')}</p>
-
-                <div className="mt-3">
-                  <label className={label}>{t('pwz.f.repaymentNote')}</label>
-                  <textarea value={form.repayment_note} onChange={(e) => setForm({ ...form, repayment_note: e.target.value })}
-                    rows={2} placeholder={t('pwz.f.repaymentNotePlaceholder')} className="input-field resize-none" />
-                </div>
-              </div>
-            </div>
+          <p className="font-sans text-[12px] text-dp-on-surface-variant mt-3">{t('pwz.f.repaymentNoPressure')}</p>
         </div>
 
         {/* ── For office use ────────────────────────────────────────────
