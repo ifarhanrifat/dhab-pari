@@ -287,8 +287,16 @@ export default function WazifaPage() {
   const [payChargeForm, setPayChargeForm] = useState({ amount: 0, method: 'cash' })
   // Monthly cash, or several months at once — the same one voucher either
   // way (migration 282).
-  const [advancePayTarget, setAdvancePayTarget] = useState<AwardRow | null>(null)
-  const [advancePayForm, setAdvancePayForm] = useState({ months: 6, method: 'cash' })
+  // The full calendar for one award — every month paid, due, or not yet
+  // reached — so "which months are outstanding" is a screen, not a
+  // question the accountant has to hold in their head (migration 289).
+  const [calendarTarget, setCalendarTarget] = useState<AwardRow | null>(null)
+  const [calendarMonths, setCalendarMonths] = useState<
+    { month: string; charge_id: string | null; amount: number; paid_pkr: number; status: string; due_on: string }[]
+  >([])
+  const [calendarSelected, setCalendarSelected] = useState<Set<string>>(new Set())
+  const [calendarMethod, setCalendarMethod] = useState('cash')
+  const [calendarLoading, setCalendarLoading] = useState(false)
 
   const load = useCallback(async () => {
     const [{ data: st }, { data: ap }, { data: aw }, { data: ins }, { data: sum }, { data: vf }, { data: dc },
@@ -614,17 +622,39 @@ export default function WazifaPage() {
     load()
   }
 
-  const submitAdvancePay = async () => {
-    if (!advancePayTarget) return
+  // Opens the calendar — every month from the plan's start, real status
+  // per month (paid / due / not yet reached), nothing inferred or hidden
+  // behind a running total (migration 289).
+  const openCalendar = async (aw: AwardRow) => {
+    setCalendarTarget(aw)
+    setCalendarSelected(new Set())
+    setCalendarMethod('cash')
+    setCalendarLoading(true)
+    const { data, error } = await supabase.rpc('wazifa_award_calendar', { p_award_id: aw.id })
+    setCalendarLoading(false)
+    if (error) { toast.error(friendlyError(error)); setCalendarTarget(null); return }
+    setCalendarMonths(((data as { months?: typeof calendarMonths })?.months) ?? [])
+  }
+  const toggleCalendarMonth = (month: string, status: string) => {
+    if (status === 'paid') return
+    const next = new Set(calendarSelected)
+    if (next.has(month)) next.delete(month); else next.add(month)
+    setCalendarSelected(next)
+  }
+  const calendarSelectedTotal = calendarMonths
+    .filter((m) => calendarSelected.has(m.month))
+    .reduce((s, m) => s + (m.amount - m.paid_pkr), 0)
+  const submitCalendarPay = async () => {
+    if (!calendarTarget || calendarSelected.size === 0) return
     setBusy(true)
-    const { data, error } = await supabase.rpc('wazifa_pay_installment_advance', {
-      p_award_id: advancePayTarget.id, p_months: advancePayForm.months, p_method: advancePayForm.method,
+    const { data, error } = await supabase.rpc('wazifa_pay_specific_months', {
+      p_award_id: calendarTarget.id, p_months: Array.from(calendarSelected), p_method: calendarMethod,
     })
     setBusy(false)
     if (error) { toast.error(friendlyError(error)); return }
-    const r = data as { months_paid: number; total: number }
-    toast.success(t('wz.ins.advancePaid').replace('{months}', String(r.months_paid)).replace('{amount}', fmt(r.total)))
-    setAdvancePayTarget(null)
+    const months = (data as { months?: string[] })?.months ?? []
+    toast.success(t('wz.cal.paySuccess').replace('{months}', months.join(', ')))
+    setCalendarTarget(null)
     load()
   }
 
@@ -1488,9 +1518,14 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                       )}
                       {aw.installment_active && (
                         <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                          <button onClick={() => { setAdvancePayTarget(aw); setAdvancePayForm({ months: 6, method: 'cash' }) }}
+                          {/* Replaces the old "pay N months in advance"
+                              button — that one picked the next N unpaid
+                              months silently; this shows every month and
+                              which ones are already settled, and pays only
+                              whichever get ticked (migration 289). */}
+                          <button onClick={() => openCalendar(aw)}
                             className="flex items-center gap-1.5 px-2.5 py-1 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[11.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
-                            <CalendarClock size={12} /> {t('wz.ins.payAdvance')}
+                            <CalendarClock size={12} /> {t('wz.cal.button')}
                           </button>
                           {/* Whether he's still actually studying is a
                               separate question from whether he's been paid
@@ -2190,34 +2225,86 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
       {/* ── Recording a payment against an already-raised charge ────────── */}
       {/* ── Several months at once — monthly cash, or 6 months, or a
           year in advance, all in one voucher (migration 282). ─────────── */}
-      {advancePayTarget && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setAdvancePayTarget(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('wz.ins.payAdvance')}</h2>
-              <button onClick={() => setAdvancePayTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+      {/* ── Every month of the plan, real status per month — replaces the
+          old "pay N months in advance" button, which paid a real number
+          of real months but never said which ones (migration 289). Quick
+          picks at the top just tick boxes; nothing is paid until "Pay
+          selected" is pressed, and an already-paid month can't be
+          selected at all. */}
+      {calendarTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setCalendarTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('wz.cal.title')}</h2>
+              <button onClick={() => setCalendarTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
-            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('wz.ins.payAdvanceHelp')}</p>
-            <div className="flex gap-2 mb-3">
-              {[1, 3, 6, 12].map((m) => (
-                <button key={m} onClick={() => setAdvancePayForm({ ...advancePayForm, months: m })}
-                  className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all cursor-pointer ${
-                    advancePayForm.months === m ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
-                  {m}
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{studentOf(calendarTarget.student_id)?.full_name}</p>
+
+            {calendarLoading ? (
+              <p className="font-sans text-[13px] text-dp-on-surface-variant py-8 text-center">{t('action.loading')}</p>
+            ) : (
+              <>
+                <div className="flex gap-2 mb-3">
+                  {[3, 6, 12].map((n) => (
+                    <button key={n} type="button" onClick={() => {
+                        const unpaid = calendarMonths.filter((m) => m.status !== 'paid').slice(0, n).map((m) => m.month)
+                        setCalendarSelected(new Set(unpaid))
+                      }}
+                      className="px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
+                      {t('wz.cal.quickNext').replace('{n}', String(n))}
+                    </button>
+                  ))}
+                  <button type="button" onClick={() => setCalendarSelected(new Set())}
+                    className="px-3 py-1.5 text-dp-on-surface-variant font-sans text-[12px] hover:text-dp-error transition-all cursor-pointer">
+                    {t('wz.cal.clear')}
+                  </button>
+                </div>
+
+                <div className="overflow-y-auto flex-1 border border-dp-outline-variant rounded-lg divide-y divide-dp-outline-variant mb-3">
+                  {calendarMonths.map((m) => {
+                    const label = new Date(m.month + 'T00:00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+                    const selected = calendarSelected.has(m.month)
+                    const isPaid = m.status === 'paid'
+                    return (
+                      <label key={m.month}
+                        className={`flex items-center justify-between gap-3 px-3.5 py-2.5 ${isPaid ? 'bg-emerald-50 cursor-default' : 'cursor-pointer hover:bg-dp-surface-container-low'}`}>
+                        <span className="flex items-center gap-2.5">
+                          <input type="checkbox" checked={selected || isPaid} disabled={isPaid}
+                            onChange={() => toggleCalendarMonth(m.month, m.status)} className="accent-dp-secondary" />
+                          <span className="font-sans text-[13px] font-semibold text-dp-on-surface">{label}</span>
+                        </span>
+                        <span className="flex items-center gap-2">
+                          <span className="font-sans text-[12.5px] text-dp-on-surface-variant">Rs {fmt(m.amount)}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
+                            isPaid ? 'bg-emerald-100 text-emerald-700'
+                            : m.status === 'part_paid' ? 'bg-amber-100 text-amber-700'
+                            : m.status === 'upcoming' ? 'bg-dp-surface-container-high text-dp-on-surface-variant'
+                            : 'bg-dp-secondary/10 text-dp-secondary'}`}>
+                            {t(`wz.cal.status.${m.status}`)}
+                          </span>
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+
+                <div className="flex items-center justify-between mb-3">
+                  <select value={calendarMethod} onChange={(e) => setCalendarMethod(e.target.value)} className="input-field !w-auto">
+                    <option value="cash">{t('w.cash')}</option>
+                    <option value="bank">{t('a.bank')}</option>
+                    <option value="jazzcash">{t('w.jazzcash')}</option>
+                    <option value="easypaisa">{t('w.easypaisa')}</option>
+                  </select>
+                  <p className="font-sans text-[13px] font-bold text-dp-on-surface">
+                    {calendarSelected.size} {t('wz.cal.monthsSelected')} · Rs {fmt(calendarSelectedTotal)}
+                  </p>
+                </div>
+                <button disabled={busy || calendarSelected.size === 0} onClick={submitCalendarPay}
+                  className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+                  <HandCoins size={16} /> {busy ? t('action.saving') : t('wz.cal.paySelected')}
                 </button>
-              ))}
-            </div>
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
-            <select value={advancePayForm.method} onChange={(e) => setAdvancePayForm({ ...advancePayForm, method: e.target.value })} className="input-field mb-4">
-              <option value="cash">{t('w.cash')}</option>
-              <option value="bank">{t('a.bank')}</option>
-              <option value="jazzcash">{t('w.jazzcash')}</option>
-              <option value="easypaisa">{t('w.easypaisa')}</option>
-            </select>
-            <button disabled={busy} onClick={submitAdvancePay}
-              className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-              <CalendarClock size={16} /> {busy ? t('action.saving') : t('wz.ins.payAdvance')}
-            </button>
+              </>
+            )}
           </div>
         </div>
       )}
