@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
-import { MessageCircle, Menu, UserCircle2, ChevronDown } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { MessageCircle, Menu, UserCircle2 } from 'lucide-react'
 import { SITE } from '@/lib/constants'
 import { MobileNav } from './MobileNav'
 import { useMobileNav } from './MobileNavContext'
@@ -28,29 +28,11 @@ const navLinks: { href: string; label: string; tKey: string }[] = [
   { href: '/about', label: 'Committee', tKey: 'site.committee' },
 ]
 
-// The row has broken this way three times now as links were added (first
-// "Home" vanished behind the logo, then "Water Bill" too) — a fixed-width
-// row of 12 links was never going to keep fitting a 1200px container
-// forever. Rather than another band-aid, the two least time-critical
-// destinations move into a "More" trigger: that's one compact item taking
-// the nav row's space instead of two full labels, and — unlike hiding them
-// below a breakpoint — both stay reachable at every width, just one click
-// deeper instead of silently invisible.
-const OVERFLOW_HREFS = new Set(['/gallery', '/about'])
-
 export function Header() {
   const { t } = useLocale()
   const pathname = usePathname()
   const { open: mobileOpen, setOpen: setMobileOpen } = useMobileNav()
   const [isPortalUser, setIsPortalUser] = useState(false)
-  const [moreOpen, setMoreOpen] = useState(false)
-  const moreRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const onClickOutside = (e: MouseEvent) => { if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false) }
-    document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
-  }, [])
 
   // A registered donor/consumer is a website user too — surface a single
   // "My Portal" entry point when logged in, rather than duplicating the
@@ -91,18 +73,16 @@ export function Header() {
             </div>
           </div>
 
-          {/* Desktop Nav
-              flex-1 + min-w-0 + scroll: when there are more links than room
-              (Blood, then later Water Bill), the row overflows and needs to
-              scroll somewhere. justify-end pushed the START of the list off
-              the LEFT edge, under the logo's opaque z-10 layer — first "Home"
-              disappeared behind "Dhab Pari", then "Water Bill" too. justify-
-              start means whatever gets pushed off instead is the END of the
-              list (the least-visited links, Gallery/Committee), scrollable
-              rather than invisible — Home and Water Bill are now always the
-              first, always-visible items right after the logo. */}
-          <nav className="hidden lg:flex flex-1 min-w-0 justify-start items-center gap-3.5 xl:gap-5 overflow-x-auto hide-scrollbar relative z-0 ps-3">
-            {navLinks.filter((l) => !OVERFLOW_HREFS.has(l.href)).map((link) => {
+          {/* Desktop Nav — every link rendered directly, no "More" trigger.
+              flex-1 + min-w-0 + scroll is still the fallback if this ever
+              doesn't fit (justify-start means overflow pushes off the END
+              of the list, scrollable, not hidden under the logo like
+              before) — but the real fix for actually fitting is freeing up
+              width elsewhere: Facebook is gone and the WhatsApp button's
+              text is shorter (see Right Actions below), and the gap here
+              is tighter than it was. */}
+          <nav className="hidden lg:flex flex-1 min-w-0 justify-start items-center gap-2.5 xl:gap-4 overflow-x-auto hide-scrollbar relative z-0 ps-3">
+            {navLinks.map((link) => {
               const isActive = pathname === link.href
               return (
                 <Link
@@ -118,38 +98,14 @@ export function Header() {
                 </Link>
               )
             })}
-            {(() => {
-              const overflowLinks = navLinks.filter((l) => OVERFLOW_HREFS.has(l.href))
-              const isOverflowActive = overflowLinks.some((l) => l.href === pathname)
-              return (
-                <div ref={moreRef} className="relative shrink-0">
-                  <button onClick={() => setMoreOpen((v) => !v)}
-                    className={`flex items-center gap-1 text-[13.5px] font-sans tracking-[0.02em] whitespace-nowrap cursor-pointer transition-colors ${
-                      isOverflowActive ? 'text-[#86f8c9] font-bold border-b-2 border-[#86f8c9] pb-1' : 'text-white/80 hover:text-white'
-                    }`}>
-                    {t('site.more', 'More')} <ChevronDown size={13} className={`transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {moreOpen && (
-                    <div className="absolute top-full mt-2 end-0 bg-white rounded-lg border border-dp-outline-variant shadow-lg overflow-hidden min-w-[140px] z-50">
-                      {overflowLinks.map((link) => (
-                        <Link key={link.href} href={link.href} onClick={() => setMoreOpen(false)}
-                          className={`block px-4 py-2.5 font-sans text-[13.5px] whitespace-nowrap ${
-                            pathname === link.href ? 'text-dp-secondary font-bold bg-dp-secondary/5' : 'text-dp-on-surface hover:bg-dp-surface-container-low'
-                          }`}>
-                          {t(link.tKey, link.label)}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
           </nav>
 
           {/* Right Actions — Login/My Portal is deliberately last, the true
               rightmost item, not sandwiched between the nav and the
-              WhatsApp/Facebook/language buttons. The corner a visitor
-              already expects their own identity in on any site. */}
+              WhatsApp/language buttons. The corner a visitor already
+              expects their own identity in on any site. Facebook's own
+              icon button used to sit here too; dropped to give the nav
+              row more width to work with. */}
           <div className="flex items-center gap-2 shrink-0">
             {/* WhatsApp's own brand green (#25D366) — deliberately distinct
                 from the site's teal so it reads as "this opens WhatsApp",
@@ -164,23 +120,6 @@ export function Header() {
             >
               <MessageCircle size={16} />
               {t('site.joinGroup')}
-            </a>
-            {/* Facebook's own brand blue, icon-only — lucide dropped brand
-                icons, so this is the official mark as inline SVG. Kept
-                icon-only deliberately: the header nav is already at its
-                width limit (adding "Jobs" once pushed it onto two rows),
-                and the f mark is universally recognized without a label. */}
-            <a
-              href={SITE.facebookLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Follow us on Facebook"
-              aria-label="Follow us on Facebook"
-              className="hidden md:flex items-center justify-center bg-[#1877F2] text-white w-[30px] h-[30px] rounded-lg hover:bg-[#0f66d0] transition-all active:scale-95 shrink-0"
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-                <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.412c0-3.025 1.792-4.696 4.533-4.696 1.313 0 2.686.236 2.686.236v2.971H15.83c-1.491 0-1.956.93-1.956 1.886v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z" />
-              </svg>
             </a>
             {/* Sits where the old dead "EN/UR" placeholder was, so the
                 control is where people were already looking for it — that one
