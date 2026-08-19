@@ -82,8 +82,13 @@ interface CheckIn {
 // so admin's own read matches exactly what the student saw and signed.
 interface AgreementRow {
   id: string; award_id: string; monthly_amount_pkr: number; due_day: number
-  status: 'pending' | 'signed' | 'superseded'
+  status: 'pending' | 'signed' | 'verified' | 'superseded'
   student_signed_name: string | null; student_signed_at: string | null
+  father_name?: string | null; father_cnic?: string | null; father_phone?: string | null
+  witness1_name?: string | null; witness1_cnic?: string | null; witness1_phone?: string | null
+  witness2_name?: string | null; witness2_cnic?: string | null; witness2_phone?: string | null
+  signed_document_url?: string | null
+  witnessed_verified_by?: string | null; witnessed_verified_at?: string | null
 }
 
 interface Verification {
@@ -300,6 +305,29 @@ export default function WazifaPage() {
   const [calendarMethod, setCalendarMethod] = useState('cash')
   const [calendarLoading, setCalendarLoading] = useState(false)
 
+  // The payout side of the same calendar — what the committee owes the
+  // student while he's studying, mirroring calendarTarget/calendarMonths
+  // above exactly, just against wazifa_disbursement_charges instead of
+  // wazifa_installment_charges (migration 294).
+  const [payoutCalendarTarget, setPayoutCalendarTarget] = useState<AwardRow | null>(null)
+  const [payoutCalendarMonths, setPayoutCalendarMonths] = useState<
+    { month: string; charge_id: string | null; amount: number; paid_pkr: number; status: string; due_on: string }[]
+  >([])
+  const [payoutCalendarSelected, setPayoutCalendarSelected] = useState<Set<string>>(new Set())
+  const [payoutCalendarMethod, setPayoutCalendarMethod] = useState('cash')
+  const [payoutCalendarLoading, setPayoutCalendarLoading] = useState(false)
+
+  // Staff reviewing the uploaded, witnessed document before an award can
+  // be activated (migration 293) — a separate checkpoint from activation
+  // itself, so someone always actually looked at it.
+  const [verifyAgreementTarget, setVerifyAgreementTarget] = useState<AgreementRow | null>(null)
+
+  // Extending a live plan's duration — settlement or disbursement side,
+  // same small form either way, just a different RPC underneath
+  // (migration 293).
+  const [readjustTarget, setReadjustTarget] = useState<{ award: AwardRow; kind: 'settlement' | 'disbursement' } | null>(null)
+  const [readjustForm, setReadjustForm] = useState({ new_end_date: '', new_due_day: '', reason: '' })
+
   const load = useCallback(async () => {
     const [{ data: st }, { data: ap }, { data: aw }, { data: ins }, { data: sum }, { data: vf }, { data: dc },
            { data: docs }, { data: cm }, { data: minV }, { data: sch }, { data: ags }, { data: charges },
@@ -315,7 +343,9 @@ export default function WazifaPage() {
       supabase.from('admin_users').select('id, full_name').eq('is_active', true).order('full_name'),
       supabase.from('site_settings').select('value').eq('key', 'wazifa_min_verifiers').maybeSingle(),
       supabase.from('schools').select('id, name').eq('is_active', true).order('name'),
-      supabase.from('wazifa_agreements').select('id, award_id, monthly_amount_pkr, due_day, status, student_signed_name, student_signed_at')
+      supabase.from('wazifa_agreements').select(`id, award_id, monthly_amount_pkr, due_day, status, student_signed_name, student_signed_at,
+        father_name, father_cnic, father_phone, witness1_name, witness1_cnic, witness1_phone,
+        witness2_name, witness2_cnic, witness2_phone, signed_document_url, witnessed_verified_by, witnessed_verified_at`)
         .order('sent_at', { ascending: false }),
       supabase.from('wazifa_installment_charges').select('id, award_id, due_on, amount_pkr, paid_pkr, status')
         .order('due_on', { ascending: false }),
@@ -657,6 +687,82 @@ export default function WazifaPage() {
     const months = (data as { months?: string[] })?.months ?? []
     toast.success(t('wz.cal.paySuccess').replace('{months}', months.join(', ')))
     setCalendarTarget(null)
+    load()
+  }
+
+  // The payout calendar — same shape as openCalendar/submitCalendarPay
+  // above, against wazifa_disbursement_calendar/wazifa_payout_specific_months
+  // instead (migration 294).
+  const openPayoutCalendar = async (aw: AwardRow) => {
+    setPayoutCalendarTarget(aw)
+    setPayoutCalendarSelected(new Set())
+    setPayoutCalendarMethod('cash')
+    setPayoutCalendarLoading(true)
+    const { data, error } = await supabase.rpc('wazifa_disbursement_calendar', { p_award_id: aw.id })
+    setPayoutCalendarLoading(false)
+    if (error) { toast.error(friendlyError(error)); setPayoutCalendarTarget(null); return }
+    setPayoutCalendarMonths(((data as { months?: typeof payoutCalendarMonths })?.months) ?? [])
+  }
+  const togglePayoutCalendarMonth = (month: string, status: string) => {
+    if (status === 'paid') return
+    const next = new Set(payoutCalendarSelected)
+    if (next.has(month)) next.delete(month); else next.add(month)
+    setPayoutCalendarSelected(next)
+  }
+  const payoutCalendarSelectedTotal = payoutCalendarMonths
+    .filter((m) => payoutCalendarSelected.has(m.month))
+    .reduce((s, m) => s + (m.amount - m.paid_pkr), 0)
+  const submitPayoutCalendarPay = async () => {
+    if (!payoutCalendarTarget || payoutCalendarSelected.size === 0) return
+    setBusy(true)
+    const { data, error } = await supabase.rpc('wazifa_payout_specific_months', {
+      p_award_id: payoutCalendarTarget.id, p_months: Array.from(payoutCalendarSelected), p_method: payoutCalendarMethod,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    const months = (data as { months?: string[] })?.months ?? []
+    toast.success(t('wz.pcal.paySuccess').replace('{months}', months.join(', ')))
+    setPayoutCalendarTarget(null)
+    load()
+  }
+
+  // Staff actually looking at the uploaded, witnessed document — the
+  // checkpoint before an award can be activated (migration 293).
+  const verifyAgreement = async () => {
+    if (!verifyAgreementTarget) return
+    setBusy(true)
+    const { error } = await supabase.rpc('wazifa_verify_agreement', { p_agreement_id: verifyAgreementTarget.id })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.ag.verified'))
+    setVerifyAgreementTarget(null)
+    load()
+  }
+  // wazifa_agreement_documents is a private bucket, same signed-URL-per-
+  // view pattern as viewProof above.
+  const viewAgreementDocument = async (path: string) => {
+    const { data, error } = await supabase.storage.from('wazifa_agreement_documents').createSignedUrl(path, 300)
+    if (error || !data?.signedUrl) { toast.error('Could not open the signed document'); return }
+    window.open(data.signedUrl, '_blank', 'noopener')
+  }
+
+  // Extending a live plan's duration — only the remainder moves, and a
+  // fresh agreement goes out for re-signing (migration 293).
+  const submitReadjust = async () => {
+    if (!readjustTarget || !readjustForm.new_end_date) { toast.error(t('wz.ins.err.dates')); return }
+    setBusy(true)
+    const rpcName = readjustTarget.kind === 'settlement' ? 'wazifa_readjust_settlement' : 'wazifa_readjust_disbursement'
+    const { error } = await supabase.rpc(rpcName, {
+      p_award_id: readjustTarget.award.id,
+      p_new_end_date: readjustForm.new_end_date,
+      p_new_due_day: readjustForm.new_due_day ? +readjustForm.new_due_day : null,
+      p_reason: readjustForm.reason.trim() || null,
+    })
+    setBusy(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('wz.readjust.saved'))
+    setReadjustTarget(null)
+    setReadjustForm({ new_end_date: '', new_due_day: '', reason: '' })
     load()
   }
 
@@ -1455,8 +1561,10 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                             {t('wz.ins.fixed')} <strong className="text-dp-on-surface">Rs {fmt(monthly)}</strong> · {t('wz.ins.dueDay')} {dueDay ?? '—'}
                             {aw.installment_active ? (
                               <span className="ms-2 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">{t('wz.ins.active')}</span>
-                            ) : ag?.status === 'signed' ? (
+                            ) : ag?.status === 'verified' ? (
                               <span className="ms-2 px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 text-[11px] font-bold">{t('wz.ins.readyToActivate')}</span>
+                            ) : ag?.status === 'signed' ? (
+                              <span className="ms-2 px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 text-[11px] font-bold">{t('wz.ins.awaitingVerification')}</span>
                             ) : ag?.status === 'pending' ? (
                               <span className="ms-2 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold">{t('wz.ins.awaitingSignature')}</span>
                             ) : (
@@ -1485,7 +1593,17 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                             <Pencil size={13} /> {monthly > 0 ? t('wz.ins.revise') : t('wz.ins.setPlan')}
                           </button>
                         )}
+                        {/* Staff has to actually look at the uploaded,
+                            witnessed document before activation is even
+                            offered — separate checkpoint from activation
+                            itself (migration 293). */}
                         {ag?.status === 'signed' && !aw.installment_active && !isDisburseThenSettle && (
+                          <button onClick={() => setVerifyAgreementTarget(ag)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 border border-violet-600 text-violet-700 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-violet-600 hover:text-white transition-all cursor-pointer">
+                            <ShieldCheck size={13} /> {t('wz.ag.verifyButton')}
+                          </button>
+                        )}
+                        {ag?.status === 'verified' && !aw.installment_active && !isDisburseThenSettle && (
                           <button onClick={() => activateAward(aw)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
                             <UserCheck size={13} /> {t('wz.ins.activate')}
@@ -1495,6 +1613,17 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                           <button onClick={() => triggerSettlement(aw)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
                             <UserCheck size={13} /> {t('wz.plan.markEmployed')}
+                          </button>
+                        )}
+                        {/* Extending a live plan — the remainder only, a
+                            fresh agreement goes out to re-sign (migration
+                            293). Only meaningful once it's actually
+                            running. */}
+                        {aw.installment_active && (
+                          <button onClick={() => { setReadjustTarget({ award: aw, kind: 'settlement' })
+                              setReadjustForm({ new_end_date: aw.installment_end_date ?? '', new_due_day: String(dueDay ?? ''), reason: '' }) }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
+                            <RotateCcw size={13} /> {t('wz.readjust.button')}
                           </button>
                         )}
                       </div>
@@ -1520,6 +1649,22 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                                   {t('wz.plan.release')} {new Date(c.due_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · Rs {fmt(c.amount_pkr - c.paid_pkr)}
                                 </button>
                               ))}
+                            </div>
+                          )}
+                          {aw.disbursement_active && (
+                            <div className="mt-1.5 flex flex-wrap gap-2">
+                              {/* The full payout calendar, every month named
+                                  — same grid as the receive side, opposite
+                                  direction (migration 294). */}
+                              <button onClick={() => openPayoutCalendar(aw)}
+                                className="flex items-center gap-1.5 px-2.5 py-1 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[11.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
+                                <CalendarClock size={12} /> {t('wz.pcal.button')}
+                              </button>
+                              <button onClick={() => { setReadjustTarget({ award: aw, kind: 'disbursement' })
+                                  setReadjustForm({ new_end_date: aw.disbursement_end_date ?? '', new_due_day: String(aw.disbursement_due_day ?? ''), reason: '' }) }}
+                                className="flex items-center gap-1.5 px-2.5 py-1 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[11.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
+                                <RotateCcw size={12} /> {t('wz.readjust.button')}
+                              </button>
                             </div>
                           )}
                         </div>
@@ -2328,6 +2473,166 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                 </button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── The payout side of the same calendar — every month the
+          committee owes the student, opposite direction from the one
+          above (migration 294). ────────────────────────────────────── */}
+      {payoutCalendarTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPayoutCalendarTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('wz.pcal.title')}</h2>
+              <button onClick={() => setPayoutCalendarTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{studentOf(payoutCalendarTarget.student_id)?.full_name}</p>
+
+            {payoutCalendarLoading ? (
+              <p className="font-sans text-[13px] text-dp-on-surface-variant py-8 text-center">{t('action.loading')}</p>
+            ) : (
+              <>
+                <div className="flex gap-2 mb-3">
+                  {[3, 6, 12].map((n) => (
+                    <button key={n} type="button" onClick={() => {
+                        const unpaid = payoutCalendarMonths.filter((m) => m.status !== 'paid').slice(0, n).map((m) => m.month)
+                        setPayoutCalendarSelected(new Set(unpaid))
+                      }}
+                      className="px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
+                      {t('wz.cal.quickNext').replace('{n}', String(n))}
+                    </button>
+                  ))}
+                  <button type="button" onClick={() => setPayoutCalendarSelected(new Set())}
+                    className="px-3 py-1.5 text-dp-on-surface-variant font-sans text-[12px] hover:text-dp-error transition-all cursor-pointer">
+                    {t('wz.cal.clear')}
+                  </button>
+                </div>
+
+                <div className="overflow-y-auto flex-1 border border-dp-outline-variant rounded-lg divide-y divide-dp-outline-variant mb-3">
+                  {payoutCalendarMonths.map((m) => {
+                    const label = new Date(m.month + 'T00:00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+                    const selected = payoutCalendarSelected.has(m.month)
+                    const isPaid = m.status === 'paid'
+                    return (
+                      <label key={m.month}
+                        className={`flex items-center justify-between gap-3 px-3.5 py-2.5 ${isPaid ? 'bg-emerald-50 cursor-default' : 'cursor-pointer hover:bg-dp-surface-container-low'}`}>
+                        <span className="flex items-center gap-2.5">
+                          <input type="checkbox" checked={selected || isPaid} disabled={isPaid}
+                            onChange={() => togglePayoutCalendarMonth(m.month, m.status)} className="accent-dp-secondary" />
+                          <span className="font-sans text-[13px] font-semibold text-dp-on-surface">{label}</span>
+                        </span>
+                        <span className="flex items-center gap-2">
+                          <span className="font-sans text-[12.5px] text-dp-on-surface-variant">Rs {fmt(m.amount)}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
+                            isPaid ? 'bg-emerald-100 text-emerald-700'
+                            : m.status === 'part_paid' ? 'bg-amber-100 text-amber-700'
+                            : m.status === 'upcoming' ? 'bg-dp-surface-container-high text-dp-on-surface-variant'
+                            : 'bg-dp-secondary/10 text-dp-secondary'}`}>
+                            {t(`wz.cal.status.${m.status}`)}
+                          </span>
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+
+                <div className="flex items-center justify-between mb-3">
+                  <select value={payoutCalendarMethod} onChange={(e) => setPayoutCalendarMethod(e.target.value)} className="input-field !w-auto">
+                    <option value="cash">{t('w.cash')}</option>
+                    <option value="bank">{t('a.bank')}</option>
+                    <option value="jazzcash">{t('w.jazzcash')}</option>
+                    <option value="easypaisa">{t('w.easypaisa')}</option>
+                  </select>
+                  <p className="font-sans text-[13px] font-bold text-dp-on-surface">
+                    {payoutCalendarSelected.size} {t('wz.cal.monthsSelected')} · Rs {fmt(payoutCalendarSelectedTotal)}
+                  </p>
+                </div>
+                <button disabled={busy || payoutCalendarSelected.size === 0} onClick={submitPayoutCalendarPay}
+                  className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+                  <HandCoins size={16} /> {busy ? t('action.saving') : t('wz.pcal.paySelected')}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Staff reviewing the uploaded, witnessed document before an
+          award can be activated (migration 293). ────────────────────── */}
+      {verifyAgreementTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setVerifyAgreementTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('wz.ag.verifyTitle')}</h2>
+              <button onClick={() => setVerifyAgreementTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+
+            {verifyAgreementTarget.signed_document_url && (
+              <button onClick={() => viewAgreementDocument(verifyAgreementTarget.signed_document_url!)}
+                className="w-full flex items-center justify-center gap-2 border border-dp-secondary text-dp-secondary py-2 rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer mb-3">
+                <FileText size={15} /> {t('wz.ag.viewDocument')}
+              </button>
+            )}
+
+            <div className="space-y-2.5 font-sans text-[12.5px]">
+              <div className="border border-dp-outline-variant rounded-lg p-2.5">
+                <p className="font-semibold text-dp-on-surface mb-0.5">{t('pwz.ag.fatherSection')}</p>
+                <p className="text-dp-on-surface-variant">{verifyAgreementTarget.father_name}
+                  {verifyAgreementTarget.father_cnic ? ` · ${verifyAgreementTarget.father_cnic}` : ''}
+                  {verifyAgreementTarget.father_phone ? ` · ${verifyAgreementTarget.father_phone}` : ''}</p>
+              </div>
+              <div className="border border-dp-outline-variant rounded-lg p-2.5">
+                <p className="font-semibold text-dp-on-surface mb-0.5">{t('pwz.ag.witness1Section')}</p>
+                <p className="text-dp-on-surface-variant">{verifyAgreementTarget.witness1_name}
+                  {verifyAgreementTarget.witness1_cnic ? ` · ${verifyAgreementTarget.witness1_cnic}` : ''}
+                  {verifyAgreementTarget.witness1_phone ? ` · ${verifyAgreementTarget.witness1_phone}` : ''}</p>
+              </div>
+              <div className="border border-dp-outline-variant rounded-lg p-2.5">
+                <p className="font-semibold text-dp-on-surface mb-0.5">{t('pwz.ag.witness2Section')}</p>
+                <p className="text-dp-on-surface-variant">{verifyAgreementTarget.witness2_name}
+                  {verifyAgreementTarget.witness2_cnic ? ` · ${verifyAgreementTarget.witness2_cnic}` : ''}
+                  {verifyAgreementTarget.witness2_phone ? ` · ${verifyAgreementTarget.witness2_phone}` : ''}</p>
+              </div>
+            </div>
+
+            <button disabled={busy} onClick={verifyAgreement}
+              className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-50 mt-4">
+              <ShieldCheck size={16} /> {busy ? t('action.saving') : t('wz.ag.confirmVerify')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Extending a live plan's duration — the remainder only,
+          re-signed through the same witnessed flow (migration 293). ──── */}
+      {readjustTarget && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setReadjustTarget(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">
+                {readjustTarget.kind === 'settlement' ? t('wz.readjust.settlementTitle') : t('wz.readjust.disbursementTitle')}
+              </h2>
+              <button onClick={() => setReadjustTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">{t('wz.readjust.help')}</p>
+
+            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('wz.readjust.newEndDate')}</label>
+            <input type="date" value={readjustForm.new_end_date}
+              onChange={(e) => setReadjustForm({ ...readjustForm, new_end_date: e.target.value })} className="input-field mb-3" />
+
+            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('wz.readjust.newDueDay')}</label>
+            <input type="number" min={1} max={28} value={readjustForm.new_due_day}
+              onChange={(e) => setReadjustForm({ ...readjustForm, new_due_day: e.target.value })} className="input-field mb-3" />
+
+            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('wz.readjust.reason')}</label>
+            <textarea value={readjustForm.reason} rows={2}
+              onChange={(e) => setReadjustForm({ ...readjustForm, reason: e.target.value })} className="input-field mb-3" />
+
+            <button disabled={busy || !readjustForm.new_end_date} onClick={submitReadjust}
+              className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+              <RotateCcw size={16} /> {busy ? t('action.saving') : t('wz.readjust.submit')}
+            </button>
           </div>
         </div>
       )}

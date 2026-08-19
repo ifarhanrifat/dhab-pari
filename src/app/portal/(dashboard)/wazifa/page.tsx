@@ -12,6 +12,7 @@ import {
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { FileAttachment } from '@/components/admin/FileAttachment'
+import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import Link from 'next/link'
 
 /**
@@ -115,6 +116,9 @@ export default function PortalWazifaPage() {
   // ── Sponsoring a student — a different visitor to this same page than the
   // one applying above: pick a specific student, or join the shared pool
   // with no name attached, the same pattern Kafalat and Sadqa already use.
+  // Every donor lands on "sponsor" by default — the cards, not somebody
+  // else's eleven-step application form.
+  const [activeTab, setActiveTab] = useState<'sponsor' | 'apply'>('sponsor')
   const [showGuide, setShowGuide] = useState(false)
   const [sponsorPoolId, setSponsorPoolId] = useState<string | null>(null)
   const [sponsorPosition, setSponsorPosition] = useState<{
@@ -150,6 +154,10 @@ export default function PortalWazifaPage() {
   // typed and would otherwise vanish silently.
   const openSnapshotRef = useRef<string>('')
   const [savedId, setSavedId] = useState<string | null>(null)
+  // Someone who already has an application on file almost certainly came
+  // back to check on it, not to browse sponsor cards — land them where
+  // they actually need to be, once, the first time it loads.
+  useEffect(() => { if (savedId) setActiveTab('apply') }, [savedId])
   const [savedStatus, setSavedStatus] = useState<string | null>(null)
   const [isEditable, setIsEditable] = useState(true)
   const [lockedReason, setLockedReason] = useState<string | null>(null)
@@ -189,8 +197,16 @@ export default function PortalWazifaPage() {
   // their own account since — migrations 269/271.
   const [agreements, setAgreements] = useState<WazifaAgreement[]>([])
   const [signing, setSigning] = useState<WazifaAgreement | null>(null)
-  const [signName, setSignName] = useState('')
-  const [signAgree, setSignAgree] = useState(false)
+  // Typing a name is gone — a real signature, witnessed, printed, signed
+  // by hand, and uploaded as a photo (migration 293). father/witness1/
+  // witness2 each need a name, CNIC and phone; the document itself is
+  // the upload proving all of it actually happened on paper.
+  const [signForm, setSignForm] = useState({
+    father_name: '', father_cnic: '', father_phone: '',
+    witness1_name: '', witness1_cnic: '', witness1_phone: '',
+    witness2_name: '', witness2_cnic: '', witness2_phone: '',
+    document_url: '',
+  })
   const [statement, setStatement] = useState<Statement | null>(null)
 
   const load = useCallback(async () => {
@@ -399,25 +415,32 @@ export default function PortalWazifaPage() {
     loadSponsorship()
   }
 
-  // Clicked, not drawn — a typed full name plus a timestamp, the same
-  // weight the loan terms signature elsewhere on this page already rests
-  // on. wazifa_sign_agreement() (migration 269) checks ownership itself, so
-  // there is nothing more to validate here beyond "did they actually type
-  // something and tick the box."
+  // The real thing now: father/guardian and two witnesses, each named
+  // with a CNIC and phone, plus a photo of the document they all
+  // actually signed by hand (migration 293). wazifa_submit_witnessed_
+  // agreement() checks ownership itself and rejects a missing upload or
+  // a missing name — this only needs to catch it early enough to point
+  // at what's still blank.
   const submitSign = async () => {
     if (!signing) return
-    if (!signAgree) { toast.error(t('pwz.ag.mustTick')); return }
-    if (!signName.trim()) { toast.error(t('pwz.ag.mustType')); return }
+    if (!signForm.document_url) { toast.error(t('pwz.ag.mustUpload')); return }
+    if (!signForm.father_name.trim() || !signForm.witness1_name.trim() || !signForm.witness2_name.trim()) {
+      toast.error(t('pwz.ag.mustNameAll')); return
+    }
     setBusy(true)
-    const { error } = await supabase.rpc('wazifa_sign_agreement', {
-      p_agreement_id: signing.agreement_id, p_typed_name: signName.trim(),
+    const { error } = await supabase.rpc('wazifa_submit_witnessed_agreement', {
+      p_agreement_id: signing.agreement_id,
+      p_father_name: signForm.father_name.trim(), p_father_cnic: signForm.father_cnic.trim() || null, p_father_phone: signForm.father_phone.trim() || null,
+      p_witness1_name: signForm.witness1_name.trim(), p_witness1_cnic: signForm.witness1_cnic.trim() || null, p_witness1_phone: signForm.witness1_phone.trim() || null,
+      p_witness2_name: signForm.witness2_name.trim(), p_witness2_cnic: signForm.witness2_cnic.trim() || null, p_witness2_phone: signForm.witness2_phone.trim() || null,
+      p_signed_document_url: signForm.document_url,
     })
     setBusy(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('pwz.ag.signed'))
     setSigning(null)
-    setSignName('')
-    setSignAgree(false)
+    setSignForm({ father_name: '', father_cnic: '', father_phone: '', witness1_name: '', witness1_cnic: '', witness1_phone: '',
+      witness2_name: '', witness2_cnic: '', witness2_phone: '', document_url: '' })
     load()
   }
 
@@ -711,6 +734,27 @@ export default function PortalWazifaPage() {
         ))}
       </div>
 
+      {/* ── Two tabs, two different visitors ─────────────────────────────
+          A donor browsing to sponsor a named student and someone actually
+          applying for themselves were sharing one page, and the donor had
+          to scroll past an eleven-step application form meant for someone
+          else entirely to get to the cards. "Sponsor a student" — every
+          donor's default — is its own tab now; everything about applying
+          (this student's own application, status, agreement, statement,
+          the form itself) lives in "Apply for Taleemi Wazifa", opened on
+          purpose, not stumbled into. */}
+      <div className="flex gap-2 mb-6 print:hidden border-b border-dp-outline-variant">
+        {(['sponsor', 'apply'] as const).map((tab) => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2.5 font-sans text-[14px] font-semibold border-b-2 -mb-px transition-all cursor-pointer ${
+              activeTab === tab ? 'border-dp-secondary text-dp-secondary' : 'border-transparent text-dp-on-surface-variant hover:text-dp-primary'}`}>
+            {tab === 'sponsor' ? t('pwz.tab.sponsor') : t('pwz.tab.apply')}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'apply' && (
+      <>
       {/* ── My Application — always here, at the top, whether there is one
           yet or not. Small View/Print, not two big buttons and a second
           screen to get to them: this is a status card, not a second copy
@@ -781,7 +825,11 @@ export default function PortalWazifaPage() {
           </button>
         )}
       </div>
+      </>
+      )}
 
+      {activeTab === 'sponsor' && (
+      <>
       {/* ── Sponsoring a student — a different visitor to this page than
           the one applying below: name a specific student, or join the
           shared pool with no name attached. */}
@@ -933,8 +981,11 @@ export default function PortalWazifaPage() {
           </div>
         )}
       </div>
+      </>
+      )}
 
-
+      {activeTab === 'apply' && (
+      <>
       {/* ── One line that speaks to the person, not the process ─────────
           Everything else on this page is status: submitted, screening,
           approved, an amount, a due date. This is the one place that says
@@ -1132,7 +1183,8 @@ export default function PortalWazifaPage() {
                   </div>
                 </div>
                 {ag.status === 'pending' ? (
-                  <button onClick={() => { setSigning(ag); setSignName(portalUser?.full_name ?? ''); setSignAgree(false) }}
+                  <button onClick={() => { setSigning(ag); setSignForm({ father_name: '', father_cnic: '', father_phone: '',
+                      witness1_name: '', witness1_cnic: '', witness1_phone: '', witness2_name: '', witness2_cnic: '', witness2_phone: '', document_url: '' }) }}
                     className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
                     <UserCheck size={15} /> {t('pwz.ag.reviewAndSign')}
                   </button>
@@ -2106,6 +2158,8 @@ export default function PortalWazifaPage() {
           </button>
         </div>
       )}
+      </>
+      )}
 
       {/* ── Give — named or shared, same form ────────────────────────── */}
       {giving && sponsorPosition && (
@@ -2192,9 +2246,11 @@ export default function PortalWazifaPage() {
         </div>
       )}
 
-      {/* ── Review & sign the agreement ──────────────────────────────────
-          Clicked, not drawn: a ticked box, a typed full name, one button.
-          wazifa_sign_agreement() stamps the timestamp server-side. */}
+      {/* ── The witnessed agreement — a real document now, not a typed
+          name (migration 293). Print it, get it signed by hand by the
+          student, the father/guardian, and two witnesses, attach CNIC
+          photocopies, and upload one photo of the whole signed packet.
+          A staff member checks it before anything is activated. */}
       {signing && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 print:hidden" onClick={() => setSigning(null)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -2222,16 +2278,52 @@ export default function PortalWazifaPage() {
             )}
             <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed mb-4">{signing.terms_text}</p>
 
-            <label className="flex items-start gap-2 cursor-pointer font-sans text-[12.5px] mb-4">
-              <input type="checkbox" checked={signAgree}
-                onChange={(e) => setSignAgree(e.target.checked)} className="accent-dp-secondary mt-0.5" />
-              <span>{t('pwz.ag.tickLabel')}</span>
-            </label>
+            <button onClick={printForm} type="button"
+              className="w-full flex items-center justify-center gap-1.5 border border-dp-outline-variant text-dp-on-surface rounded-lg py-2 font-sans text-[12.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer mb-4">
+              <Printer size={14} /> {t('pwz.ag.printThis')}
+            </button>
 
-            <label className={label}>{t('pwz.ag.typeYourName')}</label>
-            <input value={signName} onChange={(e) => setSignName(e.target.value)} className="input-field mb-5" />
+            <p className="font-sans text-[12px] text-dp-on-surface-variant leading-relaxed mb-4 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
+              {t('pwz.ag.witnessedHelp')}
+            </p>
 
-            <button disabled={busy || !signAgree || !signName.trim()} onClick={submitSign}
+            <p className="font-sans text-[12.5px] font-bold text-dp-on-surface mb-2">{t('pwz.ag.fatherSection')}</p>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <input placeholder={t('pwz.ag.name')} value={signForm.father_name}
+                onChange={(e) => setSignForm({ ...signForm, father_name: e.target.value })} className="input-field" />
+              <input placeholder={t('pwz.ag.cnic')} value={signForm.father_cnic}
+                onChange={(e) => setSignForm({ ...signForm, father_cnic: e.target.value })} className="input-field" />
+              <input placeholder={t('pwz.ag.phone')} value={signForm.father_phone}
+                onChange={(e) => setSignForm({ ...signForm, father_phone: e.target.value })} className="input-field" />
+            </div>
+
+            <p className="font-sans text-[12.5px] font-bold text-dp-on-surface mb-2">{t('pwz.ag.witness1Section')}</p>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <input placeholder={t('pwz.ag.name')} value={signForm.witness1_name}
+                onChange={(e) => setSignForm({ ...signForm, witness1_name: e.target.value })} className="input-field" />
+              <input placeholder={t('pwz.ag.cnic')} value={signForm.witness1_cnic}
+                onChange={(e) => setSignForm({ ...signForm, witness1_cnic: e.target.value })} className="input-field" />
+              <input placeholder={t('pwz.ag.phone')} value={signForm.witness1_phone}
+                onChange={(e) => setSignForm({ ...signForm, witness1_phone: e.target.value })} className="input-field" />
+            </div>
+
+            <p className="font-sans text-[12.5px] font-bold text-dp-on-surface mb-2">{t('pwz.ag.witness2Section')}</p>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <input placeholder={t('pwz.ag.name')} value={signForm.witness2_name}
+                onChange={(e) => setSignForm({ ...signForm, witness2_name: e.target.value })} className="input-field" />
+              <input placeholder={t('pwz.ag.cnic')} value={signForm.witness2_cnic}
+                onChange={(e) => setSignForm({ ...signForm, witness2_cnic: e.target.value })} className="input-field" />
+              <input placeholder={t('pwz.ag.phone')} value={signForm.witness2_phone}
+                onChange={(e) => setSignForm({ ...signForm, witness2_phone: e.target.value })} className="input-field" />
+            </div>
+
+            <div className="mb-5">
+              <DonationReceiptUpload bucket="wazifa_agreement_documents" label={t('pwz.ag.uploadLabel')}
+                onUpload={(path) => setSignForm({ ...signForm, document_url: path })} />
+            </div>
+
+            <button disabled={busy || !signForm.document_url || !signForm.father_name.trim() || !signForm.witness1_name.trim() || !signForm.witness2_name.trim()}
+              onClick={submitSign}
               className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
               <UserCheck size={16} /> {busy ? t('action.saving') : t('pwz.ag.signButton')}
             </button>
