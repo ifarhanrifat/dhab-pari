@@ -243,6 +243,21 @@
   outline: none;
   box-shadow: none;
 }
+/* Single-line controls (not <textarea>, which needs to grow) get one fixed
+   height regardless of language — same fix as .filter-field/.filter-btn
+   below, extended to cover the case those two don't: an <input> next to a
+   <select> next to a Urdu-mode input in the same row, all drifting to
+   slightly different heights (a <select>'s native chrome renders a touch
+   shorter than a text <input> even with identical padding; Urdu's own
+   padding bump for descenders — see "Urdu as the interface language"
+   further down — adds more on top of that). Fixed height is generous
+   enough to fit Urdu's descenders without clipping, applied to English too
+   rather than made conditional, so both languages land on the exact same
+   number rather than merely a shared minimum. */
+input.input-field,
+select.input-field {
+  height: 52px;
+}
 
 /* --- Toolbar / filter rows ---
    Filter bars mixed .input-field (py-3, 16px text) with buttons using
