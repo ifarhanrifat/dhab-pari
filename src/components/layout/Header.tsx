@@ -98,24 +98,11 @@ export function Header() {
             })}
           </nav>
 
-          {/* Right Actions */}
+          {/* Right Actions — Login/My Portal is deliberately last, the true
+              rightmost item, not sandwiched between the nav and the
+              WhatsApp/Facebook/language buttons. The corner a visitor
+              already expects their own identity in on any site. */}
           <div className="flex items-center gap-2 shrink-0">
-            {isPortalUser ? (
-              <Link
-                href="/portal"
-                className="hidden md:flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1.5 rounded-lg font-sans text-[13px] font-semibold tracking-[0.02em] hover:bg-amber-600 transition-all active:scale-95 whitespace-nowrap"
-              >
-                <UserCircle2 size={16} />
-                {t('site.myPortal')}
-              </Link>
-            ) : (
-              <Link
-                href="/portal/login"
-                className="hidden md:flex items-center gap-2 text-white/80 hover:text-white text-[13px] font-sans font-semibold tracking-[0.02em] transition-colors whitespace-nowrap"
-              >
-                {t('site.login')}
-              </Link>
-            )}
             {/* WhatsApp's own brand green (#25D366) — deliberately distinct
                 from the site's teal so it reads as "this opens WhatsApp",
                 not as another site action. Joins the committee's community
@@ -152,6 +139,22 @@ export function Header() {
                 had no handler and never switched anything. Hidden on the
                 narrowest phones, where the mobile drawer carries its own. */}
             <span className="hidden sm:block"><LanguageToggle compact /></span>
+            {isPortalUser ? (
+              <Link
+                href="/portal"
+                className="hidden md:flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1.5 rounded-lg font-sans text-[13px] font-semibold tracking-[0.02em] hover:bg-amber-600 transition-all active:scale-95 whitespace-nowrap"
+              >
+                <UserCircle2 size={16} />
+                {t('site.myPortal')}
+              </Link>
+            ) : (
+              <Link
+                href="/portal/login"
+                className="hidden md:flex items-center gap-2 text-white/80 hover:text-white text-[13px] font-sans font-semibold tracking-[0.02em] transition-colors whitespace-nowrap"
+              >
+                {t('site.login')}
+              </Link>
+            )}
           </div>
         </div>
       </header>
