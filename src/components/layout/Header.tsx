@@ -81,7 +81,7 @@ export function Header() {
               width elsewhere: Facebook is gone and the WhatsApp button's
               text is shorter (see Right Actions below), and the gap here
               is tighter than it was. */}
-          <nav className="hidden lg:flex flex-1 min-w-0 justify-start items-center gap-2.5 xl:gap-4 overflow-x-auto hide-scrollbar relative z-0 ps-3">
+          <nav className="hidden lg:flex flex-1 min-w-0 justify-start items-center gap-2 xl:gap-3.5 overflow-x-auto hide-scrollbar relative z-0 ps-3">
             {navLinks.map((link) => {
               const isActive = pathname === link.href
               return (
@@ -90,8 +90,8 @@ export function Header() {
                   href={link.href}
                   className={
                     isActive
-                      ? 'text-[#86f8c9] font-bold border-b-2 border-[#86f8c9] pb-1 text-[13.5px] font-sans tracking-[0.02em] whitespace-nowrap'
-                      : 'text-white/80 hover:text-white transition-colors text-[13.5px] font-sans tracking-[0.02em] whitespace-nowrap'
+                      ? 'text-[#86f8c9] font-bold border-b-2 border-[#86f8c9] pb-1 text-[12.5px] xl:text-[13.5px] font-sans tracking-[0.02em] whitespace-nowrap'
+                      : 'text-white/80 hover:text-white transition-colors text-[12.5px] xl:text-[13.5px] font-sans tracking-[0.02em] whitespace-nowrap'
                   }
                 >
                   {t(link.tKey, link.label)}
@@ -106,19 +106,20 @@ export function Header() {
               expects their own identity in on any site. Facebook's own
               icon button used to sit here too; dropped to give the nav
               row more width to work with. */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* WhatsApp's own brand green (#25D366) — deliberately distinct
                 from the site's teal so it reads as "this opens WhatsApp",
                 not as another site action. Joins the committee's community
                 group (not a 1:1 chat) — the floating button on every page
-                is the direct "chat with us" contact instead. */}
+                is the direct "chat with us" contact instead. Sized down
+                (padding, icon, text) to give the nav row more room. */}
             <a
               href={SITE.whatsappGroupLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden md:flex items-center gap-1.5 bg-[#25D366] text-white px-3 py-1.5 rounded-lg font-sans text-[13px] font-semibold tracking-[0.02em] hover:bg-[#1ebe5a] transition-all active:scale-95 whitespace-nowrap"
+              className="hidden md:flex items-center gap-1 bg-[#25D366] text-white px-2.5 py-1.5 rounded-lg font-sans text-[12px] font-semibold tracking-[0.02em] hover:bg-[#1ebe5a] transition-all active:scale-95 whitespace-nowrap"
             >
-              <MessageCircle size={16} />
+              <MessageCircle size={14} />
               {t('site.joinGroup')}
             </a>
             {/* Sits where the old dead "EN/UR" placeholder was, so the
@@ -129,15 +130,15 @@ export function Header() {
             {isPortalUser ? (
               <Link
                 href="/portal"
-                className="hidden md:flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1.5 rounded-lg font-sans text-[13px] font-semibold tracking-[0.02em] hover:bg-amber-600 transition-all active:scale-95 whitespace-nowrap"
+                className="hidden md:flex items-center gap-1 bg-amber-500 text-white px-2.5 py-1.5 rounded-lg font-sans text-[12px] font-semibold tracking-[0.02em] hover:bg-amber-600 transition-all active:scale-95 whitespace-nowrap"
               >
-                <UserCircle2 size={16} />
+                <UserCircle2 size={14} />
                 {t('site.myPortal')}
               </Link>
             ) : (
               <Link
                 href="/portal/login"
-                className="hidden md:flex items-center gap-2 text-white/80 hover:text-white text-[13px] font-sans font-semibold tracking-[0.02em] transition-colors whitespace-nowrap"
+                className="hidden md:flex items-center gap-2 text-white/80 hover:text-white text-[12px] font-sans font-semibold tracking-[0.02em] transition-colors whitespace-nowrap"
               >
                 {t('site.login')}
               </Link>
