@@ -285,7 +285,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'site.more': 'More',
     'site.myPortal': 'My Portal',
     'site.login': 'Log In',
-    'site.joinGroup': 'Join our Group',
+    'site.joinGroup': 'Join Group',
     // ── Shared form / table words (reused across many screens) ───────────
     'w.amount': 'Amount',
     'w.amountPkr': 'Amount (PKR)',
@@ -3046,7 +3046,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'site.more': 'مزید',
     'site.myPortal': 'میرا پورٹل',
     'site.login': 'لاگ اِن',
-    'site.joinGroup': 'ہمارے گروپ میں شامل ہوں',
+    'site.joinGroup': 'گروپ میں شامل ہوں',
     // ── Shared form / table words (reused across many screens) ───────────
     'w.amount': 'رقم',
     'w.amountPkr': 'رقم (روپے)',
