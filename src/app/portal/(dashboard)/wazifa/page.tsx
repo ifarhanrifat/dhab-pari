@@ -697,13 +697,17 @@ export default function PortalWazifaPage() {
   // Every section carries its number, so a form this long reads as a sequence
   // with an end rather than an unbroken wall. The number is also what a
   // committee member says on the phone: "section four, the brothers".
+  // flex-row-reverse is deliberately NOT here — this whole component only
+  // ever renders inside the form's dir="rtl" wrapper (see formRef below),
+  // so a plain `flex` row already reverses correctly under Urdu; adding
+  // row-reverse on top would flip it right back to the wrong side.
   const StepHead = ({ n, title, help, urdu }: { n: number; title: string; help?: string; urdu?: string }) => (
     <div className="mb-4 pb-3 border-b border-dp-outline-variant">
-      <div className={`flex items-start gap-3 ${isUrdu ? 'flex-row-reverse' : ''}`}>
+      <div className="flex items-start gap-3">
         <span className="shrink-0 w-7 h-7 rounded-full bg-dp-secondary text-white flex items-center justify-center font-sans text-[13px] font-bold mt-0.5">
           {n}
         </span>
-        <div className="min-w-0" dir={isUrdu ? 'rtl' : 'ltr'}>
+        <div className="min-w-0">
           <h2 className={heading}>{title}</h2>
           {urdu && (
             <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mt-1 text-right"
@@ -1275,7 +1279,18 @@ export default function PortalWazifaPage() {
       {/* My Application now lives once, at the top of the page — see above. */}
 
       {/* ══════ The form itself — this whole block is what prints ══════ */}
-      <div ref={formRef} className={showForm ? '' : 'hidden print:block'}>
+      {/* Full flip, not element-by-element patching: dir="rtl" here mirrors
+          everything inside — icon/text order in flex rows, 2-column field
+          order in grids, alignment — the way a real RTL site works. Safe to
+          do at this scope specifically because this file has no physical
+          direction classes (ml-/mr-/pl-/pr-/text-left, space-x-) left in
+          it to fight the flip; Tailwind v4's spacing utilities are already
+          logical-property-based. Doesn't touch vertical stacking, so the
+          bilingual Urdu-then-English paragraph pairs are unaffected — dir
+          only changes horizontal layout, not the order block elements
+          stack in. Scoped to the form only (not the whole page/sidebar) —
+          see LocaleProvider's own note on why RTL_READY stays off globally. */}
+      <div ref={formRef} dir={isUrdu ? 'rtl' : 'ltr'} className={showForm ? '' : 'hidden print:block'}>
         {/* A way back out, from the top, before anyone has to scroll past
             eleven sections to find it. */}
         {showForm && (
