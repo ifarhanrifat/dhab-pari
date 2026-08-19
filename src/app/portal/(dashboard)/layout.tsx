@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { PortalSidebar } from '@/components/portal/PortalSidebar'
 import { PortalHeader } from '@/components/portal/PortalHeader'
 import { PortalNotificationBell } from '@/components/portal/PortalNotificationBell'
+import { PortalProfileMenu } from '@/components/portal/PortalProfileMenu'
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar'
 import { PoolAppealBanner } from '@/components/portal/PoolAppealBanner'
 
@@ -14,6 +15,7 @@ export default function PortalDashboardLayout({ children }: { children: React.Re
     <div className="portal-shell flex min-h-screen bg-[#F5F8F6]">
       <PortalSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <PortalNotificationBell />
+      <PortalProfileMenu />
       <div className="flex-1 min-w-0 md:ml-[210px] print:ml-0">
         <PortalHeader onMenuToggle={() => setMobileOpen(true)} />
         {/* Same red belt as the website, scoped to the appeals aimed at

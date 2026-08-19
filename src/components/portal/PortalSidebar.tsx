@@ -2,15 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LanguageToggle } from '@/components/layout/LanguageToggle'
 import {
   LayoutDashboard, HeartHandshake, Droplets, Repeat, MessageSquare,
-  MessageSquareWarning, Droplet, LogOut, X, UserCog, ArrowLeftCircle, HandHeart, Vote, Briefcase,
+  MessageSquareWarning, Droplet, X, UserCog, ArrowLeftCircle, HandHeart, Vote, Briefcase,
   GraduationCap,
   Gift,
   BookOpen,
@@ -19,10 +18,9 @@ import {
 } from 'lucide-react'
 import { SITE } from '@/lib/constants'
 
-// Mirrors AdminSidebar.tsx's exact pattern (fixed desktop sidebar + mobile
-// slide-in drawer + persistent profile block at the bottom) — the portal
-// nav was a top bar before; a registered user's identity should stay
-// visible the whole time they're in the portal, same as staff in /admin.
+// Mirrors AdminSidebar.tsx's fixed desktop sidebar + mobile slide-in drawer.
+// Identity + logout used to live pinned at the bottom here too; both moved
+// to PortalProfileMenu, top-right of the screen (see that component).
 const menuItems = [
   { href: '/portal', label: 'Dashboard', tKey: 'portal.dashboard', icon: LayoutDashboard },
   { href: '/portal/donate', label: 'Donate', tKey: 'portal.donate', icon: HeartHandshake },
@@ -51,7 +49,6 @@ interface PortalSidebarProps {
 export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSidebarProps) {
   const { user } = usePortalUser()
   const pathname = usePathname()
-  const router = useRouter()
   const supabase = createClient()
   const { t, isUrdu } = useLocale()
   const [badges, setBadges] = useState<Record<string, number>>({})
@@ -70,12 +67,6 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
     const id = setInterval(refresh, 120000)
     return () => { cancelled = true; clearInterval(id) }
   }, [supabase, user, pathname])
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/portal/login')
-    router.refresh()
-  }
 
   const visibleMenuItems = menuItems.filter((item) => !item.requiresConsumer || user?.consumer_id)
 
@@ -130,29 +121,11 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
         </a>
       </div>
 
-      <div className="px-4 pt-3 shrink-0">
+      {/* Identity + logout moved to PortalProfileMenu, top-right of the
+          screen — the corner a donor already expects it in from every
+          other app. LanguageToggle stays here and now anchors the bottom. */}
+      <div className="px-4 pt-3 pb-4 mt-auto border-t border-white/10 shrink-0">
         <LanguageToggle compact />
-      </div>
-
-      {/* Persistent profile — a registered user's identity stays visible
-          throughout the portal, same as staff in /admin. */}
-      <div className="px-4 pt-4 mt-auto border-t border-white/10 shrink-0" dir={rowDir}>
-        <Link href="/portal/profile" onClick={onMobileClose} className="bg-dp-primary-container p-3 rounded-lg mb-3 flex items-center hover:opacity-90 transition-opacity">
-          {user?.avatar_url ? (
-            <Image src={user.avatar_url} alt="" width={32} height={32} className="w-8 h-8 rounded-full object-cover me-2 shrink-0" />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-[#5bc8a3] text-dp-primary flex items-center justify-center font-bold text-[12px] font-sans me-2 shrink-0">
-              {(user?.full_name ?? '?').charAt(0).toUpperCase()}
-            </div>
-          )}
-          <div className="min-w-0">
-            <p className="text-white text-[13px] font-sans font-semibold truncate">{user?.full_name ?? 'Loading...'}</p>
-            <p className="text-white/60 text-[11px] font-sans">{user?.mobile ?? ''}</p>
-          </div>
-        </Link>
-        <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2 bg-dp-error text-white rounded-lg text-[14px] font-sans font-semibold hover:opacity-90 transition-opacity cursor-pointer">
-          <LogOut size={16} /> {t('nav.logout')}
-        </button>
       </div>
     </>
   )
