@@ -108,9 +108,7 @@ export function PortalNotificationBell() {
     // Fixed, floating — mirrors src/components/layout/NotificationBell.tsx
     // (the admin equivalent). top-16 clears the mobile header bar on small
     // screens; top-4 on desktop where there's no header bar above it.
-    // Shifted one slot in from the true right edge — PortalProfileMenu now
-    // claims right-4, the corner a donor expects their own identity in.
-    <div ref={boxRef} className="fixed top-16 right-20 md:top-4 md:right-20 z-[95] print:hidden">
+    <div ref={boxRef} className="fixed top-16 right-4 md:top-4 md:right-4 z-[95] print:hidden">
       <button onClick={() => setOpen(!open)} className="relative w-10 h-10 flex items-center justify-center bg-white border border-dp-outline-variant rounded-full shadow-md hover:shadow-lg transition-all cursor-pointer" aria-label="Notifications">
         <Bell size={18} className="text-dp-primary" />
         {unreadCount > 0 && (
