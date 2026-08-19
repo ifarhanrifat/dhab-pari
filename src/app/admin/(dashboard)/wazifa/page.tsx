@@ -238,8 +238,6 @@ export default function WazifaPage() {
   const sheetRef = useRef<HTMLDivElement>(null)
   const [payTarget, setPayTarget] = useState<Instalment | null>(null)
   const [payForm, setPayForm] = useState({ method: 'bank', challan_no: '', school_id: '', note: '' })
-  const [contribTarget, setContribTarget] = useState<AwardRow | null>(null)
-  const [contribForm, setContribForm] = useState({ amount: 0, method: 'cash', note: '' })
   const [writeOffTarget, setWriteOffTarget] = useState<AwardRow | null>(null)
   const [writeOffForm, setWriteOffForm] = useState({ amount: 0, reason: '' })
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([])
@@ -593,21 +591,6 @@ export default function WazifaPage() {
     load()
   }
 
-  // ── The applicant's own "I can pay from my pocket" offer — approved,
-  // declined, or reallocated to a figure the committee thinks is more
-  // realistic, all in the same action (migration 279). ────────────────────
-  const [reallocateTarget, setReallocateTarget] = useState<Application | null>(null)
-  const [reallocateAmount, setReallocateAmount] = useState(0)
-  const decideOffer = async (app: Application, decision: 'approved' | 'declined', revisedAmount?: number) => {
-    const { error } = await supabase.rpc('wazifa_decide_offered_contribution', {
-      p_application_id: app.id, p_decision: decision, p_revised_amount: revisedAmount ?? null,
-    })
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success(decision === 'approved' ? t('wz.offer.approved') : t('wz.offer.declined'))
-    setReallocateTarget(null)
-    load()
-  }
-
   // ── Recording a payment against a charge the automated plan already
   // raised (wazifa_installment_charges, migration 270/278). This is the
   // one manual step left in the whole standard-track flow — money
@@ -854,22 +837,6 @@ export default function WazifaPage() {
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(`${t('wz.ok.paid')} ${(data as { voucher_no: string }).voucher_no}`)
     setPayTarget(null)
-    load()
-  }
-
-  const takeContribution = async () => {
-    if (!contribTarget || contribForm.amount <= 0) { toast.error(t('wz.err.amount')); return }
-    setBusy(true)
-    const { data, error } = await supabase.rpc('wazifa_record_contribution', {
-      p_award_id: contribTarget.id, p_amount: contribForm.amount,
-      p_method: contribForm.method, p_for_month: new Date().toISOString().slice(0, 10),
-      p_note: contribForm.note || null,
-    })
-    setBusy(false)
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success(`${t('wz.ok.repaid')} ${(data as { voucher_no: string }).voucher_no}`)
-    setContribTarget(null)
-    setContribForm({ amount: 0, method: 'cash', note: '' })
     load()
   }
 
@@ -1243,37 +1210,6 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                   </p>
                   {a.need_statement && <p className="font-sans text-[12.5px] text-dp-on-surface mt-1.5 italic">{a.need_statement}</p>}
 
-                  {/* ── "I can pay this much myself" — its own decision,
-                      separate from the award itself (migration 278/279). */}
-                  {a.offered_monthly_contribution_pkr > 0 && (
-                    <div className="mt-2 flex flex-wrap items-center gap-2 bg-dp-secondary/5 border border-dp-secondary/20 rounded-lg px-3 py-2">
-                      <span className="font-sans text-[12.5px] text-dp-on-surface">
-                        {t('wz.offer.label')} <strong>Rs {fmt(a.offered_monthly_contribution_pkr)}</strong>/{t('pkf.month')}
-                        {a.offered_contribution_status !== 'pending' && (
-                          <span className={`ms-2 px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
-                            a.offered_contribution_status === 'approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>
-                            {a.offered_contribution_status === 'approved' ? t('wz.offer.approvedBadge') : t('wz.offer.declinedBadge')}
-                          </span>
-                        )}
-                      </span>
-                      {a.offered_contribution_status === 'pending' && (
-                        <div className="flex gap-1.5 ms-auto">
-                          <button onClick={() => decideOffer(a, 'approved')}
-                            className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-sans text-[11.5px] font-semibold hover:bg-emerald-700 transition-all cursor-pointer">
-                            {t('wz.offer.approve')}
-                          </button>
-                          <button onClick={() => { setReallocateTarget(a); setReallocateAmount(a.offered_monthly_contribution_pkr) }}
-                            className="flex items-center gap-1 px-2.5 py-1 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[11.5px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
-                            <Pencil size={11} /> {t('wz.offer.reallocate')}
-                          </button>
-                          <button onClick={() => decideOffer(a, 'declined')}
-                            className="flex items-center gap-1 px-2.5 py-1 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[11.5px] font-semibold hover:text-dp-error transition-all cursor-pointer">
-                            {t('wz.offer.decline')}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   <div className="flex flex-wrap gap-2 mt-2">
                     {verificationCount(a.id) > 0 ? (
@@ -1362,16 +1298,11 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                         plan_kind: 'disburse_then_settle', disbursement_monthly: 0,
                         disbursement_start_date: '', disbursement_end_date: '', disbursement_due_day: 10, disbursement_pay_to: 'student',
                         // The family's own proven monthly capacity, carried
-                        // straight from the application — the whole point
-                        // being that this figure is not recomputed, it's
-                        // what they already showed they could sustain.
-                        // "What the student can manage themselves" — already
-                        // asked on the application form (offered_monthly_
-                        // contribution_pkr) for the running-share purpose;
-                        // it's the same proven figure this plan wants, so
-                        // it's reused rather than asking the family the
-                        // same question under a second name.
-                        settlement_monthly: Number(a.family_monthly_capacity_pkr || a.offered_monthly_contribution_pkr) || 0,
+                        // straight from the application's eligibility
+                        // scoring — the whole point being that this figure
+                        // is not recomputed, it's what they already showed
+                        // they could sustain.
+                        settlement_monthly: Number(a.family_monthly_capacity_pkr) || 0,
                         settlement_trigger: 'course_end', settlement_due_day: 10,
                       })
                     }}
@@ -1485,17 +1416,6 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                       <button onClick={() => setInstalmentTarget(aw)}
                         className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
                         <Plus size={14} /> {t('wz.addInstalment')}
-                      </button>
-                    )}
-                    {/* The student's own voluntary top-up — only once the
-                        committee has approved (or reallocated) the figure
-                        they offered on the application (migration 279).
-                        Not the plan's own committee-fixed instalment,
-                        which pays itself via the charges below. */}
-                    {applications.find((a) => a.id === aw.application_id)?.offered_contribution_status === 'approved' && (
-                      <button onClick={() => { setContribTarget(aw); setContribForm({ amount: Number(applications.find((a) => a.id === aw.application_id)?.offered_monthly_contribution_pkr ?? 0), method: 'cash', note: '' }) }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 border border-emerald-600 text-emerald-700 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-emerald-600 hover:text-white transition-all cursor-pointer">
-                        <HandCoins size={14} /> {t('wz.contribution')}
                       </button>
                     )}
                     {/* Post-employment repayment only — the standard
@@ -2368,28 +2288,6 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
         </div>
       )}
 
-      {/* ── Reallocate the applicant's own offer to a different figure ──── */}
-      {reallocateTarget && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setReallocateTarget(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('wz.offer.reallocate')}</h2>
-              <button onClick={() => setReallocateTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
-            </div>
-            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">
-              {t('wz.offer.reallocateHint')} Rs {fmt(reallocateTarget.offered_monthly_contribution_pkr)}.
-            </p>
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.employ.monthlyAmount')}</label>
-            <input type="number" min={1} value={reallocateAmount || ''}
-              onChange={(e) => setReallocateAmount(+e.target.value)} className="input-field mb-4" />
-            <button disabled={busy || reallocateAmount <= 0} onClick={() => decideOffer(reallocateTarget, 'approved', reallocateAmount)}
-              className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-50">
-              {busy ? t('action.saving') : t('wz.offer.approveAtThisAmount')}
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* ── Recording a payment against an already-raised charge ────────── */}
       {/* ── Several months at once — monthly cash, or 6 months, or a
           year in advance, all in one voucher (migration 282). ─────────── */}
@@ -2692,34 +2590,6 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
         </div>
       )}
 
-      {contribTarget && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setContribTarget(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('wz.contributionTitle')}</h2>
-              <button onClick={() => setContribTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
-            </div>
-            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('wz.contributionHint')}</p>
-
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
-            <input type="number" min={0} value={contribForm.amount || ''}
-              onChange={(e) => setContribForm({ ...contribForm, amount: +e.target.value })} className="input-field mb-3" />
-
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
-            <select value={contribForm.method} onChange={(e) => setContribForm({ ...contribForm, method: e.target.value })} className="input-field mb-4">
-              <option value="cash">{t('w.cash')}</option>
-              <option value="bank">{t('a.bank')}</option>
-              <option value="jazzcash">{t('w.jazzcash')}</option>
-              <option value="easypaisa">{t('w.easypaisa')}</option>
-            </select>
-
-            <button disabled={busy} onClick={takeContribution}
-              className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-emerald-700 transition-all cursor-pointer disabled:opacity-50">
-              <HandCoins size={16} /> {busy ? t('action.saving') : t('wz.contribution')}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ── Writing off a loan ──────────────────────────────────────────── */}
       {writeOffTarget && (
