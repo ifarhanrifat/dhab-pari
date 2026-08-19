@@ -803,7 +803,7 @@ export default function PortalWazifaPage() {
         return (
           <div className={`${tone} text-white rounded-lg px-5 py-4 mb-6 print:hidden`}>
             <p className="font-sans text-[17px] leading-[2] font-bold"
-              style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+              dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }}>
               {mottoUr}
             </p>
             <p className="font-sans text-[13.5px] leading-relaxed opacity-90 mt-1">{motto}</p>
@@ -921,7 +921,7 @@ export default function PortalWazifaPage() {
                   <div className="min-w-0">
                     <h3 className="font-heading text-[14px] font-bold text-dp-primary mb-1">{t(`pool.how.${k}.q`)}</h3>
                     <p className="font-sans text-[15px] leading-[2] text-dp-on-surface mb-1"
-                      style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                      dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }}>
                       {t(`pool.how.${k}.aUr`)}
                     </p>
                     <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{t(`pool.how.${k}.a`)}</p>
@@ -933,7 +933,7 @@ export default function PortalWazifaPage() {
               <ShieldCheck size={17} className="text-dp-secondary shrink-0 mt-0.5" />
               <div>
                 <p className="font-sans text-[15px] leading-[2] text-dp-on-surface font-bold"
-                  style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                  dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }}>
                   {t('pool.promiseUr')}
                 </p>
                 <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{t('pool.promise')}</p>
@@ -1089,7 +1089,7 @@ export default function PortalWazifaPage() {
                       </p>
                       {d.reason_ur && (
                         <p className="font-sans text-[13.5px] text-dp-on-surface leading-relaxed"
-                          style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                          dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }}>
                           {d.reason_ur}
                         </p>
                       )}
@@ -1372,7 +1372,7 @@ export default function PortalWazifaPage() {
             <div>
               <label className={label}>{t('g.nameUrdu')}</label>
               <input value={form.student_full_name_ur} onChange={(e) => setForm({ ...form, student_full_name_ur: e.target.value })}
-                className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+                dir="rtl" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }} />
             </div>
             <div>
               <label className={label}>{t('nr.f.address')}</label>
@@ -1867,10 +1867,10 @@ export default function PortalWazifaPage() {
           <div className="mt-4 border-2 border-dp-secondary/40 bg-dp-secondary/5 rounded-lg p-4">
             <p className="font-sans text-[14px] font-bold text-dp-on-surface mb-1">{t('pwz.s.share')}</p>
             <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mb-1"
-              style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+              dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }}>
               {t('pwz.shareUrdu')}
             </p>
-            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3 leading-relaxed">{t('pwz.shareEnglish')}</p>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3 leading-relaxed" dir={isUrdu ? 'rtl' : 'ltr'}>{t('pwz.shareEnglish')}</p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -2088,7 +2088,7 @@ export default function PortalWazifaPage() {
         <div className={`${section} print:break-inside-avoid`}>
           <StepHead n={11} title={t('pwz.s.declaration')} />
           <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mb-4"
-            style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+            dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }}>
             {t('pwz.declarationUrdu')}
           </p>
           {/* One line per verifier this committee actually requires
@@ -2278,7 +2278,7 @@ export default function PortalWazifaPage() {
 
             {signing.terms_text_ur && (
               <p className="font-sans text-[14.5px] leading-[2] text-dp-on-surface mb-3"
-                style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }}>
                 {signing.terms_text_ur}
               </p>
             )}
