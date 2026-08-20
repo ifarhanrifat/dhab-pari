@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
-  Search, PlusCircle, X, ChevronRight, Phone,
+  Search, PlusCircle, Plus, X, ChevronRight, ChevronDown, SlidersHorizontal, Phone,
   Home, MapPin, MessageCircle, AlertCircle, CheckCircle2,
   Clock, CreditCard, Banknote, Pencil, Receipt, Users, UserCheck, UserX, Tag, UserPlus, Repeat, Trash2, FileText, Lock,
   Power, Ban, PauseCircle,
@@ -676,22 +676,26 @@ function BillingPageInner() {
   }
 
   return (
-    // Scoped text-direction flip, same technique as the wazifa form and the
-    // Transactions Workspace — mirrors this page's own reading order/
-    // alignment under Urdu without touching the sidebar or global layout.
-    <div dir={isUrdu ? 'rtl' : 'ltr'}>
+    // Per the reference design (billing-screen-code.md): the page layout
+    // itself stays in its normal (LTR) order regardless of language — only
+    // individual Urdu text runs get dir="rtl" so they read/align correctly.
+    // Nothing here repositions with the language switch.
+    <div>
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('billing.title')}</h1>
-        <div className="flex gap-3">
-          <button onClick={() => setShowAddConsumer(true)} className="flex items-center gap-2 px-4 py-2 border-2 border-dp-secondary text-dp-secondary rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
-            <PlusCircle size={16} /> {t('billing.addConsumer')}
+      {/* Header — restyled to match the design mock: the two page actions as a
+          small button pair, title shrunk to sit beside them on one row instead
+          of a large heading above. Kept the row itself in normal (unflipped)
+          order — only the Urdu text inside gets font/direction styling. */}
+      <div className="flex items-center justify-between gap-4 mb-5">
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowAddConsumer(true)} className="flex items-center gap-1.5 border-[1.5px] border-dp-secondary bg-white text-dp-secondary rounded-[10px] px-3.5 py-2 font-sans text-[12.5px] font-semibold hover:bg-dp-secondary/5 transition-all cursor-pointer">
+            <Plus size={14} /> <span dir={isUrdu ? 'rtl' : undefined}>{t('billing.addConsumer')}</span>
           </button>
-          <Link href="/admin/finance/water_supply?action=generate_bill" className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-            <PlusCircle size={16} /> {t('billing.generateBill')}
+          <Link href="/admin/finance/water_supply?action=generate_bill" className="flex items-center gap-1.5 bg-dp-secondary text-white rounded-[10px] px-4 py-2 font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+            <Plus size={14} /> <span dir={isUrdu ? 'rtl' : undefined}>{t('billing.generateBill')}</span>
           </Link>
         </div>
+        <h1 dir={isUrdu ? 'rtl' : undefined} className="font-heading text-[21px] font-semibold text-dp-on-surface">{t('billing.title')}</h1>
       </div>
 
       {/* The six analytics cards that used to sit here (billed this month,
@@ -724,36 +728,45 @@ function BillingPageInner() {
         </div>
       )}
 
-      {/* Filters — search gets its own full-width row on mobile, the two
-          selects share a second row half-and-half instead of each also
-          going full-width and stacking three rows deep. Desktop keeps its
-          original single-row layout (the inner grid becomes a plain flex
-          group at md:, no visual change there). */}
-      <div className="flex flex-col md:flex-row gap-3 mb-6">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-outline" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('billing.searchPlaceholder')} className="w-full ps-10 pe-4 py-2 border-2 border-dp-outline-variant rounded-lg focus:border-dp-primary focus:ring-0 text-[14px] font-sans bg-white" />
+      {/* Filters — restyled per the reference design: a filled search pill
+          with a small square filter-icon button beside it (decorative, the
+          mock shows it unconditionally next to an always-visible filter row
+          below — same as here), then the two selects as chip-style rows.
+          Both selects are real <select>s underneath (appearance-none, a
+          chevron drawn over them) — only the skin changed, not the control. */}
+      <div className="flex items-center gap-2.5 mb-2.5">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('billing.searchPlaceholder')} dir={isUrdu ? 'rtl' : undefined} className="w-full ps-10 pe-4 py-2.5 border-none rounded-xl bg-dp-surface-container-low focus:ring-2 focus:ring-dp-secondary/30 text-[13px] font-sans" />
         </div>
-        <div className="grid grid-cols-2 md:flex gap-3">
-          <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)} className="w-full px-3 py-2 border-2 border-dp-outline-variant rounded-lg text-[14px] font-sans bg-white focus:border-dp-primary focus:ring-0">
+        <button type="button" className="w-[42px] h-[42px] shrink-0 rounded-xl bg-dp-surface-container-low border-none flex items-center justify-center text-dp-on-surface-variant cursor-pointer">
+          <SlidersHorizontal size={17} />
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-2.5 mb-6">
+        <div className="relative">
+          <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)} dir={isUrdu ? 'rtl' : undefined} className="w-full appearance-none border border-dp-outline-variant rounded-[11px] ps-3.5 pe-9 py-2.5 text-[12px] font-sans bg-white focus:border-dp-secondary focus:ring-0 text-dp-on-surface-variant">
             <option value="">{t('billing.allSectors')}</option>
             {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full px-3 py-2 border-2 border-dp-outline-variant rounded-lg text-[14px] font-sans bg-white focus:border-dp-primary focus:ring-0">
+          <ChevronDown size={14} className="absolute end-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+        </div>
+        <div className="relative">
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} dir={isUrdu ? 'rtl' : undefined} className="w-full appearance-none border border-dp-outline-variant rounded-[11px] ps-3.5 pe-9 py-2.5 text-[12px] font-sans bg-white focus:border-dp-secondary focus:ring-0 text-dp-on-surface-variant">
             <option value="">{t('billing.allStatus')}</option>
             <option value="pending">{t('billing.hasOutstanding')}</option>
             <option value="clear">{t('billing.fullyPaid')}</option>
           </select>
+          <ChevronDown size={14} className="absolute end-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
         </div>
       </div>
 
-      {/* Two-column layout — flex-row-reverse under Urdu keeps the consumer
-          list (first DOM child) on the left the way it's always been; only
-          visible at md+ since one side is always hidden on mobile anyway. */}
-      <div className={`flex gap-6 h-[calc(100vh-300px)] min-h-[420px] ${isUrdu ? 'flex-row-reverse' : ''}`}>
+      {/* Two-column layout — stays in normal left/right order at every
+          language, per the reference design. */}
+      <div className="flex gap-6 h-[calc(100vh-300px)] min-h-[420px]">
 
         {/* Consumer list */}
-        <div dir="ltr" className={`${selectedConsumer ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[340px] md:flex-shrink-0 min-h-0`}>
+        <div className={`${selectedConsumer ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[340px] md:flex-shrink-0 min-h-0`}>
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden flex flex-col flex-1 min-h-0">
             {loading ? (
               <div className="p-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
@@ -832,16 +845,31 @@ function BillingPageInner() {
 
         {/* Consumer detail panel */}
         {selectedConsumer ? (
-          <div ref={detailPanelRef} className="flex-1 bg-white rounded-lg border border-dp-outline-variant overflow-hidden flex flex-col min-h-0">
-            {/* Consumer header */}
-            <div className="bg-dp-surface-container-low px-6 py-4 border-b border-dp-outline-variant">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <span className="font-sans text-[12px] font-bold text-dp-secondary bg-dp-primary-container px-2 py-0.5 rounded truncate max-w-[180px]">{selectedConsumer.consumer_id}</span>
-                    {selectedConsumer.sector && (
-                      <span className="font-sans text-[12px] text-dp-on-surface-variant flex items-center gap-1"><MapPin size={12} />{selectedConsumer.sector}</span>
-                    )}
+          <div ref={detailPanelRef} className="flex-1 bg-white rounded-[18px] shadow-[0_2px_10px_rgba(20,50,35,0.06)] overflow-hidden flex flex-col min-h-0">
+            {/* Consumer header — icons on the left, info right-aligned on the
+                right (a deliberate reversal from plain-LTR default, matching
+                the reference design's own card exactly, not a language flip). */}
+            <div className="px-4 pt-4 pb-3 border-b border-dp-outline-variant/60">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button onClick={() => setSelectedConsumer(null)} className="w-[31px] h-[31px] rounded-[9px] bg-dp-surface-container-low border-none flex items-center justify-center text-dp-on-surface-variant cursor-pointer md:hidden">
+                    <X size={15} />
+                  </button>
+                  {selectedConsumer.mobile && (
+                    <button
+                      onClick={() => sendWhatsApp(selectedConsumer)}
+                      className="w-[31px] h-[31px] rounded-[9px] bg-emerald-50 border-none flex items-center justify-center text-emerald-700 hover:opacity-90 transition-all cursor-pointer"
+                      title={t('billing.tip.sendWhatsapp')}
+                      aria-label={t('billing.notify')}
+                    >
+                      <MessageCircle size={15} />
+                    </button>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1 text-end">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {selectedConsumer.sector && <span className="font-sans text-[11.5px] text-dp-on-surface-variant">{selectedConsumer.sector}</span>}
+                    <span className="font-sans text-[11px] font-bold text-white bg-dp-secondary px-2.5 py-1 rounded-[6px] tracking-wide truncate max-w-[140px]">{selectedConsumer.consumer_id}</span>
                     {selectedConsumer.status === 'disconnected' && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wide bg-gray-200 text-gray-700"><Ban size={10} /> {t('billing.disconnected')}</span>
                     )}
@@ -849,43 +877,16 @@ function BillingPageInner() {
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800"><Power size={10} /> {t('billing.inactive')}</span>
                     )}
                   </div>
-                  <h2 className="font-heading text-[22px] font-bold text-dp-primary truncate">{selectedConsumer.name}</h2>
-                  <div className="flex flex-wrap gap-3 mt-1">
-                    {selectedConsumer.mobile && (
-                      <span className="font-sans text-[13px] text-dp-on-surface-variant flex items-center gap-1"><Phone size={13} />{selectedConsumer.mobile}</span>
-                    )}
-                    {selectedConsumer.house_no && (
-                      <span className="font-sans text-[13px] text-dp-on-surface-variant flex items-center gap-1"><Home size={13} />{t('billing.house')} {selectedConsumer.house_no}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {selectedConsumer.mobile && (
-                    <button
-                      onClick={() => sendWhatsApp(selectedConsumer)}
-                      className="flex items-center justify-center p-2 bg-[#25d366] text-white rounded-lg hover:opacity-90 transition-all cursor-pointer shrink-0"
-                      title={t('billing.tip.sendWhatsapp')}
-                      aria-label={t('billing.notify')}
-                    >
-                      <MessageCircle size={16} />
-                    </button>
+                  <div className="font-sans text-[19px] font-bold text-dp-on-surface mt-1 truncate">{selectedConsumer.name}</div>
+                  {(selectedConsumer.house_no || selectedConsumer.mobile) && (
+                    <div dir={isUrdu ? 'rtl' : undefined} className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">
+                      {selectedConsumer.house_no && <>{t('billing.house')} <span dir="ltr" className="tabular-nums">{selectedConsumer.house_no}</span></>}
+                      {selectedConsumer.house_no && selectedConsumer.mobile && ' · '}
+                      {selectedConsumer.mobile && <span dir="ltr" className="tabular-nums">{selectedConsumer.mobile}</span>}
+                    </div>
                   )}
-                  <button onClick={() => setSelectedConsumer(null)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer md:hidden">
-                    <X size={20} />
-                  </button>
                 </div>
               </div>
-
-              {/* Outstanding summary — was a full-width block banner (a plain
-                  div stretches edge to edge regardless of how short its text
-                  is); inline-flex shrinks it to a compact pill like the
-                  action buttons around it. */}
-              {selectedOutstanding > 0 && (
-                <div className="mt-3 inline-flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
-                  <AlertCircle size={14} className="text-dp-error shrink-0" />
-                  <span className="font-sans text-[12.5px] font-bold text-dp-error whitespace-nowrap">{t('billing.outstandingAmount').replace('{amt}', selectedOutstanding.toLocaleString())}</span>
-                </div>
-              )}
 
               {/* Linked complaint */}
               {complaintsByConsumer[selectedConsumer.consumer_id] && (
@@ -904,66 +905,87 @@ function BillingPageInner() {
                   <ChevronRight size={15} className="text-amber-700 shrink-0" />
                 </Link>
               )}
+            </div>
 
-              {/* Lifecycle actions */}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button onClick={() => openEditConsumer(selectedConsumer)} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
-                  <Pencil size={13} /> {t('action.edit')}
+            {/* Balance + the action that settles it, as one unit */}
+            {selectedOutstanding > 0 && (
+              <div className="mx-4 mt-3.5 bg-red-50 rounded-[13px] px-[15px] py-[13px] flex items-center justify-between">
+                <button
+                  onClick={() => { const firstUnpaid = selectedBills.find((b) => outstanding(b) > 0); if (firstUnpaid) startPayment(firstUnpaid) }}
+                  className="font-sans text-[12.5px] font-semibold bg-dp-secondary text-white border-none px-[18px] py-2 rounded-[10px] cursor-pointer"
+                >
+                  {t('billing.collect', 'وصولی')}
                 </button>
-                {selectedConsumer.status !== 'disconnected' && (
-                  <button onClick={() => toggleConsumerActive(selectedConsumer)} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
-                    <Power size={13} /> {selectedConsumer.status === 'active' ? t('billing.deactivateAction') : t('billing.activateAction')}
-                  </button>
-                )}
+                <div className="text-end">
+                  <div dir={isUrdu ? 'rtl' : undefined} className="font-sans text-[11px] text-dp-error/80">{t('billing.balanceDue', 'باقی رقم')}</div>
+                  <div className="tabular-nums text-[23px] font-bold text-dp-error tracking-tight">Rs. {selectedOutstanding.toLocaleString()}</div>
+                </div>
+              </div>
+            )}
+
+            {/* All four lifecycle actions, one row, ranked by weight — must
+                stay on one line at 390px (whitespace-nowrap + tight gap/pad),
+                a fifth action would need to go behind a menu instead. */}
+            {/* justify-end + flex-wrap, not overflow-x-auto: English labels
+                ("Permanent Disconnection") are long enough to overflow at
+                390px, and end-justified content inside a horizontal-scroll
+                container can leave its own start permanently unreachable
+                (scrollLeft can't go negative) — wrapping to a 2nd line is
+                the safe degrade; Urdu's shorter labels still fit one row. */}
+            <div className="mx-4 mt-3.5 mb-4 pt-3 border-t border-dp-outline-variant/60 flex items-center justify-end gap-1.5 flex-wrap">
                 {selectedConsumer.status === 'disconnected' ? (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-sans text-[12.5px] font-bold bg-gray-100 text-gray-600" title={t('billing.tip.reconnects')}>
-                    <Ban size={13} />{t('billing.disconnectedNote')}</span>
+                  <span className="flex items-center gap-1.5 px-2.5 py-[7px] rounded-[9px] font-sans text-[11px] font-bold bg-gray-100 text-gray-600 whitespace-nowrap" title={t('billing.tip.reconnects')}>
+                    <Ban size={11} />{t('billing.disconnectedNote')}</span>
                 ) : (
-                  <button onClick={() => openDisconnect(selectedConsumer)} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-error/40 text-dp-error rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-error/5 transition-all cursor-pointer">
-                    <Ban size={13} /> {t('billing.permanentDisconnection')}
+                  <button onClick={() => openDisconnect(selectedConsumer)} className="border border-red-200 bg-white rounded-[9px] px-2.5 py-[7px] cursor-pointer">
+                    <span className="font-sans text-[11px] font-semibold text-dp-error whitespace-nowrap">{t('billing.permanentDisconnection')}</span>
                   </button>
                 )}
-                {/* Was its own section below (amount/frequency/next-run-date +
-                    a pencil + a pause icon) — collapsed into one button here,
-                    same as the Activate/Deactivate/Disconnect pills next to
-                    it. Still opens the same setup modal either way, so the
-                    detail and the pause/edit controls are one tap further in
-                    rather than gone. */}
+                {selectedConsumer.status !== 'disconnected' && (
+                  <button onClick={() => toggleConsumerActive(selectedConsumer)} className="border border-dp-outline-variant bg-white rounded-[9px] px-2.5 py-[7px] cursor-pointer">
+                    <span className="font-sans text-[11px] font-semibold text-dp-on-surface-variant whitespace-nowrap">{selectedConsumer.status === 'active' ? t('billing.deactivateAction') : t('billing.activateAction')}</span>
+                  </button>
+                )}
+                <button onClick={() => openEditConsumer(selectedConsumer)} className="border border-dp-outline-variant bg-white rounded-[9px] px-2.5 py-[7px] cursor-pointer">
+                  <span className="font-sans text-[11px] font-semibold text-dp-on-surface-variant whitespace-nowrap">{t('action.edit')}</span>
+                </button>
                 {recurringSchedules[selectedConsumer.consumer_id] ? (
                   <button
                     onClick={() => openRecurringSetup(selectedConsumer)}
                     title={t('billing.tip.editRecurring')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-sans text-[12.5px] font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 bg-gray-100 border-none rounded-[9px] px-2.5 py-[7px] cursor-pointer hover:bg-gray-200 transition-all"
                   >
-                    <PauseCircle size={13} /> {t('billing.recurringBilling')}
+                    <PauseCircle size={12} className="text-gray-500" />
+                    <span className="font-sans text-[11px] font-semibold text-gray-600 whitespace-nowrap">{t('billing.recurringBilling')}</span>
                   </button>
                 ) : (
                   <button
                     onClick={() => openRecurringSetup(selectedConsumer)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 bg-emerald-50 border-none rounded-[9px] px-2.5 py-[7px] cursor-pointer hover:bg-emerald-100 transition-all"
                   >
-                    <Repeat size={13} /> {t('billing.recurringBilling')}
+                    <Repeat size={12} className="text-dp-secondary" />
+                    <span className="font-sans text-[11px] font-semibold text-dp-secondary whitespace-nowrap">{t('billing.recurringBilling')}</span>
                   </button>
                 )}
-              </div>
             </div>
 
             {/* Bills list */}
-            <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto min-h-0 p-4">
               <div className="flex items-center justify-between mb-1">
-                <h3 className="font-sans text-[14px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('billing.billsHistory')}</h3>
                 <Link
                   href={`/admin/finance/water_supply?action=generate_bill&consumer=${selectedConsumer.consumer_id}`}
-                  className="flex items-center gap-1 text-dp-secondary font-sans text-[13px] font-semibold hover:underline cursor-pointer"
+                  className="flex items-center gap-1.5 text-dp-secondary font-sans text-[12.5px] font-medium hover:underline cursor-pointer"
                 >
-                  <PlusCircle size={14} /> {t('billing.generateBill')}
+                  <Plus size={14} /> {t('billing.generateBill')}
                 </Link>
+                <h3 className="font-sans text-[16px] font-semibold text-dp-on-surface">{t('billing.billsHistory')}</h3>
               </div>
 
               {selectedBills.length === 0 && (
                 <div className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('billing.noBills')}</div>
               )}
 
+              <div className="mt-3 flex flex-col gap-2.5">
               {selectedBills.map((bill) => {
                 const rem = outstanding(bill)
                 // Why this bill cannot be touched, if it cannot. Cash received
@@ -978,93 +1000,106 @@ function BillingPageInner() {
                   : monthClosed ? t('lock.periodClosed') : null
                 const fullBillHref = `/admin/finance/water_supply?action=generate_bill&bill=${bill.id}&consumer=${bill.consumer_id}`
                 return (
-                  <div key={bill.id} className={`border rounded-lg overflow-hidden ${rem <= 0 ? 'border-dp-outline-variant' : 'border-dp-error/30'}`}>
-                    <div className="px-4 py-3 flex items-center justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2 mb-0.5">
-                          {/* The month is the handle for the whole bill. It used
-                              to be dead text, so the only way in was the pencil
-                              — and the receive-cash panel below it looked like
-                              the bill itself. */}
-                          {lockReason ? (
-                            <span className="font-sans text-[15px] font-semibold text-dp-on-surface">{t(monthKey(bill.month), fullMonths[bill.month])} {bill.year}</span>
-                          ) : (
-                            <Link href={fullBillHref} title={t('lock.openFullBill')}
-                              className="font-sans text-[15px] font-semibold text-dp-on-surface hover:text-dp-secondary hover:underline cursor-pointer">
-                              {t(monthKey(bill.month), fullMonths[bill.month])} {bill.year}
-                            </Link>
-                          )}
-                          {bill.bill_number && <span className="font-mono text-[11px] text-dp-on-surface-variant">#{bill.bill_number}</span>}
-                          <StatusBadge bill={bill} />
-                        </div>
-                        <div className="font-sans text-[13px] text-dp-on-surface-variant">
-                          {t('billing.total')}: Rs. {bill.amount_pkr.toLocaleString()}
-                          {(bill.discount_amount ?? 0) > 0 && <span className="ms-2 text-emerald-700">{t('billing.discountLabel')}: − Rs. {(bill.discount_amount ?? 0).toLocaleString()}</span>}
-                          {(bill.paid_amount ?? 0) > 0 && <span className="ms-2 text-emerald-600">{t('billing.paidLabel')}: Rs. {(bill.paid_amount ?? 0).toLocaleString()}</span>}
-                          {rem > 0 && <span className="ms-2 text-dp-error">{t('billing.dueLabel')}: Rs. {rem.toLocaleString()}</span>}
-                          {bill.waiver_voucher_id && (
-                            <span className="ms-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10.5px] font-bold uppercase tracking-wide">
-                              {waiverVoucherStatus[bill.waiver_voucher_id] === 'pending'
-                                ? t('billing.waiverPending')
-                                : bill.waiver_type === 'full' ? t('billing.committeeWaivedFull') : t('billing.committeeWaivedPercent').replace('{pct}', String(bill.waiver_percent))}
-                            </span>
-                          )}
-                        </div>
-                        {bill.description && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5 italic">{bill.description}</p>}
-                        {bill.paid_date && (
-                          <p className="font-sans text-[11px] text-dp-secondary mt-0.5">
-                            {t('billing.paymentReceivedOn')} {new Date(bill.paid_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}{bill.payment_method ? ` ${t('billing.via')} ${t(paymentMethodKeys[bill.payment_method] ?? '', bill.payment_method)}` : ''}
-                            {rem <= 0 ? ` — ${t('billing.noOutstandingAmount')}` : ''}
-                          </p>
+                  <div key={bill.id} className="bg-white border border-dp-outline-variant rounded-[15px] shadow-[0_2px_8px_rgba(20,50,35,0.05)] px-[15px] py-3.5">
+                    {/* Badge on one side, month/bill-number stacked and
+                        right-aligned on the other — matches the reference
+                        design's own bill-row header exactly. */}
+                    <div className="flex items-center justify-between gap-3">
+                      <StatusBadge bill={bill} />
+                      <div className="text-end">
+                        {lockReason ? (
+                          <div className="font-sans text-[15px] font-bold text-dp-on-surface">{t(monthKey(bill.month), fullMonths[bill.month])} {bill.year}</div>
+                        ) : (
+                          <Link href={fullBillHref} title={t('lock.openFullBill')}
+                            className="font-sans text-[15px] font-bold text-dp-on-surface hover:text-dp-secondary hover:underline cursor-pointer">
+                            {t(monthKey(bill.month), fullMonths[bill.month])} {bill.year}
+                          </Link>
+                        )}
+                        {bill.bill_number && <div className="font-mono text-[11px] text-dp-on-surface-variant tabular-nums">#{bill.bill_number}</div>}
+                      </div>
+                    </div>
+
+                    {(bill.discount_amount ?? 0) > 0 || bill.waiver_voucher_id ? (
+                      <div className="flex flex-wrap justify-end gap-1.5 mt-2">
+                        {(bill.discount_amount ?? 0) > 0 && (
+                          <span className="text-[10.5px] font-semibold text-emerald-700">{t('billing.discountLabel')}: − Rs. {(bill.discount_amount ?? 0).toLocaleString()}</span>
+                        )}
+                        {bill.waiver_voucher_id && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10.5px] font-bold uppercase tracking-wide">
+                            {waiverVoucherStatus[bill.waiver_voucher_id] === 'pending'
+                              ? t('billing.waiverPending')
+                              : bill.waiver_type === 'full' ? t('billing.committeeWaivedFull') : t('billing.committeeWaivedPercent').replace('{pct}', String(bill.waiver_percent))}
+                          </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                    ) : null}
+                    {bill.description && <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5 text-end italic">{bill.description}</p>}
+
+                    {/* Footer: action icons on one side, Paid/Total split on
+                        the other, same as the reference design — extended
+                        with a Receive Now icon and a lock-reason badge for
+                        states the simpler mock didn't need to model. */}
+                    <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-dp-outline-variant/60">
+                      <div className="flex items-center gap-1.5">
                         {rem > 0 && (
                           <button
                             onClick={() => startPayment(bill)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"
+                            title={t('billing.receiveNow')}
+                            className="w-[30px] h-[30px] rounded-[9px] bg-emerald-50 border-none flex items-center justify-center text-dp-secondary cursor-pointer"
                           >
-                            <Banknote size={15} />
-                            {t('billing.receiveNow')}
+                            <Banknote size={14} />
                           </button>
                         )}
-                        <Link href={`/admin/invoice/bill/${bill.id}`} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer" title={t('billing.tip.viewInvoice')}>
-                          <FileText size={15} />
+                        <Link href={`/admin/invoice/bill/${bill.id}`} title={t('billing.tip.viewInvoice')} className="w-[30px] h-[30px] rounded-[9px] bg-dp-surface-container-low flex items-center justify-center text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
+                          <FileText size={13} />
                         </Link>
                         {lockReason ? (
                           // One padlock carrying the reason, rather than two
-                          // greyed-out buttons that say nothing about why. The
-                          // receipt number is in the text because that is the
-                          // thing the accountant has to go and delete.
+                          // greyed-out icons that say nothing about why. The
+                          // receipt number is in the tooltip because that is
+                          // the thing the accountant has to go and delete.
                           <span
                             title={lockReason}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-dp-surface-container-low text-dp-on-surface-variant font-sans text-[12px] font-semibold whitespace-nowrap"
+                            className="w-[30px] h-[30px] rounded-[9px] bg-dp-surface-container-low flex items-center justify-center text-dp-on-surface-variant"
                           >
-                            <Lock size={13} className="shrink-0" />
-                            <span className="hidden sm:inline">
-                              {blockingReceipts.length > 0
-                                ? renderTemplate(t('lock.billPaidShort'), { receipt: blockingReceipts.join(', ') })
-                                : t('lock.locked')}
-                            </span>
+                            <Lock size={13} />
                           </span>
                         ) : (
                           <>
-                            <Link href={fullBillHref} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer" title={t('billing.tip.editBill')}>
-                              <Pencil size={15} />
+                            <Link href={fullBillHref} title={t('billing.tip.editBill')} className="w-[30px] h-[30px] rounded-[9px] bg-dp-surface-container-low flex items-center justify-center text-dp-on-surface-variant hover:text-dp-primary cursor-pointer">
+                              <Pencil size={13} />
                             </Link>
-                            <button onClick={() => setConfirmDeleteBill(bill.id)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer" title={t('billing.tip.deleteBill')}>
-                              <Trash2 size={15} />
+                            <button onClick={() => setConfirmDeleteBill(bill.id)} title={t('billing.tip.deleteBill')} className="w-[30px] h-[30px] rounded-[9px] bg-dp-surface-container-low flex items-center justify-center text-dp-on-surface-variant hover:text-dp-error cursor-pointer">
+                              <Trash2 size={13} />
                             </button>
                           </>
                         )}
                       </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-end">
+                          <div dir={isUrdu ? 'rtl' : undefined} className="font-sans text-[10px] text-dp-on-surface-variant">{t('billing.paidLabel')}</div>
+                          <div className={`tabular-nums text-[14.5px] font-bold ${(bill.paid_amount ?? 0) > 0 ? 'text-emerald-700' : 'text-dp-on-surface-variant'}`}>Rs. {(bill.paid_amount ?? 0).toLocaleString()}</div>
+                        </div>
+                        <div className="text-end">
+                          <div dir={isUrdu ? 'rtl' : undefined} className="font-sans text-[10px] text-dp-on-surface-variant">{t('billing.total')}</div>
+                          <div className="tabular-nums text-[14.5px] font-bold text-dp-on-surface">Rs. {bill.amount_pkr.toLocaleString()}</div>
+                        </div>
+                      </div>
                     </div>
+
+                    {bill.paid_date && (
+                      <div dir={isUrdu ? 'rtl' : undefined} className="text-[11.5px] text-emerald-800 mt-2.5 bg-emerald-50 rounded-[9px] px-[11px] py-2 leading-snug">
+                        {t('billing.paymentReceivedOn')} {new Date(bill.paid_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}{bill.payment_method ? ` ${t('billing.via')} ${t(paymentMethodKeys[bill.payment_method] ?? '', bill.payment_method)}` : ''}
+                        {rem <= 0 ? ` — ${t('billing.noOutstandingAmount')}` : ''}
+                      </div>
+                    )}
 
                     {/* Receive-payment popup lives once, outside this map — see
                         the "Receive Payment modal" block below. */}
                   </div>
                 )
               })}
+              </div>
             </div>
           </div>
         ) : (
