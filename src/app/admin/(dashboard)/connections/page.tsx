@@ -496,7 +496,11 @@ export default function ConnectionsPage() {
   const itemTotal = (newItemLine.quantity || 0) * (newItemLine.unit_price || 0)
 
   return (
-    <div className="txn-form">
+    // Full mirror of the page, same as the wazifa form — text, icons, and
+    // layout order all flip together under Urdu, not just the modals'
+    // own text. No physical direction classes anywhere in this file
+    // (checked), so nothing fights it.
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="txn-form">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-[26px] sm:text-[32px] font-bold text-dp-primary flex items-center gap-2.5">
           <UserPlus size={28} /> {t('cn.title')}
@@ -819,7 +823,12 @@ export default function ConnectionsPage() {
               </div>
             </div>
             <div className="p-5 flex justify-center overflow-x-auto">
-              <div ref={challanRef} className="bg-white p-8" style={{ width: 560 }}>
+              {/* dir="ltr" pinned here regardless of the page's own — this is
+                  a fixed-560px print document, same category as
+                  ReceiptDocument/AgendaMinutesDocument, and the page's new
+                  ambient flip would otherwise cascade into it and disturb
+                  its column layout, which was never designed for bidi. */}
+              <div ref={challanRef} dir="ltr" className="bg-white p-8" style={{ width: 560 }}>
                 <div className="flex items-center justify-between mb-6 pb-4 border-b-2 border-dp-primary">
                   <div>
                     <h1 className="font-heading text-[22px] font-bold text-dp-primary">{branding?.companyNameEn || SITE.fullName}</h1>
