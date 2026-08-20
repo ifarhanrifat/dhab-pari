@@ -68,47 +68,51 @@ interface PurchaseLine { inventory_item_id: string; description: string; quantit
 
 const systemLabels: Record<SystemTab, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects' }
 
+// label/fromLabel/toLabel/partyLabel are i18n keys (with their English text as
+// the literal fallback baked in via the key name's t(key, fallback) call site)
+// rather than display strings themselves — this config object is module-level
+// and can't call the t() hook, so translation happens where it's rendered.
 const voucherConfig: Record<VoucherType, {
-  label: string; icon: typeof Wallet
-  fromLabel: string; fromFilter: (a: Account) => boolean
-  toLabel: string; toFilter: (a: Account) => boolean
-  partyLabel: string | null
+  labelKey: string; label: string; icon: typeof Wallet
+  fromLabelKey: string; fromLabel: string; fromFilter: (a: Account) => boolean
+  toLabelKey: string; toLabel: string; toFilter: (a: Account) => boolean
+  partyLabelKey: string | null; partyLabel: string | null
 }> = {
   expense: {
-    label: 'Expense', icon: Wallet,
-    fromLabel: 'Pay From', fromFilter: (a) => a.type === 'cash' || a.type === 'bank',
-    toLabel: 'Expense Account', toFilter: (a) => a.type === 'expense',
-    partyLabel: 'Paid To (optional)',
+    labelKey: 'y.expense', label: 'Expense', icon: Wallet,
+    fromLabelKey: 'z.payFrom', fromLabel: 'Pay From', fromFilter: (a) => a.type === 'cash' || a.type === 'bank',
+    toLabelKey: 'z.expenseAccount', toLabel: 'Expense Account', toFilter: (a) => a.type === 'expense',
+    partyLabelKey: 'z.paidToOptional', partyLabel: 'Paid To (optional)',
   },
   income: {
-    label: 'Income', icon: ArrowDownCircle,
-    fromLabel: 'Income Account', fromFilter: (a) => a.type === 'income',
-    toLabel: 'Receive Into', toFilter: (a) => a.type === 'cash' || a.type === 'bank',
-    partyLabel: 'Received From (optional)',
+    labelKey: 'y.income', label: 'Income', icon: ArrowDownCircle,
+    fromLabelKey: 'v.incomeAccount', fromLabel: 'Income Account', fromFilter: (a) => a.type === 'income',
+    toLabelKey: 'v.receiveInto', toLabel: 'Receive Into', toFilter: (a) => a.type === 'cash' || a.type === 'bank',
+    partyLabelKey: 'v.receivedFromOptional', partyLabel: 'Received From (optional)',
   },
   contra: {
-    label: 'Bank Transfer', icon: ArrowLeftRight,
-    fromLabel: 'From Account', fromFilter: (a) => a.type === 'cash' || a.type === 'bank',
-    toLabel: 'To Account', toFilter: (a) => a.type === 'cash' || a.type === 'bank',
-    partyLabel: null,
+    labelKey: 'v.bankTransfer', label: 'Bank Transfer', icon: ArrowLeftRight,
+    fromLabelKey: 'v.fromAccount', fromLabel: 'From Account', fromFilter: (a) => a.type === 'cash' || a.type === 'bank',
+    toLabelKey: 'v.toAccount', toLabel: 'To Account', toFilter: (a) => a.type === 'cash' || a.type === 'bank',
+    partyLabelKey: null, partyLabel: null,
   },
   withdrawal: {
-    label: 'Cash Withdrawal', icon: ArrowUpFromLine,
-    fromLabel: 'From Bank Account', fromFilter: (a) => a.type === 'bank',
-    toLabel: 'To Cash Account', toFilter: (a) => a.type === 'cash',
-    partyLabel: null,
+    labelKey: 'v.cashWithdrawal', label: 'Cash Withdrawal', icon: ArrowUpFromLine,
+    fromLabelKey: 'v.fromBankAccount', fromLabel: 'From Bank Account', fromFilter: (a) => a.type === 'bank',
+    toLabelKey: 'v.toCashAccount', toLabel: 'To Cash Account', toFilter: (a) => a.type === 'cash',
+    partyLabelKey: null, partyLabel: null,
   },
   deposit: {
-    label: 'Cash Deposit', icon: ArrowDownToLine,
-    fromLabel: 'From Cash Account', fromFilter: (a) => a.type === 'cash',
-    toLabel: 'To Bank Account', toFilter: (a) => a.type === 'bank',
-    partyLabel: null,
+    labelKey: 'v.cashDeposit', label: 'Cash Deposit', icon: ArrowDownToLine,
+    fromLabelKey: 'v.fromCashAccount', fromLabel: 'From Cash Account', fromFilter: (a) => a.type === 'cash',
+    toLabelKey: 'v.toBankAccount', toLabel: 'To Bank Account', toFilter: (a) => a.type === 'bank',
+    partyLabelKey: null, partyLabel: null,
   },
   advance: {
-    label: 'Advance Payment', icon: HandCoins,
-    fromLabel: 'Paid From', fromFilter: (a) => a.type === 'cash' || a.type === 'bank',
-    toLabel: 'Advance Account', toFilter: (a) => a.code === 'WS-4003',
-    partyLabel: 'Paid To (worker/contractor)',
+    labelKey: 'v.advancePayment', label: 'Advance Payment', icon: HandCoins,
+    fromLabelKey: 'v.paidFrom', fromLabel: 'Paid From', fromFilter: (a) => a.type === 'cash' || a.type === 'bank',
+    toLabelKey: 'v.advanceAccount', toLabel: 'Advance Account', toFilter: (a) => a.code === 'WS-4003',
+    partyLabelKey: 'v.paidToWorkerContractor', partyLabel: 'Paid To (worker/contractor)',
   },
 }
 
@@ -815,23 +819,23 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
   const types: { key: ActiveType; label: string; icon: typeof Wallet }[] = useMemo(() => {
     const base: { key: ActiveType; label: string; icon: typeof Wallet }[] = [
-      { key: 'expense', label: 'Expense', icon: voucherConfig.expense.icon },
-      { key: 'income', label: 'Income', icon: voucherConfig.income.icon },
-      { key: 'contra', label: 'Bank Transfer', icon: voucherConfig.contra.icon },
-      { key: 'withdrawal', label: 'Cash Withdrawal', icon: voucherConfig.withdrawal.icon },
-      { key: 'deposit', label: 'Cash Deposit', icon: voucherConfig.deposit.icon },
+      { key: 'expense', label: t(voucherConfig.expense.labelKey, voucherConfig.expense.label), icon: voucherConfig.expense.icon },
+      { key: 'income', label: t(voucherConfig.income.labelKey, voucherConfig.income.label), icon: voucherConfig.income.icon },
+      { key: 'contra', label: t(voucherConfig.contra.labelKey, voucherConfig.contra.label), icon: voucherConfig.contra.icon },
+      { key: 'withdrawal', label: t(voucherConfig.withdrawal.labelKey, voucherConfig.withdrawal.label), icon: voucherConfig.withdrawal.icon },
+      { key: 'deposit', label: t(voucherConfig.deposit.labelKey, voucherConfig.deposit.label), icon: voucherConfig.deposit.icon },
     ]
     if (system === 'water_supply') {
-      base.push({ key: 'bill', label: 'Generate Bill', icon: Receipt })
-      base.push({ key: 'cash_receipt', label: 'Cash Receipt', icon: Banknote })
-      base.push({ key: 'purchase', label: 'Purchase Bill', icon: ShoppingCart })
-      base.push({ key: 'advance', label: 'Advance Payment', icon: HandCoins })
+      base.push({ key: 'bill', label: t('billing.generateBill'), icon: Receipt })
+      base.push({ key: 'cash_receipt', label: t('f.cashReceipt'), icon: Banknote })
+      base.push({ key: 'purchase', label: t('f.purchaseBill'), icon: ShoppingCart })
+      base.push({ key: 'advance', label: t(voucherConfig.advance.labelKey, voucherConfig.advance.label), icon: HandCoins })
     } else {
-      base.push({ key: 'donation', label: 'Record Donation', icon: Heart })
-      base.push({ key: 'project_transfer', label: 'Transfer Project Money', icon: ArrowLeftRight })
+      base.push({ key: 'donation', label: t('f.recordDonation'), icon: Heart })
+      base.push({ key: 'project_transfer', label: t('pt.title'), icon: ArrowLeftRight })
     }
     return base
-  }, [system])
+  }, [system, t])
 
   const activeTypeLabel = types.find((t) => t.key === activeType)?.label ?? activeType
   const visibleTxnCards = useMemo(() => {
@@ -1109,7 +1113,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     if (activeType === 'expense' && multiLineExpense) return saveMultiLineExpense()
 
     const cfg = voucherConfig[activeType as VoucherType]
-    if (!voucherForm.fromId || !voucherForm.toId) { toast.error(`Choose both ${cfg.fromLabel} and ${cfg.toLabel}`); return }
+    if (!voucherForm.fromId || !voucherForm.toId) { toast.error(`${t('v.chooseBoth', 'Choose both')} ${t(cfg.fromLabelKey, cfg.fromLabel)} ${t('v.and', 'and')} ${t(cfg.toLabelKey, cfg.toLabel)}`); return }
     if (voucherForm.fromId === voucherForm.toId) { toast.error('From and To accounts must be different'); return }
     if (!voucherForm.amount || voucherForm.amount <= 0) { toast.error('Enter a valid amount'); return }
     if (!voucherForm.particular.trim()) { toast.error('Description is required'); return }
@@ -1560,7 +1564,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
   const newAccountLink = (types: string[], onPick: (a: NewAccount) => void) => types.length === 0 ? null : (
     <button type="button" onClick={() => setQuickAddFor({ types, onPick })} className="text-[12px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer -mt-2">
-      + New Account
+      + {t('y.newAccount')}
     </button>
   )
 
@@ -1571,7 +1575,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
           <Link href="/admin/finance" className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold mb-3">
             <ArrowLeft size={16} /> {t('f.back')}
           </Link>
-          <h1 className="font-heading text-[22px] sm:text-[28px] font-bold leading-[28px] sm:leading-[36px] text-dp-primary">{systemLabels[system]} — Transactions</h1>
+          <h1 className="font-heading text-[22px] sm:text-[28px] font-bold leading-[28px] sm:leading-[36px] text-dp-primary">{t(system === 'water_supply' ? 'dash.waterSupplySystem' : 'dash.donorsProjectsSystem', systemLabels[system])} — {t('v.transactions')}</h1>
         </div>
         <div className="shrink-0 flex items-center gap-2">
           <Link href={`/admin/finance/${system}/register`} className="flex items-center gap-2 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all">
@@ -1643,7 +1647,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
               const cfg = voucherConfig[activeType as VoucherType]
               return (
                 <div className="space-y-4">
-                  <h2 className="font-heading text-[20px] font-bold text-dp-primary">{cfg.label}</h2>
+                  <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t(cfg.labelKey, cfg.label)}</h2>
 
                   {activeType === 'expense' && (
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -1668,7 +1672,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   {multiLineExpense && activeType === 'expense' ? (
                     <>
                       <SearchableField
-                        label={cfg.fromLabel} value={voucherForm.fromId} placeholder="Select..."
+                        label={t(cfg.fromLabelKey, cfg.fromLabel)} value={voucherForm.fromId} placeholder={t('a.select')}
                         items={accountPickerItems(cfg.fromFilter)}
                         onChange={(id) => setVoucherForm({ ...voucherForm, fromId: id })}
                       />
@@ -1678,14 +1682,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         <div key={i} className="flex items-end gap-2 border border-dp-outline-variant rounded-lg p-3">
                           <div className="flex-1 space-y-2">
                             <SearchableField
-                              label="Expense Account" value={line.account_id} placeholder="Select..."
+                              label={t('z.expenseAccount', 'Expense Account')} value={line.account_id} placeholder={t('a.select')}
                               items={accountPickerItems((a) => a.type === 'expense')}
                               onChange={(id) => setVoucherLines(voucherLines.map((l, idx) => (idx === i ? { ...l, account_id: id } : l)))}
                             />
                             {newAccountLink(['expense'], (a) => handleAccountCreated(a, (acc) => setVoucherLines(voucherLines.map((l, idx) => (idx === i ? { ...l, account_id: acc.id } : l)))))}
                             <div className="grid grid-cols-2 gap-2">
-                              <input type="number" min={0} value={line.amount || ''} onChange={(e) => setVoucherLines(voucherLines.map((l, idx) => (idx === i ? { ...l, amount: +e.target.value } : l)))} placeholder="Amount" className="input-field" />
-                              <input value={line.description} onChange={(e) => setVoucherLines(voucherLines.map((l, idx) => (idx === i ? { ...l, description: e.target.value } : l)))} placeholder="Note (optional)" className="input-field" />
+                              <input type="number" min={0} value={line.amount || ''} onChange={(e) => setVoucherLines(voucherLines.map((l, idx) => (idx === i ? { ...l, amount: +e.target.value } : l)))} placeholder={t('v.amount', 'Amount')} className="input-field" />
+                              <input value={line.description} onChange={(e) => setVoucherLines(voucherLines.map((l, idx) => (idx === i ? { ...l, description: e.target.value } : l)))} placeholder={t('v.noteOptional', 'Note (optional)')} className="input-field" />
                             </div>
                           </div>
                           {voucherLines.length > 1 && (
@@ -1705,7 +1709,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <SearchableField
-                          label={cfg.fromLabel} value={voucherForm.fromId} placeholder="Select..."
+                          label={t(cfg.fromLabelKey, cfg.fromLabel)} value={voucherForm.fromId} placeholder={t('a.select')}
                           items={accountPickerItems(cfg.fromFilter)}
                           onChange={(id) => setVoucherForm({ ...voucherForm, fromId: id })}
                         />
@@ -1713,7 +1717,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                       </div>
                       <div className="space-y-1.5">
                         <SearchableField
-                          label={cfg.toLabel} value={voucherForm.toId} placeholder="Select..."
+                          label={t(cfg.toLabelKey, cfg.toLabel)} value={voucherForm.toId} placeholder={t('a.select')}
                           items={accountPickerItems(cfg.toFilter)}
                           onChange={(id) => setVoucherForm({ ...voucherForm, toId: id })}
                         />
@@ -1724,13 +1728,13 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
                   {cfg.partyLabel && (
                     <div>
-                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{cfg.partyLabel}</label>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t(cfg.partyLabelKey ?? '', cfg.partyLabel)}</label>
                       <input value={voucherForm.party} onChange={(e) => setVoucherForm({ ...voucherForm, party: e.target.value })} className="input-field" />
                     </div>
                   )}
                   <div>
                     <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('f.descriptionReq')}</label>
-                    <input value={voucherForm.particular} onChange={(e) => setVoucherForm({ ...voucherForm, particular: e.target.value })} className="input-field" placeholder="What is this transaction for?" />
+                    <input value={voucherForm.particular} onChange={(e) => setVoucherForm({ ...voucherForm, particular: e.target.value })} className="input-field" placeholder={t('v.whatForTransaction')} />
                   </div>
                   {system === 'donors_projects' && activeType === 'expense' && (
                     <div>
@@ -1742,10 +1746,10 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                     </div>
                   )}
                   {activeType === 'expense' && (
-                    <FileAttachment label="Attach Bill (optional)" currentUrl={voucherAttachment} onUpload={setVoucherAttachment} />
+                    <FileAttachment label={t('v.attachBillOptional')} currentUrl={voucherAttachment} onUpload={setVoucherAttachment} />
                   )}
                   <button disabled={saving} onClick={saveVoucher} className="flex items-center gap-2 px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                    <Save size={16} /> Save {cfg.label}
+                    <Save size={16} /> {t('action.save')}
                   </button>
                 </div>
               )
@@ -2905,14 +2909,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
               </div>
               <div>
                 <SearchableField
-                  label="Paid From" value={editVoucherForm.from_account_id} placeholder="Select..."
+                  label={t('v.paidFrom')} value={editVoucherForm.from_account_id} placeholder={t('a.select')}
                   items={accountPickerItems((a) => a.system === system)}
                   onChange={(id) => setEditVoucherForm({ ...editVoucherForm, from_account_id: id })}
                 />
               </div>
               <div>
                 <SearchableField
-                  label="Posted To" value={editVoucherForm.to_account_id} placeholder="Select..."
+                  label={t('v.postedTo')} value={editVoucherForm.to_account_id} placeholder={t('a.select')}
                   items={accountPickerItems((a) => a.system === system)}
                   onChange={(id) => setEditVoucherForm({ ...editVoucherForm, to_account_id: id })}
                 />
@@ -2920,7 +2924,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
             </div>
             <div className="flex gap-2 mt-5">
               <button onClick={() => setEditVoucherTarget(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
-              <button disabled={editVoucherSaving} onClick={saveEditVoucher} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">{editVoucherSaving ? 'Saving...' : 'Save'}</button>
+              <button disabled={editVoucherSaving} onClick={saveEditVoucher} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">{editVoucherSaving ? t('action.saving') : t('action.save')}</button>
             </div>
           </div>
         </div>

@@ -966,6 +966,16 @@ export const messages: Record<Locale, Record<string, string>> = {
     'y.hot': 'Hot',
     'v.paid': 'PAID', 'v.unpaid': 'UNPAID', 'v.pending': 'PENDING', 'v.late': 'LATE',
     'v.editingThe': 'Editing the', 'v.showingFirst60': 'Showing the first 60 — search to find any other word.',
+    'v.incomeAccount': 'Income Account', 'v.receiveInto': 'Receive Into', 'v.receivedFromOptional': 'Received From (optional)',
+    'v.fromAccount': 'From Account', 'v.toAccount': 'To Account',
+    'v.fromBankAccount': 'From Bank Account', 'v.toCashAccount': 'To Cash Account',
+    'v.fromCashAccount': 'From Cash Account', 'v.toBankAccount': 'To Bank Account',
+    'v.bankTransfer': 'Bank Transfer', 'v.cashWithdrawal': 'Cash Withdrawal', 'v.cashDeposit': 'Cash Deposit',
+    'v.advancePayment': 'Advance Payment', 'v.advanceAccount': 'Advance Account',
+    'v.paidToWorkerContractor': 'Paid To (worker/contractor)', 'v.paidFrom': 'Paid From', 'v.postedTo': 'Posted To',
+    'v.noteOptional': 'Note (optional)', 'v.amount': 'Amount',
+    'v.whatForTransaction': 'What is this transaction for?', 'v.attachBillOptional': 'Attach Bill (optional)',
+    'v.chooseBoth': 'Choose both', 'v.and': 'and', 'v.transactions': 'Transactions',
 
 
 
@@ -3777,6 +3787,16 @@ export const messages: Record<Locale, Record<string, string>> = {
     'y.hot': 'مقبول',
     'v.paid': 'ادا شدہ', 'v.unpaid': 'واجب الادا', 'v.pending': 'زیرِ التوا', 'v.late': 'تاخیر',
     'v.editingThe': 'ترمیم', 'v.showingFirst60': 'پہلے 60 دکھائے جا رہے ہیں — کوئی اور لفظ تلاش کریں۔',
+    'v.incomeAccount': 'آمدنی کا اکاؤنٹ', 'v.receiveInto': 'کس میں وصول کریں', 'v.receivedFromOptional': 'کس سے وصول کیا (اختیاری)',
+    'v.fromAccount': 'اکاؤنٹ سے', 'v.toAccount': 'اکاؤنٹ میں',
+    'v.fromBankAccount': 'بینک اکاؤنٹ سے', 'v.toCashAccount': 'کیش اکاؤنٹ میں',
+    'v.fromCashAccount': 'کیش اکاؤنٹ سے', 'v.toBankAccount': 'بینک اکاؤنٹ میں',
+    'v.bankTransfer': 'بینک ٹرانسفر', 'v.cashWithdrawal': 'کیش نکلوانا', 'v.cashDeposit': 'کیش جمع کروانا',
+    'v.advancePayment': 'ایڈوانس ادائیگی', 'v.advanceAccount': 'ایڈوانس اکاؤنٹ',
+    'v.paidToWorkerContractor': 'کس کو ادا کیا (ورکر/ٹھیکیدار)', 'v.paidFrom': 'کہاں سے ادا کیا', 'v.postedTo': 'کس میں پوسٹ کیا',
+    'v.noteOptional': 'نوٹ (اختیاری)', 'v.amount': 'رقم',
+    'v.whatForTransaction': 'یہ لین دین کس کے لیے ہے؟', 'v.attachBillOptional': 'بل منسلک کریں (اختیاری)',
+    'v.chooseBoth': 'دونوں منتخب کریں', 'v.and': 'اور', 'v.transactions': 'لین دین',
 
 
 
