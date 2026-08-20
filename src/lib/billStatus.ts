@@ -14,7 +14,7 @@ export function billBadge(bill: { amount_pkr: number; discount_amount: number | 
     const days = Math.floor((Date.now() - new Date(bill.due_date + 'T00:00:00').getTime()) / 86400000)
     if (days > 0) return { text: `OVERDUE BY ${days} DAY${days > 1 ? 'S' : ''}`, tone: 'red' }
   }
-  return { text: 'PENDING', tone: 'gray' }
+  return { text: 'PENDING', tone: 'red' }
 }
 
 export const billBadgeClass: Record<BillBadgeTone, string> = {

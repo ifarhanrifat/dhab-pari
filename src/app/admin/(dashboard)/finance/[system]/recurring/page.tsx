@@ -150,9 +150,19 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
     if (form.schedule_type === 'donation' && !form.donor_name.trim()) { toast.error('Enter donor name'); return }
     if (form.schedule_type === 'expense' && (!form.from_account_id || !form.to_account_id)) { toast.error('Select both accounts'); return }
     if (form.schedule_type === 'bill') {
-      const { data: existing } = await supabase.from('recurring_schedules').select('id')
-        .eq('consumer_id', form.consumer_id).eq('schedule_type', 'bill').eq('is_active', true).maybeSingle()
-      if (existing) { toast.error('This consumer already has an active recurring bill — edit or pause that one instead of creating a second'); return }
+      // Not filtered to is_active=true — a paused schedule must block a new
+      // one too, or "Save" here creates a second row instead of the admin
+      // reactivating the existing (paused) one. That's exactly how a real
+      // duplicate got created: one permanently-paused orphan plus a fresh
+      // active row, same consumer, same amount, same next_run_date.
+      const { data: existing } = await supabase.from('recurring_schedules').select('id, is_active')
+        .eq('consumer_id', form.consumer_id).eq('schedule_type', 'bill').maybeSingle()
+      if (existing) {
+        toast.error(existing.is_active
+          ? 'This consumer already has an active recurring bill — edit or pause that one instead of creating a second'
+          : 'This consumer already has a recurring bill, just paused — resume or edit that one instead of creating a second')
+        return
+      }
     }
 
     setSaving(true)

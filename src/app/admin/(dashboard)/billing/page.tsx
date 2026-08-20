@@ -47,6 +47,7 @@ interface RecurringSchedule {
   next_run_date: string
   is_active: boolean
   particular: string | null
+  created_at: string
 }
 
 interface Bill {
@@ -176,6 +177,7 @@ function BillingPageInner() {
   })
   const [savingEdit, setSavingEdit] = useState(false)
   const [disconnectTarget, setDisconnectTarget] = useState<Consumer | null>(null)
+  const [confirmToggleActive, setConfirmToggleActive] = useState<Consumer | null>(null)
   const [disconnectPreview, setDisconnectPreview] = useState<{ deposit_on_hand: number; pending_balance: number; applied: number; refund: number } | null>(null)
   const [disconnecting, setDisconnecting] = useState(false)
   const [billingSetupTarget, setBillingSetupTarget] = useState<{ consumer_id: string; name: string; scheduleId: string | null } | null>(null)
@@ -210,7 +212,12 @@ function BillingPageInner() {
       supabase.from('bills').select('*').order('year', { ascending: false }).order('month', { ascending: false }),
       supabase.from('sectors').select('id, name').order('display_order').order('name'),
       supabase.from('audit_log').select('old_data, record_data').eq('table_name', 'consumers').eq('action', 'update').gte('performed_at', monthStart),
-      supabase.from('recurring_schedules').select('id, consumer_id, amount_pkr, discount_amount, frequency, next_run_date, is_active, particular').eq('schedule_type', 'bill').eq('is_active', true),
+      // Not filtered to is_active=true — a paused schedule must still be found
+      // here so "Set Up Recurring" reuses/reactivates it instead of inserting
+      // a second row (exactly the bug that produced a real duplicate: one
+      // permanently-paused orphan plus a fresh active one, same consumer,
+      // same amount, same next_run_date).
+      supabase.from('recurring_schedules').select('id, consumer_id, amount_pkr, discount_amount, frequency, next_run_date, is_active, particular, created_at').eq('schedule_type', 'bill'),
       supabase.from('complaints').select('id, complaint_number, status, complaint_text, consumer_id').eq('system', 'water_supply').not('consumer_id', 'is', null).neq('status', 'verified'),
       supabase.from('connection_requests').select('consumer_id').eq('status', 'processing').not('consumer_id', 'is', null),
       // Not-yet-converted requests too, so a duplicate can be caught before it
@@ -233,9 +240,19 @@ function BillingPageInner() {
     setReceiptsByBill(receiptMap)
     setLockRule(lockRes)
     setSectorOptions(secRes.data ?? [])
-    setRecurringSchedules(Object.fromEntries(
-      (recurRes.data ?? []).filter((r) => r.consumer_id).map((r) => [r.consumer_id as string, r as RecurringSchedule])
-    ))
+    // One row per consumer — prefer the active one if there's ever more than
+    // one for the same consumer (shouldn't happen now that the query above
+    // and openRecurringSetup/saveBillingSetup always reuse an existing row,
+    // but this is a harmless tie-break if stale duplicate data still exists).
+    const recurByConsumer: Record<string, RecurringSchedule> = {}
+    for (const r of recurRes.data ?? []) {
+      if (!r.consumer_id) continue
+      const existing = recurByConsumer[r.consumer_id]
+      if (!existing || (r.is_active && !existing.is_active) || (r.is_active === existing.is_active && r.created_at > existing.created_at)) {
+        recurByConsumer[r.consumer_id] = r as RecurringSchedule
+      }
+    }
+    setRecurringSchedules(recurByConsumer)
     setComplaintsByConsumer(Object.fromEntries(
       (complaintsRes.data ?? []).map((c) => [c.consumer_id as string, c as LinkedComplaint])
     ))
@@ -334,7 +351,7 @@ function BillingPageInner() {
   const consumerTier = (c: Consumer): number => {
     if (inProcessConsumerIds.has(c.consumer_id)) return 0
     if (complaintsByConsumer[c.consumer_id]) return 1
-    if (!recurringSchedules[c.consumer_id]) return 2
+    if (!recurringSchedules[c.consumer_id]?.is_active) return 2
     const cb = billsByConsumer[c.consumer_id] ?? []
     if (cb.some((b) => b.status === 'unpaid' || b.status === 'pending' || b.status === 'late')) return 3
     if (cb.some((b) => b.status === 'partial')) return 4
@@ -807,9 +824,16 @@ function BillingPageInner() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-sans text-[11px] font-bold text-dp-secondary truncate max-w-[140px]">{c.consumer_id}</span>
                           {c.sector && <span className="text-[10px] text-dp-on-surface-variant font-sans">{c.sector}</span>}
-                          {recurringSchedules[c.consumer_id] ? (
+                          {recurringSchedules[c.consumer_id]?.is_active ? (
                             <span className="flex items-center gap-0.5 text-[9.5px] font-bold uppercase tracking-wide text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full" title={t('billing.tip.hasRecurring')}>
                               <Repeat size={9} /> {t('billing.recurring')}
+                            </span>
+                          ) : recurringSchedules[c.consumer_id] ? (
+                            // Has a schedule row, just paused — a distinct state from
+                            // "never set up", so this is the account the accountant
+                            // actually needs to go resume, not configure from scratch.
+                            <span className="flex items-center gap-0.5 text-[9.5px] font-bold uppercase tracking-wide text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-full" title={t('billing.tip.recurringPaused')}>
+                              <PauseCircle size={9} /> {t('billing.paused')}
                             </span>
                           ) : (
                             <span className="text-[9.5px] font-bold uppercase tracking-wide text-dp-on-surface-variant bg-dp-surface-container-low px-1.5 py-0.5 rounded-full" title={t('billing.tip.noRecurring')}>
@@ -942,14 +966,14 @@ function BillingPageInner() {
                   </button>
                 )}
                 {selectedConsumer.status !== 'disconnected' && (
-                  <button onClick={() => toggleConsumerActive(selectedConsumer)} className="border border-dp-outline-variant bg-white rounded-[9px] px-2.5 py-[7px] cursor-pointer">
+                  <button onClick={() => setConfirmToggleActive(selectedConsumer)} className="border border-dp-outline-variant bg-white rounded-[9px] px-2.5 py-[7px] cursor-pointer">
                     <span className="font-sans text-[11px] font-semibold text-dp-on-surface-variant whitespace-nowrap">{selectedConsumer.status === 'active' ? t('billing.deactivateAction') : t('billing.activateAction')}</span>
                   </button>
                 )}
                 <button onClick={() => openEditConsumer(selectedConsumer)} className="border border-dp-outline-variant bg-white rounded-[9px] px-2.5 py-[7px] cursor-pointer">
                   <span className="font-sans text-[11px] font-semibold text-dp-on-surface-variant whitespace-nowrap">{t('action.edit')}</span>
                 </button>
-                {recurringSchedules[selectedConsumer.consumer_id] ? (
+                {recurringSchedules[selectedConsumer.consumer_id]?.is_active ? (
                   <button
                     onClick={() => openRecurringSetup(selectedConsumer)}
                     title={t('billing.tip.editRecurring')}
@@ -957,6 +981,20 @@ function BillingPageInner() {
                   >
                     <PauseCircle size={12} className="text-gray-500" />
                     <span className="font-sans text-[11px] font-semibold text-gray-600 whitespace-nowrap">{t('billing.recurringBilling')}</span>
+                  </button>
+                ) : recurringSchedules[selectedConsumer.consumer_id] ? (
+                  // Has a schedule row, just paused — its own amber state so it
+                  // reads as "resume this" rather than "never set up" (the bug
+                  // that produced a real duplicate row: this state used to be
+                  // indistinguishable from "no schedule", so Save created a
+                  // second one instead of reactivating the paused original).
+                  <button
+                    onClick={() => openRecurringSetup(selectedConsumer)}
+                    title={t('billing.tip.recurringPaused')}
+                    className="flex items-center gap-1.5 bg-amber-50 border-none rounded-[9px] px-2.5 py-[7px] cursor-pointer hover:bg-amber-100 transition-all"
+                  >
+                    <PauseCircle size={12} className="text-amber-700" />
+                    <span className="font-sans text-[11px] font-semibold text-amber-800 whitespace-nowrap">{t('billing.recurringBillingPaused')}</span>
                   </button>
                 ) : (
                   <button
@@ -1119,6 +1157,22 @@ function BillingPageInner() {
         message="Are you sure you want to delete this bill? This cannot be undone."
         onConfirm={deleteBill}
         onCancel={() => setConfirmDeleteBill(null)}
+      />
+
+      {/* Deactivate/Activate confirm — this used to fire immediately on
+          click, with no chance to back out of taking a consumer out of
+          active billing. */}
+      <ConfirmDialog
+        open={!!confirmToggleActive}
+        title={confirmToggleActive?.status === 'active' ? t('billing.confirmDeactivateTitle') : t('billing.confirmActivateTitle')}
+        message={
+          confirmToggleActive
+            ? (confirmToggleActive.status === 'active' ? t('billing.confirmDeactivateMsg') : t('billing.confirmActivateMsg')).replace('{name}', confirmToggleActive.name)
+            : ''
+        }
+        confirmLabel={confirmToggleActive?.status === 'active' ? t('billing.deactivateAction') : t('billing.activateAction')}
+        onConfirm={() => { if (confirmToggleActive) toggleConsumerActive(confirmToggleActive); setConfirmToggleActive(null) }}
+        onCancel={() => setConfirmToggleActive(null)}
       />
 
       {/* Receive Payment modal — was an inline panel that expanded downward
