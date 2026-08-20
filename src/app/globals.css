@@ -429,6 +429,15 @@ html[lang='ur'] .font-mono {
   line-height: 1.4;
 }
 
+/* Small self-contained icon+label rows (a quick-link button, a section
+   header's icon+title) — under Urdu the icon reads more naturally after its
+   own label than before it. This only reverses the row's own two children,
+   not where the row itself sits in whatever larger grid/flex it's part of —
+   opt in per-row with .rtl-icon-row, nothing else moves. */
+html[lang='ur'] .rtl-icon-row {
+  flex-direction: row-reverse;
+}
+
 /* Page and section headings set with Tailwind's arbitrary text-[Npx]
    utilities render very large in Nastaliq — body's own 0.92em above never
    reaches them, because an arbitrary utility sets an absolute font-size

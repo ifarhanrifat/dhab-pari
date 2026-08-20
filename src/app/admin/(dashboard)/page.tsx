@@ -293,7 +293,7 @@ function QuickLinks({ system }: { system: 'water_supply' | 'donors_projects' }) 
         <Link
           key={l.href}
           href={l.href}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface-variant hover:text-dp-primary hover:border-dp-primary/30 hover:shadow-sm transition-all"
+          className="rtl-icon-row flex items-center gap-1.5 px-3 py-1.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface-variant hover:text-dp-primary hover:border-dp-primary/30 hover:shadow-sm transition-all"
         >
           {l.icon} {l.label}
         </Link>
@@ -307,7 +307,7 @@ function SystemSection({ title, icon, accentClass, children }: {
 }) {
   return (
     <section className="mb-10">
-      <h2 className={`font-heading text-[20px] font-bold mb-4 flex items-center gap-2 ${accentClass}`}>
+      <h2 className={`rtl-icon-row font-heading text-[20px] font-bold mb-4 flex items-center gap-2 ${accentClass}`}>
         {icon} {title}
       </h2>
       {children}

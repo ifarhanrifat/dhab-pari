@@ -22,8 +22,14 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
  * raw key in front of a villager.
  */
 export function T({ k, fallback }: { k: string; fallback?: string }) {
-  const { t } = useLocale()
-  return <>{t(k, fallback)}</>
+  const { t, isUrdu } = useLocale()
+  // dir on the span itself, not a wrapping row — this flips the text's own
+  // reading order/alignment without moving it or its siblings within
+  // whatever flex/grid row it sits in (an icon next to a <T> label must
+  // stay exactly where it is; only the label's own text should read
+  // right-to-left under Urdu). Per explicit instruction: flip the data,
+  // not the screen.
+  return <span dir={isUrdu ? 'rtl' : undefined}>{t(k, fallback)}</span>
 }
 
 /**

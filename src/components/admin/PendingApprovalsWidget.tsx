@@ -18,7 +18,7 @@ function fmt(n: number) {
 }
 
 export function PendingApprovalsWidget() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const [requests, setRequests] = useState<Request[]>([])
   const [waitingOn, setWaitingOn] = useState<Record<string, string[]>>({})
@@ -65,7 +65,7 @@ export function PendingApprovalsWidget() {
         <span className="flex items-center gap-2 font-sans text-[14px] font-bold text-amber-900">
           <ShieldCheck size={16} /> Awaiting Approval ({requests.length})
         </span>
-        <Link href="/admin/approvals" className="font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline">{t('y.openApprovals')}</Link>
+        <Link href="/admin/approvals" dir={isUrdu ? 'rtl' : undefined} className="font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline">{t('y.openApprovals')}</Link>
       </div>
       <div>
         {requests.map((r) => {
@@ -81,9 +81,9 @@ export function PendingApprovalsWidget() {
               <button
                 disabled={resendingId === r.id || waiting.length === 0}
                 onClick={() => resend(r.id)}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-40"
+                className="rtl-icon-row shrink-0 flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-40"
               >
-                <Send size={12} /> {t('y.resend')}
+                <Send size={12} /> <span dir={isUrdu ? 'rtl' : undefined}>{t('y.resend')}</span>
               </button>
             </div>
           )
