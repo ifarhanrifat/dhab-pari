@@ -1153,8 +1153,9 @@ function BillingPageInner() {
       {/* Delete bill confirm */}
       <ConfirmDialog
         open={!!confirmDeleteBill}
-        title="Delete Bill"
-        message="Are you sure you want to delete this bill? This cannot be undone."
+        title={t('billing.confirmDeleteBillTitle')}
+        message={t('billing.confirmDeleteBillMsg')}
+        confirmLabel={t('action.delete')}
         onConfirm={deleteBill}
         onCancel={() => setConfirmDeleteBill(null)}
       />
@@ -1384,7 +1385,7 @@ function BillingPageInner() {
 
       {/* Permanent Disconnection */}
       {disconnectTarget && (
-        <Modal title="Permanent Disconnection" onClose={() => { setDisconnectTarget(null); setDisconnectPreview(null) }}>
+        <Modal title={t('billing.permanentDisconnection')} onClose={() => { setDisconnectTarget(null); setDisconnectPreview(null) }}>
           <div className="space-y-4">
             <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3">
               <p className="font-sans text-[14px] font-bold text-dp-on-surface">{disconnectTarget.name}</p>
@@ -1400,18 +1401,18 @@ function BillingPageInner() {
                   <div className="flex justify-between text-dp-on-surface-variant"><span>{t('billing.appliedToPending')}</span><span>− Rs. {disconnectPreview.applied.toLocaleString()}</span></div>
                 )}
                 <div className="flex justify-between border-t border-dp-outline-variant pt-2 mt-1 font-bold text-[14.5px]">
-                  <span>{disconnectPreview.refund > 0 ? 'Refund due to consumer' : 'Still owed by consumer'}</span>
+                  <span>{disconnectPreview.refund > 0 ? t('billing.refundDue') : t('billing.stillOwed')}</span>
                   <span className={disconnectPreview.refund > 0 ? 'text-emerald-700' : 'text-dp-error'}>
                     Rs. {(disconnectPreview.refund > 0 ? disconnectPreview.refund : Math.max(disconnectPreview.pending_balance - disconnectPreview.applied, 0)).toLocaleString()}
                   </span>
                 </div>
               </div>
             )}
-            <p className="font-sans text-[12px] text-dp-on-surface-variant bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-              This cannot be undone. Any recurring bill for this consumer will stop, and their status becomes Disconnected.
+            <p dir={isUrdu ? 'rtl' : undefined} className="font-sans text-[12px] text-dp-on-surface-variant bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {t('billing.disconnectCannotUndo')}
             </p>
             <button disabled={disconnecting || !disconnectPreview} onClick={confirmDisconnect} className="w-full bg-dp-error text-white py-3 rounded-lg font-sans font-semibold hover:opacity-90 transition-all cursor-pointer disabled:opacity-50">
-              {disconnecting ? 'Processing...' : 'Confirm Permanent Disconnection'}
+              {disconnecting ? t('billing.processing') : t('billing.confirmPermanentDisconnection')}
             </button>
           </div>
         </Modal>

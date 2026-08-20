@@ -13,7 +13,7 @@ interface ConfirmDialogProps {
 }
 
 export function ConfirmDialog({ open, title, message, confirmLabel = 'Delete', onConfirm, onCancel }: ConfirmDialogProps) {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   if (!open) return null
 
   return (
@@ -23,9 +23,9 @@ export function ConfirmDialog({ open, title, message, confirmLabel = 'Delete', o
           <div className="w-10 h-10 rounded-full bg-dp-error-container text-dp-error flex items-center justify-center shrink-0">
             <AlertTriangle size={20} />
           </div>
-          <h2 className="font-sans text-[18px] font-bold text-dp-on-surface">{title}</h2>
+          <h2 dir={isUrdu ? 'rtl' : undefined} className="font-sans text-[18px] font-bold text-dp-on-surface">{title}</h2>
         </div>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mb-6">{message}</p>
+        <p dir={isUrdu ? 'rtl' : undefined} className="font-sans text-[14px] text-dp-on-surface-variant mb-6">{message}</p>
         <div className="flex gap-3">
           <button
             onClick={onCancel}
