@@ -229,12 +229,12 @@ export default function AdminLoginPage() {
               className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold text-[16px] hover:bg-dp-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isLocked
-                ? `Locked — wait ${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`
+                ? t('p.lockedWait', 'Locked — wait {time}').replace('{time}', `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`)
                 : isThrottled
-                ? `Please wait ${delayLeft}s...`
+                ? t('a.pleaseWaitSeconds', 'Please wait {n}s...').replace('{n}', String(delayLeft))
                 : loading
-                ? 'Signing in...'
-                : 'Sign In'}
+                ? t('a.signingIn', 'Signing in...')
+                : t('a.signIn', 'Sign In')}
             </button>
           </form>
 

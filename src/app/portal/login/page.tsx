@@ -100,7 +100,7 @@ export default function PortalLoginPage() {
             <input id="username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} required
               autoComplete="username" disabled={isLocked || loading}
               className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[16px] font-sans disabled:opacity-50"
-              placeholder="Your username" />
+              placeholder={t('p.yourUsername', 'Your username')} />
           </div>
           <div>
             <label htmlFor="password" className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('w.password')}</label>
@@ -124,9 +124,9 @@ export default function PortalLoginPage() {
 
           <button type="submit" disabled={isLocked || isThrottled || loading}
             className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold text-[16px] hover:bg-dp-primary transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-            {isLocked ? `Locked — wait ${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`
-              : isThrottled ? `Wait ${delayLeft}s...`
-              : loading ? 'Logging in...' : 'Log In'}
+            {isLocked ? t('p.lockedWait', 'Locked — wait {time}').replace('{time}', `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`)
+              : isThrottled ? t('p.waitSeconds', 'Wait {n}s...').replace('{n}', String(delayLeft))
+              : loading ? t('p.loggingIn', 'Logging in...') : t('p.logIn', 'Log In')}
           </button>
         </form>
 

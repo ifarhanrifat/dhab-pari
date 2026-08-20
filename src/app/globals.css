@@ -457,22 +457,28 @@ html[lang='ur'] .text-\[48px\] { font-size: 39px !important; }
 /* The section-title accent bar (::before) is always first in the DOM, so
    it always rendered before the heading text — fine left-to-right,
    backwards for Urdu, where the accent belongs on the reading "start"
-   side (the right), trailing the text rather than leading it. Row-reverse
-   alone puts it there without moving the section itself; any icon that
-   sits before the heading (Briefcase, Trophy, ShieldCheck, ...) lands
-   between the bar and the text, still clearly grouped with the heading. */
+   side (the right), trailing the text rather than leading it.
+
+   direction: rtl alone does that: it moves the flex main-start edge to
+   the right, so the first item (the bar) lands there and the text
+   extends leftward from it — and it also gives the text itself real RTL
+   paragraph context (a heading that's a single plain Urdu text node,
+   e.g. the donate page's h1, was otherwise sitting in an ambient LTR
+   box with no RTL context of its own: the characters read right-to-left
+   within themselves regardless, but the box's own line-wrapping behaved
+   like an LTR paragraph that happens to contain RTL text, which showed
+   up as a genuinely broken-looking wrap on a phone width).
+
+   flex-direction: row-reverse does NOT belong here too — direction:rtl
+   already reverses the main axis on its own; adding row-reverse on top
+   reverses it a second time, right back to the original (wrong) order.
+   Caught this by screenshotting the actual rendered bar position on the
+   gallery page rather than trusting the flex math a second time: with
+   both properties set it renders bar-left-text-right, backwards: this
+   comment previously reasoned through the CSS by hand and got it wrong.
+   direction: rtl alone is confirmed correct — bar right, text trailing
+   left from it. */
 html[lang='ur'] .section-title {
-  flex-direction: row-reverse;
   text-align: right;
-  /* Row-reverse alone repositions the accent bar correctly, but a heading
-     that's a single plain text node (no icon, no separate span — just
-     ".section-title" on an <h1>/<h2> with Urdu text inside) is otherwise
-     sitting in an ambient LTR box with no RTL context of its own: the
-     Urdu characters read right-to-left within themselves regardless, but
-     the box's own wrapping/line-breaking behaves like an LTR paragraph
-     that happens to contain RTL text, not a genuine RTL paragraph — which
-     showed up as an odd, wrong-looking wrap on narrow (mobile) widths.
-     direction: rtl gives the text proper RTL paragraph context, not just
-     row-reversed flex order. */
   direction: rtl;
 }
