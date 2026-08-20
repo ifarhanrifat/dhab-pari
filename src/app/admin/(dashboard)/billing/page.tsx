@@ -889,10 +889,18 @@ function BillingPageInner() {
         {/* Consumer detail panel */}
         {selectedConsumer ? (
           <div ref={detailPanelRef} className="flex-1 bg-white rounded-[18px] shadow-[0_2px_10px_rgba(20,50,35,0.06)] overflow-hidden flex flex-col min-h-0">
-            {/* Consumer header — icons on the left, info right-aligned on the
-                right (a deliberate reversal from plain-LTR default, matching
-                the reference design's own card exactly, not a language flip). */}
-            <div className="px-4 pt-4 pb-3 border-b border-dp-outline-variant/60">
+            {/* Consumer info + balance + actions, as one themed block — a soft
+                brand-green wash instead of plain white, same family of color
+                as the site's own signature panels (e.g. the homepage's Cash
+                Position card), with a top accent bar to give it a designed
+                edge rather than just a tinted rectangle. Separated from the
+                Bills History list below by its own border/shadow. */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-dp-secondary-container/30 via-white to-dp-primary-container/[0.06] border-b border-dp-outline-variant/60 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
+              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-dp-secondary to-dp-primary" />
+              {/* Consumer header — icons on the left, info right-aligned on the
+                  right (a deliberate reversal from plain-LTR default, matching
+                  the reference design's own card exactly, not a language flip). */}
+              <div className="px-4 pt-5 pb-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-1.5 shrink-0">
                   {/* No mobile close(X) here anymore — the back arrow in the
@@ -1033,11 +1041,15 @@ function BillingPageInner() {
                     <span className="font-sans text-[11px] font-semibold text-dp-secondary whitespace-nowrap">{t('billing.recurringBilling')}</span>
                   </button>
                 )}
+              </div>
             </div>
 
-            {/* Bills list */}
-            <div className="flex-1 overflow-y-auto min-h-0 p-4">
-              <div className="flex items-center justify-between mb-1">
+            {/* Bills list — the "Bills History" header + Generate Bill link
+                stay fixed above the list now; only the bill cards below them
+                scroll, so both are always reachable without hunting for
+                them after scrolling down. */}
+            <div className="flex-1 min-h-0 flex flex-col">
+              <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
                 <Link
                   href={`/admin/finance/water_supply?action=generate_bill&consumer=${selectedConsumer.consumer_id}`}
                   className="flex items-center gap-1.5 text-dp-secondary font-sans text-[12.5px] font-medium hover:underline cursor-pointer"
@@ -1047,11 +1059,12 @@ function BillingPageInner() {
                 <h3 className="font-sans text-[16px] font-semibold text-dp-on-surface">{t('billing.billsHistory')}</h3>
               </div>
 
+              <div className="flex-1 overflow-y-auto min-h-0 px-4 pb-4">
               {selectedBills.length === 0 && (
                 <div className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('billing.noBills')}</div>
               )}
 
-              <div className="mt-3 flex flex-col gap-2.5">
+              <div className="mt-1 flex flex-col gap-2.5">
               {selectedBills.map((bill) => {
                 const rem = outstanding(bill)
                 // Why this bill cannot be touched, if it cannot. Cash received
@@ -1165,6 +1178,7 @@ function BillingPageInner() {
                   </div>
                 )
               })}
+              </div>
               </div>
             </div>
           </div>
