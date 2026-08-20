@@ -36,7 +36,7 @@ function deadlineText(deadline: string, status: string) {
 const emptyForm = { complainant_name: '', phone: '', sector: '', complaint_text: '', consumer_id: '' }
 
 export default function ComplaintsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const access = useSystemAccess()
   const [system, setSystem] = useState<SystemTab>('water_supply')
@@ -105,7 +105,7 @@ export default function ComplaintsPage() {
   }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
@@ -244,6 +244,6 @@ export default function ComplaintsPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

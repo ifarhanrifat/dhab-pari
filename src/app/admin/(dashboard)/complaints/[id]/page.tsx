@@ -49,7 +49,7 @@ function deadlineText(deadline: string, status: string) {
 }
 
 export default function ComplaintDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { id } = usePromise(params)
   const supabase = createClient()
 
@@ -248,7 +248,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
   const dl = deadlineText(complaint.deadline_at, complaint.status)
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <Link href="/admin/complaints" className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[13px] font-semibold hover:underline mb-4">
         <ArrowLeft size={14} /> {t('cp.back')}
       </Link>
@@ -495,7 +495,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
           </button>
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
