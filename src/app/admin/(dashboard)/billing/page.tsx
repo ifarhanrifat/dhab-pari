@@ -1018,7 +1018,7 @@ function BillingPageInner() {
                     className="flex-1 flex items-center justify-center gap-1 bg-gray-100 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-gray-200 transition-all"
                   >
                     <PauseCircle size={12} className="text-gray-500 shrink-0" />
-                    <span className="font-sans text-[10px] font-semibold text-gray-600 text-center leading-tight">{t('billing.recurringBilling')}</span>
+                    <span className="font-sans text-[9px] font-semibold text-gray-600 text-center leading-tight whitespace-nowrap">{t('billing.recurringBilling')}</span>
                   </button>
                 ) : recurringSchedules[selectedConsumer.consumer_id] ? (
                   // Has a schedule row, just paused — its own amber state so it
@@ -1032,7 +1032,7 @@ function BillingPageInner() {
                     className="flex-1 flex items-center justify-center gap-1 bg-amber-50 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-amber-100 transition-all"
                   >
                     <PauseCircle size={12} className="text-amber-700 shrink-0" />
-                    <span className="font-sans text-[10px] font-semibold text-amber-800 text-center leading-tight">{t('billing.recurringBillingPaused')}</span>
+                    <span className="font-sans text-[9px] font-semibold text-amber-800 text-center leading-tight whitespace-nowrap">{t('billing.recurringBillingPaused')}</span>
                   </button>
                 ) : (
                   <button
@@ -1040,7 +1040,7 @@ function BillingPageInner() {
                     className="flex-1 flex items-center justify-center gap-1 bg-emerald-50 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-emerald-100 transition-all"
                   >
                     <Repeat size={12} className="text-dp-secondary shrink-0" />
-                    <span className="font-sans text-[10px] font-semibold text-dp-secondary text-center leading-tight">{t('billing.recurringBilling')}</span>
+                    <span className="font-sans text-[9px] font-semibold text-dp-secondary text-center leading-tight whitespace-nowrap">{t('billing.recurringBilling')}</span>
                   </button>
                 )}
               </div>
