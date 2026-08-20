@@ -793,8 +793,8 @@ function BillingPageInner() {
                             <AlertCircle size={9} /> {complaintsByConsumer[c.consumer_id].complaint_number}
                           </span>
                         )}
-                        <div className="flex items-center gap-2">
-                          <span className="font-sans text-[11px] font-bold text-dp-secondary">{c.consumer_id}</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-sans text-[11px] font-bold text-dp-secondary truncate max-w-[140px]">{c.consumer_id}</span>
                           {c.sector && <span className="text-[10px] text-dp-on-surface-variant font-sans">{c.sector}</span>}
                           {recurringSchedules[c.consumer_id] ? (
                             <span className="flex items-center gap-0.5 text-[9.5px] font-bold uppercase tracking-wide text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full" title={t('billing.tip.hasRecurring')}>
@@ -838,9 +838,9 @@ function BillingPageInner() {
             {/* Consumer header */}
             <div className="bg-dp-surface-container-low px-6 py-4 border-b border-dp-outline-variant">
               <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-sans text-[12px] font-bold text-dp-secondary bg-dp-primary-container px-2 py-0.5 rounded">{selectedConsumer.consumer_id}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span className="font-sans text-[12px] font-bold text-dp-secondary bg-dp-primary-container px-2 py-0.5 rounded truncate max-w-[180px]">{selectedConsumer.consumer_id}</span>
                     {selectedConsumer.sector && (
                       <span className="font-sans text-[12px] text-dp-on-surface-variant flex items-center gap-1"><MapPin size={12} />{selectedConsumer.sector}</span>
                     )}
@@ -851,7 +851,7 @@ function BillingPageInner() {
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800"><Power size={10} /> {t('billing.inactive')}</span>
                     )}
                   </div>
-                  <h2 className="font-heading text-[22px] font-bold text-dp-primary">{selectedConsumer.name}</h2>
+                  <h2 className="font-heading text-[22px] font-bold text-dp-primary truncate">{selectedConsumer.name}</h2>
                   <div className="flex flex-wrap gap-3 mt-1">
                     {selectedConsumer.mobile && (
                       <span className="font-sans text-[13px] text-dp-on-surface-variant flex items-center gap-1"><Phone size={13} />{selectedConsumer.mobile}</span>
