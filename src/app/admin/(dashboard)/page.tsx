@@ -153,7 +153,14 @@ export default async function AdminDashboardPage() {
 
   return (
     <>
-      <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      {/* rtl-header-row swaps the welcome block and the clock badge under
+          Urdu, per explicit instruction — the welcome heading reads as
+          the primary content and belongs at the reading-start (right)
+          side, with the clock as secondary metadata on the left. Its own
+          class (not .rtl-icon-row) because this row is flex-col on mobile
+          — a plain row-reverse rule with no breakpoint would force it into
+          a cramped side-by-side row there too. */}
+      <header className="rtl-header-row mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="rtl-text font-heading text-[24px] md:text-[32px] font-bold leading-[32px] md:leading-[40px] text-dp-primary">
             <T k="dash.welcomeBack" fallback="Welcome back," /> {displayName}

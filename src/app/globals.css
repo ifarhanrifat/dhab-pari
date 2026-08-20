@@ -457,6 +457,15 @@ html[lang='ur'] .rtl-justify-end {
   justify-content: flex-end;
 }
 
+/* Same swap as .rtl-icon-row, but only once the row actually becomes a row
+   (md: and up) — this one starts as flex-col on mobile, so an unscoped
+   row-reverse would force it side-by-side there too instead of stacking. */
+@media (min-width: 768px) {
+  html[lang='ur'] .rtl-header-row {
+    flex-direction: row-reverse;
+  }
+}
+
 /* Page and section headings set with Tailwind's arbitrary text-[Npx]
    utilities render very large in Nastaliq — body's own 0.92em above never
    reaches them, because an arbitrary utility sets an absolute font-size
