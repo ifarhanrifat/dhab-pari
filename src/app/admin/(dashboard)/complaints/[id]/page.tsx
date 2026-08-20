@@ -312,8 +312,8 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
               </>
             )}
             {complaint.status === 'verified' && complaint.phone && (
-              <button onClick={notifyComplainantViaWhatsApp} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#25d366] text-white rounded-lg font-sans text-[12.5px] font-semibold hover:opacity-90 transition-all cursor-pointer">
-                <MessageCircle size={13} /> {t('cp.notify')}
+              <button onClick={notifyComplainantViaWhatsApp} className="flex items-center justify-center p-2 bg-[#25d366] text-white rounded-lg hover:opacity-90 transition-all cursor-pointer" title={t('cp.notify')} aria-label={t('cp.notify')}>
+                <MessageCircle size={16} />
               </button>
             )}
           </div>

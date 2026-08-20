@@ -13,6 +13,8 @@ import {
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { ReceiptModal } from '@/components/admin/ReceiptModal'
+import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { billBadge, billBadgeClass } from '@/lib/billStatus'
 import { renderTemplate } from '@/lib/messageTemplates'
 import { findDuplicate, type DuplicateCandidate } from '@/lib/duplicateCheck'
@@ -76,6 +78,12 @@ interface PaymentForm {
   amount: number
   method: string
   description: string
+  // Pre-filled from the consumer's saved WhatsApp number (or mobile, as a
+  // fallback) but editable right here — the accountant verifies/corrects it
+  // in the moment of receiving cash, which is also when a wrong or missing
+  // number actually gets noticed and fixed.
+  whatsapp: string
+  sendReceipt: boolean
 }
 
 const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -151,6 +159,11 @@ function BillingPageInner() {
   const [deactivatedThisMonth, setDeactivatedThisMonth] = useState(0)
   const [recurringSchedules, setRecurringSchedules] = useState<Record<string, RecurringSchedule>>({})
   const [paymentForm, setPaymentForm] = useState<PaymentForm | null>(null)
+  // Set right after a successful recordPayment() when "send receipt now" was
+  // checked — opens the same ReceiptModal used everywhere else, pre-loaded with
+  // the WhatsApp number the accountant just confirmed in the payment popup.
+  const [viewPaymentReceipt, setViewPaymentReceipt] = useState<ReceiptData | null>(null)
+  const [paymentReceiptPhone, setPaymentReceiptPhone] = useState<string | null>(null)
   const [showAddConsumer, setShowAddConsumer] = useState(false)
   const [confirmDeleteBill, setConfirmDeleteBill] = useState<string | null>(null)
   const [editConsumerTarget, setEditConsumerTarget] = useState<Consumer | null>(null)
@@ -368,13 +381,13 @@ function BillingPageInner() {
     const entered = paymentForm.amount
     if (entered <= 0) { toast.error(t('billing.err.invalidAmount')); return }
 
-    const { error } = await supabase.from('payments').insert({
+    const { data: inserted, error } = await supabase.from('payments').insert({
       bill_id: paymentForm.billId,
       consumer_id: bill.consumer_id,
       amount_pkr: entered,
       method: paymentForm.method,
       note: paymentForm.description || null,
-    })
+    }).select('id, receipt_no').single()
 
     if (error) { toast.error(friendlyError(error)); return }
     const remaining = outstanding(bill)
@@ -384,6 +397,37 @@ function BillingPageInner() {
       const isFull = (bill.paid_amount ?? 0) + entered >= netPayable(bill)
       toast.success(isFull ? 'Payment recorded — bill marked as paid' : `Partial payment of Rs. ${entered.toLocaleString()} recorded`)
     }
+
+    // Whatever WhatsApp number the accountant confirmed or corrected in the
+    // popup gets saved back onto the consumer — so the next payment starts
+    // pre-filled correctly instead of asking again every single time.
+    const consumer = consumers.find((c) => c.consumer_id === bill.consumer_id)
+    const cleanedWhatsapp = paymentForm.whatsapp.trim()
+    if (consumer && cleanedWhatsapp && cleanedWhatsapp !== (consumer.whatsapp_number || '')) {
+      await supabase.from('consumers')
+        .update({ whatsapp_number: cleanedWhatsapp, whatsapp_same_as_mobile: cleanedWhatsapp === consumer.mobile })
+        .eq('consumer_id', consumer.consumer_id)
+    }
+
+    // "Send receipt now" is checked by default — the receipt pops up right
+    // here so the accountant can hit Share via WhatsApp on the number they
+    // just verified, without hunting for this payment again afterward.
+    if (paymentForm.sendReceipt && consumer) {
+      const billOutstandingNow = Math.max(remaining - entered, 0)
+      setPaymentReceiptPhone(cleanedWhatsapp || null)
+      setViewPaymentReceipt({
+        kind: 'payment',
+        receiptNo: inserted?.receipt_no || inserted?.id.slice(0, 8).toUpperCase() || '—',
+        date: new Date().toISOString().slice(0, 10),
+        systemLabel: t('dash.waterSupplySystem', 'Water Supply System'),
+        accountName: consumer.name,
+        particular: paymentForm.description || `${fullMonths[bill.month]} ${bill.year}`,
+        amount: entered,
+        balanceAfter: billOutstandingNow,
+        billOutstandingAfter: billOutstandingNow,
+      })
+    }
+
     setPaymentForm(null)
     loadData()
   }
@@ -627,7 +671,12 @@ function BillingPageInner() {
 
   const startPayment = (bill: Bill) => {
     const rem = outstanding(bill)
-    setPaymentForm({ billId: bill.id, amount: rem, method: 'cash', description: '' })
+    const consumer = consumers.find((c) => c.consumer_id === bill.consumer_id) ?? selectedConsumer
+    setPaymentForm({
+      billId: bill.id, amount: rem, method: 'cash', description: '',
+      whatsapp: consumer?.whatsapp_number || consumer?.mobile || '',
+      sendReceipt: true,
+    })
   }
 
   return (
@@ -816,10 +865,11 @@ function BillingPageInner() {
                   {selectedConsumer.mobile && (
                     <button
                       onClick={() => sendWhatsApp(selectedConsumer)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#25d366] text-white rounded-lg font-sans text-[13px] font-semibold hover:opacity-90 transition-all cursor-pointer whitespace-nowrap"
+                      className="flex items-center justify-center p-2 bg-[#25d366] text-white rounded-lg hover:opacity-90 transition-all cursor-pointer shrink-0"
                       title={t('billing.tip.sendWhatsapp')}
+                      aria-label={t('billing.notify')}
                     >
-                      <MessageCircle size={15} /> {t('billing.notify')}
+                      <MessageCircle size={16} />
                     </button>
                   )}
                   <button onClick={() => setSelectedConsumer(null)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer md:hidden">
@@ -925,7 +975,6 @@ function BillingPageInner() {
 
               {selectedBills.map((bill) => {
                 const rem = outstanding(bill)
-                const isPaymentOpen = paymentForm?.billId === bill.id
                 // Why this bill cannot be touched, if it cannot. Cash received
                 // is checked first because it is the one an accountant can act
                 // on: delete the receipt and the bill opens again. A closed
@@ -981,7 +1030,7 @@ function BillingPageInner() {
                       <div className="flex items-center gap-2 shrink-0">
                         {rem > 0 && (
                           <button
-                            onClick={() => isPaymentOpen ? setPaymentForm(null) : startPayment(bill)}
+                            onClick={() => startPayment(bill)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"
                           >
                             <Banknote size={15} />
@@ -1020,63 +1069,8 @@ function BillingPageInner() {
                       </div>
                     </div>
 
-                    {/* Inline payment form */}
-                    {isPaymentOpen && paymentForm && (
-                      <div className="bg-dp-surface-container-low border-t border-dp-outline-variant px-4 py-3 space-y-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <CreditCard size={15} className="text-dp-secondary" />
-                          <span className="font-sans text-[13px] font-semibold text-dp-on-surface">{t('billing.recordPayment')}</span>
-                          <span className="font-sans text-[12px] text-dp-on-surface-variant ml-auto">Outstanding: Rs. {rem.toLocaleString()}</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('billing.amountPkr')}</label>
-                            <input
-                              type="number"
-                              min={1}
-                              value={paymentForm.amount || ''}
-                              onChange={(e) => setPaymentForm({ ...paymentForm, amount: +e.target.value })}
-                              className="w-full px-3 py-2 bg-white border-2 border-dp-outline-variant rounded-lg text-[14px] font-sans focus:border-dp-secondary focus:ring-0"
-                            />
-                          </div>
-                          <div>
-                            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('billing.method')}</label>
-                            <select
-                              value={paymentForm.method}
-                              onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border-2 border-dp-outline-variant rounded-lg text-[14px] font-sans focus:border-dp-secondary focus:ring-0"
-                            >
-                              <option value="cash">{t('billing.methodCash')}</option>
-                              <option value="jazzcash">{t('billing.methodJazzcash')}</option>
-                              <option value="easypaisa">{t('billing.methodEasypaisa')}</option>
-                              <option value="bank">{t('billing.methodBank')}</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('billing.noteOptional')}</label>
-                          <input
-                            type="text"
-                            value={paymentForm.description}
-                            onChange={(e) => setPaymentForm({ ...paymentForm, description: e.target.value })}
-                            placeholder="e.g. receipt no, bank ref..."
-                            className="w-full px-3 py-2 bg-white border-2 border-dp-outline-variant rounded-lg text-[14px] font-sans focus:border-dp-secondary focus:ring-0"
-                          />
-                        </div>
-                        {paymentForm.amount < rem && paymentForm.amount > 0 && (
-                          <div className="flex items-center gap-1.5 text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-                            <Clock size={14} className="shrink-0" />
-                            <span className="font-sans text-[12px]">Partial payment — Rs. {(rem - paymentForm.amount).toLocaleString()} will remain outstanding.</span>
-                          </div>
-                        )}
-                        <div className="flex gap-2">
-                          <button onClick={recordPayment} className="flex-1 bg-dp-secondary text-white py-2 rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">{t('billing.recordPayment')}</button>
-                          <button onClick={() => setPaymentForm(null)} className="px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[14px] text-dp-on-surface-variant hover:bg-dp-surface-container cursor-pointer">
-                            {t('action.cancel')}
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                    {/* Receive-payment popup lives once, outside this map — see
+                        the "Receive Payment modal" block below. */}
                   </div>
                 )
               })}
@@ -1100,6 +1094,104 @@ function BillingPageInner() {
         onConfirm={deleteBill}
         onCancel={() => setConfirmDeleteBill(null)}
       />
+
+      {/* Receive Payment modal — was an inline panel that expanded downward
+          under the bill row, which on mobile pushed the WhatsApp/checkbox
+          step below the fold. A popup keeps the row list stable and gives
+          the accountant room to verify the number before recording cash. */}
+      {paymentForm && (() => {
+        const bill = bills.find((b) => b.id === paymentForm.billId)
+        if (!bill) return null
+        const rem = outstanding(bill)
+        const consumer = consumers.find((c) => c.consumer_id === bill.consumer_id)
+        const hasSavedNumber = !!consumer?.whatsapp_number
+        return (
+          <Modal title={t('billing.recordPayment')} onClose={() => setPaymentForm(null)}>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 bg-dp-surface-container-low rounded-lg px-3 py-2">
+                <CreditCard size={15} className="text-dp-secondary shrink-0" />
+                <span className="font-sans text-[13px] text-dp-on-surface-variant">{fullMonths[bill.month]} {bill.year}</span>
+                <span className="font-sans text-[13px] font-semibold text-dp-on-surface ml-auto">{t('billing.outstandingAmount').replace('{amt}', rem.toLocaleString())}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Field label={t('billing.amountPkr')}>
+                  <input
+                    type="number" min={1} value={paymentForm.amount || ''}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, amount: +e.target.value })}
+                    className="input-field"
+                  />
+                </Field>
+                <Field label={t('billing.method')}>
+                  <select
+                    value={paymentForm.method}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
+                    className="input-field"
+                  >
+                    <option value="cash">{t('billing.methodCash')}</option>
+                    <option value="jazzcash">{t('billing.methodJazzcash')}</option>
+                    <option value="easypaisa">{t('billing.methodEasypaisa')}</option>
+                    <option value="bank">{t('billing.methodBank')}</option>
+                  </select>
+                </Field>
+              </div>
+
+              <Field label={t('billing.noteOptional')}>
+                <input
+                  type="text" value={paymentForm.description}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, description: e.target.value })}
+                  placeholder={t('billing.receiptRefPlaceholder')}
+                  className="input-field"
+                />
+              </Field>
+
+              {paymentForm.amount < rem && paymentForm.amount > 0 && (
+                <div className="flex items-center gap-1.5 text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                  <Clock size={14} className="shrink-0" />
+                  <span className="font-sans text-[12px]">{t('billing.partialWillRemain').replace('{amt}', (rem - paymentForm.amount).toLocaleString())}</span>
+                </div>
+              )}
+
+              <div className="border-t border-dp-outline-variant pt-3 space-y-2">
+                <label className="flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-on-surface-variant">
+                  <MessageCircle size={14} className="text-dp-secondary shrink-0" />
+                  {hasSavedNumber ? t('billing.verifyWhatsapp') : t('billing.askWhatsapp')}
+                </label>
+                <input
+                  type="text" value={paymentForm.whatsapp}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, whatsapp: e.target.value })}
+                  placeholder="0300-1234567"
+                  className="input-field"
+                />
+                <label className="flex items-center gap-2 cursor-pointer pt-1">
+                  <input
+                    type="checkbox" checked={paymentForm.sendReceipt}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, sendReceipt: e.target.checked })}
+                    className="accent-dp-secondary w-4 h-4"
+                  />
+                  <span className="font-sans text-[13px] text-dp-on-surface">{t('billing.sendReceiptNow')}</span>
+                </label>
+              </div>
+
+              <div className="flex gap-2">
+                <button onClick={recordPayment} className="flex-1 bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                  {t('billing.recordPayment')}
+                </button>
+                <button onClick={() => setPaymentForm(null)} className="px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] text-dp-on-surface-variant hover:bg-dp-surface-container cursor-pointer">
+                  {t('action.cancel')}
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )
+      })()}
+
+      {/* Post-payment receipt — only opens when "send receipt now" was
+          checked; the accountant hits Share via WhatsApp here on the number
+          just confirmed above. */}
+      {viewPaymentReceipt && (
+        <ReceiptModal data={viewPaymentReceipt} phone={paymentReceiptPhone} system="water_supply" onClose={() => setViewPaymentReceipt(null)} />
+      )}
 
       {/* Add Consumer Modal */}
       {showAddConsumer && (

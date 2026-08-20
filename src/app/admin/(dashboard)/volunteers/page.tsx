@@ -266,7 +266,7 @@ export default function AdminVolunteersPage() {
                   <button onClick={() => setStatus(v, 'completed')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low transition-all"><CheckCircle2 size={14} /> {t('z.markDone')}</button>
                 </>
               )}
-              <button onClick={() => whatsapp(v)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-secondary cursor-pointer hover:bg-dp-surface-container-low transition-all"><MessageCircle size={14} /> {t('w.whatsapp')}</button>
+              <button onClick={() => whatsapp(v)} className="inline-flex items-center justify-center p-2 rounded-lg border border-dp-outline-variant text-dp-secondary cursor-pointer hover:bg-dp-surface-container-low transition-all shrink-0" title={t('w.whatsapp')} aria-label={t('w.whatsapp')}><MessageCircle size={15} /></button>
             </div>
 
             {tasksFor(v).length > 0 && (

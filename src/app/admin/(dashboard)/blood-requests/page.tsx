@@ -350,8 +350,8 @@ export default function AdminBloodRequestsPage() {
                           </span>
                         </span>
                       </label>
-                      <button onClick={() => whatsappDonor(d, r)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[12.5px] font-semibold text-dp-secondary cursor-pointer hover:bg-dp-surface-container-low transition-all shrink-0">
-                        <MessageCircle size={13} /> {t('w.whatsapp')}
+                      <button onClick={() => whatsappDonor(d, r)} className="inline-flex items-center justify-center p-2 rounded-lg border border-dp-outline-variant text-dp-secondary cursor-pointer hover:bg-dp-surface-container-low transition-all shrink-0" title={t('w.whatsapp')} aria-label={t('w.whatsapp')}>
+                        <MessageCircle size={15} />
                       </button>
                     </div>
                   ))}
