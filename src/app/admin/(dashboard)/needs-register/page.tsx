@@ -64,7 +64,7 @@ const emptyForm = {
 }
 
 export default function NeedsRegisterPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const supabase = createClient()
 
   const [isVerifier, setIsVerifier] = useState<boolean | null>(null)
@@ -172,7 +172,7 @@ export default function NeedsRegisterPage() {
   ]
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5">
           <ShieldCheck size={26} className="text-dp-secondary" /> {t('nr.title')}
@@ -451,6 +451,6 @@ export default function NeedsRegisterPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

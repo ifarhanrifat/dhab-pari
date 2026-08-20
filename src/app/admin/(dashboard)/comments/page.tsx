@@ -18,7 +18,7 @@ interface Comment {
 // users only ever get a "Flag" action (routes to Complaints) — hiding a
 // comment is a staff-only decision, made here.
 export default function AdminCommentsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const access = useSystemAccess()
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(true)
@@ -53,7 +53,7 @@ export default function AdminCommentsPage() {
   const visible = comments.filter((c) => showHidden || !c.is_hidden)
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5"><MessageSquare size={26} /> {t('y.projectComments')}</h1>
         <label className="flex items-center gap-2 cursor-pointer font-sans text-[14px]">
@@ -82,6 +82,6 @@ export default function AdminCommentsPage() {
           ))
         )}
       </div>
-    </>
+    </div>
   )
 }

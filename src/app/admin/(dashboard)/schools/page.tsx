@@ -60,7 +60,7 @@ const empty = {
 }
 
 export default function SchoolsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const supabase = createClient()
 
   const [schools, setSchools] = useState<SchoolRow[]>([])
@@ -171,7 +171,7 @@ export default function SchoolsPage() {
   const className = (n: number) => n === 0 ? t('sc.class.pre') : `${t('kf.class')} ${n}`
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5">
@@ -484,6 +484,6 @@ export default function SchoolsPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
