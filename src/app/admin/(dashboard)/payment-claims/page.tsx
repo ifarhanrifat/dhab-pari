@@ -21,7 +21,7 @@ function fmt(n: number) {
 }
 
 export default function AdminPaymentClaimsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const access = useSystemAccess()
   const [claims, setClaims] = useState<Claim[]>([])
   const [loading, setLoading] = useState(true)
@@ -74,7 +74,7 @@ export default function AdminPaymentClaimsPage() {
   }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('y.paymentClaims')}</h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">Bill payments submitted by consumers via the portal, awaiting verification.</p>
@@ -121,6 +121,6 @@ export default function AdminPaymentClaimsPage() {
           ))}
         </div>
       )}
-    </>
+    </div>
   )
 }

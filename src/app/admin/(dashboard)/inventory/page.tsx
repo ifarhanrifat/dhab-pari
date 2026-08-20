@@ -42,7 +42,7 @@ const emptyServiceForm = { name: '', charge_amount: 0, description: '' }
 const emptyPurchaseForm = { quantity: 0, unit_cost_at_time: 0, method: 'cash', note: '' }
 
 export default function InventoryPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { t: tr } = useLocale()
   const access = useSystemAccess()
   const [tab, setTab] = useState<Tab>(() => {
@@ -295,7 +295,7 @@ export default function InventoryPage() {
   }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
           <Boxes size={26} /> {t('iv.title')}
@@ -777,6 +777,6 @@ export default function InventoryPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

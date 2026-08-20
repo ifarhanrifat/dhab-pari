@@ -31,7 +31,7 @@ function hoursLeft(deadline: string) {
 }
 
 export default function ApprovalsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const [adminUserId, setAdminUserId] = useState<string | null>(null)
   const [mine, setMine] = useState<MyConfirmation[]>([])
@@ -162,7 +162,7 @@ export default function ApprovalsPage() {
   if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
           <ShieldCheck size={26} /> {t('ap.title')}
@@ -353,6 +353,6 @@ export default function ApprovalsPage() {
         onConfirm={() => confirmOverride && overrideApprove(confirmOverride.confirmationId)}
         onCancel={() => setConfirmOverride(null)}
       />
-    </>
+    </div>
   )
 }
