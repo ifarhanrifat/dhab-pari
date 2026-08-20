@@ -10,7 +10,10 @@ import { IncomeExpenseChart, FundPieChart } from '@/components/admin/DashboardCh
 import { PendingApprovalsWidget } from '@/components/admin/PendingApprovalsWidget'
 import { T } from '@/components/i18n/T'
 
-const systemLabels: Record<string, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects System' }
+const systemLabels: Record<string, React.ReactNode> = {
+  water_supply: <T k="dash.waterSupplySystem" fallback="Water Supply System" />,
+  donors_projects: <T k="dash.donorsProjectsSystem" fallback="Donors & Projects System" />,
+}
 const creditNormal = (type: string) => type === 'donor' || type === 'income' || type === 'liability'
 
 function fmt(n: number) {
@@ -153,7 +156,7 @@ export default async function AdminDashboardPage() {
       <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="font-heading text-[24px] md:text-[32px] font-bold leading-[32px] md:leading-[40px] text-dp-primary">
-            Welcome back, {displayName}
+            <T k="dash.welcomeBack" fallback="Welcome back," /> {displayName}
           </h1>
           <p className="text-dp-on-surface-variant font-sans text-[15px] mt-1">
             <T k="y.currentPosition" />
@@ -168,7 +171,7 @@ export default async function AdminDashboardPage() {
 
       {!showWater && !showDonor && (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center font-sans text-dp-on-surface-variant">
-          You don&apos;t have access to any system&apos;s data yet. Contact an administrator.
+          <T k="dash.noAccess" fallback="You don't have access to any system's data yet. Contact an administrator." />
         </div>
       )}
 
@@ -179,28 +182,28 @@ export default async function AdminDashboardPage() {
           accentClass="text-blue-700"
         >
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
-            <StatCard href="/admin/accounts/by-type?system=water_supply&type=cash" icon={<Wallet size={19} />} color="teal" label="Cash in Hand" value={`Rs. ${fmt(waterStats.cash)}`} />
-            <StatCard href="/admin/accounts/by-type?system=water_supply&type=bank" icon={<Landmark size={19} />} color="blue" label="Cash in Bank" value={`Rs. ${fmt(waterStats.bank)}`} />
-            <StatCard href="/admin/reports?report=consumer_outstanding&system=water_supply" icon={<HandCoins size={19} />} color="amber" label="Total Receivable" value={`Rs. ${fmt(waterStats.receivable)}`} />
-            <StatCard href="/admin/accounts/by-type?system=water_supply&type=liability" icon={<ScrollText size={19} />} color="rose" label="Total Payable" value={`Rs. ${fmt(waterStats.liability)}`} />
-            <StatCard href="/admin/reports?report=income_expense&system=water_supply" icon={<TrendingUp size={19} />} color="emerald" label="Gross Income" value={`Rs. ${fmt(waterStats.grossProfit)}`} />
-            <StatCard href="/admin/accounts/by-type?system=water_supply&type=expense" icon={<TrendingDown size={19} />} color="red" label="Total Expenses" value={`Rs. ${fmt(waterStats.expense)}`} />
-            <StatCard href="/admin/reports?report=income_expense&system=water_supply" icon={waterStats.netProfit >= 0 ? <TrendingUp size={19} /> : <TrendingDown size={19} />} color={waterStats.netProfit >= 0 ? 'emerald' : 'red'} label="Net Profit" value={`Rs. ${fmt(waterStats.netProfit)}`} />
-            <StatCard href="/admin/billing" icon={<Users size={19} />} color="violet" label="Total Consumers" value={activeConsumers.toLocaleString()} />
-            <StatCard href="/admin/inventory?tab=analytics" icon={<AlertTriangle size={19} />} color={lowStockItems.length > 0 ? 'red' : 'teal'} label="Low Stock Items" value={lowStockItems.length.toLocaleString()} />
-            <StatCard href="/admin/inventory?tab=analytics" icon={<Trophy size={19} />} color="amber" label="Top Selling Item" value={topSellingItem ? topSellingItem.name : 'No sales yet'} />
-            <StatCard href="/admin/collectors" icon={<Coins size={19} />} color={collectorHoldings > 0 ? 'red' : 'teal'} label="Collector Holdings" value={`Rs. ${fmt(collectorHoldings)}`} />
+            <StatCard href="/admin/accounts/by-type?system=water_supply&type=cash" icon={<Wallet size={19} />} color="teal" label={<T k="dash.cashInHand" fallback="Cash in Hand" />} value={`Rs. ${fmt(waterStats.cash)}`} />
+            <StatCard href="/admin/accounts/by-type?system=water_supply&type=bank" icon={<Landmark size={19} />} color="blue" label={<T k="dash.cashInBank" fallback="Cash in Bank" />} value={`Rs. ${fmt(waterStats.bank)}`} />
+            <StatCard href="/admin/reports?report=consumer_outstanding&system=water_supply" icon={<HandCoins size={19} />} color="amber" label={<T k="dash.totalReceivable" fallback="Total Receivable" />} value={`Rs. ${fmt(waterStats.receivable)}`} />
+            <StatCard href="/admin/accounts/by-type?system=water_supply&type=liability" icon={<ScrollText size={19} />} color="rose" label={<T k="dash.totalPayable" fallback="Total Payable" />} value={`Rs. ${fmt(waterStats.liability)}`} />
+            <StatCard href="/admin/reports?report=income_expense&system=water_supply" icon={<TrendingUp size={19} />} color="emerald" label={<T k="dash.grossIncome" fallback="Gross Income" />} value={`Rs. ${fmt(waterStats.grossProfit)}`} />
+            <StatCard href="/admin/accounts/by-type?system=water_supply&type=expense" icon={<TrendingDown size={19} />} color="red" label={<T k="dash.totalExpenses" fallback="Total Expenses" />} value={`Rs. ${fmt(waterStats.expense)}`} />
+            <StatCard href="/admin/reports?report=income_expense&system=water_supply" icon={waterStats.netProfit >= 0 ? <TrendingUp size={19} /> : <TrendingDown size={19} />} color={waterStats.netProfit >= 0 ? 'emerald' : 'red'} label={<T k="dash.netProfit" fallback="Net Profit" />} value={`Rs. ${fmt(waterStats.netProfit)}`} />
+            <StatCard href="/admin/billing" icon={<Users size={19} />} color="violet" label={<T k="dash.totalConsumers" fallback="Total Consumers" />} value={activeConsumers.toLocaleString()} />
+            <StatCard href="/admin/inventory?tab=analytics" icon={<AlertTriangle size={19} />} color={lowStockItems.length > 0 ? 'red' : 'teal'} label={<T k="dash.lowStockItems" fallback="Low Stock Items" />} value={lowStockItems.length.toLocaleString()} />
+            <StatCard href="/admin/inventory?tab=analytics" icon={<Trophy size={19} />} color="amber" label={<T k="dash.topSellingItem" fallback="Top Selling Item" />} value={topSellingItem ? topSellingItem.name : <T k="dash.noSalesYet" fallback="No sales yet" />} />
+            <StatCard href="/admin/collectors" icon={<Coins size={19} />} color={collectorHoldings > 0 ? 'red' : 'teal'} label={<T k="dash.collectorHoldings" fallback="Collector Holdings" />} value={`Rs. ${fmt(collectorHoldings)}`} />
             {/* Moved from a 6-card row that used to live inline on the
                 Billing page itself — on a phone it stacked into a wall of
                 cards above the actual consumer list. Each links straight
                 to Billing with that filter already applied
                 (?quickFilter=<value>, read on mount there). */}
-            <StatCard href="/admin/billing?quickFilter=billed_this_month" icon={<Receipt size={19} />} color="teal" label="Billed This Month" value={`Rs. ${fmt(billedThisMonthTotal)}`} />
-            <StatCard href="/admin/billing?quickFilter=active" icon={<UserCheck size={19} />} color="emerald" label="Active Connections" value={activeConsumers.toLocaleString()} />
-            <StatCard href="/admin/billing?quickFilter=inactive" icon={<UserX size={19} />} color="red" label="Deactivated" value={inactiveConsumers.toLocaleString()} />
-            <StatCard href="/admin/billing?quickFilter=with_discount" icon={<Tag size={19} />} color="amber" label="With Discount" value={withDiscountCount.toLocaleString()} />
-            <StatCard href="/admin/billing?quickFilter=without_discount" icon={<Users size={19} />} color="blue" label="Without Discount" value={withoutDiscountCount.toLocaleString()} />
-            <StatCard href="/admin/billing?quickFilter=new_this_month" icon={<UserPlus size={19} />} color="violet" label="New This Month" value={newConsumersThisMonth.toLocaleString()} />
+            <StatCard href="/admin/billing?quickFilter=billed_this_month" icon={<Receipt size={19} />} color="teal" label={<T k="dash.billedThisMonth" fallback="Billed This Month" />} value={`Rs. ${fmt(billedThisMonthTotal)}`} />
+            <StatCard href="/admin/billing?quickFilter=active" icon={<UserCheck size={19} />} color="emerald" label={<T k="dash.activeConnections" fallback="Active Connections" />} value={activeConsumers.toLocaleString()} />
+            <StatCard href="/admin/billing?quickFilter=inactive" icon={<UserX size={19} />} color="red" label={<T k="dash.deactivated" fallback="Deactivated" />} value={inactiveConsumers.toLocaleString()} />
+            <StatCard href="/admin/billing?quickFilter=with_discount" icon={<Tag size={19} />} color="amber" label={<T k="dash.withDiscount" fallback="With Discount" />} value={withDiscountCount.toLocaleString()} />
+            <StatCard href="/admin/billing?quickFilter=without_discount" icon={<Users size={19} />} color="blue" label={<T k="dash.withoutDiscount" fallback="Without Discount" />} value={withoutDiscountCount.toLocaleString()} />
+            <StatCard href="/admin/billing?quickFilter=new_this_month" icon={<UserPlus size={19} />} color="violet" label={<T k="dash.newThisMonth" fallback="New This Month" />} value={newConsumersThisMonth.toLocaleString()} />
           </div>
           <QuickLinks system="water_supply" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -223,14 +226,14 @@ export default async function AdminDashboardPage() {
           accentClass="text-violet-700"
         >
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
-            <StatCard href="/admin/accounts/by-type?system=donors_projects&type=cash" icon={<Wallet size={19} />} color="teal" label="Cash in Hand" value={`Rs. ${fmt(donorStats.cash)}`} />
-            <StatCard href="/admin/accounts/by-type?system=donors_projects&type=bank" icon={<Landmark size={19} />} color="blue" label="Cash in Bank" value={`Rs. ${fmt(donorStats.bank)}`} />
-            <StatCard href="/admin/donors" icon={<Heart size={19} />} color="pink" label="Total Donors" value={donorPartyCount.toLocaleString()} />
-            <StatCard href="/admin/accounts/by-type?system=donors_projects&type=liability" icon={<ScrollText size={19} />} color="rose" label="Total Payable" value={`Rs. ${fmt(donorStats.liability)}`} />
-            <StatCard href="/admin/donors" icon={<Megaphone size={19} />} color="amber" label="Donations Announced" value={donationsAnnounced.toLocaleString()} />
-            <StatCard href="/admin/donors" icon={<PiggyBank size={19} />} color="emerald" label="Donations Received" value={`Rs. ${fmt(donationsReceived)}`} />
-            <StatCard href="/admin/accounts/by-type?system=donors_projects&type=expense" icon={<TrendingDown size={19} />} color="red" label="Total Expenses" value={`Rs. ${fmt(donorStats.expense)}`} />
-            <StatCard href="/admin/reports?report=income_expense&system=donors_projects" icon={donorStats.netProfit >= 0 ? <TrendingUp size={19} /> : <TrendingDown size={19} />} color={donorStats.netProfit >= 0 ? 'emerald' : 'red'} label="Net Profit" value={`Rs. ${fmt(donorStats.netProfit)}`} />
+            <StatCard href="/admin/accounts/by-type?system=donors_projects&type=cash" icon={<Wallet size={19} />} color="teal" label={<T k="dash.cashInHand" fallback="Cash in Hand" />} value={`Rs. ${fmt(donorStats.cash)}`} />
+            <StatCard href="/admin/accounts/by-type?system=donors_projects&type=bank" icon={<Landmark size={19} />} color="blue" label={<T k="dash.cashInBank" fallback="Cash in Bank" />} value={`Rs. ${fmt(donorStats.bank)}`} />
+            <StatCard href="/admin/donors" icon={<Heart size={19} />} color="pink" label={<T k="dash.totalDonors" fallback="Total Donors" />} value={donorPartyCount.toLocaleString()} />
+            <StatCard href="/admin/accounts/by-type?system=donors_projects&type=liability" icon={<ScrollText size={19} />} color="rose" label={<T k="dash.totalPayable" fallback="Total Payable" />} value={`Rs. ${fmt(donorStats.liability)}`} />
+            <StatCard href="/admin/donors" icon={<Megaphone size={19} />} color="amber" label={<T k="dash.donationsAnnounced" fallback="Donations Announced" />} value={donationsAnnounced.toLocaleString()} />
+            <StatCard href="/admin/donors" icon={<PiggyBank size={19} />} color="emerald" label={<T k="dash.donationsReceived" fallback="Donations Received" />} value={`Rs. ${fmt(donationsReceived)}`} />
+            <StatCard href="/admin/accounts/by-type?system=donors_projects&type=expense" icon={<TrendingDown size={19} />} color="red" label={<T k="dash.totalExpenses" fallback="Total Expenses" />} value={`Rs. ${fmt(donorStats.expense)}`} />
+            <StatCard href="/admin/reports?report=income_expense&system=donors_projects" icon={donorStats.netProfit >= 0 ? <TrendingUp size={19} /> : <TrendingDown size={19} />} color={donorStats.netProfit >= 0 ? 'emerald' : 'red'} label={<T k="dash.netProfit" fallback="Net Profit" />} value={`Rs. ${fmt(donorStats.netProfit)}`} />
           </div>
           <QuickLinks system="donors_projects" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -261,10 +264,10 @@ const colorStyles: Record<string, string> = {
 }
 
 function StatCard({ href, icon, color, label, value }: {
-  href: string; icon: React.ReactNode; color: string; label: string; value: string
+  href: string; icon: React.ReactNode; color: string; label: React.ReactNode; value: React.ReactNode
 }) {
   return (
-    <Link href={href} title={value} className="bg-white p-3 sm:p-5 rounded-lg border border-dp-outline-variant flex flex-col justify-between hover:shadow-md hover:border-dp-primary/30 transition-all group">
+    <Link href={href} title={typeof value === 'string' ? value : undefined} className="bg-white p-3 sm:p-5 rounded-lg border border-dp-outline-variant flex flex-col justify-between hover:shadow-md hover:border-dp-primary/30 transition-all group">
       <div className="flex justify-between items-start mb-2 sm:mb-3">
         <span className={`p-2 rounded-lg ${colorStyles[color]}`}>{icon}</span>
       </div>
@@ -278,11 +281,11 @@ function StatCard({ href, icon, color, label, value }: {
 
 function QuickLinks({ system }: { system: 'water_supply' | 'donors_projects' }) {
   const links = [
-    { href: `/admin/transactions?system=${system}`, icon: <ListFilter size={16} />, label: 'All Transactions' },
-    { href: `/admin/finance/${system}`, icon: <Receipt size={16} />, label: 'Transactions' },
-    { href: `/admin/register?system=${system}`, icon: <CalendarDays size={16} />, label: 'Daily Register' },
-    { href: `/admin/recurring?system=${system}`, icon: <Repeat size={16} />, label: 'Recurring' },
-    { href: `/admin/reports?system=${system}`, icon: <FileBarChart size={16} />, label: 'Reports' },
+    { href: `/admin/transactions?system=${system}`, icon: <ListFilter size={16} />, label: <T k="dash.allTransactions" fallback="All Transactions" /> },
+    { href: `/admin/finance/${system}`, icon: <Receipt size={16} />, label: <T k="dash.transactions" fallback="Transactions" /> },
+    { href: `/admin/register?system=${system}`, icon: <CalendarDays size={16} />, label: <T k="dash.dailyRegister" fallback="Daily Register" /> },
+    { href: `/admin/recurring?system=${system}`, icon: <Repeat size={16} />, label: <T k="dash.recurring" fallback="Recurring" /> },
+    { href: `/admin/reports?system=${system}`, icon: <FileBarChart size={16} />, label: <T k="dash.reports" fallback="Reports" /> },
   ]
   return (
     <div className="flex flex-wrap gap-2.5 mb-5">
@@ -300,7 +303,7 @@ function QuickLinks({ system }: { system: 'water_supply' | 'donors_projects' }) 
 }
 
 function SystemSection({ title, icon, accentClass, children }: {
-  title: string; icon: React.ReactNode; accentClass: string; children: React.ReactNode
+  title: React.ReactNode; icon: React.ReactNode; accentClass: string; children: React.ReactNode
 }) {
   return (
     <section className="mb-10">
