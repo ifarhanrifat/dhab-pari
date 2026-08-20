@@ -679,21 +679,27 @@ function BillingPageInner() {
         </div>
       )}
 
-      {/* Filters */}
+      {/* Filters — search gets its own full-width row on mobile, the two
+          selects share a second row half-and-half instead of each also
+          going full-width and stacking three rows deep. Desktop keeps its
+          original single-row layout (the inner grid becomes a plain flex
+          group at md:, no visual change there). */}
       <div className="flex flex-col md:flex-row gap-3 mb-6">
         <div className="relative flex-1 max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-outline" />
+          <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-outline" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('billing.searchPlaceholder')} className="w-full ps-10 pe-4 py-2 border-2 border-dp-outline-variant rounded-lg focus:border-dp-primary focus:ring-0 text-[14px] font-sans bg-white" />
         </div>
-        <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)} className="px-3 py-2 border-2 border-dp-outline-variant rounded-lg text-[14px] font-sans bg-white focus:border-dp-primary focus:ring-0">
-          <option value="">{t('billing.allSectors')}</option>
-          {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 border-2 border-dp-outline-variant rounded-lg text-[14px] font-sans bg-white focus:border-dp-primary focus:ring-0">
-          <option value="">{t('billing.allStatus')}</option>
-          <option value="pending">{t('billing.hasOutstanding')}</option>
-          <option value="clear">{t('billing.fullyPaid')}</option>
-        </select>
+        <div className="grid grid-cols-2 md:flex gap-3">
+          <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)} className="w-full px-3 py-2 border-2 border-dp-outline-variant rounded-lg text-[14px] font-sans bg-white focus:border-dp-primary focus:ring-0">
+            <option value="">{t('billing.allSectors')}</option>
+            {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full px-3 py-2 border-2 border-dp-outline-variant rounded-lg text-[14px] font-sans bg-white focus:border-dp-primary focus:ring-0">
+            <option value="">{t('billing.allStatus')}</option>
+            <option value="pending">{t('billing.hasOutstanding')}</option>
+            <option value="clear">{t('billing.fullyPaid')}</option>
+          </select>
+        </div>
       </div>
 
       {/* Two-column layout */}
