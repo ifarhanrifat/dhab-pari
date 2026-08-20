@@ -1573,7 +1573,12 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     // mirrors reading order and alignment for this page's own text under
     // Urdu without touching the sidebar or the rest of the app's layout.
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+      {/* Header and the type picker below stay LTR-positioned on the user's
+          explicit request — the back link/title kept sliding to the right
+          and the type list to the right under the page's ambient RTL, and
+          they're clearer left-anchored regardless of language. Everything
+          else on the page keeps the scoped flip. */}
+      <div dir="ltr" className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link href="/admin/finance" className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold mb-3">
             <ArrowLeft size={16} /> {t('f.back')}
@@ -1590,7 +1595,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       {/* Transaction type — mobile menu button (opens a dropdown of the same options
           shown as a sidebar on desktop; a full-width stacked button list here read
           as an ugly wall of buttons pushed above the form on a phone) */}
-      <div className="md:hidden relative mb-4">
+      <div dir="ltr" className="md:hidden relative mb-4">
         <button
           onClick={() => setMobileTypeMenuOpen((v) => !v)}
           className="w-full flex items-center justify-between gap-2.5 px-4 py-3.5 bg-white rounded-lg border-2 border-dp-primary font-sans text-[15px] font-bold text-dp-primary cursor-pointer"
@@ -1623,9 +1628,13 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         )}
       </div>
 
-      <div className="flex flex-col md:flex-row gap-5">
-        {/* Transaction type sidebar (desktop only — see mobile menu button above) */}
-        <div className="hidden md:block md:w-56 shrink-0">
+      <div className={`flex flex-col md:flex-row gap-5 ${isUrdu ? 'md:flex-row-reverse' : ''}`}>
+        {/* Transaction type sidebar (desktop only — see mobile menu button above).
+            md:flex-row-reverse on the parent keeps this column on the left under
+            Urdu too (row-reverse puts the first DOM child at the row's "end",
+            which is the left edge under dir=rtl) — dir="ltr" here keeps its own
+            button rows left-anchored instead of inheriting the page's RTL flip. */}
+        <div dir="ltr" className="hidden md:block md:w-56 shrink-0">
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
             {types.map((t) => {
               const Icon = t.icon
