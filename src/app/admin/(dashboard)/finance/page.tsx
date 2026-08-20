@@ -5,9 +5,9 @@ import { Droplets, Heart, ChevronRight } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 export default function TransactionsPickerPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-8">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('nav.finance')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('y.chooseSystem')}</p>
@@ -46,6 +46,6 @@ export default function TransactionsPickerPage() {
           <ChevronRight size={20} className="text-dp-on-surface-variant group-hover:text-dp-primary transition-colors shrink-0" />
         </Link>
       </div>
-    </>
+    </div>
   )
 }

@@ -44,7 +44,7 @@ function fmtAmount(n: number) {
 }
 
 export default function RecurringPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const access = useSystemAccess()
   const [system, setSystem] = useState<SystemTab>('water_supply')
   const [systemOverride] = useState<SystemTab | null>(() => {
@@ -154,7 +154,7 @@ export default function RecurringPage() {
   }), [txnRows])
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
           <Repeat size={26} /> {t('a.recurring')}
@@ -321,6 +321,6 @@ export default function RecurringPage() {
         onConfirm={removeSchedule}
         onCancel={() => setConfirmRemoveId(null)}
       />
-    </>
+    </div>
   )
 }
