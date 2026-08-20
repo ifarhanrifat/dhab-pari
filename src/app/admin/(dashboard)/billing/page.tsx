@@ -714,14 +714,22 @@ function BillingPageInner() {
 
   const sendWhatsApp = (consumer: Consumer) => {
     const stats = consumerStats[consumer.consumer_id]
-    if (!consumer.mobile) { toast.error(t('billing.err.noMobile')); return }
+    // Was consumer.mobile only — a consumer with whatsapp_same_as_mobile off
+    // and a different whatsapp_number set (the exact case this field exists
+    // for) would silently open wa.me with the wrong number, or none at all
+    // if mobile itself happened to be blank/unparseable. whatsapp_number
+    // first, mobile as fallback, matching startPayment()'s own resolution
+    // a few lines below.
+    const rawPhone = consumer.whatsapp_number || consumer.mobile
+    if (!rawPhone) { toast.error(t('billing.err.noMobile')); return }
     const template = messageTemplates.consumer_outstanding_notify
       ?? `*${SITE.name} Water Committee*\n\nDear %%name%%, your outstanding water bill is Rs. %%outstanding%% (%%pending_count%% bill(s) pending). Consumer No: %%consumer_id%%. Please pay at your earliest convenience. Thank you.`
     const msg = encodeURIComponent(renderTemplate(template, {
       name: consumer.name, outstanding: stats.outstanding.toLocaleString(),
       pending_count: String(stats.pendingCount), consumer_id: consumer.consumer_id,
     }))
-    const phone = consumer.mobile.replace(/\D/g, '')
+    const phone = rawPhone.replace(/\D/g, '')
+    if (!phone) { toast.error(t('billing.err.noMobile')); return }
     const intlPhone = phone.startsWith('0') ? '92' + phone.slice(1) : phone
     window.open(`https://wa.me/${intlPhone}?text=${msg}`, '_blank')
   }
@@ -1015,7 +1023,7 @@ function BillingPageInner() {
                 properly. This card's job is just to nudge the consumer. */}
             {selectedOutstanding > 0 && (
               <div className="mx-4 mt-3.5 bg-red-50 rounded-full px-[15px] py-2 flex items-center justify-between gap-2 flex-wrap">
-                {selectedConsumer.mobile ? (
+                {(selectedConsumer.whatsapp_number || selectedConsumer.mobile) ? (
                   <button
                     onClick={() => sendWhatsApp(selectedConsumer)}
                     className="flex items-center gap-1.5 font-sans text-[11.5px] font-semibold bg-[#25d366] text-white border-none px-3 py-1.5 rounded-full cursor-pointer hover:opacity-90 transition-all whitespace-nowrap"
