@@ -80,7 +80,7 @@ export default function AdminDonorsPage() {
 }
 
 function AdminDonorsPageInner() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const access = useSystemAccess()
   const searchParams = useSearchParams()
   const [donorSearch, setDonorSearch] = useState('')
@@ -371,7 +371,7 @@ function AdminDonorsPageInner() {
   }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
         <div>
           <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('dn.title')}</h1>
@@ -412,7 +412,7 @@ function AdminDonorsPageInner() {
       )}
 
       <div className="relative mb-4">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+        <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
         <input
           value={donorSearch}
           onChange={(e) => setDonorSearch(e.target.value)}
@@ -698,7 +698,7 @@ function AdminDonorsPageInner() {
         <ReceiptModal data={viewReceipt} system="donors_projects" onClose={() => { setViewReceipt(null); setConfirmedWhatsapp(null); setThankYouMessage(null) }} />
       )}
       {viewReceipt && confirmedWhatsapp && (
-        <div className="fixed bottom-6 right-6 z-[130]">
+        <div className="fixed bottom-6 end-6 z-[130]">
           <button onClick={sendThankYou} className="px-4 py-3 bg-emerald-600 text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-emerald-700 transition-all shadow-lg">
             {t('dn.sendThanks')}
           </button>
@@ -759,6 +759,6 @@ function AdminDonorsPageInner() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

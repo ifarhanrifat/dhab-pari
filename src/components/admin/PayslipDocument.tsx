@@ -40,7 +40,7 @@ export const PayslipDocument = forwardRef<HTMLDivElement, Props>(function Paysli
   const companyNameEn = branding.companyNameEn || SITE.name
 
   return (
-    <div ref={ref} className="relative bg-white p-8 w-[560px] font-sans text-dp-on-surface" style={{ fontFamily: 'var(--font-sans), sans-serif' }}>
+    <div ref={ref} dir="ltr" className="relative bg-white p-8 w-[560px] font-sans text-dp-on-surface" style={{ fontFamily: 'var(--font-sans), sans-serif' }}>
       <div className="relative text-center mb-4 pb-3 border-b-2 border-dp-primary">
         {branding.logoUrl && (
           <img src={branding.logoUrl} alt="Logo" className="absolute left-0 top-0 object-contain" style={{ width: branding.logoWidth ?? 48, height: branding.logoWidth ?? 48 }} />

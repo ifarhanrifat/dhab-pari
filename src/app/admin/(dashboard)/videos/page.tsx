@@ -13,7 +13,7 @@ const categories = ['wedding', 'interview', 'event', 'sports', 'news', 'document
 const empty = { title: '', title_ur: '', description: '', video_url: '', thumbnail_url: '', category: 'event', duration_seconds: 0, is_published: false, is_featured: false }
 
 export default function AdminVideosPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [videos, setVideos] = useState<Video[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -35,7 +35,7 @@ export default function AdminVideosPage() {
   const remove = async (id: string) => { if (!confirm('Delete?')) return; await supabase.from('video_content').delete().eq('id', id); toast.success('Deleted'); load() }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('y.videos')}</h1>
         <button onClick={() => { setForm(empty); setEditing(null); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('y.addVideo')}</button>
@@ -83,6 +83,6 @@ export default function AdminVideosPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

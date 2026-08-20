@@ -16,7 +16,7 @@ interface PostCategory { key: string; label_en: string; label_ur: string; icon: 
 const empty = { title: '', title_ur: '', content: '', content_ur: '', category: 'announcement', author: 'Committee', is_published: false, cover_image_url: '' }
 
 export default function AdminNewsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [posts, setPosts] = useState<Post[]>([])
   const [categories, setCategories] = useState<PostCategory[]>([])
   const [loading, setLoading] = useState(true)
@@ -96,7 +96,7 @@ export default function AdminNewsPage() {
   const remove = async (id: string) => { if (!confirm('Delete this post?')) return; await supabase.from('news_posts').delete().eq('id', id); toast.success('Deleted'); load() }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('y.newsManagement')}</h1>
         <button onClick={() => { setForm(empty); setEditing(null); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('y.newPost')}</button>
@@ -171,6 +171,6 @@ export default function AdminNewsPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

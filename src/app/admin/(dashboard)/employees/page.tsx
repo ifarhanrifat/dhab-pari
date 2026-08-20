@@ -34,7 +34,7 @@ const today = () => new Date().toISOString().slice(0, 10)
 const slugify = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
 
 export default function EmployeesPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const [employees, setEmployees] = useState<Employee[]>([])
   const [employeeRoles, setEmployeeRoles] = useState<EmployeeRole[]>([])
@@ -245,7 +245,7 @@ export default function EmployeesPage() {
   }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
@@ -433,7 +433,7 @@ export default function EmployeesPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
 
