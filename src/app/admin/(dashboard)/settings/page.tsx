@@ -185,7 +185,7 @@ function SettingsSection({
 }
 
 export default function AdminSettingsPage() {
-  const { t: tr } = useLocale()
+  const { t: tr, isUrdu } = useLocale()
   const [settings, setSettings] = useState<Setting[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -573,7 +573,7 @@ export default function AdminSettingsPage() {
   )
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="font-heading text-[28px] sm:text-[32px] font-bold leading-[40px] text-dp-primary">{tr('st.title')}</h1>
@@ -684,7 +684,7 @@ export default function AdminSettingsPage() {
                       </div>
                     </div>
                     <p className="font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-2">Preview — top-left corner, heading stays centered, on every generated bill, receipt, and voucher:</p>
-                    <div className="relative text-center bg-dp-surface-container-low/60 rounded-lg p-4">
+                    <div dir="ltr" className="relative text-center bg-dp-surface-container-low/60 rounded-lg p-4">
                       <img
                         src={values.invoice_logo_url} alt="Logo preview"
                         style={{ width: +(values.invoice_logo_width || 56), height: +(values.invoice_logo_width || 56), marginTop: +(values.invoice_logo_offset_y || 0) }}
@@ -1105,6 +1105,6 @@ export default function AdminSettingsPage() {
         onConfirm={deleteSector}
         onCancel={() => setConfirmDeleteSector(null)}
       />
-    </>
+    </div>
   )
 }
