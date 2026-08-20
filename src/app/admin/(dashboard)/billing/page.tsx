@@ -109,7 +109,7 @@ function outstanding(bill: Bill) {
 function StatusBadge({ bill }: { bill: Bill }) {
   const badge = billBadge(bill)
   return (
-    <span className={`inline-block px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide whitespace-nowrap ${billBadgeClass[badge.tone]}`}>
+    <span className={`inline-block px-2.5 py-0.5 rounded-full font-sans text-[10.5px] font-bold tracking-wide whitespace-nowrap ${billBadgeClass[badge.tone]}`}>
       {badge.text}
     </span>
   )
@@ -908,21 +908,12 @@ function BillingPageInner() {
                   the reference design's own card exactly, not a language flip). */}
               <div className="px-4 pt-5 pb-3">
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {/* No mobile close(X) here anymore — the back arrow in the
-                      new compact app-bar above does that job now, and having
-                      both was a redundant/duplicate way to do the same thing. */}
-                  {selectedConsumer.mobile && (
-                    <button
-                      onClick={() => sendWhatsApp(selectedConsumer)}
-                      className="w-[31px] h-[31px] rounded-[9px] bg-emerald-50 border-none flex items-center justify-center text-emerald-700 hover:opacity-90 transition-all cursor-pointer"
-                      title={t('billing.tip.sendWhatsapp')}
-                      aria-label={t('billing.notify')}
-                    >
-                      <MessageCircle size={15} />
-                    </button>
-                  )}
-                </div>
+                {/* The header's own WhatsApp icon button is gone — WhatsApp
+                    only makes sense here when there's an actual reason to
+                    message the consumer (an outstanding balance), and that's
+                    exactly what the Send Reminder button below already
+                    covers. No mobile close(X) either — the back arrow in
+                    the compact app-bar above does that job now. */}
                 <div className="min-w-0 flex-1 text-end">
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     {selectedConsumer.sector && <span className="font-sans text-[11.5px] text-dp-on-surface-variant">{selectedConsumer.sector}</span>}
@@ -979,18 +970,20 @@ function BillingPageInner() {
                 below (each tied to its own actual bill) already do that
                 properly. This card's job is just to nudge the consumer. */}
             {selectedOutstanding > 0 && (
-              <div className="mx-4 mt-3.5 bg-red-50 rounded-[13px] px-[15px] py-[13px] flex items-center justify-between">
+              <div className="mx-4 mt-3.5 bg-red-50 rounded-full px-[15px] py-2 flex items-center justify-between gap-2 flex-wrap">
                 {selectedConsumer.mobile ? (
                   <button
                     onClick={() => sendWhatsApp(selectedConsumer)}
-                    className="flex items-center gap-1.5 font-sans text-[12.5px] font-semibold bg-[#25d366] text-white border-none px-[14px] py-2 rounded-[10px] cursor-pointer hover:opacity-90 transition-all whitespace-nowrap"
+                    className="flex items-center gap-1.5 font-sans text-[11.5px] font-semibold bg-[#25d366] text-white border-none px-3 py-1.5 rounded-full cursor-pointer hover:opacity-90 transition-all whitespace-nowrap"
                   >
-                    <MessageCircle size={14} /> {t('billing.sendReminder')}
+                    <MessageCircle size={13} /> {t('billing.sendReminder')}
                   </button>
                 ) : <span />}
-                <div className="text-end">
-                  <div dir={isUrdu ? 'rtl' : undefined} className="font-sans text-[11px] text-dp-error/80">{t('billing.balanceDue', 'باقی رقم')}</div>
-                  <div className="tabular-nums text-[23px] font-bold text-dp-error tracking-tight">Rs. {selectedOutstanding.toLocaleString()}</div>
+                {/* Label beside the amount, not stacked above it — a single
+                    row instead of two, so this pill stays short. */}
+                <div dir={isUrdu ? 'rtl' : undefined} className="flex items-baseline gap-1.5">
+                  <span className="font-sans text-[11px] text-dp-error/80 whitespace-nowrap">{t('billing.balanceDue', 'باقی رقم')}</span>
+                  <span className="tabular-nums text-[18px] font-bold text-dp-error tracking-tight whitespace-nowrap">Rs. {selectedOutstanding.toLocaleString()}</span>
                 </div>
               </div>
             )}
@@ -1003,29 +996,29 @@ function BillingPageInner() {
                 instead of forcing the button wider than its neighbors. */}
             <div className="mx-4 mt-3.5 mb-4 pt-3 border-t border-dp-outline-variant/60 flex items-stretch gap-1.5">
                 {selectedConsumer.status === 'disconnected' ? (
-                  <span className="flex-1 flex items-center justify-center gap-1.5 px-2 py-[7px] rounded-[9px] font-sans text-[11px] font-bold bg-gray-100 text-gray-600 text-center" title={t('billing.tip.reconnects')}>
+                  <span className="flex-1 flex items-center justify-center gap-1.5 px-2 py-[7px] rounded-[9px] font-sans text-[10px] font-bold bg-gray-100 text-gray-600 text-center" title={t('billing.tip.reconnects')}>
                     <Ban size={11} className="shrink-0" />{t('billing.disconnectedNote')}</span>
                 ) : (
                   <button onClick={() => openDisconnect(selectedConsumer)} className="flex-1 border border-red-200 bg-white rounded-[9px] px-2 py-[7px] cursor-pointer">
-                    <span className="font-sans text-[11px] font-semibold text-dp-error text-center block leading-tight">{t('billing.permanentDisconnection')}</span>
+                    <span className="font-sans text-[10px] font-semibold text-dp-error text-center block leading-tight">{t('billing.permanentDisconnection')}</span>
                   </button>
                 )}
                 {selectedConsumer.status !== 'disconnected' && (
                   <button onClick={() => setConfirmToggleActive(selectedConsumer)} className="flex-1 border border-dp-outline-variant bg-white rounded-[9px] px-2 py-[7px] cursor-pointer">
-                    <span className="font-sans text-[11px] font-semibold text-dp-on-surface-variant text-center block leading-tight">{selectedConsumer.status === 'active' ? t('billing.deactivateAction') : t('billing.activateAction')}</span>
+                    <span className="font-sans text-[10px] font-semibold text-dp-on-surface-variant text-center block leading-tight">{selectedConsumer.status === 'active' ? t('billing.deactivateAction') : t('billing.activateAction')}</span>
                   </button>
                 )}
                 <button onClick={() => openEditConsumer(selectedConsumer)} className="flex-1 border border-dp-outline-variant bg-white rounded-[9px] px-2 py-[7px] cursor-pointer">
-                  <span className="font-sans text-[11px] font-semibold text-dp-on-surface-variant text-center block leading-tight">{t('action.edit')}</span>
+                  <span className="font-sans text-[10px] font-semibold text-dp-on-surface-variant text-center block leading-tight">{t('action.edit')}</span>
                 </button>
                 {recurringSchedules[selectedConsumer.consumer_id]?.is_active ? (
                   <button
                     onClick={() => openRecurringSetup(selectedConsumer)}
                     title={t('billing.tip.editRecurring')}
-                    className="flex-1 flex flex-col items-center justify-center gap-1 bg-gray-100 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-gray-200 transition-all"
+                    className="flex-1 flex items-center justify-center gap-1 bg-gray-100 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-gray-200 transition-all"
                   >
                     <PauseCircle size={12} className="text-gray-500 shrink-0" />
-                    <span className="font-sans text-[11px] font-semibold text-gray-600 text-center leading-tight">{t('billing.recurringBilling')}</span>
+                    <span className="font-sans text-[10px] font-semibold text-gray-600 text-center leading-tight">{t('billing.recurringBilling')}</span>
                   </button>
                 ) : recurringSchedules[selectedConsumer.consumer_id] ? (
                   // Has a schedule row, just paused — its own amber state so it
@@ -1036,18 +1029,18 @@ function BillingPageInner() {
                   <button
                     onClick={() => openRecurringSetup(selectedConsumer)}
                     title={t('billing.tip.recurringPaused')}
-                    className="flex-1 flex flex-col items-center justify-center gap-1 bg-amber-50 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-amber-100 transition-all"
+                    className="flex-1 flex items-center justify-center gap-1 bg-amber-50 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-amber-100 transition-all"
                   >
                     <PauseCircle size={12} className="text-amber-700 shrink-0" />
-                    <span className="font-sans text-[11px] font-semibold text-amber-800 text-center leading-tight">{t('billing.recurringBillingPaused')}</span>
+                    <span className="font-sans text-[10px] font-semibold text-amber-800 text-center leading-tight">{t('billing.recurringBillingPaused')}</span>
                   </button>
                 ) : (
                   <button
                     onClick={() => openRecurringSetup(selectedConsumer)}
-                    className="flex-1 flex flex-col items-center justify-center gap-1 bg-emerald-50 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-emerald-100 transition-all"
+                    className="flex-1 flex items-center justify-center gap-1 bg-emerald-50 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-emerald-100 transition-all"
                   >
                     <Repeat size={12} className="text-dp-secondary shrink-0" />
-                    <span className="font-sans text-[11px] font-semibold text-dp-secondary text-center leading-tight">{t('billing.recurringBilling')}</span>
+                    <span className="font-sans text-[10px] font-semibold text-dp-secondary text-center leading-tight">{t('billing.recurringBilling')}</span>
                   </button>
                 )}
               </div>
