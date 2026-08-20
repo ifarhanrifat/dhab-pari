@@ -903,10 +903,19 @@ function BillingPageInner() {
                   </div>
                   <div className="font-sans text-[19px] font-bold text-dp-on-surface mt-1 truncate">{selectedConsumer.name}</div>
                   {(selectedConsumer.house_no || selectedConsumer.mobile) && (
-                    <div dir={isUrdu ? 'rtl' : undefined} className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">
-                      {selectedConsumer.house_no && <>{t('billing.house')} <span dir="ltr" className="tabular-nums">{selectedConsumer.house_no}</span></>}
-                      {selectedConsumer.house_no && selectedConsumer.mobile && ' · '}
-                      {selectedConsumer.mobile && <span dir="ltr" className="tabular-nums">{selectedConsumer.mobile}</span>}
+                    <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-0.5 mt-1 font-sans text-[11.5px] text-dp-on-surface-variant">
+                      {selectedConsumer.house_no && (
+                        <span dir={isUrdu ? 'rtl' : undefined} className="inline-flex items-center gap-1">
+                          <Home size={12} className="shrink-0" />
+                          {t('billing.house')} <span dir="ltr" className="tabular-nums">{selectedConsumer.house_no}</span>
+                        </span>
+                      )}
+                      {selectedConsumer.mobile && (
+                        <span className="inline-flex items-center gap-1">
+                          <Phone size={12} className="shrink-0" />
+                          <span dir="ltr" className="tabular-nums">{selectedConsumer.mobile}</span>
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
