@@ -72,7 +72,7 @@ function normalizePakPhoneLocal(raw: string): string | null {
 }
 
 export default function ConnectionsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const [requests, setRequests] = useState<ConnectionRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -564,9 +564,9 @@ export default function ConnectionsPage() {
       {/* ---------------- Request form ---------------- */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant shrink-0">
-              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{editingRequestId ? 'Edit Connection Request' : 'New Connection Request'}</h2>
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary">{editingRequestId ? t('cn.editRequest', 'Edit Connection Request') : t('cn.newRequest')}</h2>
               <button onClick={() => setShowForm(false)} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
             </div>
 
@@ -737,14 +737,14 @@ export default function ConnectionsPage() {
       {/* ---------------- Item picker ---------------- */}
       {itemModalStep === 'picker' && (
         <div className="fixed inset-0 bg-black/50 z-[160] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setItemModalStep('closed')}>
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant shrink-0">
               <h2 className="font-heading text-[19px] font-bold text-dp-primary">{t('a.addItem')}</h2>
               <button onClick={() => setItemModalStep('closed')} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
             </div>
             <div className="px-5 pt-4 shrink-0">
               <div className="relative">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+                <Search size={16} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
                 <input autoFocus value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} placeholder="Search items..." className="input-field !ps-10 text-[15px]" />
               </div>
             </div>
@@ -768,10 +768,10 @@ export default function ConnectionsPage() {
       {/* ---------------- Item detail ---------------- */}
       {itemModalStep === 'detail' && (
         <div className="fixed inset-0 bg-black/50 z-[160] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setItemModalStep('closed')}>
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 px-5 py-4 border-b border-dp-outline-variant">
               <button onClick={() => setItemModalStep('picker')} className="p-1 -ms-1 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer"><ChevronLeft size={20} /></button>
-              <h2 className="font-heading text-[18px] font-bold text-dp-primary truncate">{editingItemIndex !== null ? 'Edit Item' : (activeItem?.name ?? 'Item')}</h2>
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary truncate">{editingItemIndex !== null ? t('cn.editItem', 'Edit Item') : (activeItem?.name ?? t('cn.item', 'Item'))}</h2>
             </div>
             <div className="p-5 space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -803,7 +803,13 @@ export default function ConnectionsPage() {
       {previewOpen && (
         <div className="fixed inset-0 bg-black/60 z-[170] flex items-center justify-center p-4 overflow-y-auto" onClick={() => setPreviewOpen(false)}>
           <div className="bg-white rounded-lg max-w-2xl w-full my-8" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant">
+            {/* dir is on this title bar only — the printable challan below
+                (challanRef) is a fixed-width print layout, same category as
+                ReceiptDocument elsewhere, and needs the same dedicated
+                bilingual treatment that component has rather than a blanket
+                flip that could break its column alignment. Left as-is here,
+                flagged rather than guessed at. */}
+            <div dir={isUrdu ? 'rtl' : undefined} className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant">
               <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('z.challanPreview')}</h2>
               <div className="flex items-center gap-2">
                 <button disabled={printing} onClick={printChallan} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-surface-container-low transition-all cursor-pointer">
@@ -895,7 +901,7 @@ export default function ConnectionsPage() {
       {/* ---------------- Cash Receive confirm ---------------- */}
       {cashReceiveTarget && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-center justify-center p-4" onClick={() => setCashReceiveTarget(null)}>
-          <div className="bg-white rounded-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-1">{t('cn.receiveCash')}</h2>
             <p className="font-sans text-[13.5px] text-dp-on-surface-variant mb-4">
               {cashReceiveTarget.consumer_name} — Rs. {fmtAmount(cashReceiveTarget.total_amount)}. This will create the consumer (if new), generate a bill, and record the payment as cash.
@@ -913,7 +919,7 @@ export default function ConnectionsPage() {
       {/* ---------------- Activation modal ---------------- */}
       {activationTarget && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setActivationTarget(null)}>
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 px-5 py-4 border-b border-dp-outline-variant">
               <CheckCircle2 size={20} className="text-dp-secondary" />
               <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('cn.activateAccount')}</h2>
