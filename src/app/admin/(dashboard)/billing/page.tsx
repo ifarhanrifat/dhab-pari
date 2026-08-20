@@ -88,7 +88,6 @@ interface PaymentForm {
 
 const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const fullMonths = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-const frequencyLabels: Record<string, string> = { daily: 'day', weekly: 'week', monthly: 'month', semi_annual: '6 months', yearly: 'year' }
 
 // Net payable is amount_pkr (gross) minus any discount — the ledger posts the
 // discount as its own leg rather than netting it into amount_pkr, so anywhere that
@@ -519,13 +518,6 @@ function BillingPageInner() {
     })
   }
 
-  const pauseSchedule = async (scheduleId: string) => {
-    const { error } = await supabase.from('recurring_schedules').update({ is_active: false }).eq('id', scheduleId)
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('billing.ok.recurringPaused'))
-    loadData()
-  }
-
   const openEditConsumer = (c: Consumer) => {
     setEditForm({
       name: c.name, father_husband_name: c.father_husband_name || '', mobile: c.mobile,
@@ -878,11 +870,14 @@ function BillingPageInner() {
                 </div>
               </div>
 
-              {/* Outstanding summary */}
+              {/* Outstanding summary — was a full-width block banner (a plain
+                  div stretches edge to edge regardless of how short its text
+                  is); inline-flex shrinks it to a compact pill like the
+                  action buttons around it. */}
               {selectedOutstanding > 0 && (
-                <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-4 py-2 flex items-center gap-2">
-                  <AlertCircle size={16} className="text-dp-error shrink-0" />
-                  <span className="font-sans text-[14px] font-bold text-dp-error">{t('billing.outstandingAmount').replace('{amt}', selectedOutstanding.toLocaleString())}</span>
+                <div className="mt-3 inline-flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
+                  <AlertCircle size={14} className="text-dp-error shrink-0" />
+                  <span className="font-sans text-[12.5px] font-bold text-dp-error whitespace-nowrap">{t('billing.outstandingAmount').replace('{amt}', selectedOutstanding.toLocaleString())}</span>
                 </div>
               )}
 
@@ -922,39 +917,29 @@ function BillingPageInner() {
                     <Ban size={13} /> {t('billing.permanentDisconnection')}
                   </button>
                 )}
-              </div>
-            </div>
-
-            {/* Recurring billing — the one place to start or adjust a consumer's
-                recurring water bill, instead of the separate Transactions →
-                Recurring page. */}
-            <div className="px-6 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low/40">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Repeat size={14} className="text-dp-secondary" />
-                <span className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('billing.recurringBilling')}</span>
-              </div>
-              {recurringSchedules[selectedConsumer.consumer_id] ? (
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <p className="font-sans text-[13.5px] text-dp-on-surface">
-                    Rs. {(recurringSchedules[selectedConsumer.consumer_id].amount_pkr - recurringSchedules[selectedConsumer.consumer_id].discount_amount).toLocaleString()} / {frequencyLabels[recurringSchedules[selectedConsumer.consumer_id].frequency] ?? recurringSchedules[selectedConsumer.consumer_id].frequency}
-                    {recurringSchedules[selectedConsumer.consumer_id].discount_amount > 0 && (
-                      <span className="text-emerald-700"> (Rs. {recurringSchedules[selectedConsumer.consumer_id].discount_amount.toLocaleString()} discount)</span>
-                    )}
-                    <span className="text-dp-on-surface-variant"> · Next: {new Date(recurringSchedules[selectedConsumer.consumer_id].next_run_date).toLocaleDateString('en-GB')}</span>
-                  </p>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button onClick={() => openRecurringSetup(selectedConsumer)} title={t('billing.tip.editRecurring')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Pencil size={14} /></button>
-                    <button onClick={() => pauseSchedule(recurringSchedules[selectedConsumer.consumer_id].id)} title={t('billing.tip.pauseRecurring')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><PauseCircle size={15} /></button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('billing.noRecurring')}</p>
-                  <button onClick={() => openRecurringSetup(selectedConsumer)} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-                    <Repeat size={13} /> {t('billing.setUpRecurring')}
+                {/* Was its own section below (amount/frequency/next-run-date +
+                    a pencil + a pause icon) — collapsed into one button here,
+                    same as the Activate/Deactivate/Disconnect pills next to
+                    it. Still opens the same setup modal either way, so the
+                    detail and the pause/edit controls are one tap further in
+                    rather than gone. */}
+                {recurringSchedules[selectedConsumer.consumer_id] ? (
+                  <button
+                    onClick={() => openRecurringSetup(selectedConsumer)}
+                    title={t('billing.tip.editRecurring')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-sans text-[12.5px] font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all cursor-pointer"
+                  >
+                    <PauseCircle size={13} /> {t('billing.recurringBilling')}
                   </button>
-                </div>
-              )}
+                ) : (
+                  <button
+                    onClick={() => openRecurringSetup(selectedConsumer)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer"
+                  >
+                    <Repeat size={13} /> {t('billing.recurringBilling')}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Bills list */}

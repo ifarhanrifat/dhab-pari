@@ -430,14 +430,83 @@ function AdminDonorsPageInner() {
         ]}
       />
 
-      <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
+      {/* Mobile card list — the 9-column table below is desktop-only; a table
+          that wide either crushes every column or forces sideways scrolling
+          on a phone, neither of which lets an accountant scan rows at a
+          glance. Same fields, laid out the way the billing consumer list
+          already does it. */}
+      <div className="md:hidden bg-white rounded-lg border border-dp-outline-variant overflow-hidden divide-y divide-dp-outline-variant">
+        {loading && <div className="p-8 text-center text-dp-on-surface-variant font-sans text-[14px]">{t('action.loading')}</div>}
+        {!loading && visibleDonors.length === 0 && (
+          <div className="p-8 text-center text-dp-on-surface-variant font-sans text-[14px]">{donorSearch ? t('dn.noSearchMatch') : t('dn.noDonationsYet')}</div>
+        )}
+        {!loading && visibleDonors.map((d) => (
+          <div key={d.id} className={`p-4 ${selected.has(d.id) ? 'bg-dp-secondary-container/20' : !d.is_verified ? 'bg-amber-50/40' : ''}`}>
+            <div className="flex items-start gap-3">
+              <input type="checkbox" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} className="accent-dp-secondary cursor-pointer mt-1 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-sans text-[15px] font-semibold text-dp-on-surface truncate">
+                    {d.name}
+                    {d.is_anonymous && (
+                      <span className="ms-1.5 align-middle text-[9.5px] font-bold uppercase px-1.5 py-0.5 rounded-full font-sans bg-dp-surface-container-high text-dp-on-surface-variant">
+                        {t('dn.anonymous')}
+                      </span>
+                    )}
+                  </p>
+                  <p className="font-sans text-[15px] font-bold text-dp-secondary shrink-0 whitespace-nowrap">Rs. {Number(d.amount_pkr).toLocaleString()}</p>
+                </div>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant font-mono mt-0.5 truncate">
+                  {accountNoByKey.get(donorKeyFor(d.name, d.phone)) ?? '—'}{d.phone ? ` · ${d.phone}` : ''}
+                </p>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">
+                  {new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </p>
+
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  {fundBadge(d) && (
+                    <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full font-sans ${fundBadge(d)!.className}`}>{fundBadge(d)!.label}</span>
+                  )}
+                  <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full font-sans ${d.submitted_via === 'public' ? 'bg-blue-100 text-blue-700' : 'bg-dp-surface-container-high'}`}>{d.submitted_via === 'public' ? t('dn.public') : t('dn.staff')}</span>
+                  {d.donor_type === 'overseas' && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full font-sans bg-violet-100 text-violet-700">{t('g.overseas')}</span>}
+                  {d.recurring_schedule_id && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full font-sans bg-indigo-100 text-indigo-700">{t('a.recurring')}</span>}
+                  {donorStatus(d) === 'received' && <span className="inline-flex items-center gap-1 text-dp-secondary text-[10.5px] font-bold"><CheckCircle size={11} /> {t('dn.received')}</span>}
+                  {donorStatus(d) === 'partial' && <span className="inline-flex items-center gap-1 text-orange-700 text-[10.5px] font-bold"><AlertTriangle size={11} /> {t('dn.partial')}</span>}
+                  {donorStatus(d) === 'announced' && <span className="inline-flex items-center gap-1 text-amber-700 text-[10.5px] font-bold"><XCircle size={11} /> {t('dn.announced')}</span>}
+                  {donorStatus(d) === 'awaiting' && <span className="inline-flex items-center gap-1 text-dp-on-surface-variant text-[10.5px] font-bold"><Clock size={11} /> {t('dn.awaiting')}</span>}
+                </div>
+
+                <div className="flex items-center gap-2 mt-3">
+                  {d.payment_proof_url && (
+                    <button
+                      onClick={() => openProof(d)}
+                      disabled={proofLoadingId === d.id}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12.5px] font-sans font-semibold cursor-pointer transition-all border border-dp-outline-variant text-dp-secondary hover:bg-dp-surface-container disabled:opacity-50"
+                    >
+                      <Paperclip size={12} /> {proofLoadingId === d.id ? '...' : t('dn.proof')}
+                    </button>
+                  )}
+                  <button onClick={() => openEdit(d)} className="px-2.5 py-1.5 rounded-lg text-[12.5px] font-sans font-semibold cursor-pointer transition-all border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container">
+                    {d.is_verified ? t('action.edit') : t('dn.review')}
+                  </button>
+                  {d.is_verified && (
+                    <button onClick={() => unverify(d.id)} className="px-2.5 py-1.5 rounded-lg text-[12.5px] font-sans font-semibold cursor-pointer transition-all border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container">{t('dn.unverify')}</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden md:block bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
-            <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]"><th className="p-4 w-10"><input type="checkbox" checked={donors.length > 0 && selected.size === donors.length} onChange={toggleSelectAll} className="accent-dp-secondary cursor-pointer" /></th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('name')}>Name{sortArrow('name')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('account')}>Account #{sortArrow('account')}</th><th className="p-4">{t('a.phone')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('amount')}>Amount{sortArrow('amount')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('date')}>Date{sortArrow('date')}</th><th className="p-4">{t('dn.source')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('status')}>Status{sortArrow('status')}</th><th className="p-4 text-end">{t('a.actions')}</th></tr></thead>
+            <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]"><th className="p-4 w-10"><input type="checkbox" checked={donors.length > 0 && selected.size === donors.length} onChange={toggleSelectAll} className="accent-dp-secondary cursor-pointer" /></th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('name')}>{t('a.name')}{sortArrow('name')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('account')}>{t('dn.accountNo', 'Account #')}{sortArrow('account')}</th><th className="p-4">{t('a.phone')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('amount')}>{t('w.amount')}{sortArrow('amount')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('date')}>{t('w.date')}{sortArrow('date')}</th><th className="p-4">{t('dn.source')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('status')}>{t('a.status', 'Status')}{sortArrow('status')}</th><th className="p-4 text-end">{t('a.actions')}</th></tr></thead>
             <tbody className="font-sans text-[16px]">
               {loading && <tr><td colSpan={9} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}
               {!loading && visibleDonors.length === 0 && (
-                <tr><td colSpan={9} className="p-8 text-center text-dp-on-surface-variant">{donorSearch ? 'No donors match that search.' : 'No donations yet.'}</td></tr>
+                <tr><td colSpan={9} className="p-8 text-center text-dp-on-surface-variant">{donorSearch ? t('dn.noSearchMatch') : t('dn.noDonationsYet')}</td></tr>
               )}
               {!loading && visibleDonors.map((d, i) => (
                 <tr key={d.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''} ${selected.has(d.id) ? 'bg-dp-secondary-container/20' : ''} ${!d.is_verified ? 'bg-amber-50/40' : ''}`}>
@@ -462,7 +531,7 @@ function AdminDonorsPageInner() {
                       {fundBadge(d) && (
                         <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full font-sans ${fundBadge(d)!.className}`}>{fundBadge(d)!.label}</span>
                       )}
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full font-sans ${d.submitted_via === 'public' ? 'bg-blue-100 text-blue-700' : 'bg-dp-surface-container-high'}`}>{d.submitted_via === 'public' ? 'Public' : 'Staff'}</span>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full font-sans ${d.submitted_via === 'public' ? 'bg-blue-100 text-blue-700' : 'bg-dp-surface-container-high'}`}>{d.submitted_via === 'public' ? t('dn.public') : t('dn.staff')}</span>
                       {d.donor_type === 'overseas' && <span className="text-[11px] font-bold px-2 py-0.5 rounded-full font-sans bg-violet-100 text-violet-700">{t('g.overseas')}</span>}
                       {d.recurring_schedule_id && (
                         <span title="Generated by a recurring schedule, not entered by hand" className="text-[11px] font-bold px-2 py-0.5 rounded-full font-sans bg-indigo-100 text-indigo-700">{t('a.recurring')}</span>
@@ -489,11 +558,11 @@ function AdminDonorsPageInner() {
                         title="View the payment screenshot the donor sent"
                         className="inline-flex items-center gap-1 px-2 py-1 me-2 rounded text-[13px] font-sans font-semibold cursor-pointer transition-all border border-dp-outline-variant text-dp-secondary hover:bg-dp-surface-container disabled:opacity-50"
                       >
-                        <Paperclip size={13} /> {proofLoadingId === d.id ? '...' : 'Proof'}
+                        <Paperclip size={13} /> {proofLoadingId === d.id ? '...' : t('dn.proof')}
                       </button>
                     )}
                     <button onClick={() => openEdit(d)} className="px-3 py-1 rounded text-[14px] font-sans font-semibold cursor-pointer transition-all border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container me-2">
-                      {d.is_verified ? 'Edit' : 'Review'}
+                      {d.is_verified ? t('action.edit') : t('dn.review')}
                     </button>
                     {d.is_verified && (
                       <button onClick={() => unverify(d.id)} className="px-3 py-1 rounded text-[14px] font-sans font-semibold cursor-pointer transition-all border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container">{t('dn.unverify')}</button>
