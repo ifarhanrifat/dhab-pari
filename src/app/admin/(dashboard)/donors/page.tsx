@@ -456,8 +456,13 @@ function AdminDonorsPageInner() {
                   </p>
                   <p className="font-sans text-[15px] font-bold text-dp-secondary shrink-0 whitespace-nowrap">Rs. {Number(d.amount_pkr).toLocaleString()}</p>
                 </div>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant font-mono mt-0.5 truncate">
-                  {accountNoByKey.get(donorKeyFor(d.name, d.phone)) ?? '—'}{d.phone ? ` · ${d.phone}` : ''}
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5 truncate">
+                  {/* font-mono on a bare <p> forces display:inline-block under
+                      Urdu (globals.css, so LTR numbers embed correctly inside
+                      RTL text) — which can pull this row onto the same line
+                      as an inline sibling above it. Scoped to a nested span
+                      instead, so the <p> itself stays a normal block. */}
+                  <span className="font-mono">{accountNoByKey.get(donorKeyFor(d.name, d.phone)) ?? '—'}{d.phone ? ` · ${d.phone}` : ''}</span>
                 </p>
                 <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">
                   {new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}

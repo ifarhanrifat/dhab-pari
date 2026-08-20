@@ -798,8 +798,14 @@ function BillingPageInner() {
       </div>
 
       {/* Two-column layout — stays in normal left/right order at every
-          language, per the reference design. */}
-      <div className="flex gap-6 h-[calc(100vh-300px)] min-h-[420px]">
+          language, per the reference design. The 300px subtraction was
+          tuned for the full toolbar's height; on mobile once a consumer is
+          selected, that toolbar is hidden behind the compact back+name bar
+          instead (~150px total chrome), so the same fixed subtraction was
+          leaving a large dead strip of unused space below the bill cards.
+          Desktop always shows the full toolbar regardless of selection, so
+          it keeps the original number there. */}
+      <div className={`flex gap-6 min-h-[420px] ${selectedConsumer ? 'h-[calc(100vh-150px)] md:h-[calc(100vh-300px)]' : 'h-[calc(100vh-300px)]'}`}>
 
         {/* Consumer list */}
         <div className={`${selectedConsumer ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[340px] md:flex-shrink-0 min-h-0`}>
@@ -920,7 +926,7 @@ function BillingPageInner() {
                 <div className="min-w-0 flex-1 text-end">
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     {selectedConsumer.sector && <span className="font-sans text-[11.5px] text-dp-on-surface-variant">{selectedConsumer.sector}</span>}
-                    <span className="font-sans text-[11px] font-bold text-white bg-dp-secondary px-2.5 py-1 rounded-[6px] tracking-wide truncate max-w-[140px]">{selectedConsumer.consumer_id}</span>
+                    <span className="font-sans text-[11px] font-bold text-dp-on-surface-variant bg-dp-surface-container-low px-2.5 py-1 rounded-[6px] tracking-wide truncate max-w-[140px]">{selectedConsumer.consumer_id}</span>
                     {selectedConsumer.status === 'disconnected' && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wide bg-gray-200 text-gray-700"><Ban size={10} /> {t('billing.disconnected')}</span>
                     )}
@@ -967,15 +973,21 @@ function BillingPageInner() {
               )}
             </div>
 
-            {/* Balance + the action that settles it, as one unit */}
+            {/* Balance + a WhatsApp reminder — not a "Collect" button. With
+                more than one outstanding bill there's no single correct
+                payment to jump into; the real per-bill Receive Now buttons
+                below (each tied to its own actual bill) already do that
+                properly. This card's job is just to nudge the consumer. */}
             {selectedOutstanding > 0 && (
               <div className="mx-4 mt-3.5 bg-red-50 rounded-[13px] px-[15px] py-[13px] flex items-center justify-between">
-                <button
-                  onClick={() => { const firstUnpaid = selectedBills.find((b) => outstanding(b) > 0); if (firstUnpaid) startPayment(firstUnpaid) }}
-                  className="font-sans text-[12.5px] font-semibold bg-dp-secondary text-white border-none px-[18px] py-2 rounded-[10px] cursor-pointer"
-                >
-                  {t('billing.collect', 'وصولی')}
-                </button>
+                {selectedConsumer.mobile ? (
+                  <button
+                    onClick={() => sendWhatsApp(selectedConsumer)}
+                    className="flex items-center gap-1.5 font-sans text-[12.5px] font-semibold bg-[#25d366] text-white border-none px-[14px] py-2 rounded-[10px] cursor-pointer hover:opacity-90 transition-all whitespace-nowrap"
+                  >
+                    <MessageCircle size={14} /> {t('billing.sendReminder')}
+                  </button>
+                ) : <span />}
                 <div className="text-end">
                   <div dir={isUrdu ? 'rtl' : undefined} className="font-sans text-[11px] text-dp-error/80">{t('billing.balanceDue', 'باقی رقم')}</div>
                   <div className="tabular-nums text-[23px] font-bold text-dp-error tracking-tight">Rs. {selectedOutstanding.toLocaleString()}</div>
@@ -983,40 +995,37 @@ function BillingPageInner() {
               </div>
             )}
 
-            {/* All four lifecycle actions, one row, ranked by weight — must
-                stay on one line at 390px (whitespace-nowrap + tight gap/pad),
-                a fifth action would need to go behind a menu instead. */}
-            {/* justify-end + flex-wrap, not overflow-x-auto: English labels
-                ("Permanent Disconnection") are long enough to overflow at
-                390px, and end-justified content inside a horizontal-scroll
-                container can leave its own start permanently unreachable
-                (scrollLeft can't go negative) — wrapping to a 2nd line is
-                the safe degrade; Urdu's shorter labels still fit one row. */}
-            <div className="mx-4 mt-3.5 mb-4 pt-3 border-t border-dp-outline-variant/60 flex items-center justify-end gap-1.5 flex-wrap">
+            {/* All four lifecycle actions, equal width regardless of label
+                length or language — an explicit ask, not just a fit-to-
+                content row anymore. flex-1 on every item divides the row
+                evenly; text-center + no whitespace-nowrap lets the longer
+                English labels wrap to 2 lines within their own button
+                instead of forcing the button wider than its neighbors. */}
+            <div className="mx-4 mt-3.5 mb-4 pt-3 border-t border-dp-outline-variant/60 flex items-stretch gap-1.5">
                 {selectedConsumer.status === 'disconnected' ? (
-                  <span className="flex items-center gap-1.5 px-2.5 py-[7px] rounded-[9px] font-sans text-[11px] font-bold bg-gray-100 text-gray-600 whitespace-nowrap" title={t('billing.tip.reconnects')}>
-                    <Ban size={11} />{t('billing.disconnectedNote')}</span>
+                  <span className="flex-1 flex items-center justify-center gap-1.5 px-2 py-[7px] rounded-[9px] font-sans text-[11px] font-bold bg-gray-100 text-gray-600 text-center" title={t('billing.tip.reconnects')}>
+                    <Ban size={11} className="shrink-0" />{t('billing.disconnectedNote')}</span>
                 ) : (
-                  <button onClick={() => openDisconnect(selectedConsumer)} className="border border-red-200 bg-white rounded-[9px] px-2.5 py-[7px] cursor-pointer">
-                    <span className="font-sans text-[11px] font-semibold text-dp-error whitespace-nowrap">{t('billing.permanentDisconnection')}</span>
+                  <button onClick={() => openDisconnect(selectedConsumer)} className="flex-1 border border-red-200 bg-white rounded-[9px] px-2 py-[7px] cursor-pointer">
+                    <span className="font-sans text-[11px] font-semibold text-dp-error text-center block leading-tight">{t('billing.permanentDisconnection')}</span>
                   </button>
                 )}
                 {selectedConsumer.status !== 'disconnected' && (
-                  <button onClick={() => setConfirmToggleActive(selectedConsumer)} className="border border-dp-outline-variant bg-white rounded-[9px] px-2.5 py-[7px] cursor-pointer">
-                    <span className="font-sans text-[11px] font-semibold text-dp-on-surface-variant whitespace-nowrap">{selectedConsumer.status === 'active' ? t('billing.deactivateAction') : t('billing.activateAction')}</span>
+                  <button onClick={() => setConfirmToggleActive(selectedConsumer)} className="flex-1 border border-dp-outline-variant bg-white rounded-[9px] px-2 py-[7px] cursor-pointer">
+                    <span className="font-sans text-[11px] font-semibold text-dp-on-surface-variant text-center block leading-tight">{selectedConsumer.status === 'active' ? t('billing.deactivateAction') : t('billing.activateAction')}</span>
                   </button>
                 )}
-                <button onClick={() => openEditConsumer(selectedConsumer)} className="border border-dp-outline-variant bg-white rounded-[9px] px-2.5 py-[7px] cursor-pointer">
-                  <span className="font-sans text-[11px] font-semibold text-dp-on-surface-variant whitespace-nowrap">{t('action.edit')}</span>
+                <button onClick={() => openEditConsumer(selectedConsumer)} className="flex-1 border border-dp-outline-variant bg-white rounded-[9px] px-2 py-[7px] cursor-pointer">
+                  <span className="font-sans text-[11px] font-semibold text-dp-on-surface-variant text-center block leading-tight">{t('action.edit')}</span>
                 </button>
                 {recurringSchedules[selectedConsumer.consumer_id]?.is_active ? (
                   <button
                     onClick={() => openRecurringSetup(selectedConsumer)}
                     title={t('billing.tip.editRecurring')}
-                    className="flex items-center gap-1.5 bg-gray-100 border-none rounded-[9px] px-2.5 py-[7px] cursor-pointer hover:bg-gray-200 transition-all"
+                    className="flex-1 flex flex-col items-center justify-center gap-1 bg-gray-100 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-gray-200 transition-all"
                   >
-                    <PauseCircle size={12} className="text-gray-500" />
-                    <span className="font-sans text-[11px] font-semibold text-gray-600 whitespace-nowrap">{t('billing.recurringBilling')}</span>
+                    <PauseCircle size={12} className="text-gray-500 shrink-0" />
+                    <span className="font-sans text-[11px] font-semibold text-gray-600 text-center leading-tight">{t('billing.recurringBilling')}</span>
                   </button>
                 ) : recurringSchedules[selectedConsumer.consumer_id] ? (
                   // Has a schedule row, just paused — its own amber state so it
@@ -1027,18 +1036,18 @@ function BillingPageInner() {
                   <button
                     onClick={() => openRecurringSetup(selectedConsumer)}
                     title={t('billing.tip.recurringPaused')}
-                    className="flex items-center gap-1.5 bg-amber-50 border-none rounded-[9px] px-2.5 py-[7px] cursor-pointer hover:bg-amber-100 transition-all"
+                    className="flex-1 flex flex-col items-center justify-center gap-1 bg-amber-50 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-amber-100 transition-all"
                   >
-                    <PauseCircle size={12} className="text-amber-700" />
-                    <span className="font-sans text-[11px] font-semibold text-amber-800 whitespace-nowrap">{t('billing.recurringBillingPaused')}</span>
+                    <PauseCircle size={12} className="text-amber-700 shrink-0" />
+                    <span className="font-sans text-[11px] font-semibold text-amber-800 text-center leading-tight">{t('billing.recurringBillingPaused')}</span>
                   </button>
                 ) : (
                   <button
                     onClick={() => openRecurringSetup(selectedConsumer)}
-                    className="flex items-center gap-1.5 bg-emerald-50 border-none rounded-[9px] px-2.5 py-[7px] cursor-pointer hover:bg-emerald-100 transition-all"
+                    className="flex-1 flex flex-col items-center justify-center gap-1 bg-emerald-50 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-emerald-100 transition-all"
                   >
-                    <Repeat size={12} className="text-dp-secondary" />
-                    <span className="font-sans text-[11px] font-semibold text-dp-secondary whitespace-nowrap">{t('billing.recurringBilling')}</span>
+                    <Repeat size={12} className="text-dp-secondary shrink-0" />
+                    <span className="font-sans text-[11px] font-semibold text-dp-secondary text-center leading-tight">{t('billing.recurringBilling')}</span>
                   </button>
                 )}
               </div>
@@ -1094,7 +1103,13 @@ function BillingPageInner() {
                             {t(monthKey(bill.month), fullMonths[bill.month])} {bill.year}
                           </Link>
                         )}
-                        {bill.bill_number && <div className="font-mono text-[11px] text-dp-on-surface-variant tabular-nums">#{bill.bill_number}</div>}
+                        {/* .font-mono forces display:inline-block under Urdu
+                            (globals.css, so LTR numbers can embed correctly
+                            inside RTL text) — on a bare div that pulled this
+                            row inline with the month/year above it instead
+                            of stacking. The div itself stays plain; only the
+                            number goes in a nested font-mono span. */}
+                        {bill.bill_number && <div className="text-[11px] text-dp-on-surface-variant"><span className="font-mono tabular-nums">#{bill.bill_number}</span></div>}
                       </div>
                     </div>
 
