@@ -4,6 +4,7 @@ import {
   Wallet, Landmark, HandCoins, ScrollText, TrendingUp, TrendingDown,
   Users, Heart, Megaphone, PiggyBank, Droplets, HeartHandshake,
   ListFilter, CalendarDays, Repeat, FileBarChart, Receipt, AlertTriangle, Trophy, Coins,
+  UserCheck, UserX, Tag, UserPlus,
 } from 'lucide-react'
 import { IncomeExpenseChart, FundPieChart } from '@/components/admin/DashboardCharts'
 import { PendingApprovalsWidget } from '@/components/admin/PendingApprovalsWidget'
@@ -44,13 +45,24 @@ export default async function AdminDashboardPage() {
     showDonor = !!canDonor
   }
 
-  const [{ data: accountsData }, { data: ledgerData }, { data: consumersData }, { data: donorsData }, { data: inventoryData }, { data: topSellingLines }] = await Promise.all([
+  // Computed once, up here, so both the billing-analytics queries below and
+  // the header clock further down use the exact same instant.
+  const now = new Date()
+  const currentMonth = now.getMonth() + 1
+  const currentYear = now.getFullYear()
+
+  const [{ data: accountsData }, { data: ledgerData }, { data: consumersData }, { data: donorsData }, { data: inventoryData }, { data: topSellingLines }, { data: thisMonthBillsData }] = await Promise.all([
     supabase.from('accounts').select('id, code, name, type, system, opening_balance'),
     supabase.from('ledger_entries').select('account_id, entry_date, debit, credit'),
-    showWater ? supabase.from('consumers').select('consumer_id, status') : Promise.resolve({ data: [] as { consumer_id: string; status: string }[] }),
+    showWater ? supabase.from('consumers').select('consumer_id, status, created_at') : Promise.resolve({ data: [] as { consumer_id: string; status: string; created_at: string }[] }),
     showDonor ? supabase.from('donors').select('id, amount_pkr, date') : Promise.resolve({ data: [] as { id: string; amount_pkr: number; date: string }[] }),
     showWater ? supabase.from('inventory_items').select('id, name, quantity_on_hand, reorder_level').eq('system', 'water_supply').eq('is_active', true) : Promise.resolve({ data: [] as { id: string; name: string; quantity_on_hand: number; reorder_level: number }[] }),
     showWater ? supabase.from('bill_line_items').select('inventory_item_id, description, line_total').eq('item_type', 'inventory') : Promise.resolve({ data: [] as { inventory_item_id: string | null; description: string; line_total: number }[] }),
+    // Feeds the billing quick-filter cards below — that whole 6-card grid
+    // used to live inline on /admin/billing itself, stacking six-across
+    // even on a phone and pushing the actual consumer list below the fold.
+    // These cards link to /admin/billing?quickFilter=<value> instead.
+    showWater ? supabase.from('bills').select('consumer_id, discount_amount, amount_pkr').eq('month', currentMonth).eq('year', currentYear) : Promise.resolve({ data: [] as { consumer_id: string; discount_amount: number | null; amount_pkr: number }[] }),
   ])
 
   const accounts: Account[] = accountsData ?? []
@@ -104,6 +116,21 @@ export default async function AdminDashboardPage() {
   const donorTrend = showDonor ? monthlyTrend('donors_projects') : []
 
   const activeConsumers = (consumersData ?? []).filter((c) => c.status === 'active').length
+  // Same logic as billing/page.tsx's own monthlyStats — card counts reflect
+  // distinct consumers, not raw bill rows, so a consumer billed twice this
+  // month doesn't inflate the card past what the list it links to shows.
+  const inactiveConsumers = (consumersData ?? []).filter((c) => c.status !== 'active').length
+  const newConsumersThisMonth = (consumersData ?? []).filter((c) => {
+    const d = new Date(c.created_at)
+    return d.getMonth() + 1 === currentMonth && d.getFullYear() === currentYear
+  }).length
+  const thisMonthBills = thisMonthBillsData ?? []
+  const billedThisMonthCount = thisMonthBills.length
+  const billedThisMonthTotal = thisMonthBills.reduce((s, b) => s + Number(b.amount_pkr), 0)
+  const discountConsumerIds = new Set(thisMonthBills.filter((b) => Number(b.discount_amount ?? 0) > 0).map((b) => b.consumer_id))
+  const withDiscountCount = discountConsumerIds.size
+  const withDiscountTotal = thisMonthBills.filter((b) => discountConsumerIds.has(b.consumer_id)).reduce((s, b) => s + Number(b.amount_pkr), 0)
+  const withoutDiscountCount = (consumersData ?? []).filter((c) => !discountConsumerIds.has(c.consumer_id)).length
   const lowStockItems = (inventoryData ?? []).filter((i) => i.reorder_level > 0 && i.quantity_on_hand <= i.reorder_level)
   const revenueByItem: Record<string, { name: string; revenue: number }> = {}
   for (const r of topSellingLines ?? []) {
@@ -118,7 +145,6 @@ export default async function AdminDashboardPage() {
   const donationsAnnounced = (donorsData ?? []).length
   const donationsReceived = (donorsData ?? []).reduce((s, d) => s + Number(d.amount_pkr), 0)
 
-  const now = new Date()
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
   const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
@@ -164,6 +190,17 @@ export default async function AdminDashboardPage() {
             <StatCard href="/admin/inventory?tab=analytics" icon={<AlertTriangle size={19} />} color={lowStockItems.length > 0 ? 'red' : 'teal'} label="Low Stock Items" value={lowStockItems.length.toLocaleString()} />
             <StatCard href="/admin/inventory?tab=analytics" icon={<Trophy size={19} />} color="amber" label="Top Selling Item" value={topSellingItem ? topSellingItem.name : 'No sales yet'} />
             <StatCard href="/admin/collectors" icon={<Coins size={19} />} color={collectorHoldings > 0 ? 'red' : 'teal'} label="Collector Holdings" value={`Rs. ${fmt(collectorHoldings)}`} />
+            {/* Moved from a 6-card row that used to live inline on the
+                Billing page itself — on a phone it stacked into a wall of
+                cards above the actual consumer list. Each links straight
+                to Billing with that filter already applied
+                (?quickFilter=<value>, read on mount there). */}
+            <StatCard href="/admin/billing?quickFilter=billed_this_month" icon={<Receipt size={19} />} color="teal" label="Billed This Month" value={`Rs. ${fmt(billedThisMonthTotal)}`} />
+            <StatCard href="/admin/billing?quickFilter=active" icon={<UserCheck size={19} />} color="emerald" label="Active Connections" value={activeConsumers.toLocaleString()} />
+            <StatCard href="/admin/billing?quickFilter=inactive" icon={<UserX size={19} />} color="red" label="Deactivated" value={inactiveConsumers.toLocaleString()} />
+            <StatCard href="/admin/billing?quickFilter=with_discount" icon={<Tag size={19} />} color="amber" label="With Discount" value={withDiscountCount.toLocaleString()} />
+            <StatCard href="/admin/billing?quickFilter=without_discount" icon={<Users size={19} />} color="blue" label="Without Discount" value={withoutDiscountCount.toLocaleString()} />
+            <StatCard href="/admin/billing?quickFilter=new_this_month" icon={<UserPlus size={19} />} color="violet" label="New This Month" value={newConsumersThisMonth.toLocaleString()} />
           </div>
           <QuickLinks system="water_supply" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

@@ -598,6 +598,19 @@ function BillingPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading])
 
+  // Deep-link support: ?quickFilter=<value>, from the analytics cards that
+  // used to live on this page and now live on the Water Supply dashboard
+  // (migration of that grid — mobile view stacked six cards into a wall
+  // that pushed the actual consumer list below the fold). Validated against
+  // the real type rather than cast, so a stale/mistyped link just falls
+  // back to "none" instead of putting the state in an impossible value.
+  useEffect(() => {
+    const qf = searchParams.get('quickFilter')
+    const valid: QuickFilter[] = ['billed_this_month', 'active', 'inactive', 'with_discount', 'without_discount', 'new_this_month']
+    if (qf && (valid as string[]).includes(qf)) setQuickFilter(qf as QuickFilter)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const sendWhatsApp = (consumer: Consumer) => {
     const stats = consumerStats[consumer.consumer_id]
     if (!consumer.mobile) { toast.error(t('billing.err.noMobile')); return }
@@ -636,61 +649,15 @@ function BillingPageInner() {
         </div>
       </div>
 
-      {/* Analytics bar — this month's billing activity at a glance */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-        <button
-          onClick={() => toggleQuickFilter('billed_this_month')}
-          className={`text-start bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'billed_this_month' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
-          title={t('billing.tip.billedThisMonth')}
-        >
-          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><Receipt size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">{t('billing.billedThisMonth')}</span></div>
-          <p className="font-sans text-[18px] font-bold text-dp-primary">Rs. {monthlyStats.billTotal.toLocaleString()}</p>
-          <p className="font-sans text-[11px] text-dp-on-surface-variant">{monthlyStats.billCount} bill{monthlyStats.billCount === 1 ? '' : 's'}</p>
-        </button>
-        <button
-          onClick={() => toggleQuickFilter('active')}
-          className={`text-start bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'active' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
-          title={t('billing.tip.active')}
-        >
-          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><UserCheck size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">{t('billing.activeConnections')}</span></div>
-          <p className="font-sans text-[18px] font-bold text-emerald-700">{monthlyStats.activeConnections}</p>
-        </button>
-        <button
-          onClick={() => toggleQuickFilter('inactive')}
-          className={`text-start bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'inactive' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
-          title={t('billing.tip.deactivated')}
-        >
-          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><UserX size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">{t('billing.deactivated')}</span></div>
-          <p className="font-sans text-[18px] font-bold text-dp-error">{monthlyStats.inactiveConnections}</p>
-          <p className="font-sans text-[11px] text-dp-on-surface-variant">{deactivatedThisMonth} this month</p>
-        </button>
-        <button
-          onClick={() => toggleQuickFilter('with_discount')}
-          className={`text-start bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'with_discount' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
-          title="Click to view only consumers with a discounted bill this month"
-        >
-          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><Tag size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">{t('billing.withDiscount')}</span></div>
-          <p className="font-sans text-[18px] font-bold text-dp-primary">{monthlyStats.withDiscountCount}</p>
-          <p className="font-sans text-[11px] text-dp-on-surface-variant">Rs. {monthlyStats.withDiscountTotal.toLocaleString()}</p>
-        </button>
-        <button
-          onClick={() => toggleQuickFilter('without_discount')}
-          className={`text-start bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'without_discount' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
-          title="Click to view consumers who were not given a discount this month (includes those not yet billed)"
-        >
-          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><Users size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">{t('billing.withoutDiscount')}</span></div>
-          <p className="font-sans text-[18px] font-bold text-dp-primary">{monthlyStats.withoutDiscountCount}</p>
-          <p className="font-sans text-[11px] text-dp-on-surface-variant">Rs. {monthlyStats.withoutDiscountTotal.toLocaleString()}</p>
-        </button>
-        <button
-          onClick={() => toggleQuickFilter('new_this_month')}
-          className={`text-start bg-white border rounded-lg px-4 py-3 cursor-pointer transition-all ${quickFilter === 'new_this_month' ? 'border-dp-secondary ring-2 ring-dp-secondary/30' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
-          title={t('billing.tip.newThisMonth')}
-        >
-          <div className="flex items-center gap-1.5 text-dp-on-surface-variant mb-1"><UserPlus size={13} /><span className="font-sans text-[11px] font-bold uppercase tracking-[0.04em]">{t('billing.newThisMonth')}</span></div>
-          <p className="font-sans text-[18px] font-bold text-dp-secondary">{monthlyStats.newThisMonth}</p>
-        </button>
-      </div>
+      {/* The six analytics cards that used to sit here (billed this month,
+          active/inactive, with/without discount, new this month) moved to
+          the Water Supply dashboard section on the admin home page —
+          stacked six-across even on mobile, they pushed the actual
+          consumer list below the fold before anyone got to it. They still
+          filter this same list; a dashboard card now links here with
+          ?quickFilter=<value> (read on mount above) instead of living
+          inline. toggleQuickFilter/monthlyStats stay — the filter bar
+          below and the list filtering itself still need them. */}
       {quickFilter !== 'none' && (
         <div className="flex items-center justify-between gap-2 bg-dp-secondary/10 border border-dp-secondary/30 rounded-lg px-4 py-2 mb-4 flex-wrap">
           <span className="font-sans text-[13px] text-dp-primary font-semibold">
