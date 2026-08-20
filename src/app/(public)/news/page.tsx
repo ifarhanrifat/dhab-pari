@@ -94,13 +94,18 @@ export default function NewsPage() {
           {t('x.villageNewsUpdates')}
         </h1>
         <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px] mt-2">
-          Stay informed about community events, announcements, and village development.
+          {t('x.newsPageIntro')}
         </p>
       </div>
 
       {/* Category Filters */}
       <div className="flex flex-wrap gap-3 mb-10">
-        {[{ key: 'All', label_en: 'All', icon: null }, ...categories].map((cat) => (
+        {/* cat.label_en is a database value (post_categories has no Urdu
+            label column yet) — every OTHER category still shows in
+            English regardless of site language, a real gap this "All"
+            pill alone can't fix; flagged as a follow-up rather than
+            guessed at here. */}
+        {[{ key: 'All', label_en: t('x.allCategories'), icon: null }, ...categories].map((cat) => (
           <button
             key={cat.key}
             onClick={() => setActiveFilter(cat.key)}
