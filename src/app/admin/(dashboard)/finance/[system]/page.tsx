@@ -1569,7 +1569,10 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   )
 
   return (
-    <>
+    // Scoped text-direction flip, same technique as the wazifa form — dir
+    // mirrors reading order and alignment for this page's own text under
+    // Urdu without touching the sidebar or the rest of the app's layout.
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link href="/admin/finance" className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold mb-3">
@@ -2647,7 +2650,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
             <div className="px-5 pt-4 shrink-0">
               <div className="relative mb-3">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+                <Search size={16} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
                 <input autoFocus value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} placeholder="Search..." className="input-field !ps-10 text-[15px]" />
               </div>
               <div className="flex gap-1.5 bg-dp-surface-container-low rounded-lg p-1">
@@ -2747,7 +2750,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
             </div>
             <div className="px-5 pt-4 shrink-0">
               <div className="relative">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+                <Search size={16} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
                 <input autoFocus value={catalogSearch} onChange={(e) => setCatalogSearch(e.target.value)} placeholder="Search items..." className="input-field !ps-10 text-[15px]" />
               </div>
             </div>
@@ -2966,6 +2969,6 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         </div>
       )}
 
-    </>
+    </div>
   )
 }
