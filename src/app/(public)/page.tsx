@@ -215,7 +215,7 @@ export default async function HomePage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title"><T k="home.ongoingProjects" /></h2>
               <Link href="/projects" className="text-dp-secondary font-bold hover:underline flex items-center text-[14px] font-sans tracking-[0.05em]">
-                <T k="home.viewAll" /> <ArrowRight size={16} className="ms-1" />
+                <T k="home.viewAll" /> <ArrowRight size={16} className="ms-1 rtl:-scale-x-100" />
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -367,7 +367,7 @@ export default async function HomePage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title flex items-center gap-3"><Briefcase size={26} /> <T k="home.jobBoard" /></h2>
               <Link href="/jobs" className="text-dp-secondary font-bold hover:underline flex items-center text-[14px] font-sans tracking-[0.05em]">
-                <T k="home.viewAll" /> <ArrowRight size={16} className="ms-1" />
+                <T k="home.viewAll" /> <ArrowRight size={16} className="ms-1 rtl:-scale-x-100" />
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -398,7 +398,7 @@ export default async function HomePage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title flex items-center gap-3"><Trophy size={26} /> <T k="home.achievements" /></h2>
               <Link href="/achievements" className="text-dp-secondary font-bold hover:underline flex items-center text-[14px] font-sans tracking-[0.05em]">
-                <T k="home.viewAll" /> <ArrowRight size={16} className="ms-1" />
+                <T k="home.viewAll" /> <ArrowRight size={16} className="ms-1 rtl:-scale-x-100" />
               </Link>
             </div>
             <div className="space-y-3">

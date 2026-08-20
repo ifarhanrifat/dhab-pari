@@ -7,10 +7,10 @@ import { useMobileNav } from './MobileNavContext'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 const tabs = [
-  { href: '/', label: 'Home', icon: Home },
-  { href: '/projects', label: 'Projects', icon: FolderKanban },
-  { href: '/donate', label: 'Donate', icon: Heart },
-  { href: '/videos', label: 'Videos', icon: Video },
+  { href: '/', tKey: 'site.home', label: 'Home', icon: Home },
+  { href: '/projects', tKey: 'site.projects', label: 'Projects', icon: FolderKanban },
+  { href: '/donate', tKey: 'site.donate', label: 'Donate', icon: Heart },
+  { href: '/videos', tKey: 'site.videos', label: 'Videos', icon: Video },
 ]
 
 export function BottomNav() {
@@ -35,7 +35,7 @@ export function BottomNav() {
           >
             <Icon size={20} fill={isActive ? 'currentColor' : 'none'} />
             <span className="text-[10px] font-sans font-semibold tracking-[0.05em] mt-0.5">
-              {tab.label}
+              {t(tab.tKey, tab.label)}
             </span>
           </Link>
         )

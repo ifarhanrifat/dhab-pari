@@ -40,9 +40,15 @@ export function LocaleDir({
   children: React.ReactNode
   className?: string
 }) {
-  // Currently a passthrough: the committee wants Urdu wording without the
-  // layout moving, so nothing here sets a direction. Kept as the single seam
-  // where per-section mirroring would go if that changes — better one place to
-  // edit than hunting the wrapper back through every public page.
-  return <div className={className}>{children}</div>
+  // No longer a passthrough — the page and its template still don't move
+  // (RTL_READY itself stays off; see LocaleProvider's own note on why), but
+  // within one section a heading sitting on the left with a "view all" link
+  // and arrow on the right reads backwards under Urdu. This is the seam
+  // that fixes that per-section, without repositioning anything the
+  // section isn't itself wrapping. Only wrap a section here once its CSS
+  // has been checked for physical direction classes (ml-/mr-/pl-/pr-/
+  // text-left, space-x-) that would fight the flip — same check made
+  // before the wazifa form got this treatment.
+  const { isUrdu } = useLocale()
+  return <div dir={isUrdu ? 'rtl' : 'ltr'} className={className}>{children}</div>
 }
