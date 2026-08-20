@@ -427,7 +427,7 @@ export default function RunningCapitalPage() {
   const netPosition = live ? grossPosition - Number(live.total_payable) : 0
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary">{dt(lang, 'runningCapital')}</h1>
         {!access.loading && (access.canWaterSupply || access.canDonorsProjects) && (
@@ -801,6 +801,6 @@ export default function RunningCapitalPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

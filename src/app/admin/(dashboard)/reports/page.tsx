@@ -278,7 +278,7 @@ function ReportsPageInner() {
   }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-6 print:hidden">
         <h1 className="font-heading text-[26px] sm:text-[32px] font-bold leading-[34px] sm:leading-[40px] text-dp-primary">{t('rp.title')}</h1>
         <button onClick={handlePrint} className="filter-btn border border-dp-outline-variant text-dp-on-surface hover:bg-dp-surface-container-low shrink-0">
@@ -601,6 +601,6 @@ function ReportsPageInner() {
           )}
         </div>
       )}
-    </>
+    </div>
   )
 }
