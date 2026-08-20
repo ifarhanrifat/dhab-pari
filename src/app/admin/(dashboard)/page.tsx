@@ -155,10 +155,10 @@ export default async function AdminDashboardPage() {
     <>
       <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="font-heading text-[24px] md:text-[32px] font-bold leading-[32px] md:leading-[40px] text-dp-primary">
+          <h1 className="rtl-text font-heading text-[24px] md:text-[32px] font-bold leading-[32px] md:leading-[40px] text-dp-primary">
             <T k="dash.welcomeBack" fallback="Welcome back," /> {displayName}
           </h1>
-          <p className="text-dp-on-surface-variant font-sans text-[15px] mt-1">
+          <p className="rtl-text text-dp-on-surface-variant font-sans text-[15px] mt-1">
             <T k="y.currentPosition" />
           </p>
         </div>
@@ -208,11 +208,11 @@ export default async function AdminDashboardPage() {
           <QuickLinks system="water_supply" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <div className="lg:col-span-2 bg-white rounded-lg border border-dp-outline-variant p-5">
-              <h3 className="font-sans text-[15px] font-bold text-dp-on-surface mb-2"><T k="y.incomeVsExpense" /></h3>
+              <h3 className="rtl-text font-sans text-[15px] font-bold text-dp-on-surface mb-2"><T k="y.incomeVsExpense" /></h3>
               <IncomeExpenseChart data={waterTrend} />
             </div>
             <div className="bg-white rounded-lg border border-dp-outline-variant p-5">
-              <h3 className="font-sans text-[15px] font-bold text-dp-on-surface mb-2"><T k="y.fundPosition" /></h3>
+              <h3 className="rtl-text font-sans text-[15px] font-bold text-dp-on-surface mb-2"><T k="y.fundPosition" /></h3>
               <FundPieChart data={[{ name: 'Cash', value: Math.max(waterStats.cash, 0) }, { name: 'Bank', value: Math.max(waterStats.bank, 0) }, { name: 'Receivable', value: Math.max(waterStats.receivable, 0) }]} />
             </div>
           </div>
@@ -238,11 +238,11 @@ export default async function AdminDashboardPage() {
           <QuickLinks system="donors_projects" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <div className="lg:col-span-2 bg-white rounded-lg border border-dp-outline-variant p-5">
-              <h3 className="font-sans text-[15px] font-bold text-dp-on-surface mb-2"><T k="y.incomeVsExpense" /></h3>
+              <h3 className="rtl-text font-sans text-[15px] font-bold text-dp-on-surface mb-2"><T k="y.incomeVsExpense" /></h3>
               <IncomeExpenseChart data={donorTrend} incomeColor="#7c3aed" expenseColor="#dc2626" />
             </div>
             <div className="bg-white rounded-lg border border-dp-outline-variant p-5">
-              <h3 className="font-sans text-[15px] font-bold text-dp-on-surface mb-2"><T k="y.fundPosition" /></h3>
+              <h3 className="rtl-text font-sans text-[15px] font-bold text-dp-on-surface mb-2"><T k="y.fundPosition" /></h3>
               <FundPieChart data={[{ name: 'Cash', value: Math.max(donorStats.cash, 0) }, { name: 'Bank', value: Math.max(donorStats.bank, 0) }]} />
             </div>
           </div>
@@ -272,8 +272,8 @@ function StatCard({ href, icon, color, label, value }: {
         <span className={`p-2 rounded-lg ${colorStyles[color]}`}>{icon}</span>
       </div>
       <div>
-        <p className="text-dp-on-surface-variant text-[11px] sm:text-[12px] font-sans font-semibold tracking-[0.05em] uppercase leading-tight">{label}</p>
-        <h4 className="font-heading text-[18px] sm:text-[22px] font-bold leading-[24px] sm:leading-[30px] text-dp-on-surface group-hover:text-dp-primary transition-colors truncate">{value}</h4>
+        <p className="rtl-text text-dp-on-surface-variant text-[11px] sm:text-[12px] font-sans font-semibold tracking-[0.05em] uppercase leading-tight">{label}</p>
+        <h4 className="rtl-text font-heading text-[18px] sm:text-[22px] font-bold leading-[24px] sm:leading-[30px] text-dp-on-surface group-hover:text-dp-primary transition-colors truncate">{value}</h4>
       </div>
     </Link>
   )
@@ -288,7 +288,7 @@ function QuickLinks({ system }: { system: 'water_supply' | 'donors_projects' }) 
     { href: `/admin/reports?system=${system}`, icon: <FileBarChart size={16} />, label: <T k="dash.reports" fallback="Reports" /> },
   ]
   return (
-    <div className="flex flex-wrap gap-2.5 mb-5">
+    <div className="rtl-justify-end flex flex-wrap gap-2.5 mb-5">
       {links.map((l) => (
         <Link
           key={l.href}

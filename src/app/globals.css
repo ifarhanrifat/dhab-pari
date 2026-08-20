@@ -438,6 +438,25 @@ html[lang='ur'] .rtl-icon-row {
   flex-direction: row-reverse;
 }
 
+/* A <T>'s own dir="rtl" only fixes how ITS characters read — it does not
+   move where that text sits inside its parent block, because text-align is
+   a property of the ANCESTOR, not the inline span. Headings/labels/values
+   that are a block's only real content (no icon or second element to keep
+   in place) still hugged the left edge without this. Opt in per element
+   with .rtl-text — it never touches flex ordering, only where the text
+   sits within its own box. */
+html[lang='ur'] .rtl-text {
+  text-align: right;
+}
+
+/* A wrapped row of same-weight items (quick-link pills) with nothing else
+   sharing the row to keep in place — packing the group toward the right
+   under Urdu, same as the heading above it, reads consistently instead of
+   the row alone staying pinned left while everything around it flipped. */
+html[lang='ur'] .rtl-justify-end {
+  justify-content: flex-end;
+}
+
 /* Page and section headings set with Tailwind's arbitrary text-[Npx]
    utilities render very large in Nastaliq — body's own 0.92em above never
    reaches them, because an arbitrary utility sets an absolute font-size
