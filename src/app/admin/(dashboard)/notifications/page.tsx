@@ -43,7 +43,7 @@ const KINDS: [string, string][] = [
 ]
 
 export default function AdminNotificationsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
@@ -147,7 +147,7 @@ export default function AdminNotificationsPage() {
   }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary mb-8">{t('al.title')}</h1>
 
       {/* Appeals replace what "Send Portal Emergency Alert" was reaching for.
@@ -420,6 +420,6 @@ export default function AdminNotificationsPage() {
           </table>
         </div>
       </div>
-    </>
+    </div>
   )
 }

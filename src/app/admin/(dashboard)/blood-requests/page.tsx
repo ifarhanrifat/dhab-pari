@@ -67,7 +67,7 @@ const emptyForm = {
 // request reaching forty villagers at 2am is the failure this screen guards
 // against, so the taker, the approver and the call are all recorded.
 export default function AdminBloodRequestsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const [requests, setRequests] = useState<BloodRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -223,7 +223,7 @@ export default function AdminBloodRequestsPage() {
   const pendingCount = requests.filter((r) => r.status === 'pending_approval').length
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
         <div>
           <h1 className="font-heading text-[24px] sm:text-[32px] font-bold leading-[32px] sm:leading-[40px] text-dp-primary flex items-center gap-2">
@@ -241,7 +241,7 @@ export default function AdminBloodRequestsPage() {
 
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="relative flex-1 min-w-[220px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+          <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search patient, caller, hospital, city or group..." className="input-field !ps-9" />
         </div>
         {(['active', 'fulfilled', 'cancelled', 'all'] as const).map((f) => (
@@ -573,6 +573,6 @@ export default function AdminBloodRequestsPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
