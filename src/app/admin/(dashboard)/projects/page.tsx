@@ -16,7 +16,7 @@ const categories = ['infrastructure', 'water', 'health', 'education', 'environme
 const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0, funding_model: 'one_time', monthly_operating_cost_pkr: 0 }
 
 export default function AdminProjectsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -55,7 +55,7 @@ export default function AdminProjectsPage() {
   const remove = async (id: string) => { if (!confirm('Delete this project?')) return; await supabase.from('projects').delete().eq('id', id); toast.success('Deleted'); load() }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-[26px] sm:text-[32px] font-bold leading-[34px] sm:leading-[40px] text-dp-primary">{t('z.projects')}</h1>
         <button onClick={() => { setForm(empty); setEditing(null); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('z.newProject')}</button>
@@ -134,7 +134,7 @@ export default function AdminProjectsPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
 

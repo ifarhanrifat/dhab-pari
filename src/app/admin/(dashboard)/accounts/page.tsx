@@ -64,7 +64,7 @@ function fmtAmount(n: number) {
 }
 
 export default function AccountsPage() {
-  const { t, locale } = useLocale()
+  const { t, locale, isUrdu } = useLocale()
   const router = useRouter()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [headers, setHeaders] = useState<AccountHeader[]>([])
@@ -353,7 +353,7 @@ export default function AccountsPage() {
             {menuId === a.id && (
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="absolute right-0 top-7 z-20 w-44 bg-white rounded-lg shadow-lg border border-dp-outline-variant py-1"
+                className="absolute end-0 top-7 z-20 w-44 bg-white rounded-lg shadow-lg border border-dp-outline-variant py-1"
               >
                 <button onClick={() => viewAccount(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
                   <Eye size={14} /> {t('ac.viewAccount')}
@@ -379,7 +379,7 @@ export default function AccountsPage() {
   }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('ac.title')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Manage expense accounts, cash accounts, and income accounts for each system.</p>
@@ -412,7 +412,7 @@ export default function AccountsPage() {
           {tab === 'donors_projects' ? 'Donor' : 'Consumer'}
         </button>
         <div className="flex-1 relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+          <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -506,7 +506,7 @@ export default function AccountsPage() {
 
       <button
         onClick={openAdd}
-        className="fixed bottom-8 right-8 z-30 flex items-center gap-2 px-5 py-3.5 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold shadow-lg hover:bg-dp-primary transition-all cursor-pointer"
+        className="fixed bottom-8 end-8 z-30 flex items-center gap-2 px-5 py-3.5 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold shadow-lg hover:bg-dp-primary transition-all cursor-pointer"
       >
         <PlusCircle size={18} /> {t('ac.addNew')}
       </button>
@@ -613,6 +613,6 @@ export default function AccountsPage() {
         </div>
       )}
 
-    </>
+    </div>
   )
 }

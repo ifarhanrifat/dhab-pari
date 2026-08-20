@@ -42,7 +42,7 @@ function AccountsByTypeGuarded() {
 }
 
 function AccountsByTypePageInner() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const searchParams = useSearchParams()
   const system = (searchParams.get('system') === 'donors_projects' ? 'donors_projects' : 'water_supply') as 'water_supply' | 'donors_projects'
   const type = searchParams.get('type') ?? 'cash'
@@ -88,7 +88,7 @@ function AccountsByTypePageInner() {
   const total = accounts.reduce((s, a) => s + balanceOf(a), 0)
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <Link href="/admin" className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold mb-3">
           <ArrowLeft size={16} /> {t('g.backToDashboard')}
@@ -143,6 +143,6 @@ function AccountsByTypePageInner() {
           </table>
         </div>
       </div>
-    </>
+    </div>
   )
 }

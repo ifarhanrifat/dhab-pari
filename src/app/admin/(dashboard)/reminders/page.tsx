@@ -23,7 +23,7 @@ const sectionMeta = {
 } as const
 
 export default function RemindersPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,7 +63,7 @@ export default function RemindersPage() {
   }
 
   return (
-    <div>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <h1 className="font-heading text-[26px] sm:text-[32px] font-bold text-dp-primary flex items-center gap-2.5 mb-2">
         <BellRing size={28} /> {t('y.reminders')}
       </h1>

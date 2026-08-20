@@ -26,7 +26,7 @@ function fmt(n: number) {
 }
 
 export default function AdvancesPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const [advances, setAdvances] = useState<AdvanceVoucher[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -168,7 +168,7 @@ export default function AdvancesPage() {
   }
 
   return (
-    <div>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-[26px] sm:text-[32px] font-bold text-dp-primary flex items-center gap-2.5">
           <HandCoins size={28} /> {t('tx.advancePayments')}

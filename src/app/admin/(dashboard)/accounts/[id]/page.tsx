@@ -372,7 +372,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
   const accountSecondaryName = lang === 'ur' && account.name_ur ? account.name : account.name_ur
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
 
       <div className="flex items-center justify-between mb-6 print:hidden">
         <Link href="/admin/accounts" className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold">
@@ -680,6 +680,6 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
