@@ -464,4 +464,15 @@ html[lang='ur'] .text-\[48px\] { font-size: 39px !important; }
 html[lang='ur'] .section-title {
   flex-direction: row-reverse;
   text-align: right;
+  /* Row-reverse alone repositions the accent bar correctly, but a heading
+     that's a single plain text node (no icon, no separate span — just
+     ".section-title" on an <h1>/<h2> with Urdu text inside) is otherwise
+     sitting in an ambient LTR box with no RTL context of its own: the
+     Urdu characters read right-to-left within themselves regardless, but
+     the box's own wrapping/line-breaking behaves like an LTR paragraph
+     that happens to contain RTL text, not a genuine RTL paragraph — which
+     showed up as an odd, wrong-looking wrap on narrow (mobile) widths.
+     direction: rtl gives the text proper RTL paragraph context, not just
+     row-reversed flex order. */
+  direction: rtl;
 }

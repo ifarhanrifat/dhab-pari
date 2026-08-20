@@ -546,6 +546,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'x.call': 'Call',
     'x.noListingsFound': 'No listings found.',
     'x.postOwnListing': 'Post your own listing',
+    'x.jobBoardIntro': 'Local plumbers, masons, electricians, laborers, and more — find and contact someone directly. Have a skill to offer?',
+    'x.searchListings': 'Search listings...',
     // ── Admin: words that recur across many screens ──────────────────────
     'a.actions': 'Actions',
     'a.type': 'Type',
@@ -3307,6 +3309,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'x.call': 'کال کریں',
     'x.noListingsFound': 'کوئی اشتہار نہیں ملا۔',
     'x.postOwnListing': 'اپنا اشتہار دیں',
+    'x.jobBoardIntro': 'گاؤں کے پلمبر، مستری، الیکٹریشن، مزدور اور دیگر کاریگر — براہِ راست رابطہ کریں۔ خود بھی کوئی ہنر پیش کرنا ہے؟',
+    'x.searchListings': 'اشتہارات میں تلاش کریں...',
     // ── Admin: words that recur across many screens ──────────────────────
     'a.actions': 'کارروائیاں',
     'a.type': 'قسم',

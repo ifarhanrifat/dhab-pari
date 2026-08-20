@@ -19,7 +19,7 @@ function normalizePakPhone(raw: string) {
 }
 
 export default function JobsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
   const [category, setCategory] = useState('')
@@ -42,15 +42,15 @@ export default function JobsPage() {
   return (
     <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-10 min-h-screen">
       <div className="mb-8">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-on-surface flex items-center gap-3"><Briefcase size={28} className="text-dp-secondary" /> {t('home.jobBoard')}</h1>
-        <p className="text-dp-on-surface-variant font-sans text-[16px] leading-[26px] max-w-2xl mt-2">
-          Local plumbers, masons, electricians, laborers, and more — find and contact someone directly. Have a skill to offer?{' '}
+        <h1 className={`font-heading text-[32px] font-bold leading-[40px] text-dp-on-surface flex items-center gap-3 ${isUrdu ? 'flex-row-reverse' : ''}`}><Briefcase size={28} className="text-dp-secondary" /> {t('home.jobBoard')}</h1>
+        <p className="text-dp-on-surface-variant font-sans text-[16px] leading-[26px] max-w-2xl mt-2" dir={isUrdu ? 'rtl' : 'ltr'}>
+          {t('x.jobBoardIntro')}{' '}
           <Link href="/portal/post-job" className="text-dp-secondary font-semibold hover:underline">{t('x.postOwnListing')}</Link>.
         </p>
       </div>
 
       <div className="flex flex-wrap gap-3 mb-8">
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search listings..." className="input-field flex-1 min-w-[200px]" />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('x.searchListings')} className="input-field flex-1 min-w-[200px]" />
         <select value={category} onChange={(e) => setCategory(e.target.value)} className="input-field w-auto">
           <option value="">{t('x.allCategories')}</option>
           {CATEGORIES.map((c) => <option key={c} value={c}>{c[0].toUpperCase() + c.slice(1)}</option>)}
