@@ -808,15 +808,15 @@ function BillingPageInner() {
                       <span className="font-sans text-[13px] text-dp-on-surface-variant flex items-center gap-1"><Phone size={13} />{selectedConsumer.mobile}</span>
                     )}
                     {selectedConsumer.house_no && (
-                      <span className="font-sans text-[13px] text-dp-on-surface-variant flex items-center gap-1"><Home size={13} />House {selectedConsumer.house_no}</span>
+                      <span className="font-sans text-[13px] text-dp-on-surface-variant flex items-center gap-1"><Home size={13} />{t('billing.house')} {selectedConsumer.house_no}</span>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   {selectedConsumer.mobile && (
                     <button
                       onClick={() => sendWhatsApp(selectedConsumer)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#25d366] text-white rounded-lg font-sans text-[13px] font-semibold hover:opacity-90 transition-all cursor-pointer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#25d366] text-white rounded-lg font-sans text-[13px] font-semibold hover:opacity-90 transition-all cursor-pointer whitespace-nowrap"
                       title={t('billing.tip.sendWhatsapp')}
                     >
                       <MessageCircle size={15} /> {t('billing.notify')}
@@ -832,7 +832,7 @@ function BillingPageInner() {
               {selectedOutstanding > 0 && (
                 <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-4 py-2 flex items-center gap-2">
                   <AlertCircle size={16} className="text-dp-error shrink-0" />
-                  <span className="font-sans text-[14px] font-bold text-dp-error">Outstanding: Rs. {selectedOutstanding.toLocaleString()}</span>
+                  <span className="font-sans text-[14px] font-bold text-dp-error">{t('billing.outstandingAmount').replace('{amt}', selectedOutstanding.toLocaleString())}</span>
                 </div>
               )}
 
@@ -861,7 +861,7 @@ function BillingPageInner() {
                 </button>
                 {selectedConsumer.status !== 'disconnected' && (
                   <button onClick={() => toggleConsumerActive(selectedConsumer)} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
-                    <Power size={13} /> {selectedConsumer.status === 'active' ? 'Deactivate' : 'Activate'}
+                    <Power size={13} /> {selectedConsumer.status === 'active' ? t('billing.deactivateAction') : t('billing.activateAction')}
                   </button>
                 )}
                 {selectedConsumer.status === 'disconnected' ? (
