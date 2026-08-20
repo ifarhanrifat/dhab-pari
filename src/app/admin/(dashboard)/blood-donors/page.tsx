@@ -13,7 +13,7 @@ interface BloodDonor {
 const GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 
 export default function AdminBloodDonorsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [donors, setDonors] = useState<BloodDonor[]>([])
   const [loading, setLoading] = useState(true)
   const [groupFilter, setGroupFilter] = useState('')
@@ -29,7 +29,7 @@ export default function AdminBloodDonorsPage() {
   }, [donors, groupFilter, availableOnly])
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5"><Droplet size={26} className="text-dp-error" /> {t('y.bloodDonors')}</h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">Registered by portal users. Contact info shown here is staff-only — never public.</p>
@@ -71,6 +71,6 @@ export default function AdminBloodDonorsPage() {
           </table>
         </div>
       </div>
-    </>
+    </div>
   )
 }

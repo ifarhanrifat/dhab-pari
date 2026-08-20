@@ -20,7 +20,7 @@ const CATEGORIES = ['plumber', 'electrician', 'mason', 'carpenter', 'painter', '
 // posts them (no pre-approval queue, low friction by design); this page is
 // how staff take one down if something inappropriate slips through.
 export default function AdminJobsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
   const [category, setCategory] = useState('')
@@ -46,7 +46,7 @@ export default function AdminJobsPage() {
   }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5"><Briefcase size={26} className="text-dp-secondary" /> {t('y.jobListings')}</h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">Public village job board — deactivate a listing here if it needs to come down.</p>
@@ -90,6 +90,6 @@ export default function AdminJobsPage() {
           </table>
         </div>
       </div>
-    </>
+    </div>
   )
 }
