@@ -88,6 +88,10 @@ interface PaymentForm {
 
 const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const fullMonths = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+// t(monthKey(m), fullMonths[m]) translates a bill's month name — same pair the
+// <select> payment-method options already use their own key for.
+const monthKey = (m: number) => `w.month${m}`
+const paymentMethodKeys: Record<string, string> = { cash: 'billing.methodCash', jazzcash: 'billing.methodJazzcash', easypaisa: 'billing.methodEasypaisa', bank: 'billing.methodBank' }
 
 // Net payable is amount_pkr (gross) minus any discount — the ledger posts the
 // discount as its own leg rather than netting it into amount_pkr, so anywhere that
@@ -120,7 +124,7 @@ export default function BillingPage() {
 }
 
 function BillingPageInner() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const searchParams = useSearchParams()
   const [consumers, setConsumers] = useState<Consumer[]>([])
   const [bills, setBills] = useState<Bill[]>([])
@@ -420,7 +424,7 @@ function BillingPageInner() {
         date: new Date().toISOString().slice(0, 10),
         systemLabel: t('dash.waterSupplySystem', 'Water Supply System'),
         accountName: consumer.name,
-        particular: paymentForm.description || `${fullMonths[bill.month]} ${bill.year}`,
+        particular: paymentForm.description || `${t(monthKey(bill.month), fullMonths[bill.month])} ${bill.year}`,
         amount: entered,
         balanceAfter: billOutstandingNow,
         billOutstandingAfter: billOutstandingNow,
@@ -672,10 +676,10 @@ function BillingPageInner() {
   }
 
   return (
-    // Redundant now that <html> carries the direction for the whole app, but
-    // harmless — a nested dir that agrees with its parent changes nothing, and
-    // unpicking it from this deeply nested tree risks more than it tidies.
-    <div>
+    // Scoped text-direction flip, same technique as the wazifa form and the
+    // Transactions Workspace — mirrors this page's own reading order/
+    // alignment under Urdu without touching the sidebar or global layout.
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
@@ -743,11 +747,13 @@ function BillingPageInner() {
         </div>
       </div>
 
-      {/* Two-column layout */}
-      <div className="flex gap-6 h-[calc(100vh-300px)] min-h-[420px]">
+      {/* Two-column layout — flex-row-reverse under Urdu keeps the consumer
+          list (first DOM child) on the left the way it's always been; only
+          visible at md+ since one side is always hidden on mobile anyway. */}
+      <div className={`flex gap-6 h-[calc(100vh-300px)] min-h-[420px] ${isUrdu ? 'flex-row-reverse' : ''}`}>
 
         {/* Consumer list */}
-        <div className={`${selectedConsumer ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[340px] md:flex-shrink-0 min-h-0`}>
+        <div dir="ltr" className={`${selectedConsumer ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[340px] md:flex-shrink-0 min-h-0`}>
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden flex flex-col flex-1 min-h-0">
             {loading ? (
               <div className="p-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
@@ -981,34 +987,34 @@ function BillingPageInner() {
                               — and the receive-cash panel below it looked like
                               the bill itself. */}
                           {lockReason ? (
-                            <span className="font-sans text-[15px] font-semibold text-dp-on-surface">{fullMonths[bill.month]} {bill.year}</span>
+                            <span className="font-sans text-[15px] font-semibold text-dp-on-surface">{t(monthKey(bill.month), fullMonths[bill.month])} {bill.year}</span>
                           ) : (
                             <Link href={fullBillHref} title={t('lock.openFullBill')}
                               className="font-sans text-[15px] font-semibold text-dp-on-surface hover:text-dp-secondary hover:underline cursor-pointer">
-                              {fullMonths[bill.month]} {bill.year}
+                              {t(monthKey(bill.month), fullMonths[bill.month])} {bill.year}
                             </Link>
                           )}
                           {bill.bill_number && <span className="font-mono text-[11px] text-dp-on-surface-variant">#{bill.bill_number}</span>}
                           <StatusBadge bill={bill} />
                         </div>
                         <div className="font-sans text-[13px] text-dp-on-surface-variant">
-                          Total: Rs. {bill.amount_pkr.toLocaleString()}
-                          {(bill.discount_amount ?? 0) > 0 && <span className="ms-2 text-emerald-700">Discount: − Rs. {(bill.discount_amount ?? 0).toLocaleString()}</span>}
-                          {(bill.paid_amount ?? 0) > 0 && <span className="ms-2 text-emerald-600">Paid: Rs. {(bill.paid_amount ?? 0).toLocaleString()}</span>}
-                          {rem > 0 && <span className="ms-2 text-dp-error">Due: Rs. {rem.toLocaleString()}</span>}
+                          {t('billing.total')}: Rs. {bill.amount_pkr.toLocaleString()}
+                          {(bill.discount_amount ?? 0) > 0 && <span className="ms-2 text-emerald-700">{t('billing.discountLabel')}: − Rs. {(bill.discount_amount ?? 0).toLocaleString()}</span>}
+                          {(bill.paid_amount ?? 0) > 0 && <span className="ms-2 text-emerald-600">{t('billing.paidLabel')}: Rs. {(bill.paid_amount ?? 0).toLocaleString()}</span>}
+                          {rem > 0 && <span className="ms-2 text-dp-error">{t('billing.dueLabel')}: Rs. {rem.toLocaleString()}</span>}
                           {bill.waiver_voucher_id && (
                             <span className="ms-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10.5px] font-bold uppercase tracking-wide">
                               {waiverVoucherStatus[bill.waiver_voucher_id] === 'pending'
-                                ? 'Waiver Pending Approval'
-                                : `Committee Waived ${bill.waiver_type === 'full' ? '(Full)' : `(${bill.waiver_percent}%)`}`}
+                                ? t('billing.waiverPending')
+                                : bill.waiver_type === 'full' ? t('billing.committeeWaivedFull') : t('billing.committeeWaivedPercent').replace('{pct}', String(bill.waiver_percent))}
                             </span>
                           )}
                         </div>
                         {bill.description && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5 italic">{bill.description}</p>}
                         {bill.paid_date && (
                           <p className="font-sans text-[11px] text-dp-secondary mt-0.5">
-                            Payment received on {new Date(bill.paid_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}{bill.payment_method ? ` via ${bill.payment_method}` : ''}
-                            {rem <= 0 ? ' — No outstanding amount.' : ''}
+                            {t('billing.paymentReceivedOn')} {new Date(bill.paid_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}{bill.payment_method ? ` ${t('billing.via')} ${t(paymentMethodKeys[bill.payment_method] ?? '', bill.payment_method)}` : ''}
+                            {rem <= 0 ? ` — ${t('billing.noOutstandingAmount')}` : ''}
                           </p>
                         )}
                       </div>
@@ -1095,8 +1101,8 @@ function BillingPageInner() {
             <div className="space-y-4">
               <div className="flex items-center gap-2 bg-dp-surface-container-low rounded-lg px-3 py-2">
                 <CreditCard size={15} className="text-dp-secondary shrink-0" />
-                <span className="font-sans text-[13px] text-dp-on-surface-variant">{fullMonths[bill.month]} {bill.year}</span>
-                <span className="font-sans text-[13px] font-semibold text-dp-on-surface ml-auto">{t('billing.outstandingAmount').replace('{amt}', rem.toLocaleString())}</span>
+                <span className="font-sans text-[13px] text-dp-on-surface-variant">{t(monthKey(bill.month), fullMonths[bill.month])} {bill.year}</span>
+                <span className="font-sans text-[13px] font-semibold text-dp-on-surface ms-auto">{t('billing.outstandingAmount').replace('{amt}', rem.toLocaleString())}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
