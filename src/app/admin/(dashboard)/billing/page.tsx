@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
-  Search, PlusCircle, Plus, X, ArrowLeft, ChevronRight, ChevronDown, SlidersHorizontal, Phone,
+  Search, PlusCircle, Plus, X, ArrowLeft, ChevronRight, ChevronDown, SlidersHorizontal, Phone, Calendar,
   Home, MapPin, MessageCircle, AlertCircle, CheckCircle2,
   Clock, CreditCard, Banknote, Pencil, Receipt, Users, UserCheck, UserX, Tag, UserPlus, Repeat, Trash2, FileText, Lock,
   Power, Ban, PauseCircle,
@@ -388,6 +388,46 @@ function BillingPageInner() {
   const selectedOutstanding = useMemo(() => {
     return selectedBills.filter((b) => b.status !== 'paid').reduce((s, b) => s + outstanding(b), 0)
   }, [selectedBills])
+
+  // Bill-history quick filters — a consumer with years of history had no way
+  // to narrow it down beyond scrolling. Deliberately separate from
+  // selectedOutstanding above, which must always reflect the true total
+  // regardless of which bills are currently shown.
+  const [billFilter, setBillFilter] = useState<'none' | 'lastMonth' | 'last2Months' | 'pending' | 'custom'>('none')
+  const [customRangeStep, setCustomRangeStep] = useState<'closed' | 'start' | 'end'>('closed')
+  const [customStart, setCustomStart] = useState('')
+  const [customEnd, setCustomEnd] = useState('')
+
+  const filteredSelectedBills = useMemo(() => {
+    if (billFilter === 'pending') return selectedBills.filter((b) => outstanding(b) > 0)
+    if (billFilter === 'lastMonth' || billFilter === 'last2Months') {
+      const span = billFilter === 'lastMonth' ? 1 : 2
+      const keys = new Set<string>()
+      for (let i = 1; i <= span; i++) {
+        const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i)
+        keys.add(`${d.getFullYear()}-${d.getMonth() + 1}`)
+      }
+      return selectedBills.filter((b) => keys.has(`${b.year}-${b.month}`))
+    }
+    if (billFilter === 'custom' && customStart && customEnd) {
+      const start = new Date(customStart)
+      const end = new Date(customEnd)
+      return selectedBills.filter((b) => {
+        const billDate = new Date(b.year, b.month - 1, 1)
+        return billDate >= new Date(start.getFullYear(), start.getMonth(), 1) && billDate <= new Date(end.getFullYear(), end.getMonth(), 1)
+      })
+    }
+    return selectedBills
+  }, [selectedBills, billFilter, customStart, customEnd])
+
+  // A filter left over from the previous consumer would silently hide bills
+  // for the next one selected — reset the moment selection changes.
+  useEffect(() => {
+    setBillFilter('none')
+    setCustomRangeStep('closed')
+    setCustomStart('')
+    setCustomEnd('')
+  }, [selectedConsumer?.consumer_id])
 
   const recordPayment = async () => {
     if (!paymentForm) return
@@ -1011,36 +1051,41 @@ function BillingPageInner() {
                 <button onClick={() => openEditConsumer(selectedConsumer)} className="flex-1 border border-dp-outline-variant bg-white rounded-[9px] px-2 py-[7px] cursor-pointer">
                   <span className="font-sans text-[10px] font-semibold text-dp-on-surface-variant text-center block leading-tight">{t('action.edit')}</span>
                 </button>
+                {/* Green = currently active, red = anything else (paused or
+                    never set up) — a plain status color instead of the
+                    earlier 3-tone scheme, per explicit instruction. The
+                    tooltip still distinguishes "edit" from "resume" from
+                    "set up" even though the color no longer does. */}
                 {recurringSchedules[selectedConsumer.consumer_id]?.is_active ? (
                   <button
                     onClick={() => openRecurringSetup(selectedConsumer)}
                     title={t('billing.tip.editRecurring')}
-                    className="flex-1 flex items-center justify-center gap-1 bg-gray-100 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-gray-200 transition-all"
+                    className="flex-1 flex items-center justify-center gap-1 bg-emerald-50 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-emerald-100 transition-all"
                   >
-                    <PauseCircle size={12} className="text-gray-500 shrink-0" />
-                    <span className="font-sans text-[9px] font-semibold text-gray-600 text-center leading-tight whitespace-nowrap">{t('billing.recurringBilling')}</span>
+                    <PauseCircle size={12} className="text-dp-secondary shrink-0" />
+                    <span className="font-sans text-[9px] font-semibold text-dp-secondary text-center leading-tight whitespace-nowrap">{t('billing.recurringBilling')}</span>
                   </button>
                 ) : recurringSchedules[selectedConsumer.consumer_id] ? (
-                  // Has a schedule row, just paused — its own amber state so it
-                  // reads as "resume this" rather than "never set up" (the bug
-                  // that produced a real duplicate row: this state used to be
+                  // Has a schedule row, just paused — the tooltip still says
+                  // "resume this" rather than "set up", the bug that produced
+                  // a real duplicate row (this state used to be
                   // indistinguishable from "no schedule", so Save created a
                   // second one instead of reactivating the paused original).
                   <button
                     onClick={() => openRecurringSetup(selectedConsumer)}
                     title={t('billing.tip.recurringPaused')}
-                    className="flex-1 flex items-center justify-center gap-1 bg-amber-50 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-amber-100 transition-all"
+                    className="flex-1 flex items-center justify-center gap-1 bg-red-50 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-red-100 transition-all"
                   >
-                    <PauseCircle size={12} className="text-amber-700 shrink-0" />
-                    <span className="font-sans text-[9px] font-semibold text-amber-800 text-center leading-tight whitespace-nowrap">{t('billing.recurringBillingPaused')}</span>
+                    <PauseCircle size={12} className="text-dp-error shrink-0" />
+                    <span className="font-sans text-[9px] font-semibold text-dp-error text-center leading-tight whitespace-nowrap">{t('billing.recurringBillingPaused')}</span>
                   </button>
                 ) : (
                   <button
                     onClick={() => openRecurringSetup(selectedConsumer)}
-                    className="flex-1 flex items-center justify-center gap-1 bg-emerald-50 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-emerald-100 transition-all"
+                    className="flex-1 flex items-center justify-center gap-1 bg-red-50 border-none rounded-[9px] px-2 py-[7px] cursor-pointer hover:bg-red-100 transition-all"
                   >
-                    <Repeat size={12} className="text-dp-secondary shrink-0" />
-                    <span className="font-sans text-[9px] font-semibold text-dp-secondary text-center leading-tight whitespace-nowrap">{t('billing.recurringBilling')}</span>
+                    <Repeat size={12} className="text-dp-error shrink-0" />
+                    <span className="font-sans text-[9px] font-semibold text-dp-error text-center leading-tight whitespace-nowrap">{t('billing.recurringBilling')}</span>
                   </button>
                 )}
               </div>
@@ -1061,13 +1106,77 @@ function BillingPageInner() {
                 <h3 className="font-sans text-[16px] font-semibold text-dp-on-surface">{t('billing.billsHistory')}</h3>
               </div>
 
+              {/* Bill-history quick filters — same fixed area as the header
+                  above, all four equal width via grid-cols-4. Date Range is
+                  a progressive disclosure: tap it, pick a start date, the
+                  end-date field then appears next to it, and the filter
+                  applies itself once both are set — no separate "Apply"
+                  step to remember. */}
+              <div className="px-4 pb-2 shrink-0">
+                <div className="grid grid-cols-4 gap-1.5">
+                  <button
+                    onClick={() => { setBillFilter((f) => f === 'lastMonth' ? 'none' : 'lastMonth'); setCustomRangeStep('closed') }}
+                    className={`px-1.5 py-2 rounded-[9px] font-sans text-[10px] font-semibold text-center leading-tight cursor-pointer transition-all ${billFilter === 'lastMonth' ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant bg-white text-dp-on-surface-variant'}`}
+                  >
+                    {t('billing.filterLastMonth')}
+                  </button>
+                  <button
+                    onClick={() => { setBillFilter((f) => f === 'last2Months' ? 'none' : 'last2Months'); setCustomRangeStep('closed') }}
+                    className={`px-1.5 py-2 rounded-[9px] font-sans text-[10px] font-semibold text-center leading-tight cursor-pointer transition-all ${billFilter === 'last2Months' ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant bg-white text-dp-on-surface-variant'}`}
+                  >
+                    {t('billing.filterLast2Months')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (billFilter === 'custom') { setBillFilter('none'); setCustomRangeStep('closed'); setCustomStart(''); setCustomEnd('') }
+                      else { setBillFilter('none'); setCustomRangeStep('start') }
+                    }}
+                    className={`flex items-center justify-center gap-1 px-1.5 py-2 rounded-[9px] font-sans text-[10px] font-semibold text-center leading-tight cursor-pointer transition-all ${billFilter === 'custom' ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant bg-white text-dp-on-surface-variant'}`}
+                  >
+                    <Calendar size={12} className="shrink-0" /> {t('billing.filterCustomDate')}
+                  </button>
+                  <button
+                    onClick={() => setBillFilter((f) => f === 'pending' ? 'none' : 'pending')}
+                    className={`px-1.5 py-2 rounded-[9px] font-sans text-[10px] font-semibold text-center leading-tight cursor-pointer transition-all ${billFilter === 'pending' ? 'bg-dp-error text-white' : 'border border-dp-outline-variant bg-white text-dp-on-surface-variant'}`}
+                  >
+                    {t('billing.filterPending')}
+                  </button>
+                </div>
+
+                {customRangeStep !== 'closed' && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className="flex-1">
+                      <label className="block font-sans text-[10px] font-semibold text-dp-on-surface-variant mb-1">{t('billing.startDate')}</label>
+                      <input
+                        type="date" value={customStart}
+                        onChange={(e) => { setCustomStart(e.target.value); setCustomRangeStep('end') }}
+                        className="w-full input-field !py-1.5 !text-[12.5px]"
+                      />
+                    </div>
+                    {customRangeStep === 'end' && (
+                      <div className="flex-1">
+                        <label className="block font-sans text-[10px] font-semibold text-dp-on-surface-variant mb-1">{t('billing.endDate')}</label>
+                        <input
+                          type="date" value={customEnd} min={customStart}
+                          onChange={(e) => { setCustomEnd(e.target.value); setBillFilter('custom') }}
+                          className="w-full input-field !py-1.5 !text-[12.5px]"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="flex-1 overflow-y-auto min-h-0 px-4 pb-4">
               {selectedBills.length === 0 && (
                 <div className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('billing.noBills')}</div>
               )}
+              {selectedBills.length > 0 && filteredSelectedBills.length === 0 && (
+                <div className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('billing.noBillsForFilter', 'No bills match this filter.')}</div>
+              )}
 
               <div className="mt-1 flex flex-col gap-2.5">
-              {selectedBills.map((bill) => {
+              {filteredSelectedBills.map((bill) => {
                 const rem = outstanding(bill)
                 // Why this bill cannot be touched, if it cannot. Cash received
                 // is checked first because it is the one an accountant can act
