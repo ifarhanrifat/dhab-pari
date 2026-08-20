@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
-  Search, PlusCircle, Plus, X, ChevronRight, ChevronDown, SlidersHorizontal, Phone,
+  Search, PlusCircle, Plus, X, ArrowLeft, ChevronRight, ChevronDown, SlidersHorizontal, Phone,
   Home, MapPin, MessageCircle, AlertCircle, CheckCircle2,
   Clock, CreditCard, Banknote, Pencil, Receipt, Users, UserCheck, UserX, Tag, UserPlus, Repeat, Trash2, FileText, Lock,
   Power, Ban, PauseCircle,
@@ -699,6 +699,24 @@ function BillingPageInner() {
     // Nothing here repositions with the language switch.
     <div>
 
+      {/* Compact app-bar shown ONLY on mobile once a consumer is selected —
+          back arrow + the consumer's name, centered, nothing else. The full
+          toolbar below (New Consumer/Generate Bill/title/search/filters) is
+          irrelevant once you're looking at one specific consumer's detail,
+          and wastes vertical space repeating chrome for a list that's no
+          longer even visible at this width. Desktop keeps both panes side
+          by side, so the toolbar there stays put regardless of selection. */}
+      {selectedConsumer && (
+        <div className="flex md:hidden items-center gap-3 mb-5">
+          <button onClick={() => setSelectedConsumer(null)} className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer" aria-label={t('action.cancel')}>
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="flex-1 text-center font-sans text-[16px] font-bold text-dp-on-surface truncate">{selectedConsumer.name}</h1>
+          <div className="w-9 shrink-0" />
+        </div>
+      )}
+
+      <div className={selectedConsumer ? 'hidden md:block' : ''}>
       {/* Header — restyled to match the design mock: the two page actions as a
           small button pair, title shrunk to sit beside them on one row instead
           of a large heading above. Kept the row itself in normal (unflipped)
@@ -776,6 +794,7 @@ function BillingPageInner() {
           </select>
           <ChevronDown size={14} className="absolute end-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
         </div>
+      </div>
       </div>
 
       {/* Two-column layout — stays in normal left/right order at every
@@ -876,9 +895,9 @@ function BillingPageInner() {
             <div className="px-4 pt-4 pb-3 border-b border-dp-outline-variant/60">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <button onClick={() => setSelectedConsumer(null)} className="w-[31px] h-[31px] rounded-[9px] bg-dp-surface-container-low border-none flex items-center justify-center text-dp-on-surface-variant cursor-pointer md:hidden">
-                    <X size={15} />
-                  </button>
+                  {/* No mobile close(X) here anymore — the back arrow in the
+                      new compact app-bar above does that job now, and having
+                      both was a redundant/duplicate way to do the same thing. */}
                   {selectedConsumer.mobile && (
                     <button
                       onClick={() => sendWhatsApp(selectedConsumer)}
