@@ -393,17 +393,20 @@ function BillingPageInner() {
   // to narrow it down beyond scrolling. Deliberately separate from
   // selectedOutstanding above, which must always reflect the true total
   // regardless of which bills are currently shown.
-  const [billFilter, setBillFilter] = useState<'none' | 'lastMonth' | 'last2Months' | 'pending' | 'custom'>('none')
+  const [billFilter, setBillFilter] = useState<'none' | 'thisMonth' | 'last2Months' | 'pending' | 'custom'>('thisMonth')
   const [customRangeStep, setCustomRangeStep] = useState<'closed' | 'start' | 'end'>('closed')
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
 
   const filteredSelectedBills = useMemo(() => {
     if (billFilter === 'pending') return selectedBills.filter((b) => outstanding(b) > 0)
-    if (billFilter === 'lastMonth' || billFilter === 'last2Months') {
-      const span = billFilter === 'lastMonth' ? 1 : 2
+    if (billFilter === 'thisMonth') {
+      const d = new Date()
+      return selectedBills.filter((b) => b.year === d.getFullYear() && b.month === d.getMonth() + 1)
+    }
+    if (billFilter === 'last2Months') {
       const keys = new Set<string>()
-      for (let i = 1; i <= span; i++) {
+      for (let i = 1; i <= 2; i++) {
         const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i)
         keys.add(`${d.getFullYear()}-${d.getMonth() + 1}`)
       }
@@ -421,9 +424,10 @@ function BillingPageInner() {
   }, [selectedBills, billFilter, customStart, customEnd])
 
   // A filter left over from the previous consumer would silently hide bills
-  // for the next one selected — reset the moment selection changes.
+  // for the next one selected — reset the moment selection changes, back to
+  // the default (This Month) rather than "show everything".
   useEffect(() => {
-    setBillFilter('none')
+    setBillFilter('thisMonth')
     setCustomRangeStep('closed')
     setCustomStart('')
     setCustomEnd('')
@@ -1115,10 +1119,10 @@ function BillingPageInner() {
               <div className="px-4 pb-2 shrink-0">
                 <div className="grid grid-cols-4 gap-1.5">
                   <button
-                    onClick={() => { setBillFilter((f) => f === 'lastMonth' ? 'none' : 'lastMonth'); setCustomRangeStep('closed') }}
-                    className={`px-1.5 py-2 rounded-[9px] font-sans text-[10px] font-semibold text-center leading-tight cursor-pointer transition-all ${billFilter === 'lastMonth' ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant bg-white text-dp-on-surface-variant'}`}
+                    onClick={() => { setBillFilter((f) => f === 'thisMonth' ? 'none' : 'thisMonth'); setCustomRangeStep('closed') }}
+                    className={`px-1.5 py-2 rounded-[9px] font-sans text-[10px] font-semibold text-center leading-tight cursor-pointer transition-all ${billFilter === 'thisMonth' ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant bg-white text-dp-on-surface-variant'}`}
                   >
-                    {t('billing.filterLastMonth')}
+                    {t('billing.filterThisMonth')}
                   </button>
                   <button
                     onClick={() => { setBillFilter((f) => f === 'last2Months' ? 'none' : 'last2Months'); setCustomRangeStep('closed') }}
@@ -1146,21 +1150,52 @@ function BillingPageInner() {
                 {customRangeStep !== 'closed' && (
                   <div className="flex items-center gap-2 mt-2">
                     <div className="flex-1">
-                      <label className="block font-sans text-[10px] font-semibold text-dp-on-surface-variant mb-1">{t('billing.startDate')}</label>
-                      <input
-                        type="date" value={customStart}
-                        onChange={(e) => { setCustomStart(e.target.value); setCustomRangeStep('end') }}
-                        className="w-full input-field !py-1.5 !text-[12.5px]"
-                      />
+                      {/* Urdu: label sits to the right of the input instead
+                          of stacked above it — a plain [input][label] DOM
+                          order already puts the label on the right in this
+                          page's normal (unflipped) row direction, no dir
+                          trick needed. English keeps the stacked layout. */}
+                      {isUrdu ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="date" value={customStart}
+                            onChange={(e) => { setCustomStart(e.target.value); setCustomRangeStep('end') }}
+                            className="flex-1 input-field !py-1.5 !text-[12.5px]"
+                          />
+                          <label className="shrink-0 font-sans text-[10px] font-semibold text-dp-on-surface-variant whitespace-nowrap">{t('billing.startDate')}</label>
+                        </div>
+                      ) : (
+                        <>
+                          <label className="block font-sans text-[10px] font-semibold text-dp-on-surface-variant mb-1">{t('billing.startDate')}</label>
+                          <input
+                            type="date" value={customStart}
+                            onChange={(e) => { setCustomStart(e.target.value); setCustomRangeStep('end') }}
+                            className="w-full input-field !py-1.5 !text-[12.5px]"
+                          />
+                        </>
+                      )}
                     </div>
                     {customRangeStep === 'end' && (
                       <div className="flex-1">
-                        <label className="block font-sans text-[10px] font-semibold text-dp-on-surface-variant mb-1">{t('billing.endDate')}</label>
-                        <input
-                          type="date" value={customEnd} min={customStart}
-                          onChange={(e) => { setCustomEnd(e.target.value); setBillFilter('custom') }}
-                          className="w-full input-field !py-1.5 !text-[12.5px]"
-                        />
+                        {isUrdu ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="date" value={customEnd} min={customStart}
+                              onChange={(e) => { setCustomEnd(e.target.value); setBillFilter('custom') }}
+                              className="flex-1 input-field !py-1.5 !text-[12.5px]"
+                            />
+                            <label className="shrink-0 font-sans text-[10px] font-semibold text-dp-on-surface-variant whitespace-nowrap">{t('billing.endDate')}</label>
+                          </div>
+                        ) : (
+                          <>
+                            <label className="block font-sans text-[10px] font-semibold text-dp-on-surface-variant mb-1">{t('billing.endDate')}</label>
+                            <input
+                              type="date" value={customEnd} min={customStart}
+                              onChange={(e) => { setCustomEnd(e.target.value); setBillFilter('custom') }}
+                              className="w-full input-field !py-1.5 !text-[12.5px]"
+                            />
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
