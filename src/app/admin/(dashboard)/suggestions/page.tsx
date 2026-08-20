@@ -33,7 +33,7 @@ const typeColors: Record<string, string> = {
 }
 
 export default function AdminSuggestionsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [items, setItems] = useState<Suggestion[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
@@ -128,7 +128,7 @@ export default function AdminSuggestionsPage() {
   }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-[24px] sm:text-[32px] font-bold leading-[32px] sm:leading-[40px] text-dp-primary">
           {t('z.suggestionsComplaints')}
@@ -306,6 +306,6 @@ export default function AdminSuggestionsPage() {
           </div>
         )}
       </div>
-    </>
+    </div>
   )
 }

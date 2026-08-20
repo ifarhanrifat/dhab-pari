@@ -15,7 +15,7 @@ interface Item { id: string; album_id: string; url: string; caption: string | nu
 const albumCategories = ['projects', 'sports', 'kids', 'events', 'weddings', 'interviews']
 
 export default function AdminGalleryPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [albums, setAlbums] = useState<Album[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
@@ -89,7 +89,7 @@ export default function AdminGalleryPage() {
   const selectedAlbumData = albums.find((a) => a.id === selectedAlbum)
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       {!selectedAlbum ? (
         <>
           <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
@@ -189,6 +189,6 @@ export default function AdminGalleryPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

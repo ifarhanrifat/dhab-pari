@@ -65,7 +65,7 @@ const TASK_STYLE: Record<string, string> = {
 // but never accepted. This is that screen: accept an offer onto a project, give
 // the person jobs, and close everyone out when the project finishes.
 export default function AdminVolunteersPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const access = useSystemAccess()
   const supabase = createClient()
   const [rows, setRows] = useState<Volunteer[]>([])
@@ -177,7 +177,7 @@ export default function AdminVolunteersPage() {
   const offeredCount = rows.filter((v) => v.status === 'offered').length
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
         <div>
           <h1 className="font-heading text-[24px] sm:text-[32px] font-bold leading-[32px] sm:leading-[40px] text-dp-primary flex items-center gap-2">
@@ -199,7 +199,7 @@ export default function AdminVolunteersPage() {
 
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="relative flex-1 min-w-[220px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+          <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, phone, project or message..." className="input-field !ps-9" />
         </div>
         {(['all', 'offered', 'assigned', 'completed'] as const).map((f) => (
@@ -330,6 +330,6 @@ export default function AdminVolunteersPage() {
         onConfirm={closeOutProject}
         onCancel={() => setCloseProjectId(null)}
       />
-    </>
+    </div>
   )
 }

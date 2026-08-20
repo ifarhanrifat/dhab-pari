@@ -26,7 +26,7 @@ function fmt(n: number) {
 }
 
 export default function DonorCollectorsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const access = useSystemAccess()
   const supabase = createClient()
   const [collectors, setCollectors] = useState<FieldCollector[]>([])
@@ -114,7 +114,7 @@ export default function DonorCollectorsPage() {
   }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
           <Coins size={26} /> {t('y.donorCollectors')}
@@ -238,6 +238,6 @@ export default function DonorCollectorsPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
