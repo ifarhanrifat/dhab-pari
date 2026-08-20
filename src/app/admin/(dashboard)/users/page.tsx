@@ -169,7 +169,7 @@ const emptyCollectorForm = {
 }
 
 export default function AdminUsersPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -390,7 +390,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('us.title')}</h1>
@@ -446,7 +446,7 @@ export default function AdminUsersPage() {
 
       <div className="bg-white rounded-lg border border-dp-outline-variant p-3 mb-4 flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[220px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+          <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -454,7 +454,7 @@ export default function AdminUsersPage() {
             className="filter-field !ps-9"
           />
           {search && (
-            <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer">
+            <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute end-2.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer">
               <X size={15} />
             </button>
           )}
@@ -890,6 +890,6 @@ export default function AdminUsersPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

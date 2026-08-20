@@ -42,7 +42,7 @@ function fmtDateTime(d: string) {
 }
 
 export default function AuditLogPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [authorized, setAuthorized] = useState<boolean | null>(null)
   const [canRestore, setCanRestore] = useState(false)
   const [rows, setRows] = useState<AuditRow[]>([])
@@ -108,7 +108,7 @@ export default function AuditLogPage() {
   }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
           <History size={26} /> {t('z.auditLog')}
@@ -201,6 +201,6 @@ export default function AuditLogPage() {
         onConfirm={restore}
         onCancel={() => setConfirmRestore(null)}
       />
-    </>
+    </div>
   )
 }
