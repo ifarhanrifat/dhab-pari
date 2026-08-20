@@ -32,7 +32,7 @@ const stageStyles: Record<ConnectionTask['task_status'], string> = {
 }
 
 export default function TasksPage() {
-  const { t: tr } = useLocale()
+  const { t: tr, isUrdu } = useLocale()
   const supabase = createClient()
   const [tasks, setTasks] = useState<ConnectionTask[]>([])
   const [inchargeOptions, setInchargeOptions] = useState<InchargeOpt[]>([])
@@ -210,7 +210,7 @@ export default function TasksPage() {
 
       {assignTarget && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setAssignTarget(null)}>
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 px-5 py-4 border-b border-dp-outline-variant">
               <UserPlus2 size={20} className="text-dp-secondary" />
               <h2 className="font-heading text-[18px] font-bold text-dp-primary">{tr('z.assignIncharge')}</h2>
@@ -258,7 +258,7 @@ export default function TasksPage() {
               <div>
                 <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{tr('z.plumberPhone')}</label>
                 <div className="relative">
-                  <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+                  <Phone size={15} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
                   <input value={assignForm.assignee_phone} onChange={(e) => setAssignForm({ ...assignForm, assignee_phone: e.target.value })} className="input-field !ps-10" />
                 </div>
               </div>
