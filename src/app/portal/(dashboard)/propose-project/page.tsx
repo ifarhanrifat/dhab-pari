@@ -205,8 +205,8 @@ export default function ProposeProjectPage() {
   if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{tr('action.loading')}</div>
 
   return (
-    <>
-      <div className="mb-6" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
+      <div className="mb-6" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Vote size={22} className="text-dp-secondary" /> {dt('heading')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{dt('subtitle')}</p>
       </div>
@@ -373,6 +373,6 @@ export default function ProposeProjectPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

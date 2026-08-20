@@ -17,7 +17,7 @@ const statusLabel: Record<string, { label: string; cls: string }> = {
 }
 
 export default function PortalSuggestionsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [items, setItems] = useState<Suggestion[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,7 +51,7 @@ export default function PortalSuggestionsPage() {
   if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('g.suggestions')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.suggestionsBlurb')}</p>
@@ -81,6 +81,6 @@ export default function PortalSuggestionsPage() {
           ))
         )}
       </div>
-    </>
+    </div>
   )
 }

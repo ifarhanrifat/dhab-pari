@@ -22,7 +22,7 @@ const typeLabel: Record<string, string> = { volunteer: 'Volunteer', role_request
 // review — no auto-granting of the publisher role, matching how every other
 // role change in this app already works (manual, via User Management).
 export default function PortalGetInvolvedPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
@@ -72,7 +72,7 @@ export default function PortalGetInvolvedPage() {
   if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('p.getInvolved')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Offer your time, skills, or request to help publish content for the committee.</p>
@@ -118,6 +118,6 @@ export default function PortalGetInvolvedPage() {
           ))
         )}
       </div>
-    </>
+    </div>
   )
 }

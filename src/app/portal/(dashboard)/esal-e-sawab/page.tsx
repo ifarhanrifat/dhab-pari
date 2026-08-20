@@ -89,7 +89,7 @@ interface ChatMessage {
 }
 
 export default function PortalEsalESawabPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const { user: portalUser } = usePortalUser()
 
@@ -299,7 +299,7 @@ export default function PortalEsalESawabPage() {
   }
 
   return (
-    <div className="max-w-3xl">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="max-w-3xl">
       <div className="mb-6">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
           <Gift size={24} className="text-dp-secondary" /> {t('pes.title')}

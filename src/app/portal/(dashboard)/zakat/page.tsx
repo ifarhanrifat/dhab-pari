@@ -26,7 +26,7 @@ interface Round {
 const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 
 export default function PortalZakatPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [round, setRound] = useState<Round | null>(null)
   const [needs, setNeeds] = useState<Record<string, number>>({})
 
@@ -48,7 +48,7 @@ export default function PortalZakatPage() {
     : 0
 
   return (
-    <div className="max-w-3xl">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="max-w-3xl">
       <div className="mb-6">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
           <Scale size={24} className="text-dp-secondary" /> {t('pzk.title')}

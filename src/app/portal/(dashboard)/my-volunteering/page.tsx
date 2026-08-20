@@ -38,7 +38,7 @@ const AVAILABILITY: { id: string; en: string; ur: string }[] = [
 ]
 
 export default function PortalMyVolunteeringPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { t: tr } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [signups, setSignups] = useState<Signup[]>([])
@@ -122,7 +122,7 @@ export default function PortalMyVolunteeringPage() {
   if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{tr('action.loading')}</div>
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><HeartHandshake size={22} className="text-dp-secondary" /> {tr('p.myVolunteering')}</h1>
@@ -267,6 +267,6 @@ export default function PortalMyVolunteeringPage() {
         onConfirm={() => confirmDelete && remove(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
       />
-    </>
+    </div>
   )
 }

@@ -24,7 +24,7 @@ function fmt(n: number) {
 const monthName = (m: number) => new Date(2000, m - 1, 1).toLocaleDateString('en-US', { month: 'long' })
 
 export default function PortalWaterPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [bills, setBills] = useState<Bill[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
@@ -93,7 +93,7 @@ export default function PortalWaterPage() {
   const outstanding = bills.filter((b) => b.status !== 'paid').reduce((s, b) => s + (Number(b.amount_pkr) - Number(b.paid_amount ?? 0) - Number(b.discount_amount ?? 0)), 0)
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('p.waterBillsPayments')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Consumer #{user.consumer_id}</p>
@@ -194,6 +194,6 @@ export default function PortalWaterPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

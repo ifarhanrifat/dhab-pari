@@ -41,7 +41,7 @@ export default function PortalDonatePage() {
 // Never forced: leaving every box unticked submits exactly the plain new
 // donation this page always did.
 function PortalDonatePageInner() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -151,7 +151,7 @@ function PortalDonatePageInner() {
   }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><HeartHandshake size={22} className="text-dp-secondary" /> {t('p.makeDonation')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Donating as {user?.full_name} · {user?.mobile}</p>
@@ -229,6 +229,6 @@ function PortalDonatePageInner() {
           {saving ? 'Submitting...' : 'Submit Donation'}
         </button>
       </div>
-    </>
+    </div>
   )
 }

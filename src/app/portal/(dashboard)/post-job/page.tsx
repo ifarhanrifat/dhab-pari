@@ -24,7 +24,7 @@ const empty = { category: 'plumber', headline: '', description: '', sector: '', 
 // reused from the profile, so a poster can point inquiries at a different
 // number without touching their private account details.
 export default function PostJobPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
@@ -86,7 +86,7 @@ export default function PostJobPage() {
   if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Briefcase size={22} className="text-dp-secondary" /> {t('p.myJobListings')}</h1>
@@ -184,6 +184,6 @@ export default function PostJobPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

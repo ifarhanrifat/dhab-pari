@@ -8,7 +8,7 @@ import { HeartHandshake, AlertTriangle } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 export default function PortalSignupPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [form, setForm] = useState({
     full_name: '', name_ur: '', father_husband_name: '', mobile: '', whatsapp_number: '',
     donor_type: 'villager', country: '', sector: '', username: '', email: '', password: '',
@@ -62,7 +62,7 @@ export default function PortalSignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#E1F5EE] flex flex-col items-center justify-center px-4 py-10">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="min-h-screen bg-[#E1F5EE] flex flex-col items-center justify-center px-4 py-10">
       <div className="mb-8 flex flex-col items-center text-center">
         <div className="w-14 h-14 rounded-full bg-dp-primary flex items-center justify-center text-white mb-4">
           <HeartHandshake size={26} />

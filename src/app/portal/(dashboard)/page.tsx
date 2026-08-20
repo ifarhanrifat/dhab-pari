@@ -12,7 +12,7 @@ function fmt(n: number) {
 }
 
 export default function PortalDashboardPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { user, loading } = usePortalUser()
   const [totalDonated, setTotalDonated] = useState(0)
   const [waterOutstanding, setWaterOutstanding] = useState(0)
@@ -57,7 +57,7 @@ export default function PortalDashboardPage() {
   ]
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-8">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary">Welcome, {user.full_name}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">
@@ -83,6 +83,6 @@ export default function PortalDashboardPage() {
           </Link>
         ))}
       </div>
-    </>
+    </div>
   )
 }

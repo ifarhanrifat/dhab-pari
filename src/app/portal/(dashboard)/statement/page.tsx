@@ -42,7 +42,7 @@ export default function PortalStatementPage() {
 }
 
 function PortalStatementInner() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const searchParams = useSearchParams()
   const [account, setAccount] = useState<AccountInfo | null>(null)
@@ -161,7 +161,7 @@ function PortalStatementInner() {
   const total = withBalance.length > 0 ? withBalance[withBalance.length - 1].balance : 0
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('p.givingStatement')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{account?.donor_account_no ? `Donor Account: ${account.donor_account_no}` : 'No confirmed donations yet'}</p>
@@ -334,6 +334,6 @@ function PortalStatementInner() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

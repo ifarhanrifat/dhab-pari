@@ -45,7 +45,7 @@ function fmtDay(d: string) {
 }
 
 export default function PortalBloodDonorPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [registered, setRegistered] = useState(false)
   const [bloodGroup, setBloodGroup] = useState('')
@@ -148,7 +148,7 @@ export default function PortalBloodDonorPage() {
   if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Droplet size={22} className="text-dp-error" /> {t('p.bloodRegistration')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Help the community in an emergency. Your details are visible only to committee staff — never public.</p>
@@ -326,6 +326,6 @@ export default function PortalBloodDonorPage() {
           </button>
         )}
       </div>
-    </>
+    </div>
   )
 }

@@ -15,7 +15,7 @@ function syntheticEmail(mobile: string) {
 }
 
 export default function PortalProfilePage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [sectors, setSectors] = useState<string[]>([])
   const [form, setForm] = useState({
@@ -91,7 +91,7 @@ export default function PortalProfilePage() {
   if (userLoading || !user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><UserCog size={22} className="text-dp-secondary" /> {t('p.myProfile')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Mobile number ({user.mobile}) cannot be changed — it's your login ID.</p>
@@ -206,6 +206,6 @@ export default function PortalProfilePage() {
           {changingPassword ? 'Changing...' : 'Change Password'}
         </button>
       </div>
-    </>
+    </div>
   )
 }
