@@ -136,11 +136,11 @@ function PortalDonatePageInner() {
 
   if (submitted) {
     return (
-      <div className="bg-white border border-dp-outline-variant rounded-lg p-12 text-center max-w-md mx-auto">
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white border border-dp-outline-variant rounded-lg p-12 text-center max-w-md mx-auto">
         <CheckCircle size={48} className="text-dp-secondary mx-auto mb-4" />
         <h2 className="font-heading text-[22px] font-bold text-dp-primary mb-2">{t('p.thankYou')}</h2>
         <p className="text-dp-on-surface-variant font-sans text-[14px] mb-6">
-          Your donation will appear as &quot;Announced&quot; until our accountant verifies it against the payment record. You&apos;ll be notified once verified.
+          {t('p.donationAnnouncedNote')}
         </p>
         <div className="flex gap-3 justify-center">
           <button onClick={() => { setSubmitted(false); setAmount(0); setReceiptPath(''); setSelectedPending(new Set()) }} className="px-5 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp-surface-container">{t('p.donateAgain')}</button>
@@ -151,10 +151,10 @@ function PortalDonatePageInner() {
   }
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'}>
-      <div className="mb-6">
+    <div>
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><HeartHandshake size={22} className="text-dp-secondary" /> {t('p.makeDonation')}</h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Donating as {user?.full_name} · {user?.mobile}</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.donatingAs')} {user?.full_name} · {user?.mobile}</p>
       </div>
 
       {/* ── Also settle these? ───────────────────────────────────────────
@@ -164,7 +164,7 @@ function PortalDonatePageInner() {
           new gift below, same as this page always did. */}
       {pendingLoaded && pendingItems.length > 0 && (
         <div className="bg-white rounded-lg border border-amber-200 overflow-hidden mb-4 max-w-md">
-          <div className="px-5 py-3 border-b border-amber-200 bg-amber-50">
+          <div dir={isUrdu ? 'rtl' : 'ltr'} className="px-5 py-3 border-b border-amber-200 bg-amber-50">
             <span className="font-sans text-[14px] font-bold text-amber-800">{t('p.alsoSettle')}</span>
             <p className="font-sans text-[12px] text-amber-800 mt-0.5">{t('p.alsoSettleHint')}</p>
           </div>
@@ -173,7 +173,7 @@ function PortalDonatePageInner() {
               className="w-full flex items-center justify-between gap-3 px-5 py-3 border-b border-dp-outline-variant last:border-b-0 text-start cursor-pointer hover:bg-dp-surface-container-low/60 transition-all">
               <div className="flex items-center gap-3 min-w-0">
                 {selectedPending.has(item.key) ? <CheckSquare size={17} className="text-dp-secondary shrink-0" /> : <Square size={17} className="text-dp-on-surface-variant shrink-0" />}
-                <p className="font-sans text-[13.5px] text-dp-on-surface truncate">{item.label}</p>
+                <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[13.5px] text-dp-on-surface truncate">{item.label === 'General giving' ? t('p.generalGiving') : item.label}</p>
               </div>
               <p className="font-sans text-[13.5px] font-bold shrink-0">Rs. {fmt(item.amount)}</p>
             </button>
@@ -182,27 +182,27 @@ function PortalDonatePageInner() {
       )}
 
       <div className="bg-white border border-dp-outline-variant rounded-lg p-6 max-w-md space-y-4">
-        <div>
+        <div dir={isUrdu ? 'rtl' : 'ltr'}>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
           <input type="number" min={0} value={amount || ''} onChange={(e) => setAmount(+e.target.value)} className="input-field" />
           {selectedPendingItems.length > 0 && (
             <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('p.leaveZeroIfOnlySettling')}</p>
           )}
         </div>
-        <div>
+        <div dir={isUrdu ? 'rtl' : 'ltr'}>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.project')}</label>
           <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="input-field">
             <option value="">{t('w.generalFund')}</option>
             {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
           </select>
         </div>
-        <label className="flex items-start gap-2.5 cursor-pointer font-sans text-[13.5px] text-dp-on-surface">
+        <label dir={isUrdu ? 'rtl' : 'ltr'} className="flex items-start gap-2.5 cursor-pointer font-sans text-[13.5px] text-dp-on-surface">
           <input type="checkbox" checked={international}
             onChange={(e) => { setInternational(e.target.checked); if (e.target.checked) setMethod('bank') }}
             className="accent-dp-secondary mt-0.5" />
           {t('p.sendingFromAbroad')}
         </label>
-        <div>
+        <div dir={isUrdu ? 'rtl' : 'ltr'}>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
           <select value={method} disabled={international} onChange={(e) => setMethod(e.target.value)} className="input-field disabled:opacity-60">
             {!international && <option value="jazzcash">{t('w.jazzcash')}</option>}
@@ -213,20 +213,20 @@ function PortalDonatePageInner() {
           <PaymentAccountDetails system="donors_projects" method={method} international={international} />
         </div>
         <DonationReceiptUpload onUpload={setReceiptPath} />
-        <label className="flex items-center gap-2 cursor-pointer">
+        <label dir={isUrdu ? 'rtl' : 'ltr'} className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} className="accent-dp-secondary" />
           <span className="font-sans text-[14px]">{t('p.keepAnonymous')}</span>
         </label>
 
         {selectedPendingItems.length > 0 && (
-          <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 flex items-center justify-between">
+          <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 flex items-center justify-between">
             <p className="font-sans text-[13px] font-semibold text-dp-on-surface">{t('p.totalToSend')}</p>
             <p className="font-heading text-[19px] font-bold text-dp-secondary">Rs. {fmt(grandTotal)}</p>
           </div>
         )}
 
         <button onClick={submit} disabled={saving || grandTotal <= 0} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-          {saving ? 'Submitting...' : 'Submit Donation'}
+          {saving ? t('p.submitting') : t('p.submitDonation')}
         </button>
       </div>
     </div>

@@ -24,8 +24,9 @@ interface Props {
 const MAX_SIZE = 5 * 1024 * 1024
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
-export function DonationReceiptUpload({ onUpload, label = 'Upload Payment Screenshot', bucket = 'donation_receipts' }: Props) {
-  const { t } = useLocale()
+export function DonationReceiptUpload({ onUpload, label, bucket = 'donation_receipts' }: Props) {
+  const { t, isUrdu } = useLocale()
+  const resolvedLabel = label ?? t('g.uploadPaymentScreenshot')
   const [uploading, setUploading] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
@@ -35,11 +36,11 @@ export function DonationReceiptUpload({ onUpload, label = 'Upload Payment Screen
 
   const handleFile = async (file: File) => {
     if (!ACCEPTED.includes(file.type)) {
-      toast.error('Invalid file type. Use JPG, PNG, WebP, or GIF.')
+      toast.error(t('g.invalidFileType'))
       return
     }
     if (file.size > MAX_SIZE) {
-      toast.error('File too large. Maximum 5MB.')
+      toast.error(t('g.fileTooLarge'))
       return
     }
 
@@ -50,14 +51,14 @@ export function DonationReceiptUpload({ onUpload, label = 'Upload Payment Screen
     setUploading(false)
 
     if (error) {
-      toast.error(`Upload failed: ${error.message}`)
+      toast.error(`${t('g.uploadFailed')}: ${error.message}`)
       setPreview(null)
       return
     }
 
     setFileName(file.name)
     onUpload(data.path)
-    toast.success('Receipt uploaded')
+    toast.success(t('g.receiptUploaded'))
   }
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,8 +82,8 @@ export function DonationReceiptUpload({ onUpload, label = 'Upload Payment Screen
 
   return (
     <div>
-      <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">
-        {label} *
+      <label dir={isUrdu ? 'rtl' : 'ltr'} className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">
+        {resolvedLabel} *
       </label>
 
       {preview ? (
@@ -113,11 +114,11 @@ export function DonationReceiptUpload({ onUpload, label = 'Upload Payment Screen
           }`}
         >
           <FileImage size={24} className="mx-auto text-dp-on-surface-variant mb-2" />
-          <p className="font-sans text-[14px] text-dp-on-surface-variant">
+          <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[14px] text-dp-on-surface-variant">
             <Upload size={14} className="inline me-1" />
-            {t('g.dragDrop')} <span className="text-dp-secondary font-semibold">click to browse</span>
+            {t('g.dragDrop')} <span className="text-dp-secondary font-semibold">{t('g.clickToBrowse')}</span>
           </p>
-          <p className="font-sans text-[12px] text-dp-outline mt-1">{t('g.fileTypes')}</p>
+          <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[12px] text-dp-outline mt-1">{t('g.fileTypes')}</p>
         </div>
       )}
 

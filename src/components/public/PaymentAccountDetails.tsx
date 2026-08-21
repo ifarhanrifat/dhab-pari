@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import { getPaymentAccount, type PaymentAccount } from '@/lib/paymentAccounts'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 /**
  * "Send it yourself, any of these ways" — but with the real number right
@@ -18,18 +19,19 @@ import { getPaymentAccount, type PaymentAccount } from '@/lib/paymentAccounts'
  */
 
 function Field({ label, value }: { label: string; value: string }) {
+  const { t, isUrdu } = useLocale()
   if (!value) return null
   const copy = async () => {
     await navigator.clipboard.writeText(value.replace(/\s+/g, ''))
-    toast.success('Copied')
+    toast.success(t('p.copied'))
   }
   return (
     <div className="flex items-center justify-between gap-2 py-1.5">
       <div className="min-w-0">
-        <p className="font-sans text-[10.5px] font-bold uppercase tracking-wide text-dp-on-surface-variant">{label}</p>
+        <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[10.5px] font-bold uppercase tracking-wide text-dp-on-surface-variant">{label}</p>
         <p className="font-mono text-[13.5px] font-semibold text-dp-on-surface truncate">{value}</p>
       </div>
-      <button onClick={copy} title="Copy" className="shrink-0 p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
+      <button onClick={copy} title={t('p.copy')} className="shrink-0 p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
         <Copy size={14} />
       </button>
     </div>
@@ -39,6 +41,7 @@ function Field({ label, value }: { label: string; value: string }) {
 export function PaymentAccountDetails({
   system, method, international = false,
 }: { system: 'donors_projects' | 'water_supply'; method: string; international?: boolean }) {
+  const { t } = useLocale()
   const [account, setAccount] = useState<PaymentAccount | null>(null)
 
   useEffect(() => {
@@ -54,24 +57,24 @@ export function PaymentAccountDetails({
     <div className="bg-dp-surface-container-low rounded-lg px-4 py-2.5 mt-2 divide-y divide-dp-outline-variant/60">
       {method === 'jazzcash' && !international && (
         <>
-          <Field label="JazzCash Number" value={account.jazzcashNumber} />
-          <Field label="Account Title" value={account.jazzcashName} />
+          <Field label={t('p.jazzcashNumber')} value={account.jazzcashNumber} />
+          <Field label={t('p.accountTitle')} value={account.jazzcashName} />
         </>
       )}
       {method === 'easypaisa' && !international && (
         <>
-          <Field label="Easypaisa Number" value={account.easypaisaNumber} />
-          <Field label="Account Title" value={account.easypaisaName} />
+          <Field label={t('p.easypaisaNumber')} value={account.easypaisaNumber} />
+          <Field label={t('p.accountTitle')} value={account.easypaisaName} />
         </>
       )}
       {showBank && (
         <>
-          <Field label="Bank" value={account.bankName} />
-          <Field label="Account Title" value={account.bankAccountTitle} />
-          <Field label="Account Number" value={account.bankAccountNumber} />
-          <Field label={international ? 'IBAN (for international transfer)' : 'IBAN'} value={account.bankIban} />
-          <Field label="Branch" value={account.bankBranch} />
-          <Field label="Branch Code" value={account.bankBranchCode} />
+          <Field label={t('p.bankLabel')} value={account.bankName} />
+          <Field label={t('p.accountTitle')} value={account.bankAccountTitle} />
+          <Field label={t('p.accountNumber')} value={account.bankAccountNumber} />
+          <Field label={international ? t('p.ibanInternational') : t('p.iban')} value={account.bankIban} />
+          <Field label={t('p.branch')} value={account.bankBranch} />
+          <Field label={t('p.branchCode')} value={account.bankBranchCode} />
         </>
       )}
     </div>
