@@ -91,9 +91,9 @@ export default function AdvancesPage() {
 
   const saveEdit = async () => {
     if (!editTarget) return
-    if (!editForm.party_name.trim()) { toast.error('Enter who this advance is for'); return }
-    if (!editForm.from_account_id) { toast.error('Select which account the cash is coming from'); return }
-    if (!editForm.amount || editForm.amount <= 0) { toast.error('Enter a valid amount'); return }
+    if (!editForm.party_name.trim()) { toast.error(t('av.enterPartyName')); return }
+    if (!editForm.from_account_id) { toast.error(t('av.selectFromAccount')); return }
+    if (!editForm.amount || editForm.amount <= 0) { toast.error(t('av.enterValidAmount')); return }
     setEditing(true)
     const { error } = await supabase.rpc('edit_advance', {
       p_voucher_id: editTarget.id, p_amount: editForm.amount, p_from_account_id: editForm.from_account_id,
@@ -101,7 +101,7 @@ export default function AdvancesPage() {
     })
     setEditing(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Advance updated')
+    toast.success(t('av.advanceUpdated'))
     setEditTarget(null)
     load()
   }
@@ -126,8 +126,8 @@ export default function AdvancesPage() {
   const saveSettlement = async () => {
     if (!settleTarget) return
     const validLines = settleLines.filter((l) => l.account_id && l.amount > 0)
-    if (validLines.length === 0) { toast.error('Add at least one bill line'); return }
-    if (!settleFromAccount) { toast.error('Select the cash/bank account for any refund or top-up'); return }
+    if (validLines.length === 0) { toast.error(t('av.addAtLeastOneLine')); return }
+    if (!settleFromAccount) { toast.error(t('av.selectCashBankRefund')); return }
     setSettling(true)
 
     const { data: draft, error: draftErr } = await supabase.from('vouchers').insert({
@@ -148,12 +148,12 @@ export default function AdvancesPage() {
     if (finalizeErr) { toast.error(friendlyError(finalizeErr)); return }
 
     if (result.status === 'pending') {
-      toast.success('Settlement sent for approval')
+      toast.success(t('av.settlementSentApproval'))
     } else {
       const diff = settleTarget.amount_pkr - settleBillTotal
-      if (diff > 0) toast.success(`Settled — Rs. ${fmt(diff)} received back`)
-      else if (diff < 0) toast.success(`Settled — Rs. ${fmt(-diff)} paid extra`)
-      else toast.success('Settled exactly against the advance')
+      if (diff > 0) toast.success(`${t('av.settledRefundBack')} ${fmt(diff)} ${t('av.receivedBackSuffix')}`)
+      else if (diff < 0) toast.success(`${t('av.settledRefundBack')} ${fmt(-diff)} ${t('av.paidExtraSuffix')}`)
+      else toast.success(t('av.settledExactly'))
     }
     setSettleTarget(null)
     load()
@@ -162,8 +162,8 @@ export default function AdvancesPage() {
   const deleteAdvance = async () => {
     if (!confirmDeleteId) return
     const { error } = await supabase.from('vouchers').delete().eq('id', confirmDeleteId)
-    if (error) toast.error(error.message.includes('foreign key') ? 'This advance has already been settled and cannot be deleted.' : error.message)
-    else { toast.success('Advance deleted'); load() }
+    if (error) toast.error(error.message.includes('foreign key') ? t('av.alreadySettledCannotDelete') : error.message)
+    else { toast.success(t('av.advanceDeleted')); load() }
     setConfirmDeleteId(null)
   }
 
@@ -180,7 +180,7 @@ export default function AdvancesPage() {
         )}
       </div>
       <p className="font-sans text-[13px] text-dp-on-surface-variant mb-6">
-        Cash advanced to a repair worker/contractor before their bill arrives, recorded as an "Advance Payment" transaction from Transactions. Settle it here once the real itemized bill comes in — the difference is received back or topped up automatically in the same step.
+        {t('av.subtitle')}
       </p>
 
       {loading ? (
@@ -195,29 +195,29 @@ export default function AdvancesPage() {
             <div key={a.id} className="p-4 flex flex-wrap items-center gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-sans text-[14.5px] font-bold text-dp-on-surface">{a.party_name || 'Unnamed'}</p>
+                  <p className="font-sans text-[14.5px] font-bold text-dp-on-surface">{a.party_name || t('av.unnamed')}</p>
                   <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${a.settled_at ? 'bg-emerald-100 text-emerald-800' : a.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>
-                    {a.settled_at ? 'Settled' : a.status === 'pending' ? 'Pending Approval' : 'Outstanding'}
+                    {a.settled_at ? t('av.statusSettled') : a.status === 'pending' ? t('av.statusPendingApproval') : t('av.statusOutstanding')}
                   </span>
                   {a.attachment_url && <Paperclip size={12} className="text-dp-on-surface-variant" />}
                 </div>
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
-                  {a.voucher_no || 'Pending'} · {new Date(a.voucher_date).toLocaleDateString('en-GB')} · {a.particular}
+                  {a.voucher_no || t('av.pendingVoucherNo')} · {new Date(a.voucher_date).toLocaleDateString('en-GB')} · {a.particular}
                 </p>
               </div>
               <p className="font-sans text-[15px] font-bold text-dp-on-surface shrink-0">Rs. {fmt(a.amount_pkr)}</p>
               <div className="flex items-center gap-1 shrink-0">
-                <button onClick={() => openView(a)} title="View" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Eye size={15} /></button>
+                <button onClick={() => openView(a)} title={t('av.viewTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Eye size={15} /></button>
                 {canManage && !a.settled_at && a.status === 'posted' && (
                   <button onClick={() => openSettle(a)} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
                     <CheckCircle2 size={13} /> {t('a.settle')}
                   </button>
                 )}
                 {canManage && !a.settled_at && (
-                  <button onClick={() => openEdit(a)} title="Edit" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></button>
+                  <button onClick={() => openEdit(a)} title={t('av.editTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></button>
                 )}
                 {canManage && !a.settled_at && (
-                  <button onClick={() => setConfirmDeleteId(a.id)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer" title="Delete">
+                  <button onClick={() => setConfirmDeleteId(a.id)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer" title={t('av.deleteTitle')}>
                     <Trash2 size={15} />
                   </button>
                 )}
@@ -252,10 +252,10 @@ export default function AdvancesPage() {
                       <option value="">{t('rp.selectAccount')}</option>
                       {expenseAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                     </select>
-                    <button type="button" onClick={() => setQuickAddFor({ types: ['expense'], onPick: (a) => handleAccountCreated(a, (acc) => updateSettleLine(i, { account_id: acc.id })) })} className="text-[12px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer">+ New Account</button>
+                    <button type="button" onClick={() => setQuickAddFor({ types: ['expense'], onPick: (a) => handleAccountCreated(a, (acc) => updateSettleLine(i, { account_id: acc.id })) })} className="text-[12px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer">{t('av.newAccountBtn')}</button>
                     <div className="grid grid-cols-2 gap-2">
-                      <input type="number" min={0} value={line.amount || ''} onChange={(e) => updateSettleLine(i, { amount: +e.target.value })} placeholder="Amount" className="input-field" />
-                      <input value={line.description} onChange={(e) => updateSettleLine(i, { description: e.target.value })} placeholder="Note (optional)" className="input-field" />
+                      <input type="number" min={0} value={line.amount || ''} onChange={(e) => updateSettleLine(i, { amount: +e.target.value })} placeholder={t('av.amountPlaceholder')} className="input-field" />
+                      <input value={line.description} onChange={(e) => updateSettleLine(i, { description: e.target.value })} placeholder={t('av.notePlaceholder')} className="input-field" />
                     </div>
                   </div>
                   {settleLines.length > 1 && (
@@ -273,16 +273,16 @@ export default function AdvancesPage() {
                   <option value="">{t('rp.selectAccount')}</option>
                   {cashBankAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
-                <button type="button" onClick={() => setQuickAddFor({ types: ['cash', 'bank'], onPick: (a) => handleAccountCreated(a, (acc) => setSettleFromAccount(acc.id)) })} className="text-[12px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer mt-1">+ New Account</button>
+                <button type="button" onClick={() => setQuickAddFor({ types: ['cash', 'bank'], onPick: (a) => handleAccountCreated(a, (acc) => setSettleFromAccount(acc.id)) })} className="text-[12px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer mt-1">{t('av.newAccountBtn')}</button>
               </div>
 
-              <FileAttachment label="Attach Bill (optional)" currentUrl={settleAttachment} onUpload={setSettleAttachment} />
+              <FileAttachment label={t('av.attachBillLabel')} currentUrl={settleAttachment} onUpload={setSettleAttachment} />
 
               <div className="bg-dp-surface-container-low rounded-lg p-4 space-y-1.5">
                 <div className="flex justify-between font-sans text-[13.5px]"><span className="text-dp-on-surface-variant">{t('z.billTotal')}</span><span className="font-semibold">Rs. {fmt(settleBillTotal)}</span></div>
                 <div className="flex justify-between font-sans text-[13.5px]"><span className="text-dp-on-surface-variant">{t('z.advanceGiven')}</span><span className="font-semibold">Rs. {fmt(settleTarget.amount_pkr)}</span></div>
                 <div className="flex justify-between font-bold text-[14.5px] border-t border-dp-outline-variant pt-1.5 mt-1.5">
-                  <span>{settleDiff > 0 ? 'Refund Due Back' : settleDiff < 0 ? 'Extra To Pay' : 'Fully Settled'}</span>
+                  <span>{settleDiff > 0 ? t('av.refundDueBack') : settleDiff < 0 ? t('av.extraToPay') : t('av.fullySettled')}</span>
                   <span className={settleDiff > 0 ? 'text-emerald-700' : settleDiff < 0 ? 'text-dp-error' : 'text-dp-on-surface'}>Rs. {fmt(Math.abs(settleDiff))}</span>
                 </div>
               </div>
@@ -290,7 +290,7 @@ export default function AdvancesPage() {
             <div className="flex gap-2 p-4 border-t border-dp-outline-variant shrink-0">
               <button onClick={() => setSettleTarget(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
               <button disabled={settling} onClick={saveSettlement} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                {settling ? 'Settling...' : 'Confirm Settlement'}
+                {settling ? t('av.settling') : t('av.confirmSettlement')}
               </button>
             </div>
           </div>
@@ -306,12 +306,12 @@ export default function AdvancesPage() {
               <button onClick={() => setViewTarget(null)} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={20} /></button>
             </div>
             <div className="p-5 space-y-3 font-sans text-[13.5px]">
-              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('z.paidTo')}</span><span className="font-semibold">{viewTarget.party_name || 'Unnamed'}</span></div>
-              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('z.voucherNo')}</span><span className="font-semibold">{viewTarget.voucher_no || 'Pending'}</span></div>
+              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('z.paidTo')}</span><span className="font-semibold">{viewTarget.party_name || t('av.unnamed')}</span></div>
+              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('z.voucherNo')}</span><span className="font-semibold">{viewTarget.voucher_no || t('av.pendingVoucherNo')}</span></div>
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.date')}</span><span className="font-semibold">{new Date(viewTarget.voucher_date).toLocaleDateString('en-GB')}</span></div>
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.amount')}</span><span className="font-bold">Rs. {fmt(viewTarget.amount_pkr)}</span></div>
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('a.note')}</span><span className="text-end">{viewTarget.particular}</span></div>
-              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.status')}</span><span className="font-semibold">{viewTarget.settled_at ? 'Settled' : viewTarget.status === 'pending' ? 'Pending Approval' : 'Outstanding'}</span></div>
+              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.status')}</span><span className="font-semibold">{viewTarget.settled_at ? t('av.statusSettled') : viewTarget.status === 'pending' ? t('av.statusPendingApproval') : t('av.statusOutstanding')}</span></div>
               {viewSettlement && (
                 <div className="bg-dp-surface-container-low rounded-lg p-3 space-y-2 mt-2">
                   <p className="font-bold text-dp-on-surface-variant uppercase text-[11px] tracking-[0.05em]">{t('z.settlement')}</p>
@@ -343,7 +343,7 @@ export default function AdvancesPage() {
             <div className="p-5 space-y-4">
               <div>
                 <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('z.paidTo')}</label>
-                <input value={editForm.party_name} onChange={(e) => setEditForm({ ...editForm, party_name: e.target.value })} placeholder="Worker / contractor name" className="input-field" />
+                <input value={editForm.party_name} onChange={(e) => setEditForm({ ...editForm, party_name: e.target.value })} placeholder={t('av.workerContractorPlaceholder')} className="input-field" />
               </div>
               <div>
                 <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('w.amount')}</label>
@@ -363,13 +363,13 @@ export default function AdvancesPage() {
               </div>
               <div>
                 <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('a.noteOptional')}</label>
-                <input value={editForm.particular} onChange={(e) => setEditForm({ ...editForm, particular: e.target.value })} placeholder="e.g. pipe repair, sector 4" className="input-field" />
+                <input value={editForm.particular} onChange={(e) => setEditForm({ ...editForm, particular: e.target.value })} placeholder={t('av.notePlaceholderExample')} className="input-field" />
               </div>
             </div>
             <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
               <button onClick={() => setEditTarget(null)} className="flex-1 px-4 py-3 border border-dp-outline-variant rounded-full font-sans text-[14px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
               <button disabled={editing} onClick={saveEdit} className="flex-1 px-4 py-3 bg-dp-secondary text-white rounded-full font-sans text-[14px] font-bold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                {editing ? 'Saving...' : 'Save Changes'}
+                {editing ? t('av.saving') : t('av.saveChanges')}
               </button>
             </div>
           </div>
@@ -378,8 +378,8 @@ export default function AdvancesPage() {
 
       <ConfirmDialog
         open={!!confirmDeleteId}
-        title="Delete Advance"
-        message="This permanently removes the advance and reverses its ledger entry. This cannot be undone."
+        title={t('av.deleteAdvanceTitle')}
+        message={t('av.deleteAdvanceMessage')}
         onConfirm={deleteAdvance}
         onCancel={() => setConfirmDeleteId(null)}
       />

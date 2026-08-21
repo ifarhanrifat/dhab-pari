@@ -14,13 +14,15 @@ interface Reminder {
   status: 'pending' | 'sent' | 'skipped'
 }
 
+// titleKey/blurbKey are i18n keys (module scope has no useLocale()) —
+// resolved via t() at render time.
 const sectionMeta = {
-  bill_weekly: { title: 'Weekly Reminders', icon: Clock, blurb: 'Active consumers with an outstanding balance, not yet 2 months overdue.' },
-  bill_defaulter: { title: 'Defaulter Warnings', icon: AlertTriangle, blurb: 'Consumers with 2 consecutive unpaid months — stronger warning wording.' },
-  donor_recurring: { title: 'Donor Reminders', icon: Heart, blurb: 'Recurring donors whose next contribution is due within a week.' },
-  meeting_due: { title: 'Meeting-Due Reminders', icon: CalendarClock, blurb: 'Every committee member, generated on the 10th/20th/30th of each month — same message for everyone, so it can also be pasted straight into the committee WhatsApp group.' },
-  donor_pledge_unpaid: { title: 'Unpaid Pledge Reminders', icon: Megaphone, blurb: 'Donors who announced a pledge on a project but haven’t paid yet — they also get an automatic in-app reminder alongside this WhatsApp queue.' },
-  wazifa_repayment_due: { title: 'Graduated Student Repayments', icon: GraduationCap, blurb: 'Taleemi Wazifa students who finished their studies and still owe a loan/settlement instalment, due within a week or already overdue.' },
+  bill_weekly: { titleKey: 'rm.titleBillWeekly', icon: Clock, blurbKey: 'rm.blurbBillWeekly' },
+  bill_defaulter: { titleKey: 'rm.titleBillDefaulter', icon: AlertTriangle, blurbKey: 'rm.blurbBillDefaulter' },
+  donor_recurring: { titleKey: 'rm.titleDonorRecurring', icon: Heart, blurbKey: 'rm.blurbDonorRecurring' },
+  meeting_due: { titleKey: 'rm.titleMeetingDue', icon: CalendarClock, blurbKey: 'rm.blurbMeetingDue' },
+  donor_pledge_unpaid: { titleKey: 'rm.titleDonorPledgeUnpaid', icon: Megaphone, blurbKey: 'rm.blurbDonorPledgeUnpaid' },
+  wazifa_repayment_due: { titleKey: 'rm.titleWazifaRepayment', icon: GraduationCap, blurbKey: 'rm.blurbWazifaRepayment' },
 } as const
 
 export default function RemindersPage() {
@@ -37,9 +39,9 @@ export default function RemindersPage() {
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const send = async (r: Reminder) => {
-    if (!r.target_phone) { toast.error('No phone number on file for this contact'); return }
+    if (!r.target_phone) { toast.error(t('rm.noPhoneOnFile')); return }
     const intl = normalizePakPhone(r.target_phone)
-    if (!intl) { toast.error('Invalid phone number'); return }
+    if (!intl) { toast.error(t('rm.invalidPhone')); return }
     window.open(`https://wa.me/${intl}?text=${encodeURIComponent(r.message)}`, '_blank')
     const { error } = await supabase.from('reminder_queue').update({ status: 'sent', sent_at: new Date().toISOString() }).eq('id', r.id)
     if (error) { toast.error(friendlyError(error)); return }
@@ -57,9 +59,9 @@ export default function RemindersPage() {
   const copyForGroup = async (message: string) => {
     try {
       await navigator.clipboard.writeText(message)
-      toast.success('Copied — paste into the committee WhatsApp group')
+      toast.success(t('rm.copiedForGroup'))
     } catch {
-      toast.error('Could not copy to clipboard')
+      toast.error(t('rm.couldNotCopy'))
     }
   }
 
@@ -69,7 +71,7 @@ export default function RemindersPage() {
         <BellRing size={28} /> {t('y.reminders')}
       </h1>
       <p className="font-sans text-[13px] text-dp-on-surface-variant mb-6">
-        Every Sunday the system automatically figures out who needs a reminder. Tap Send to open WhatsApp with the message pre-filled — no message goes out on its own.
+        {t('rm.subtitle')}
       </p>
 
       {loading ? (
@@ -87,14 +89,14 @@ export default function RemindersPage() {
           return (
             <div key={type} className="mb-6">
               <h2 className="font-sans text-[15px] font-bold text-dp-on-surface flex items-center gap-2 mb-1">
-                <Icon size={16} /> {meta.title} <span className="font-normal text-dp-on-surface-variant text-[12.5px]">({rows.length})</span>
+                <Icon size={16} /> {t(meta.titleKey)} <span className="font-normal text-dp-on-surface-variant text-[12.5px]">({rows.length})</span>
                 {type === 'meeting_due' && (
                   <button onClick={() => copyForGroup(rows[0].message)} className="flex items-center gap-1 px-2 py-1 border border-dp-outline-variant rounded-full font-sans text-[11px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">
                     <Copy size={11} /> {t('mt.copyForGroup')}
                   </button>
                 )}
               </h2>
-              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-2">{meta.blurb}</p>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-2">{t(meta.blurbKey)}</p>
               <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden divide-y divide-dp-outline-variant">
                 {rows.map((r) => (
                   <div key={r.id} className="p-4 flex flex-wrap items-start gap-3">
@@ -107,7 +109,7 @@ export default function RemindersPage() {
                       <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1 whitespace-pre-line line-clamp-3">{r.message}</p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <button onClick={() => skip(r)} title="Skip" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><SkipForward size={15} /></button>
+                      <button onClick={() => skip(r)} title={t('rm.skipTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><SkipForward size={15} /></button>
                       <button
                         onClick={() => send(r)}
                         disabled={!r.target_phone}
