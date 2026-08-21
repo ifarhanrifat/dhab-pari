@@ -150,7 +150,7 @@ function AdminDonorsPageInner() {
   const projectTitle = (id: string | null) => projects.find((p) => p.id === id)?.title ?? null
 
   const save = async () => {
-    if (!form.name.trim()) { toast.error('Name required'); return }
+    if (!form.name.trim()) { toast.error(t('dn.nameRequired')); return }
     const payload = { ...form, name_ur: form.name_ur || null, project_id: form.project_id || null, notes: form.notes || null, phone: form.phone || null, father_husband_name: form.father_husband_name || null, whatsapp_number: form.whatsapp_number || null }
     const { data, error } = await supabase.from('donors').insert({ ...payload, is_verified: true, submitted_via: 'staff' }).select('id').single()
     if (error) { toast.error(friendlyError(error)); return }
@@ -158,12 +158,12 @@ function AdminDonorsPageInner() {
     // already true above) but, unlike confirm_donation()'s flow, never got a
     // voucher_no/donor_account_no on their own — assign them now the same way.
     if (data) await supabase.rpc('assign_donor_numbers', { p_donor_id: data.id })
-    toast.success('Donor added'); setShowForm(false); setForm(empty); load()
+    toast.success(t('dn.donorAdded')); setShowForm(false); setForm(empty); load()
   }
 
   const unverify = async (id: string) => {
     await supabase.from('donors').update({ is_verified: false }).eq('id', id)
-    toast.success('Unverified'); load()
+    toast.success(t('dn.unverified')); load()
   }
 
   const toggleSelect = (id: string) => {
@@ -184,9 +184,9 @@ function AdminDonorsPageInner() {
     const ids = Array.from(selected)
     for (const id of ids) {
       const { error } = await supabase.rpc('confirm_donation', { p_donor_id: id, p_edits: {} })
-      if (error) { toast.error(`${error.message} (stopped at ${ids.indexOf(id) + 1}/${ids.length})`); break }
+      if (error) { toast.error(`${error.message} (${t('dn.stoppedAt')} ${ids.indexOf(id) + 1}/${ids.length})`); break }
     }
-    toast.success(`${ids.length} donor(s) confirmed`)
+    toast.success(`${ids.length} ${t('dn.donorsConfirmed')}`)
     setSelected(new Set())
     load()
   }
@@ -194,8 +194,8 @@ function AdminDonorsPageInner() {
   const bulkDelete = async () => {
     const ids = Array.from(selected)
     const { error } = await supabase.from('donors').delete().in('id', ids)
-    if (error) { toast.error('Failed to delete donors'); return }
-    toast.success(`${ids.length} donor(s) deleted`)
+    if (error) { toast.error(t('dn.failedToDelete')); return }
+    toast.success(`${ids.length} ${t('dn.donorsDeleted')}`)
     setSelected(new Set())
     setConfirmDelete(false)
     load()
@@ -224,7 +224,7 @@ function AdminDonorsPageInner() {
     setProofLoadingId(d.id)
     const { data, error } = await supabase.storage.from('donation_receipts').createSignedUrl(d.payment_proof_url, 300)
     setProofLoadingId(null)
-    if (error || !data?.signedUrl) { toast.error('Could not open the payment screenshot'); return }
+    if (error || !data?.signedUrl) { toast.error(t('dn.couldNotOpenProof')); return }
     window.open(data.signedUrl, '_blank', 'noopener')
   }
 
@@ -252,8 +252,8 @@ function AdminDonorsPageInner() {
       if (error) failed += 1
     }
     setConfirmingBatch(false)
-    if (failed > 0) toast.error(`${failed} of ${batchItems.length} couldn't be confirmed — check them individually`)
-    else toast.success(`All ${batchItems.length} items confirmed`)
+    if (failed > 0) toast.error(`${failed} / ${batchItems.length} — ${t('dn.couldntBeConfirmed')}`)
+    else toast.success(`${t('dn.allItemsConfirmed')} ${batchItems.length} ${t('dn.allItemsConfirmedSuffix')}`)
     setReviewBatch(null)
     load()
   }
@@ -268,7 +268,7 @@ function AdminDonorsPageInner() {
       is_anonymous: editForm.is_anonymous, notes: editForm.notes || null,
     }).eq('id', editTarget.id)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Saved')
+    toast.success(t('dn.saved'))
     setEditTarget(null)
     load()
   }
@@ -288,7 +288,7 @@ function AdminDonorsPageInner() {
     })
     setConfirming(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Donation confirmed')
+    toast.success(t('dn.donationConfirmed'))
 
     const { data: tpl } = await supabase.from('message_templates').select('body').eq('key', 'donor_donation_confirmed').single()
     const projTitle = editForm.project_id ? (projectTitle(editForm.project_id) ?? 'General Fund') : 'General Fund'
@@ -318,7 +318,7 @@ function AdminDonorsPageInner() {
 
   const sendThankYou = () => {
     const intl = confirmedWhatsapp ? normalizePakPhone(confirmedWhatsapp) : null
-    if (!intl || !thankYouMessage) { toast.error('No usable WhatsApp number for this donor'); return }
+    if (!intl || !thankYouMessage) { toast.error(t('dn.noUsableWhatsapp')); return }
     window.open(`https://wa.me/${intl}?text=${encodeURIComponent(thankYouMessage)}`, '_blank')
   }
 
@@ -365,7 +365,7 @@ function AdminDonorsPageInner() {
   if (!access.canDonorsProjects) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
-        <p className="font-sans text-[14px] text-dp-on-surface-variant">Donors belongs to the Donors &amp; Projects system — your account doesn&apos;t have access to it.</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('dn.noAccessMessage')}</p>
       </div>
     )
   }
@@ -377,8 +377,8 @@ function AdminDonorsPageInner() {
           <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('dn.title')}</h1>
           {pendingCount > 0 && (
             <p className="font-sans text-[13px] text-amber-700 mt-1">
-              {pendingCount} unconfirmed
-              {awaitingCount > 0 && ` — ${awaitingCount} already paid and waiting on you to confirm`}
+              {pendingCount} {t('dn.unconfirmedCount')}
+              {awaitingCount > 0 && ` — ${awaitingCount} ${t('dn.awaitingYourConfirm')}`}
             </p>
           )}
         </div>
@@ -395,8 +395,8 @@ function AdminDonorsPageInner() {
       {pendingBatches.length > 0 && (
         <div className="bg-white rounded-lg border border-sky-200 overflow-hidden mb-4">
           <div className="px-5 py-3 border-b border-sky-200 bg-sky-50">
-            <span className="font-sans text-[14px] font-bold text-sky-800">Combined Payments — {pendingBatches.length} to review</span>
-            <p className="font-sans text-[12px] text-sky-800 mt-0.5">A donor sent one payment covering several pledges at once. Open each to see the real slip and confirm them together.</p>
+            <span className="font-sans text-[14px] font-bold text-sky-800">{t('dn.combinedPaymentsToReview')} {pendingBatches.length} {t('dn.combinedPaymentsToReviewSuffix')}</span>
+            <p className="font-sans text-[12px] text-sky-800 mt-0.5">{t('dn.combinedPaymentsBlurb')}</p>
           </div>
           {pendingBatches.map((b) => (
             <button key={b.batch_id} onClick={() => openBatchReview(b)}
@@ -416,7 +416,7 @@ function AdminDonorsPageInner() {
         <input
           value={donorSearch}
           onChange={(e) => setDonorSearch(e.target.value)}
-          placeholder="Search donors by name, phone, account number or amount..."
+          placeholder={t('dn.searchPlaceholder')}
           className="input-field !ps-9"
         />
       </div>
@@ -425,8 +425,8 @@ function AdminDonorsPageInner() {
         count={selected.size}
         onClear={() => setSelected(new Set())}
         actions={[
-          { label: 'Confirm Selected', onClick: bulkVerify, variant: 'primary' },
-          { label: 'Delete Selected', onClick: () => setConfirmDelete(true), variant: 'danger' },
+          { label: t('dn.confirmSelected'), onClick: bulkVerify, variant: 'primary' },
+          { label: t('dn.deleteSelected'), onClick: () => setConfirmDelete(true), variant: 'danger' },
         ]}
       />
 
@@ -507,7 +507,7 @@ function AdminDonorsPageInner() {
       <div className="hidden md:block bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
-            <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]"><th className="p-4 w-10"><input type="checkbox" checked={donors.length > 0 && selected.size === donors.length} onChange={toggleSelectAll} className="accent-dp-secondary cursor-pointer" /></th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('name')}>{t('a.name')}{sortArrow('name')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('account')}>{t('dn.accountNo', 'Account #')}{sortArrow('account')}</th><th className="p-4">{t('a.phone')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('amount')}>{t('w.amount')}{sortArrow('amount')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('date')}>{t('w.date')}{sortArrow('date')}</th><th className="p-4">{t('dn.source')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('status')}>{t('a.status', 'Status')}{sortArrow('status')}</th><th className="p-4 text-end">{t('a.actions')}</th></tr></thead>
+            <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]"><th className="p-4 w-10"><input type="checkbox" checked={donors.length > 0 && selected.size === donors.length} onChange={toggleSelectAll} className="accent-dp-secondary cursor-pointer" /></th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('name')}>{t('a.name')}{sortArrow('name')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary whitespace-nowrap" onClick={() => toggleSort('account')}>{t('dn.accountNo', 'Account #')}{sortArrow('account')}</th><th className="p-4 whitespace-nowrap">{t('a.phone')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary whitespace-nowrap" onClick={() => toggleSort('amount')}>{t('w.amount')}{sortArrow('amount')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary whitespace-nowrap" onClick={() => toggleSort('date')}>{t('w.date')}{sortArrow('date')}</th><th className="p-4 whitespace-nowrap">{t('dn.source')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary whitespace-nowrap" onClick={() => toggleSort('status')}>{t('w.status')}{sortArrow('status')}</th><th className="p-4 text-end">{t('a.actions')}</th></tr></thead>
             <tbody className="font-sans text-[16px]">
               {loading && <tr><td colSpan={9} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}
               {!loading && visibleDonors.length === 0 && (
@@ -520,17 +520,22 @@ function AdminDonorsPageInner() {
                     {d.name}
                     {d.is_anonymous && (
                       <span
-                        title="Shown as “Anonymous” on the public website — the committee still sees the real name for verification"
+                        title={t('dn.anonymousTooltip')}
                         className="ms-2 align-middle text-[10.5px] font-bold uppercase px-2 py-0.5 rounded-full font-sans bg-dp-surface-container-high text-dp-on-surface-variant"
                       >
                         {t('dn.anonymous')}
                       </span>
                     )}
                   </td>
-                  <td className="p-4 border-b border-dp-outline-variant text-[13px] font-mono text-dp-on-surface-variant">{accountNoByKey.get(donorKeyFor(d.name, d.phone)) ?? '—'}</td>
-                  <td className="p-4 border-b border-dp-outline-variant text-[14px] text-dp-on-surface-variant">{d.phone ?? '—'}</td>
-                  <td className="p-4 border-b border-dp-outline-variant font-bold text-dp-secondary">Rs. {Number(d.amount_pkr).toLocaleString()}</td>
-                  <td className="p-4 border-b border-dp-outline-variant text-[14px] text-dp-on-surface-variant">{new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                  {/* font-mono directly on a <td> forces display:inline-block under
+                      Urdu (globals.css, so LTR numbers embed correctly inside RTL
+                      text), which breaks the table's native column alignment.
+                      Scoped to a nested span instead — same fix already applied
+                      to the mobile card view above. */}
+                  <td className="p-4 border-b border-dp-outline-variant text-[13px] text-dp-on-surface-variant whitespace-nowrap"><span className="font-mono">{accountNoByKey.get(donorKeyFor(d.name, d.phone)) ?? '—'}</span></td>
+                  <td className="p-4 border-b border-dp-outline-variant text-[14px] text-dp-on-surface-variant whitespace-nowrap">{d.phone ?? '—'}</td>
+                  <td className="p-4 border-b border-dp-outline-variant font-bold text-dp-secondary whitespace-nowrap">Rs. {Number(d.amount_pkr).toLocaleString()}</td>
+                  <td className="p-4 border-b border-dp-outline-variant text-[14px] text-dp-on-surface-variant whitespace-nowrap">{new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                   <td className="p-4 border-b border-dp-outline-variant">
                     <span className="inline-flex flex-wrap gap-1">
                       {fundBadge(d) && (
@@ -539,28 +544,28 @@ function AdminDonorsPageInner() {
                       <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full font-sans ${d.submitted_via === 'public' ? 'bg-blue-100 text-blue-700' : 'bg-dp-surface-container-high'}`}>{d.submitted_via === 'public' ? t('dn.public') : t('dn.staff')}</span>
                       {d.donor_type === 'overseas' && <span className="text-[11px] font-bold px-2 py-0.5 rounded-full font-sans bg-violet-100 text-violet-700">{t('g.overseas')}</span>}
                       {d.recurring_schedule_id && (
-                        <span title="Generated by a recurring schedule, not entered by hand" className="text-[11px] font-bold px-2 py-0.5 rounded-full font-sans bg-indigo-100 text-indigo-700">{t('a.recurring')}</span>
+                        <span title={t('dn.recurringTooltip')} className="text-[11px] font-bold px-2 py-0.5 rounded-full font-sans bg-indigo-100 text-indigo-700">{t('a.recurring')}</span>
                       )}
                       {d.payment_batch_id && batchSummary[d.payment_batch_id]?.count > 1 && (
-                        <span title="Sent as one payment along with other pledges — some may be on the Kafalat/Wazifa/Sadqa Collections tabs instead of here"
+                        <span title={t('dn.batchTooltip')}
                           className="text-[11px] font-bold px-2 py-0.5 rounded-full font-sans bg-amber-100 text-amber-800">
-                          Part of Rs {batchSummary[d.payment_batch_id].total.toLocaleString()} · {batchSummary[d.payment_batch_id].count} items
+                          {t('dn.partOfBatch')} {batchSummary[d.payment_batch_id].total.toLocaleString()} · {batchSummary[d.payment_batch_id].count} {t('dn.batchItems')}
                         </span>
                       )}
                     </span>
                   </td>
-                  <td className="p-4 border-b border-dp-outline-variant">
+                  <td className="p-4 border-b border-dp-outline-variant whitespace-nowrap">
                     {donorStatus(d) === 'received' && <span className="inline-flex items-center gap-1 text-dp-secondary text-[12px] font-bold"><CheckCircle size={14} /> {t('dn.received')}</span>}
                     {donorStatus(d) === 'partial' && <span className="inline-flex items-center gap-1 text-orange-700 text-[12px] font-bold" title={t('dn.partialTooltip').replace('{amt}', `Rs ${(d.announced_amount_pkr - d.amount_pkr).toLocaleString()}`)}><AlertTriangle size={14} /> {t('dn.partial')}</span>}
-                    {donorStatus(d) === 'announced' && <span className="inline-flex items-center gap-1 text-amber-700 text-[12px] font-bold" title="Donor has promised this — no money sent yet"><XCircle size={14} /> {t('dn.announced')}</span>}
-                    {donorStatus(d) === 'awaiting' && <span className="inline-flex items-center gap-1 text-dp-on-surface-variant text-[12px] font-bold" title="Donor has paid — waiting on the committee to confirm"><Clock size={14} /> {t('dn.awaiting')}</span>}
+                    {donorStatus(d) === 'announced' && <span className="inline-flex items-center gap-1 text-amber-700 text-[12px] font-bold" title={t('dn.announcedTooltip')}><XCircle size={14} /> {t('dn.announced')}</span>}
+                    {donorStatus(d) === 'awaiting' && <span className="inline-flex items-center gap-1 text-dp-on-surface-variant text-[12px] font-bold" title={t('dn.awaitingTooltip')}><Clock size={14} /> {t('dn.awaiting')}</span>}
                   </td>
                   <td className="p-4 border-b border-dp-outline-variant text-end whitespace-nowrap">
                     {d.payment_proof_url && (
                       <button
                         onClick={() => openProof(d)}
                         disabled={proofLoadingId === d.id}
-                        title="View the payment screenshot the donor sent"
+                        title={t('dn.viewProofTooltip')}
                         className="inline-flex items-center gap-1 px-2 py-1 me-2 rounded text-[13px] font-sans font-semibold cursor-pointer transition-all border border-dp-outline-variant text-dp-secondary hover:bg-dp-surface-container disabled:opacity-50"
                       >
                         <Paperclip size={13} /> {proofLoadingId === d.id ? '...' : t('dn.proof')}
@@ -582,8 +587,8 @@ function AdminDonorsPageInner() {
 
       <ConfirmDialog
         open={confirmDelete}
-        title="Delete Donors"
-        message={`Are you sure you want to delete ${selected.size} donor(s)? This cannot be undone.`}
+        title={t('dn.deleteDonorsTitle')}
+        message={t('dn.deleteDonorsMessage').replace('{n}', String(selected.size))}
         onConfirm={bulkDelete}
         onCancel={() => setConfirmDelete(false)}
       />
@@ -620,7 +625,7 @@ function AdminDonorsPageInner() {
               </div>
               <div>
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.notesOptional')}</label>
-                <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} placeholder="Any additional notes..." className="input-field resize-none" />
+                <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} placeholder={t('dn.notesPlaceholder')} className="input-field resize-none" />
               </div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_anonymous} onChange={(e) => setForm({ ...form, is_anonymous: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('f.anonymousDonor')}</span></label>
               <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{t('dn.addDonor')}</button>
@@ -633,7 +638,7 @@ function AdminDonorsPageInner() {
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setEditTarget(null)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[24px] font-bold text-dp-primary">{editTarget.is_verified ? 'Edit Donor' : 'Review & Confirm'}</h2>
+              <h2 className="font-heading text-[24px] font-bold text-dp-primary">{editTarget.is_verified ? t('dn.editDonorTitle') : t('dn.reviewConfirmTitle')}</h2>
               <button onClick={() => setEditTarget(null)} className="cursor-pointer"><X size={20} /></button>
             </div>
             <div className="space-y-4">
@@ -686,7 +691,7 @@ function AdminDonorsPageInner() {
                 <button onClick={saveEdits} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{t('g.saveChanges')}</button>
               ) : (
                 <button onClick={confirmDonation} disabled={confirming} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-                  <ShieldCheck size={16} /> {confirming ? 'Confirming...' : 'Confirm Donation'}
+                  <ShieldCheck size={16} /> {confirming ? t('dn.confirming') : t('dn.confirmDonationBtn')}
                 </button>
               )}
             </div>
@@ -720,7 +725,7 @@ function AdminDonorsPageInner() {
             </div>
 
             <div className="bg-dp-surface-container-low rounded-lg px-4 py-3 mb-4 flex items-center justify-between">
-              <p className="font-sans text-[13px] font-semibold text-dp-on-surface">One payment, total</p>
+              <p className="font-sans text-[13px] font-semibold text-dp-on-surface">{t('dn.onePaymentTotal')}</p>
               <p className="font-heading text-[22px] font-bold text-dp-secondary">Rs {reviewBatch.total.toLocaleString()}</p>
             </div>
 
@@ -731,13 +736,13 @@ function AdminDonorsPageInner() {
                   <img src={batchProofUrl} alt="Payment slip" className="w-full max-h-64 object-contain rounded-lg border border-dp-outline-variant bg-dp-surface-container" />
                 </a>
               ) : (
-                <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">Loading the slip…</p>
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('dn.loadingSlip')}</p>
               )
             )}
 
-            <p className="font-sans text-[12px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-2">This one payment covers</p>
+            <p className="font-sans text-[12px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-2">{t('dn.onePaymentCovers')}</p>
             {!batchItems ? (
-              <p className="font-sans text-[13px] text-dp-on-surface-variant py-4 text-center">Loading…</p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant py-4 text-center">{t('dn.loadingEllipsis')}</p>
             ) : (
               <div className="border border-dp-outline-variant rounded-lg divide-y divide-dp-outline-variant overflow-hidden mb-5">
                 {batchItems.map((item) => (
@@ -751,10 +756,10 @@ function AdminDonorsPageInner() {
 
             <button disabled={confirmingBatch || !batchItems} onClick={confirmWholeBatch}
               className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-              <CheckCircle size={16} /> {confirmingBatch ? 'Confirming…' : `Confirm All ${batchItems?.length ?? ''} Items`}
+              <CheckCircle size={16} /> {confirmingBatch ? t('dn.confirmingEllipsis') : `${t('dn.confirmAll')} ${batchItems?.length ?? ''} ${t('dn.confirmAllItems')}`}
             </button>
             <p className="font-sans text-[11px] text-dp-on-surface-variant mt-2.5 text-center">
-              Each item still posts to its own correct fund account — this just confirms them all at once instead of one at a time.
+              {t('dn.eachItemPostsNote')}
             </p>
           </div>
         </div>
