@@ -16,8 +16,9 @@ interface ImageUploadProps {
 const MAX_SIZE = 5 * 1024 * 1024
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
-export function ImageUpload({ bucket, onUpload, currentUrl, label = 'Upload Image' }: ImageUploadProps) {
-  const { t } = useLocale()
+export function ImageUpload({ bucket, onUpload, currentUrl, label }: ImageUploadProps) {
+  const { t, isUrdu } = useLocale()
+  const resolvedLabel = label ?? t('g.uploadImage')
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState<string | null>(currentUrl ?? null)
   const [dragOver, setDragOver] = useState(false)
@@ -26,11 +27,11 @@ export function ImageUpload({ bucket, onUpload, currentUrl, label = 'Upload Imag
 
   const handleFile = async (file: File) => {
     if (!ACCEPTED.includes(file.type)) {
-      toast.error('Invalid file type. Use JPG, PNG, WebP, or GIF.')
+      toast.error(t('g.invalidFileType'))
       return
     }
     if (file.size > MAX_SIZE) {
-      toast.error('File too large. Maximum 5MB.')
+      toast.error(t('g.fileTooLarge'))
       return
     }
 
@@ -42,7 +43,7 @@ export function ImageUpload({ bucket, onUpload, currentUrl, label = 'Upload Imag
     const { data, error } = await supabase.storage.from(bucket).upload(fileName, file)
 
     if (error) {
-      toast.error(`Upload failed: ${error.message}`)
+      toast.error(`${t('g.uploadFailed')}: ${error.message}`)
       setPreview(currentUrl ?? null)
       setUploading(false)
       return
@@ -52,7 +53,7 @@ export function ImageUpload({ bucket, onUpload, currentUrl, label = 'Upload Imag
     onUpload(urlData.publicUrl)
     setPreview(urlData.publicUrl)
     setUploading(false)
-    toast.success('Image uploaded')
+    toast.success(t('g.imageUploaded'))
   }
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,8 +76,8 @@ export function ImageUpload({ bucket, onUpload, currentUrl, label = 'Upload Imag
 
   return (
     <div>
-      <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">
-        {label}
+      <label dir={isUrdu ? 'rtl' : 'ltr'} className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">
+        {resolvedLabel}
       </label>
 
       {preview ? (
@@ -119,10 +120,10 @@ export function ImageUpload({ bucket, onUpload, currentUrl, label = 'Upload Imag
           }`}
         >
           <Upload size={24} className="mx-auto text-dp-on-surface-variant mb-2" />
-          <p className="font-sans text-[14px] text-dp-on-surface-variant">
-            {t('g.dragDrop')} <span className="text-dp-secondary font-semibold">click to browse</span>
+          <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[14px] text-dp-on-surface-variant">
+            {t('g.dragDrop')} <span className="text-dp-secondary font-semibold">{t('g.clickToBrowse')}</span>
           </p>
-          <p className="font-sans text-[12px] text-dp-outline mt-1">
+          <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[12px] text-dp-outline mt-1">
             {t('g.fileTypes')}
           </p>
         </div>

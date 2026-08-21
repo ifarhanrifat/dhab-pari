@@ -58,6 +58,34 @@ const t: Record<string, { en: string; ur: string }> = {
   confirmBody2: { en: 'It will be labeled "Announced" but will NOT be open for voting until your payment is confirmed.', ur: 'اسے "اعلان شدہ" کا لیبل دیا جائے گا لیکن آپ کی ادائیگی کی تصدیق تک یہ ووٹنگ کے لیے کھلا نہیں ہوگا۔' },
   confirmCancel: { en: 'Cancel', ur: 'منسوخ کریں' },
   confirmProceed: { en: 'Confirm & Submit', ur: 'تصدیق کریں اور جمع کرائیں' },
+  catInfrastructure: { en: 'Infrastructure', ur: 'بنیادی ڈھانچہ' },
+  catWater: { en: 'Water', ur: 'پانی' },
+  catHealth: { en: 'Health', ur: 'صحت' },
+  catEducation: { en: 'Education', ur: 'تعلیم' },
+  catEnvironment: { en: 'Environment', ur: 'ماحولیات' },
+  catWelfare: { en: 'Welfare', ur: 'فلاح و بہبود' },
+  catSports: { en: 'Sports', ur: 'کھیل' },
+  catOther: { en: 'Other', ur: 'دیگر' },
+  yourAnswer: { en: 'Your answer...', ur: 'آپ کا جواب...' },
+  thinking: { en: 'Thinking...', ur: 'سوچ رہا ہے...' },
+  generateModern: { en: 'Generate Estimate (Modern Equipment)', ur: 'تخمینہ بنائیں (جدید سامان)' },
+  calculateCheapest: { en: 'Calculate Cheapest Option', ur: 'سستا ترین آپشن نکالیں' },
+  modernEstimateLabel: { en: 'Modern Equipment Estimate: Rs.', ur: 'جدید سامان کا تخمینہ: روپے' },
+  cheapestEstimateLabel: { en: 'Cheapest Option Estimate: Rs.', ur: 'سستا ترین آپشن کا تخمینہ: روپے' },
+  fillTitleDescBudget: { en: 'Fill in the title, description, and requested budget', ur: 'عنوان، تفصیل اور مطلوبہ بجٹ درج کریں' },
+  commitmentAtLeastOneTime: { en: 'Your self-commitment must be at least Rs.', ur: 'آپ کا ذاتی وعدہ کم از کم روپے ہونا چاہیے:' },
+  commitmentAtLeastMonthly: { en: 'Your monthly self-commitment must be at least Rs. {amount} (6-month equivalent)', ur: 'آپ کا ماہانہ ذاتی وعدہ کم از کم روپے {amount} ہونا چاہیے (6 ماہ کے برابر)' },
+  enterMonthlyOperatingCost: { en: 'Enter the estimated monthly operating cost, or uncheck ongoing monthly support', ur: 'تخمینی ماہانہ آپریٹنگ لاگت درج کریں، یا جاری ماہانہ مدد کا خانہ غیر منتخب کریں' },
+  proposalAnnouncedToast: { en: 'Proposal announced — pay your self-commitment from your portal, then it opens for voting once confirmed.', ur: 'تجویز کا اعلان ہو گیا — اپنا ذاتی وعدہ اپنے پورٹل سے ادا کریں، تصدیق کے بعد یہ ووٹنگ کے لیے کھل جائے گی۔' },
+  needsAtLeastOneTime: { en: 'Needs to be at least Rs.', ur: 'کم از کم روپے ہونا چاہیے:' },
+  needsAtLeastMonthly: { en: 'Needs to be at least Rs. {amount}/month', ur: 'کم از کم روپے {amount}/ماہانہ ہونا چاہیے' },
+  aiEstimationFailed: { en: 'AI estimation failed', ur: 'اے آئی تخمینہ ناکام ہو گیا' },
+  aiNetworkError: { en: 'Network error contacting the AI estimator', ur: 'اے آئی تخمینہ کار سے رابطے میں نیٹ ورک کی خرابی' },
+  fillTitleDescFirst: { en: 'Fill in the title and description first', ur: 'پہلے عنوان اور تفصیل درج کریں' },
+}
+const CATEGORY_KEY: Record<string, keyof typeof t> = {
+  infrastructure: 'catInfrastructure', water: 'catWater', health: 'catHealth', education: 'catEducation',
+  environment: 'catEnvironment', welfare: 'catWelfare', sports: 'catSports', other: 'catOther',
 }
 
 function voteTargetFor(budget: number) {
@@ -122,7 +150,7 @@ export default function ProposeProjectPage() {
         body: JSON.stringify({ title: form.title, description: form.description, category: form.category, stage, history }),
       })
       const data = await res.json()
-      if (!res.ok) { toast.error(data.error ?? 'AI estimation failed'); setAiBusy(false); return }
+      if (!res.ok) { toast.error(data.error ?? dt('aiEstimationFailed')); setAiBusy(false); return }
       const newHistory = [...history, { role: 'model' as const, text: data.text }]
       setAiHistory(newHistory)
       if (data.finalEstimate) {
@@ -133,13 +161,13 @@ export default function ProposeProjectPage() {
         setAiWaitingForAnswer(true)
       }
     } catch {
-      toast.error('Network error contacting the AI estimator')
+      toast.error(dt('aiNetworkError'))
     }
     setAiBusy(false)
   }
 
   const startModernEstimate = () => {
-    if (!form.title.trim() || !form.description.trim()) { toast.error('Fill in the title and description first'); return }
+    if (!form.title.trim() || !form.description.trim()) { toast.error(dt('fillTitleDescFirst')); return }
     setAiHistory([])
     runAiTurn('modern', [])
   }
@@ -163,19 +191,19 @@ export default function ProposeProjectPage() {
   const openConfirm = () => {
     if (!user) return
     if (!form.title.trim() || !form.description.trim() || !form.budget_pkr) {
-      toast.error('Fill in the title, description, and requested budget')
+      toast.error(dt('fillTitleDescBudget'))
       return
     }
     if (!form.self_commitment_amount_pkr || !commitmentOk) {
       toast.error(
         form.self_commitment_type === 'one_time'
-          ? `Your self-commitment must be at least Rs. ${required.toLocaleString()}`
-          : `Your monthly self-commitment must be at least Rs. ${Math.ceil(required / 6).toLocaleString()} (6-month equivalent)`
+          ? `${dt('commitmentAtLeastOneTime')} ${required.toLocaleString()}`
+          : dt('commitmentAtLeastMonthly').replace('{amount}', Math.ceil(required / 6).toLocaleString())
       )
       return
     }
     if (form.needs_recurring_support && !form.monthly_operating_cost_pkr) {
-      toast.error('Enter the estimated monthly operating cost, or uncheck ongoing monthly support')
+      toast.error(dt('enterMonthlyOperatingCost'))
       return
     }
     setShowConfirm(true)
@@ -198,7 +226,7 @@ export default function ProposeProjectPage() {
     setSaving(false)
     setShowConfirm(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Proposal announced — pay your self-commitment from your portal, then it opens for voting once confirmed.')
+    toast.success(dt('proposalAnnouncedToast'))
     router.push(`/projects/${data.id}`)
   }
 
@@ -240,7 +268,7 @@ export default function ProposeProjectPage() {
           <div>
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{dt('categoryLabel')}</label>
             <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">
-              {CATEGORIES.map((c) => <option key={c} value={c}>{c[0].toUpperCase() + c.slice(1)}</option>)}
+              {CATEGORIES.map((c) => <option key={c} value={c}>{dt(CATEGORY_KEY[c])}</option>)}
             </select>
           </div>
           <div>
@@ -274,21 +302,21 @@ export default function ProposeProjectPage() {
               )}
               {aiWaitingForAnswer && aiStage < 2 && (
                 <div className="flex gap-2">
-                  <input value={aiReply} onChange={(e) => setAiReply(e.target.value)} placeholder="Your answer..." className="input-field flex-1" />
+                  <input value={aiReply} onChange={(e) => setAiReply(e.target.value)} placeholder={dt('yourAnswer')} className="input-field flex-1" />
                   <button onClick={sendAiReply} disabled={aiBusy} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{tr('p.send')}</button>
                 </div>
               )}
-              {modernEstimate && <p className="font-sans text-[13.5px] font-bold text-dp-secondary">Modern Equipment Estimate: Rs. {modernEstimate.toLocaleString()}</p>}
-              {cheapestEstimate && <p className="font-sans text-[13.5px] font-bold text-dp-primary">Cheapest Option Estimate: Rs. {cheapestEstimate.toLocaleString()}</p>}
+              {modernEstimate && <p className="font-sans text-[13.5px] font-bold text-dp-secondary">{dt('modernEstimateLabel')} {modernEstimate.toLocaleString()}</p>}
+              {cheapestEstimate && <p className="font-sans text-[13.5px] font-bold text-dp-primary">{dt('cheapestEstimateLabel')} {cheapestEstimate.toLocaleString()}</p>}
               <div className="flex gap-2">
                 {aiStage === 0 && !aiWaitingForAnswer && (
                   <button onClick={startModernEstimate} disabled={aiBusy} className="px-4 py-2 border-2 border-dp-secondary text-dp-secondary rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-secondary hover:text-white transition-all disabled:opacity-50">
-                    {aiBusy ? 'Thinking...' : 'Generate Estimate (Modern Equipment)'}
+                    {aiBusy ? dt('thinking') : dt('generateModern')}
                   </button>
                 )}
                 {aiStage === 1 && !aiWaitingForAnswer && (
                   <button onClick={startCheapestEstimate} disabled={aiBusy} className="px-4 py-2 border-2 border-dp-primary text-dp-primary rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary hover:text-white transition-all disabled:opacity-50">
-                    {aiBusy ? 'Thinking...' : 'Calculate Cheapest Option'}
+                    {aiBusy ? dt('thinking') : dt('calculateCheapest')}
                   </button>
                 )}
                 {aiStage === 2 && (
@@ -329,8 +357,8 @@ export default function ProposeProjectPage() {
             {form.self_commitment_amount_pkr > 0 && !commitmentOk && (
               <p className="font-sans text-[11.5px] text-red-600 mt-1">
                 {form.self_commitment_type === 'one_time'
-                  ? `Needs to be at least Rs. ${required.toLocaleString()}`
-                  : `Needs to be at least Rs. ${Math.ceil(required / 6).toLocaleString()}/month`}
+                  ? `${dt('needsAtLeastOneTime')} ${required.toLocaleString()}`
+                  : dt('needsAtLeastMonthly').replace('{amount}', Math.ceil(required / 6).toLocaleString())}
               </p>
             )}
           </div>
