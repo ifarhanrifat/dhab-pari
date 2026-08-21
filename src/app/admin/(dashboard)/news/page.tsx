@@ -55,8 +55,8 @@ export default function AdminNewsPage() {
   const bulkPublish = async (publish: boolean) => {
     const ids = Array.from(selected)
     const { error } = await supabase.from('news_posts').update({ is_published: publish, published_at: publish ? new Date().toISOString() : null }).in('id', ids)
-    if (error) { toast.error('Failed to update posts'); return }
-    toast.success(`${ids.length} post(s) ${publish ? 'published' : 'unpublished'}`)
+    if (error) { toast.error(t('nw.failedUpdate')); return }
+    toast.success(`${ids.length} ${publish ? t('nw.published') : t('nw.unpublished')}`)
     setSelected(new Set())
     load()
   }
@@ -64,36 +64,36 @@ export default function AdminNewsPage() {
   const bulkDelete = async () => {
     const ids = Array.from(selected)
     const { error } = await supabase.from('news_posts').delete().in('id', ids)
-    if (error) { toast.error('Failed to delete posts'); return }
-    toast.success(`${ids.length} post(s) deleted`)
+    if (error) { toast.error(t('nw.failedDelete')); return }
+    toast.success(`${ids.length} ${t('nw.postsDeletedSuffix')}`)
     setSelected(new Set())
     setConfirmDelete(false)
     load()
   }
 
   const save = async () => {
-    if (!form.title.trim() || !form.content.trim()) { toast.error('Title and content required'); return }
+    if (!form.title.trim() || !form.content.trim()) { toast.error(t('nw.titleContentRequired')); return }
     const payload = { ...form, published_at: form.is_published ? new Date().toISOString() : null }
     if (editing) {
       const { error } = await supabase.from('news_posts').update(payload).eq('id', editing)
       if (error) { toast.error(friendlyError(error)); return }
-      toast.success('Post updated')
+      toast.success(t('nw.postUpdated'))
     } else {
       const { error } = await supabase.from('news_posts').insert(payload)
       if (error) { toast.error(friendlyError(error)); return }
-      toast.success('Post created')
+      toast.success(t('nw.postCreated'))
     }
     setShowForm(false); setEditing(null); setForm(empty); load()
   }
 
   const togglePublish = async (id: string, current: boolean) => {
     await supabase.from('news_posts').update({ is_published: !current, published_at: !current ? new Date().toISOString() : null }).eq('id', id)
-    toast.success(current ? 'Unpublished' : 'Published')
+    toast.success(current ? t('nw.unpublished') : t('nw.published'))
     load()
   }
 
   const edit = (p: Post) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', content: p.content, content_ur: p.content_ur ?? '', category: p.category ?? 'announcement', author: p.author, is_published: p.is_published, cover_image_url: p.cover_image_url ?? '' }); setEditing(p.id); setShowForm(true) }
-  const remove = async (id: string) => { if (!confirm('Delete this post?')) return; await supabase.from('news_posts').delete().eq('id', id); toast.success('Deleted'); load() }
+  const remove = async (id: string) => { if (!confirm(t('nw.confirmDeletePost'))) return; await supabase.from('news_posts').delete().eq('id', id); toast.success(t('nw.deletedToast')); load() }
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
@@ -106,9 +106,9 @@ export default function AdminNewsPage() {
         count={selected.size}
         onClear={() => setSelected(new Set())}
         actions={[
-          { label: 'Publish Selected', onClick: () => bulkPublish(true), variant: 'primary' },
-          { label: 'Unpublish Selected', onClick: () => bulkPublish(false), variant: 'outline' },
-          { label: 'Delete Selected', onClick: () => setConfirmDelete(true), variant: 'danger' },
+          { label: t('nw.publishSelected'), onClick: () => bulkPublish(true), variant: 'primary' },
+          { label: t('nw.unpublishSelected'), onClick: () => bulkPublish(false), variant: 'outline' },
+          { label: t('nw.deleteSelected'), onClick: () => setConfirmDelete(true), variant: 'danger' },
         ]}
       />
 
@@ -135,7 +135,7 @@ export default function AdminNewsPage() {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => togglePublish(p.id, p.is_published)} className={`px-3 py-1 rounded text-[14px] font-sans font-semibold cursor-pointer transition-all ${p.is_published ? 'border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container' : 'bg-dp-secondary text-white hover:bg-dp-primary'}`}>{p.is_published ? 'Unpublish' : 'Publish'}</button>
+              <button onClick={() => togglePublish(p.id, p.is_published)} className={`px-3 py-1 rounded text-[14px] font-sans font-semibold cursor-pointer transition-all ${p.is_published ? 'border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container' : 'bg-dp-secondary text-white hover:bg-dp-primary'}`}>{p.is_published ? t('nw.unpublishBtn') : t('nw.publishBtn')}</button>
               <button onClick={() => edit(p)} className="p-2 text-dp-primary hover:bg-dp-primary/10 rounded-lg cursor-pointer"><Pencil size={16} /></button>
               <button onClick={() => remove(p.id)} className="p-2 text-dp-error hover:bg-dp-error/10 rounded-lg cursor-pointer"><Trash2 size={16} /></button>
             </div>
@@ -145,8 +145,8 @@ export default function AdminNewsPage() {
 
       <ConfirmDialog
         open={confirmDelete}
-        title="Delete Posts"
-        message={`Are you sure you want to delete ${selected.size} post(s)? This cannot be undone.`}
+        title={t('nw.deletePostsTitle')}
+        message={t('nw.deletePostsMessage').replace('{n}', String(selected.size))}
         onConfirm={bulkDelete}
         onCancel={() => setConfirmDelete(false)}
       />
@@ -154,19 +154,19 @@ export default function AdminNewsPage() {
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">{editing ? 'Edit Post' : 'New Post'}</h2><button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button></div>
+            <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">{editing ? t('nw.editPostTitle') : t('nw.newPostTitle')}</h2><button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.titleEn')}</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.titleUr')}</label><input value={form.title_ur} onChange={(e) => setForm({ ...form, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('y.contentEn')}</label><textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} rows={6} className="input-field resize-none" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('y.contentUr')}</label><textarea value={form.content_ur} onChange={(e) => setForm({ ...form, content_ur: e.target.value })} rows={4} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
-              <ImageUpload bucket="images" currentUrl={form.cover_image_url} onUpload={(url) => setForm({ ...form, cover_image_url: url })} label="Cover Image" />
+              <ImageUpload bucket="images" currentUrl={form.cover_image_url} onUpload={(url) => setForm({ ...form, cover_image_url: url })} label={t('nw.coverImage')} />
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.category')}</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">{categories.map((c) => <option key={c.key} value={c.key}>{c.icon ? `${c.icon} ` : ''}{c.label_en} — {c.label_ur}</option>)}</select></div>
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('y.author')}</label><input value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} className="input-field" /></div>
               </div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_published} onChange={(e) => setForm({ ...form, is_published: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('y.publishNow')}</span></label>
-              <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{editing ? 'Update' : 'Create'} Post</button>
+              <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{editing ? t('nw.updatePostBtn') : t('nw.createPostBtn')}</button>
             </div>
           </div>
         </div>

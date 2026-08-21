@@ -25,14 +25,14 @@ export default function AdminVideosPage() {
   useEffect(() => { load() }, [])
 
   const save = async () => {
-    if (!form.title.trim() || !form.video_url.trim()) { toast.error('Title and URL required'); return }
+    if (!form.title.trim() || !form.video_url.trim()) { toast.error(t('vd.titleUrlRequired')); return }
     const payload = { ...form, duration_seconds: form.duration_seconds || null }
-    if (editing) { const { error } = await supabase.from('video_content').update(payload).eq('id', editing); if (error) { toast.error(friendlyError(error)); return }; toast.success('Updated') }
-    else { const { error } = await supabase.from('video_content').insert(payload); if (error) { toast.error(friendlyError(error)); return }; toast.success('Added') }
+    if (editing) { const { error } = await supabase.from('video_content').update(payload).eq('id', editing); if (error) { toast.error(friendlyError(error)); return }; toast.success(t('vd.updated')) }
+    else { const { error } = await supabase.from('video_content').insert(payload); if (error) { toast.error(friendlyError(error)); return }; toast.success(t('vd.added')) }
     setShowForm(false); setEditing(null); setForm(empty); load()
   }
   const edit = (v: Video) => { setForm({ title: v.title, title_ur: v.title_ur ?? '', description: v.description ?? '', video_url: v.video_url, thumbnail_url: v.thumbnail_url ?? '', category: v.category ?? 'event', duration_seconds: v.duration_seconds ?? 0, is_published: v.is_published, is_featured: v.is_featured }); setEditing(v.id); setShowForm(true) }
-  const remove = async (id: string) => { if (!confirm('Delete?')) return; await supabase.from('video_content').delete().eq('id', id); toast.success('Deleted'); load() }
+  const remove = async (id: string) => { if (!confirm(t('vd.confirmDelete'))) return; await supabase.from('video_content').delete().eq('id', id); toast.success(t('vd.deleted')); load() }
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
@@ -48,10 +48,10 @@ export default function AdminVideosPage() {
               <div className="flex items-center gap-2 mb-1">
                 <span className="bg-dp-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold uppercase font-sans">{v.category}</span>
                 {v.is_featured && <Star size={12} className="text-amber-500 fill-amber-500" />}
-                <span className={`text-[10px] font-bold font-sans ${v.is_published ? 'text-dp-secondary' : 'text-dp-on-surface-variant'}`}>{v.is_published ? 'Published' : 'Draft'}</span>
+                <span className={`text-[10px] font-bold font-sans ${v.is_published ? 'text-dp-secondary' : 'text-dp-on-surface-variant'}`}>{v.is_published ? t('g.published') : t('y.draft')}</span>
               </div>
               <h3 className="font-sans text-[16px] font-bold text-dp-on-surface truncate">{v.title}</h3>
-              <p className="font-sans text-[12px] text-dp-on-surface-variant">{v.views} views · {v.duration_seconds ? `${Math.floor(v.duration_seconds / 60)}m` : '—'}</p>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant">{v.views} {t('vd.viewsSuffix')} · {v.duration_seconds ? `${Math.floor(v.duration_seconds / 60)}m` : '—'}</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button onClick={() => edit(v)} className="p-2 text-dp-primary hover:bg-dp-primary/10 rounded-lg cursor-pointer"><Pencil size={16} /></button>
@@ -63,12 +63,12 @@ export default function AdminVideosPage() {
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">{editing ? 'Edit' : 'Add'} Video</h2><button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button></div>
+            <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">{editing ? t('vd.editVideoTitle') : t('vd.addVideoTitle')}</h2><button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.titleEn')}</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.titleUr')}</label><input value={form.title_ur} onChange={(e) => setForm({ ...form, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <VideoUpload currentUrl={form.video_url} onUpload={(url) => setForm({ ...form, video_url: url })} />
-              <ImageUpload bucket="thumbnails" currentUrl={form.thumbnail_url} onUpload={(url) => setForm({ ...form, thumbnail_url: url })} label="Thumbnail Image" />
+              <ImageUpload bucket="thumbnails" currentUrl={form.thumbnail_url} onUpload={(url) => setForm({ ...form, thumbnail_url: url })} label={t('vd.thumbnailImage')} />
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.category')}</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">{categories.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('y.durationSec')}</label><input type="number" value={form.duration_seconds || ''} onChange={(e) => setForm({ ...form, duration_seconds: +e.target.value })} className="input-field" /></div>
@@ -78,7 +78,7 @@ export default function AdminVideosPage() {
                 <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_published} onChange={(e) => setForm({ ...form, is_published: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('g.published')}</span></label>
                 <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_featured} onChange={(e) => setForm({ ...form, is_featured: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('y.featured')}</span></label>
               </div>
-              <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{editing ? 'Update' : 'Add'} Video</button>
+              <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{editing ? t('vd.updateVideoBtn') : t('vd.addVideoBtn')}</button>
             </div>
           </div>
         </div>
