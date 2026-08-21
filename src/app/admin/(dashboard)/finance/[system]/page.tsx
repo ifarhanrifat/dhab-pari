@@ -173,6 +173,10 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [accounts, setAccounts] = useState<Account[]>([])
   const [accountBalances, setAccountBalances] = useState<Record<string, { debit: number; credit: number }>>({})
   const [consumers, setConsumers] = useState<Consumer[]>([])
+  // Unapplied advance/prepayment credit per consumer (migration 297/299) —
+  // surfaced here too so it's visible before a new bill even gets created,
+  // not just on /admin/billing after the fact.
+  const [advanceBalances, setAdvanceBalances] = useState<Record<string, number>>({})
   const [projects, setProjects] = useState<Project[]>([])
   // A committee decision to move raised funds from one project to another.
   // Kept apart from voucherForm because its two sides are projects, not
@@ -303,6 +307,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setAccountBalances(bMap)
     const consumersRes = { data: (shell.consumers ?? []) as { consumer_id: string; name: string; monthly_rate: number; connections: number }[] }
     setConsumers(consumersRes.data)
+    setAdvanceBalances((shell.advance_balances as Record<string, number>) ?? {})
     setProjects(shell.projects ?? [])
     setPendingApprovals(shell.pending_approvals ?? [])
     setInventoryItems(shell.inventory_items ?? [])
@@ -1997,6 +2002,15 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   items={consumers.map((c) => ({ id: c.consumer_id, label: c.name }))}
                   onChange={(id) => { setBillForm({ ...billForm, consumer_id: id }); applyDefaultTemplate(id) }}
                 />
+
+                {billForm.consumer_id && (advanceBalances[billForm.consumer_id] ?? 0) > 0 && (
+                  <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5">
+                    <Wallet size={14} className="text-emerald-700 shrink-0" />
+                    <p className="font-sans text-[12.5px] font-semibold text-emerald-800">
+                      {t('billing.advanceOnFile')}: Rs. {(advanceBalances[billForm.consumer_id] ?? 0).toLocaleString()} — {t('fw.advanceApplyOnBilling')}
+                    </p>
+                  </div>
+                )}
 
                 <div>
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('f.billNumber')}</label>

@@ -8,7 +8,7 @@ import {
   Search, PlusCircle, Plus, X, ArrowLeft, ChevronRight, ChevronDown, SlidersHorizontal, Phone, Calendar,
   Home, MapPin, MessageCircle, AlertCircle, CheckCircle2,
   Clock, CreditCard, Banknote, Pencil, Receipt, Users, UserCheck, UserX, Tag, UserPlus, Repeat, Trash2, FileText, Lock,
-  Power, Ban, PauseCircle,
+  Power, Ban, PauseCircle, BookOpen, Wallet,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
@@ -67,6 +67,7 @@ interface Bill {
   waiver_voucher_id: string | null
   waiver_type: string | null
   waiver_percent: number | null
+  advance_applied_amount: number | null
 }
 
 interface LinkedComplaint { id: string; complaint_number: string; status: string; complaint_text: string }
@@ -195,6 +196,12 @@ function BillingPageInner() {
   const [pendingRequestIdentities, setPendingRequestIdentities] = useState<DuplicateCandidate[]>([])
   const [waiverVoucherStatus, setWaiverVoucherStatus] = useState<Record<string, string>>({})
   const [inProcessConsumerIds, setInProcessConsumerIds] = useState<Set<string>>(new Set())
+  // Unapplied advance/prepayment credit per consumer (migration 297) and the
+  // consumer's own Chart of Accounts row id (for the View Ledger link) —
+  // both keyed by consumer_id, loaded once alongside everything else.
+  const [advanceBalances, setAdvanceBalances] = useState<Record<string, number>>({})
+  const [accountIdByConsumer, setAccountIdByConsumer] = useState<Record<string, string>>({})
+  const [applyingAdvanceBillId, setApplyingAdvanceBillId] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.from('message_templates').select('key, body').then(({ data }) => {
@@ -207,7 +214,7 @@ function BillingPageInner() {
     setLoading(true)
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-    const [cRes, bRes, secRes, auditRes, recurRes, complaintsRes, inProcessRes, pendingReqRes, payRes, lockRes] = await Promise.all([
+    const [cRes, bRes, secRes, auditRes, recurRes, complaintsRes, inProcessRes, pendingReqRes, payRes, lockRes, advRes, acctRes] = await Promise.all([
       supabase.from('consumers').select('*').order('consumer_id'),
       supabase.from('bills').select('*').order('year', { ascending: false }).order('month', { ascending: false }),
       supabase.from('sectors').select('id, name').order('display_order').order('name'),
@@ -225,8 +232,14 @@ function BillingPageInner() {
       supabase.from('connection_requests').select('id, consumer_name, consumer_phone, whatsapp_number, father_husband_name').is('consumer_id', null),
       supabase.from('payments').select('bill_id, receipt_no').not('bill_id', 'is', null),
       fetchPeriodLockRule(supabase),
+      supabase.rpc('get_consumer_advance_balances'),
+      supabase.from('accounts').select('id, consumer_id').eq('type', 'consumer'),
     ])
     setConsumers(cRes.data ?? [])
+    setAdvanceBalances((advRes.data as Record<string, number>) ?? {})
+    setAccountIdByConsumer(Object.fromEntries(
+      (acctRes.data ?? []).filter((a) => a.consumer_id).map((a) => [a.consumer_id as string, a.id as string])
+    ))
     setPendingRequestIdentities((pendingReqRes.data ?? []).map((r) => ({
       id: r.id, name: r.consumer_name, mobile: r.consumer_phone, whatsapp_number: r.whatsapp_number, father_husband_name: r.father_husband_name,
     })))
@@ -387,6 +400,13 @@ function BillingPageInner() {
 
   const selectedOutstanding = useMemo(() => {
     return selectedBills.filter((b) => b.status !== 'paid').reduce((s, b) => s + outstanding(b), 0)
+  }, [selectedBills])
+
+  // Oldest unpaid bill first — the natural default to draw an advance credit
+  // against when the accountant hasn't picked a specific bill themselves.
+  const oldestOutstandingBill = useMemo(() => {
+    const unpaid = selectedBills.filter((b) => outstanding(b) > 0)
+    return unpaid.sort((a, b) => a.year - b.year || a.month - b.month)[0] ?? null
   }, [selectedBills])
 
   // Bill-history quick filters — a consumer with years of history had no way
@@ -744,6 +764,20 @@ function BillingPageInner() {
     })
   }
 
+  // Draws down existing advance/prepayment credit against this bill instead
+  // of collecting fresh cash — see migration 298 for why this can't just
+  // reuse the normal payment path (it would double-count cash that was
+  // already received when the advance was originally recorded).
+  const applyAdvance = async (bill: Bill) => {
+    setApplyingAdvanceBillId(bill.id)
+    const { data, error } = await supabase.rpc('apply_consumer_advance_to_bill', { p_bill_id: bill.id })
+    setApplyingAdvanceBillId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    const applied = (data as { applied?: number } | null)?.applied ?? 0
+    toast.success(`${t('billing.advanceApplied')} Rs. ${applied.toLocaleString()}`)
+    loadData()
+  }
+
   return (
     // Per the reference design (billing-screen-code.md): the page layout
     // itself stays in its normal (LTR) order regardless of language — only
@@ -898,6 +932,11 @@ function BillingPageInner() {
                             <AlertCircle size={9} /> {complaintsByConsumer[c.consumer_id].complaint_number}
                           </span>
                         )}
+                        {(advanceBalances[c.consumer_id] ?? 0) > 0 && (
+                          <span className="inline-flex items-center gap-1 mb-1 px-1.5 py-0.5 rounded-full text-[9.5px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-700" title={t('billing.advanceOnFile')}>
+                            <Wallet size={9} /> Rs. {(advanceBalances[c.consumer_id] ?? 0).toLocaleString()}
+                          </span>
+                        )}
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-sans text-[11px] font-bold text-dp-secondary truncate max-w-[140px]">{c.consumer_id}</span>
                           {c.sector && <span className="text-[10px] text-dp-on-surface-variant font-sans">{c.sector}</span>}
@@ -965,7 +1004,20 @@ function BillingPageInner() {
                     message the consumer (an outstanding balance), and that's
                     exactly what the Send Reminder button below already
                     covers. No mobile close(X) either — the back arrow in
-                    the compact app-bar above does that job now. */}
+                    the compact app-bar above does that job now. Its spot is
+                    reused for View Ledger — the one thing an accountant
+                    reaches for right after opening a consumer that has no
+                    other button on this page (every other action here is
+                    per-bill, not per-account). */}
+                {accountIdByConsumer[selectedConsumer.consumer_id] && (
+                  <Link
+                    href={`/admin/accounts/${accountIdByConsumer[selectedConsumer.consumer_id]}`}
+                    title={t('billing.viewLedger')}
+                    className="shrink-0 flex items-center gap-1.5 font-sans text-[11.5px] font-semibold text-dp-secondary bg-white/70 border border-dp-outline-variant px-2.5 py-1.5 rounded-full hover:bg-dp-secondary hover:text-white hover:border-dp-secondary transition-all whitespace-nowrap"
+                  >
+                    <BookOpen size={13} /> {t('billing.viewLedger')}
+                  </Link>
+                )}
                 <div className="min-w-0 flex-1 text-end">
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     {selectedConsumer.sector && <span className="font-sans text-[11.5px] text-dp-on-surface-variant">{selectedConsumer.sector}</span>}
@@ -1015,6 +1067,31 @@ function BillingPageInner() {
                 </Link>
               )}
             </div>
+
+            {/* Unapplied advance/prepayment credit (migration 297/298) —
+                money this consumer already has on file that nothing nets
+                automatically. Shown right above the balance-due pill so it's
+                impossible to miss before generating or collecting a bill,
+                with a one-click way to draw it down against the oldest
+                unpaid bill rather than leaving it a silent line item on the
+                Chart of Accounts. */}
+            {(advanceBalances[selectedConsumer.consumer_id] ?? 0) > 0 && (
+              <div className="mx-4 mt-3.5 bg-emerald-50 rounded-full px-[15px] py-2 flex items-center justify-between gap-2 flex-wrap">
+                {oldestOutstandingBill ? (
+                  <button
+                    onClick={() => applyAdvance(oldestOutstandingBill)}
+                    disabled={applyingAdvanceBillId === oldestOutstandingBill.id}
+                    className="flex items-center gap-1.5 font-sans text-[11.5px] font-semibold bg-emerald-600 text-white border-none px-3 py-1.5 rounded-full cursor-pointer hover:opacity-90 transition-all whitespace-nowrap disabled:opacity-60"
+                  >
+                    <Wallet size={13} /> {applyingAdvanceBillId === oldestOutstandingBill.id ? t('y.loadingDots') : t('billing.applyAdvance')}
+                  </button>
+                ) : <span />}
+                <div dir={isUrdu ? 'rtl' : undefined} className="flex items-baseline gap-1.5">
+                  <span className="font-sans text-[11px] text-emerald-800/80 whitespace-nowrap">{t('billing.advanceOnFile')}</span>
+                  <span className="tabular-nums text-[18px] font-bold text-emerald-700 tracking-tight whitespace-nowrap">Rs. {(advanceBalances[selectedConsumer.consumer_id] ?? 0).toLocaleString()}</span>
+                </div>
+              </div>
+            )}
 
             {/* Balance + a WhatsApp reminder — not a "Collect" button. With
                 more than one outstanding bill there's no single correct
@@ -1258,7 +1335,7 @@ function BillingPageInner() {
                       </div>
                     </div>
 
-                    {(bill.discount_amount ?? 0) > 0 || bill.waiver_voucher_id ? (
+                    {(bill.discount_amount ?? 0) > 0 || bill.waiver_voucher_id || (bill.advance_applied_amount ?? 0) > 0 ? (
                       <div className="flex flex-wrap justify-end gap-1.5 mt-2">
                         {(bill.discount_amount ?? 0) > 0 && (
                           <span className="text-[10.5px] font-semibold text-emerald-700">{t('billing.discountLabel')}: − Rs. {(bill.discount_amount ?? 0).toLocaleString()}</span>
@@ -1268,6 +1345,11 @@ function BillingPageInner() {
                             {waiverVoucherStatus[bill.waiver_voucher_id] === 'pending'
                               ? t('billing.waiverPending')
                               : bill.waiver_type === 'full' ? t('billing.committeeWaivedFull') : t('billing.committeeWaivedPercent').replace('{pct}', String(bill.waiver_percent))}
+                          </span>
+                        )}
+                        {(bill.advance_applied_amount ?? 0) > 0 && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10.5px] font-bold uppercase tracking-wide">
+                            <Wallet size={9} /> {t('billing.advanceAppliedBadge')}: Rs. {(bill.advance_applied_amount ?? 0).toLocaleString()}
                           </span>
                         )}
                       </div>
@@ -1287,6 +1369,16 @@ function BillingPageInner() {
                             className="w-[30px] h-[30px] rounded-[9px] bg-emerald-50 border-none flex items-center justify-center text-dp-secondary cursor-pointer"
                           >
                             <Banknote size={14} />
+                          </button>
+                        )}
+                        {rem > 0 && !lockReason && (advanceBalances[bill.consumer_id] ?? 0) > 0 && (
+                          <button
+                            onClick={() => applyAdvance(bill)}
+                            disabled={applyingAdvanceBillId === bill.id}
+                            title={t('billing.applyAdvance')}
+                            className="w-[30px] h-[30px] rounded-[9px] bg-emerald-50 border-none flex items-center justify-center text-emerald-700 cursor-pointer disabled:opacity-60"
+                          >
+                            <Wallet size={13} />
                           </button>
                         )}
                         <Link href={`/admin/invoice/bill/${bill.id}`} title={t('billing.tip.viewInvoice')} className="w-[30px] h-[30px] rounded-[9px] bg-dp-surface-container-low flex items-center justify-center text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">

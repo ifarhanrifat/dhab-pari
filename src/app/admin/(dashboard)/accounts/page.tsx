@@ -337,7 +337,7 @@ export default function AccountsPage() {
             line so the decimal points stack. */}
         <div className="flex items-center gap-2 shrink-0">
           {a.type === 'consumer' && bal < 0 ? (
-            <span className="font-sans text-[14.5px] font-bold text-emerald-600 w-36 text-end tabular-nums ltr-num">Advance: {fmtAmount(-bal)}</span>
+            <span className="font-sans text-[14.5px] font-bold text-emerald-600 w-36 text-end tabular-nums ltr-num">-{fmtAmount(-bal)}</span>
           ) : (
             <span className={`font-sans text-[14.5px] font-bold w-36 text-end tabular-nums ltr-num ${a.type === 'consumer' && bal > 0 ? 'text-dp-error' : 'text-dp-on-surface'}`}>
               {fmtAmount(bal)}
