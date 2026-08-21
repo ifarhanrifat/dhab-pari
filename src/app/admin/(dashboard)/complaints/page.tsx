@@ -20,17 +20,19 @@ interface Complaint {
 interface Person { id: string; full_name: string }
 interface ConsumerOption { consumer_id: string; name: string; mobile: string }
 
-const statusLabels: Record<string, string> = { open: 'Open', awaiting_verification: 'Awaiting Verification', verified: 'Verified' }
+// Values are i18n keys (module scope has no useLocale()) — resolved via
+// t() at render time.
+const statusLabelKey: Record<string, string> = { open: 'cp.statusOpen', awaiting_verification: 'cp.statusAwaitingVerification', verified: 'cp.statusVerified' }
 const statusColors: Record<string, string> = {
   open: 'bg-amber-100 text-amber-800', awaiting_verification: 'bg-blue-100 text-blue-800', verified: 'bg-emerald-100 text-emerald-800',
 }
 
-function deadlineText(deadline: string, status: string) {
+function deadlineText(t: (key: string, fallback?: string) => string, deadline: string, status: string) {
   if (status === 'verified') return null
   const hrs = Math.round((new Date(deadline).getTime() - Date.now()) / 3600000)
-  if (hrs <= 0) return { text: 'Overdue', tone: 'text-dp-error' }
-  if (hrs < 24) return { text: `${hrs}h left`, tone: 'text-amber-700' }
-  return { text: `${Math.round(hrs / 24)}d left`, tone: 'text-dp-on-surface-variant' }
+  if (hrs <= 0) return { text: t('cp.overdue'), tone: 'text-dp-error' }
+  if (hrs < 24) return { text: `${hrs}${t('cp.hoursLeftSuffix')}`, tone: 'text-amber-700' }
+  return { text: `${Math.round(hrs / 24)}${t('cp.daysLeftSuffix')}`, tone: 'text-dp-on-surface-variant' }
 }
 
 const emptyForm = { complainant_name: '', phone: '', sector: '', complaint_text: '', consumer_id: '' }
@@ -89,7 +91,7 @@ export default function ComplaintsPage() {
   const filtered = useMemo(() => complaints.filter((c) => statusFilter === 'all' || c.status === statusFilter), [complaints, statusFilter])
 
   const createComplaint = async () => {
-    if (!form.complaint_text.trim()) { toast.error('Describe the complaint'); return }
+    if (!form.complaint_text.trim()) { toast.error(t('cp.describeComplaint')); return }
     setSaving(true)
     const { data, error } = await supabase.from('complaints').insert({
       system, complainant_name: form.complainant_name || null, phone: form.phone || null,
@@ -98,7 +100,7 @@ export default function ComplaintsPage() {
     }).select('complaint_number').single()
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(`Complaint ${data.complaint_number} registered`)
+    toast.success(`${t('y.complaint')} ${data.complaint_number} ${t('cp.registeredSuffix')}`)
     setShowForm(false)
     setForm(emptyForm)
     load()
@@ -111,7 +113,7 @@ export default function ComplaintsPage() {
           <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
             <MessageSquareWarning size={26} /> {t('g.complaints')}
           </h1>
-          <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">2-day SLA, assign a handler, verify before closing.</p>
+          <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('cp.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
           {!access.loading && (access.canWaterSupply || access.canDonorsProjects) && (
@@ -137,7 +139,7 @@ export default function ComplaintsPage() {
             onClick={() => setStatusFilter(s)}
             className={`px-3 py-1.5 rounded-lg font-sans text-[13px] font-semibold cursor-pointer transition-all border ${statusFilter === s ? 'bg-dp-secondary text-white border-dp-secondary' : 'border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
           >
-            {s === 'all' ? 'All' : statusLabels[s]}
+            {s === 'all' ? t('cp.filterAll') : t(statusLabelKey[s])}
           </button>
         ))}
       </div>
@@ -150,22 +152,22 @@ export default function ComplaintsPage() {
         ) : (
           <div className="divide-y divide-dp-outline-variant">
             {filtered.map((c) => {
-              const dl = deadlineText(c.deadline_at, c.status)
+              const dl = deadlineText(t, c.deadline_at, c.status)
               return (
                 <Link key={c.id} href={`/admin/complaints/${c.id}`} className="flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-dp-surface-container-low transition-all">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="font-sans text-[13px] font-bold text-dp-secondary">{c.complaint_number}</span>
-                      <span className={`px-2 py-0.5 rounded-full font-sans text-[10.5px] font-bold uppercase tracking-wide ${statusColors[c.status]}`}>{statusLabels[c.status]}</span>
+                      <span className={`px-2 py-0.5 rounded-full font-sans text-[10.5px] font-bold uppercase tracking-wide ${statusColors[c.status]}`}>{t(statusLabelKey[c.status])}</span>
                       {c.sector && <span className="font-sans text-[11.5px] text-dp-on-surface-variant">{c.sector}</span>}
                     </div>
                     <p className="font-sans text-[14px] text-dp-on-surface truncate max-w-lg">{c.complaint_text}</p>
                     <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">
-                      {c.complainant_name || 'Anonymous'}{c.phone ? ` · ${c.phone}` : ''} · {new Date(c.created_at).toLocaleDateString('en-GB')}
+                      {c.complainant_name || t('cp.anonymousFallback')}{c.phone ? ` · ${c.phone}` : ''} · {new Date(c.created_at).toLocaleDateString('en-GB')}
                     </p>
                   </div>
                   <div className="text-end shrink-0">
-                    <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface">{c.assigned_to ? (people[c.assigned_to] ?? 'Assigned') : 'Unassigned'}</p>
+                    <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface">{c.assigned_to ? (people[c.assigned_to] ?? t('cp.assignedFallback')) : t('cp.unassignedFallback')}</p>
                     {dl && <p className={`font-sans text-[11.5px] font-semibold flex items-center justify-end gap-1 mt-0.5 ${dl.tone}`}><Clock size={11} /> {dl.text}</p>}
                   </div>
                 </Link>
@@ -203,7 +205,7 @@ export default function ComplaintsPage() {
               {system === 'water_supply' && (
                 <div className="relative">
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">
-                    {t('y.linkConsumer')} <span className="font-normal opacity-70">— required to waive bill dues later</span>
+                    {t('y.linkConsumer')} <span className="font-normal opacity-70">{t('cp.linkConsumerNote')}</span>
                   </label>
                   {selectedConsumerOption ? (
                     <div className="flex items-center justify-between px-3 py-2 border border-dp-outline-variant rounded-lg bg-dp-surface-container-low">
@@ -214,7 +216,7 @@ export default function ComplaintsPage() {
                     <>
                       <input
                         value={consumerQuery} onChange={(e) => setConsumerQuery(e.target.value)}
-                        placeholder="Search by name, consumer no., or mobile..." className="input-field"
+                        placeholder={t('cp.consumerSearchPlaceholder')} className="input-field"
                       />
                       {matchingConsumers.length > 0 && (
                         <div className="absolute z-10 mt-1 w-full bg-white border border-dp-outline-variant rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -238,7 +240,7 @@ export default function ComplaintsPage() {
                 <textarea value={form.complaint_text} onChange={(e) => setForm({ ...form, complaint_text: e.target.value })} rows={4} className="input-field resize-none" />
               </div>
               <button disabled={saving} onClick={createComplaint} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                {saving ? 'Saving...' : 'Register Complaint'}
+                {saving ? t('cp.saving') : t('cp.registerComplaintBtn')}
               </button>
             </div>
           </div>

@@ -50,16 +50,16 @@ export default function ProjectTransfersPage() {
   useEffect(() => { load() }, [])
 
   const submit = async () => {
-    if (!fromId || !toId || fromId === toId) { toast.error('Choose two different projects'); return }
-    if (!amount || amount <= 0) { toast.error('Enter a valid amount'); return }
-    if (!reference.trim()) { toast.error('Enter the agenda/committee approval reference'); return }
+    if (!fromId || !toId || fromId === toId) { toast.error(t('pt.chooseTwoDifferent')); return }
+    if (!amount || amount <= 0) { toast.error(t('pt.enterValidAmount')); return }
+    if (!reference.trim()) { toast.error(t('pt.enterReference')); return }
     setSaving(true)
     const { error } = await supabase.rpc('transfer_project_funds', {
       p_from_project_id: fromId, p_to_project_id: toId, p_amount: amount, p_agenda_reference: reference.trim(),
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Funds transferred')
+    toast.success(t('pt.fundsTransferred'))
     setFromId(''); setToId(''); setAmount(0); setReference('')
     load()
   }
@@ -68,7 +68,7 @@ export default function ProjectTransfersPage() {
   if (!access.canDonorsProjects) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
-        <p className="font-sans text-[14px] text-dp-on-surface-variant">Project Transfers belongs to the Donors &amp; Projects system — your account doesn&apos;t have access to it.</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('pt.noAccessMessage')}</p>
       </div>
     )
   }
@@ -77,16 +77,16 @@ export default function ProjectTransfersPage() {
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5"><ArrowRightLeft size={26} /> {t('y.transferFunds')}</h1>
-        <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">Move raised funds from one project to another — requires the committee&apos;s agenda approval reference.</p>
+        <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('pt.subtitle')}</p>
       </div>
 
       <div className="bg-white border border-dp-outline-variant rounded-lg p-6 max-w-lg space-y-4">
         <SearchableField
-          label="From Project (funds leave here)" value={fromId} onChange={setFromId} placeholder="Select project..."
+          label={t('pt.fromProjectLabel')} value={fromId} onChange={setFromId} placeholder={t('pt.selectProjectPlaceholder')}
           items={projects.map((p) => ({ id: p.id, label: `${p.title}${balances[p.id] != null ? ` — Rs. ${fmt(balances[p.id])}` : ''}` }))}
         />
         <SearchableField
-          label="To Project (funds arrive here)" value={toId} onChange={setToId} placeholder="Select project..."
+          label={t('pt.toProjectLabel')} value={toId} onChange={setToId} placeholder={t('pt.selectProjectPlaceholder')}
           items={projects.map((p) => ({ id: p.id, label: p.title }))}
         />
         <div>
@@ -95,10 +95,10 @@ export default function ProjectTransfersPage() {
         </div>
         <div>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('y.agendaApprovalRef')}</label>
-          <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. Meeting 04 Aug 2026 — item #3" className="input-field" />
+          <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder={t('pt.referencePlaceholder')} className="input-field" />
         </div>
         <button onClick={submit} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-          {saving ? 'Transferring...' : 'Transfer Funds'}
+          {saving ? t('pt.transferring') : t('pt.transferFundsBtn')}
         </button>
       </div>
     </div>
