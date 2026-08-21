@@ -14,9 +14,9 @@ type SystemTab = 'water_supply' | 'donors_projects'
 type Frequency = 'every_minute' | 'daily' | 'weekly' | 'monthly' | 'semi_annual' | 'yearly'
 type ScheduleType = 'bill' | 'donation' | 'expense'
 
-const frequencyLabels: Record<Frequency, string> = {
-  every_minute: 'Every Minute (Testing)', daily: 'Daily', weekly: 'Weekly',
-  monthly: 'Monthly', semi_annual: 'Every 6 Months', yearly: 'Yearly',
+const frequencyKey: Record<Frequency, string> = {
+  every_minute: 'rc.freqEveryMinute', daily: 'rc.freqDaily', weekly: 'rc.freqWeekly',
+  monthly: 'rc.freqMonthly', semi_annual: 'rc.freqSemiAnnual', yearly: 'rc.freqYearly',
 }
 
 interface Schedule {
@@ -34,7 +34,8 @@ interface PoolLine {
   monthly_amount: number; status: string; started_on: string; lapsed_at: string | null
   named: string | null; months_given: number; total_given: number
 }
-const poolKindLabel: Record<string, string> = { kafalat: 'Kafalat', wazifa: 'Wazifa', general: 'Sadqa Upkeep' }
+const poolKindLabel: Record<string, string> = { kafalat: 'Kafalat', wazifa: 'Wazifa' }
+const poolKindLabelKey: Record<string, string> = { general: 'rc.poolSadqaUpkeep' }
 const poolKindLink: Record<string, string> = { kafalat: '/admin/kafalat', wazifa: '/admin/wazifa', general: '/admin/esal-e-sawab' }
 
 interface TxnRow { id: string; date: string; label: string; particular: string; amount: number }
@@ -128,7 +129,7 @@ export default function RecurringPage() {
     if (!confirmRemoveId) return
     const { error } = await supabase.from('recurring_schedules').delete().eq('id', confirmRemoveId)
     if (error) { toast.error(friendlyError(error)); setConfirmRemoveId(null); return }
-    toast.success('Recurring schedule removed — it will never fire again')
+    toast.success(t('rc.scheduleRemoved'))
     setConfirmRemoveId(null)
     load()
   }
@@ -138,14 +139,14 @@ export default function RecurringPage() {
     const { error } = await supabase.rpc('reset_recurring_schedule', { p_schedule_id: id })
     setResettingId(null)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Schedule reset — next occurrence recalculated from today')
+    toast.success(t('rc.scheduleReset'))
     load()
   }
 
   const scheduleLabel = (s: Schedule) => {
     if (s.schedule_type === 'bill') return consumerNames[s.consumer_id ?? ''] ?? s.consumer_id ?? '—'
     if (s.schedule_type === 'donation') return s.donor_name ?? '—'
-    return s.party_name || s.particular || 'Expense'
+    return s.party_name || s.particular || t('rc.expenseFallback')
   }
 
   const totals = useMemo(() => ({
@@ -172,13 +173,13 @@ export default function RecurringPage() {
       </div>
 
       <div className="flex items-center gap-2 mb-5 border-b border-dp-outline-variant overflow-x-auto admin-scrollbar">
-        {(['schedules', 'transactions'] as const).map((t) => (
+        {(['schedules', 'transactions'] as const).map((tabId) => (
           <button
-            key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2.5 font-sans text-[14px] font-semibold border-b-2 -mb-px transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${tab === t ? 'border-dp-secondary text-dp-primary' : 'border-transparent text-dp-on-surface-variant hover:text-dp-on-surface'}`}
+            key={tabId} onClick={() => setTab(tabId)}
+            className={`px-4 py-2.5 font-sans text-[14px] font-semibold border-b-2 -mb-px transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${tab === tabId ? 'border-dp-secondary text-dp-primary' : 'border-transparent text-dp-on-surface-variant hover:text-dp-on-surface'}`}
           >
-            {t === 'schedules' ? <Repeat size={15} /> : <ListChecks size={15} />}
-            {t === 'schedules' ? 'Schedules' : 'Recurring Transactions'}
+            {tabId === 'schedules' ? <Repeat size={15} /> : <ListChecks size={15} />}
+            {tabId === 'schedules' ? t('rc.schedules') : t('rc.recurringTransactions')}
           </button>
         ))}
       </div>
@@ -189,7 +190,7 @@ export default function RecurringPage() {
             <table className="w-full text-start min-w-[750px]">
               <thead>
                 <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                  <th className="px-4 py-2.5">For</th>
+                  <th className="px-4 py-2.5">{t('rc.for')}</th>
                   <th className="px-4 py-2.5">{t('a.type')}</th>
                   <th className="px-4 py-2.5">{t('w.frequency')}</th>
                   <th className="px-4 py-2.5 text-end">{t('w.amount')}</th>
@@ -205,18 +206,18 @@ export default function RecurringPage() {
                 {!loading && schedules.map((s) => (
                   <tr key={s.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${!s.is_active ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-3 font-semibold">{scheduleLabel(s)}</td>
-                    <td className="px-4 py-3 text-dp-on-surface-variant capitalize">{s.schedule_type}</td>
-                    <td className="px-4 py-3 text-dp-on-surface-variant">{frequencyLabels[s.frequency]}</td>
+                    <td className="px-4 py-3 text-dp-on-surface-variant capitalize">{s.schedule_type === 'bill' ? t('rc.scheduleTypeBill') : s.schedule_type === 'donation' ? t('rc.scheduleTypeDonation') : t('rc.scheduleTypeExpense')}</td>
+                    <td className="px-4 py-3 text-dp-on-surface-variant">{t(frequencyKey[s.frequency])}</td>
                     <td className="px-4 py-3 text-end font-bold">{fmtAmount(s.amount_pkr)}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{new Date(s.next_run_date).toLocaleString('en-GB')}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-dp-on-surface-variant">{s.last_run_at ? new Date(s.last_run_at).toLocaleString('en-GB') : '—'}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${s.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{s.is_active ? 'Active' : 'Inactive'}</span>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${s.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{s.is_active ? t('g.active') : t('g.inactive')}</span>
                     </td>
                     <td className="px-4 py-3 text-end">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button disabled={resettingId === s.id} onClick={() => resetSchedule(s.id)} title="Reset — recalculate next occurrence from today" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer disabled:opacity-40"><RotateCcw size={15} /></button>
-                        <button onClick={() => setConfirmRemoveId(s.id)} title="Remove schedule" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
+                        <button disabled={resettingId === s.id} onClick={() => resetSchedule(s.id)} title={t('rc.resetHint')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer disabled:opacity-40"><RotateCcw size={15} /></button>
+                        <button onClick={() => setConfirmRemoveId(s.id)} title={t('rc.removeScheduleTitle2')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
                       </div>
                     </td>
                   </tr>
@@ -230,20 +231,20 @@ export default function RecurringPage() {
                   <tr key={p.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${p.status === 'lapsed' ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-3 font-semibold">
                       {p.donor_name}
-                      <span className="block font-normal text-dp-on-surface-variant text-[12px]">{p.named ?? 'Shared giving'}</span>
+                      <span className="block font-normal text-dp-on-surface-variant text-[12px]">{p.named ?? t('rc.sharedGiving')}</span>
                     </td>
-                    <td className="px-4 py-3 text-dp-on-surface-variant">{poolKindLabel[p.pool_kind] ?? p.pool_kind}</td>
-                    <td className="px-4 py-3 text-dp-on-surface-variant">Monthly</td>
+                    <td className="px-4 py-3 text-dp-on-surface-variant">{poolKindLabel[p.pool_kind] ?? (poolKindLabelKey[p.pool_kind] ? t(poolKindLabelKey[p.pool_kind]) : p.pool_kind)}</td>
+                    <td className="px-4 py-3 text-dp-on-surface-variant">{t('rc.monthlyWord')}</td>
                     <td className="px-4 py-3 text-end font-bold">{fmtAmount(p.monthly_amount)}</td>
                     <td className="px-4 py-3 text-dp-on-surface-variant">—</td>
                     <td className="px-4 py-3 text-dp-on-surface-variant">—</td>
                     <td className="px-4 py-3">
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${p.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{p.status === 'active' ? 'Active' : 'Lapsed'}</span>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${p.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{p.status === 'active' ? t('g.active') : t('rc.poolLapsed')}</span>
                     </td>
                     <td className="px-4 py-3 text-end">
-                      <Link href={poolKindLink[p.pool_kind] ?? '/admin/kafalat'} title="Manage on its own page"
+                      <Link href={poolKindLink[p.pool_kind] ?? '/admin/kafalat'} title={t('rc.manageOnOwnPage')}
                         className="inline-flex items-center gap-1 text-dp-secondary hover:underline text-[12.5px] font-semibold">
-                        <ExternalLink size={13} /> Manage
+                        <ExternalLink size={13} /> {t('rc.manage')}
                       </Link>
                     </td>
                   </tr>
@@ -278,11 +279,11 @@ export default function RecurringPage() {
 
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
-              <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{dateFilter ? `Total Recurred — ${new Date(dateFilter).toLocaleDateString('en-GB')}` : 'Total Recurred'}</p>
+              <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{dateFilter ? `${t('rc.totalRecurredOn')} ${new Date(dateFilter).toLocaleDateString('en-GB')}` : t('rc.totalRecurred')}</p>
               <p className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmtAmount(totals.amount)}</p>
             </div>
             <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
-              <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{dateFilter ? 'Transactions on this date' : 'Total Transactions'}</p>
+              <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{dateFilter ? t('rc.transactionsOnDate') : t('rc.totalTransactions')}</p>
               <p className="font-heading text-[22px] font-bold text-dp-primary">{totals.count}</p>
             </div>
           </div>
@@ -316,8 +317,8 @@ export default function RecurringPage() {
 
       <ConfirmDialog
         open={!!confirmRemoveId}
-        title="Remove Recurring Schedule"
-        message="This stops it from ever firing again. Bills/vouchers/donations it already generated stay exactly as they are — this only removes the schedule itself."
+        title={t('rc.removeScheduleTitle')}
+        message={t('rc.removeScheduleMessage')}
         onConfirm={removeSchedule}
         onCancel={() => setConfirmRemoveId(null)}
       />

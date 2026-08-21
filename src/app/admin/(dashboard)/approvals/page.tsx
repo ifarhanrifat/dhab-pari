@@ -18,16 +18,16 @@ interface PurchaseLine { description: string; quantity: number; unit_cost: numbe
 interface VoucherDetail { voucher_type: string; from_account_id: string; to_account_id: string; party_name: string | null; attachment_url: string | null }
 interface VoucherLine { account_id: string; amount: number; description: string | null }
 
-const systemLabels: Record<string, string> = { water_supply: 'Water Supply', donors_projects: 'Donors & Projects' }
+const systemLabelKey: Record<string, string> = { water_supply: 'a.waterSupply', donors_projects: 'a.donorsProjects' }
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
-function hoursLeft(deadline: string) {
+function hoursLeft(t: (key: string) => string, deadline: string) {
   const hrs = Math.round((new Date(deadline).getTime() - Date.now()) / 3600000)
-  if (hrs <= 0) return 'due now'
-  if (hrs < 24) return `${hrs}h left`
-  return `${Math.round(hrs / 24)}d left`
+  if (hrs <= 0) return t('ap.dueNow')
+  if (hrs < 24) return t('ap.hoursLeft').replace('{n}', String(hrs))
+  return t('ap.daysLeft').replace('{n}', String(Math.round(hrs / 24)))
 }
 
 export default function ApprovalsPage() {
@@ -127,7 +127,7 @@ export default function ApprovalsPage() {
       }
       const grouped: Record<string, RosterEntry[]> = {}
       for (const c of confirmations ?? []) {
-        (grouped[c.approval_request_id] ??= []).push({ confirmation_id: c.id, approver_id: c.approver_id, full_name: nameMap[c.approver_id] ?? 'Approver', confirmed: c.confirmed })
+        (grouped[c.approval_request_id] ??= []).push({ confirmation_id: c.id, approver_id: c.approver_id, full_name: nameMap[c.approver_id] ?? t('ap.approverFallback'), confirmed: c.confirmed })
       }
       setRosterByRequest(grouped)
     } else {
@@ -143,7 +143,7 @@ export default function ApprovalsPage() {
     setBusyId(null)
     setConfirmReject(null)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(confirmed ? 'Confirmed' : 'Rejected — this transaction will not post')
+    toast.success(confirmed ? t('ap.confirmedToast') : t('ap.rejectedToast'))
     load()
   }
 
@@ -153,7 +153,7 @@ export default function ApprovalsPage() {
     setOverrideBusyId(null)
     setConfirmOverride(null)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Approved on their behalf')
+    toast.success(t('ap.approvedOnBehalfToast'))
     load()
   }
 
@@ -168,12 +168,12 @@ export default function ApprovalsPage() {
           <ShieldCheck size={26} /> {t('ap.title')}
         </h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">
-          Every configured approver must confirm before a transaction posts — or it auto-posts 24 hours after it was created.
+          {t('ap.subtitle')}
         </p>
       </div>
 
       <div className="mb-8">
-        <h2 className="font-sans text-[15px] font-bold text-dp-on-surface mb-3">Needs Your Confirmation ({mine.length})</h2>
+        <h2 className="font-sans text-[15px] font-bold text-dp-on-surface mb-3">{t('ap.needsYourConfirmation')} ({mine.length})</h2>
         {mine.length === 0 ? (
           <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">
             {t('ap.nothingWaiting')}
@@ -192,8 +192,8 @@ export default function ApprovalsPage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         {r.kind === 'purchase' ? <ShoppingCart size={14} className="text-amber-600" /> : <Wallet size={14} className="text-amber-600" />}
-                        <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-wide">{systemLabels[r.system]} · {r.kind}</span>
-                        <span className="flex items-center gap-1 font-sans text-[11px] font-semibold text-amber-700"><Clock size={11} /> {hoursLeft(r.deadline_at)}</span>
+                        <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-wide">{t(systemLabelKey[r.system])} · {r.kind}</span>
+                        <span className="flex items-center gap-1 font-sans text-[11px] font-semibold text-amber-700"><Clock size={11} /> {hoursLeft(t, r.deadline_at)}</span>
                       </div>
                       <p className="font-sans text-[14.5px] font-semibold text-dp-on-surface">{r.particular}</p>
                       {v && (
@@ -209,7 +209,7 @@ export default function ApprovalsPage() {
                       )}
                       {vLines && vLines.length > 0 && (
                         <ul className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1 list-disc list-inside">
-                          {vLines.map((l, i) => <li key={i}>{l.description ?? accountNames[l.account_id] ?? 'Line'}: Rs. {fmt(l.amount)}</li>)}
+                          {vLines.map((l, i) => <li key={i}>{l.description ?? accountNames[l.account_id] ?? t('ap.lineFallback')}: Rs. {fmt(l.amount)}</li>)}
                         </ul>
                       )}
                       <p className="font-sans text-[16px] font-bold text-dp-primary mt-1">Rs. {fmt(r.amount_pkr)}</p>
@@ -244,7 +244,7 @@ export default function ApprovalsPage() {
       </div>
 
       <div>
-        <h2 className="font-sans text-[15px] font-bold text-dp-on-surface mb-3">All Pending Approvals ({otherPending.length})</h2>
+        <h2 className="font-sans text-[15px] font-bold text-dp-on-surface mb-3">{t('ap.allPendingApprovals')} ({otherPending.length})</h2>
         {otherPending.length === 0 ? (
           <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">
             {t('ap.nothingElse')}
@@ -279,12 +279,12 @@ export default function ApprovalsPage() {
                           <td className="px-5 py-3">
                             <span className="font-semibold">{r.particular}</span>
                             <p className="text-[11.5px] text-dp-on-surface-variant">
-                              {systemLabels[r.system]} · {r.kind}{hasDetail ? (expanded ? ' · hide detail' : ' · click to view detail') : ''}
+                              {t(systemLabelKey[r.system])} · {r.kind}{hasDetail ? ` · ${expanded ? t('ap.hideDetail') : t('ap.clickToViewDetail')}` : ''}
                             </p>
                           </td>
                           <td className="px-5 py-3 text-end font-bold">Rs. {fmt(r.amount_pkr)}</td>
                           <td className="px-5 py-3 text-dp-on-surface-variant">
-                            {waiting.length === 0 ? 'All confirmed' : (
+                            {waiting.length === 0 ? t('ap.allConfirmed') : (
                               <div className="flex flex-col gap-1">
                                 {waiting.map((a) => (
                                   <span key={a.confirmation_id} className="flex items-center gap-2">
@@ -293,7 +293,7 @@ export default function ApprovalsPage() {
                                       <button
                                         disabled={overrideBusyId === a.confirmation_id}
                                         onClick={(e) => { e.stopPropagation(); setConfirmOverride({ confirmationId: a.confirmation_id, name: a.full_name }) }}
-                                        title="Approve on their behalf"
+                                        title={t('ap.approveOnBehalfTitle')}
                                         className="flex items-center gap-1 px-1.5 py-0.5 border border-dp-outline-variant rounded font-sans text-[10.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-40"
                                       >
                                         <UserCog size={10} /> {t('ap.approveForThem')}
@@ -304,7 +304,7 @@ export default function ApprovalsPage() {
                               </div>
                             )}
                           </td>
-                          <td className="px-5 py-3 text-dp-on-surface-variant">{hoursLeft(r.deadline_at)}</td>
+                          <td className="px-5 py-3 text-dp-on-surface-variant">{hoursLeft(t, r.deadline_at)}</td>
                         </tr>
                         {expanded && hasDetail && (
                           <tr className="bg-dp-surface-container-low/30 border-b border-dp-outline-variant last:border-b-0">
@@ -322,7 +322,7 @@ export default function ApprovalsPage() {
                               )}
                               {vLines && vLines.length > 0 && (
                                 <ul className="font-sans text-[12.5px] text-dp-on-surface-variant list-disc list-inside">
-                                  {vLines.map((l, i) => <li key={i}>{l.description ?? accountNames[l.account_id] ?? 'Line'}: Rs. {fmt(l.amount)}</li>)}
+                                  {vLines.map((l, i) => <li key={i}>{l.description ?? accountNames[l.account_id] ?? t('ap.lineFallback')}: Rs. {fmt(l.amount)}</li>)}
                                 </ul>
                               )}
                             </td>
@@ -340,16 +340,16 @@ export default function ApprovalsPage() {
 
       <ConfirmDialog
         open={!!confirmReject}
-        title="Reject Transaction"
-        message="This transaction will never post. This cannot be undone."
+        title={t('ap.rejectTransactionTitle')}
+        message={t('ap.rejectTransactionMessage')}
         onConfirm={() => confirmReject && decide(confirmReject, false)}
         onCancel={() => setConfirmReject(null)}
       />
 
       <ConfirmDialog
         open={!!confirmOverride}
-        title="Approve On Their Behalf"
-        message={confirmOverride ? `You are about to confirm this transaction for ${confirmOverride.name}, not yourself. This is recorded as a super-admin override, not as ${confirmOverride.name}'s own decision. Use this only when they're genuinely unavailable.` : ''}
+        title={t('ap.approveOnBehalfDialogTitle')}
+        message={confirmOverride ? t('ap.approveOnBehalfDialogMessage').split('{name}').join(confirmOverride.name) : ''}
         onConfirm={() => confirmOverride && overrideApprove(confirmOverride.confirmationId)}
         onCancel={() => setConfirmOverride(null)}
       />
