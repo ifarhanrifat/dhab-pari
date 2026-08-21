@@ -55,7 +55,6 @@ import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LanguageToggle } from '@/components/layout/LanguageToggle'
 import { MODULES } from '@/lib/constants'
-import { SITE } from '@/lib/constants'
 
 const menuItems: {
   href: string; label: string; icon: LucideIcon
@@ -237,6 +236,34 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
   // these already uses logical spacing (me-*, ms-auto), so that alone
   // puts the icon on the reading "start" side without moving the menu.
   const rowDir = isUrdu ? 'rtl' : 'ltr'
+  // Profile + language used to sit at the very bottom, under a plain "Admin
+  // Portal" title at the top that said nothing about who was actually
+  // logged in. Moved to the top instead — same row, same dir={rowDir} +
+  // logical (me-*) spacing the rest of the sidebar already uses, so the
+  // avatar sits on the reading "start" side (left in English, right in
+  // Urdu) without any extra flip logic of its own.
+  const profileBlock = (
+    <div className="shrink-0" dir={rowDir}>
+      <div className="bg-dp-primary-container p-3 rounded-lg">
+        <div className="flex items-center">
+          <div className="w-8 h-8 rounded-full bg-[#5bc8a3] text-dp-primary flex items-center justify-center font-bold text-[12px] font-sans me-2 shrink-0">
+            {(profile?.full_name ?? '?').charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="text-white text-[13px] font-sans font-semibold truncate">
+              {profile?.full_name ?? t('action.loading')}
+            </p>
+            <p className="text-white/60 text-[11px] font-sans">
+              {profile ? (roleLabels[profile.role] ?? profile.role) : ''}
+            </p>
+          </div>
+        </div>
+      </div>
+      <div className="pt-3">
+        <LanguageToggle compact />
+      </div>
+    </div>
+  )
   const sidebarContent = (
     <>
       {/* Menu */}
@@ -271,30 +298,8 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
         })}
       </nav>
 
-      {/* Language sits with the profile, not in a settings page — a member who
-          opens the app in the wrong language must be able to fix it without
-          reading their way through a menu first. */}
-      <div className="px-4 pt-3 shrink-0">
-        <LanguageToggle compact />
-      </div>
-
-      {/* Current User + Logout */}
-      <div className="px-4 pt-4 mt-auto border-t border-white/10 shrink-0" dir={rowDir}>
-        <div className="bg-dp-primary-container p-3 rounded-lg mb-3">
-          <div className="flex items-center">
-            <div className="w-8 h-8 rounded-full bg-[#5bc8a3] text-dp-primary flex items-center justify-center font-bold text-[12px] font-sans me-2 shrink-0">
-              {(profile?.full_name ?? '?').charAt(0).toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <p className="text-white text-[13px] font-sans font-semibold truncate">
-                {profile?.full_name ?? 'Loading...'}
-              </p>
-              <p className="text-white/60 text-[11px] font-sans">
-                {profile ? (roleLabels[profile.role] ?? profile.role) : ''}
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* Logout */}
+      <div className="px-4 pt-4 mt-auto border-t border-white/10 shrink-0">
         <button
           onClick={handleLogout}
           className="w-full flex items-center justify-center gap-2 py-2 bg-dp-error text-white rounded-lg text-[14px] font-sans font-semibold hover:opacity-90 transition-opacity cursor-pointer"
@@ -310,14 +315,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
     <>
       {/* Desktop sidebar */}
       <aside style={{ position: "fixed", top: 0, left: 0, right: "auto" }} className="hidden md:flex flex-col h-screen py-6 bg-dp-primary border-e border-dp-outline-variant w-[210px] z-50 print:hidden">
-        <div className="px-4 mb-8">
-          <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">
-            {t('y.adminPortal')}
-          </h2>
-          <p className="text-[12px] font-sans text-white/60 mt-1">
-            {SITE.shortCommittee}
-          </p>
-        </div>
+        <div className="px-4 mb-6">{profileBlock}</div>
         {sidebarContent}
       </aside>
 
@@ -344,18 +342,11 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
         }}
         className="h-screen w-[260px] bg-dp-primary z-[100] md:hidden flex flex-col py-6 transition-transform duration-300 ease-in-out"
       >
-        <div className="px-4 mb-8 flex items-center justify-between">
-          <div>
-            <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">
-              {t('y.adminPortal')}
-            </h2>
-            <p className="text-[12px] font-sans text-white/60 mt-1">
-              {SITE.shortCommittee}
-            </p>
-          </div>
+        <div className="px-4 mb-6 flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">{profileBlock}</div>
           <button
             onClick={onMobileClose}
-            className="text-white/80 hover:text-white p-1 cursor-pointer"
+            className="text-white/80 hover:text-white p-1 cursor-pointer shrink-0"
             aria-label="Close menu"
           >
             <X size={22} />

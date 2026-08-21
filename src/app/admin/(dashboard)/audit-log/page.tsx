@@ -23,16 +23,18 @@ interface AuditRow {
   restored_at: string | null
 }
 
-const tableLabels: Record<TableName, string> = {
-  bills: 'Water Bill', payments: 'Payment', donors: 'Donation', vouchers: 'Voucher',
-  accounts: 'Account', consumers: 'Consumer',
+// Values are i18n keys — resolved via t() at render time (module scope has
+// no useLocale()).
+const tableLabelKeys: Record<TableName, string> = {
+  bills: 'z.table.bills', payments: 'z.table.payments', donors: 'z.table.donors', vouchers: 'z.table.vouchers',
+  accounts: 'z.table.accounts', consumers: 'z.table.consumers',
 }
 const tableColors: Record<TableName, string> = {
   bills: 'bg-blue-100 text-blue-800', payments: 'bg-emerald-100 text-emerald-700',
   donors: 'bg-violet-100 text-violet-800', vouchers: 'bg-amber-100 text-amber-800',
   accounts: 'bg-cyan-100 text-cyan-800', consumers: 'bg-pink-100 text-pink-800',
 }
-const actionLabels: Record<Action, string> = { insert: 'Created', update: 'Updated', delete: 'Deleted' }
+const actionLabelKeys: Record<Action, string> = { insert: 'z.created', update: 'z.updated', delete: 'z.deleted' }
 const actionColors: Record<Action, string> = {
   insert: 'bg-emerald-100 text-emerald-700', update: 'bg-amber-100 text-amber-800', delete: 'bg-red-100 text-red-700',
 }
@@ -41,8 +43,16 @@ function fmtDateTime(d: string) {
   return new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
-const monthStart = () => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10) }
+// Pakistan-local, not UTC — the server/browser's UTC "today" is still
+// yesterday for five hours every evening in Pakistan, which would silently
+// exclude anything done that evening from the "today"/"this month" default
+// (same class of bug src/lib/periodLock.ts's todayInPakistan() exists to
+// avoid for period locking).
+function todayInPakistan(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+}
+const today = () => todayInPakistan()
+const monthStart = () => `${todayInPakistan().slice(0, 7)}-01`
 
 export default function AuditLogPage() {
   const { t, isUrdu } = useLocale()
@@ -58,11 +68,11 @@ export default function AuditLogPage() {
   const [sortAsc, setSortAsc] = useState(false)
   // Unfiltered, this pulled the entire audit_log table — every insert/update/
   // delete since the app went live, each row carrying full before/after
-  // JSONB snapshots — and rendered all of it at once. Defaults to the
-  // current month, same date-range pattern as All Transactions, so opening
-  // this page no longer means a multi-second hang while hundreds of rows
-  // (and growing) load and render.
-  const [from, setFrom] = useState(monthStart())
+  // JSONB snapshots — and rendered all of it at once. Defaults to today
+  // only, same date-range pattern as All Transactions, so opening this page
+  // no longer means a multi-second hang while hundreds of rows (and
+  // growing) load and render.
+  const [from, setFrom] = useState(today())
   const [to, setTo] = useState(today())
   const supabase = createClient()
 
@@ -75,8 +85,13 @@ export default function AuditLogPage() {
     setCanRestore(profile.role === 'super_admin' || !!profile.can_restore_deleted)
 
     setRowsLoading(true)
+    // Explicit +05:00 offset, not a bare date — performed_at is timestamptz,
+    // and a bare 'YYYY-MM-DD' gets interpreted in whatever timezone the DB
+    // session happens to be in (UTC by default), silently shifting the
+    // Pakistan-local day boundary by 5 hours.
     const { data } = await supabase.from('audit_log').select('*')
-      .gte('performed_at', from).lte('performed_at', `${to}T23:59:59`)
+      .gte('performed_at', new Date(`${from}T00:00:00+05:00`).toISOString())
+      .lte('performed_at', new Date(`${to}T23:59:59+05:00`).toISOString())
       .order('performed_at', { ascending: false })
     setRows(data ?? [])
     setRowsLoading(false)
@@ -85,12 +100,14 @@ export default function AuditLogPage() {
 
   useEffect(() => { load() }, [load])
   const setCurrentMonth = () => { setFrom(monthStart()); setTo(today()) }
+  const setCurrentDay = () => { setFrom(today()); setTo(today()) }
 
   const actors = useMemo(() => {
     const seen = new Map<string, string>()
-    rows.forEach((r) => { if (r.actor_id) seen.set(r.actor_id, r.actor_name ?? 'Unknown') })
+    rows.forEach((r) => { if (r.actor_id) seen.set(r.actor_id, r.actor_name ?? t('z.unknown')) })
     return Array.from(seen.entries())
-  }, [rows])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, t])
 
   const filteredRows = useMemo(() => {
     let list = rows
@@ -106,7 +123,7 @@ export default function AuditLogPage() {
     const { error } = await supabase.rpc('restore_deleted_record', { p_audit_id: confirmRestore.id })
     setRestoring(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Record restored')
+    toast.success(t('z.recordRestored'))
     setConfirmRestore(null)
     load()
   }
@@ -131,7 +148,7 @@ export default function AuditLogPage() {
           <History size={26} /> {t('z.auditLog')}
         </h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">
-          Every record created, edited, or deleted by every user — deleted records can be restored.
+          {t('z.auditLogBlurb')}
         </p>
       </div>
 
@@ -144,6 +161,9 @@ export default function AuditLogPage() {
           <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">{t('tx.to')}</label>
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="input-field !py-2 text-[14px]" />
         </div>
+        <button onClick={setCurrentDay} className="px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
+          {t('y.today')}
+        </button>
         <button onClick={setCurrentMonth} className="px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
           {t('tx.thisMonth')}
         </button>
@@ -164,9 +184,9 @@ export default function AuditLogPage() {
           </select>
         </div>
         <button onClick={() => setSortAsc((s) => !s)} className="flex items-center gap-2 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
-          <ArrowUpDown size={15} /> {sortAsc ? 'Oldest First' : 'Newest First'}
+          <ArrowUpDown size={15} /> {sortAsc ? t('z.oldestFirst') : t('z.newestFirst')}
         </button>
-        <span className="font-sans text-[12.5px] text-dp-on-surface-variant ms-auto">{filteredRows.length} of {rows.length} records</span>
+        <span className="font-sans text-[12.5px] text-dp-on-surface-variant ms-auto">{t('z.recordsOf').replace('{shown}', String(filteredRows.length)).replace('{total}', String(rows.length))}</span>
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
@@ -192,10 +212,10 @@ export default function AuditLogPage() {
               {!rowsLoading && filteredRows.map((r) => (
                 <tr key={r.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${r.restored_at ? 'opacity-50' : ''}`}>
                   <td className="px-4 py-3">
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${tableColors[r.table_name]}`}>{tableLabels[r.table_name]}</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${tableColors[r.table_name]}`}>{t(tableLabelKeys[r.table_name])}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${actionColors[r.action]}`}>{actionLabels[r.action]}</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${actionColors[r.action]}`}>{t(actionLabelKeys[r.action])}</span>
                   </td>
                   <td className="px-4 py-3">{r.summary}</td>
                   <td className="px-4 py-3">{r.actor_name ?? '—'}</td>
@@ -225,9 +245,9 @@ export default function AuditLogPage() {
 
       <ConfirmDialog
         open={!!confirmRestore}
-        title="Restore Record"
-        message={`This will bring back "${confirmRestore?.summary ?? ''}" exactly as it was, including its ledger entries. Continue?`}
-        confirmLabel={restoring ? 'Restoring...' : 'Restore'}
+        title={t('z.restoreRecordTitle')}
+        message={t('z.restoreRecordMessage').replace('{summary}', confirmRestore?.summary ?? '')}
+        confirmLabel={restoring ? t('z.restoring') : t('g.restore')}
         onConfirm={restore}
         onCancel={() => setConfirmRestore(null)}
       />

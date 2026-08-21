@@ -32,18 +32,20 @@ const approvalTypes: { key: 'expense' | 'withdrawal' | 'purchase'; label: string
   { key: 'purchase', label: 'Purchases' },
 ]
 
-const invoiceTemplates: { id: string; label: string; blurb: string }[] = [
-  { id: 'universal', label: 'Universal Slip (Recommended)', blurb: 'One design for A4 and Bluetooth thermal, bilingual labels, branded contact icons' },
-  { id: 'classic', label: 'Classic', blurb: 'Traditional bordered receipt with Urdu heading' },
-  { id: 'modern', label: 'Modern', blurb: 'Bold colored header, card-style layout' },
-  { id: 'minimal', label: 'Minimal', blurb: 'Clean and sparse, large amount focus' },
-  { id: 'detailed', label: 'Detailed', blurb: 'Itemized table breakdown of charges' },
-  { id: 'compact', label: 'Compact', blurb: 'Narrow thermal-receipt style' },
-  { id: 'ledger', label: 'Ledger', blurb: 'Teal accent, clean ledger-style header and totals' },
-  { id: 'cardSections', label: 'Card Sections', blurb: 'Plum accent, stacked rounded card blocks' },
-  { id: 'boldBand', label: 'Bold Band', blurb: 'Burgundy full-width header band' },
-  { id: 'twoColumn', label: 'Two Column', blurb: 'Indigo sidebar with meta, table on the right' },
-  { id: 'statement', label: 'Statement', blurb: 'Slate-blue, striped statement-style table' },
+// Values are i18n keys — resolved via tr() at render time (module scope has
+// no useLocale()).
+const invoiceTemplates: { id: string; labelKey: string; blurbKey: string }[] = [
+  { id: 'universal', labelKey: 'st.tpl.universal.label', blurbKey: 'st.tpl.universal.blurb' },
+  { id: 'classic', labelKey: 'st.tpl.classic.label', blurbKey: 'st.tpl.classic.blurb' },
+  { id: 'modern', labelKey: 'st.tpl.modern.label', blurbKey: 'st.tpl.modern.blurb' },
+  { id: 'minimal', labelKey: 'st.tpl.minimal.label', blurbKey: 'st.tpl.minimal.blurb' },
+  { id: 'detailed', labelKey: 'st.tpl.detailed.label', blurbKey: 'st.tpl.detailed.blurb' },
+  { id: 'compact', labelKey: 'st.tpl.compact.label', blurbKey: 'st.tpl.compact.blurb' },
+  { id: 'ledger', labelKey: 'st.tpl.ledger.label', blurbKey: 'st.tpl.ledger.blurb' },
+  { id: 'cardSections', labelKey: 'st.tpl.cardSections.label', blurbKey: 'st.tpl.cardSections.blurb' },
+  { id: 'boldBand', labelKey: 'st.tpl.boldBand.label', blurbKey: 'st.tpl.boldBand.blurb' },
+  { id: 'twoColumn', labelKey: 'st.tpl.twoColumn.label', blurbKey: 'st.tpl.twoColumn.blurb' },
+  { id: 'statement', labelKey: 'st.tpl.statement.label', blurbKey: 'st.tpl.statement.blurb' },
 ]
 
 type SettingsCategory = 'general' | 'payments' | 'language' | 'documents' | 'donorTemplates' | 'connections' | 'approvals' | 'danger'
@@ -52,62 +54,67 @@ type SettingsCategory = 'general' | 'payments' | 'language' | 'documents' | 'don
 // runs only water supply — or only donations — sees a settings screen with
 // nothing in it belonging to a module they do not have. The `system` field is
 // what does that filtering; `group` is only the heading it sits under.
+// label/blurb/group are i18n keys — resolved via tr() at render time (module
+// scope has no useLocale()). group doubles as a dedup key for the section
+// headings, which works the same whether it holds a literal string or a key.
 const CATEGORIES: {
   id: SettingsCategory
-  label: string
+  labelKey: string
   icon: typeof Building2
-  group: string
-  blurb: string
+  groupKey: string
+  blurbKey: string
   system?: 'water_supply' | 'donors_projects'
 }[] = [
-  { id: 'general', label: 'Committee & Identity', icon: Building2, group: 'Committee',
-    blurb: 'Name, display language, about text and office hours' },
-  { id: 'payments', label: 'Payment Methods', icon: Wallet, group: 'Committee',
-    blurb: 'WhatsApp, JazzCash, Easypaisa and bank details' },
-  { id: 'language', label: 'Language & Wording', icon: Languages, group: 'Committee',
-    blurb: 'Urdu and English wording, voucher types and report column headings' },
+  { id: 'general', labelKey: 'st.cat.general.label', icon: Building2, groupKey: 'st.group.committee',
+    blurbKey: 'st.cat.general.blurb' },
+  { id: 'payments', labelKey: 'st.cat.payments.label', icon: Wallet, groupKey: 'st.group.committee',
+    blurbKey: 'st.cat.payments.blurb' },
+  { id: 'language', labelKey: 'st.cat.language.label', icon: Languages, groupKey: 'st.group.committee',
+    blurbKey: 'st.cat.language.blurb' },
 
-  { id: 'connections', label: 'Connections & Billing', icon: MapPin, group: 'Water Supply', system: 'water_supply',
-    blurb: 'Sectors, new connection charges and reminder fees' },
-  { id: 'documents', label: 'Bills & Water Documents', icon: FileText, group: 'Water Supply', system: 'water_supply',
-    blurb: 'Bill template, slip format, footer links and WhatsApp messages' },
+  { id: 'connections', labelKey: 'st.cat.connections.label', icon: MapPin, groupKey: 'st.group.waterSupply', system: 'water_supply',
+    blurbKey: 'st.cat.connections.blurb' },
+  { id: 'documents', labelKey: 'st.cat.documents.label', icon: FileText, groupKey: 'st.group.waterSupply', system: 'water_supply',
+    blurbKey: 'st.cat.documents.blurb' },
 
-  { id: 'donorTemplates', label: 'Receipts & Donor Documents', icon: Heart, group: 'Donors & Projects', system: 'donors_projects',
-    blurb: 'Donation receipt template, slip format and donor footer' },
+  { id: 'donorTemplates', labelKey: 'st.cat.donorTemplates.label', icon: Heart, groupKey: 'st.group.donorsProjects', system: 'donors_projects',
+    blurbKey: 'st.cat.donorTemplates.blurb' },
 
-  { id: 'approvals', label: 'Approvals & Alerts', icon: ShieldCheck, group: 'System',
-    blurb: 'Who approves spending, who handles complaints, which alerts are sent' },
-  { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, group: 'System',
-    blurb: 'Reset an accounting system — irreversible' },
+  { id: 'approvals', labelKey: 'st.cat.approvals.label', icon: ShieldCheck, groupKey: 'st.group.system',
+    blurbKey: 'st.cat.approvals.blurb' },
+  { id: 'danger', labelKey: 'st.cat.danger.label', icon: AlertTriangle, groupKey: 'st.group.system',
+    blurbKey: 'st.cat.danger.blurb' },
 ]
 
-const settingGroups: { label: string; keys: string[]; category: SettingsCategory }[] = [
-  { label: 'Accounts Display Language', keys: ['display_language'], category: 'general' },
-  { label: 'WhatsApp', keys: ['whatsapp_number', 'whatsapp_link'], category: 'payments' },
+// labelKey is an i18n key — resolved via tr() at render time (module scope
+// has no useLocale()).
+const settingGroups: { labelKey: string; keys: string[]; category: SettingsCategory }[] = [
+  { labelKey: 'st.grp.displayLanguage', keys: ['display_language'], category: 'general' },
+  { labelKey: 'st.grp.whatsapp', keys: ['whatsapp_number', 'whatsapp_link'], category: 'payments' },
   {
-    label: 'Donor & Projects — Payment Accounts', keys: [
+    labelKey: 'st.grp.donorPaymentAccounts', keys: [
       'donor_jazzcash_number', 'donor_jazzcash_name', 'donor_easypaisa_number', 'donor_easypaisa_name',
       'donor_bank_name', 'donor_bank_account_title', 'donor_bank_account_number', 'donor_bank_iban',
       'donor_bank_branch', 'donor_bank_branch_code',
     ], category: 'payments',
   },
   {
-    label: 'Water Supply — Payment Accounts', keys: [
+    labelKey: 'st.grp.waterPaymentAccounts', keys: [
       'water_jazzcash_number', 'water_jazzcash_name', 'water_easypaisa_number', 'water_easypaisa_name',
       'water_bank_name', 'water_bank_account_title', 'water_bank_account_number', 'water_bank_iban',
       'water_bank_branch', 'water_bank_branch_code',
     ], category: 'payments',
   },
-  { label: 'Office', keys: ['office_hours'], category: 'general' },
+  { labelKey: 'st.grp.office', keys: ['office_hours'], category: 'general' },
   {
-    label: 'Universal Slip — Language, Type Size & Printer', keys: [
+    labelKey: 'st.grp.universalSlip', keys: [
       'slip_display_mode', 'slip_font_heading', 'slip_font_body', 'slip_font_footer',
       'slip_format_water', 'slip_format_donor', 'footer_website_link',
     ],
     category: 'documents',
   },
   {
-    label: 'Invoice Footer', keys: [
+    labelKey: 'st.grp.invoiceFooter', keys: [
       'helpline_numbers', 'helpline_label_en', 'helpline_label_ur',
       'footer_complaint_number', 'complaint_label_en', 'complaint_label_ur',
       'invoice_instructions', 'receipt_fund_note',
@@ -118,7 +125,7 @@ const settingGroups: { label: string; keys: string[]; category: SettingsCategory
     category: 'documents',
   },
   {
-    label: 'Donor Invoice Footer', keys: [
+    labelKey: 'st.grp.donorInvoiceFooter', keys: [
       'donor_helpline_numbers', 'donor_helpline_label_en', 'donor_helpline_label_ur',
       'donor_footer_complaint_number', 'donor_complaint_label_en', 'donor_complaint_label_ur',
       'donor_invoice_instructions', 'donor_receipt_fund_note',
@@ -129,20 +136,20 @@ const settingGroups: { label: string; keys: string[]; category: SettingsCategory
     category: 'donorTemplates',
   },
   {
-    label: 'Recurring Donation Policy (shown to donors)', keys: [
+    labelKey: 'st.grp.recurringPolicy', keys: [
       'recurring_policy_ur', 'recurring_policy_en',
     ],
     category: 'donorTemplates',
   },
   {
-    label: 'Publisher Content Rules', keys: [
+    labelKey: 'st.grp.publisherRules', keys: [
       'publisher_guidelines_version', 'publisher_guidelines_ur', 'publisher_guidelines_en',
     ],
     category: 'documents',
   },
-  { label: 'About', keys: ['about_text', 'vision', 'mission'], category: 'general' },
-  { label: 'Reminders', keys: ['defaulter_restore_fee'], category: 'connections' },
-  { label: 'New Connection Charges', keys: ['connection_plumber_charge', 'connection_digging_charge', 'connection_security_deposit'], category: 'connections' },
+  { labelKey: 'st.grp.about', keys: ['about_text', 'vision', 'mission'], category: 'general' },
+  { labelKey: 'st.grp.reminders', keys: ['defaulter_restore_fee'], category: 'connections' },
+  { labelKey: 'st.grp.newConnectionCharges', keys: ['connection_plumber_charge', 'connection_digging_charge', 'connection_security_deposit'], category: 'connections' },
 ]
 
 const emptyContact: ManagementContact = { name: '', designation: '', whatsapp: '' }
@@ -185,7 +192,7 @@ function SettingsSection({
 }
 
 export default function AdminSettingsPage() {
-  const { t: tr, isUrdu } = useLocale()
+  const { t: tr } = useLocale()
   const [settings, setSettings] = useState<Setting[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -485,7 +492,7 @@ export default function AdminSettingsPage() {
   const renderSettingGroups = (category: SettingsCategory) => (
     <>
       {settingGroups.filter((g) => g.category === category).map((group, groupIdx) => (
-        <SettingsSection key={group.label} title={group.label} defaultOpen={groupIdx === 0 && !hasBespokeSectionAbove(category)}>
+        <SettingsSection key={group.labelKey} title={tr(group.labelKey)} defaultOpen={groupIdx === 0 && !hasBespokeSectionAbove(category)}>
           <div className="space-y-4">
             {group.keys.map((key) => {
               const setting = settings.find((s) => s.key === key)
@@ -573,14 +580,21 @@ export default function AdminSettingsPage() {
   )
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'}>
+    // No root dir="rtl" here (unlike a couple of pages that were fully
+    // converted to logical CSS properties and need the real mirror) — this
+    // page still has plain ml-/pl-/text-left-style classes throughout, and
+    // the category nav's flex-row order is one of them: under dir="rtl" the
+    // browser mirrors flex-row automatically, so the nav silently jumped to
+    // the right instead of staying put on the left. Soft fix like the rest
+    // of the admin pages — translate the text, leave the layout alone.
+    <div>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="font-heading text-[28px] sm:text-[32px] font-bold leading-[40px] text-dp-primary">{tr('st.title')}</h1>
-          <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">Changes in most sections save immediately. Company/branding/payment/document fields are staged — use Save All below.</p>
+          <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">{tr('st.saveBlurb')}</p>
         </div>
         <button onClick={saveAll} disabled={saving} className="flex items-center gap-2 px-6 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50 shrink-0">
-          <Save size={16} /> {saving ? 'Saving...' : 'Save All'}
+          <Save size={16} /> {saving ? tr('action.saving') : tr('st.saveAll')}
         </button>
       </div>
 
@@ -596,12 +610,12 @@ export default function AdminSettingsPage() {
           className={`w-full md:w-64 shrink-0 md:sticky md:top-6 ${mobileMenuOpen ? 'block' : 'hidden'} md:block`}
         >
           <div className="bg-white border border-dp-outline-variant rounded-lg p-2 space-y-1">
-            {Array.from(new Set(visibleCategories.map((c) => c.group))).map((group) => (
-              <div key={group}>
+            {Array.from(new Set(visibleCategories.map((c) => c.groupKey))).map((groupKey) => (
+              <div key={groupKey}>
                 <p className="px-3 pt-3 pb-1.5 font-sans text-[11px] font-bold uppercase tracking-[0.08em] text-dp-outline">
-                  {group}
+                  {tr(groupKey)}
                 </p>
-                {visibleCategories.filter((c) => c.group === group).map((cat) => {
+                {visibleCategories.filter((c) => c.groupKey === groupKey).map((cat) => {
                   const Icon = cat.icon
                   const active = activeCategory === cat.id
                   const danger = cat.id === 'danger'
@@ -617,11 +631,11 @@ export default function AdminSettingsPage() {
                     >
                       <Icon size={17} className="shrink-0 mt-0.5" />
                       <span className="min-w-0">
-                        <span className="block text-[14px] md:text-[13.5px] font-semibold">{cat.label}</span>
+                        <span className="block text-[14px] md:text-[13.5px] font-semibold">{tr(cat.labelKey)}</span>
                         {/* The blurb answers "is the thing I want in here?"
                             without opening every section to find out. */}
                         <span className={`block text-[11.5px] font-normal leading-snug mt-0.5 md:hidden ${active ? 'text-white/75' : 'text-dp-on-surface-variant/75'}`}>
-                          {cat.blurb}
+                          {tr(cat.blurbKey)}
                         </span>
                       </span>
                       <ChevronRight size={16} className={`shrink-0 ms-auto mt-0.5 md:hidden ${active ? 'text-white/70' : 'text-dp-outline'}`} />
@@ -711,7 +725,7 @@ export default function AdminSettingsPage() {
             <>
               <SettingsSection title={tr('st.sectionMessageTemplates')} icon={MessageSquareText} defaultOpen>
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">
-                  Write each message in whichever language you want — English, Urdu, or a mix. Drop any of the tags below into the middle of your wording; each one gets replaced with the real value when the message is sent.
+                  {tr('st.templatesBlurb')}
                 </p>
                 <div className="space-y-6">
                   {templates.map((t) => (
@@ -747,7 +761,7 @@ export default function AdminSettingsPage() {
                         onClick={() => saveTemplate(t.key)}
                         className="mt-3 flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50"
                       >
-                        <Save size={14} /> {savingTemplate === t.key ? 'Saving...' : 'Save Template'}
+                        <Save size={14} /> {savingTemplate === t.key ? tr('action.saving') : tr('st.saveTemplate')}
                       </button>
                     </div>
                   ))}
@@ -764,8 +778,8 @@ export default function AdminSettingsPage() {
                         onClick={() => setValues({ ...values, invoice_template: t.id })}
                         className={`text-start p-4 rounded-lg border-2 cursor-pointer transition-all ${selected ? 'border-dp-secondary bg-dp-secondary/5' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
                       >
-                        <p className={`font-sans text-[14px] font-bold mb-1 ${selected ? 'text-dp-secondary' : 'text-dp-on-surface'}`}>{t.label}</p>
-                        <p className="font-sans text-[12px] text-dp-on-surface-variant">{t.blurb}</p>
+                        <p className={`font-sans text-[14px] font-bold mb-1 ${selected ? 'text-dp-secondary' : 'text-dp-on-surface'}`}>{tr(t.labelKey)}</p>
+                        <p className="font-sans text-[12px] text-dp-on-surface-variant">{tr(t.blurbKey)}</p>
                       </button>
                     )
                   })}
@@ -843,8 +857,8 @@ export default function AdminSettingsPage() {
                         onClick={() => setValues({ ...values, donor_invoice_template: t.id })}
                         className={`text-start p-4 rounded-lg border-2 cursor-pointer transition-all ${selected ? 'border-dp-secondary bg-dp-secondary/5' : 'border-dp-outline-variant hover:bg-dp-surface-container-low'}`}
                       >
-                        <p className={`font-sans text-[14px] font-bold mb-1 ${selected ? 'text-dp-secondary' : 'text-dp-on-surface'}`}>{t.label}</p>
-                        <p className="font-sans text-[12px] text-dp-on-surface-variant">{t.blurb}</p>
+                        <p className={`font-sans text-[14px] font-bold mb-1 ${selected ? 'text-dp-secondary' : 'text-dp-on-surface'}`}>{tr(t.labelKey)}</p>
+                        <p className="font-sans text-[12px] text-dp-on-surface-variant">{tr(t.blurbKey)}</p>
                       </button>
                     )
                   })}
@@ -1085,7 +1099,7 @@ export default function AdminSettingsPage() {
                             onClick={() => handleReset(sys)}
                             className="flex-1 px-3 py-2 bg-dp-error text-white rounded-lg font-sans text-[13px] font-semibold hover:opacity-90 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                           >
-                            {resetting ? 'Resetting...' : 'Confirm Reset'}
+                            {resetting ? tr('st.resetting') : tr('st.confirmReset')}
                           </button>
                         </div>
                       </div>
