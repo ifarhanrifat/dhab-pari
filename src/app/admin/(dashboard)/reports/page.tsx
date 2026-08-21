@@ -45,7 +45,7 @@ interface Account { id: string; code: string; name: string; type: string; system
 interface AccountHeader { system: string; code: string; label: string }
 interface LedgerAgg { account_id: string; debit: number; credit: number }
 interface Consumer { consumer_id: string; name: string; mobile: string; sector: string | null }
-interface Donation { id: string; name: string; amount_pkr: number; date: string; donor_type: string | null; project_id: string | null; payment_method: string | null }
+interface Donation { id: string; name: string; amount_pkr: number; date: string; donor_type: string | null; project_id: string | null; payment_method: string | null; voucher_no: string | null }
 interface Project { id: string; title: string }
 interface LedgerRow { id: string; entry_date: string; particular: string; bill_number: string | null; receipt_no: string | null; debit: number; credit: number }
 
@@ -139,7 +139,7 @@ function ReportsPageInner() {
         // precedent. (Recent Transactions on the finance page deliberately
         // still shows pending ones too, with a Pending badge — that's the
         // operational queue, this is a financial summary.)
-        supabase.from('donors').select('id, name, amount_pkr, date, donor_type, project_id, payment_method').eq('is_verified', true).order('date', { ascending: false }),
+        supabase.from('donors').select('id, name, amount_pkr, date, donor_type, project_id, payment_method, voucher_no').eq('is_verified', true).order('date', { ascending: false }),
         supabase.from('projects').select('id, title'),
       ])
       setDonations(donationsData ?? [])
@@ -502,6 +502,7 @@ function ReportsPageInner() {
                   <thead>
                     <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
                       <th className="px-4 py-2.5">{dt(lang, 'date')}</th>
+                      <th className="px-4 py-2.5">{dt(lang, 'receiptHash')}</th>
                       <th className="px-4 py-2.5">{dt(lang, 'donor')}</th>
                       <th className="px-4 py-2.5">{dt(lang, 'project')}</th>
                       <th className="px-4 py-2.5">{dt(lang, 'method')}</th>
@@ -509,10 +510,11 @@ function ReportsPageInner() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredDonations.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{dt(lang, 'noDonationsInPeriod')}</td></tr>}
+                    {filteredDonations.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{dt(lang, 'noDonationsInPeriod')}</td></tr>}
                     {filteredDonations.map((d) => (
                       <tr key={d.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
                         <td className="px-4 py-3 whitespace-nowrap">{new Date(d.date).toLocaleDateString('en-GB')}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-dp-on-surface-variant">{d.voucher_no ?? '—'}</td>
                         <td className="px-4 py-3 font-semibold">{d.name}</td>
                         <td className="px-4 py-3 text-dp-on-surface-variant">{d.project_id ? projects[d.project_id] ?? '—' : '—'}</td>
                         <td className="px-4 py-3 text-dp-on-surface-variant">{d.payment_method ?? '—'}</td>
@@ -523,7 +525,7 @@ function ReportsPageInner() {
                   {filteredDonations.length > 0 && (
                     <tfoot>
                       <tr className="font-sans text-[13.5px] font-bold bg-dp-surface-container-low/60 border-t-2 border-dp-outline-variant">
-                        <td className="px-4 py-3" colSpan={4}>{dt(lang, 'total')}</td>
+                        <td className="px-4 py-3" colSpan={5}>{dt(lang, 'total')}</td>
                         <td className="px-4 py-3 text-end">{fmtAmount(filteredDonations.reduce((s, d) => s + Number(d.amount_pkr), 0))}</td>
                       </tr>
                     </tfoot>

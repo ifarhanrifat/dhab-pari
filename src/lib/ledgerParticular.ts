@@ -33,16 +33,20 @@ export function translateParticular(text: string | null | undefined, t: TFn, isU
   if (!text || !isUrdu) return text ?? ''
   let out = text
 
-  // Water Bill #WB-00026 - April 2024
-  out = out.replace(/^Water Bill #(\S+) - (\w+) (\d{4})$/, (_m, no: string, mon: string, yr: string) => {
+  // Water Bill #WB-00026 - April 2024 [— accountant's own description, left untouched]
+  out = out.replace(/^Water Bill #(\S+) - (\w+) (\d{4})(?= — |$)/, (_m, no: string, mon: string, yr: string) => {
     const mi = MONTHS.indexOf(mon)
     const label = mi > 0 ? t(monthKey(mi), mon) : mon
     return `${t('lp.waterBillHash', 'Water Bill #')}${no} - ${label} ${yr}`
   })
 
-  // Discount — Bill #WB-00045
-  out = out.replace(/^Discount — Bill #(\S+)$/, (_m, no: string) =>
-    `${t('billing.discountLabel', 'Discount')} — ${t('tx.billHash', 'Bill #')}${no}`)
+  // Discount — Bill #WB-00045 (pre-067 bills) / Discount on Sale|Bills — Bill #WB-00045
+  out = out.replace(/^Discount( on (Sale|Bills))? — Bill #(\S+)$/, (_m, _onWhat: string | undefined, which: string | undefined, no: string) => {
+    const label = which === 'Sale' ? t('lp.discountOnSale', 'Discount on Sale')
+      : which === 'Bills' ? t('lp.discountOnBills', 'Discount on Bills')
+      : t('billing.discountLabel', 'Discount')
+    return `${label} — ${t('tx.billHash', 'Bill #')}${no}`
+  })
 
   // Security deposit — Name — Bill WB-00049
   out = out.replace(/^Security deposit — (.+) — Bill (\S+)$/, (_m, name: string, no: string) =>

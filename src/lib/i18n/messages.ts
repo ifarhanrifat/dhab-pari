@@ -881,6 +881,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     // own description, a manual entry) are left exactly as written, same as
     // English mode already does.
     'lp.waterBillHash': 'Water Bill #',
+    'lp.discountOnSale': 'Discount on Sale',
+    'lp.discountOnBills': 'Discount on Bills',
     'lp.securityDeposit': 'Security deposit',
     'lp.billPaidInFull': 'Bill Paid in Full',
     'lp.partialPayment': 'Partial Payment',
@@ -908,6 +910,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'fw.couldNotSaveCorrection': 'Could not save the correction:', 'fw.paymentUpdated': 'Payment updated',
     'fw.paymentOfRsRecorded': 'Payment of Rs.', 'fw.recordedSuffix': 'recorded',
     'fw.chooseConsumer': 'Choose a consumer', 'fw.selectBillOrAdvance': 'Select at least one bill, or enter an advance amount',
+    'fw.cashReceiptNotePlaceholder': 'e.g. received via collector, or any note for this receipt',
     'fw.advanceApplyOnBilling': 'once this bill is saved, apply it from the Billing page',
     'fw.billFallback': 'Bill', 'fw.advanceReceiptErrorPrefix': 'Advance receipt:',
     'fw.receiptRecorded': 'Receipt recorded', 'fw.againstSuffix': 'against', 'fw.billsSuffix': 'bill(s)', 'fw.inclAdvanceSuffix': '(incl. advance)',
@@ -4506,6 +4509,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'tx.autoPostedTooltip': 'واؤچرز/خریداریاں جو ہر اپرووور کی تصدیق کے بغیر 24 گھنٹے بعد پوسٹ ہوئیں',
     'tx.searchPlaceholder': 'نام، اکاؤنٹ آئی ڈی، فون، رسید/واؤچر #، طریقہ...',
     'lp.waterBillHash': 'واٹر بل #',
+    'lp.discountOnSale': 'فروخت پر رعایت',
+    'lp.discountOnBills': 'بلوں پر رعایت',
     'lp.securityDeposit': 'سیکیورٹی ڈیپازٹ',
     'lp.billPaidInFull': 'بل مکمل ادا ہو گیا',
     'lp.partialPayment': 'جزوی ادائیگی',
@@ -4533,6 +4538,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'fw.couldNotSaveCorrection': 'تصحیح محفوظ نہیں ہو سکی:', 'fw.paymentUpdated': 'ادائیگی اپ ڈیٹ ہو گئی',
     'fw.paymentOfRsRecorded': 'روپے کی ادائیگی', 'fw.recordedSuffix': 'درج ہو گئی',
     'fw.chooseConsumer': 'ایک صارف منتخب کریں', 'fw.selectBillOrAdvance': 'کم از کم ایک بل منتخب کریں، یا ایڈوانس رقم درج کریں',
+    'fw.cashReceiptNotePlaceholder': 'مثلاً وصول کنندہ کا نام، یا اس رسید سے متعلق کوئی نوٹ',
     'fw.advanceApplyOnBilling': 'یہ بل محفوظ ہونے کے بعد، اسے Billing صفحہ سے منہا کریں',
     'fw.billFallback': 'بل', 'fw.advanceReceiptErrorPrefix': 'ایڈوانس رسید:',
     'fw.receiptRecorded': 'رسید درج ہو گئی', 'fw.againstSuffix': 'بمقابلہ', 'fw.billsSuffix': 'بل(وں)', 'fw.inclAdvanceSuffix': '(بشمول ایڈوانس)',

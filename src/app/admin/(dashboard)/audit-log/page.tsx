@@ -41,17 +41,29 @@ function fmtDateTime(d: string) {
   return new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+const today = () => new Date().toISOString().slice(0, 10)
+const monthStart = () => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10) }
+
 export default function AuditLogPage() {
   const { t, isUrdu } = useLocale()
   const [authorized, setAuthorized] = useState<boolean | null>(null)
   const [canRestore, setCanRestore] = useState(false)
   const [rows, setRows] = useState<AuditRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [rowsLoading, setRowsLoading] = useState(false)
   const [confirmRestore, setConfirmRestore] = useState<AuditRow | null>(null)
   const [restoring, setRestoring] = useState(false)
   const [actorFilter, setActorFilter] = useState('')
   const [actionFilter, setActionFilter] = useState<'all' | Action>('all')
   const [sortAsc, setSortAsc] = useState(false)
+  // Unfiltered, this pulled the entire audit_log table — every insert/update/
+  // delete since the app went live, each row carrying full before/after
+  // JSONB snapshots — and rendered all of it at once. Defaults to the
+  // current month, same date-range pattern as All Transactions, so opening
+  // this page no longer means a multi-second hang while hundreds of rows
+  // (and growing) load and render.
+  const [from, setFrom] = useState(monthStart())
+  const [to, setTo] = useState(today())
   const supabase = createClient()
 
   const load = useCallback(async () => {
@@ -62,12 +74,17 @@ export default function AuditLogPage() {
     setAuthorized(true)
     setCanRestore(profile.role === 'super_admin' || !!profile.can_restore_deleted)
 
-    const { data } = await supabase.from('audit_log').select('*').order('performed_at', { ascending: false })
+    setRowsLoading(true)
+    const { data } = await supabase.from('audit_log').select('*')
+      .gte('performed_at', from).lte('performed_at', `${to}T23:59:59`)
+      .order('performed_at', { ascending: false })
     setRows(data ?? [])
+    setRowsLoading(false)
     setLoading(false)
-  }, [supabase])
+  }, [supabase, from, to])
 
   useEffect(() => { load() }, [load])
+  const setCurrentMonth = () => { setFrom(monthStart()); setTo(today()) }
 
   const actors = useMemo(() => {
     const seen = new Map<string, string>()
@@ -120,6 +137,17 @@ export default function AuditLogPage() {
 
       <div className="bg-white rounded-lg border border-dp-outline-variant p-4 mb-4 flex flex-wrap items-end gap-4">
         <div>
+          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.from')}</label>
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="input-field !py-2 text-[14px]" />
+        </div>
+        <div>
+          <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">{t('tx.to')}</label>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="input-field !py-2 text-[14px]" />
+        </div>
+        <button onClick={setCurrentMonth} className="px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
+          {t('tx.thisMonth')}
+        </button>
+        <div>
           <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">{t('z.user')}</label>
           <select value={actorFilter} onChange={(e) => setActorFilter(e.target.value)} className="input-field">
             <option value="">{t('z.allUsers')}</option>
@@ -156,10 +184,12 @@ export default function AuditLogPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.length === 0 && (
+              {rowsLoading ? (
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</td></tr>
+              ) : filteredRows.length === 0 && (
                 <tr><td colSpan={7} className="px-4 py-12 text-center text-dp-on-surface-variant font-sans">{t('z.noActivity')}</td></tr>
               )}
-              {filteredRows.map((r) => (
+              {!rowsLoading && filteredRows.map((r) => (
                 <tr key={r.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${r.restored_at ? 'opacity-50' : ''}`}>
                   <td className="px-4 py-3">
                     <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${tableColors[r.table_name]}`}>{tableLabels[r.table_name]}</span>

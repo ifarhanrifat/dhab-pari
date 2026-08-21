@@ -210,6 +210,11 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [cashReceiptBills, setCashReceiptBills] = useState<{ id: string; bill_number: string | null; outstanding: number; selected: boolean; amount: number }[]>([])
   const [cashReceiptAdvance, setCashReceiptAdvance] = useState(false)
   const [cashReceiptAdvanceAmount, setCashReceiptAdvanceAmount] = useState(0)
+  // Nothing here let the accountant record why — every payment row posted
+  // with no way to say "received via collector so-and-so" or similar, so the
+  // ledger's particular for a Cash Receipt line always read as generic
+  // "Payment received (cash)" with nothing of the accountant's own.
+  const [cashReceiptNote, setCashReceiptNote] = useState('')
   const [savingCashReceipt, setSavingCashReceipt] = useState(false)
   const [loading, setLoading] = useState(true)
   const [activeType, setActiveType] = useState<ActiveType>('expense')
@@ -783,10 +788,11 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     if (selected.length === 0 && advanceAmount <= 0) { toast.error(t('fw.selectBillOrAdvance')); return }
     setSavingCashReceipt(true)
     const inserted: { bill_number: string | null; amount: number; receipt_no: string | null }[] = []
+    const note = cashReceiptNote.trim() || null
     for (const b of selected) {
       const { data, error } = await supabase.from('payments').insert({
         bill_id: b.id, consumer_id: cashReceiptConsumerId, amount_pkr: b.amount,
-        method: cashReceiptMethod, paid_date: cashReceiptDate,
+        method: cashReceiptMethod, paid_date: cashReceiptDate, note,
       }).select('receipt_no').single()
       if (error) toast.error(`${b.bill_number ?? t('fw.billFallback')}: ${error.message}`)
       else inserted.push({ bill_number: b.bill_number, amount: b.amount, receipt_no: data?.receipt_no ?? null })
@@ -797,7 +803,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     if (advanceAmount > 0) {
       const { data, error } = await supabase.from('payments').insert({
         bill_id: null, consumer_id: cashReceiptConsumerId, amount_pkr: advanceAmount,
-        method: cashReceiptMethod, paid_date: cashReceiptDate, note: 'Advance / Prepayment',
+        method: cashReceiptMethod, paid_date: cashReceiptDate, note,
       }).select('receipt_no').single()
       if (error) toast.error(`${t('fw.advanceReceiptErrorPrefix')} ${error.message}`)
       else inserted.push({ bill_number: null, amount: advanceAmount, receipt_no: data?.receipt_no ?? null })
@@ -822,6 +828,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setCashReceiptBills([])
     setCashReceiptAdvance(false)
     setCashReceiptAdvanceAmount(0)
+    setCashReceiptNote('')
     load()
   }
 
@@ -1932,6 +1939,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         />
                       )}
                     </label>
+
+                    <div>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.descriptionOptional')}</label>
+                      <input
+                        type="text" value={cashReceiptNote} onChange={(e) => setCashReceiptNote(e.target.value)}
+                        placeholder={t('fw.cashReceiptNotePlaceholder')} className="input-field"
+                      />
+                    </div>
 
                     <div className="bg-dp-surface-container-low rounded-lg px-4 py-3 flex items-center justify-between">
                       <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('f.receiptTotal')}</span>
