@@ -155,7 +155,7 @@ export default function AccountsPage() {
   }, [accounts, tab, search, receiptsByConsumer])
 
   const partyType = tab === 'water_supply' ? 'consumer' : 'donor'
-  const partyLabel = tab === 'water_supply' ? 'Consumers' : 'Donors'
+  const partyLabel = tab === 'water_supply' ? t('ac.consumersLabel') : t('ac.donorsLabel')
 
   const partyAccounts = useMemo(() => {
     return [...bySystem.filter((a) => a.type === partyType)].sort((a, b) =>
@@ -247,10 +247,10 @@ export default function AccountsPage() {
   }
 
   const save = async () => {
-    if (!form.name.trim()) { toast.error('Name is required'); return }
-    if (!form.headerId) { toast.error('Choose an account header'); return }
+    if (!form.name.trim()) { toast.error(t('ac.nameRequired')); return }
+    if (!form.headerId) { toast.error(t('ac.chooseHeader')); return }
     const header = headers.find((h) => h.id === form.headerId)
-    if (!header) { toast.error('Invalid header'); return }
+    if (!header) { toast.error(t('ac.invalidHeader')); return }
 
     if (editId) {
       const { error } = await supabase.from('accounts').update({
@@ -258,7 +258,7 @@ export default function AccountsPage() {
         description: form.description || null, opening_balance: form.opening_balance, is_active: form.is_active,
       }).eq('id', editId)
       if (error) { toast.error(friendlyError(error)); return }
-      toast.success('Account updated')
+      toast.success(t('ac.accountUpdated'))
     } else {
       const { data: code, error: codeError } = await supabase.rpc('next_account_code', { p_header_id: header.id })
       if (codeError) { toast.error(friendlyError(codeError)); return }
@@ -267,7 +267,7 @@ export default function AccountsPage() {
         description: form.description || null, opening_balance: form.opening_balance, is_active: form.is_active,
       })
       if (error) { toast.error(friendlyError(error)); return }
-      toast.success(`Account created (${code})`)
+      toast.success(`${t('ac.accountCreatedPrefix')} (${code})`)
     }
     setShowForm(false)
     setEditId(null)
@@ -276,7 +276,7 @@ export default function AccountsPage() {
 
   const saveHeader = async () => {
     if (!headerForm.label.trim() || !headerForm.code.trim() || !headerForm.code_prefix.trim()) {
-      toast.error('Label, code and code prefix are required'); return
+      toast.error(t('ac.headerFieldsRequired')); return
     }
     const code = headerForm.code.trim().toLowerCase().replace(/\s+/g, '_')
     const { data, error } = await supabase.from('account_headers').insert({
@@ -284,7 +284,7 @@ export default function AccountsPage() {
       code_prefix: headerForm.code_prefix.trim().toUpperCase(), display_order: headers.length + 1,
     }).select().single()
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Header created')
+    toast.success(t('ac.headerCreated'))
     setShowHeaderForm(false)
     setHeaderForm(emptyHeaderForm)
     await load()
@@ -297,7 +297,7 @@ export default function AccountsPage() {
   const toggleActive = async (a: Account) => {
     setMenuId(null)
     await supabase.from('accounts').update({ is_active: !a.is_active }).eq('id', a.id)
-    toast.success(a.is_active ? 'Account disabled' : 'Account enabled')
+    toast.success(a.is_active ? t('ac.accountDisabled') : t('ac.accountEnabled'))
     load()
   }
 
@@ -366,7 +366,7 @@ export default function AccountsPage() {
                       <Pencil size={14} /> {t('ac.editAccount')}
                     </button>
                     <button onClick={() => toggleActive(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
-                      <Power size={14} /> {a.is_active ? 'Disable Account' : 'Enable Account'}
+                      <Power size={14} /> {a.is_active ? t('ac.disableAccount') : t('ac.enableAccount')}
                     </button>
                   </>
                 )}
@@ -382,7 +382,7 @@ export default function AccountsPage() {
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('ac.title')}</h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Manage expense accounts, cash accounts, and income accounts for each system.</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('ac.subtitle')}</p>
       </div>
 
       <div className="flex gap-2 mb-6">
@@ -409,20 +409,20 @@ export default function AccountsPage() {
           onClick={() => router.push(tab === 'donors_projects' ? '/admin/donors' : '/admin/billing')}
           className="shrink-0 px-4 py-2 rounded-lg bg-dp-surface-container-low text-dp-on-surface font-sans text-[13.5px] font-bold hover:bg-dp-surface-container transition-all cursor-pointer"
         >
-          {tab === 'donors_projects' ? 'Donor' : 'Consumer'}
+          {tab === 'donors_projects' ? t('ac.donorBtn') : t('ac.consumerBtn')}
         </button>
         <div className="flex-1 relative">
           <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by account name, code, or bill/receipt no..."
+            placeholder={t('ac.searchPlaceholder')}
             className="w-full ps-9 pe-3 py-2 rounded-lg border border-dp-outline-variant text-[13.5px] font-sans focus:outline-none focus:border-dp-primary"
           />
         </div>
         <button
           onClick={() => setSortByBalance((s) => !s)}
-          title={sortByBalance ? 'Sorted by balance' : 'Sorted by name'}
+          title={sortByBalance ? t('ac.sortedByBalance') : t('ac.sortedByName')}
           className={`shrink-0 p-2.5 rounded-lg border border-dp-outline-variant cursor-pointer transition-all ${sortByBalance ? 'bg-dp-secondary text-white border-dp-secondary' : 'text-dp-secondary hover:bg-dp-surface-container-low'}`}
         >
           <SlidersHorizontal size={16} />
@@ -491,7 +491,7 @@ export default function AccountsPage() {
 
           {bySystem.length === 0 && (
             <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center">
-              <p className="font-sans text-[16px] text-dp-on-surface-variant mb-4">{search ? 'No accounts or bills match your search.' : 'No accounts yet for this system.'}</p>
+              <p className="font-sans text-[16px] text-dp-on-surface-variant mb-4">{search ? t('ac.noAccountsMatchSearch') : t('ac.noAccountsYet')}</p>
               {!search && (
                 <button onClick={openAdd} className="flex items-center gap-2 px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer mx-auto">
                   <PlusCircle size={16} /> {t('ac.createFirst')}
@@ -516,13 +516,13 @@ export default function AccountsPage() {
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[24px] font-bold text-dp-primary">{editId ? 'Edit Account' : 'New Account'}</h2>
+              <h2 className="font-heading text-[24px] font-bold text-dp-primary">{editId ? t('ac.editAccountTitle') : t('ac.newAccountTitle')}</h2>
               <button onClick={() => setShowForm(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <div className="space-y-4">
               {!editId && (
                 <p className="text-[12.5px] font-sans text-dp-on-surface-variant bg-dp-surface-container-low rounded-lg px-3 py-2">
-                  The account code is generated automatically from the header&apos;s serial number.
+                  {t('ac.codeAutoGenNote')}
                 </p>
               )}
               <div>
@@ -544,7 +544,7 @@ export default function AccountsPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant">{t('ac.accountHeader')}</label>
-                  <button onClick={() => setShowHeaderForm(true)} className="text-[12.5px] font-sans font-semibold text-dp-secondary hover:text-dp-primary cursor-pointer">+ New Header</button>
+                  <button onClick={() => setShowHeaderForm(true)} className="text-[12.5px] font-sans font-semibold text-dp-secondary hover:text-dp-primary cursor-pointer">{t('ac.newHeaderBtn')}</button>
                 </div>
                 <select value={form.headerId} onChange={(e) => setForm({ ...form, headerId: e.target.value })} className="input-field">
                   <option value="" disabled>{t('ac.selectHeader')}</option>
@@ -561,7 +561,7 @@ export default function AccountsPage() {
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ac.nameUr')}</label>
                 <input value={form.name_ur ?? ''} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder="اردو میں نام" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
                 {!form.name_ur?.trim() && (
-                  <p className="text-[12px] font-sans text-amber-700 mt-1.5">Not set — this account will show in English even when Urdu is selected.</p>
+                  <p className="text-[12px] font-sans text-amber-700 mt-1.5">{t('ac.noUrduNameNote')}</p>
                 )}
               </div>
               <div>
@@ -573,7 +573,7 @@ export default function AccountsPage() {
                 <textarea value={form.description ?? ''} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="input-field resize-none" />
               </div>
               <button onClick={save} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">
-                <Save size={16} /> {editId ? 'Save Changes' : 'Create Account'}
+                <Save size={16} /> {editId ? t('ac.saveChangesBtn') : t('ac.createAccountBtn')}
               </button>
             </div>
           </div>
@@ -591,7 +591,7 @@ export default function AccountsPage() {
             <div className="space-y-4">
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ac.labelEn')}</label>
-                <input value={headerForm.label} onChange={(e) => setHeaderForm({ ...headerForm, label: e.target.value })} placeholder="e.g. Inventory" className="input-field" />
+                <input value={headerForm.label} onChange={(e) => setHeaderForm({ ...headerForm, label: e.target.value })} placeholder={t('ac.headerLabelPlaceholder')} className="input-field" />
               </div>
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ac.labelUr')}</label>
@@ -599,7 +599,7 @@ export default function AccountsPage() {
               </div>
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ac.shortCode')}</label>
-                <input value={headerForm.code} onChange={(e) => setHeaderForm({ ...headerForm, code: e.target.value })} placeholder="e.g. inventory" className="input-field" />
+                <input value={headerForm.code} onChange={(e) => setHeaderForm({ ...headerForm, code: e.target.value })} placeholder={t('ac.headerCodePlaceholder')} className="input-field" />
               </div>
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ac.codePrefix')}</label>

@@ -147,15 +147,15 @@ export default function AllTransactionsPage() {
     for (const b of billsRes.data ?? []) {
       const net = Math.max(b.amount_pkr - (b.discount_amount ?? 0), 0)
       const consumer = consumersById[b.consumer_id]
-      let description = b.description || `Water Bill — ${new Date(b.year, b.month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+      let description = b.description || `${t('tx.waterBillPrefix')} ${new Date(b.year, b.month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
       if (b.security_deposit_amount && b.security_deposit_amount > 0) {
         const receiptNo = b.security_deposit_voucher_id ? depositReceiptByVoucherId[b.security_deposit_voucher_id] : null
-        description += ` · + Security Deposit Rs ${fmtAmount(b.security_deposit_amount)}${receiptNo ? ` (Receipt # ${receiptNo})` : ''}`
+        description += ` ${t('tx.securityDepositSuffix')} ${fmtAmount(b.security_deposit_amount)}${receiptNo ? ` (${t('tx.receiptHashPrefix')} ${receiptNo})` : ''}`
       }
       result.push({
         id: `bill-${b.id}`, kind: 'bill', borderColor: 'border-emerald-500', isRecurring: !!b.recurring_schedule_id,
         typeLabel: null, partyName: consumer?.name ?? b.consumer_id,
-        docLabel: b.bill_number ? `Bill # ${b.bill_number}` : 'Bill',
+        docLabel: b.bill_number ? `${t('tx.billHash')} ${b.bill_number}` : t('tx.billFallback'),
         date: b.due_date ?? new Date(b.year, b.month - 1, 1).toISOString().slice(0, 10),
         description, amount: net, badge: billBadge(b), note: null, billId: b.id, createdAt: b.created_at,
         searchBlob: `${consumer?.name ?? ''} ${b.consumer_id} ${consumer?.mobile ?? ''} ${b.bill_number ?? ''} ${b.description ?? ''}`.toLowerCase(),
@@ -167,10 +167,10 @@ export default function AllTransactionsPage() {
       const consumer = consumersById[p.consumer_id]
       result.push({
         id: `payment-${p.id}`, kind: 'payment', borderColor: 'border-cyan-500',
-        typeLabel: p.method ? p.method.charAt(0).toUpperCase() + p.method.slice(1) : 'Cash',
+        typeLabel: p.method ? p.method.charAt(0).toUpperCase() + p.method.slice(1) : t('tx.cashFallback'),
         partyName: consumer?.name ?? p.consumer_id,
-        docLabel: p.receipt_no ? `Receipt # ${p.receipt_no}` : 'Receipt',
-        date: p.paid_date, description: billNo ? `Against Bill ${billNo}` : (p.note || 'Payment received'),
+        docLabel: p.receipt_no ? `${t('tx.receiptHashPrefix')} ${p.receipt_no}` : t('tx.receiptFallback'),
+        date: p.paid_date, description: billNo ? `${t('tx.againstBill')} ${billNo}` : (p.note || t('tx.paymentReceived')),
         amount: p.amount_pkr, badge: null, note: p.note, billId: p.bill_id, paymentId: p.id, receiptNo: p.receipt_no, createdAt: p.created_at,
         searchBlob: `${consumer?.name ?? ''} ${p.consumer_id} ${consumer?.mobile ?? ''} ${p.receipt_no ?? ''} ${p.method ?? ''} ${p.note ?? ''}`.toLowerCase(),
       })
@@ -181,8 +181,8 @@ export default function AllTransactionsPage() {
       if (v.voucher_type === 'security_deposit' && v.bill_id) continue
       const isSecurityDeposit = v.voucher_type === 'security_deposit'
       const docLabel = isSecurityDeposit
-        ? (v.receipt_no ? `Receipt # ${v.receipt_no}` : 'Receipt')
-        : (v.voucher_no ? `Voucher # ${v.voucher_no}` : 'Voucher')
+        ? (v.receipt_no ? `${t('tx.receiptHashPrefix')} ${v.receipt_no}` : t('tx.receiptFallback'))
+        : (v.voucher_no ? `${t('tx.voucherHash')} ${v.voucher_no}` : t('tx.voucherFallback'))
       const label = entryTypeLabel('voucher', v.voucher_type, isUrdu ? 'ur' : 'en')
       result.push({
         id: `voucher-${v.id}`, kind: 'voucher', voucherType: v.voucher_type, isRecurring: !!v.recurring_schedule_id,
@@ -200,12 +200,12 @@ export default function AllTransactionsPage() {
         id: `donation-${d.id}`, kind: 'donation', borderColor: 'border-violet-500', isRecurring: !!d.recurring_schedule_id,
         typeLabel: d.payment_method ? d.payment_method.charAt(0).toUpperCase() + d.payment_method.slice(1) : null,
         // Real name for staff; anonymity is enforced publicly by donors_public.
-        partyName: d.is_anonymous ? `${d.name} (anonymous publicly)` : d.name,
+        partyName: d.is_anonymous ? `${d.name} ${t('tx.anonymousPubliclySuffix')}` : d.name,
         // A confirmed donation gets a voucher number from confirm_donation() /
         // assign_donor_numbers(); showing it here is what makes the entry
         // traceable back to the paper receipt the donor was handed.
-        docLabel: d.voucher_no ? `Receipt # ${d.voucher_no}` : 'Donation',
-        date: d.date, description: d.notes || 'Donation received',
+        docLabel: d.voucher_no ? `${t('tx.receiptHashPrefix')} ${d.voucher_no}` : t('tx.donationFallback'),
+        date: d.date, description: d.notes || t('tx.donationReceived'),
         amount: d.amount_pkr, note: null, createdAt: d.created_at,
         badge: (() => { const b = donationBadge(d); return { textKey: b.key, tone: b.tone } })(),
         donationId: d.id, donationVoucherNo: d.voucher_no, donationVerified: d.is_verified, receiptNo: d.voucher_no,
@@ -231,8 +231,8 @@ export default function AllTransactionsPage() {
       result.push({
         id: `purchase-${p.id}`, kind: 'purchase', borderColor: 'border-amber-500',
         typeLabel: p.method.charAt(0).toUpperCase() + p.method.slice(1),
-        partyName: p.vendor || 'Purchase', docLabel: p.purchase_number ? `Purchase # ${p.purchase_number}` : 'Purchase Bill',
-        date: p.purchase_date, description: itemCount > 0 ? `${itemCount} item${itemCount > 1 ? 's' : ''} purchased${p.note ? ' — ' + p.note : ''}` : (p.note || 'Inventory purchase'),
+        partyName: p.vendor || t('tx.purchaseFallback'), docLabel: p.purchase_number ? `${t('tx.purchaseHash')} ${p.purchase_number}` : t('tx.purchaseBillFallback'),
+        date: p.purchase_date, description: itemCount > 0 ? `${itemCount} ${t('tx.itemsPurchasedSuffix')}${p.note ? ' — ' + p.note : ''}` : (p.note || t('tx.inventoryPurchase')),
         amount: purchaseTotalsById[p.id] ?? 0, badge: null, note: p.note, purchaseId: p.id, purchaseNumber: p.purchase_number,
         autoPosted: autoPostedIds.has(p.id), fullyApproved: fullyApprovedIds.has(p.id), createdAt: p.created_at,
         searchBlob: `${p.vendor ?? ''} ${p.method} ${p.note ?? ''}`.toLowerCase(),
@@ -309,7 +309,7 @@ export default function AllTransactionsPage() {
         : undefined
       setViewReceipt({
         kind: voucherReceiptKind[r.voucherType ?? ''] ?? 'manual',
-        receiptNo: r.receiptNo ?? r.docLabel.replace(/^(Voucher # |Receipt # )/, '') ?? r.voucherId.slice(0, 8).toUpperCase(),
+        receiptNo: r.receiptNo ?? r.docLabel.replace(/^\D+/, '') ?? r.voucherId.slice(0, 8).toUpperCase(),
         date: r.date, systemLabel: systemLabels[system], accountName: r.partyName,
         particular: r.description, amount: r.amount, balanceAfter: 0,
         lineItems,
@@ -356,7 +356,7 @@ export default function AllTransactionsPage() {
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="input-field !py-2 text-[14px]" />
           </div>
           <div>
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">To</label>
+            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('tx.to')}</label>
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="input-field !py-2 text-[14px]" />
           </div>
           <div>
@@ -401,7 +401,7 @@ export default function AllTransactionsPage() {
             <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">&nbsp;</label>
             <button
               onClick={() => setAutoPostedOnly(!autoPostedOnly)}
-              title="Vouchers/purchases that posted after 24 hours without every approver confirming"
+              title={t('tx.autoPostedTooltip')}
               className={`px-3 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all cursor-pointer border ${autoPostedOnly ? 'bg-amber-100 border-amber-400 text-amber-900' : 'border-dp-outline-variant text-dp-on-surface hover:bg-dp-surface-container-low'}`}
             >
               {t('tx.autoPostedOnly')}
@@ -413,13 +413,13 @@ export default function AllTransactionsPage() {
               <Search size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
               <input
                 value={search} onChange={(e) => setSearch(e.target.value)}
-                placeholder="Name, account ID, phone, receipt/voucher #, method..."
+                placeholder={t('tx.searchPlaceholder')}
                 className="input-field !py-2 !ps-9 text-[14px]"
               />
             </div>
           </div>
         </div>
-        <p className="font-sans text-[12px] text-dp-on-surface-variant">Showing {filteredRows.length} of {rows.length} transactions in this date range. Widen the date range or jump to a year for older activity — only the current month loads by default.</p>
+        <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('tx.showingCountNote').replace('{shown}', String(filteredRows.length)).replace('{total}', String(rows.length))}</p>
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
@@ -434,17 +434,17 @@ export default function AllTransactionsPage() {
                     {r.typeLabel && <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-tight">{r.typeLabel}</p>}
                     <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{r.partyName}</p>
                     {r.isRecurring && (
-                      <span className="inline-block mt-0.5 me-1 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700" title="Generated automatically by a recurring schedule, not entered by hand">
+                      <span className="inline-block mt-0.5 me-1 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700" title={t('tx.recurringTooltip')}>
                         {t('a.recurring')}
                       </span>
                     )}
                     {r.autoPosted && (
-                      <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800" title="Posted after 24 hours without every approver confirming">
+                      <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800" title={t('tx.autoPostedRowTooltip')}>
                         {t('a.autoPosted')}
                       </span>
                     )}
                     {r.fullyApproved && (
-                      <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-800" title="Confirmed by every configured approver">
+                      <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-800" title={t('tx.fullyApprovedTooltip')}>
                         {t('f.approved')}
                       </span>
                     )}
@@ -472,37 +472,37 @@ export default function AllTransactionsPage() {
                 {(r.billId || r.kind === 'payment' || r.kind === 'voucher' || r.kind === 'purchase' || r.kind === 'donation') && (
                   <div className="flex justify-end items-center gap-1 mt-2 pt-2 border-t border-dp-outline-variant/60">
                     {r.billId && (
-                      <Link href={`/admin/invoice/bill/${r.billId}`} title="View invoice" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><FileText size={15} /></Link>
+                      <Link href={`/admin/invoice/bill/${r.billId}`} title={t('tx.viewInvoiceTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><FileText size={15} /></Link>
                     )}
                     {(r.kind === 'payment' || r.kind === 'voucher' || r.kind === 'purchase' || r.kind === 'donation') && (
-                      <button onClick={() => openRowReceipt(r)} title="View receipt" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Eye size={15} /></button>
+                      <button onClick={() => openRowReceipt(r)} title={t('tx.viewReceiptTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Eye size={15} /></button>
                     )}
                     {!dateIsLocked(r.date, lockRule) && (
                       <>
                         {r.kind === 'bill' && r.billId && (
                           <>
-                            <Link href={`/admin/finance/${system}?action=generate_bill&bill=${r.billId}`} title="Edit bill" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
-                            <Link href={`/admin/finance/${system}?delete_bill=${r.billId}`} title="Delete bill" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></Link>
+                            <Link href={`/admin/finance/${system}?action=generate_bill&bill=${r.billId}`} title={t('tx.editBillTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
+                            <Link href={`/admin/finance/${system}?delete_bill=${r.billId}`} title={t('tx.deleteBillTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></Link>
                           </>
                         )}
                         {r.kind === 'payment' && r.paymentId && (
                           <>
-                            <Link href={`/admin/finance/${system}?edit_payment=${r.paymentId}`} title="Edit payment" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
-                            <Link href={`/admin/finance/${system}?delete_payment=${r.paymentId}`} title="Delete payment" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></Link>
+                            <Link href={`/admin/finance/${system}?edit_payment=${r.paymentId}`} title={t('tx.editPaymentTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
+                            <Link href={`/admin/finance/${system}?delete_payment=${r.paymentId}`} title={t('tx.deletePaymentTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></Link>
                           </>
                         )}
                         {r.kind === 'voucher' && r.voucherId && (
                           <>
                             {r.hasLineItems ? (
-                              <span title="This voucher has itemised lines — edit isn't available here; correct it with a reversal instead" className="p-1.5 text-dp-on-surface-variant/40 cursor-not-allowed"><Pencil size={15} /></span>
+                              <span title={t('tx.hasLineItemsTooltip')} className="p-1.5 text-dp-on-surface-variant/40 cursor-not-allowed"><Pencil size={15} /></span>
                             ) : (
-                              <Link href={`/admin/finance/${system}?edit_voucher=${r.voucherId}`} title="Edit voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
+                              <Link href={`/admin/finance/${system}?edit_voucher=${r.voucherId}`} title={t('tx.editVoucherTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
                             )}
-                            <Link href={`/admin/finance/${system}?delete_voucher=${r.voucherId}`} title="Delete voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></Link>
+                            <Link href={`/admin/finance/${system}?delete_voucher=${r.voucherId}`} title={t('tx.deleteVoucherTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></Link>
                           </>
                         )}
                         {r.kind === 'donation' && r.donationId && (
-                          <Link href={`/admin/donors?edit=${r.donationId}`} title={r.donationVerified ? 'Edit donation' : 'Review & confirm'} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
+                          <Link href={`/admin/donors?edit=${r.donationId}`} title={r.donationVerified ? t('tx.editDonationTitle') : t('tx.reviewConfirmTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
                         )}
                       </>
                     )}

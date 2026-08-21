@@ -47,13 +47,13 @@ export default function AdminMembersPage() {
   const adminUserName = (id: string | null) => adminUsers.find((a) => a.id === id)?.full_name ?? null
 
   const save = async () => {
-    if (!form.name.trim() || !form.position.trim()) { toast.error('Name and position required'); return }
+    if (!form.name.trim() || !form.position.trim()) { toast.error(t('mb.nameAndPositionRequired')); return }
     const payload = {
       ...form, phone: form.phone || null, bio: form.bio || null, bio_ur: form.bio_ur || null, name_ur: form.name_ur || null, position_ur: form.position_ur || null,
       admin_user_id: form.admin_user_id || null, proxy_admin_user_id: form.proxy_admin_user_id || null, photo_url: form.photo_url || null,
     }
-    if (editing) { const { error } = await supabase.from('committee_members').update(payload).eq('id', editing); if (error) { toast.error(friendlyError(error)); return }; toast.success('Updated') }
-    else { const { error } = await supabase.from('committee_members').insert(payload); if (error) { toast.error(friendlyError(error)); return }; toast.success('Added') }
+    if (editing) { const { error } = await supabase.from('committee_members').update(payload).eq('id', editing); if (error) { toast.error(friendlyError(error)); return }; toast.success(t('mb.updated')) }
+    else { const { error } = await supabase.from('committee_members').insert(payload); if (error) { toast.error(friendlyError(error)); return }; toast.success(t('mb.added')) }
     setShowForm(false); setEditing(null); setForm(empty); load()
   }
   const edit = (m: Member) => {
@@ -65,7 +65,7 @@ export default function AdminMembersPage() {
     })
     setEditing(m.id); setShowForm(true)
   }
-  const remove = async (id: string) => { if (!confirm('Remove member?')) return; await supabase.from('committee_members').delete().eq('id', id); toast.success('Removed'); load() }
+  const remove = async (id: string) => { if (!confirm(t('mb.confirmRemove'))) return; await supabase.from('committee_members').delete().eq('id', id); toast.success(t('mb.removed')); load() }
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
@@ -91,15 +91,15 @@ export default function AdminMembersPage() {
                 {m.phone && <p className="font-sans text-[12px] text-dp-on-surface-variant">{m.phone}</p>}
                 <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">
                   {m.admin_user_id
-                    ? `Login: ${adminUserName(m.admin_user_id) ?? 'Unknown'}`
+                    ? `${t('mb.loginPrefix')} ${adminUserName(m.admin_user_id) ?? t('mb.unknown')}`
                     : m.proxy_admin_user_id
-                      ? `Proxy: ${adminUserName(m.proxy_admin_user_id) ?? 'Unknown'}`
-                      : 'No software login or proxy set'}
+                      ? `${t('mb.proxyPrefix')} ${adminUserName(m.proxy_admin_user_id) ?? t('mb.unknown')}`
+                      : t('mb.noLoginOrProxy')}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <span className={`text-[10px] font-bold font-sans px-2 py-0.5 rounded-full ${m.is_active ? 'bg-dp-secondary-container text-dp-on-secondary-container' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>{m.is_active ? 'Active' : 'Inactive'}</span>
+              <span className={`text-[10px] font-bold font-sans px-2 py-0.5 rounded-full ${m.is_active ? 'bg-dp-secondary-container text-dp-on-secondary-container' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>{m.is_active ? t('g.active') : t('g.inactive')}</span>
               <span className="text-[12px] font-sans text-dp-on-surface-variant">#{m.display_order}</span>
               <button onClick={() => edit(m)} className="p-2 text-dp-primary hover:bg-dp-primary/10 rounded-lg cursor-pointer"><Pencil size={16} /></button>
               <button onClick={() => remove(m.id)} className="p-2 text-dp-error hover:bg-dp-error/10 rounded-lg cursor-pointer"><Trash2 size={16} /></button>
@@ -110,9 +110,9 @@ export default function AdminMembersPage() {
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">{editing ? 'Edit' : 'Add'} Member</h2><button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button></div>
+            <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">{editing ? t('mb.editMemberTitle') : t('mb.addMemberTitle')}</h2><button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
-              <ImageUpload bucket="images" label="Photo (optional)" currentUrl={form.photo_url} onUpload={(url) => setForm({ ...form, photo_url: url })} />
+              <ImageUpload bucket="images" label={t('mb.photoOptional')} currentUrl={form.photo_url} onUpload={(url) => setForm({ ...form, photo_url: url })} />
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.nameEn')}</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" /></div>
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.nameUr')}</label><input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
@@ -122,7 +122,7 @@ export default function AdminMembersPage() {
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.positionUr')}</label><input value={form.position_ur} onChange={(e) => setForm({ ...form, position_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               </div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.phone')}</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input-field" /></div>
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Bio</label><textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} rows={3} className="input-field resize-none" /></div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('mb.bioLabel')}</label><textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} rows={3} className="input-field resize-none" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.bioUr')}</label><textarea value={form.bio_ur} onChange={(e) => setForm({ ...form, bio_ur: e.target.value })} rows={3} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('g.displayOrder')}</label><input type="number" value={form.display_order || ''} onChange={(e) => setForm({ ...form, display_order: +e.target.value })} className="input-field" /></div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('z.activeMember')}</span></label>
@@ -135,7 +135,7 @@ export default function AdminMembersPage() {
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer mb-3">
                   <input type="checkbox" checked={form.handles_non_whatsapp_notice} onChange={(e) => setForm({ ...form, handles_non_whatsapp_notice: e.target.checked })} className="accent-dp-secondary" />
-                  <span className="font-sans text-[14px]">Personally informs members without WhatsApp (named in the meeting notice)</span>
+                  <span className="font-sans text-[14px]">{t('mb.personallyInformsNote')}</span>
                 </label>
                 <div className="mb-3">
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.softwareLogin')}</label>
@@ -146,7 +146,7 @@ export default function AdminMembersPage() {
                 </div>
                 {!form.uses_smartphone && (
                   <div>
-                    <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">Standing Proxy (receives reminders and marks tasks done on their behalf)</label>
+                    <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('mb.standingProxyLabel')}</label>
                     <select value={form.proxy_admin_user_id} onChange={(e) => setForm({ ...form, proxy_admin_user_id: e.target.value })} className="input-field">
                       <option value="">{t('z.noProxy')}</option>
                       {adminUsers.map((a) => <option key={a.id} value={a.id}>{a.full_name}</option>)}
@@ -154,7 +154,7 @@ export default function AdminMembersPage() {
                   </div>
                 )}
               </div>
-              <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{editing ? 'Update' : 'Add'} Member</button>
+              <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{editing ? t('mb.updateMemberBtn') : t('mb.addMemberBtn')}</button>
             </div>
           </div>
         </div>
