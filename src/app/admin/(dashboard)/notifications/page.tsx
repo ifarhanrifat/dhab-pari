@@ -22,24 +22,28 @@ interface Appeal {
   contact_number: string | null; created_at: string; expires_at: string | null
 }
 
-const AUDIENCES: [string, string][] = [
-  ['everyone', 'Everyone'],
-  ['villagers', 'Villagers only'],
-  ['consumers', 'Water consumers'],
-  ['donors', 'Donors only'],
-  ['overseas', 'Overseas only'],
+// Second element of each tuple is an i18n key (module scope has no
+// useLocale()) — resolved via t() at render time. SEVERITIES is
+// deliberately left bilingual (shown as-is regardless of admin locale) —
+// the severity word matters on the live public page too.
+const AUDIENCE_KEYS: [string, string][] = [
+  ['everyone', 'al.audEveryone'],
+  ['villagers', 'al.audVillagers'],
+  ['consumers', 'al.audConsumers'],
+  ['donors', 'al.audDonors'],
+  ['overseas', 'al.audOverseas'],
 ]
 const SEVERITIES: [string, string][] = [
   ['emergency', 'Emergency  ہنگامی'],
   ['important', 'Important announcement  اہم اعلان'],
   ['appeal', 'Appeal  اپیل'],
 ]
-const KINDS: [string, string][] = [
-  ['medical', 'Medical emergency'],
-  ['project', 'Project'],
-  ['maintenance', 'Maintenance / running cost'],
-  ['blood', 'Blood'],
-  ['other', 'Other'],
+const KIND_KEYS: [string, string][] = [
+  ['medical', 'al.kindMedical'],
+  ['project', 'al.kindProject'],
+  ['maintenance', 'al.kindMaintenance'],
+  ['blood', 'al.kindBlood'],
+  ['other', 'al.kindOther'],
 ]
 
 export default function AdminNotificationsPage() {
@@ -93,7 +97,7 @@ export default function AdminNotificationsPage() {
   }, [aAudience, aCountries, supabase])
 
   const postAppeal = async () => {
-    if (!aBodyUr.trim() || !aBodyEn.trim()) { toast.error('An appeal needs wording in both Urdu and English'); return }
+    if (!aBodyUr.trim() || !aBodyEn.trim()) { toast.error(t('al.needsBothLangs')); return }
     setPosting(true)
     const { error } = await supabase.rpc('create_appeal', {
       p_kind: aKind,
@@ -115,8 +119,8 @@ export default function AdminNotificationsPage() {
     setPosting(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(aStarts && new Date(aStarts) > new Date()
-      ? `Scheduled for ${new Date(aStarts).toLocaleString('en-GB')}`
-      : aNotify ? `Appeal posted and sent to ${reach ?? 0} portal user(s)` : 'Appeal posted')
+      ? `${t('al.scheduledFor')} ${new Date(aStarts).toLocaleString('en-GB')}`
+      : aNotify ? `${t('al.postedAndSentTo')} ${reach ?? 0} ${t('al.portalUsersSuffix')}` : t('al.appealPostedOnly'))
     setATitleUr(''); setABodyUr(''); setABodyEn(''); setAContact(''); setAExpires(''); setAStarts('')
     loadAppeals()
   }
@@ -124,23 +128,23 @@ export default function AdminNotificationsPage() {
   const reopenAppeal = async (id: string) => {
     const { error } = await supabase.rpc('reopen_appeal', { p_appeal_id: id, p_expires_at: null })
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Showing again')
+    toast.success(t('al.showingAgainToast'))
     loadAppeals()
   }
 
   const closeAppeal = async (id: string) => {
     const { error } = await supabase.rpc('close_appeal', { p_appeal_id: id, p_reason: 'closed by staff' })
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Appeal closed — the red banner and its ticker are gone')
+    toast.success(t('al.closedBannerGone'))
     loadAppeals()
   }
 
   const sendAlert = async () => {
-    if (!message.trim()) { toast.error('Message required'); return }
+    if (!message.trim()) { toast.error(t('al.messageRequired')); return }
     setSending(true)
     const { error } = await supabase.from('notifications_log').insert({ type: 'whatsapp', recipient: audience, message: message.trim(), status: 'pending' })
     if (error) { toast.error(friendlyError(error)); setSending(false); return }
-    toast.success('WhatsApp alert queued — integration pending')
+    toast.success(t('al.whatsappQueued'))
     setMessage('')
     setSending(false)
     load()
@@ -161,9 +165,7 @@ export default function AdminNotificationsPage() {
           <h2 className="font-sans text-[20px] font-semibold leading-[28px] text-dp-primary">{t('al.postAppeal')}</h2>
         </div>
         <p className="font-sans text-[13px] text-dp-on-surface-variant mb-5">
-          Shows in red at the top of every matching portal until you close it, and on the public
-          website if you make it public. Use it for a medical emergency, a project, running costs —
-          anything the village needs to hear about now.
+          {t('al.postAppealBlurb')}
         </p>
 
         {/* Sets the word shown in front of the scrolling text, and the order
@@ -184,7 +186,7 @@ export default function AdminNotificationsPage() {
           <div>
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('al.kind')}</label>
             <select value={aKind} onChange={(e) => setAKind(e.target.value)} className="input-field">
-              {KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              {KIND_KEYS.map(([v, l]) => <option key={v} value={v}>{t(l)}</option>)}
             </select>
           </div>
           <div>
@@ -202,26 +204,26 @@ export default function AdminNotificationsPage() {
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('al.appealEn')}</label>
           <textarea value={aBodyEn} onChange={(e) => setABodyEn(e.target.value)} rows={2}
             placeholder={`A family in ${SITE.name} needs urgent medical help...`} className="input-field resize-none" />
-          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Both are shown — Urdu large, English underneath. Never put a private person&apos;s name in a public appeal.</p>
+          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('al.bothShownNote')}</p>
         </div>
 
         <div className="mb-4">
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.whoShouldSee')}</label>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            {AUDIENCES.map(([v, l]) => (
+            {AUDIENCE_KEYS.map(([v, l]) => (
               <button key={v} type="button" onClick={() => setAAudience(v)}
                 className={`py-2 rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer transition-all ${aAudience === v ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-secondary'}`}>
-                {l}
+                {t(l)}
               </button>
             ))}
           </div>
           {aAudience === 'overseas' && (
             <input value={aCountries} onChange={(e) => setACountries(e.target.value)}
-              placeholder="UK, UAE, Saudi Arabia — leave blank for every country" className="input-field mt-2" />
+              placeholder={t('al.countriesPlaceholder')} className="input-field mt-2" />
           )}
           {reach !== null && (
             <p className="font-sans text-[12.5px] text-dp-secondary font-semibold mt-2">
-              Reaches {reach} registered portal user{reach === 1 ? '' : 's'}.
+              {t('al.reachesPrefix')} {reach} {t('al.registeredPortalUsersSuffix')}
             </p>
           )}
         </div>
@@ -234,7 +236,7 @@ export default function AdminNotificationsPage() {
           <div>
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('al.startShowing')}</label>
             <input type="datetime-local" value={aStarts} onChange={(e) => setAStarts(e.target.value)} className="input-field" />
-            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Leave blank to start now. Write Friday&apos;s notice on Wednesday and it appears on its own.</p>
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('al.startBlankNote')}</p>
           </div>
           <div>
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('al.stopShowing')}</label>
@@ -246,18 +248,18 @@ export default function AdminNotificationsPage() {
         <label className="flex items-start gap-2 cursor-pointer mb-2">
           <input type="checkbox" checked={aPublic} onChange={(e) => setAPublic(e.target.checked)} className="accent-dp-secondary mt-0.5" />
           <span className="font-sans text-[13.5px]">{t('g.alsoPublic')}
-            <span className="block text-[11.5px] text-dp-on-surface-variant">Adds it to the homepage ticker as well as the red bar. A targeted appeal usually should not be public.</span>
+            <span className="block text-[11.5px] text-dp-on-surface-variant">{t('al.publicNote')}</span>
           </span>
         </label>
         <label className="flex items-start gap-2 cursor-pointer mb-5">
           <input type="checkbox" checked={aNotify} onChange={(e) => setANotify(e.target.checked)} className="accent-dp-secondary mt-0.5" />
           <span className="font-sans text-[13.5px]">{t('al.alsoNotify')}
-            <span className="block text-[11.5px] text-dp-on-surface-variant">The red bar only reaches someone who opens the portal. This pushes it to them.</span>
+            <span className="block text-[11.5px] text-dp-on-surface-variant">{t('al.notifyNote')}</span>
           </span>
         </label>
 
         <button onClick={postAppeal} disabled={posting} className="flex items-center gap-2 px-6 py-3 bg-dp-error text-white rounded-lg font-sans font-semibold hover:opacity-90 transition-all disabled:opacity-50 cursor-pointer">
-          <Megaphone size={16} /> {posting ? 'Posting...' : 'Post Appeal'}
+          <Megaphone size={16} /> {posting ? t('al.posting') : t('al.postAppealBtn')}
         </button>
       </div>
 
@@ -266,7 +268,7 @@ export default function AdminNotificationsPage() {
       {appeals.length > 0 && (
         <div className="bg-white border-2 border-dp-error rounded-lg overflow-hidden mb-8">
           <div className="px-6 py-4 border-b border-dp-outline-variant bg-dp-error/5">
-            <h3 className="font-sans text-[18px] font-semibold text-dp-error">Showing now ({appeals.length})</h3>
+            <h3 className="font-sans text-[18px] font-semibold text-dp-error">{t('al.showingNowPrefix')} ({appeals.length})</h3>
           </div>
           <div className="divide-y divide-dp-outline-variant">
             {appeals.map((a) => (
@@ -274,12 +276,12 @@ export default function AdminNotificationsPage() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5 mb-1">
                     <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-dp-error text-white font-sans">{a.severity}</span>
-                    <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-dp-error/10 text-dp-error font-sans">{a.kind}</span>
+                    <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-dp-error/10 text-dp-error font-sans">{t(KIND_KEYS.find(([v]) => v === a.kind)?.[1] ?? a.kind, a.kind)}</span>
                     <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-dp-surface-container text-dp-on-surface-variant font-sans">
-                      {AUDIENCES.find(([v]) => v === a.audience)?.[1] ?? a.audience}
+                      {t(AUDIENCE_KEYS.find(([v]) => v === a.audience)?.[1] ?? a.audience, a.audience)}
                       {a.audience_countries?.length > 0 ? `: ${a.audience_countries.join(', ')}` : ''}
                     </span>
-                    {a.is_public && <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-dp-secondary-container text-dp-on-secondary-container font-sans">public</span>}
+                    {a.is_public && <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-dp-secondary-container text-dp-on-secondary-container font-sans">{t('al.publicBadge')}</span>}
                   </div>
                   <p dir="rtl" className="font-urdu text-[14px] text-dp-on-surface leading-relaxed">{a.body_ur}</p>
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">{a.body_en}</p>
@@ -301,8 +303,8 @@ export default function AdminNotificationsPage() {
       <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-8">
         <button onClick={() => setShowHistory((v) => !v)}
           className="w-full px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-dp-surface-container-low transition-colors">
-          <h3 className="font-sans text-[18px] font-semibold text-dp-primary">Appeal history ({history.length})</h3>
-          <span className="font-sans text-[13px] text-dp-secondary font-semibold">{showHistory ? 'Hide' : 'Show'}</span>
+          <h3 className="font-sans text-[18px] font-semibold text-dp-primary">{t('al.appealHistoryPrefix')} ({history.length})</h3>
+          <span className="font-sans text-[13px] text-dp-secondary font-semibold">{showHistory ? t('al.hide') : t('al.show')}</span>
         </button>
 
         {showHistory && (
@@ -317,19 +319,19 @@ export default function AdminNotificationsPage() {
                         scheduled ? 'bg-amber-100 text-amber-800'
                         : h.status === 'active' ? 'bg-dp-error text-white'
                         : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>
-                        {scheduled ? 'scheduled' : h.status === 'active' ? 'showing' : 'closed'}
+                        {scheduled ? t('al.scheduledBadge') : h.status === 'active' ? t('al.showingBadge') : t('al.closedBadge')}
                       </span>
                       <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-dp-error/10 text-dp-error font-sans">{h.severity}</span>
                       <span className="text-[11px] px-2 py-0.5 rounded-full bg-dp-surface-container text-dp-on-surface-variant font-sans">
-                        {AUDIENCES.find(([v]) => v === h.audience)?.[1] ?? h.audience}
+                        {t(AUDIENCE_KEYS.find(([v]) => v === h.audience)?.[1] ?? h.audience, h.audience)}
                       </span>
                     </div>
                     <p dir="rtl" className="font-urdu text-[13.5px] text-dp-on-surface leading-relaxed">{h.body_ur}</p>
                     <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">
                       {scheduled
-                        ? `Starts ${new Date(h.starts_at).toLocaleString('en-GB')}`
-                        : `Posted ${new Date(h.created_at).toLocaleString('en-GB')}${h.created_by ? ` by ${h.created_by}` : ''}`}
-                      {h.closed_at && ` · closed ${new Date(h.closed_at).toLocaleString('en-GB')}${h.closed_by ? ` by ${h.closed_by}` : ''}`}
+                        ? `${t('al.startsPrefix')} ${new Date(h.starts_at).toLocaleString('en-GB')}`
+                        : `${t('al.postedPrefix')} ${new Date(h.created_at).toLocaleString('en-GB')}${h.created_by ? ` ${t('al.byPrefix')} ${h.created_by}` : ''}`}
+                      {h.closed_at && ` ${t('al.closedPrefix')} ${new Date(h.closed_at).toLocaleString('en-GB')}${h.closed_by ? ` ${t('al.byPrefix')} ${h.closed_by}` : ''}`}
                       {h.close_reason && ` — ${h.close_reason}`}
                     </p>
                   </div>
@@ -372,7 +374,7 @@ export default function AdminNotificationsPage() {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={4}
-              placeholder="Type your message here... (will be sent via WhatsApp)"
+              placeholder={t('al.messagePlaceholder')}
               className="input-field resize-none"
             />
           </div>
@@ -383,11 +385,11 @@ export default function AdminNotificationsPage() {
             className="flex items-center gap-2 px-6 py-3 bg-[#25D366] text-white rounded-lg font-sans font-semibold hover:bg-[#128C7E] transition-all disabled:opacity-50 cursor-pointer"
           >
             <Send size={16} />
-            {sending ? 'Sending...' : 'Send WhatsApp Alert'}
+            {sending ? t('al.sending') : t('al.sendWhatsappAlert')}
           </button>
 
           <p className="text-[12px] font-sans text-dp-on-surface-variant">
-            Note: WhatsApp API integration is a placeholder. Messages are logged for future integration.
+            {t('al.integrationNote')}
           </p>
         </div>
       </div>
