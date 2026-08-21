@@ -38,20 +38,23 @@ const STATUS_STYLE: Record<string, string> = {
   completed: 'bg-dp-surface-container-high text-dp-on-surface-variant',
 }
 // Same wording the volunteer saw on the form, so staff and resident are reading
-// the same labels rather than raw column values.
-const HELP_LABEL: Record<string, string> = {
-  physical: 'Physical work',
-  skilled: 'Skilled trade',
-  professional: 'Professional',
-  transport: 'Has vehicle',
-  purchasing: 'Purchasing / errands',
-  financial: 'Financial',
-  moral: 'Moral support',
+// the same labels rather than raw column values. Values are i18n keys (module
+// scope has no useLocale()) — resolved via t() at render time.
+const HELP_LABEL_KEY: Record<string, string> = {
+  physical: 'vo.helpPhysical',
+  skilled: 'vo.helpSkilled',
+  professional: 'vo.helpProfessional',
+  transport: 'vo.helpTransport',
+  purchasing: 'vo.helpPurchasing',
+  financial: 'vo.helpFinancial',
+  moral: 'vo.helpMoral',
 }
-const AVAILABILITY_LABEL: Record<string, string> = {
-  anytime: 'Any time', weekdays: 'Weekdays', weekends: 'Weekends',
-  evenings: 'Evenings only', emergency_only: 'Emergencies only',
+const AVAILABILITY_LABEL_KEY: Record<string, string> = {
+  anytime: 'vo.availAnytime', weekdays: 'vo.availWeekdays', weekends: 'vo.availWeekends',
+  evenings: 'vo.availEveningsOnly', emergency_only: 'vo.availEmergencyOnly',
 }
+const STATUS_LABEL_KEY: Record<string, string> = { offered: 'vo.statusOffered', assigned: 'vo.statusAssigned', completed: 'vo.statusCompleted' }
+const TASK_LABEL_KEY: Record<string, string> = { pending: 'vo.taskPending', in_progress: 'vo.taskInProgress', done: 'vo.taskDone', cancelled: 'vo.taskCancelled' }
 
 const TASK_STYLE: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-800',
@@ -99,12 +102,12 @@ export default function AdminVolunteersPage() {
 
   const setStatus = async (v: Volunteer, status: Volunteer['status']) => {
     if (status === 'assigned' && !v.project_id) {
-      toast.error('Give this volunteer a project first — acceptance is per project')
+      toast.error(t('vo.giveProjectFirst'))
       return
     }
     const { error } = await supabase.from('volunteers').update({ status }).eq('id', v.id)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(status === 'assigned' ? 'Accepted — they have been notified' : `Marked ${status}`)
+    toast.success(status === 'assigned' ? t('vo.acceptedNotified') : `${t('vo.markedPrefix')} ${t(STATUS_LABEL_KEY[status] ?? status)}`)
     load()
   }
 
@@ -116,7 +119,7 @@ export default function AdminVolunteersPage() {
 
   const saveTask = async () => {
     if (!taskFor || !taskFor.project_id) return
-    if (!taskForm.title.trim()) { toast.error('Give the task a title'); return }
+    if (!taskForm.title.trim()) { toast.error(t('vo.giveTaskTitle')); return }
     setSavingTask(true)
     const { error } = await supabase.from('project_tasks').insert({
       project_id: taskFor.project_id,
@@ -128,7 +131,7 @@ export default function AdminVolunteersPage() {
     })
     setSavingTask(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Task sent — they have been notified')
+    toast.success(t('vo.taskSentNotified'))
     setTaskFor(null)
     setTaskForm({ title: '', title_ur: '', detail: '', due_date: '' })
     load()
@@ -142,13 +145,13 @@ export default function AdminVolunteersPage() {
     const { data, error } = await supabase.rpc('complete_project_volunteers', { p_project_id: closeProjectId })
     setCloseProjectId(null)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(`${data ?? 0} volunteer(s) thanked and closed out`)
+    toast.success(`${data ?? 0} ${t('vo.closedOutSuffix')}`)
     load()
   }
 
   const whatsapp = (v: Volunteer) => {
     const intl = normalizePakPhone(v.whatsapp_number || v.mobile || '')
-    if (!intl) { toast.error('No usable WhatsApp number on file'); return }
+    if (!intl) { toast.error(t('vo.noWhatsapp')); return }
     window.open(`https://wa.me/${intl}`, '_blank')
   }
 
@@ -158,7 +161,7 @@ export default function AdminVolunteersPage() {
       if (statusFilter !== 'all' && v.status !== statusFilter) return false
       if (!q) return true
       return [v.full_name ?? '', v.mobile ?? '', v.message ?? '', v.skills ?? '',
-        ...(v.help_types ?? []).map((h) => HELP_LABEL[h] ?? h),
+        ...(v.help_types ?? []).map((h) => t(HELP_LABEL_KEY[h] ?? h, h)),
         projectTitle(v.project_id) ?? ''].join(' ').toLowerCase().includes(q)
     })
   }, [rows, search, statusFilter, projects])
@@ -169,7 +172,7 @@ export default function AdminVolunteersPage() {
   if (!access.canDonorsProjects) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
-        <p className="font-sans text-[14px] text-dp-on-surface-variant">Volunteers belong to the Donors &amp; Projects system — your account doesn&apos;t have access to it.</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('vo.noAccessMessage')}</p>
       </div>
     )
   }
@@ -184,7 +187,7 @@ export default function AdminVolunteersPage() {
             <HandHeart size={26} /> {t('z.volunteers')}
           </h1>
           {offeredCount > 0 && (
-            <p className="font-sans text-[13px] text-amber-700 mt-1">{offeredCount} offer(s) waiting for a decision</p>
+            <p className="font-sans text-[13px] text-amber-700 mt-1">{offeredCount} {t('vo.offeredWaitingSuffix')}</p>
           )}
         </div>
         <select
@@ -200,7 +203,7 @@ export default function AdminVolunteersPage() {
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="relative flex-1 min-w-[220px]">
           <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, phone, project or message..." className="input-field !ps-9" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('vo.searchPlaceholder')} className="input-field !ps-9" />
         </div>
         {(['all', 'offered', 'assigned', 'completed'] as const).map((f) => (
           <button
@@ -210,7 +213,7 @@ export default function AdminVolunteersPage() {
               statusFilter === f ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-primary'
             }`}
           >
-            {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+            {f === 'all' ? t('vo.filterAll') : t(STATUS_LABEL_KEY[f] ?? f)}
           </button>
         ))}
       </div>
@@ -218,7 +221,7 @@ export default function AdminVolunteersPage() {
       {loading && <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}
       {!loading && visible.length === 0 && (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
-          <p className="font-sans text-[14px] text-dp-on-surface-variant">{search || statusFilter !== 'all' ? 'No volunteers match that filter.' : 'Nobody has signed up to volunteer yet.'}</p>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant">{search || statusFilter !== 'all' ? t('vo.noMatchFilter') : t('vo.nobodySignedUp')}</p>
         </div>
       )}
 
@@ -227,23 +230,23 @@ export default function AdminVolunteersPage() {
           <div key={v.id} className="bg-white rounded-lg border border-dp-outline-variant p-4">
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div className="min-w-0">
-                <p className="font-sans text-[15px] font-bold text-dp-on-surface">{v.full_name ?? 'Unnamed'}</p>
-                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{v.mobile ?? 'No number'} · offered {new Date(v.created_at).toLocaleDateString('en-GB')}</p>
+                <p className="font-sans text-[15px] font-bold text-dp-on-surface">{v.full_name ?? t('vo.unnamed')}</p>
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{v.mobile ?? t('vo.noNumber')} · {t('vo.offeredPrefix')} {new Date(v.created_at).toLocaleDateString('en-GB')}</p>
                 {v.skills && <p className="font-sans text-[13px] text-dp-on-surface mt-1.5"><span className="text-dp-on-surface-variant">{t('z.skills')}</span> <strong>{v.skills}</strong></p>}
                 {v.message && <p className="font-sans text-[13.5px] text-dp-on-surface mt-1">{v.message}</p>}
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {(v.help_types ?? []).map((h) => (
-                    <span key={h} className="text-[11px] font-semibold px-2 py-0.5 rounded-full font-sans bg-dp-secondary-container text-dp-on-secondary-container">{HELP_LABEL[h] ?? h}</span>
+                    <span key={h} className="text-[11px] font-semibold px-2 py-0.5 rounded-full font-sans bg-dp-secondary-container text-dp-on-secondary-container">{t(HELP_LABEL_KEY[h] ?? h, h)}</span>
                   ))}
                   {v.availability && (
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full font-sans bg-dp-surface-container-high text-dp-on-surface-variant">{AVAILABILITY_LABEL[v.availability] ?? v.availability}</span>
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full font-sans bg-dp-surface-container-high text-dp-on-surface-variant">{t(AVAILABILITY_LABEL_KEY[v.availability] ?? v.availability, v.availability)}</span>
                   )}
                   {v.can_travel && (
                     <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full font-sans bg-blue-100 text-blue-700">{t('z.canTravel')}</span>
                   )}
                 </div>
               </div>
-              <span className={`text-[11px] font-bold uppercase px-2.5 py-1 rounded-full font-sans shrink-0 ${STATUS_STYLE[v.status]}`}>{v.status}</span>
+              <span className={`text-[11px] font-bold uppercase px-2.5 py-1 rounded-full font-sans shrink-0 ${STATUS_STYLE[v.status]}`}>{t(STATUS_LABEL_KEY[v.status] ?? v.status)}</span>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-dp-outline-variant/60">
@@ -271,13 +274,13 @@ export default function AdminVolunteersPage() {
 
             {tasksFor(v).length > 0 && (
               <div className="mt-3 pt-3 border-t border-dp-outline-variant/60 space-y-1.5">
-                {tasksFor(v).map((t) => (
-                  <div key={t.id} className="flex items-center justify-between gap-3">
+                {tasksFor(v).map((tk) => (
+                  <div key={tk.id} className="flex items-center justify-between gap-3">
                     <p className="font-sans text-[13px] text-dp-on-surface truncate">
-                      {t.title}
-                      {t.due_date && <span className="text-dp-on-surface-variant"> · due {new Date(t.due_date).toLocaleDateString('en-GB')}</span>}
+                      {tk.title}
+                      {tk.due_date && <span className="text-dp-on-surface-variant"> · {t('vo.duePrefix')} {new Date(tk.due_date).toLocaleDateString('en-GB')}</span>}
                     </p>
-                    <span className={`text-[10.5px] font-bold uppercase px-2 py-0.5 rounded-full font-sans shrink-0 ${TASK_STYLE[t.status]}`}>{t.status.replace('_', ' ')}</span>
+                    <span className={`text-[10.5px] font-bold uppercase px-2 py-0.5 rounded-full font-sans shrink-0 ${TASK_STYLE[tk.status]}`}>{t(TASK_LABEL_KEY[tk.status] ?? tk.status)}</span>
                   </div>
                 ))}
               </div>
@@ -299,7 +302,7 @@ export default function AdminVolunteersPage() {
             <div className="space-y-3">
               <div>
                 <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('z.whatNeedsDoing')}</label>
-                <input value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} placeholder="e.g. Collect pipe fittings from the market" className="input-field !py-2.5 text-[15px]" />
+                <input value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} placeholder={t('vo.taskPlaceholder')} className="input-field !py-2.5 text-[15px]" />
               </div>
               <div>
                 <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('z.inUrduOptional')}</label>
@@ -316,7 +319,7 @@ export default function AdminVolunteersPage() {
             </div>
             <div className="flex gap-2 mt-5">
               <button onClick={() => setTaskFor(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
-              <button disabled={savingTask} onClick={saveTask} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">{savingTask ? 'Sending...' : 'Send task'}</button>
+              <button disabled={savingTask} onClick={saveTask} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">{savingTask ? t('vo.sending') : t('vo.sendTask')}</button>
             </div>
           </div>
         </div>
@@ -324,9 +327,9 @@ export default function AdminVolunteersPage() {
 
       <ConfirmDialog
         open={!!closeProjectId}
-        title="Close out this project's volunteers"
-        message={`Everyone still assigned to ${projectTitle(closeProjectId) ?? 'this project'} will be marked completed and thanked on the public page, and any task still open against it will be cancelled.`}
-        confirmLabel="Close out"
+        title={t('vo.closeOutTitle')}
+        message={t('vo.closeOutMessage').replace('{project}', projectTitle(closeProjectId) ?? t('vo.thisProject'))}
+        confirmLabel={t('vo.closeOutBtn')}
         onConfirm={closeOutProject}
         onCancel={() => setCloseProjectId(null)}
       />

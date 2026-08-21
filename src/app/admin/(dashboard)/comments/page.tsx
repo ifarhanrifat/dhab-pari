@@ -37,7 +37,7 @@ export default function AdminCommentsPage() {
   const setHidden = async (id: string, hidden: boolean) => {
     const { error } = await supabase.rpc('set_project_comment_hidden', { p_comment_id: id, p_hidden: hidden })
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(hidden ? 'Comment hidden' : 'Comment restored')
+    toast.success(hidden ? t('cm.hidden') : t('cm.restored'))
     load()
   }
 
@@ -45,7 +45,7 @@ export default function AdminCommentsPage() {
   if (!access.canDonorsProjects) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
-        <p className="font-sans text-[14px] text-dp-on-surface-variant">Comments belongs to the Donors &amp; Projects system — your account doesn&apos;t have access to it.</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('cm.noAccessMessage')}</p>
       </div>
     )
   }
@@ -71,7 +71,7 @@ export default function AdminCommentsPage() {
           visible.map((c) => (
             <div key={c.id} className={`flex items-start justify-between gap-4 px-5 py-4 border-b border-dp-outline-variant last:border-b-0 ${c.is_hidden ? 'bg-dp-surface-container-low/60' : ''}`}>
               <div className="flex-1 min-w-0">
-                <p className="font-sans text-[12px] font-semibold text-dp-secondary">{c.portal_users?.username ?? 'Unknown'} on {c.projects?.title ?? 'a project'}</p>
+                <p className="font-sans text-[12px] font-semibold text-dp-secondary">{c.portal_users?.username ?? t('cm.unknown')} {t('cm.onPrefix')} {c.projects?.title ?? t('cm.aProject')}</p>
                 <p className="font-sans text-[14px] text-dp-on-surface mt-1">{c.content}</p>
                 <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{new Date(c.created_at).toLocaleString('en-GB')}</p>
               </div>
