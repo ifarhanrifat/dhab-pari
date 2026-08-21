@@ -100,7 +100,7 @@ function PortalStatementInner() {
   const partialPoolReceipts = poolReceipts.filter((p) => p.amount_pkr < p.announced_amount_pkr)
 
   const pendingItems: PendingItem[] = [
-    ...pledges.map((p): PendingItem => ({ key: `donor:${p.id}`, kind: 'donor', id: p.id, amount: p.amount_pkr, label: 'General giving', date: p.date })),
+    ...pledges.map((p): PendingItem => ({ key: `donor:${p.id}`, kind: 'donor', id: p.id, amount: p.amount_pkr, label: t('p.generalGiving'), date: p.date })),
     ...poolNeedsPay.map((p): PendingItem => ({ key: `pool:${p.id}`, kind: 'pool', id: p.id, amount: p.amount_pkr, label: p.particular, date: p.date })),
   ]
 
@@ -137,8 +137,8 @@ function PortalStatementInner() {
   const selectedTotal = selectedItems.reduce((s, i) => s + i.amount, 0)
 
   const payPledge = async () => {
-    if (selectedItems.length === 0) { toast.error('Select at least one item to pay'); return }
-    if (!payProof) { toast.error('Upload your payment slip'); return }
+    if (selectedItems.length === 0) { toast.error(t('p.selectItemToPay')); return }
+    if (!payProof) { toast.error(t('p.uploadPaymentSlip')); return }
     setSubmitting(true)
     const supabase = createClient()
     const donorIds = selectedItems.filter((i) => i.kind === 'donor').map((i) => i.id)
@@ -148,7 +148,7 @@ function PortalStatementInner() {
     })
     setSubmitting(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Payment submitted — awaiting verification')
+    toast.success(t('p.paymentSubmittedAwaiting'))
     setShowPay(false)
     setPayProof('')
     load()
@@ -164,7 +164,7 @@ function PortalStatementInner() {
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('p.givingStatement')}</h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{account?.donor_account_no ? `Donor Account: ${account.donor_account_no}` : 'No confirmed donations yet'}</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{account?.donor_account_no ? `${t('p.donorAccountLabel')}: ${account.donor_account_no}` : t('p.noConfirmedDonationsYet')}</p>
       </div>
 
       {pendingItems.length > 0 && (
@@ -172,7 +172,7 @@ function PortalStatementInner() {
           <div className="px-5 py-3 border-b border-amber-200 bg-amber-50 flex items-center justify-between flex-wrap gap-2">
             <span className="font-sans text-[14px] font-bold text-amber-800">{t('p.announcedPledges')}</span>
             {pendingItems.length > 1 && (
-              <span className="font-sans text-[12px] text-amber-800">Sending one payment for several? Tick everything it covers below.</span>
+              <span className="font-sans text-[12px] text-amber-800">{t('p.sendingOneForSeveral')}</span>
             )}
           </div>
           {pendingItems.map((item) => (
@@ -182,14 +182,14 @@ function PortalStatementInner() {
                 {selected.has(item.key) ? <CheckSquare size={18} className="text-dp-secondary shrink-0" /> : <Square size={18} className="text-dp-on-surface-variant shrink-0" />}
                 <div className="min-w-0">
                   <p className="font-sans text-[15px] font-bold">Rs. {fmt(item.amount)}</p>
-                  <p className="font-sans text-[12px] text-dp-on-surface-variant truncate">{item.label} · Pledged {new Date(item.date).toLocaleDateString('en-GB')}</p>
+                  <p className="font-sans text-[12px] text-dp-on-surface-variant truncate">{item.label} · {t('p.pledgedOn')} {new Date(item.date).toLocaleDateString('en-GB')}</p>
                 </div>
               </div>
             </button>
           ))}
           <div className="px-5 py-3.5 bg-dp-surface-container-low flex items-center justify-between gap-3">
             <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">
-              {selectedItems.length} selected · Total <span className="text-dp-secondary">Rs. {fmt(selectedTotal)}</span>
+              {selectedItems.length} {t('p.selectedTotalLabel')} <span className="text-dp-secondary">Rs. {fmt(selectedTotal)}</span>
             </p>
             <button disabled={selectedItems.length === 0} onClick={() => { setPayProof(''); setPayMethod('jazzcash'); setShowPay(true) }}
               className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed">
@@ -229,14 +229,14 @@ function PortalStatementInner() {
           <div className="px-5 py-3 border-b border-dp-outline-variant bg-dp-surface-container-low">
             <span className="font-sans text-[14px] font-bold text-dp-on-surface">{t('p.paidAwaiting')}</span>
             <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">
-              We have your payment on record. It will appear in your statement below once the committee confirms it.
+              {t('p.paymentOnRecordNote')}
             </p>
           </div>
           {awaiting.map((d) => (
             <div key={d.id} className="flex items-center justify-between px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0">
               <div>
                 <p className="font-sans text-[15px] font-bold">Rs. {fmt(d.amount_pkr)}</p>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant">Paid {new Date(d.date).toLocaleDateString('en-GB')}</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('p.paidOn')} {new Date(d.date).toLocaleDateString('en-GB')}</p>
               </div>
               <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-sans text-[11.5px] font-bold">{t('p.awaitingConfirmation')}</span>
             </div>
@@ -245,7 +245,7 @@ function PortalStatementInner() {
             <div key={p.id} className="flex items-center justify-between px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0">
               <div>
                 <p className="font-sans text-[15px] font-bold">Rs. {fmt(p.amount_pkr)}</p>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant">{p.particular} · Paid {new Date(p.date).toLocaleDateString('en-GB')}</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant">{p.particular} · {t('p.paidOn')} {new Date(p.date).toLocaleDateString('en-GB')}</p>
               </div>
               <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-sans text-[11.5px] font-bold">{t('p.awaitingConfirmation')}</span>
             </div>
@@ -256,7 +256,7 @@ function PortalStatementInner() {
       {!account?.donor_account_no ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">
           <HeartHandshake size={32} className="mx-auto text-dp-on-surface-variant mb-3" />
-          <p className="font-sans text-[14px] text-dp-on-surface-variant">Your giving statement will appear here once your first donation is verified.</p>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('p.statementAppearsHere')}</p>
           <a href="/donate/submit" className="inline-block mt-4 bg-dp-secondary text-white px-5 py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all">{t('p.makeDonation')}</a>
         </div>
       ) : (
@@ -328,7 +328,7 @@ function PortalStatementInner() {
               </div>
               <DonationReceiptUpload onUpload={setPayProof} />
               <button onClick={payPledge} disabled={submitting} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-                {submitting ? 'Submitting...' : 'Submit Payment'}
+                {submitting ? t('p.submitting') : t('p.submitPayment')}
               </button>
             </div>
           </div>
