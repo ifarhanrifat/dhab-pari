@@ -22,6 +22,7 @@ function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
 const monthName = (m: number) => new Date(2000, m - 1, 1).toLocaleDateString('en-US', { month: 'long' })
+const BILL_STATUS_KEY: Record<string, string> = { paid: 'w.paid', partial: 'tx.partial', unpaid: 'p.billStatusUnpaid' }
 
 export default function PortalWaterPage() {
   const { t, isUrdu } = useLocale()
@@ -61,7 +62,7 @@ export default function PortalWaterPage() {
   }
 
   const submitClaim = async () => {
-    if (!user || !claimFor || !claimAmount || claimAmount <= 0 || !claimProof) { toast.error('Enter a valid amount and upload your payment slip'); return }
+    if (!user || !claimFor || !claimAmount || claimAmount <= 0 || !claimProof) { toast.error(t('p.enterValidAmountUpload')); return }
     setSaving(true)
     const supabase = createClient()
     const { error } = await supabase.from('bill_payment_claims').insert({
@@ -70,7 +71,7 @@ export default function PortalWaterPage() {
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Payment submitted — awaiting verification by the accountant')
+    toast.success(t('p.billPaymentSubmitted'))
     setClaimFor(null)
     load()
   }
@@ -96,7 +97,7 @@ export default function PortalWaterPage() {
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('p.waterBillsPayments')}</h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Consumer #{user.consumer_id}</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.consumerNo')}{user.consumer_id}</p>
       </div>
 
       <div className="bg-white border border-dp-outline-variant rounded-lg px-5 py-4 mb-6 inline-block">
@@ -109,7 +110,7 @@ export default function PortalWaterPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[12px] font-sans font-bold tracking-[0.05em]">
-              <th className="p-3">{t('w.period')}</th><th className="p-3">{t('p.billNo')}</th><th className="p-3 text-end">{t('w.amount')}</th><th className="p-3 text-end">{t('w.paid')}</th><th className="p-3">{t('w.status')}</th><th className="p-3">Due</th><th className="p-3 text-end">{t('w.action')}</th>
+              <th className="p-3">{t('w.period')}</th><th className="p-3">{t('p.billNo')}</th><th className="p-3 text-end">{t('w.amount')}</th><th className="p-3 text-end">{t('w.paid')}</th><th className="p-3">{t('w.status')}</th><th className="p-3">{t('p.dueLabel')}</th><th className="p-3 text-end">{t('w.action')}</th>
             </tr></thead>
             <tbody className="font-sans text-[14px]">
               {bills.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-dp-on-surface-variant">{t('p.noBills')}</td></tr>}
@@ -121,16 +122,16 @@ export default function PortalWaterPage() {
                     <td className="p-3 font-mono text-[13px] text-dp-on-surface-variant">{b.bill_number ?? '—'}</td>
                     <td className="p-3 text-end">Rs. {fmt(b.amount_pkr)}</td>
                     <td className="p-3 text-end">Rs. {fmt(b.paid_amount ?? 0)}</td>
-                    <td className="p-3"><span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${b.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{b.status}</span></td>
+                    <td className="p-3"><span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${b.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{BILL_STATUS_KEY[b.status] ? t(BILL_STATUS_KEY[b.status]) : b.status}</span></td>
                     <td className="p-3 text-dp-on-surface-variant">{b.due_date ? new Date(b.due_date).toLocaleDateString('en-GB') : '—'}</td>
                     <td className="p-3 text-end">
                       {b.status === 'paid' ? '—' : claim ? (
                         <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${claim.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-                          {claim.status === 'approved' ? 'Verified' : 'Pending Verification'}
+                          {claim.status === 'approved' ? t('p.verified') : t('p.pendingVerification')}
                         </span>
                       ) : (
                         <button onClick={() => openClaim(b)} className="flex items-center gap-1.5 ms-auto px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
-                          <UploadCloud size={13} /> I&apos;ve Paid
+                          <UploadCloud size={13} /> {t('p.ivePaid')}
                         </button>
                       )}
                     </td>
@@ -168,7 +169,7 @@ export default function PortalWaterPage() {
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setClaimFor(null)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">Submit Payment — {monthName(claimFor.month)} {claimFor.year}</h2>
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('p.submitPaymentFor')} {monthName(claimFor.month)} {claimFor.year}</h2>
               <button onClick={() => setClaimFor(null)} className="cursor-pointer"><X size={20} /></button>
             </div>
             <div className="space-y-4">
@@ -186,9 +187,9 @@ export default function PortalWaterPage() {
                 </select>
                 <PaymentAccountDetails system="water_supply" method={claimMethod} />
               </div>
-              <DonationReceiptUpload bucket="bill_payment_proofs" label="Upload Payment Slip" onUpload={setClaimProof} />
+              <DonationReceiptUpload bucket="bill_payment_proofs" label={t('p.uploadPaymentSlipLabel')} onUpload={setClaimProof} />
               <button onClick={submitClaim} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-                {saving ? 'Submitting...' : 'Submit for Verification'}
+                {saving ? t('p.submitting') : t('p.submitForVerification')}
               </button>
             </div>
           </div>
