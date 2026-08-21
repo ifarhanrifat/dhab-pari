@@ -166,7 +166,7 @@ const emptyChild = {
 }
 
 export default function KafalatPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const supabase = createClient()
 
   const [children, setChildren] = useState<Child[]>([])
@@ -833,7 +833,7 @@ export default function KafalatPage() {
   }
 
   return (
-    <>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5">
@@ -2071,6 +2071,6 @@ export default function KafalatPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
