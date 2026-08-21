@@ -360,6 +360,16 @@ export const messages: Record<Locale, Record<string, string>> = {
 
     // ── Portal screens ───────────────────────────────────────────────────
     'p.couldNotLoad': 'Could not load your account.',
+    'p.welcome': 'Welcome',
+    'p.consumerNo': 'Consumer #',
+    'p.noLinkedWaterConnection': 'No linked water connection',
+    'p.mobileLabel': 'Mobile',
+    'p.totalDonated': 'Total Donated',
+    'p.waterBillsOutstanding': 'Water Bills Outstanding',
+    'p.activeRecurringDonations': 'Active Recurring Donations',
+    'p.myGivingStatement': 'My Giving Statement',
+    'p.manageRecurringDonations': 'Manage Recurring Donations',
+    'p.bloodDonorRegistrationLink': 'Blood Donor Registration',
     'p.createAccount': 'Create Your Account',
     'p.oneAccount': 'One account for donations, water bills, and more.',
     'p.alreadyHaveAccount': 'Already have an account?',
@@ -3348,6 +3358,16 @@ export const messages: Record<Locale, Record<string, string>> = {
 
     // ── Portal screens ───────────────────────────────────────────────────
     'p.couldNotLoad': 'آپ کا اکاؤنٹ لوڈ نہیں ہو سکا۔',
+    'p.welcome': 'خوش آمدید',
+    'p.consumerNo': 'صارف نمبر',
+    'p.noLinkedWaterConnection': 'کوئی پانی کا کنکشن منسلک نہیں',
+    'p.mobileLabel': 'موبائل',
+    'p.totalDonated': 'کل عطیات',
+    'p.waterBillsOutstanding': 'واجب الادا پانی کے بل',
+    'p.activeRecurringDonations': 'فعال مستقل عطیات',
+    'p.myGivingStatement': 'میرا عطیات کا گوشوارہ',
+    'p.manageRecurringDonations': 'مستقل عطیات کا انتظام کریں',
+    'p.bloodDonorRegistrationLink': 'خون کے عطیہ دہندہ کی رجسٹریشن',
     'p.createAccount': 'اپنا اکاؤنٹ بنائیں',
     'p.oneAccount': 'عطیات، پانی کے بل اور دیگر سہولیات کے لیے ایک ہی اکاؤنٹ۔',
     'p.alreadyHaveAccount': 'پہلے سے اکاؤنٹ موجود ہے؟',

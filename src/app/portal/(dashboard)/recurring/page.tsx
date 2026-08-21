@@ -101,7 +101,7 @@ export default function PortalRecurringPage() {
   const policyText = isUrdu ? (policy.ur || policy.en) : (policy.en || policy.ur)
 
   const save = async () => {
-    if (!user || !form.amount_pkr || form.amount_pkr <= 0) { toast.error('Enter a valid amount'); return }
+    if (!user || !form.amount_pkr || form.amount_pkr <= 0) { toast.error(isUrdu ? 'درست رقم درج کریں' : 'Enter a valid amount'); return }
     // Announcing is the one action here that creates an obligation, so it does
     // not proceed until the donor has confirmed they understand what it means.
     if (policyText && !acknowledged) {
@@ -119,7 +119,7 @@ export default function PortalRecurringPage() {
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Recurring donation set up')
+    toast.success(isUrdu ? 'مستقل عطیہ ترتیب دے دیا گیا' : 'Recurring donation set up')
     setShowForm(false)
     setForm(empty)
     load()
@@ -129,7 +129,7 @@ export default function PortalRecurringPage() {
     const supabase = createClient()
     const { error } = await supabase.from('recurring_schedules').update({ is_active: !s.is_active }).eq('id', s.id)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(s.is_active ? 'Paused' : 'Resumed')
+    toast.success(s.is_active ? (isUrdu ? 'روک دیا گیا' : 'Paused') : (isUrdu ? 'دوبارہ شروع کر دیا گیا' : 'Resumed'))
     load()
   }
 
@@ -138,7 +138,7 @@ export default function PortalRecurringPage() {
     const supabase = createClient()
     const { error } = await supabase.from('recurring_schedules').delete().eq('id', confirmCancel)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Cancelled')
+    toast.success(isUrdu ? 'منسوخ کر دیا گیا' : 'Cancelled')
     setConfirmCancel(null)
     load()
   }
@@ -167,15 +167,15 @@ export default function PortalRecurringPage() {
                 <div>
                   <p className="font-sans text-[15px] font-bold text-dp-on-surface">Rs. {fmt(s.amount_pkr)} · <span className="capitalize">{s.frequency}</span></p>
                   <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">
-                    {projects.find((p) => p.id === s.project_id)?.title ?? 'General Fund'} · Next: {new Date(s.next_run_date).toLocaleDateString('en-GB')}
+                    {projects.find((p) => p.id === s.project_id)?.title ?? t('w.generalFund')} · {isUrdu ? 'اگلی' : 'Next:'} {new Date(s.next_run_date).toLocaleDateString('en-GB')}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${s.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>{s.is_active ? 'Active' : 'Paused'}</span>
-                  <button onClick={() => togglePause(s)} className="p-2 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer" title={s.is_active ? 'Pause' : 'Resume'}>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${s.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>{s.is_active ? (isUrdu ? 'فعال' : 'Active') : (isUrdu ? 'رکا ہوا' : 'Paused')}</span>
+                  <button onClick={() => togglePause(s)} className="p-2 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer" title={s.is_active ? (isUrdu ? 'روکیں' : 'Pause') : (isUrdu ? 'دوبارہ شروع کریں' : 'Resume')}>
                     {s.is_active ? <Pause size={16} /> : <Play size={16} />}
                   </button>
-                  <button onClick={() => setConfirmCancel(s.id)} className="p-2 text-dp-on-surface-variant hover:text-dp-error cursor-pointer" title="Cancel"><Trash2 size={16} /></button>
+                  <button onClick={() => setConfirmCancel(s.id)} className="p-2 text-dp-on-surface-variant hover:text-dp-error cursor-pointer" title={isUrdu ? 'منسوخ کریں' : 'Cancel'}><Trash2 size={16} /></button>
                 </div>
               </div>
             ))}
@@ -191,11 +191,11 @@ export default function PortalRecurringPage() {
                   <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">{p.particular}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${p.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>{p.is_active ? 'Active' : 'Lapsed'}</span>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${p.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>{p.is_active ? (isUrdu ? 'فعال' : 'Active') : (isUrdu ? 'ختم شدہ' : 'Lapsed')}</span>
                   <button onClick={() => { setChangeAmount(p.amount_pkr); setChangingPool(p) }} className="p-2 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer" title={isUrdu ? 'رقم تبدیل کریں' : 'Change amount'}>
                     <Pencil size={16} />
                   </button>
-                  <button onClick={() => setConfirmStopPool(p.id)} className="p-2 text-dp-on-surface-variant hover:text-dp-error cursor-pointer" title="Stop"><Trash2 size={16} /></button>
+                  <button onClick={() => setConfirmStopPool(p.id)} className="p-2 text-dp-on-surface-variant hover:text-dp-error cursor-pointer" title={isUrdu ? 'روکیں' : 'Stop'}><Trash2 size={16} /></button>
                 </div>
               </div>
             ))}
@@ -234,7 +234,10 @@ export default function PortalRecurringPage() {
         )}
       </div>
 
-      <ConfirmDialog open={!!confirmCancel} title="Cancel Recurring Donation" message="Are you sure you want to cancel this recurring donation? This cannot be undone." onConfirm={cancel} onCancel={() => setConfirmCancel(null)} />
+      <ConfirmDialog open={!!confirmCancel}
+        title={isUrdu ? 'مستقل عطیہ منسوخ کریں' : 'Cancel Recurring Donation'}
+        message={isUrdu ? 'کیا آپ واقعی یہ مستقل عطیہ منسوخ کرنا چاہتے ہیں؟ اسے واپس نہیں لیا جا سکتا۔' : 'Are you sure you want to cancel this recurring donation? This cannot be undone.'}
+        onConfirm={cancel} onCancel={() => setConfirmCancel(null)} />
       <ConfirmDialog open={!!confirmStopPool}
         title={isUrdu ? 'حصہ روکیں' : 'Stop this share'}
         message={isUrdu ? 'یہ ماہانہ حصہ روک دیں؟ اسے دوبارہ کسی بھی وقت شروع کیا جا سکتا ہے۔' : 'Stop this monthly share? You can start it again any time.'}

@@ -42,26 +42,26 @@ export default function PortalDashboardPage() {
   if (!user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('p.couldNotLoad')}</div>
 
   const cards = [
-    { href: '/portal/statement', icon: HeartHandshake, label: 'Total Donated', value: `Rs. ${fmt(totalDonated)}`, color: 'text-dp-secondary' },
-    ...(user.consumer_id ? [{ href: '/portal/water', icon: Droplets, label: 'Water Bills Outstanding', value: `Rs. ${fmt(waterOutstanding)}`, color: waterOutstanding > 0 ? 'text-dp-error' : 'text-dp-secondary' }] : []),
-    { href: '/portal/recurring', icon: Repeat, label: 'Active Recurring Donations', value: String(activeRecurring), color: 'text-dp-primary' },
+    { href: '/portal/statement', icon: HeartHandshake, label: t('p.totalDonated'), value: `Rs. ${fmt(totalDonated)}`, color: 'text-dp-secondary' },
+    ...(user.consumer_id ? [{ href: '/portal/water', icon: Droplets, label: t('p.waterBillsOutstanding'), value: `Rs. ${fmt(waterOutstanding)}`, color: waterOutstanding > 0 ? 'text-dp-error' : 'text-dp-secondary' }] : []),
+    { href: '/portal/recurring', icon: Repeat, label: t('p.activeRecurringDonations'), value: String(activeRecurring), color: 'text-dp-primary' },
   ]
 
   const links = [
-    { href: '/portal/statement', label: 'My Giving Statement', icon: HeartHandshake },
-    ...(user.consumer_id ? [{ href: '/portal/water', label: 'Water Bills & Payments', icon: Droplets }] : []),
-    { href: '/portal/recurring', label: 'Manage Recurring Donations', icon: Repeat },
-    { href: '/portal/suggestions', label: 'Suggestions', icon: MessageSquare },
-    { href: '/portal/complaints', label: 'Complaints', icon: MessageSquareWarning },
-    { href: '/portal/blood-donor', label: 'Blood Donor Registration', icon: Droplet },
+    { href: '/portal/statement', label: t('p.myGivingStatement'), icon: HeartHandshake },
+    ...(user.consumer_id ? [{ href: '/portal/water', label: t('p.waterBillsPayments'), icon: Droplets }] : []),
+    { href: '/portal/recurring', label: t('p.manageRecurringDonations'), icon: Repeat },
+    { href: '/portal/suggestions', label: t('g.suggestions'), icon: MessageSquare },
+    { href: '/portal/complaints', label: t('g.complaints'), icon: MessageSquareWarning },
+    { href: '/portal/blood-donor', label: t('p.bloodDonorRegistrationLink'), icon: Droplet },
   ]
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-8">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary">Welcome, {user.full_name}</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('p.welcome')}, {user.full_name}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">
-          {user.consumer_id ? `Consumer #${user.consumer_id}` : 'No linked water connection'} · Mobile {user.mobile}
+          {user.consumer_id ? `${t('p.consumerNo')}${user.consumer_id}` : t('p.noLinkedWaterConnection')} · {t('p.mobileLabel')} {user.mobile}
         </p>
       </div>
 
