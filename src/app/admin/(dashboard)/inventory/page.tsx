@@ -329,7 +329,7 @@ export default function InventoryPage() {
             <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-2.5">
               <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{tr('iv.totalStockValue')}</p>
               <p className="font-heading text-[20px] font-bold text-dp-primary">Rs. {fmt(items.reduce((s, i) => s + i.quantity_on_hand * i.unit_cost, 0))}</p>
-              <p className="font-sans text-[11px] text-dp-on-surface-variant">Should match the Inventory Stock account balance on the Trial Balance</p>
+              <p className="font-sans text-[11px] text-dp-on-surface-variant">{tr('iv.stockValueNote')}</p>
             </div>
             <button onClick={() => { setItemForm(emptyItemForm); setShowItemForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
               <PlusCircle size={15} /> {tr('a.addItem')}
@@ -361,22 +361,22 @@ export default function InventoryPage() {
                       <td className="px-4 py-3 text-end">{fmt(i.unit_price)}</td>
                       <td className={`px-4 py-3 text-end font-bold ${i.quantity_on_hand <= i.reorder_level ? 'text-dp-error' : ''}`}>{fmt(i.quantity_on_hand)}</td>
                       <td className="px-4 py-3">
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${i.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{i.is_active ? 'Active' : 'Inactive'}</span>
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${i.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{i.is_active ? tr('g.active') : tr('g.inactive')}</span>
                       </td>
                       <td className="px-4 py-3 text-center">
                         <input
                           type="checkbox"
                           checked={i.is_connection_essential}
                           onChange={() => toggleConnectionEssential(i)}
-                          title="Required equipment for a new connection installation"
+                          title={tr('iv.connectionEssentialHint')}
                           className="accent-dp-secondary w-4 h-4 cursor-pointer"
                         />
                       </td>
                       <td className="px-4 py-3 text-end">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button onClick={() => openPurchase(i)} title="Record Purchase" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><ShoppingCart size={15} /></button>
+                          <button onClick={() => openPurchase(i)} title={tr('iv.recordPurchaseTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><ShoppingCart size={15} /></button>
                           <button onClick={() => toggleItemActive(i)} className="text-[11px] px-2 py-0.5 rounded font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container">
-                            {i.is_active ? 'Deactivate' : 'Activate'}
+                            {i.is_active ? tr('g.deactivate') : tr('g.activate')}
                           </button>
                           <button onClick={() => setConfirmDeleteItem({ table: 'inventory_items', id: i.id })} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
                         </div>
