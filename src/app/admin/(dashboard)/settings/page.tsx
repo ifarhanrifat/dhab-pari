@@ -246,7 +246,7 @@ export default function AdminSettingsPage() {
     const { error } = await supabase.rpc('reset_accounting_system', { p_system: system })
     setResetting(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(`${system === 'water_supply' ? 'Water Supply' : 'Donors & Projects'} accounting reset`)
+    toast.success(`${system === 'water_supply' ? tr('a.waterSupply') : tr('a.donorsProjects')} ${tr('st.accountingReset')}`)
     setResetSystem(null)
     setResetConfirmText('')
   }
@@ -273,12 +273,12 @@ export default function AdminSettingsPage() {
     const { error } = await supabase.from('message_templates').update({ body: t.body, updated_at: new Date().toISOString() }).eq('key', key)
     setSavingTemplate(null)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Template saved')
+    toast.success(tr('st.templateSaved'))
   }
 
   const copyToken = (token: string) => {
     navigator.clipboard.writeText(token)
-    toast.success(`Copied ${token}`)
+    toast.success(`${tr('st.copiedPrefix')} ${token}`)
   }
 
   const loadApprovers = async () => {
@@ -324,7 +324,7 @@ export default function AdminSettingsPage() {
       )
       if (error) { toast.error(friendlyError(error)); loadApprovers(); return }
     }
-    toast.success(isActive ? 'Approver removed' : 'Approver added')
+    toast.success(isActive ? tr('st.approverRemoved') : tr('st.approverAdded'))
     loadApprovers()
   }
 
@@ -364,7 +364,7 @@ export default function AdminSettingsPage() {
       )
       if (error) { toast.error(friendlyError(error)); loadHandlers(); return }
     }
-    toast.success(isActive ? 'Handler removed' : 'Handler added')
+    toast.success(isActive ? tr('st.handlerRemoved') : tr('st.handlerAdded'))
   }
 
   const toggleNotifChannel = async (eventType: string, channel: 'whatsapp_enabled' | 'popup_enabled', current: boolean) => {
@@ -397,19 +397,19 @@ export default function AdminSettingsPage() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const addSector = async () => {
-    if (!newSectorName.trim()) { toast.error('Sector name required'); return }
+    if (!newSectorName.trim()) { toast.error(tr('st.sectorNameRequired')); return }
     const { error } = await supabase.from('sectors').insert({ name: newSectorName.trim() })
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Sector added')
+    toast.success(tr('st.sectorAdded'))
     setNewSectorName('')
     loadSectors()
   }
 
   const renameSector = async (id: string) => {
-    if (!editingSectorName.trim()) { toast.error('Sector name required'); return }
+    if (!editingSectorName.trim()) { toast.error(tr('st.sectorNameRequired')); return }
     const { error } = await supabase.from('sectors').update({ name: editingSectorName.trim() }).eq('id', id)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Sector renamed')
+    toast.success(tr('st.sectorRenamed'))
     setEditingSector(null)
     loadSectors()
   }
@@ -418,13 +418,13 @@ export default function AdminSettingsPage() {
     if (!confirmDeleteSector) return
     const { error } = await supabase.from('sectors').delete().eq('id', confirmDeleteSector)
     if (error) { toast.error(friendlyError(error)); setConfirmDeleteSector(null); return }
-    toast.success('Sector deleted')
+    toast.success(tr('st.sectorDeleted'))
     setConfirmDeleteSector(null)
     loadSectors()
   }
 
   const addContact = () => {
-    if (!newContact.name.trim()) { toast.error('Contact name required'); return }
+    if (!newContact.name.trim()) { toast.error(tr('st.contactNameRequired')); return }
     setManagementContacts([...managementContacts, { ...newContact }])
     setNewContact(emptyContact)
   }
@@ -434,13 +434,13 @@ export default function AdminSettingsPage() {
   }
 
   const saveEditingContact = (idx: number) => {
-    if (!editingContact.name.trim()) { toast.error('Contact name required'); return }
+    if (!editingContact.name.trim()) { toast.error(tr('st.contactNameRequired')); return }
     setManagementContacts(managementContacts.map((c, i) => (i === idx ? { ...editingContact } : c)))
     setEditingContactIdx(null)
   }
 
   const addDonorContact = () => {
-    if (!newDonorContact.name.trim()) { toast.error('Contact name required'); return }
+    if (!newDonorContact.name.trim()) { toast.error(tr('st.contactNameRequired')); return }
     setDonorManagementContacts([...donorManagementContacts, { ...newDonorContact }])
     setNewDonorContact(emptyContact)
   }
@@ -450,7 +450,7 @@ export default function AdminSettingsPage() {
   }
 
   const saveEditingDonorContact = (idx: number) => {
-    if (!editingDonorContact.name.trim()) { toast.error('Contact name required'); return }
+    if (!editingDonorContact.name.trim()) { toast.error(tr('st.contactNameRequired')); return }
     setDonorManagementContacts(donorManagementContacts.map((c, i) => (i === idx ? { ...editingDonorContact } : c)))
     setEditingDonorContactIdx(null)
   }
@@ -467,7 +467,7 @@ export default function AdminSettingsPage() {
     )
     await Promise.all(updates)
     setValues(finalValues)
-    toast.success('Settings saved')
+    toast.success(tr('st.settingsSaved'))
     setSaving(false)
   }
 
@@ -643,7 +643,7 @@ export default function AdminSettingsPage() {
           </button>
           {activeCategory === 'general' && (
             <>
-              <SettingsSection title="Company Identity" icon={Building2} defaultOpen>
+              <SettingsSection title={tr('st.sectionCompanyIdentity')} icon={Building2} defaultOpen>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
                     <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{tr('st.companyNameEn')}</label>
@@ -663,13 +663,13 @@ export default function AdminSettingsPage() {
                     <input type="email" value={values.company_email ?? ''} onChange={(e) => setValues({ ...values, company_email: e.target.value })} className="input-field" />
                   </div>
                 </div>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-3">Shown on every generated bill, cash receipt, and payment voucher. The Urdu name only appears when the display language below is set to Urdu.</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-3">{tr('st.companyIdentityNote')}</p>
               </SettingsSection>
 
-              <SettingsSection title="Branding" icon={FileText}>
+              <SettingsSection title={tr('st.sectionBranding')} icon={FileText}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <ImageUpload bucket="images" label="Committee Logo" currentUrl={values.invoice_logo_url} onUpload={(url) => setValues({ ...values, invoice_logo_url: url })} />
-                  <ImageUpload bucket="images" label="Authorized Signature" currentUrl={values.invoice_signature_url} onUpload={(url) => setValues({ ...values, invoice_signature_url: url })} />
+                  <ImageUpload bucket="images" label={tr('st.committeeLogo')} currentUrl={values.invoice_logo_url} onUpload={(url) => setValues({ ...values, invoice_logo_url: url })} />
+                  <ImageUpload bucket="images" label={tr('st.authorizedSignature')} currentUrl={values.invoice_signature_url} onUpload={(url) => setValues({ ...values, invoice_signature_url: url })} />
                 </div>
                 {values.invoice_logo_url && (
                   <div className="mt-6 pt-6 border-t border-dp-outline-variant">
@@ -709,7 +709,7 @@ export default function AdminSettingsPage() {
 
           {activeCategory === 'documents' && (
             <>
-              <SettingsSection title="Message Templates" icon={MessageSquareText} defaultOpen>
+              <SettingsSection title={tr('st.sectionMessageTemplates')} icon={MessageSquareText} defaultOpen>
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">
                   Write each message in whichever language you want — English, Urdu, or a mix. Drop any of the tags below into the middle of your wording; each one gets replaced with the real value when the message is sent.
                 </p>
@@ -754,7 +754,7 @@ export default function AdminSettingsPage() {
                 </div>
               </SettingsSection>
 
-              <SettingsSection title="Invoice Template">
+              <SettingsSection title={tr('st.sectionInvoiceTemplate')}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                   {invoiceTemplates.map((t) => {
                     const selected = (values.invoice_template || 'classic') === t.id
@@ -774,16 +774,16 @@ export default function AdminSettingsPage() {
 
               {renderSettingGroups('documents')}
 
-              <SettingsSection title="Management Contacts">
+              <SettingsSection title={tr('st.sectionManagementContacts')}>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant mb-4">Committee members shown in the invoice footer, with their WhatsApp number — helps consumers reach the right person about a bill.</p>
                 <div className="space-y-2 mb-4">
                   {managementContacts.map((c, idx) => (
                     <div key={idx} className="flex flex-wrap items-center gap-2 bg-dp-surface-container-low/50 rounded-lg px-3 py-2">
                       {editingContactIdx === idx ? (
                         <div className="flex flex-col sm:flex-row gap-2 flex-1">
-                          <input autoFocus placeholder="Name" value={editingContact.name} onChange={(e) => setEditingContact({ ...editingContact, name: e.target.value })} className="input-field !py-1.5 flex-1" />
-                          <input placeholder="Designation" value={editingContact.designation} onChange={(e) => setEditingContact({ ...editingContact, designation: e.target.value })} className="input-field !py-1.5 flex-1" />
-                          <input placeholder="WhatsApp number" value={editingContact.whatsapp} onChange={(e) => setEditingContact({ ...editingContact, whatsapp: e.target.value })} className="input-field !py-1.5 flex-1" />
+                          <input autoFocus placeholder={tr('st.contactNamePlaceholder')} value={editingContact.name} onChange={(e) => setEditingContact({ ...editingContact, name: e.target.value })} className="input-field !py-1.5 flex-1" />
+                          <input placeholder={tr('st.contactDesignationPlaceholder')} value={editingContact.designation} onChange={(e) => setEditingContact({ ...editingContact, designation: e.target.value })} className="input-field !py-1.5 flex-1" />
+                          <input placeholder={tr('st.contactWhatsappPlaceholder')} value={editingContact.whatsapp} onChange={(e) => setEditingContact({ ...editingContact, whatsapp: e.target.value })} className="input-field !py-1.5 flex-1" />
                         </div>
                       ) : (
                         <span className="font-sans text-[14px] flex-1">
@@ -809,9 +809,9 @@ export default function AdminSettingsPage() {
                   ))}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <input placeholder="Name" value={newContact.name} onChange={(e) => setNewContact({ ...newContact, name: e.target.value })} className="input-field flex-1" />
-                  <input placeholder="Designation" value={newContact.designation} onChange={(e) => setNewContact({ ...newContact, designation: e.target.value })} className="input-field flex-1" />
-                  <input placeholder="WhatsApp number" value={newContact.whatsapp} onChange={(e) => setNewContact({ ...newContact, whatsapp: e.target.value })} className="input-field flex-1" />
+                  <input placeholder={tr('st.contactNamePlaceholder')} value={newContact.name} onChange={(e) => setNewContact({ ...newContact, name: e.target.value })} className="input-field flex-1" />
+                  <input placeholder={tr('st.contactDesignationPlaceholder')} value={newContact.designation} onChange={(e) => setNewContact({ ...newContact, designation: e.target.value })} className="input-field flex-1" />
+                  <input placeholder={tr('st.contactWhatsappPlaceholder')} value={newContact.whatsapp} onChange={(e) => setNewContact({ ...newContact, whatsapp: e.target.value })} className="input-field flex-1" />
                   <button onClick={addContact} className="flex items-center justify-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer shrink-0"><PlusCircle size={15} /> Add</button>
                 </div>
               </SettingsSection>
@@ -826,7 +826,7 @@ export default function AdminSettingsPage() {
                 </p>
               </div>
 
-              <SettingsSection title="Invoice Template">
+              <SettingsSection title={tr('st.sectionInvoiceTemplate')}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                   <button
                     onClick={() => setValues({ ...values, donor_invoice_template: '' })}
@@ -853,16 +853,16 @@ export default function AdminSettingsPage() {
 
               {renderSettingGroups('donorTemplates')}
 
-              <SettingsSection title="Management Contacts">
+              <SettingsSection title={tr('st.sectionManagementContacts')}>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant mb-4">Committee members shown in the footer of donation receipts specifically — leave empty to keep showing the shared Management Contacts instead.</p>
                 <div className="space-y-2 mb-4">
                   {donorManagementContacts.map((c, idx) => (
                     <div key={idx} className="flex flex-wrap items-center gap-2 bg-dp-surface-container-low/50 rounded-lg px-3 py-2">
                       {editingDonorContactIdx === idx ? (
                         <div className="flex flex-col sm:flex-row gap-2 flex-1">
-                          <input autoFocus placeholder="Name" value={editingDonorContact.name} onChange={(e) => setEditingDonorContact({ ...editingDonorContact, name: e.target.value })} className="input-field !py-1.5 flex-1" />
-                          <input placeholder="Designation" value={editingDonorContact.designation} onChange={(e) => setEditingDonorContact({ ...editingDonorContact, designation: e.target.value })} className="input-field !py-1.5 flex-1" />
-                          <input placeholder="WhatsApp number" value={editingDonorContact.whatsapp} onChange={(e) => setEditingDonorContact({ ...editingDonorContact, whatsapp: e.target.value })} className="input-field !py-1.5 flex-1" />
+                          <input autoFocus placeholder={tr('st.contactNamePlaceholder')} value={editingDonorContact.name} onChange={(e) => setEditingDonorContact({ ...editingDonorContact, name: e.target.value })} className="input-field !py-1.5 flex-1" />
+                          <input placeholder={tr('st.contactDesignationPlaceholder')} value={editingDonorContact.designation} onChange={(e) => setEditingDonorContact({ ...editingDonorContact, designation: e.target.value })} className="input-field !py-1.5 flex-1" />
+                          <input placeholder={tr('st.contactWhatsappPlaceholder')} value={editingDonorContact.whatsapp} onChange={(e) => setEditingDonorContact({ ...editingDonorContact, whatsapp: e.target.value })} className="input-field !py-1.5 flex-1" />
                         </div>
                       ) : (
                         <span className="font-sans text-[14px] flex-1">
@@ -888,9 +888,9 @@ export default function AdminSettingsPage() {
                   ))}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <input placeholder="Name" value={newDonorContact.name} onChange={(e) => setNewDonorContact({ ...newDonorContact, name: e.target.value })} className="input-field flex-1" />
-                  <input placeholder="Designation" value={newDonorContact.designation} onChange={(e) => setNewDonorContact({ ...newDonorContact, designation: e.target.value })} className="input-field flex-1" />
-                  <input placeholder="WhatsApp number" value={newDonorContact.whatsapp} onChange={(e) => setNewDonorContact({ ...newDonorContact, whatsapp: e.target.value })} className="input-field flex-1" />
+                  <input placeholder={tr('st.contactNamePlaceholder')} value={newDonorContact.name} onChange={(e) => setNewDonorContact({ ...newDonorContact, name: e.target.value })} className="input-field flex-1" />
+                  <input placeholder={tr('st.contactDesignationPlaceholder')} value={newDonorContact.designation} onChange={(e) => setNewDonorContact({ ...newDonorContact, designation: e.target.value })} className="input-field flex-1" />
+                  <input placeholder={tr('st.contactWhatsappPlaceholder')} value={newDonorContact.whatsapp} onChange={(e) => setNewDonorContact({ ...newDonorContact, whatsapp: e.target.value })} className="input-field flex-1" />
                   <button onClick={addDonorContact} className="flex items-center justify-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer shrink-0"><PlusCircle size={15} /> Add</button>
                 </div>
               </SettingsSection>
@@ -899,7 +899,7 @@ export default function AdminSettingsPage() {
 
           {activeCategory === 'connections' && (
             <>
-              <SettingsSection title="Sectors" icon={MapPin} defaultOpen>
+              <SettingsSection title={tr('st.sectionSectors')} icon={MapPin} defaultOpen>
                 <div className="space-y-2 mb-4">
                   {sectors.map((s) => (
                     <div key={s.id} className="flex items-center justify-between gap-2 bg-dp-surface-container-low/50 rounded-lg px-3 py-2 flex-wrap">
@@ -925,7 +925,7 @@ export default function AdminSettingsPage() {
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <input value={newSectorName} onChange={(e) => setNewSectorName(e.target.value)} placeholder="New sector name" className="input-field flex-1" />
+                  <input value={newSectorName} onChange={(e) => setNewSectorName(e.target.value)} placeholder={tr('st.newSectorNamePlaceholder')} className="input-field flex-1" />
                   <button onClick={addSector} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer shrink-0"><PlusCircle size={15} /> Add</button>
                 </div>
               </SettingsSection>
@@ -936,7 +936,7 @@ export default function AdminSettingsPage() {
 
           {activeCategory === 'approvals' && (
             <>
-              <SettingsSection title="Approvers" icon={ShieldCheck} defaultOpen>
+              <SettingsSection title={tr('st.sectionApprovers')} icon={ShieldCheck} defaultOpen>
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-5">
                   Every person checked below must confirm a gated expense, withdrawal, or purchase (in their system) before it posts — or it auto-posts 24 hours after it was created regardless. Unchecking someone here immediately revokes their approver status; checking a different person allocates them instead — the roster is always exactly who&apos;s checked right now.
                 </p>
@@ -971,10 +971,10 @@ export default function AdminSettingsPage() {
                                   <span className="font-sans text-[13.5px] truncate">{u.full_name}</span>
                                 </span>
                                 {isActive && stat && (
-                                  <span className="font-sans text-[11px] text-dp-on-surface-variant shrink-0" title="Pending / Approved / Rejected / Approved-for-them-by-a-super-admin">
-                                    {stat.pending_count} pending · {stat.approved_count} approved
-                                    {stat.rejected_count > 0 && ` · ${stat.rejected_count} rejected`}
-                                    {stat.overridden_count > 0 && ` · ${stat.overridden_count} overridden`}
+                                  <span className="font-sans text-[11px] text-dp-on-surface-variant shrink-0" title={tr('st.approvalStatusLegend')}>
+                                    {stat.pending_count} {tr('st.statPending')} · {stat.approved_count} {tr('st.statApproved')}
+                                    {stat.rejected_count > 0 && ` · ${stat.rejected_count} ${tr('st.statRejected')}`}
+                                    {stat.overridden_count > 0 && ` · ${stat.overridden_count} ${tr('st.statOverridden')}`}
                                   </span>
                                 )}
                               </label>
@@ -987,7 +987,7 @@ export default function AdminSettingsPage() {
                 </div>
               </SettingsSection>
 
-              <SettingsSection title="Complaint Handlers" icon={MessageSquareWarning}>
+              <SettingsSection title={tr('st.sectionComplaintHandlers')} icon={MessageSquareWarning}>
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">
                   Everyone checked below is notified the moment a complaint is registered for that system, and can be assigned or assign themselves to it. Verification (final sign-off) is granted separately per-person from User Management, not here.
                 </p>
@@ -1015,7 +1015,7 @@ export default function AdminSettingsPage() {
                 </div>
               </SettingsSection>
 
-              <SettingsSection title="Notification Preferences" icon={Bell}>
+              <SettingsSection title={tr('st.sectionNotifPrefs')} icon={Bell}>
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">
                   Choose how each alert reaches people — an in-app popup (instant, only seen while logged in) and/or a WhatsApp message (opens a pre-filled chat someone taps to send, since no WhatsApp Business API is connected). Both can be on at once.
                 </p>
@@ -1072,11 +1072,11 @@ export default function AdminSettingsPage() {
                     {resetSystem === sys && (
                       <div className="mt-3 space-y-2 bg-dp-error-container/30 rounded-lg p-3">
                         <p className="font-sans text-[12.5px] text-dp-on-surface">
-                          {tr('a.type')} <span className="font-mono font-bold">{resetLabel(sys)}</span> to confirm.
+                          {tr('a.type')} <span className="font-mono font-bold">{resetLabel(sys)}</span> {tr('st.toConfirmSuffix')}
                         </p>
                         <input
                           autoFocus value={resetConfirmText} onChange={(e) => setResetConfirmText(e.target.value)}
-                          placeholder="Type to confirm" className="input-field !py-2 text-[14px]"
+                          placeholder={tr('st.typeToConfirmPlaceholder')} className="input-field !py-2 text-[14px]"
                         />
                         <div className="flex gap-2">
                           <button onClick={() => setResetSystem(null)} className="flex-1 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{tr('action.cancel')}</button>
@@ -1100,8 +1100,8 @@ export default function AdminSettingsPage() {
 
       <ConfirmDialog
         open={!!confirmDeleteSector}
-        title="Delete Sector"
-        message="Existing consumers keep their assigned sector name as plain text — this only removes it from the dropdown for future use."
+        title={tr('st.deleteSectorTitle')}
+        message={tr('st.deleteSectorMessage')}
         onConfirm={deleteSector}
         onCancel={() => setConfirmDeleteSector(null)}
       />
