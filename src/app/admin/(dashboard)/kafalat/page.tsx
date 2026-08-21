@@ -372,7 +372,7 @@ export default function KafalatPage() {
     setViewingProofId(id)
     const { data, error } = await supabase.storage.from('donation_receipts').createSignedUrl(path, 300)
     setViewingProofId(null)
-    if (error || !data?.signedUrl) { toast.error('Could not open the payment screenshot'); return }
+    if (error || !data?.signedUrl) { toast.error(t('kf.couldNotOpenProof')); return }
     window.open(data.signedUrl, '_blank', 'noopener')
   }
 
@@ -641,8 +641,8 @@ export default function KafalatPage() {
       <h1>${t('kf.registerTitle')} — ${reg.academic_year}</h1>
       <p>${new Date().toLocaleDateString()}</p>
       <table><thead><tr>
-        <th>Code</th><th>Name</th><th>${t('kf.rollNo')}</th><th>${t('kf.section')}</th>
-        <th>${t('kf.class')}</th><th>School</th><th>${t('kf.guardian')}</th>
+        <th>${t('nr.col.code')}</th><th>${t('a.name')}</th><th>${t('kf.rollNo')}</th><th>${t('kf.section')}</th>
+        <th>${t('kf.class')}</th><th>${t('kf.f.school')}</th><th>${t('kf.guardian')}</th>
         <th>${t('kf.f.feeAnnual')}</th><th>${t('kf.f.transportAnnual')}</th><th>${t('kf.driverSignature')}</th>
       </tr></thead><tbody>${rows}</tbody></table>
       </body></html>`)
@@ -751,7 +751,7 @@ export default function KafalatPage() {
       const { error: acceptErr } = await supabase.rpc('kafalat_accept_nomination', {
         p_nomination_id: registeringNomination.id, p_child_id: data.id,
       })
-      if (acceptErr) toast.error(`Child registered, but the nomination couldn't be marked Accepted: ${acceptErr.message}`)
+      if (acceptErr) toast.error(`${t('kf.registeredButNominationFailed')} ${acceptErr.message}`)
       setRegisteringNomination(null)
     }
 
@@ -1256,7 +1256,7 @@ export default function KafalatPage() {
                         {' · '}Rs {fmt(a.amount)} · {a.is_one_time ? t('pool.oneTime') : t('pool.recurringMonthly')}
                       </p>
                       {a.payment_batch_id && batchSummary[a.payment_batch_id]?.count > 1 && (
-                        <span title="Sent as one payment along with other pledges — some may be on other Collections tabs or /admin/donors"
+                        <span title={t('kf.batchTooltip')}
                           className="inline-block mt-1 text-[11px] font-bold px-2 py-0.5 rounded-full font-sans bg-amber-100 text-amber-800">
                           Part of Rs {batchSummary[a.payment_batch_id].total.toLocaleString()} · {batchSummary[a.payment_batch_id].count} items
                         </span>
@@ -1400,9 +1400,9 @@ export default function KafalatPage() {
 
             {registeringNomination && (
               <div className="bg-sky-50 border border-sky-200 rounded-lg px-4 py-3 mb-4">
-                <p className="font-sans text-[12.5px] font-bold text-sky-800">Registering from a nomination</p>
+                <p className="font-sans text-[12.5px] font-bold text-sky-800">{t('kf.registeringFromNomination')}</p>
                 <p className="font-sans text-[12px] text-sky-800 mt-0.5 italic">&ldquo;{registeringNomination.reason}&rdquo;</p>
-                <p className="font-sans text-[11.5px] text-sky-700 mt-1">Saving will mark that nomination Accepted and link it to this child.</p>
+                <p className="font-sans text-[11.5px] text-sky-700 mt-1">{t('kf.savingWillMarkAccepted')}</p>
               </div>
             )}
 
