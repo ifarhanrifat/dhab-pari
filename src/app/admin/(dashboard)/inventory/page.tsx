@@ -300,23 +300,23 @@ export default function InventoryPage() {
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
           <Boxes size={26} /> {t('iv.title')}
         </h1>
-        <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">Stock items, chargeable services, and connection bundles used when billing consumers.</p>
+        <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('iv.subtitle')}</p>
       </div>
 
       <div className="flex items-center gap-2 mb-5 border-b border-dp-outline-variant overflow-x-auto admin-scrollbar">
-        {(['items', 'services', 'templates', 'movements', 'analytics'] as Tab[]).map((t) => (
+        {(['items', 'services', 'templates', 'movements', 'analytics'] as Tab[]).map((tabId) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2.5 font-sans text-[14px] font-semibold border-b-2 -mb-px transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${tab === t ? 'border-dp-secondary text-dp-primary' : 'border-transparent text-dp-on-surface-variant hover:text-dp-on-surface'}`}
+            key={tabId}
+            onClick={() => setTab(tabId)}
+            className={`px-4 py-2.5 font-sans text-[14px] font-semibold border-b-2 -mb-px transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${tab === tabId ? 'border-dp-secondary text-dp-primary' : 'border-transparent text-dp-on-surface-variant hover:text-dp-on-surface'}`}
           >
-            {t === 'items' && <Boxes size={15} />}
-            {t === 'services' && <Wrench size={15} />}
-            {t === 'templates' && <Layers size={15} />}
-            {t === 'movements' && <History size={15} />}
-            {t === 'analytics' && <LineChartIcon size={15} />}
-            {t === 'items' ? 'Inventory Items' : t === 'services' ? 'Services' : t === 'templates' ? 'Connection Templates' : t === 'movements' ? 'Stock Movements' : 'Analytics'}
-            {t === 'analytics' && lowStockItems.length > 0 && (
+            {tabId === 'items' && <Boxes size={15} />}
+            {tabId === 'services' && <Wrench size={15} />}
+            {tabId === 'templates' && <Layers size={15} />}
+            {tabId === 'movements' && <History size={15} />}
+            {tabId === 'analytics' && <LineChartIcon size={15} />}
+            {tabId === 'items' ? t('iv.tabItems') : tabId === 'services' ? t('iv.tabServices') : tabId === 'templates' ? t('iv.tabTemplates') : tabId === 'movements' ? t('iv.tabMovements') : t('iv.tabAnalytics')}
+            {tabId === 'analytics' && lowStockItems.length > 0 && (
               <span className="text-[10px] font-bold bg-dp-error text-white rounded-full px-1.5 py-0.5">{lowStockItems.length}</span>
             )}
           </button>
