@@ -68,17 +68,17 @@ export default function PortalLoginPage() {
       }
       if (res.status === 429 && data.retryAfter) {
         setLockedUntil(Date.now() + data.retryAfter * 1000)
-        setError(data.error ?? 'Too many attempts. You are temporarily locked out.')
+        setError(data.error ?? t('p.tooManyAttempts'))
         setLoading(false)
         return
       }
       const newFail = failCount + 1
       setFailCount(newFail)
-      setError(data.error ?? 'Invalid credentials.')
+      setError(data.error ?? t('p.invalidCredentials'))
       if (newFail >= 2) setDelayLeft(Math.ceil(Math.min(MIN_DELAY_MS * Math.pow(2, newFail - 2), MAX_DELAY_MS) / 1000))
       if (data.retryAfter > 0) setLockedUntil(Date.now() + data.retryAfter * 1000)
     } catch {
-      setError('Network error. Please check your connection and try again.')
+      setError(t('p.networkErrorRetry'))
     }
     setLoading(false)
   }

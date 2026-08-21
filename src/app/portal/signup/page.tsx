@@ -26,19 +26,19 @@ export default function PortalSignupPage() {
     e.preventDefault()
     setError('')
     if (!form.full_name.trim() || !form.father_husband_name.trim() || !form.mobile.trim() || !form.whatsapp_number.trim() || !form.username.trim() || !form.password) {
-      setError("Name, father's/husband's name, mobile, WhatsApp number, username, and password are required.")
+      setError(t('p.signupRequiredFields'))
       return
     }
     if (!/^[a-zA-Z0-9_]{6,30}$/.test(form.username.trim())) {
-      setError('Username must be 6-30 characters: letters, numbers, and underscores only.')
+      setError(t('p.usernameFormatPeriod'))
       return
     }
     if (form.donor_type === 'overseas' && !form.country.trim()) {
-      setError('Please enter your country.')
+      setError(t('p.enterCountryPeriod'))
       return
     }
     if (form.password.length < 8) {
-      setError('Password must be at least 8 characters.')
+      setError(t('p.passwordMinLengthPeriod'))
       return
     }
     setLoading(true)
@@ -49,14 +49,14 @@ export default function PortalSignupPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error ?? 'Could not create account.')
+        setError(data.error ?? t('p.couldNotCreateAccount'))
         setLoading(false)
         return
       }
       router.push('/portal')
       router.refresh()
     } catch {
-      setError('Network error. Please check your connection and try again.')
+      setError(t('p.networkErrorRetry'))
       setLoading(false)
     }
   }
@@ -111,7 +111,7 @@ export default function PortalSignupPage() {
             ) : (
               <div>
                 <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('w.sector')}</label>
-                <input value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} list="sector-options" placeholder="Select or type your sector" className="input-field" />
+                <input value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} list="sector-options" placeholder={t('p.selectOrTypeSector')} className="input-field" />
                 <datalist id="sector-options">
                   {sectors.map((s) => <option key={s} value={s} />)}
                 </datalist>
@@ -121,7 +121,7 @@ export default function PortalSignupPage() {
           <div>
             <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('g.usernameReq')}</label>
             <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required placeholder="6+ characters, no spaces" className="input-field" />
-            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Used to log in — never your phone number. This will also be your public name for community features.</p>
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('p.usernameHint')}</p>
           </div>
           <div>
             <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('w.emailOptional')}</label>
@@ -141,7 +141,7 @@ export default function PortalSignupPage() {
 
           <button type="submit" disabled={loading}
             className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold text-[16px] hover:bg-dp-primary transition-all disabled:opacity-50">
-            {loading ? 'Creating account...' : 'Create Account'}
+            {loading ? t('p.creatingAccount') : t('p.createAccountBtn')}
           </button>
         </form>
 
