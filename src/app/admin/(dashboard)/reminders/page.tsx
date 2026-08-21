@@ -4,12 +4,12 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { BellRing, MessageCircle, SkipForward, Clock, AlertTriangle, Heart, CalendarClock, Copy, Megaphone } from 'lucide-react'
+import { BellRing, MessageCircle, SkipForward, Clock, AlertTriangle, Heart, CalendarClock, Copy, Megaphone, GraduationCap } from 'lucide-react'
 import { normalizePakPhone } from '@/lib/receiptExport'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Reminder {
-  id: string; reminder_type: 'bill_weekly' | 'bill_defaulter' | 'donor_recurring' | 'meeting_due' | 'donor_pledge_unpaid'
+  id: string; reminder_type: 'bill_weekly' | 'bill_defaulter' | 'donor_recurring' | 'meeting_due' | 'donor_pledge_unpaid' | 'wazifa_repayment_due'
   target_name: string; target_phone: string | null; message: string; amount: number | null
   status: 'pending' | 'sent' | 'skipped'
 }
@@ -20,6 +20,7 @@ const sectionMeta = {
   donor_recurring: { title: 'Donor Reminders', icon: Heart, blurb: 'Recurring donors whose next contribution is due within a week.' },
   meeting_due: { title: 'Meeting-Due Reminders', icon: CalendarClock, blurb: 'Every committee member, generated on the 10th/20th/30th of each month — same message for everyone, so it can also be pasted straight into the committee WhatsApp group.' },
   donor_pledge_unpaid: { title: 'Unpaid Pledge Reminders', icon: Megaphone, blurb: 'Donors who announced a pledge on a project but haven’t paid yet — they also get an automatic in-app reminder alongside this WhatsApp queue.' },
+  wazifa_repayment_due: { title: 'Graduated Student Repayments', icon: GraduationCap, blurb: 'Taleemi Wazifa students who finished their studies and still owe a loan/settlement instalment, due within a week or already overdue.' },
 } as const
 
 export default function RemindersPage() {
