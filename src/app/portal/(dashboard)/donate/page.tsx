@@ -113,6 +113,15 @@ function PortalDonatePageInner() {
         amount_pkr: amount, date: new Date().toISOString().split('T')[0],
         payment_method: method, project_id: projectId || null, is_anonymous: isAnonymous,
         payment_proof_url: receiptPath, is_verified: false, submitted_via: 'public',
+        // Missing here since this page was first built — a standalone donation
+        // (nothing pending to bundle it with) never linked back to the donor's
+        // own portal account, so it couldn't appear in their own "Paid,
+        // Awaiting Confirmation" list on /portal/statement until an admin
+        // confirmed it (at which point the ledger, keyed by phone/name
+        // instead, picked it up anyway — the donor just never saw the
+        // reassurance in between). submit_combined_pledge_payment (migration
+        // 256) already sets this correctly; this path never did.
+        portal_user_id: user.id,
       })
       setSaving(false)
       if (error) { toast.error(friendlyError(error)); return }
