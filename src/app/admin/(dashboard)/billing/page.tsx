@@ -456,10 +456,10 @@ function BillingPageInner() {
     if (error) { toast.error(friendlyError(error)); return }
     const remaining = outstanding(bill)
     if (entered > remaining) {
-      toast.success(`Payment recorded — Rs. ${(entered - remaining).toLocaleString()} credited as advance balance`)
+      toast.success(`${t('billing.paymentRecordedAdvance')} ${(entered - remaining).toLocaleString()} ${t('billing.creditedAsAdvanceSuffix')}`)
     } else {
       const isFull = (bill.paid_amount ?? 0) + entered >= netPayable(bill)
-      toast.success(isFull ? 'Payment recorded — bill marked as paid' : `Partial payment of Rs. ${entered.toLocaleString()} recorded`)
+      toast.success(isFull ? t('billing.paymentRecordedPaid') : t('billing.partialPaymentRecorded').replace('{n}', entered.toLocaleString()))
     }
 
     // Whatever WhatsApp number the accountant confirmed or corrected in the
@@ -516,7 +516,7 @@ function BillingPageInner() {
     }).select('consumer_id').single()
     if (consumerError) { toast.error(friendlyError(consumerError)); return }
 
-    toast.success(`Consumer ${data.consumer_id} created`)
+    toast.success(`${t('billing.consumerCreatedPrefix')} ${data.consumer_id} ${t('billing.consumerCreatedSuffix')}`)
     setShowAddConsumer(false)
     setBillingSetupTarget({ consumer_id: data.consumer_id, name: newConsumer.name, scheduleId: null })
     setBillingSetupForm({ discount_amount: 0, description: '', recurring_enabled: true, recurring_frequency: 'monthly', monthly_amount: newConsumer.monthly_rate })
@@ -543,8 +543,8 @@ function BillingPageInner() {
         amount_pkr: billingSetupForm.monthly_amount, discount_amount: billingSetupForm.discount_amount || 0,
         particular: billingSetupForm.description || null, is_active: billingSetupForm.recurring_enabled,
       }).eq('id', billingSetupTarget.scheduleId)
-      if (schedErr) toast.error(`Recurring schedule could not be updated: ${schedErr.message}`)
-      else toast.success(billingSetupForm.recurring_enabled ? 'Recurring billing updated' : 'Recurring billing paused')
+      if (schedErr) toast.error(`${t('billing.recurringScheduleUpdateFailed')} ${schedErr.message}`)
+      else toast.success(billingSetupForm.recurring_enabled ? t('billing.recurringUpdated') : t('billing.recurringPaused'))
     } else if (billingSetupForm.recurring_enabled && billingSetupForm.monthly_amount > 0) {
       const next = new Date()
       if (billingSetupForm.recurring_frequency === 'daily') next.setDate(next.getDate() + 1)
@@ -561,7 +561,7 @@ function BillingPageInner() {
         amount_pkr: billingSetupForm.monthly_amount, discount_amount: billingSetupForm.discount_amount || 0,
         particular: billingSetupForm.description || null,
       })
-      if (schedErr) toast.error(schedErr.code === '23505' ? 'This consumer already has an active recurring bill' : `Recurring schedule could not be created: ${schedErr.message}`)
+      if (schedErr) toast.error(schedErr.code === '23505' ? t('billing.hasActiveRecurring') : `${t('billing.recurringCreateFailed')} ${schedErr.message}`)
       else toast.success(t('billing.ok.recurringSetUp'))
     }
     setSettingUpBilling(false)
@@ -638,8 +638,8 @@ function BillingPageInner() {
     }
     toast.success(
       nextStatus === 'active'
-        ? `Consumer activated${schedule ? ' — recurring billing resumed' : ''}`
-        : `Consumer deactivated${schedule ? ' — recurring billing paused' : ''}`
+        ? `${t('billing.consumerActivated')}${schedule ? ` ${t('billing.recurringResumedSuffix')}` : ''}`
+        : `${t('billing.consumerDeactivated')}${schedule ? ` ${t('billing.recurringPausedSuffix')}` : ''}`
     )
     setSelectedConsumer({ ...c, status: nextStatus })
     loadData()
@@ -660,9 +660,9 @@ function BillingPageInner() {
     setDisconnecting(false)
     if (error) { toast.error(friendlyError(error)); return }
     const parts: string[] = []
-    if (data.applied > 0) parts.push(`Rs. ${Number(data.applied).toLocaleString()} applied to their pending balance`)
-    if (data.refund > 0) parts.push(`Rs. ${Number(data.refund).toLocaleString()} refunded`)
-    toast.success(`Consumer disconnected${parts.length ? ' — ' + parts.join(', ') : ''}`)
+    if (data.applied > 0) parts.push(`Rs. ${Number(data.applied).toLocaleString()} ${t('billing.appliedToPendingSuffix')}`)
+    if (data.refund > 0) parts.push(`Rs. ${Number(data.refund).toLocaleString()} ${t('billing.refundedSuffix')}`)
+    toast.success(`${t('billing.consumerDisconnected')}${parts.length ? ' — ' + parts.join(', ') : ''}`)
     setDisconnectTarget(null)
     setDisconnectPreview(null)
     setSelectedConsumer(null)
@@ -1478,18 +1478,18 @@ function BillingPageInner() {
 
       {/* Add Consumer Modal */}
       {showAddConsumer && (
-        <Modal title="Add New Consumer" onClose={() => setShowAddConsumer(false)}>
+        <Modal title={t('billing.addNewConsumerTitle')} onClose={() => setShowAddConsumer(false)}>
           <div className="space-y-4">
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-surface-container-low rounded-lg px-3 py-2">
-              This only creates the consumer profile. Generate their first bill afterwards from Transactions → Generate Bill.
+              {t('billing.addConsumerNote')}
             </p>
-            <Field label="Full Name">
+            <Field label={t('billing.fullName')}>
               <input type="text" value={newConsumer.name} onChange={(e) => setNewConsumer({ ...newConsumer, name: e.target.value })} className="input-field" />
             </Field>
-            <Field label="Father / Husband Name (S/O)">
+            <Field label={t('billing.fatherHusbandNameSO')}>
               <input type="text" value={newConsumer.father_husband_name} onChange={(e) => setNewConsumer({ ...newConsumer, father_husband_name: e.target.value })} className="input-field" />
             </Field>
-            <Field label="Contact Number">
+            <Field label={t('billing.contactNumber')}>
               <input type="text" value={newConsumer.mobile} onChange={(e) => setNewConsumer({ ...newConsumer, mobile: e.target.value })} placeholder="0300-1234567" className="input-field" />
             </Field>
             <div>
@@ -1502,27 +1502,27 @@ function BillingPageInner() {
               )}
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="House No.">
+              <Field label={t('billing.houseNo')}>
                 <input type="text" value={newConsumer.house_no} onChange={(e) => setNewConsumer({ ...newConsumer, house_no: e.target.value })} className="input-field" />
               </Field>
-              <Field label="Sector">
+              <Field label={t('billing.sectorLabel')}>
                 <select value={newConsumer.sector} onChange={(e) => setNewConsumer({ ...newConsumer, sector: e.target.value })} className="input-field">
                   <option value="">{t('billing.selectSector')}</option>
                   {sectorOptions.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
               </Field>
             </div>
-            <Field label="Area / Mohalla">
+            <Field label={t('billing.areaMohalla')}>
               <input type="text" value={newConsumer.area} onChange={(e) => setNewConsumer({ ...newConsumer, area: e.target.value })} className="input-field" />
             </Field>
-            <Field label="Full Address">
+            <Field label={t('billing.fullAddress')}>
               <textarea value={newConsumer.address} onChange={(e) => setNewConsumer({ ...newConsumer, address: e.target.value })} rows={2} className="input-field resize-none" />
             </Field>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Number of Connections">
+              <Field label={t('billing.numberOfConnections')}>
                 <input type="number" min={1} value={newConsumer.connections || ''} onChange={(e) => setNewConsumer({ ...newConsumer, connections: +e.target.value })} className="input-field" />
               </Field>
-              <Field label="Monthly Rate (PKR)">
+              <Field label={t('billing.monthlyRatePkr')}>
                 <input type="number" value={newConsumer.monthly_rate || ''} onChange={(e) => setNewConsumer({ ...newConsumer, monthly_rate: +e.target.value })} className="input-field" />
               </Field>
             </div>
@@ -1533,15 +1533,15 @@ function BillingPageInner() {
 
       {/* Edit Consumer Modal */}
       {editConsumerTarget && (
-        <Modal title="Edit Consumer" onClose={() => setEditConsumerTarget(null)}>
+        <Modal title={t('billing.editConsumerTitle')} onClose={() => setEditConsumerTarget(null)}>
           <div className="space-y-4">
-            <Field label="Full Name">
+            <Field label={t('billing.fullName')}>
               <input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="input-field" />
             </Field>
-            <Field label="Father / Husband Name (S/O)">
+            <Field label={t('billing.fatherHusbandNameSO')}>
               <input type="text" value={editForm.father_husband_name} onChange={(e) => setEditForm({ ...editForm, father_husband_name: e.target.value })} className="input-field" />
             </Field>
-            <Field label="Contact Number">
+            <Field label={t('billing.contactNumber')}>
               <input type="text" value={editForm.mobile} onChange={(e) => setEditForm({ ...editForm, mobile: e.target.value })} className="input-field" />
             </Field>
             <div>
@@ -1554,32 +1554,32 @@ function BillingPageInner() {
               )}
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="House No.">
+              <Field label={t('billing.houseNo')}>
                 <input type="text" value={editForm.house_no} onChange={(e) => setEditForm({ ...editForm, house_no: e.target.value })} className="input-field" />
               </Field>
-              <Field label="Sector">
+              <Field label={t('billing.sectorLabel')}>
                 <select value={editForm.sector} onChange={(e) => setEditForm({ ...editForm, sector: e.target.value })} className="input-field">
                   <option value="">{t('billing.selectSector')}</option>
                   {sectorOptions.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
               </Field>
             </div>
-            <Field label="Area / Mohalla">
+            <Field label={t('billing.areaMohalla')}>
               <input type="text" value={editForm.area} onChange={(e) => setEditForm({ ...editForm, area: e.target.value })} className="input-field" />
             </Field>
-            <Field label="Address">
+            <Field label={t('billing.addressLabel')}>
               <textarea value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} rows={2} className="input-field resize-none" />
             </Field>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Number of Connections">
+              <Field label={t('billing.numberOfConnections')}>
                 <input type="number" min={1} value={editForm.connections || ''} onChange={(e) => setEditForm({ ...editForm, connections: +e.target.value })} className="input-field" />
               </Field>
-              <Field label="Monthly Rate (PKR)">
+              <Field label={t('billing.monthlyRatePkr')}>
                 <input type="number" value={editForm.monthly_rate || ''} onChange={(e) => setEditForm({ ...editForm, monthly_rate: +e.target.value })} className="input-field" />
               </Field>
             </div>
             <button disabled={savingEdit} onClick={saveEditConsumer} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-              {savingEdit ? 'Saving...' : 'Save'}
+              {savingEdit ? t('em.saving') : t('g.saveChanges')}
             </button>
           </div>
         </Modal>
@@ -1623,16 +1623,16 @@ function BillingPageInner() {
       {/* Setup Billing — appears right after Add Consumer saves, same step
           New Connections' Activation uses once a connection request is done. */}
       {billingSetupTarget && (
-        <Modal title={billingSetupTarget.scheduleId ? 'Edit Recurring Billing' : 'Set Up Recurring Billing'} onClose={() => setBillingSetupTarget(null)}>
+        <Modal title={billingSetupTarget.scheduleId ? t('billing.editRecurringBillingTitle') : t('billing.setUpRecurringBillingTitle')} onClose={() => setBillingSetupTarget(null)}>
           <div className="space-y-4">
             <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3">
               <p className="font-sans text-[14px] font-bold text-dp-on-surface">{billingSetupTarget.name}</p>
               <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{billingSetupTarget.consumer_id}</p>
             </div>
-            <Field label="Monthly Bill Price">
+            <Field label={t('billing.monthlyBillPrice')}>
               <input type="number" min={0} value={billingSetupForm.monthly_amount || ''} onChange={(e) => setBillingSetupForm({ ...billingSetupForm, monthly_amount: +e.target.value })} className="input-field" />
             </Field>
-            <Field label="Discount (optional)">
+            <Field label={t('billing.discountOptional')}>
               <input type="number" min={0} value={billingSetupForm.discount_amount || ''} onChange={(e) => setBillingSetupForm({ ...billingSetupForm, discount_amount: +e.target.value })} placeholder="0" className="input-field" />
             </Field>
             {billingSetupForm.discount_amount > 0 && (
@@ -1640,7 +1640,7 @@ function BillingPageInner() {
                 {t('billing.netMonthly')} <span className="font-bold text-dp-on-surface">Rs. {Math.max(billingSetupForm.monthly_amount - billingSetupForm.discount_amount, 0).toLocaleString()}</span>
               </p>
             )}
-            <Field label="Description (optional)">
+            <Field label={t('billing.descriptionOptional')}>
               <input value={billingSetupForm.description} onChange={(e) => setBillingSetupForm({ ...billingSetupForm, description: e.target.value })} className="input-field" />
             </Field>
             <label className="flex items-center gap-2 cursor-pointer">
