@@ -119,9 +119,9 @@ export default function EmployeesPage() {
   }
 
   const saveEmployee = async () => {
-    if (!form.name.trim()) { toast.error('Enter a name'); return }
-    if (!form.primary_role) { toast.error('Select a primary role'); return }
-    if (form.secondary_role && form.secondary_role === form.primary_role) { toast.error('Secondary role must differ from primary role'); return }
+    if (!form.name.trim()) { toast.error(t('em.enterName')); return }
+    if (!form.primary_role) { toast.error(t('em.selectPrimaryRole')); return }
+    if (form.secondary_role && form.secondary_role === form.primary_role) { toast.error(t('em.secondaryRoleDiffer')); return }
     setSaving(true)
 
     const payload = {
@@ -148,7 +148,7 @@ export default function EmployeesPage() {
           }
         }
       }
-      toast.success('Employee added')
+      toast.success(t('em.employeeAdded'))
     } else if (formTarget) {
       const { error } = await supabase.from('employees').update(payload).eq('id', formTarget.id)
       if (error) { toast.error(friendlyError(error)); setSaving(false); return }
@@ -170,7 +170,7 @@ export default function EmployeesPage() {
           if (sched) await supabase.from('employees').update({ salary_schedule_id: sched.id }).eq('id', formTarget.id)
         }
       }
-      toast.success('Employee updated')
+      toast.success(t('em.employeeUpdated'))
     }
 
     setSaving(false)
@@ -189,11 +189,11 @@ export default function EmployeesPage() {
   // category in reports — both are in the approval-gated type list.
   const giveAdvance = async () => {
     if (!advanceTarget) return
-    if (advanceForm.amount <= 0) { toast.error('Enter an amount'); return }
+    if (advanceForm.amount <= 0) { toast.error(t('em.enterAmount')); return }
     const fromCode = advanceForm.method === 'cash' ? 'WS-1001' : 'WS-1002'
     const fromId = accountsByCode[fromCode]
     const toId = employeeAccountIds[advanceTarget.id]
-    if (!fromId || !toId) { toast.error('Required account not found in Chart of Accounts'); return }
+    if (!fromId || !toId) { toast.error(t('em.accountNotFound')); return }
 
     setGivingAdvance(true)
     const { error } = await supabase.from('vouchers').insert({
@@ -204,7 +204,7 @@ export default function EmployeesPage() {
     })
     setGivingAdvance(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Advance recorded')
+    toast.success(t('em.advanceRecorded'))
     setAdvanceTarget(null)
     load()
   }
@@ -216,14 +216,14 @@ export default function EmployeesPage() {
     if (e.salary_schedule_id) {
       await supabase.from('recurring_schedules').update({ is_active: nextActive }).eq('id', e.salary_schedule_id)
     }
-    toast.success(nextActive ? 'Employee activated — salary schedule resumed' : 'Employee deactivated — salary schedule paused')
+    toast.success(nextActive ? t('em.activatedResumed') : t('em.deactivatedPaused'))
     load()
   }
 
   const addRole = async () => {
-    if (!newRole.label_en.trim() || !newRole.label_ur.trim()) { toast.error('Enter both English and Urdu labels'); return }
+    if (!newRole.label_en.trim() || !newRole.label_ur.trim()) { toast.error(t('em.enterBothLabels')); return }
     const key = slugify(newRole.label_en)
-    if (!key) { toast.error('Enter a valid label'); return }
+    if (!key) { toast.error(t('em.enterValidLabel')); return }
     setSavingRole(true)
     const { error } = await supabase.from('employee_roles').insert({ key, label_en: newRole.label_en.trim(), label_ur: newRole.label_ur.trim() })
     if (error) { toast.error(friendlyError(error)); setSavingRole(false); return }
@@ -234,7 +234,7 @@ export default function EmployeesPage() {
     ])
     setSavingRole(false)
     setNewRole({ label_en: '', label_ur: '' })
-    toast.success('Role added')
+    toast.success(t('em.roleAdded'))
     load()
   }
 
@@ -251,7 +251,7 @@ export default function EmployeesPage() {
           <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
             <HardHat size={26} /> {t('em.title')}
           </h1>
-          <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">Each employee has their own ledger account (see Chart of Accounts → Employees Payable). Salary accrues automatically; overtime, bonus, emergency pay, and job earnings are recognized via the monthly payslip.</p>
+          <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('em.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowManageRoles(true)} className="flex items-center gap-2 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[14px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
@@ -280,21 +280,21 @@ export default function EmployeesPage() {
                       <span className="px-2 py-0.5 rounded-full bg-dp-primary-container text-dp-secondary text-[10.5px] font-bold uppercase tracking-wide">{roleLabelEn(e.primary_role)}</span>
                       {e.secondary_role && <span className="px-2 py-0.5 rounded-full bg-dp-surface-container-low text-dp-on-surface-variant text-[10.5px] font-bold uppercase tracking-wide">{roleLabelEn(e.secondary_role)}</span>}
                       {!e.is_active && <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10.5px] font-bold uppercase tracking-wide">{t('em.inactive')}</span>}
-                      {balance > 0 && <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10.5px] font-bold uppercase tracking-wide">Owed: Rs. {balance.toLocaleString()}</span>}
-                      {balance < 0 && <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10.5px] font-bold uppercase tracking-wide">Owes committee: Rs. {Math.abs(balance).toLocaleString()}</span>}
+                      {balance > 0 && <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10.5px] font-bold uppercase tracking-wide">{t('em.owed')} {balance.toLocaleString()}</span>}
+                      {balance < 0 && <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10.5px] font-bold uppercase tracking-wide">{t('em.owesCommittee')} {Math.abs(balance).toLocaleString()}</span>}
                     </div>
                     <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
-                      {e.phone && `${e.phone} · `}Salary: Rs. {e.monthly_salary.toLocaleString()}/mo{e.salary_schedule_id && e.is_active ? ' · Recurring active' : ''}
+                      {e.phone && `${e.phone} · `}{t('em.salaryPrefix')} {e.monthly_salary.toLocaleString()}/mo{e.salary_schedule_id && e.is_active ? ` · ${t('em.recurringActiveSuffix')}` : ''}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
-                    <button onClick={() => openAdvance(e)} title="Give Advance" className="flex items-center gap-1 px-2.5 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><HandCoins size={13} /> {t('em.advance')}</button>
+                    <button onClick={() => openAdvance(e)} title={t('em.giveAdvanceTitle')} className="flex items-center gap-1 px-2.5 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><HandCoins size={13} /> {t('em.advance')}</button>
                     <PayslipButton
                       employee={e} roleLabelEn={roleLabelEn} accountsByCode={accountsByCode}
                       employeeAccountId={employeeAccountIds[e.id]} branding={branding} onSettled={load}
                     />
-                    <button onClick={() => openEdit(e)} title="Edit" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Pencil size={15} /></button>
-                    <button onClick={() => toggleActive(e)} title={e.is_active ? 'Deactivate' : 'Activate'} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer">
+                    <button onClick={() => openEdit(e)} title={t('em.editTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Pencil size={15} /></button>
+                    <button onClick={() => toggleActive(e)} title={e.is_active ? t('em.deactivateTitle') : t('em.activateTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer">
                       {e.is_active ? <PauseCircle size={15} /> : <Power size={15} />}
                     </button>
                   </div>
@@ -311,7 +311,7 @@ export default function EmployeesPage() {
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setFormTarget(null)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{formTarget === 'new' ? 'Add Employee' : 'Edit Employee'}</h2>
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{formTarget === 'new' ? t('em.addEmployeeTitle') : t('em.editEmployeeTitle')}</h2>
               <button onClick={() => setFormTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <div className="space-y-4">
@@ -348,7 +348,7 @@ export default function EmployeesPage() {
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('z.monthlySalary')}</label>
                 <input type="number" min={0} value={form.monthly_salary || ''} onChange={(ev) => setForm({ ...form, monthly_salary: +ev.target.value })} className="input-field" />
-                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Accrues automatically each month against this employee's own account — actual cash goes out via their payslip.</p>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('em.accruesNote')}</p>
               </div>
               {formTarget !== 'new' && (
                 <label className="flex items-center gap-2 font-sans text-[13px] text-dp-on-surface cursor-pointer">
@@ -356,7 +356,7 @@ export default function EmployeesPage() {
                 </label>
               )}
               <button disabled={saving} onClick={saveEmployee} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                {saving ? 'Saving...' : 'Save'}
+                {saving ? t('em.saving') : t('em.save')}
               </button>
             </div>
           </div>
@@ -393,9 +393,9 @@ export default function EmployeesPage() {
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('a.noteOptional')}</label>
                 <input value={advanceForm.note} onChange={(ev) => setAdvanceForm({ ...advanceForm, note: ev.target.value })} className="input-field" />
               </div>
-              <p className="font-sans text-[11.5px] text-dp-on-surface-variant">Reduces this employee's account balance immediately — it nets against whatever they earn going forward, shown live on their row and on their next payslip.</p>
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('em.reducesNote')}</p>
               <button disabled={givingAdvance} onClick={giveAdvance} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                <HandCoins size={15} /> {givingAdvance ? 'Recording...' : 'Give Advance'}
+                <HandCoins size={15} /> {givingAdvance ? t('em.recording') : t('em.giveAdvanceTitle')}
               </button>
             </div>
           </div>
@@ -417,17 +417,17 @@ export default function EmployeesPage() {
                     <p className="font-sans text-[12.5px] text-dp-on-surface-variant" style={{ fontFamily: 'var(--font-urdu), serif' }}>{r.label_ur}</p>
                   </div>
                   <button onClick={() => toggleRoleActive(r)} className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide cursor-pointer ${r.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
-                    {r.is_active ? 'Active' : 'Inactive'}
+                    {r.is_active ? t('g.active') : t('g.inactive')}
                   </button>
                 </div>
               ))}
             </div>
             <div className="border-t border-dp-outline-variant pt-4 space-y-3">
               <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('em.addRole')}</p>
-              <input value={newRole.label_en} onChange={(e) => setNewRole({ ...newRole, label_en: e.target.value })} placeholder="English label, e.g. Meter Reader" className="input-field" />
+              <input value={newRole.label_en} onChange={(e) => setNewRole({ ...newRole, label_en: e.target.value })} placeholder={t('em.addRolePlaceholderEn')} className="input-field" />
               <input value={newRole.label_ur} onChange={(e) => setNewRole({ ...newRole, label_ur: e.target.value })} placeholder="اردو لیبل" dir="rtl" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} />
               <button disabled={savingRole} onClick={addRole} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                {savingRole ? 'Adding...' : 'Add Role'}
+                {savingRole ? t('em.adding') : t('em.addRoleBtn')}
               </button>
             </div>
           </div>
@@ -486,8 +486,8 @@ function HiringRequestGenerator({ employees, employeeRoles, branding }: { employ
     ]
     const results = await Promise.all(updates)
     setSavingTemplates(false)
-    if (results.some((r) => r.error)) { toast.error('Could not save some changes'); return }
-    toast.success('Saved as the new default for this role')
+    if (results.some((r) => r.error)) { toast.error(t('em.couldNotSaveSome')); return }
+    toast.success(t('em.savedAsDefault'))
   }
 
   const docData: HiringRequestData = {
@@ -500,15 +500,15 @@ function HiringRequestGenerator({ employees, employeeRoles, branding }: { employ
     if (!nodeRef.current) throw new Error('Document not ready')
     return format === 'pdf' ? nodeToPdfBlob(nodeRef.current) : nodeToPngBlob(nodeRef.current)
   }
-  const handlePrint = async () => { try { printBlob(await nodeToPdfBlob(nodeRef.current!)) } catch { toast.error('Could not prepare the document for printing') } }
-  const handleDownload = async () => { try { downloadBlob(await buildBlob(), `hiring-request-${role}.${format === 'pdf' ? 'pdf' : 'png'}`) } catch { toast.error('Could not prepare the document') } }
+  const handlePrint = async () => { try { printBlob(await nodeToPdfBlob(nodeRef.current!)) } catch { toast.error(t('em.couldNotPreparePrint')) } }
+  const handleDownload = async () => { try { downloadBlob(await buildBlob(), `hiring-request-${role}.${format === 'pdf' ? 'pdf' : 'png'}`) } catch { toast.error(t('em.couldNotPrepareDoc')) } }
 
   return (
     <div className="bg-white rounded-lg border border-dp-outline-variant p-6">
       <h2 className="font-sans text-[18px] font-bold text-dp-on-surface flex items-center gap-2 mb-1">
         <FileText size={18} /> {t('z.generateHiring')}
       </h2>
-      <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">Urdu-only printable hiring notice on behalf of the Water &amp; Welfare Committee. Text below is editable and saves as the new default for this role.</p>
+      <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{t('em.hiringSubtitle')}</p>
 
       <div className="mb-4 max-w-xs">
         <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('us.role')}</label>
@@ -537,10 +537,10 @@ function HiringRequestGenerator({ employees, employeeRoles, branding }: { employ
             <div className="max-w-[180px]">
               <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('z.salaryRs')}</label>
               <input type="number" min={0} value={salary || ''} onChange={(e) => setSalary(+e.target.value)} className="input-field" />
-              <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">Defaults to the average of active {currentRole?.label_en ?? role}s (Rs. {roleAverage.toLocaleString()})</p>
+              <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('em.defaultsToAverage')} {currentRole?.label_en ?? role}{t('em.defaultsToAverageSuffix')} (Rs. {roleAverage.toLocaleString()})</p>
             </div>
             <button disabled={savingTemplates} onClick={saveTemplates} className="px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
-              {savingTemplates ? 'Saving...' : 'Save as Default'}
+              {savingTemplates ? t('em.saving') : t('em.saveAsDefaultBtn')}
             </button>
             <button onClick={() => setShowPreview(true)} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer ms-auto">
               <FileText size={15} /> {t('z.generateDocument')}
@@ -658,7 +658,7 @@ function PayslipButton({
   const newRecognitionTotal = form.overtime + form.bonus + form.emergency + jobTotal
 
   const savePayslip = async () => {
-    if (!employeeAccountId) { toast.error('Employee account not ready — try again in a moment'); return }
+    if (!employeeAccountId) { toast.error(t('em.accountNotReady')); return }
     setSaving(true)
     try {
       let payslipId = existing?.id
@@ -714,14 +714,14 @@ function PayslipButton({
         }).eq('id', payslipId)
       }
 
-      toast.success('Payslip saved')
+      toast.success(t('em.payslipSaved'))
       setExisting({ id: payslipId!, recognition_voucher_id: recognitionVoucherId, overtime_amount: form.overtime, bonus_amount: form.bonus, emergency_amount: form.emergency })
       const bal = await fetchBalance()
       setBalance(bal)
       setPayAmount(Math.max(bal, 0))
       onSettled()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not save the payslip')
+      toast.error(err instanceof Error ? err.message : t('em.couldNotSavePayslip'))
     } finally {
       setSaving(false)
     }
@@ -732,8 +732,8 @@ function PayslipButton({
   // 'withdrawal' (same approval gate, doesn't re-count as a fresh expense).
   const payNow = async () => {
     if (!employeeAccountId) return
-    if (payAmount <= 0) { toast.error('Enter an amount'); return }
-    if (payAmount > balance) { toast.error('Cannot pay more than the current balance owed'); return }
+    if (payAmount <= 0) { toast.error(t('em.enterAmount')); return }
+    if (payAmount > balance) { toast.error(t('em.cannotPayMore')); return }
     setPaying(true)
     try {
       const fromCode = payMethod === 'cash' ? 'WS-1001' : 'WS-1002'
@@ -744,13 +744,13 @@ function PayslipButton({
         employee_id: employee.id, party_name: employee.name,
       })
       if (error) { toast.error(friendlyError(error)); return }
-      toast.success('Payment recorded')
+      toast.success(t('em.paymentRecorded'))
       const bal = await fetchBalance()
       setBalance(bal)
       setPayAmount(Math.max(bal, 0))
       onSettled()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not record the payment')
+      toast.error(err instanceof Error ? err.message : t('em.couldNotRecordPayment'))
     } finally {
       setPaying(false)
     }
@@ -798,12 +798,12 @@ function PayslipButton({
     if (!nodeRef.current) throw new Error('Document not ready')
     return format === 'pdf' ? nodeToPdfBlob(nodeRef.current) : nodeToPngBlob(nodeRef.current)
   }
-  const handlePrint = async () => { try { printBlob(await nodeToPdfBlob(nodeRef.current!)) } catch { toast.error('Could not prepare the document for printing') } }
-  const handleDownload = async () => { try { downloadBlob(await buildBlob(), `payslip-${employee.name}-${month}-${year}.${format === 'pdf' ? 'pdf' : 'png'}`) } catch { toast.error('Could not prepare the document') } }
+  const handlePrint = async () => { try { printBlob(await nodeToPdfBlob(nodeRef.current!)) } catch { toast.error(t('em.couldNotPreparePrint')) } }
+  const handleDownload = async () => { try { downloadBlob(await buildBlob(), `payslip-${employee.name}-${month}-${year}.${format === 'pdf' ? 'pdf' : 'png'}`) } catch { toast.error(t('em.couldNotPrepareDoc')) } }
 
   return (
     <>
-      <button onClick={() => { setShowDoc(false); setOpen(true) }} title="Generate Payslip" className="flex items-center gap-1 px-2.5 py-1.5 border border-dp-secondary/40 text-dp-secondary rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-secondary/5 transition-all cursor-pointer">
+      <button onClick={() => { setShowDoc(false); setOpen(true) }} title={t('em.generatePayslipTitle')} className="flex items-center gap-1 px-2.5 py-1.5 border border-dp-secondary/40 text-dp-secondary rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-secondary/5 transition-all cursor-pointer">
         <Receipt size={13} /> {t('em.payslip')}
       </button>
 
@@ -811,7 +811,7 @@ function PayslipButton({
         <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4" onClick={() => setOpen(false)}>
           <div className="bg-white rounded-lg max-h-[92vh] overflow-y-auto w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-dp-outline-variant">
-              <span className="font-sans text-[14px] font-bold text-dp-primary">Payslip — {employee.name}</span>
+              <span className="font-sans text-[14px] font-bold text-dp-primary">{t('em.payslipPrefix')} — {employee.name}</span>
               <button onClick={() => setOpen(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
 
@@ -835,7 +835,7 @@ function PayslipButton({
                 <>
                   {existing?.recognition_voucher_id && (
                     <p className="font-sans text-[12px] text-dp-secondary bg-dp-secondary/5 border border-dp-secondary/20 rounded-lg px-3 py-2">
-                      Already run for this period — editing below updates the same voucher, it won&apos;t create a duplicate.
+                      {t('em.alreadyRunNote')}
                     </p>
                   )}
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('z.salaryAccrued')} <span className="font-semibold text-dp-on-surface">Rs. {salaryAccrued.toLocaleString()}</span></p>
@@ -869,12 +869,12 @@ function PayslipButton({
                   )}
 
                   <button disabled={saving} onClick={savePayslip} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                    {saving ? 'Saving...' : existing?.recognition_voucher_id ? 'Update Payslip' : 'Save Payslip'}
+                    {saving ? t('em.saving') : existing?.recognition_voucher_id ? t('em.updatePayslip') : t('em.savePayslip')}
                   </button>
 
                   <div className="border-t border-dp-outline-variant pt-4">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-sans text-[14px] font-bold text-dp-on-surface">Balance Owed: Rs. {balance.toLocaleString()}</span>
+                      <span className="font-sans text-[14px] font-bold text-dp-on-surface">{t('em.balanceOwedPrefix')} {balance.toLocaleString()}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-3 items-end">
                       <div>
@@ -889,7 +889,7 @@ function PayslipButton({
                         </select>
                       </div>
                       <button disabled={paying || balance <= 0} onClick={payNow} className="flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                        <Banknote size={15} /> {paying ? 'Paying...' : 'Pay Now'}
+                        <Banknote size={15} /> {paying ? t('em.paying') : t('em.payNow')}
                       </button>
                     </div>
                   </div>

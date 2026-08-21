@@ -84,7 +84,7 @@ export default function CollectorsPage() {
   }
 
   const saveSettlement = async () => {
-    if (!settleFor || settleAmount <= 0 || !settleToAccount) { toast.error('Enter an amount and destination account'); return }
+    if (!settleFor || settleAmount <= 0 || !settleToAccount) { toast.error(t('cl.enterAmountAndAccount')); return }
     setSaving(true)
     const { error } = await supabase.from('collector_settlements').insert({
       collector_id: settleFor.collectorId, amount_pkr: settleAmount,
@@ -92,7 +92,7 @@ export default function CollectorsPage() {
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(`Rs. ${fmt(settleAmount)} received from ${settleFor.name}`)
+    toast.success(`Rs. ${fmt(settleAmount)} ${t('cl.receivedFrom')} ${settleFor.name}`)
     setSettleFor(null)
     load()
   }
@@ -101,7 +101,7 @@ export default function CollectorsPage() {
   if (!access.canWaterSupply) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
-        <p className="font-sans text-[14px] text-dp-on-surface-variant">Collectors belongs to the Water Supply system — your account doesn&apos;t have access to it.</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('cl.noAccessMessage')}</p>
       </div>
     )
   }
@@ -112,7 +112,7 @@ export default function CollectorsPage() {
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
           <Coins size={26} /> {t('y.fieldCollectors')}
         </h1>
-        <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">Cash collected on the spot by field collectors, pending remittance.</p>
+        <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('cl.subtitle')}</p>
       </div>
 
       <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3 mb-5 inline-block">
@@ -128,7 +128,7 @@ export default function CollectorsPage() {
         {loading ? (
           <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('action.loading')}</p>
         ) : rows.length === 0 ? (
-          <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">No field collectors set up yet — grant collector access from User Management.</p>
+          <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('cl.noCollectorsYet')}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-start min-w-[550px]">
@@ -199,18 +199,18 @@ export default function CollectorsPage() {
       {settleFor && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setSettleFor(null)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[20px] font-bold text-dp-primary mb-1">Settle with {settleFor.name}</h2>
-            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">Currently holding Rs. {fmt(settleFor.balance)}</p>
+            <h2 className="font-heading text-[20px] font-bold text-dp-primary mb-1">{t('cl.settleWith')} {settleFor.name}</h2>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{t('cl.currentlyHolding')} {fmt(settleFor.balance)}</p>
             <div className="space-y-4">
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.amountReceived')}</label>
                 <input type="number" min={1} value={settleAmount || ''} onChange={(e) => setSettleAmount(+e.target.value)} className="input-field" />
               </div>
               <SearchableField
-                label="Deposit Into"
+                label={t('cl.depositInto')}
                 value={settleToAccount}
                 onChange={setSettleToAccount}
-                placeholder="Select cash/bank account..."
+                placeholder={t('cl.selectCashBank')}
                 items={cashBankAccounts.map((a) => ({ id: a.id, label: a.name }))}
               />
               <div>
@@ -225,7 +225,7 @@ export default function CollectorsPage() {
                 <input value={settleNote} onChange={(e) => setSettleNote(e.target.value)} className="input-field" />
               </div>
               <button disabled={saving} onClick={saveSettlement} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                {saving ? 'Saving...' : 'Confirm Received'}
+                {saving ? t('cl.saving') : t('cl.confirmReceived')}
               </button>
             </div>
           </div>
