@@ -16,7 +16,8 @@ interface MyTask {
   detail: string | null; due_date: string | null; status: string
 }
 
-const STATUS_LABEL: Record<string, string> = { offered: 'Offered', assigned: 'Assigned', completed: 'Completed' }
+const STATUS_KEY: Record<string, string> = { offered: 'p.statusOffered', assigned: 'p.statusAssigned', completed: 'p.statusCompleted' }
+const TASK_STATUS_KEY: Record<string, string> = { pending: 'p.taskStatusPending', in_progress: 'p.taskStatusInProgress', done: 'p.taskStatusDone' }
 
 // Bilingual because this form is answered by residents, not staff — and the
 // answers are what let the committee hand out work without a phone call first.
@@ -75,14 +76,14 @@ export default function PortalMyVolunteeringPage() {
   }
   useEffect(() => { load() }, [user])
 
-  const projectTitle = (id: string | null) => id ? (projects.find((p) => p.id === id)?.title ?? 'A Project') : 'General — Any Project'
+  const projectTitle = (id: string | null) => id ? (projects.find((p) => p.id === id)?.title ?? tr('p.aProject')) : tr('p.generalAnyProjectTitle')
 
   const toggleHelp = (id: string) =>
     setHelpTypes((prev) => prev.includes(id) ? prev.filter((h) => h !== id) : [...prev, id])
 
   const submit = async () => {
     if (!user) return
-    if (helpTypes.length === 0) { toast.error('Please choose at least one way you can help'); return }
+    if (helpTypes.length === 0) { toast.error(tr('p.chooseWayToHelp')); return }
     setSaving(true)
     const supabase = createClient()
     const { error } = await supabase.from('volunteers').insert({
@@ -91,7 +92,7 @@ export default function PortalMyVolunteeringPage() {
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Signed up — thank you!')
+    toast.success(tr('p.signedUpThanks'))
     setShowForm(false)
     setProjectId('')
     setMessage('')
@@ -106,7 +107,7 @@ export default function PortalMyVolunteeringPage() {
     const supabase = createClient()
     const { error } = await supabase.from('project_tasks').update({ status }).eq('id', id)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(status === 'done' ? 'Marked done — thank you' : 'Updated')
+    toast.success(status === 'done' ? tr('p.markedDoneThanks') : tr('p.updated'))
     load()
   }
 
@@ -115,7 +116,7 @@ export default function PortalMyVolunteeringPage() {
     const { error } = await supabase.from('volunteers').delete().eq('id', id)
     setConfirmDelete(null)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Removed')
+    toast.success(tr('p.removed'))
     load()
   }
 
@@ -145,7 +146,7 @@ export default function PortalMyVolunteeringPage() {
             <div key={s.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-secondary-container text-dp-on-secondary-container uppercase">{STATUS_LABEL[s.status] ?? s.status}</span>
+                  <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-secondary-container text-dp-on-secondary-container uppercase">{STATUS_KEY[s.status] ? tr(STATUS_KEY[s.status]) : s.status}</span>
                   <p className="font-sans text-[15px] font-semibold text-dp-on-surface mt-1.5">{projectTitle(s.project_id)}</p>
                   {s.message && <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">{s.message}</p>}
                 </div>
@@ -171,10 +172,10 @@ export default function PortalMyVolunteeringPage() {
                   {t.detail && <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">{t.detail}</p>}
                   <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">
                     {projectTitle(t.project_id)}
-                    {t.due_date && ` · due ${new Date(t.due_date).toLocaleDateString('en-GB')}`}
+                    {t.due_date && ` · ${tr('p.dueOn')} ${new Date(t.due_date).toLocaleDateString('en-GB')}`}
                   </p>
                 </div>
-                <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full font-sans uppercase shrink-0 bg-dp-secondary-container text-dp-on-secondary-container">{t.status.replace('_', ' ')}</span>
+                <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full font-sans uppercase shrink-0 bg-dp-secondary-container text-dp-on-secondary-container">{TASK_STATUS_KEY[t.status] ? tr(TASK_STATUS_KEY[t.status]) : t.status.replace('_', ' ')}</span>
               </div>
               {t.status !== 'done' && (
                 <div className="flex gap-2 mt-2.5">
@@ -235,7 +236,7 @@ export default function PortalMyVolunteeringPage() {
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <input type="checkbox" checked={canTravel} onChange={(e) => setCanTravel(e.target.checked)} className="accent-dp-secondary mt-0.5 cursor-pointer" />
                 <span className="min-w-0">
-                  <span className="block font-sans text-[13px] text-dp-on-surface">I can travel outside the village if needed</span>
+                  <span className="block font-sans text-[13px] text-dp-on-surface">{tr('p.canTravelOutside')}</span>
                   <span className="block font-sans text-[12px] text-dp-on-surface-variant" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>ضرورت پڑنے پر میں گاؤں سے باہر جا سکتا ہوں</span>
                 </span>
               </label>
@@ -245,7 +246,7 @@ export default function PortalMyVolunteeringPage() {
                   {tr('p.specialSkill')}
                   <span className="block font-normal text-[12px]" dir="rtl">کوئی خاص ہنر جو ہمیں معلوم ہونا چاہیے؟</span>
                 </label>
-                <input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="e.g. welder, tractor driver, first aid" className="input-field" />
+                <input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder={tr('p.skillsPlaceholder')} className="input-field" />
               </div>
 
               <div>
@@ -253,7 +254,7 @@ export default function PortalMyVolunteeringPage() {
                 <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={2} className="input-field resize-none" />
               </div>
               <button onClick={submit} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-                {saving ? 'Submitting...' : 'Submit'}
+                {saving ? tr('p.submitting') : tr('p.submit')}
               </button>
             </div>
           </div>
@@ -262,8 +263,8 @@ export default function PortalMyVolunteeringPage() {
 
       <ConfirmDialog
         open={!!confirmDelete}
-        title="Remove this volunteer signup?"
-        message="You can always sign up again later."
+        title={tr('p.removeSignupTitle')}
+        message={tr('p.removeSignupMessage')}
         onConfirm={() => confirmDelete && remove(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
       />
