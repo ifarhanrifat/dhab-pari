@@ -45,14 +45,14 @@ export default function PortalProfilePage() {
   const save = async () => {
     if (!user) return
     if (!form.full_name.trim() || !form.father_husband_name.trim() || !form.whatsapp_number.trim() || !form.username.trim()) {
-      toast.error("Name, father's/husband's name, WhatsApp number, and username are required")
+      toast.error(t('p.profileRequiredFields'))
       return
     }
     if (!/^[a-zA-Z0-9_]{6,30}$/.test(form.username.trim())) {
-      toast.error('Username must be 6-30 characters: letters, numbers, and underscores only')
+      toast.error(t('p.usernameFormat'))
       return
     }
-    if (form.donor_type === 'overseas' && !form.country.trim()) { toast.error('Please enter your country'); return }
+    if (form.donor_type === 'overseas' && !form.country.trim()) { toast.error(t('p.enterCountry')); return }
     setSaving(true)
     const supabase = createClient()
     const { error } = await supabase.from('portal_users').update({
@@ -64,26 +64,26 @@ export default function PortalProfilePage() {
     }).eq('id', user.id)
     setSaving(false)
     if (error) {
-      toast.error(error.message.includes('duplicate') || error.code === '23505' ? 'That username is already taken' : error.message)
+      toast.error(error.message.includes('duplicate') || error.code === '23505' ? t('p.usernameTaken') : error.message)
       return
     }
-    toast.success('Profile updated')
+    toast.success(t('p.profileUpdated'))
   }
 
   const changePassword = async () => {
-    if (!user || !currentPassword || !newPassword) { toast.error('Enter your current and new password'); return }
-    if (newPassword.length < 8) { toast.error('New password must be at least 8 characters'); return }
+    if (!user || !currentPassword || !newPassword) { toast.error(t('p.enterCurrentNewPassword')); return }
+    if (newPassword.length < 8) { toast.error(t('p.passwordMinLength')); return }
     setChangingPassword(true)
     const supabase = createClient()
     // Re-verify the current password before allowing a change — protects
     // against someone changing the password on a device the real user left
     // logged in, since Supabase's updateUser() alone doesn't require it.
     const { error: verifyErr } = await supabase.auth.signInWithPassword({ email: syntheticEmail(user.mobile), password: currentPassword })
-    if (verifyErr) { toast.error('Current password is incorrect'); setChangingPassword(false); return }
+    if (verifyErr) { toast.error(t('p.currentPasswordIncorrect')); setChangingPassword(false); return }
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     setChangingPassword(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Password changed')
+    toast.success(t('p.passwordChanged'))
     setCurrentPassword('')
     setNewPassword('')
   }
@@ -91,14 +91,14 @@ export default function PortalProfilePage() {
   if (userLoading || !user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'}>
-      <div className="mb-6">
+    <div>
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><UserCog size={22} className="text-dp-secondary" /> {t('p.myProfile')}</h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Mobile number ({user.mobile}) cannot be changed — it's your login ID.</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.mobileCannotChange').replace('{mobile}', user.mobile)}</p>
       </div>
 
-      <div className="bg-white border border-dp-outline-variant rounded-lg p-6 max-w-md space-y-4">
-        <ImageUpload bucket="images" label="Profile Photo" currentUrl={form.avatar_url} onUpload={(url) => setForm({ ...form, avatar_url: url })} />
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white border border-dp-outline-variant rounded-lg p-6 max-w-md space-y-4">
+        <ImageUpload bucket="images" label={t('p.profilePhoto')} currentUrl={form.avatar_url} onUpload={(url) => setForm({ ...form, avatar_url: url })} />
 
         <div>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.usernameReq')}</label>
@@ -146,7 +146,7 @@ export default function PortalProfilePage() {
           )}
         </div>
         <button onClick={save} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-          {saving ? 'Saving...' : 'Save Changes'}
+          {saving ? t('p.saving') : t('p.saveChanges')}
         </button>
       </div>
 
@@ -158,7 +158,7 @@ export default function PortalProfilePage() {
           The number here is read-only, pulled straight from this account —
           never a box to retype it into — so nobody can accidentally attach
           themselves to somebody else's real water usage history. */}
-      <div className="bg-white border border-dp-outline-variant rounded-lg p-6 max-w-md mt-6">
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white border border-dp-outline-variant rounded-lg p-6 max-w-md mt-6">
         <h2 className="font-heading text-[18px] font-bold text-dp-primary flex items-center gap-2 mb-1">
           <Droplets size={18} className="text-dp-secondary" /> {t('p.waterConnection')}
         </h2>
@@ -192,7 +192,7 @@ export default function PortalProfilePage() {
         )}
       </div>
 
-      <div className="bg-white border border-dp-outline-variant rounded-lg p-6 max-w-md mt-6 space-y-4">
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white border border-dp-outline-variant rounded-lg p-6 max-w-md mt-6 space-y-4">
         <h2 className="font-heading text-[18px] font-bold text-dp-primary flex items-center gap-2"><KeyRound size={18} className="text-dp-secondary" /> {t('p.changePassword')}</h2>
         <div>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('p.currentPassword')}</label>
@@ -203,7 +203,7 @@ export default function PortalProfilePage() {
           <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" className="input-field" />
         </div>
         <button onClick={changePassword} disabled={changingPassword} className="w-full border border-dp-outline-variant text-dp-on-surface rounded-lg py-3 font-sans font-semibold cursor-pointer hover:bg-dp-surface-container transition-all disabled:opacity-50">
-          {changingPassword ? 'Changing...' : 'Change Password'}
+          {changingPassword ? t('p.changing') : t('p.changePassword')}
         </button>
       </div>
     </div>

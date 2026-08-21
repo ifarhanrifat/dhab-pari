@@ -9,6 +9,11 @@ import { Briefcase, PlusCircle, X, Pencil, Pause, Play, Megaphone } from 'lucide
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 const CATEGORIES = ['plumber', 'electrician', 'mason', 'carpenter', 'painter', 'laborer', 'driver', 'tailor', 'cook', 'tutor', 'mechanic', 'other']
+const CATEGORY_KEY: Record<string, string> = {
+  plumber: 'p.catPlumber', electrician: 'p.catElectrician', mason: 'p.catMason', carpenter: 'p.catCarpenter',
+  painter: 'p.catPainter', laborer: 'p.catLaborer', driver: 'p.catDriver', tailor: 'p.catTailor',
+  cook: 'p.catCook', tutor: 'p.catTutor', mechanic: 'p.catMechanic', other: 'p.catOther',
+}
 
 interface Listing {
   id: string; category: string; headline: string; description: string | null; sector: string | null
@@ -56,7 +61,7 @@ export default function PostJobPage() {
   const save = async () => {
     if (!user) return
     if (!form.headline.trim() || !form.contact_name.trim() || !form.contact_mobile.trim()) {
-      toast.error('Fill in the headline and your contact name/mobile'); return
+      toast.error(t('p.fillHeadlineContact')); return
     }
     setSaving(true)
     const supabase = createClient()
@@ -70,7 +75,7 @@ export default function PostJobPage() {
       : await supabase.from('job_listings').insert({ ...payload, portal_user_id: user.id })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(editId ? 'Listing updated' : 'Listing posted — visible on the public Jobs page now')
+    toast.success(editId ? t('p.listingUpdated') : t('p.listingPosted'))
     setShowForm(false)
     load()
   }
@@ -79,28 +84,28 @@ export default function PostJobPage() {
     const supabase = createClient()
     const { error } = await supabase.from('job_listings').update({ is_active: !l.is_active }).eq('id', l.id)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(l.is_active ? 'Listing paused' : 'Listing reactivated')
+    toast.success(l.is_active ? t('p.listingPaused') : t('p.listingReactivated'))
     load()
   }
 
   if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'}>
-      <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="mb-6 flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Briefcase size={22} className="text-dp-secondary" /> {t('p.myJobListings')}</h1>
-          <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Offer a trade or service — plumber, mason, electrician, laborer, and more. Anyone can see and contact you directly.</p>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.jobsBlurb')}</p>
         </div>
         <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
           <PlusCircle size={16} /> {t('p.postListing')}
         </button>
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 max-w-xl flex gap-3">
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 max-w-xl flex gap-3">
         <Megaphone size={18} className="text-amber-700 shrink-0 mt-0.5" />
         <p className="font-sans text-[13px] text-amber-900 leading-[20px]">
-          Your headline, description, and contact details below are shown publicly on the Jobs page — anyone in the village can call or WhatsApp you directly. Only post the number you want inquiries on.
+          {t('p.jobsPublicWarning')}
         </p>
       </div>
 
@@ -111,12 +116,12 @@ export default function PostJobPage() {
           <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('p.noListings')}</p>
         </div>
       ) : (
-        <div className="space-y-3 max-w-xl">
+        <div dir={isUrdu ? 'rtl' : 'ltr'} className="space-y-3 max-w-xl">
           {listings.map((l) => (
             <div key={l.id} className={`bg-white border border-dp-outline-variant rounded-lg p-4 ${!l.is_active ? 'opacity-60' : ''}`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-secondary-container text-dp-on-secondary-container uppercase">{l.category}</span>
+                  <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-secondary-container text-dp-on-secondary-container uppercase">{t(CATEGORY_KEY[l.category] ?? '') || l.category}</span>
                   <p className="font-sans text-[15px] font-semibold text-dp-on-surface mt-1.5">{l.headline}</p>
                   {l.description && <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">{l.description}</p>}
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1.5">{l.contact_name} · {l.contact_mobile}{l.sector ? ` · ${l.sector}` : ''}</p>
@@ -136,25 +141,25 @@ export default function PostJobPage() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{editId ? 'Edit Listing' : 'Post a Listing'}</h2>
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{editId ? t('p.editListing') : t('p.postListing')}</h2>
               <button onClick={() => setShowForm(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <div className="space-y-4">
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.category')}</label>
                 <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">
-                  {CATEGORIES.map((c) => <option key={c} value={c}>{c[0].toUpperCase() + c.slice(1)}</option>)}
+                  {CATEGORIES.map((c) => <option key={c} value={c}>{t(CATEGORY_KEY[c])}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('p.headline')}</label>
-                <input value={form.headline} onChange={(e) => setForm({ ...form, headline: e.target.value })} placeholder="e.g. Experienced plumber, all repairs" className="input-field" />
+                <input value={form.headline} onChange={(e) => setForm({ ...form, headline: e.target.value })} placeholder={t('p.headlinePlaceholder')} className="input-field" />
               </div>
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.descriptionOptional')}</label>
-                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="input-field resize-none" placeholder="Experience, availability, rates..." />
+                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className="input-field resize-none" placeholder={t('p.descriptionPlaceholder')} />
               </div>
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.sectorOptional')}</label>
@@ -178,7 +183,7 @@ export default function PostJobPage() {
                 </div>
               </div>
               <button onClick={save} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-                {saving ? 'Saving...' : editId ? 'Save Changes' : 'Post Listing'}
+                {saving ? t('p.saving') : editId ? t('p.saveChanges') : t('p.postListing')}
               </button>
             </div>
           </div>
