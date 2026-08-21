@@ -53,24 +53,26 @@ const roleColors: Record<string, string> = {
   viewer: 'bg-gray-100 text-gray-600',
 }
 
-const roleLabels: Record<string, string> = {
-  super_admin: 'Super Admin',
-  admin: 'Admin',
-  accountant: 'Accountant',
-  water_accountant: 'Water Accountant',
-  donor_accountant: 'Donor Accountant',
-  publisher: 'Publisher',
-  viewer: 'Viewer',
+// Values are i18n keys (module scope has no useLocale()) — resolved via
+// t() at render time.
+const roleLabelKey: Record<string, string> = {
+  super_admin: 'us.roleSuperAdmin',
+  admin: 'us.roleAdmin',
+  accountant: 'us.roleAccountant',
+  water_accountant: 'us.roleWaterAccountant',
+  donor_accountant: 'us.roleDonorAccountant',
+  publisher: 'us.rolePublisher',
+  viewer: 'us.viewer',
 }
 
-const roleDescriptions: Record<string, string> = {
-  super_admin: 'Full access to everything — the only role that can grant Super Admin to someone else.',
-  admin: 'Administrative tier below Super Admin. Can be granted approvals, restoring deleted records, and inviting users — but can never grant itself or anyone else the Super Admin role.',
-  accountant: 'General bookkeeper. System access (Water Supply / Donors & Projects) is set explicitly below, independent of role.',
-  water_accountant: 'Confined to Water Supply consumers, billing, accounts, and reports only.',
-  donor_accountant: 'Confined to Donors & Projects accounts, donations, and reports only.',
-  publisher: 'Can create news posts and videos — requires admin approval before publishing.',
-  viewer: 'Read-only access across everything. Can view and drill into data but can never make changes.',
+const roleDescriptionKey: Record<string, string> = {
+  super_admin: 'us.descSuperAdmin',
+  admin: 'us.descAdmin',
+  accountant: 'us.descAccountant',
+  water_accountant: 'us.descWaterAccountant',
+  donor_accountant: 'us.descDonorAccountant',
+  publisher: 'us.descPublisher',
+  viewer: 'us.descViewer',
 }
 
 // The exact, concrete capability list per role — not just a one-line summary.
@@ -78,68 +80,43 @@ const roleDescriptions: Record<string, string> = {
 // the individual can_* flags below it are opt-in on top of that, checked
 // per-person in the Permissions section (or, for viewers, in the pencil-icon
 // modal), not implied automatically by picking the role.
-const rolePermissions: Record<string, string[]> = {
-  super_admin: [
-    'Full read + write access to both Water Supply and Donors & Projects',
-    'The only role that can grant Super Admin to anyone, including via a secondary role',
-    'Configures Approvers, Complaint Handlers, and Notification Preferences (Settings)',
-    'Can approve an outgoing transaction on behalf of a stuck/unresponsive approver',
-    'Can verify & close complaints (implicitly — no separate flag needed)',
-  ],
-  admin: [
-    'Same day-to-day system access as Super Admin, but can never hold or grant Super Admin',
-    'Individual grants (checked below): post/edit/delete transactions, approve transactions, restore deleted records, invite/remove users (never Super Admins)',
-    'With the invite_users grant: can configure Approvers, Complaint Handlers, Notification Preferences',
-  ],
-  accountant: [
-    'System access (Water Supply and/or Donors & Projects) is set explicitly per-person below — not implied by the role',
-    'Individual grants (checked below): post/edit/delete transactions, view reports, manage consumers/donors, manage chart of accounts',
-  ],
-  water_accountant: [
-    'Confined to the Water Supply book only — consumers, billing, inventory, collectors, approvals, complaints, reports',
-    'Individual grants (checked below): post/edit/delete transactions, view reports, manage parties/accounts',
-  ],
-  donor_accountant: [
-    'Confined to the Donors & Projects book only — donations, projects, approvals, complaints, reports',
-    'Individual grants (checked below): post/edit/delete transactions, view reports, manage parties/accounts',
-  ],
-  publisher: [
-    'Can create News posts and Videos',
-    'Everything they publish is held as a draft until a Super Admin approves it',
-  ],
-  viewer: [
-    'Read-only across both systems by default — can view and drill into everything, but never post/edit/delete a transaction',
-    'Already included for every role, no extra grant needed: view + reply to Suggestions, view + post comments/status updates on any Complaint',
-    'Opt-in add-on — Field Collector: collect a payment on the spot for consumers in assigned sector(s) (grant + pick sectors in the pencil-icon modal)',
-    'Opt-in add-on — Complaint Verifier: final sign-off closing a resolved complaint (grant in the pencil-icon modal, not tied to role — assignable to anyone)',
-  ],
+// Values are i18n keys (module scope has no useLocale()) — resolved via
+// t() at render time.
+const rolePermissionKeys: Record<string, string[]> = {
+  super_admin: ['us.perm.superAdmin1', 'us.perm.superAdmin2', 'us.perm.superAdmin3', 'us.perm.superAdmin4', 'us.perm.superAdmin5'],
+  admin: ['us.perm.admin1', 'us.perm.admin2', 'us.perm.admin3'],
+  accountant: ['us.perm.accountant1', 'us.perm.accountant2'],
+  water_accountant: ['us.perm.waterAccountant1', 'us.perm.waterAccountant2'],
+  donor_accountant: ['us.perm.donorAccountant1', 'us.perm.donorAccountant2'],
+  publisher: ['us.perm.publisher1', 'us.perm.publisher2'],
+  viewer: ['us.perm.viewer1', 'us.perm.viewer2', 'us.perm.viewer3', 'us.perm.viewer4'],
 }
 
-const permissionFields: { key: keyof AdminUser; label: string }[] = [
-  { key: 'can_post_transactions', label: 'Can post transactions (bills, payments, donations, vouchers)' },
-  { key: 'can_edit_transactions', label: 'Can edit existing transactions' },
-  { key: 'can_delete_transactions', label: 'Can delete transactions' },
-  { key: 'can_approve_transactions', label: 'Can approve pending transactions / publish content' },
-  { key: 'can_view_reports', label: 'Can view reports and the dashboard' },
-  { key: 'can_manage_parties', label: 'Can manage consumers/donors (add/edit)' },
-  { key: 'can_manage_accounts', label: 'Can create chart of accounts entries' },
-  { key: 'can_edit_accounts', label: 'Can edit chart of accounts entries' },
-  { key: 'can_delete_accounts', label: 'Can delete chart of accounts entries' },
+const permissionFields: { key: keyof AdminUser; labelKey: string }[] = [
+  { key: 'can_post_transactions', labelKey: 'us.perm.canPost' },
+  { key: 'can_edit_transactions', labelKey: 'us.perm.canEditTx' },
+  { key: 'can_delete_transactions', labelKey: 'us.perm.canDeleteTx' },
+  { key: 'can_approve_transactions', labelKey: 'us.perm.canApprove' },
+  { key: 'can_view_reports', labelKey: 'us.perm.canViewReports' },
+  { key: 'can_manage_parties', labelKey: 'us.perm.canManageParties' },
+  { key: 'can_manage_accounts', labelKey: 'us.perm.canManageAccounts' },
+  { key: 'can_edit_accounts', labelKey: 'us.perm.canEditAccounts' },
+  { key: 'can_delete_accounts', labelKey: 'us.perm.canDeleteAccounts' },
 ]
 
 // Each maps to one admin section and its RLS policy, so ticking a box here is
 // the same grant the database enforces — not a menu-hiding convenience.
-const publishFields: { key: keyof AdminUser; label: string; hint: string }[] = [
-  { key: 'can_publish_news', label: 'News & Announcements', hint: 'Village news, sports, education, health, social posts' },
-  { key: 'can_publish_videos', label: 'Videos', hint: 'Video library entries' },
-  { key: 'can_publish_gallery', label: 'Photo Gallery', hint: 'Albums and photographs' },
-  { key: 'can_publish_ticker', label: 'Homepage Ticker', hint: 'The scrolling notices strip' },
-  { key: 'can_publish_jobs', label: 'Job Listings', hint: 'Village job board' },
+const publishFields: { key: keyof AdminUser; labelKey: string; hintKey: string }[] = [
+  { key: 'can_publish_news', labelKey: 'us.pub.news', hintKey: 'us.pub.newsHint' },
+  { key: 'can_publish_videos', labelKey: 'us.pub.videos', hintKey: 'us.pub.videosHint' },
+  { key: 'can_publish_gallery', labelKey: 'us.pub.gallery', hintKey: 'us.pub.galleryHint' },
+  { key: 'can_publish_ticker', labelKey: 'us.pub.ticker', hintKey: 'us.pub.tickerHint' },
+  { key: 'can_publish_jobs', labelKey: 'us.pub.jobs', hintKey: 'us.pub.jobsHint' },
 ]
 
-const adminPermissionFields: { key: keyof AdminUser; label: string }[] = [
-  { key: 'can_restore_deleted', label: 'Can restore deleted records from the Audit Log' },
-  { key: 'can_invite_users', label: 'Can invite and remove users (never Super Admins)' },
+const adminPermissionFields: { key: keyof AdminUser; labelKey: string }[] = [
+  { key: 'can_restore_deleted', labelKey: 'us.perm.canRestore' },
+  { key: 'can_invite_users', labelKey: 'us.perm.canInvite' },
 ]
 
 const emptyInvite = {
@@ -247,8 +224,8 @@ export default function AdminUsersPage() {
 
   const saveCollectorSettings = async () => {
     if (!editingUser) return
-    if (collectorForm.secondary_role === editingUser.role) { toast.error('Secondary role must be different from the primary role'); return }
-    if (collectorForm.secondary_role === 'super_admin' && currentRole !== 'super_admin') { toast.error('Only a Super Admin can grant Super Admin as a secondary role'); return }
+    if (collectorForm.secondary_role === editingUser.role) { toast.error(t('us.secondaryRoleDiffer')); return }
+    if (collectorForm.secondary_role === 'super_admin' && currentRole !== 'super_admin') { toast.error(t('us.onlySuperAdminGrant')); return }
     setSavingCollector(true)
     const { error } = await supabase.from('admin_users').update({
       mobile: collectorForm.mobile.trim() || null,
@@ -266,7 +243,7 @@ export default function AdminUsersPage() {
     }).eq('id', editingUser.id)
     setSavingCollector(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(`${editingUser.full_name}'s settings updated`)
+    toast.success(`${editingUser.full_name}${t('us.settingsUpdatedSuffix')}`)
     setEditingUser(null)
     load()
   }
@@ -278,7 +255,7 @@ export default function AdminUsersPage() {
     : ['water_accountant', 'donor_accountant', 'accountant', 'viewer', 'publisher', 'admin']
 
   const sendInvite = async () => {
-    if (!form.email.trim() || !form.full_name.trim()) { toast.error('Email and full name required'); return }
+    if (!form.email.trim() || !form.full_name.trim()) { toast.error(t('us.emailNameRequired')); return }
     setInviting(true)
     try {
       const res = await fetch('/api/admin/users/invite', {
@@ -287,13 +264,13 @@ export default function AdminUsersPage() {
         body: JSON.stringify(form),
       })
       const data = await res.json()
-      if (!res.ok) { toast.error(data.error || 'Failed to send invite'); setInviting(false); return }
-      toast.success(`Invitation sent to ${form.email}`)
+      if (!res.ok) { toast.error(data.error || t('us.failedSendInvite')); setInviting(false); return }
+      toast.success(`${t('us.invitationSentPrefix')} ${form.email}`)
       setShowForm(false)
       setForm(emptyInvite)
       load()
     } catch {
-      toast.error('Network error sending invite')
+      toast.error(t('us.networkErrorInvite'))
     }
     setInviting(false)
   }
@@ -301,8 +278,8 @@ export default function AdminUsersPage() {
   // Bridge while invite/reset-password emails aren't reaching people — creates
   // a working login immediately with a chosen password instead of an email.
   const createDirect = async () => {
-    if (!form.email.trim() || !form.full_name.trim()) { toast.error('Email and full name required'); return }
-    if (!form.password || form.password.length < 8) { toast.error('Password must be at least 8 characters'); return }
+    if (!form.email.trim() || !form.full_name.trim()) { toast.error(t('us.emailNameRequired')); return }
+    if (!form.password || form.password.length < 8) { toast.error(t('us.passwordMinLength')); return }
     setCreatingDirect(true)
     try {
       const res = await fetch('/api/admin/users/create-manual', {
@@ -311,13 +288,13 @@ export default function AdminUsersPage() {
         body: JSON.stringify(form),
       })
       const data = await res.json()
-      if (!res.ok) { toast.error(data.error || 'Failed to create user'); setCreatingDirect(false); return }
-      toast.success(`${form.full_name} can log in now with the password you set`)
+      if (!res.ok) { toast.error(data.error || t('us.failedCreateUser')); setCreatingDirect(false); return }
+      toast.success(`${form.full_name} ${t('us.canLoginNowSuffix')}`)
       setShowForm(false)
       setForm(emptyInvite)
       load()
     } catch {
-      toast.error('Network error creating user')
+      toast.error(t('us.networkErrorCreate'))
     }
     setCreatingDirect(false)
   }
@@ -334,7 +311,7 @@ export default function AdminUsersPage() {
 
   const savePassword = async () => {
     if (!passwordTarget) return
-    if (!passwordValue || passwordValue.length < 8) { toast.error('Password must be at least 8 characters'); return }
+    if (!passwordValue || passwordValue.length < 8) { toast.error(t('us.passwordMinLength')); return }
     setSavingPassword(true)
     try {
       const res = await fetch('/api/admin/users/set-password', {
@@ -343,11 +320,11 @@ export default function AdminUsersPage() {
         body: JSON.stringify({ adminUserId: passwordTarget.id, password: passwordValue }),
       })
       const data = await res.json()
-      if (!res.ok) { toast.error(data.error || 'Failed to set password'); setSavingPassword(false); return }
-      toast.success(`Password set for ${passwordTarget.full_name}`)
+      if (!res.ok) { toast.error(data.error || t('us.failedSetPassword')); setSavingPassword(false); return }
+      toast.success(`${t('us.passwordSetForPrefix')} ${passwordTarget.full_name}`)
       setPasswordTarget(null)
     } catch {
-      toast.error('Network error setting password')
+      toast.error(t('us.networkErrorPassword'))
     }
     setSavingPassword(false)
   }
@@ -361,10 +338,10 @@ export default function AdminUsersPage() {
         body: JSON.stringify({ adminUserId: confirmRemove }),
       })
       const data = await res.json()
-      if (!res.ok) { toast.error(data.error || 'Failed to remove user'); setConfirmRemove(null); return }
-      toast.success('User removed')
+      if (!res.ok) { toast.error(data.error || t('us.failedRemoveUser')); setConfirmRemove(null); return }
+      toast.success(t('us.userRemoved'))
     } catch {
-      toast.error('Network error removing user')
+      toast.error(t('us.networkErrorRemove'))
     }
     setConfirmRemove(null)
     load()
@@ -372,7 +349,7 @@ export default function AdminUsersPage() {
 
   const toggleActive = async (id: string, current: boolean) => {
     await supabase.from('admin_users').update({ is_active: !current }).eq('id', id)
-    toast.success(current ? 'User deactivated' : 'User activated')
+    toast.success(current ? t('us.userDeactivated') : t('us.userActivated'))
     load()
   }
 
@@ -385,7 +362,7 @@ export default function AdminUsersPage() {
       role: newRole, ...(clearingSecondary ? { secondary_role: null } : {}),
     }).eq('id', u.id)
     if (error) { toast.error(friendlyError(error)); load(); return }
-    toast.success(`${u.full_name}'s role changed to ${roleLabels[newRole] ?? newRole}`)
+    toast.success(`${u.full_name}${t('us.roleChangedTo')} ${t(roleLabelKey[newRole] ?? newRole, newRole)}`)
     load()
   }
 
@@ -408,8 +385,8 @@ export default function AdminUsersPage() {
         >
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant">{t('us.rolesPermissions')}</span>
-            {Object.entries(roleLabels).map(([key, label]) => (
-              <span key={key} className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans ${roleColors[key]}`}>{label}</span>
+            {Object.entries(roleLabelKey).map(([key, labelKey]) => (
+              <span key={key} className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans ${roleColors[key]}`}>{t(labelKey)}</span>
             ))}
           </div>
           <span className="flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-secondary shrink-0">
@@ -420,13 +397,13 @@ export default function AdminUsersPage() {
         {showRoleDetails && (
           <div className="border-t border-dp-outline-variant p-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-              {Object.entries(roleLabels).map(([key, label]) => (
+              {Object.entries(roleLabelKey).map(([key, labelKey]) => (
                 <div key={key} className="bg-dp-surface-container-low/40 rounded-lg border border-dp-outline-variant p-3.5">
-                  <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans ${roleColors[key]}`}>{label}</span>
+                  <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans ${roleColors[key]}`}>{t(labelKey)}</span>
                   <ul className="mt-2 space-y-1">
-                    {(rolePermissions[key] ?? []).map((line, i) => (
+                    {(rolePermissionKeys[key] ?? []).map((lineKey, i) => (
                       <li key={i} className="font-sans text-[11px] text-dp-on-surface-variant leading-[1.4] ps-3 relative before:content-['•'] before:absolute before:left-0 before:text-dp-outline">
-                        {line}
+                        {t(lineKey)}
                       </li>
                     ))}
                   </ul>
@@ -435,9 +412,9 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="bg-dp-primary-container/40 border border-dp-primary/20 rounded-lg p-4">
-              <p className="font-sans text-[13px] font-bold text-dp-primary mb-1">Setting up &quot;Management&quot; (view everything, reply, verify complaints)</p>
+              <p className="font-sans text-[13px] font-bold text-dp-primary mb-1">{t('us.managementSetupTitle')}</p>
               <p className="font-sans text-[12px] text-dp-on-surface-variant leading-[1.5]">
-                There&apos;s no separate &quot;Management&quot; role — it&apos;s a recipe: give them <strong>{t('us.viewer')}</strong> (full read access to both systems already, plus the ability to comment on complaints and reply to Suggestions with no extra grant), then check <strong>{t('us.complaintVerifier')}</strong> for them in the pencil-icon menu so they can give final sign-off on resolved complaints. If they also need to actually post transactions or approve things themselves, give them a <strong>secondary role</strong> below instead of switching their primary role away from Viewer.
+                {t('us.managementSetupBefore')} <strong>{t('us.viewer')}</strong> {t('us.managementSetupMid1')} <strong>{t('us.complaintVerifier')}</strong> {t('us.managementSetupMid2')} <strong>{t('us.secondaryRole')}</strong> {t('us.managementSetupAfter')}
               </p>
             </div>
           </div>
@@ -450,11 +427,11 @@ export default function AdminUsersPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, email or mobile..."
+            placeholder={t('us.searchPlaceholder')}
             className="filter-field !ps-9"
           />
           {search && (
-            <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute end-2.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer">
+            <button onClick={() => setSearch('')} aria-label={t('us.clearSearch')} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer">
               <X size={15} />
             </button>
           )}
@@ -464,7 +441,7 @@ export default function AdminUsersPage() {
           <span className="font-sans text-[13px] text-dp-on-surface-variant">{t('us.showDeactivated')}</span>
         </label>
         <span className="font-sans text-[12.5px] text-dp-on-surface-variant shrink-0">
-          {visibleUsers.length} of {users.length}{hiddenCount > 0 ? ` · ${hiddenCount} hidden` : ''}
+          {visibleUsers.length} {t('us.ofPrefix')} {users.length}{hiddenCount > 0 ? ` · ${hiddenCount} ${t('us.hiddenSuffix')}` : ''}
         </span>
       </div>
 
@@ -502,15 +479,15 @@ export default function AdminUsersPage() {
                   <td className="p-4 border-b border-dp-outline-variant text-dp-on-surface-variant">{u.email}</td>
                   <td className="p-4 border-b border-dp-outline-variant">
                     <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans ${roleColors[u.role] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {roleLabels[u.role] ?? u.role}
+                      {t(roleLabelKey[u.role] ?? u.role, u.role)}
                     </span>
                     {u.secondary_role && (
-                      <span className={`ms-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans border ${roleColors[u.secondary_role] ?? 'bg-gray-100 text-gray-600'}`} title="Secondary role">
-                        + {roleLabels[u.secondary_role] ?? u.secondary_role}
+                      <span className={`ms-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full font-sans border ${roleColors[u.secondary_role] ?? 'bg-gray-100 text-gray-600'}`} title={t('us.secondaryRoleTitle')}>
+                        + {t(roleLabelKey[u.secondary_role] ?? u.secondary_role, u.secondary_role)}
                       </span>
                     )}
                     {u.can_collect_payments && (
-                      <span className="ms-1.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-teal-700 bg-teal-100 px-1.5 py-0.5 rounded-full" title={`Field collector — ${(u.assigned_sectors ?? []).join(', ') || 'no sectors assigned'}`}>
+                      <span className="ms-1.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-teal-700 bg-teal-100 px-1.5 py-0.5 rounded-full" title={`${t('us.fieldCollectorTitlePrefix')} ${(u.assigned_sectors ?? []).join(', ') || t('us.noSectorsAssigned')}`}>
                         <Truck size={10} /> {t('a.collector')}
                       </span>
                     )}
@@ -526,7 +503,7 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="p-4 border-b border-dp-outline-variant">
                     <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full font-sans ${u.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {u.is_active ? 'Active' : 'Inactive'}
+                      {u.is_active ? t('g.active') : t('g.inactive')}
                     </span>
                   </td>
                   <td className="p-4 border-b border-dp-outline-variant text-end">
@@ -537,28 +514,28 @@ export default function AdminUsersPage() {
                         <select
                           value={u.role}
                           onChange={(e) => changeRole(u, e.target.value)}
-                          title="Change role"
+                          title={t('us.changeRoleTitle')}
                           className="text-[12px] font-sans border border-dp-outline-variant rounded px-1.5 py-1 cursor-pointer bg-white"
                         >
                           {(currentRole === 'super_admin' ? availableRoles : availableRoles.filter((r) => r !== 'super_admin')).map((r) => (
-                            <option key={r} value={r}>{roleLabels[r]}</option>
+                            <option key={r} value={r}>{t(roleLabelKey[r])}</option>
                           ))}
                           {u.role === 'super_admin' && !availableRoles.includes('super_admin') && (
-                            <option value="super_admin">{roleLabels.super_admin}</option>
+                            <option value="super_admin">{t(roleLabelKey.super_admin)}</option>
                           )}
                         </select>
-                        <button onClick={() => openEditCollector(u)} title="Edit mobile number / field collector / secondary role settings" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
+                        <button onClick={() => openEditCollector(u)} title={t('us.editCollectorTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
                           <Pencil size={15} />
                         </button>
                         {currentRole === 'super_admin' && (
-                          <button onClick={() => openPasswordPanel(u)} title="View / Set Password" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
+                          <button onClick={() => openPasswordPanel(u)} title={t('us.viewSetPasswordTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
                             <Key size={15} />
                           </button>
                         )}
-                        <button onClick={() => toggleActive(u.id, u.is_active)} title={u.is_active ? 'Deactivate' : 'Activate'} className="p-1.5 text-dp-on-surface-variant hover:text-amber-600 cursor-pointer">
+                        <button onClick={() => toggleActive(u.id, u.is_active)} title={u.is_active ? t('em.deactivateTitle') : t('em.activateTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-amber-600 cursor-pointer">
                           <Power size={15} />
                         </button>
-                        <button onClick={() => setConfirmRemove(u.id)} title="Delete user permanently" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer">
+                        <button onClick={() => setConfirmRemove(u.id)} title={t('us.deleteUserTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer">
                           <Trash2 size={15} />
                         </button>
                       </div>
@@ -573,8 +550,8 @@ export default function AdminUsersPage() {
 
       <ConfirmDialog
         open={!!confirmRemove}
-        title="Remove User"
-        message="This permanently deletes their login and revokes all access immediately. This cannot be undone."
+        title={t('us.removeUserTitle')}
+        message={t('us.removeUserMessage')}
         onConfirm={removeUser}
         onCancel={() => setConfirmRemove(null)}
       />
@@ -593,22 +570,22 @@ export default function AdminUsersPage() {
               </div>
               <div>
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.emailReq')}</label>
-                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="user@example.com" className="input-field" />
+                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder={t('us.emailPlaceholder')} className="input-field" />
               </div>
               <div>
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.roleReq')}</label>
                 <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="input-field">
-                  {availableRoles.map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
+                  {availableRoles.map((r) => <option key={r} value={r}>{t(roleLabelKey[r])}</option>)}
                 </select>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">{roleDescriptions[form.role]}</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">{t(roleDescriptionKey[form.role])}</p>
               </div>
               <div>
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('g.secondaryOptional')}</label>
                 <select value={form.secondary_role} onChange={(e) => setForm({ ...form, secondary_role: e.target.value })} className="input-field">
                   <option value="">{t('us.none')}</option>
-                  {availableRoles.filter((r) => r !== form.role).map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
+                  {availableRoles.filter((r) => r !== form.role).map((r) => <option key={r} value={r}>{t(roleLabelKey[r])}</option>)}
                 </select>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">{t('us.grantsAccess')} <em>in addition to</em> the primary role above — e.g. a Water Accountant with Donor Accountant as secondary can access both books.</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">{t('us.grantsAccess')} <em>{t('us.grantsAccessInAddition')}</em> {t('us.grantsAccessExample')}</p>
               </div>
               {/* Which books, asked for every role rather than only for
                   'accountant'. That restriction is why "a viewer for the water
@@ -629,9 +606,7 @@ export default function AdminUsersPage() {
                   </label>
                   {!form.access_water_supply && !form.access_donors_projects && form.role !== 'publisher' && (
                     <p className="font-sans text-[12px] text-dp-error bg-dp-error/5 border border-dp-error/30 rounded px-2.5 py-2 mt-1">
-                      With neither ticked this user can sign in but will find every accounting
-                      screen empty. Tick at least one, or use the Publisher role for someone who
-                      only writes content.
+                      {t('us.neitherTickedWarning')}
                     </p>
                   )}
                 </div>
@@ -652,14 +627,14 @@ export default function AdminUsersPage() {
                         className="accent-dp-secondary mt-0.5"
                       />
                       <span className="min-w-0">
-                        <span className="block font-sans text-[13.5px]">{f.label}</span>
-                        <span className="block font-sans text-[11.5px] text-dp-on-surface-variant">{f.hint}</span>
+                        <span className="block font-sans text-[13.5px]">{t(f.labelKey)}</span>
+                        <span className="block font-sans text-[11.5px] text-dp-on-surface-variant">{t(f.hintKey)}</span>
                       </span>
                     </label>
                   ))}
                   {publishFields.every((f) => !form[f.key as keyof typeof form]) && (
                     <p className="font-sans text-[12px] text-dp-error bg-dp-error/5 border border-dp-error/30 rounded px-2.5 py-2 mt-1">
-                      A publisher with no areas ticked sees only the dashboard.
+                      {t('us.noAreasTickedWarning')}
                     </p>
                   )}
                 </div>
@@ -675,7 +650,7 @@ export default function AdminUsersPage() {
                         onChange={(e) => setForm({ ...form, [f.key]: e.target.checked })}
                         className="accent-dp-secondary"
                       />
-                      <span className="font-sans text-[13.5px]">{f.label}</span>
+                      <span className="font-sans text-[13.5px]">{t(f.labelKey)}</span>
                     </label>
                   ))}
                 </div>
@@ -691,7 +666,7 @@ export default function AdminUsersPage() {
                         onChange={(e) => setForm({ ...form, [f.key]: e.target.checked })}
                         className="accent-indigo-600"
                       />
-                      <span className="font-sans text-[13.5px] text-indigo-900">{f.label}</span>
+                      <span className="font-sans text-[13.5px] text-indigo-900">{t(f.labelKey)}</span>
                     </label>
                   ))}
                 </div>
@@ -699,32 +674,32 @@ export default function AdminUsersPage() {
               {form.role === 'publisher' && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-start gap-2">
                   <ShieldCheck size={16} className="text-amber-700 shrink-0 mt-0.5" />
-                  <p className="font-sans text-[13px] text-amber-800">{t('z.publisherAppearAs')} <strong>drafts</strong> and must be approved by a Super Admin before going live on the website.</p>
+                  <p className="font-sans text-[13px] text-amber-800">{t('z.publisherAppearAs')} <strong>{t('y.draft')}</strong> {t('us.draftsApprovalNote')}</p>
                 </div>
               )}
               <button disabled={inviting} onClick={sendInvite} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                <Save size={16} /> {inviting ? 'Sending Invite...' : 'Send Invitation'}
+                <Save size={16} /> {inviting ? t('us.sendingInvite') : t('us.sendInvitation')}
               </button>
 
               {currentRole === 'super_admin' && (
                 <div className="border-t border-dp-outline-variant pt-4 mt-2">
                   <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">{t('us.orCreateDirectly')}</p>
-                  <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">If invite/reset-password emails aren&apos;t reaching people, set a password here and give it to them yourself. Remove this once email is fixed.</p>
+                  <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">{t('us.emailFixNote')}</p>
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('g.passwordReq')}</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       value={form.password}
                       onChange={(e) => setForm({ ...form, password: e.target.value })}
-                      placeholder="At least 8 characters"
+                      placeholder={t('us.atLeast8Chars')}
                       className="input-field font-mono"
                     />
-                    <button type="button" onClick={() => setForm({ ...form, password: generatePassword() })} title="Generate a password" className="px-3 border border-dp-outline-variant rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container-low cursor-pointer shrink-0">
+                    <button type="button" onClick={() => setForm({ ...form, password: generatePassword() })} title={t('us.generatePasswordTitle')} className="px-3 border border-dp-outline-variant rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container-low cursor-pointer shrink-0">
                       <RefreshCw size={16} />
                     </button>
                   </div>
                   <button disabled={creatingDirect} onClick={createDirect} className="w-full flex items-center justify-center gap-2 border-2 border-dp-secondary text-dp-secondary py-3 rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-secondary/5 transition-all cursor-pointer disabled:opacity-50 mt-3">
-                    <Key size={16} /> {creatingDirect ? 'Creating...' : 'Create Directly'}
+                    <Key size={16} /> {creatingDirect ? t('us.creating') : t('us.createDirectly')}
                   </button>
                 </div>
               )}
@@ -747,35 +722,35 @@ export default function AdminUsersPage() {
               <>
                 {!passwordValue && (
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-surface-container-low rounded-lg px-3 py-2 mb-4">
-                    No password on file here (invited normally, or never reset through this page). Set one below to unblock their login.
+                    {t('us.noPasswordOnFile')}
                   </p>
                 )}
                 <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">
-                  {passwordValue ? 'Password' : 'Set Password'}
+                  {passwordValue ? t('us.passwordLabel') : t('us.setPasswordLabel')}
                 </label>
                 <div className="flex gap-2">
                   <input
                     type={revealPassword ? 'text' : 'password'}
                     value={passwordValue}
                     onChange={(e) => setPasswordValue(e.target.value)}
-                    placeholder="At least 8 characters"
+                    placeholder={t('us.atLeast8Chars')}
                     className="input-field font-mono"
                   />
-                  <button onClick={() => setRevealPassword(!revealPassword)} title="Show/hide" className="px-3 border border-dp-outline-variant rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container-low cursor-pointer shrink-0">
+                  <button onClick={() => setRevealPassword(!revealPassword)} title={t('us.showHideTitle')} className="px-3 border border-dp-outline-variant rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container-low cursor-pointer shrink-0">
                     {revealPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                   {passwordValue && (
-                    <button onClick={() => { navigator.clipboard.writeText(passwordValue); toast.success('Copied') }} title="Copy" className="px-3 border border-dp-outline-variant rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container-low cursor-pointer shrink-0">
+                    <button onClick={() => { navigator.clipboard.writeText(passwordValue); toast.success(t('us.copied')) }} title={t('us.copyTitle')} className="px-3 border border-dp-outline-variant rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container-low cursor-pointer shrink-0">
                       <Copy size={16} />
                     </button>
                   )}
-                  <button onClick={() => setPasswordValue(generatePassword())} title="Generate" className="px-3 border border-dp-outline-variant rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container-low cursor-pointer shrink-0">
+                  <button onClick={() => setPasswordValue(generatePassword())} title={t('us.generateTitle')} className="px-3 border border-dp-outline-variant rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container-low cursor-pointer shrink-0">
                     <RefreshCw size={16} />
                   </button>
                 </div>
-                <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1.5">Editing and saving here changes their real login password immediately.</p>
+                <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1.5">{t('us.editPasswordWarning')}</p>
                 <button disabled={savingPassword} onClick={savePassword} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50 mt-4">
-                  <Save size={16} /> {savingPassword ? 'Saving...' : 'Save Password'}
+                  <Save size={16} /> {savingPassword ? t('em.saving') : t('us.savePasswordBtn')}
                 </button>
               </>
             )}
@@ -799,7 +774,7 @@ export default function AdminUsersPage() {
                   placeholder="0300-1234567"
                   className="input-field"
                 />
-                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Used for WhatsApp notifications (e.g. a field collector's payment alert).</p>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('us.mobileWhatsappNote')}</p>
               </div>
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('us.secondaryRole')}</label>
@@ -807,9 +782,9 @@ export default function AdminUsersPage() {
                   <option value="">{t('us.none')}</option>
                   {(currentRole === 'super_admin' ? availableRoles : availableRoles.filter((r) => r !== 'super_admin'))
                     .filter((r) => r !== editingUser.role)
-                    .map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
+                    .map((r) => <option key={r} value={r}>{t(roleLabelKey[r])}</option>)}
                 </select>
-                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Grants this role&apos;s access in addition to their primary role ({roleLabels[editingUser.role]}).</p>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('us.grantsRoleAccessPrefix')} ({t(roleLabelKey[editingUser.role])}).</p>
               </div>
               {editingUser.role === 'viewer' && (
                 <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 space-y-3">
@@ -837,7 +812,7 @@ export default function AdminUsersPage() {
                           ))}
                         </div>
                       )}
-                      <p className="font-sans text-[11.5px] text-teal-800 mt-1.5">Can only collect payments from consumers in these sectors — enforced by the database, not just the UI.</p>
+                      <p className="font-sans text-[11.5px] text-teal-800 mt-1.5">{t('us.collectorSectorRestriction')}</p>
                     </div>
                   )}
                 </div>
@@ -866,7 +841,7 @@ export default function AdminUsersPage() {
                     {publishFields.map((f) => (
                       <label key={f.key} className="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" checked={!!collectorForm[f.key as keyof typeof collectorForm]} onChange={(e) => setCollectorForm({ ...collectorForm, [f.key]: e.target.checked })} className="accent-dp-secondary" />
-                        <span className="font-sans text-[13.5px]">{f.label}</span>
+                        <span className="font-sans text-[13.5px]">{t(f.labelKey)}</span>
                       </label>
                     ))}
                   </div>
@@ -881,10 +856,10 @@ export default function AdminUsersPage() {
                   />
                   <span className="font-sans text-[13.5px] font-semibold text-indigo-900 flex items-center gap-1.5"><ShieldCheck size={14} /> {t('z.verifierBlurb')}</span>
                 </label>
-                <p className="font-sans text-[11.5px] text-indigo-800 mt-1.5">Not tied to role — any user can be a verifier. They&apos;ll be notified when a handler marks a complaint resolved, and can verify &amp; close it or send it back.</p>
+                <p className="font-sans text-[11.5px] text-indigo-800 mt-1.5">{t('us.verifierNotTiedNote')}</p>
               </div>
               <button disabled={savingCollector} onClick={saveCollectorSettings} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                <Save size={16} /> {savingCollector ? 'Saving...' : 'Save'}
+                <Save size={16} /> {savingCollector ? t('em.saving') : t('g.saveChanges')}
               </button>
             </div>
           </div>
