@@ -8,6 +8,7 @@ import { Printer, ExternalLink } from 'lucide-react'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import { dt, type Lang, type DocStringKey } from '@/lib/docTranslations'
+import { translateParticular } from '@/lib/ledgerParticular'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
@@ -563,7 +564,7 @@ function ReportsPageInner() {
                           return (
                             <tr key={r.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
                               <td className="px-4 py-3 whitespace-nowrap">{new Date(r.entry_date).toLocaleDateString('en-GB')}</td>
-                              <td className="px-4 py-3">{r.particular}</td>
+                              <td className="px-4 py-3">{translateParticular(r.particular, t, isUrdu)}</td>
                               <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant whitespace-nowrap">
                                 {r.bill_number ?? '—'}
                                 {r.receipt_no && <span className="block text-dp-secondary">{dt(lang, 'receiptHash')}{r.receipt_no}</span>}

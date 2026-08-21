@@ -872,6 +872,23 @@ export const messages: Record<Locale, Record<string, string>> = {
     'tx.itemsPurchasedSuffix': 'item(s) purchased', 'tx.inventoryPurchase': 'Inventory purchase', 'tx.purchaseFallback': 'Purchase',
     'tx.autoPostedTooltip': 'Vouchers/purchases that posted after 24 hours without every approver confirming',
     'tx.searchPlaceholder': 'Name, account ID, phone, receipt/voucher #, method...',
+    // Ledger `particular` text is written once, in English, by SQL triggers —
+    // there's no Urdu column, and rewriting historical financial records to
+    // "translate" them isn't the right fix. src/lib/ledgerParticular.ts
+    // recognizes the fixed, system-generated phrasings (bills, payments,
+    // deposits, discounts, donations, inventory) and swaps just those
+    // fragments for display; genuinely free-text particulars (a voucher's
+    // own description, a manual entry) are left exactly as written, same as
+    // English mode already does.
+    'lp.waterBillHash': 'Water Bill #',
+    'lp.securityDeposit': 'Security deposit',
+    'lp.billPaidInFull': 'Bill Paid in Full',
+    'lp.partialPayment': 'Partial Payment',
+    'lp.receivedBy': 'received by',
+    'lp.advancePrepaymentReceived': 'Advance / Prepayment received',
+    'lp.inventoryRestored': 'Inventory restored',
+    'lp.inventoryIssued': 'Inventory issued',
+    'lp.fundTransferBetweenProjects': 'Fund transfer between projects',
     'tx.showingCountNote': 'Showing {shown} of {total} transactions in this date range. Widen the date range or jump to a year for older activity — only the current month loads by default.',
     'tx.recurringTooltip': 'Generated automatically by a recurring schedule, not entered by hand',
     'tx.autoPostedRowTooltip': 'Posted after 24 hours without every approver confirming',
@@ -4488,6 +4505,15 @@ export const messages: Record<Locale, Record<string, string>> = {
     'tx.itemsPurchasedSuffix': 'آئٹم خریدے گئے', 'tx.inventoryPurchase': 'انوینٹری خریداری', 'tx.purchaseFallback': 'خریداری',
     'tx.autoPostedTooltip': 'واؤچرز/خریداریاں جو ہر اپرووور کی تصدیق کے بغیر 24 گھنٹے بعد پوسٹ ہوئیں',
     'tx.searchPlaceholder': 'نام، اکاؤنٹ آئی ڈی، فون، رسید/واؤچر #، طریقہ...',
+    'lp.waterBillHash': 'واٹر بل #',
+    'lp.securityDeposit': 'سیکیورٹی ڈیپازٹ',
+    'lp.billPaidInFull': 'بل مکمل ادا ہو گیا',
+    'lp.partialPayment': 'جزوی ادائیگی',
+    'lp.receivedBy': 'وصول کنندہ',
+    'lp.advancePrepaymentReceived': 'ایڈوانس / پیشگی ادائیگی موصول ہوئی',
+    'lp.inventoryRestored': 'انوینٹری واپس',
+    'lp.inventoryIssued': 'انوینٹری اجراء',
+    'lp.fundTransferBetweenProjects': 'منصوبوں کے درمیان فنڈ کی منتقلی',
     'tx.showingCountNote': 'اس تاریخی حد میں {total} میں سے {shown} لین دین دکھائے جا رہے ہیں۔ پرانی سرگرمی کے لیے تاریخی حد بڑھائیں یا کسی سال پر جائیں — ڈیفالٹ میں صرف موجودہ مہینہ لوڈ ہوتا ہے۔',
     'tx.recurringTooltip': 'مستقل شیڈول سے خودکار بنایا گیا، ہاتھ سے درج نہیں کیا گیا',
     'tx.autoPostedRowTooltip': 'ہر اپرووور کی تصدیق کے بغیر 24 گھنٹے بعد پوسٹ ہوا',

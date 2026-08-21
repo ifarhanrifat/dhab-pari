@@ -12,6 +12,7 @@ import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { entryTypeLabel } from '@/lib/ledgerLabels'
 import { dt } from '@/lib/docTranslations'
+import { translateParticular } from '@/lib/ledgerParticular'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Account {
@@ -238,7 +239,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
       accountName: account?.name ?? '',
       accountNameUr: account?.name_ur,
       accountAddress: consumerInfo?.address,
-      particular: row.particular,
+      particular: translateParticular(row.particular, t, isUrdu),
       amount: row.debit > 0 ? row.debit : row.credit,
       balanceAfter: row.balance,
       billOutstandingAfter,
@@ -526,7 +527,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                       {entryTypeLabel(row.reference_type, row.voucher_type, lang)}
                     </span>
                   </td>
-                  <td className="px-4 py-3">{row.particular}</td>
+                  <td className="px-4 py-3">{translateParticular(row.particular, t, isUrdu)}</td>
                   <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant whitespace-nowrap">
                     {row.bill_number ?? row.voucher_no ?? '—'}
                     {row.receipt_no && <span className="block text-dp-secondary">{dt(lang, 'receiptHash')}{row.receipt_no}</span>}

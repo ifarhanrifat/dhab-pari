@@ -8,6 +8,7 @@ import { printNodeInPopup } from '@/lib/receiptExport'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import { entryTypeLabel } from '@/lib/ledgerLabels'
 import { dt, type Lang } from '@/lib/docTranslations'
+import { translateParticular } from '@/lib/ledgerParticular'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type SystemTab = 'water_supply' | 'donors_projects'
@@ -186,7 +187,7 @@ export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) 
                     <td className="px-4 py-3 whitespace-nowrap">{new Date(r.entry_date).toLocaleDateString('en-GB')}</td>
                     <td className="px-4 py-3">{r.account_name}</td>
                     <td className="px-4 py-3 text-dp-on-surface-variant">{entryTypeLabel(r.reference_type, r.voucher_type, lang)}</td>
-                    <td className="px-4 py-3">{r.particular}</td>
+                    <td className="px-4 py-3">{translateParticular(r.particular, t, isUrdu)}</td>
                     <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant whitespace-nowrap">
                       {r.bill_number ?? r.voucher_no ?? '—'}
                       {r.receipt_no && <span className="block text-dp-secondary">{dt(lang, 'receiptHash')}{r.receipt_no}</span>}
