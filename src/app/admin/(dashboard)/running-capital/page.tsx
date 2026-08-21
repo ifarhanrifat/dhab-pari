@@ -11,7 +11,7 @@ import {
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { dt, type Lang } from '@/lib/docTranslations'
 import {
-  buildClosingNarrative, buildDonorClosingNarrative, expenseCashOutCategories, urduDate,
+  buildClosingNarrative, buildDonorClosingNarrative, expenseCashOutCategories, urduDate, cashCategoryLabel,
   type ClosingReportData, type ExpenseLine, type ComplaintEntry, type CashCategoryAmount,
   type NonPayerOpinion, type PendingBillConsumer, type NonPayerDueToComplaint, type TwoMonthDefaulter,
 } from '@/lib/monthlyClosingNarrative'
@@ -23,8 +23,11 @@ type SystemTab = 'water_supply' | 'donors_projects'
 interface ClosingRow extends ClosingReportData { id: string }
 
 const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-const taskStatusLabel: Record<string, string> = { unassigned: 'Unassigned', assigned: 'Assigned', in_progress: 'In Progress', done: 'Done' }
-const projectStatusLabel: Record<string, string> = { ongoing: 'Ongoing', completed: 'Completed', upcoming: 'Upcoming' }
+// Values are i18n keys (module scope has no useLocale()) — resolved via
+// t() at render time.
+const taskStatusLabelKey: Record<string, string> = { unassigned: 'y.unassigned', assigned: 'y.assigned', in_progress: 'y.inProgress', done: 'g.done' }
+const projectStatusLabelKey: Record<string, string> = { ongoing: 'y.ongoing', completed: 'y.completed', upcoming: 'y.upcoming' }
+const donorTypeLabelKey: Record<string, string> = { villager: 'f.villager', city: 'br.city', overseas: 'g.overseas' }
 
 function fmtAmount(n: number | null | undefined) {
   return Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -253,10 +256,12 @@ function UrduNonPayersDueToComplaintTable({ entries, opinions }: { entries: NonP
   )
 }
 
-const complaintStatusMeta: Record<ComplaintEntry['status'], { label: string; cls: string }> = {
-  open: { label: 'Open', cls: 'bg-red-100 text-red-700' },
-  awaiting_verification: { label: 'Resolved — Awaiting Verification', cls: 'bg-amber-100 text-amber-800' },
-  verified: { label: 'Resolved & Verified', cls: 'bg-emerald-100 text-emerald-700' },
+// labelKey values are i18n keys (module scope has no useLocale()) —
+// resolved via t() at render time.
+const complaintStatusMeta: Record<ComplaintEntry['status'], { labelKey: string; cls: string }> = {
+  open: { labelKey: 'rk.complaintOpen', cls: 'bg-red-100 text-red-700' },
+  awaiting_verification: { labelKey: 'rk.complaintAwaitingVerification', cls: 'bg-amber-100 text-amber-800' },
+  verified: { labelKey: 'rk.complaintVerified', cls: 'bg-emerald-100 text-emerald-700' },
 }
 
 // Shows each complaint's real current status instead of listing it as a bare
@@ -274,14 +279,14 @@ function ComplaintList({ complaints }: { complaints: ComplaintEntry[] }) {
             <MessageSquareWarning size={16} className="text-amber-600 shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{c.name ?? 'Unknown'} {c.sector && <span className="font-normal text-dp-on-surface-variant">— Sector {c.sector}</span>}</p>
-                <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold shrink-0 ${meta.cls}`}>{meta.label}</span>
+                <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{c.name ?? t('rk.unknown')} {c.sector && <span className="font-normal text-dp-on-surface-variant">{t('rk.sectorPrefix')} {c.sector}</span>}</p>
+                <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold shrink-0 ${meta.cls}`}>{t(meta.labelKey)}</span>
               </div>
               <p className="font-sans text-[13px] text-dp-on-surface-variant">{c.text}</p>
               <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">
                 {c.status === 'verified'
-                  ? <>{t('mt.resolvedBy')} <span className="font-semibold">{c.resolved_by_name ?? 'Unknown'}</span>{c.resolved_at ? ` on ${new Date(c.resolved_at).toLocaleDateString('en-GB')}` : ''}</>
-                  : <>{t('a.incharge')} <span className="font-semibold">{c.incharge_name ?? 'Not yet assigned'}</span></>}
+                  ? <>{t('mt.resolvedBy')} <span className="font-semibold">{c.resolved_by_name ?? t('rk.unknown')}</span>{c.resolved_at ? ` ${t('rk.onDatePrefix')} ${new Date(c.resolved_at).toLocaleDateString('en-GB')}` : ''}</>
+                  : <>{t('a.incharge')} <span className="font-semibold">{c.incharge_name ?? t('rk.notYetAssignedRk')}</span></>}
               </p>
             </div>
           </div>
@@ -296,7 +301,7 @@ function ComplaintList({ complaints }: { complaints: ComplaintEntry[] }) {
 // above) but were previously invisible: cash_out_breakdown already computed
 // them, this page just never rendered it.
 function OtherOutgoingPayments({ breakdown }: { breakdown: CashCategoryAmount[] }) {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const other = breakdown.filter((c) => !expenseCashOutCategories.has(c.category))
   if (other.length === 0) return null
   return (
@@ -305,7 +310,7 @@ function OtherOutgoingPayments({ breakdown }: { breakdown: CashCategoryAmount[] 
       <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
         {other.map((c, i) => (
           <div key={i} className="p-3.5 flex items-center justify-between gap-3">
-            <span className="font-sans text-[13.5px] text-dp-on-surface">{c.category}</span>
+            <span className="font-sans text-[13.5px] text-dp-on-surface">{cashCategoryLabel(c.category, isUrdu)}</span>
             <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">Rs. {fmtAmount(c.amount)}</span>
           </div>
         ))}
@@ -378,7 +383,7 @@ export default function RunningCapitalPage() {
     const { error } = await supabase.rpc('update_closing_report_reconciliation_remarks', { p_report_id: viewTarget.id, p_remarks: reconciliationRemarks })
     setSavingRemarks(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Saved')
+    toast.success(dt(lang, 'saved'))
     setViewTarget({ ...viewTarget, reconciliation_remarks: reconciliationRemarks })
     load()
   }
@@ -395,7 +400,7 @@ export default function RunningCapitalPage() {
     const { error } = await supabase.rpc('update_closing_report_non_payer_opinions', { p_report_id: viewTarget.id, p_opinions: opinions })
     setSavingOpinions(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Saved')
+    toast.success(dt(lang, 'saved'))
     setViewTarget({ ...viewTarget, non_payer_opinions: opinions })
     load()
   }
@@ -411,7 +416,7 @@ export default function RunningCapitalPage() {
     const { error } = await supabase.rpc('regenerate_monthly_closing_report', { p_report_id: viewTarget.id })
     setRegenerating(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Report regenerated with current figures')
+    toast.success(dt(lang, 'reportRegenerated'))
     const { data: refreshed } = await supabase.from('monthly_closing_reports').select('*').eq('id', viewTarget.id).single()
     if (refreshed) setViewTarget(refreshed as ClosingRow)
     load()
@@ -446,10 +451,10 @@ export default function RunningCapitalPage() {
         <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-6 flex items-start gap-3">
           <AlertTriangle size={18} className="text-amber-700 shrink-0 mt-0.5" />
           <div>
-            <p className="font-sans text-[13.5px] font-bold text-amber-900">Opening balance doesn&apos;t match last month&apos;s closing figure</p>
+            <p className="font-sans text-[13.5px] font-bold text-amber-900">{dt(lang, 'opBalanceMismatchTitle')}</p>
             <p className="font-sans text-[13px] text-amber-800 mt-0.5">
-              Expected Rs. {fmtAmount(live.opening_balance_expected)} (last month&apos;s reported closing cash), but the ledger now shows Rs. {fmtAmount(live.opening_balance_actual)}.
-              {' '}This means a prior-period transaction was edited or deleted after that month was reported. Open last month&apos;s report below to see what changed and add an explanation.
+              {dt(lang, 'opBalanceMismatchExpected')} {fmtAmount(live.opening_balance_expected)} {dt(lang, 'opBalanceMismatchLastReported')} {fmtAmount(live.opening_balance_actual)}.
+              {' '}{dt(lang, 'opBalanceMismatchExplain')}
             </p>
           </div>
         </div>
@@ -472,15 +477,15 @@ export default function RunningCapitalPage() {
 
           <SectionHeading>{t('rk.billingMonth')}</SectionHeading>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatCard icon={<TrendingUp size={16} />} label="Billed Amount (Gross)" value={fmtAmount(live.this_month_billed)} />
-            <StatCard icon={<TrendingDown size={16} />} label="Discount Given" value={fmtAmount(live.this_month_discount)} />
-            <StatCard icon={<TrendingUp size={16} />} label="Net Billing Income" value={fmtAmount(live.billing_income)} />
+            <StatCard icon={<TrendingUp size={16} />} label={dt(lang, 'billedAmountGross')} value={fmtAmount(live.this_month_billed)} />
+            <StatCard icon={<TrendingDown size={16} />} label={dt(lang, 'discountGiven')} value={fmtAmount(live.this_month_discount)} />
+            <StatCard icon={<TrendingUp size={16} />} label={dt(lang, 'netBillingIncome')} value={fmtAmount(live.billing_income)} />
             {live.sale_income != null && <StatCard icon={<TrendingUp size={16} />} label={dt(lang, 'saleServiceIncome')} value={fmtAmount(live.sale_income)} />}
           </div>
           {live.discount_by_consumer.length > 0 && (
             <>
               <button onClick={() => setShowDiscountDetail(!showDiscountDetail)} className="flex items-center gap-1.5 text-dp-secondary font-sans text-[13px] font-semibold hover:underline cursor-pointer mt-3">
-                {showDiscountDetail ? <ChevronUp size={14} /> : <ChevronDown size={14} />} Discount by Consumer
+                {showDiscountDetail ? <ChevronUp size={14} /> : <ChevronDown size={14} />} {dt(lang, 'discountByConsumer')}
               </button>
               {showDiscountDetail && (
                 <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mt-2">
@@ -509,8 +514,8 @@ export default function RunningCapitalPage() {
 
           <SectionHeading>{t('rk.cashFlow')}</SectionHeading>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatCard icon={<ArrowDownToLine size={16} />} label="Cash In This Month" value={fmtAmount(live.cash_in)} tone="good" />
-            <StatCard icon={<ArrowUpFromLine size={16} />} label="Cash Out This Month" value={fmtAmount(live.cash_out)} tone="bad" />
+            <StatCard icon={<ArrowDownToLine size={16} />} label={dt(lang, 'cashInMonth')} value={fmtAmount(live.cash_in)} tone="good" />
+            <StatCard icon={<ArrowUpFromLine size={16} />} label={dt(lang, 'cashOutMonth')} value={fmtAmount(live.cash_out)} tone="bad" />
             <StatCard icon={<Wallet size={16} />} label={dt(lang, 'previousMonth') + ' — ' + dt(lang, 'totalCash')} value={fmtAmount(live.prev_month_cash)} />
             <StatCard icon={netCash >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />} label={dt(lang, 'change')} value={fmtAmount(Math.abs(netCash))} tone={netCash >= 0 ? 'good' : 'bad'} />
             <StatCard icon={<TrendingUp size={16} />} label={dt(lang, 'previousMonthBilling')} value={fmtAmount(live.prev_month_billing)} />
@@ -539,9 +544,9 @@ export default function RunningCapitalPage() {
                   <UserPlus size={16} className="text-dp-secondary shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{c.consumer_name}</p>
-                    <p className="font-sans text-[12px] text-dp-on-surface-variant">Incharge: {c.incharge_name ?? 'Not yet assigned'}</p>
+                    <p className="font-sans text-[12px] text-dp-on-surface-variant">{dt(lang, 'inchargeColon')} {c.incharge_name ?? dt(lang, 'notYetAssigned')}</p>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold shrink-0 ${c.activated ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{c.activated ? 'Activated' : 'In Progress'}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold shrink-0 ${c.activated ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{c.activated ? dt(lang, 'activatedBadge') : dt(lang, 'inProgressBadge')}</span>
                 </div>
               ))}
             </div>
@@ -568,12 +573,12 @@ export default function RunningCapitalPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {live.task_progress.map((t, i) => (
+                    {live.task_progress.map((task, i) => (
                       <tr key={i} className="border-b border-dp-outline-variant last:border-0 font-sans text-[13px]">
-                        <td className="px-4 py-2.5">{t.consumer_name} <span className="text-dp-on-surface-variant text-[11.5px]">({t.request_number})</span></td>
-                        <td className="px-4 py-2.5 text-dp-on-surface-variant">{t.sector ?? '—'}</td>
-                        <td className="px-4 py-2.5 text-dp-on-surface-variant">{t.incharge_name ?? 'Not yet assigned'}</td>
-                        <td className="px-4 py-2.5"><span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-dp-surface-container-low">{taskStatusLabel[t.task_status] ?? t.task_status}</span></td>
+                        <td className="px-4 py-2.5">{task.consumer_name} <span className="text-dp-on-surface-variant text-[11.5px]">({task.request_number})</span></td>
+                        <td className="px-4 py-2.5 text-dp-on-surface-variant">{task.sector ?? '—'}</td>
+                        <td className="px-4 py-2.5 text-dp-on-surface-variant">{task.incharge_name ?? dt(lang, 'notYetAssigned')}</td>
+                        <td className="px-4 py-2.5"><span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-dp-surface-container-low">{t(taskStatusLabelKey[task.task_status] ?? task.task_status, task.task_status)}</span></td>
                       </tr>
                     ))}
                   </tbody>
@@ -587,14 +592,14 @@ export default function RunningCapitalPage() {
           <SectionHeading>{t('g.cashPosition')}</SectionHeading>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard icon={<Wallet size={16} />} label={dt(lang, 'totalCash')} value={fmtAmount(Number(live.this_month_cash))} />
-            <StatCard icon={<ArrowDownToLine size={16} />} label="Cash In This Month" value={fmtAmount(live.cash_in)} tone="good" />
-            <StatCard icon={<ArrowUpFromLine size={16} />} label="Cash Out This Month" value={fmtAmount(live.cash_out)} tone="bad" />
-            <StatCard icon={netCash >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />} label={dt(lang, 'change') + ' vs ' + dt(lang, 'previousMonth')} value={fmtAmount(Math.abs(netCash))} tone={netCash >= 0 ? 'good' : 'bad'} />
+            <StatCard icon={<ArrowDownToLine size={16} />} label={dt(lang, 'cashInMonth')} value={fmtAmount(live.cash_in)} tone="good" />
+            <StatCard icon={<ArrowUpFromLine size={16} />} label={dt(lang, 'cashOutMonth')} value={fmtAmount(live.cash_out)} tone="bad" />
+            <StatCard icon={netCash >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />} label={dt(lang, 'change') + ' ' + dt(lang, 'cashOutBadge') + ' ' + dt(lang, 'previousMonth')} value={fmtAmount(Math.abs(netCash))} tone={netCash >= 0 ? 'good' : 'bad'} />
           </div>
 
           <SectionHeading>{t('rk.donationsMonth')}</SectionHeading>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
-            <StatCard icon={<Heart size={16} />} label="Donations Received" value={fmtAmount(live.billing_income)} />
+            <StatCard icon={<Heart size={16} />} label={dt(lang, 'donationsReceived')} value={fmtAmount(live.billing_income)} />
             <StatCard icon={<Heart size={16} />} label={dt(lang, 'previousMonth')} value={fmtAmount(live.prev_month_billing)} />
           </div>
           {live.donor_breakdown.by_project.length > 0 && (
@@ -611,8 +616,8 @@ export default function RunningCapitalPage() {
             <div className="bg-white rounded-lg border border-dp-outline-variant p-4">
               <p className="font-sans text-[12px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant mb-2">{t('rk.byDonorType')}</p>
               <div className="flex flex-wrap gap-2">
-                {live.donor_breakdown.by_type.map((t, i) => (
-                  <span key={i} className="px-3 py-1.5 bg-dp-surface-container-low rounded-full font-sans text-[12.5px] font-semibold text-dp-on-surface capitalize">{t.type}: Rs. {fmtAmount(t.total)}</span>
+                {live.donor_breakdown.by_type.map((dtype, i) => (
+                  <span key={i} className="px-3 py-1.5 bg-dp-surface-container-low rounded-full font-sans text-[12.5px] font-semibold text-dp-on-surface capitalize">{t(donorTypeLabelKey[dtype.type] ?? dtype.type, dtype.type)}: Rs. {fmtAmount(dtype.total)}</span>
                 ))}
               </div>
             </div>
@@ -637,7 +642,7 @@ export default function RunningCapitalPage() {
                   {live.project_progress.map((p, i) => (
                     <tr key={i} className="border-b border-dp-outline-variant last:border-0 font-sans text-[13px]">
                       <td className="px-4 py-2.5 font-semibold">{p.title}</td>
-                      <td className="px-4 py-2.5"><span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-dp-surface-container-low">{projectStatusLabel[p.status] ?? p.status}</span></td>
+                      <td className="px-4 py-2.5"><span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-dp-surface-container-low">{t(projectStatusLabelKey[p.status] ?? p.status, p.status)}</span></td>
                       <td className="px-4 py-2.5 text-dp-on-surface-variant">{p.progress_percent != null ? `${p.progress_percent}%` : '—'}</td>
                       <td className="px-4 py-2.5 text-end">{p.budget_pkr != null ? `Rs. ${fmtAmount(p.budget_pkr)}` : '—'}</td>
                       <td className="px-4 py-2.5 text-end">{p.spent_pkr != null ? `Rs. ${fmtAmount(p.spent_pkr)}` : '—'}</td>
@@ -696,8 +701,8 @@ export default function RunningCapitalPage() {
               <h2 className="font-heading text-[18px] font-bold text-dp-primary">{monthNamesEn[viewTarget.report_month - 1]} {viewTarget.report_year}</h2>
               <div className="flex items-center gap-2">
                 {canManage && (
-                  <button onClick={regenerateReport} disabled={regenerating} title="Recompute this report with current figures/logic" className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
-                    <RefreshCw size={13} className={regenerating ? 'animate-spin' : ''} /> {regenerating ? 'Regenerating...' : 'Regenerate'}
+                  <button onClick={regenerateReport} disabled={regenerating} title={dt(lang, 'recomputeTitle')} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
+                    <RefreshCw size={13} className={regenerating ? 'animate-spin' : ''} /> {regenerating ? dt(lang, 'regenerating') : dt(lang, 'regenerate')}
                   </button>
                 )}
                 <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer"><Printer size={13} /> {t('a.print')}</button>
@@ -753,15 +758,15 @@ export default function RunningCapitalPage() {
               {viewTarget.opening_balance_mismatch && (
                 <div className="border-t border-dp-outline-variant pt-4 print:hidden">
                   <p className="font-sans text-[13px] font-bold text-amber-800 uppercase tracking-[0.05em] mb-2 flex items-center gap-1.5"><AlertTriangle size={14} /> {t('rk.reconciliation')}</p>
-                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">Explain why this month&apos;s opening balance didn&apos;t match the previous report — this note is included when the report is printed.</p>
+                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{dt(lang, 'reconciliationExplainNote')}</p>
                   <textarea
                     value={reconciliationRemarks} onChange={(e) => setReconciliationRemarks(e.target.value)}
-                    disabled={!canManage} rows={3} placeholder="e.g. Deleted a duplicate expense voucher dated last month..."
+                    disabled={!canManage} rows={3} placeholder={dt(lang, 'reconciliationPlaceholder')}
                     className="input-field w-full disabled:opacity-60"
                   />
                   {canManage && (
                     <button disabled={savingRemarks} onClick={saveRemarks} className="mt-2 px-4 py-1.5 bg-dp-secondary text-white rounded-full font-sans text-[12.5px] font-bold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                      {savingRemarks ? 'Saving...' : 'Save'}
+                      {savingRemarks ? dt(lang, 'savingDots') : dt(lang, 'saveBtn')}
                     </button>
                   )}
                 </div>
@@ -770,7 +775,7 @@ export default function RunningCapitalPage() {
               {system === 'water_supply' && viewTarget.non_payers_due_to_complaint.length > 0 && (
                 <div className="border-t border-dp-outline-variant pt-4 print:hidden">
                   <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1">{dt(lang, 'nonPayersDueToComplaint')}</p>
-                  <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">Auto-detected — a consumer with an active complaint and an outstanding bill. Add the committee&apos;s opinion for the printed report; nothing else here is editable.</p>
+                  <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">{dt(lang, 'nonPayerAutoDetectNote')}</p>
                   <div className="space-y-3">
                     {viewTarget.non_payers_due_to_complaint.map((n) => (
                       <div key={n.consumer_id} className="border border-dp-outline-variant rounded-lg p-3">
@@ -779,12 +784,12 @@ export default function RunningCapitalPage() {
                           <span className="font-sans text-[12.5px] font-semibold text-dp-error">Rs. {fmtAmount(n.outstanding)}</span>
                         </div>
                         <p className="font-sans text-[12px] text-dp-on-surface-variant mb-2">
-                          Complaint since {new Date(n.complaint_since).toLocaleDateString('en-GB')}
-                          {n.unpaid_since && ` · Unpaid since ${new Date(n.unpaid_since).toLocaleDateString('en-GB')}`}
+                          {dt(lang, 'complaintSincePrefix')} {new Date(n.complaint_since).toLocaleDateString('en-GB')}
+                          {n.unpaid_since && ` · ${dt(lang, 'unpaidSincePrefix')} ${new Date(n.unpaid_since).toLocaleDateString('en-GB')}`}
                         </p>
                         <textarea
                           value={editingOpinions[n.consumer_id] ?? ''} onChange={(e) => setEditingOpinions({ ...editingOpinions, [n.consumer_id]: e.target.value })}
-                          disabled={!canManage} rows={2} placeholder="Committee's opinion..."
+                          disabled={!canManage} rows={2} placeholder={dt(lang, 'committeeOpinionPlaceholder')}
                           className="input-field w-full disabled:opacity-60 !text-[13px]"
                         />
                       </div>
@@ -792,7 +797,7 @@ export default function RunningCapitalPage() {
                   </div>
                   {canManage && (
                     <button disabled={savingOpinions} onClick={saveOpinions} className="mt-3 px-4 py-1.5 bg-dp-secondary text-white rounded-full font-sans text-[12.5px] font-bold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                      {savingOpinions ? 'Saving...' : 'Save'}
+                      {savingOpinions ? dt(lang, 'savingDots') : dt(lang, 'saveBtn')}
                     </button>
                   )}
                 </div>

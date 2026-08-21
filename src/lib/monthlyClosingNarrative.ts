@@ -134,6 +134,12 @@ const cashCategoryUr: Record<string, string> = {
 function catUr(category: string): string {
   return cashCategoryUr[category] ?? category
 }
+// Exposed for the on-screen "Other Outgoing Payments" panel on the Running
+// Capital admin page (not just this file's own printed Urdu narrative) —
+// same category strings, same translation, one source of truth.
+export function cashCategoryLabel(category: string, isUrdu: boolean): string {
+  return isUrdu ? catUr(category) : category
+}
 
 // Expenses already get their own dedicated table right after this narrative
 // section — repeating "Expenses Paid: Rs. X" here as well just restates the
