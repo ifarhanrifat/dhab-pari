@@ -7,7 +7,6 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { PlusCircle, X, Pause, Play, Trash2, Pencil, Lock } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
-import { useTranslation } from '@/hooks/useTranslation'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import Link from 'next/link'
 
@@ -36,7 +35,7 @@ function fmt(n: number) {
 const empty = { amount_pkr: 0, frequency: 'monthly', next_run_date: new Date().toISOString().split('T')[0], project_id: '', payment_method: 'jazzcash', particular: '' }
 
 export default function PortalRecurringPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [poolLines, setPoolLines] = useState<PoolLine[]>([])
@@ -50,9 +49,6 @@ export default function PortalRecurringPage() {
   const [confirmStopPool, setConfirmStopPool] = useState<string | null>(null)
   const [changingPool, setChangingPool] = useState<PoolLine | null>(null)
   const [changeAmount, setChangeAmount] = useState(0)
-  // Follows the reader's own language toggle, not the committee's setting —
-  // this text is the one thing on the page they must actually understand.
-  const { isUrdu } = useTranslation()
   const [policy, setPolicy] = useState<{ en: string; ur: string }>({ en: '', ur: '' })
   const [acknowledged, setAcknowledged] = useState(false)
 
