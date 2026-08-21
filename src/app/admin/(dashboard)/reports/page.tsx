@@ -315,7 +315,7 @@ function ReportsPageInner() {
               <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="filter-field" />
             </div>
             <div className="flex-1 min-w-[140px]">
-              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">To</label>
+              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('rp.to')}</label>
               <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="filter-field" />
             </div>
           </>
