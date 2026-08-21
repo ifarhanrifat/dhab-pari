@@ -654,7 +654,7 @@ export default function MeetingsAgendaPage() {
             <button onClick={() => setComplaintsOpen(!complaintsOpen)} className="w-full flex items-center justify-between gap-3 p-4 text-start cursor-pointer hover:bg-dp-surface-container-low transition-all">
               <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-2">
                 <MessageSquareWarning size={16} className="text-amber-600" /> {t('mt.complaintsStatus')}
-                <span className="font-normal text-dp-on-surface-variant text-[12.5px]">({visible.length}{!showResolvedComplaints ? ' open/pending' : ''})</span>
+                <span className="font-normal text-dp-on-surface-variant text-[12.5px]">({visible.length}{!showResolvedComplaints ? ` ${t('mt.openPending')}` : ''})</span>
               </p>
               {complaintsOpen ? <ChevronUp size={18} className="shrink-0 text-dp-on-surface-variant" /> : <ChevronDown size={18} className="shrink-0 text-dp-on-surface-variant" />}
             </button>
