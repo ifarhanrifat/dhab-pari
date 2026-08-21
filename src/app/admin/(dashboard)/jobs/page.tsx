@@ -13,6 +13,13 @@ interface Listing {
 }
 
 const CATEGORIES = ['plumber', 'electrician', 'mason', 'carpenter', 'painter', 'laborer', 'driver', 'tailor', 'cook', 'tutor', 'mechanic', 'other']
+// Same keys the portal's post-job form already uses (module scope has no
+// useLocale()) — resolved via t() at render time.
+const CATEGORY_KEY: Record<string, string> = {
+  plumber: 'p.catPlumber', electrician: 'p.catElectrician', mason: 'p.catMason', carpenter: 'p.catCarpenter',
+  painter: 'p.catPainter', laborer: 'p.catLaborer', driver: 'p.catDriver', tailor: 'p.catTailor',
+  cook: 'p.catCook', tutor: 'p.catTutor', mechanic: 'p.catMechanic', other: 'p.catOther',
+}
 
 // Committee-wide moderation lever, mirroring /admin/blood-donors — not
 // system-scoped (job_listings_staff_read/moderate gate on "any active staff
@@ -41,7 +48,7 @@ export default function AdminJobsPage() {
   const toggleActive = async (l: Listing) => {
     const { error } = await supabase.from('job_listings').update({ is_active: !l.is_active }).eq('id', l.id)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(l.is_active ? 'Listing deactivated' : 'Listing reactivated')
+    toast.success(l.is_active ? t('jb.deactivated') : t('jb.reactivated'))
     load()
   }
 
@@ -49,13 +56,13 @@ export default function AdminJobsPage() {
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5"><Briefcase size={26} className="text-dp-secondary" /> {t('y.jobListings')}</h1>
-        <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">Public village job board — deactivate a listing here if it needs to come down.</p>
+        <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('jb.subtitle')}</p>
       </div>
 
       <div className="flex flex-wrap gap-3 mb-5">
         <select value={category} onChange={(e) => setCategory(e.target.value)} className="input-field w-auto">
           <option value="">{t('x.allCategories')}</option>
-          {CATEGORIES.map((c) => <option key={c} value={c}>{c[0].toUpperCase() + c.slice(1)}</option>)}
+          {CATEGORIES.map((c) => <option key={c} value={c}>{t(CATEGORY_KEY[c])}</option>)}
         </select>
         <label className="flex items-center gap-2 cursor-pointer font-sans text-[14px]">
           <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} className="accent-dp-secondary" />
@@ -75,14 +82,14 @@ export default function AdminJobsPage() {
               {!loading && filtered.map((l, i) => (
                 <tr key={l.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''} ${!l.is_active ? 'opacity-60' : ''}`}>
                   <td className="p-4 border-b border-dp-outline-variant font-semibold">{l.headline}</td>
-                  <td className="p-4 border-b border-dp-outline-variant"><span className="bg-dp-secondary-container text-dp-on-secondary-container px-2 py-0.5 rounded-full text-[12px] font-bold uppercase">{l.category}</span></td>
+                  <td className="p-4 border-b border-dp-outline-variant"><span className="bg-dp-secondary-container text-dp-on-secondary-container px-2 py-0.5 rounded-full text-[12px] font-bold uppercase">{t(CATEGORY_KEY[l.category] ?? l.category, l.category)}</span></td>
                   <td className="p-4 border-b border-dp-outline-variant">{l.contact_name} · {l.contact_mobile}</td>
                   <td className="p-4 border-b border-dp-outline-variant text-dp-on-surface-variant">{l.sector ?? '—'}</td>
                   <td className="p-4 border-b border-dp-outline-variant">
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${l.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>{l.is_active ? 'Active' : 'Inactive'}</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${l.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>{l.is_active ? t('g.active') : t('g.inactive')}</span>
                   </td>
                   <td className="p-4 border-b border-dp-outline-variant">
-                    <button onClick={() => toggleActive(l)} title={l.is_active ? 'Deactivate' : 'Reactivate'} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Power size={16} /></button>
+                    <button onClick={() => toggleActive(l)} title={l.is_active ? t('jb.deactivateTitle') : t('jb.reactivateTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Power size={16} /></button>
                   </td>
                 </tr>
               ))}
