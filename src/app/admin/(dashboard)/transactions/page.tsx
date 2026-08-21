@@ -242,7 +242,8 @@ export default function AllTransactionsPage() {
     result.sort((a, b) => (a.date !== b.date ? (a.date < b.date ? 1 : -1) : (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0)))
     setRows(result)
     setLoading(false)
-  }, [system, from, to, supabase])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [system, from, to, supabase, t])
 
   useEffect(() => { load() }, [load])
 

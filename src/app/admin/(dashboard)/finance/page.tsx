@@ -1,51 +1,26 @@
 'use client'
 
-import Link from 'next/link'
-import { Droplets, Heart, ChevronRight } from 'lucide-react'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
-export default function TransactionsPickerPage() {
-  const { t, isUrdu } = useLocale()
-  return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'}>
-      <div className="mb-8">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('nav.finance')}</h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('y.chooseSystem')}</p>
-      </div>
+// This used to be a two-card picker ("Water Supply" / "Donors & Projects")
+// that every visitor saw regardless of which books their account actually
+// covers — an extra click before the real workspace, and a dead end for
+// someone with only one system's access if they picked the other card. The
+// workspace itself (/admin/finance/[system]) now carries its own in-page
+// system tabs (same access-gated pattern as All Transactions), so this route
+// only needs to land the visitor on their default system.
+export default function FinanceIndexRedirect() {
+  const router = useRouter()
+  const access = useSystemAccess()
+  const { t } = useLocale()
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl">
-        <Link
-          href="/admin/finance/water_supply"
-          className="group flex items-center justify-between gap-4 bg-white border border-dp-outline-variant rounded-lg p-6 hover:border-dp-primary hover:shadow-sm transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-dp-primary-container flex items-center justify-center shrink-0">
-              <Droplets size={22} className="text-dp-on-primary-container" />
-            </div>
-            <div>
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('a.waterSupplySystem')}</h2>
-              <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('y.waterVouchers')}</p>
-            </div>
-          </div>
-          <ChevronRight size={20} className="text-dp-on-surface-variant group-hover:text-dp-primary transition-colors shrink-0" />
-        </Link>
+  useEffect(() => {
+    if (access.loading) return
+    router.replace(`/admin/finance/${access.defaultSystem}`)
+  }, [access.loading, access.defaultSystem, router])
 
-        <Link
-          href="/admin/finance/donors_projects"
-          className="group flex items-center justify-between gap-4 bg-white border border-dp-outline-variant rounded-lg p-6 hover:border-dp-primary hover:shadow-sm transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-dp-primary-container flex items-center justify-center shrink-0">
-              <Heart size={22} className="text-dp-on-primary-container" />
-            </div>
-            <div>
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('a.donorsProjects')}</h2>
-              <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('y.donorVouchers')}</p>
-            </div>
-          </div>
-          <ChevronRight size={20} className="text-dp-on-surface-variant group-hover:text-dp-primary transition-colors shrink-0" />
-        </Link>
-      </div>
-    </div>
-  )
+  return <div className="text-center py-16 font-sans text-[14px] text-dp-on-surface-variant">{t('action.loading')}</div>
 }

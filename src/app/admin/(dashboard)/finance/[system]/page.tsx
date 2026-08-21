@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
-  ArrowLeft, Save, Wallet, ArrowDownCircle, ArrowLeftRight, ArrowUpFromLine,
+  Save, Wallet, ArrowDownCircle, ArrowLeftRight, ArrowUpFromLine,
   ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck, ChevronDown, Search, PlusCircle, ChevronLeft, HandCoins, Undo2,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -23,6 +23,7 @@ import { voucherReceiptKind, entryTypeLabel } from '@/lib/ledgerLabels'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { fetchPeriodLockRule, periodIsLocked, dateIsLocked, DEFAULT_PERIOD_LOCK, type PeriodLockRule } from '@/lib/periodLock'
 import { renderTemplate } from '@/lib/messageTemplates'
+import { useSystemAccess } from '@/hooks/useSystemAccess'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 type VoucherType = 'expense' | 'income' | 'contra' | 'withdrawal' | 'deposit' | 'advance'
@@ -167,6 +168,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const system = (rawSystem === 'donors_projects' ? 'donors_projects' : 'water_supply') as SystemTab
   const searchParams = useSearchParams()
   const router = useRouter()
+  const access = useSystemAccess()
 
   const [accounts, setAccounts] = useState<Account[]>([])
   const [accountBalances, setAccountBalances] = useState<Record<string, { debit: number; credit: number }>>({})
@@ -350,22 +352,22 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     // the "has itemised lines" edit guard can use it.
     const voucherLinesByVoucher: Record<string, { description: string; quantity: number; unitPrice: number }[]> = {}
     for (const r of (docs.voucher_line_items ?? []) as { voucher_id: string; description: string | null; category: string | null; amount: number }[]) {
-      const label = r.description || (r.category ? r.category.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : 'Item')
+      const label = r.description || (r.category ? r.category.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : t('tx.itemFallback'))
       ;(voucherLinesByVoucher[r.voucher_id] ??= []).push({ description: label, quantity: 1, unitPrice: Number(r.amount) })
     }
     const cards: TxnCard[] = []
 
     for (const b of billsList) {
       const net = Math.max(b.amount_pkr - (b.discount_amount ?? 0), 0)
-      let description = b.description || `Water Bill — ${new Date(b.year, b.month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+      let description = b.description || `${t('tx.waterBillPrefix')} ${new Date(b.year, b.month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
       if (b.security_deposit_amount && b.security_deposit_amount > 0) {
         const receiptNo = b.security_deposit_voucher_id ? depositReceiptByVoucherId[b.security_deposit_voucher_id] : null
-        description += ` · + Security Deposit Rs ${fmtAmount(b.security_deposit_amount)}${receiptNo ? ` (Receipt # ${receiptNo})` : ''}`
+        description += ` ${t('tx.securityDepositSuffix')} ${fmtAmount(b.security_deposit_amount)}${receiptNo ? ` (${t('tx.receiptHashPrefix')} ${receiptNo})` : ''}`
       }
       cards.push({
         id: `bill-${b.id}`, kind: 'bill', borderColor: 'border-emerald-500', isRecurring: !!b.recurring_schedule_id,
         typeLabel: null, partyName: consumersById[b.consumer_id] ?? b.consumer_id,
-        docLabel: b.bill_number ? `Bill # ${b.bill_number}` : 'Bill',
+        docLabel: b.bill_number ? `${t('tx.billHash')} ${b.bill_number}` : t('tx.billFallback'),
         date: b.due_date ?? new Date(b.year, b.month - 1, 1).toISOString().slice(0, 10),
         description,
         amount: net, badge: billBadge(b), note: null, created_at: b.created_at, billId: b.id,
@@ -377,10 +379,10 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       const billNo = billNumberById[p.bill_id]
       cards.push({
         id: `payment-${p.id}`, kind: 'payment', borderColor: 'border-cyan-500',
-        typeLabel: p.method ? p.method.charAt(0).toUpperCase() + p.method.slice(1) : 'Cash',
+        typeLabel: p.method ? p.method.charAt(0).toUpperCase() + p.method.slice(1) : t('tx.cashFallback'),
         partyName: consumersById[p.consumer_id] ?? p.consumer_id,
-        docLabel: p.receipt_no ? `Receipt # ${p.receipt_no}` : 'Receipt',
-        date: p.paid_date, description: billNo ? `Against Bill ${billNo}` : (p.note || 'Payment received'),
+        docLabel: p.receipt_no ? `${t('tx.receiptHashPrefix')} ${p.receipt_no}` : t('tx.receiptFallback'),
+        date: p.paid_date, description: billNo ? `${t('tx.againstBill')} ${billNo}` : (p.note || t('tx.paymentReceived')),
         amount: p.amount_pkr, badge: null, note: p.note, created_at: p.created_at,
         paymentId: p.id, billId: p.bill_id,
         paymentBillOutstandingNow: billOutstandingById[p.bill_id] ?? 0, paymentReceiptNo: p.receipt_no,
@@ -406,8 +408,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       // it just isn't the number shown to the user.
       const isSecurityDeposit = v.voucher_type === 'security_deposit'
       const docLabel = isSecurityDeposit
-        ? (v.receipt_no ? `Receipt # ${v.receipt_no}` : 'Receipt')
-        : (v.voucher_no ? `Voucher # ${v.voucher_no}` : 'Voucher')
+        ? (v.receipt_no ? `${t('tx.receiptHashPrefix')} ${v.receipt_no}` : t('tx.receiptFallback'))
+        : (v.voucher_no ? `${t('tx.voucherHash')} ${v.voucher_no}` : t('tx.voucherFallback'))
       cards.push({
         id: `voucher-${v.id}`, kind: 'voucher', borderColor: isSecurityDeposit ? 'border-cyan-500' : 'border-slate-400', isRecurring: !!v.recurring_schedule_id,
         typeLabel: fallbackLabel,
@@ -425,9 +427,9 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         id: `donation-${d.id}`, kind: 'donation', borderColor: 'border-violet-500', isRecurring: !!d.recurring_schedule_id,
         typeLabel: d.payment_method ? d.payment_method.charAt(0).toUpperCase() + d.payment_method.slice(1) : null,
         // Real name for staff; anonymity is enforced publicly by donors_public.
-        partyName: d.is_anonymous ? `${d.name} (anonymous publicly)` : d.name,
-        docLabel: d.voucher_no ? `Voucher # ${d.voucher_no}` : 'Donation',
-        date: d.date, description: d.notes || 'Donation received',
+        partyName: d.is_anonymous ? `${d.name} ${t('tx.anonymousPubliclySuffix')}` : d.name,
+        docLabel: d.voucher_no ? `${t('tx.voucherHash')} ${d.voucher_no}` : t('tx.donationFallback'),
+        date: d.date, description: d.notes || t('tx.donationReceived'),
         amount: d.amount_pkr,
         // Announced / Awaiting confirmation / Received — this list is the
         // operational queue staff act on (unlike the Donor Report, which is a
@@ -445,7 +447,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       const pid = r.purchase_id as string
       if (!purchaseLinesByPurchase[pid]) purchaseLinesByPurchase[pid] = []
       purchaseLinesByPurchase[pid].push({
-        description: r.item_name ?? 'Item', quantity: r.quantity, unitPrice: r.unit_cost_at_time ?? 0,
+        description: r.item_name ?? t('tx.itemFallback'), quantity: r.quantity, unitPrice: r.unit_cost_at_time ?? 0,
       })
     }
 
@@ -455,9 +457,9 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       cards.push({
         id: `purchase-${p.id}`, kind: 'purchase', borderColor: 'border-amber-500',
         typeLabel: p.method.charAt(0).toUpperCase() + p.method.slice(1),
-        partyName: p.vendor || 'Purchase',
-        docLabel: p.purchase_number ? `Purchase # ${p.purchase_number}` : 'Purchase Bill',
-        date: p.purchase_date, description: lines.length > 0 ? `${lines.length} item${lines.length > 1 ? 's' : ''} purchased` : (p.note || 'Inventory purchase'),
+        partyName: p.vendor || t('tx.purchaseFallback'),
+        docLabel: p.purchase_number ? `${t('tx.purchaseHash')} ${p.purchase_number}` : t('tx.purchaseBillFallback'),
+        date: p.purchase_date, description: lines.length > 0 ? `${lines.length} ${t('tx.itemsPurchasedSuffix')}` : (p.note || t('tx.inventoryPurchase')),
         amount: total, badge: null, note: p.note, created_at: p.created_at, purchaseId: p.id,
         purchaseLineItems: lines, purchaseNumber: p.purchase_number, autoPosted: autoPostedIds.has(p.id), fullyApproved: fullyApprovedIds.has(p.id),
       })
@@ -468,7 +470,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
     setTxnCards(cards.slice(0, 50))
     setLoading(false)
-  }, [system, supabase, logSortDir])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [system, supabase, logSortDir, t])
 
   useEffect(() => { load() }, [load])
 
@@ -572,7 +575,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
           .select('item_type, inventory_item_id, service_item_id, charge_account_id, description, quantity, unit_price, is_recurring, discount_pct')
           .eq('bill_id', billParam).order('created_at'),
       ])
-      if (!bill) { toast.error('Bill not found'); setEditLoading(false); return }
+      if (!bill) { toast.error(t('fw.billNotFound')); setEditLoading(false); return }
       setEditingBill({
         id: bill.id, bill_number: bill.bill_number, paid_amount: bill.paid_amount ?? 0,
         security_deposit_voucher_id: bill.security_deposit_voucher_id, recurring_schedule_id: bill.recurring_schedule_id,
@@ -615,7 +618,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     if (!confirmDeletePaymentId) return
     const { error } = await supabase.from('payments').delete().eq('id', confirmDeletePaymentId)
     if (error) { toast.error(friendlyError(error)); setConfirmDeletePaymentId(null); return }
-    toast.success('Payment deleted')
+    toast.success(t('fw.paymentDeleted'))
     setConfirmDeletePaymentId(null)
     load()
   }
@@ -636,7 +639,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   // explicitly so the consumer's receipt number never changes just from an edit.
   const saveEditPayment = async () => {
     if (!editPaymentTarget) return
-    if (!editPaymentForm.amount || editPaymentForm.amount <= 0) { toast.error('Enter a valid amount'); return }
+    if (!editPaymentForm.amount || editPaymentForm.amount <= 0) { toast.error(t('fw.enterValidAmount')); return }
     setEditPaymentSaving(true)
     const { error: delErr } = await supabase.from('payments').delete().eq('id', editPaymentTarget.id)
     if (delErr) { toast.error(friendlyError(delErr)); setEditPaymentSaving(false); return }
@@ -647,8 +650,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       receipt_no: editPaymentTarget.receiptNo,
     })
     setEditPaymentSaving(false)
-    if (insErr) { toast.error(`Could not save the correction: ${insErr.message}`); return }
-    toast.success('Payment updated')
+    if (insErr) { toast.error(`${t('fw.couldNotSaveCorrection')} ${insErr.message}`); return }
+    toast.success(t('fw.paymentUpdated'))
     setEditPaymentTarget(null)
     load()
   }
@@ -742,7 +745,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
   const saveQuickPayment = async () => {
     if (!receivePaymentTarget) return
-    if (!quickPayAmount || quickPayAmount <= 0) { toast.error('Enter a valid amount'); return }
+    if (!quickPayAmount || quickPayAmount <= 0) { toast.error(t('fw.enterValidAmount')); return }
     setQuickPaySaving(true)
     const { error } = await supabase.from('payments').insert({
       bill_id: receivePaymentTarget.billId, consumer_id: receivePaymentTarget.consumerId,
@@ -750,7 +753,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     })
     setQuickPaySaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(`Payment of Rs. ${fmtAmount(quickPayAmount)} recorded`)
+    toast.success(`${t('fw.paymentOfRsRecorded')} ${fmtAmount(quickPayAmount)} ${t('fw.recordedSuffix')}`)
     setReceivePaymentTarget(null)
     load()
   }
@@ -771,8 +774,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const saveCashReceipt = async () => {
     const selected = cashReceiptBills.filter((b) => b.selected && b.amount > 0)
     const advanceAmount = cashReceiptAdvance ? cashReceiptAdvanceAmount : 0
-    if (!cashReceiptConsumerId) { toast.error('Choose a consumer'); return }
-    if (selected.length === 0 && advanceAmount <= 0) { toast.error('Select at least one bill, or enter an advance amount'); return }
+    if (!cashReceiptConsumerId) { toast.error(t('fw.chooseConsumer')); return }
+    if (selected.length === 0 && advanceAmount <= 0) { toast.error(t('fw.selectBillOrAdvance')); return }
     setSavingCashReceipt(true)
     const inserted: { bill_number: string | null; amount: number; receipt_no: string | null }[] = []
     for (const b of selected) {
@@ -780,7 +783,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         bill_id: b.id, consumer_id: cashReceiptConsumerId, amount_pkr: b.amount,
         method: cashReceiptMethod, paid_date: cashReceiptDate,
       }).select('receipt_no').single()
-      if (error) toast.error(`${b.bill_number ?? 'Bill'}: ${error.message}`)
+      if (error) toast.error(`${b.bill_number ?? t('fw.billFallback')}: ${error.message}`)
       else inserted.push({ bill_number: b.bill_number, amount: b.amount, receipt_no: data?.receipt_no ?? null })
     }
     // Cash received with nothing outstanding to apply it to (or beyond what's
@@ -791,12 +794,12 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         bill_id: null, consumer_id: cashReceiptConsumerId, amount_pkr: advanceAmount,
         method: cashReceiptMethod, paid_date: cashReceiptDate, note: 'Advance / Prepayment',
       }).select('receipt_no').single()
-      if (error) toast.error(`Advance receipt: ${error.message}`)
+      if (error) toast.error(`${t('fw.advanceReceiptErrorPrefix')} ${error.message}`)
       else inserted.push({ bill_number: null, amount: advanceAmount, receipt_no: data?.receipt_no ?? null })
     }
     setSavingCashReceipt(false)
     if (inserted.length === 0) return
-    toast.success(`Receipt recorded${selected.length > 0 ? ` against ${selected.length} bill${selected.length > 1 ? 's' : ''}` : ''}${advanceAmount > 0 ? ' (incl. advance)' : ''}`)
+    toast.success(`${t('fw.receiptRecorded')}${selected.length > 0 ? ` ${t('fw.againstSuffix')} ${selected.length} ${t('fw.billsSuffix')}` : ''}${advanceAmount > 0 ? ` ${t('fw.inclAdvanceSuffix')}` : ''}`)
 
     const consumerName = consumers.find((c) => c.consumer_id === cashReceiptConsumerId)?.name ?? cashReceiptConsumerId
     setViewReceipt({
@@ -917,15 +920,15 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   // paths can never drift out of sync on how a line gets constructed.
   const buildLineFromNewLine = (): BillLine | null => {
     if (newLine.kind === 'custom') {
-      if (!newLine.description.trim()) { toast.error('Enter a description'); return null }
+      if (!newLine.description.trim()) { toast.error(t('fw.enterDescription')); return null }
       return { item_type: 'custom', inventory_item_id: null, service_item_id: null, charge_account_id: null, description: newLine.description, quantity: newLine.quantity || 1, unit_price: newLine.unit_price || 0, is_recurring: newLine.is_recurring, discount_pct: discountMode === 'per_item' ? (newLine.discount_pct || 0) : 0 }
     } else if (newLine.kind === 'inventory') {
       const item = inventoryItems.find((i) => i.id === newLine.itemId)
-      if (!item) { toast.error('Choose an inventory item'); return null }
+      if (!item) { toast.error(t('fw.chooseInventoryItem')); return null }
       return { item_type: 'inventory', inventory_item_id: item.id, service_item_id: null, charge_account_id: null, description: newLine.description || item.name, quantity: newLine.quantity || 1, unit_price: newLine.unit_price || item.unit_price, is_recurring: newLine.is_recurring, discount_pct: discountMode === 'per_item' ? (newLine.discount_pct || 0) : 0 }
     } else {
       const item = serviceItems.find((i) => i.id === newLine.itemId)
-      if (!item) { toast.error('Choose a service'); return null }
+      if (!item) { toast.error(t('fw.chooseService')); return null }
       return { item_type: 'service', inventory_item_id: null, service_item_id: item.id, charge_account_id: null, description: newLine.description || item.name, quantity: newLine.quantity || 1, unit_price: newLine.unit_price || item.charge_amount, is_recurring: newLine.is_recurring, discount_pct: discountMode === 'per_item' ? (newLine.discount_pct || 0) : 0 }
     }
   }
@@ -944,7 +947,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       return l.item_type === 'service' && l.service_item_id === line.service_item_id
     })
     if (isDuplicate) {
-      toast.error(`"${line.description}" is already on this bill — edit that line instead of adding it twice`)
+      toast.error(`"${line.description}" ${t('fw.alreadyOnBillDup')}`)
       return false
     }
     if (editingLineIndex !== null) {
@@ -1010,15 +1013,15 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   // item) post to their own chosen account instead of the generic Water Bill
   // Income account — the consumer still owes the same gross total either way.
   const addOtherChargeLine = () => {
-    if (!otherChargeAccountId) { toast.error('Choose an account for this charge'); return }
-    if (!otherChargeAmount || otherChargeAmount <= 0) { toast.error('Enter a valid amount'); return }
+    if (!otherChargeAccountId) { toast.error(t('fw.chooseChargeAccount')); return }
+    if (!otherChargeAmount || otherChargeAmount <= 0) { toast.error(t('fw.enterValidAmount')); return }
     const account = accounts.find((a) => a.id === otherChargeAccountId)
     if (billLines.some((l) => l.item_type === 'other_charge' && l.charge_account_id === otherChargeAccountId)) {
-      toast.error(`${account?.name ?? 'This account'} is already used for another charge on this bill — edit that line's amount instead of adding it twice`); return
+      toast.error(`${account?.name ?? t('fw.thisAccountFallback')} ${t('fw.accountAlreadyUsedCharge')}`); return
     }
     setBillLines([...billLines, {
       item_type: 'other_charge', inventory_item_id: null, service_item_id: null, charge_account_id: otherChargeAccountId,
-      description: otherChargeDescription.trim() || account?.name || 'Other Charge', quantity: 1, unit_price: otherChargeAmount,
+      description: otherChargeDescription.trim() || account?.name || t('fw.otherChargeFallback'), quantity: 1, unit_price: otherChargeAmount,
       is_recurring: false, discount_pct: 0,
     }])
     setOtherChargeAccountId('')
@@ -1030,7 +1033,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   // Payment Surcharge") instead of being limited to whatever's already in the
   // chart of accounts — mirrors the reference flow's "+ Add New" in the charge picker.
   const createChargeAccount = async () => {
-    if (!newChargeAccountName.trim()) { toast.error('Enter a name'); return }
+    if (!newChargeAccountName.trim()) { toast.error(t('fw.enterName')); return }
     const code = `${system === 'water_supply' ? 'WS' : 'DP'}-OC-${Date.now().toString(36).toUpperCase()}`
     const { data, error } = await supabase.from('accounts')
       .insert({ code, name: newChargeAccountName.trim(), type: 'income', system })
@@ -1040,7 +1043,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setOtherChargeAccountId(data.id)
     setNewChargeAccountName('')
     setShowAddChargeAccount(false)
-    toast.success('Charge account created')
+    toast.success(t('fw.chargeAccountCreated'))
   }
 
   // Loaded on demand rather than with the page: only this one form needs a
@@ -1114,9 +1117,9 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
     const cfg = voucherConfig[activeType as VoucherType]
     if (!voucherForm.fromId || !voucherForm.toId) { toast.error(`${t('v.chooseBoth', 'Choose both')} ${t(cfg.fromLabelKey, cfg.fromLabel)} ${t('v.and', 'and')} ${t(cfg.toLabelKey, cfg.toLabel)}`); return }
-    if (voucherForm.fromId === voucherForm.toId) { toast.error('From and To accounts must be different'); return }
-    if (!voucherForm.amount || voucherForm.amount <= 0) { toast.error('Enter a valid amount'); return }
-    if (!voucherForm.particular.trim()) { toast.error('Description is required'); return }
+    if (voucherForm.fromId === voucherForm.toId) { toast.error(t('fw.fromToMustDiffer')); return }
+    if (!voucherForm.amount || voucherForm.amount <= 0) { toast.error(t('fw.enterValidAmount')); return }
+    if (!voucherForm.particular.trim()) { toast.error(t('fw.descriptionRequired')); return }
     setSaving(true)
     // voucher_no/status are decided by a DB trigger — expense and withdrawal vouchers
     // come back 'pending' with no number until every configured approver for this
@@ -1131,9 +1134,9 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
     if (saved.status === 'pending') {
-      toast.success('Saved — awaiting approval before it posts')
+      toast.success(t('fw.savedAwaitingApproval'))
     } else {
-      toast.success(`Saved (${saved.voucher_no})`)
+      toast.success(`${t('fw.savedPrefix')} (${saved.voucher_no})`)
     }
     setVoucherForm({ ...emptyVoucherForm, date: voucherForm.date })
     setVoucherAttachment('')
@@ -1146,10 +1149,10 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   // pending-vs-posted and ledgers it — same mechanism the Advance settlement
   // flow uses.
   const saveMultiLineExpense = async () => {
-    if (!voucherForm.fromId) { toast.error('Choose Pay From'); return }
-    if (!voucherForm.particular.trim()) { toast.error('Description is required'); return }
+    if (!voucherForm.fromId) { toast.error(t('fw.choosePayFrom')); return }
+    if (!voucherForm.particular.trim()) { toast.error(t('fw.descriptionRequired')); return }
     const validLines = voucherLines.filter((l) => l.account_id && l.amount > 0)
-    if (validLines.length === 0) { toast.error('Add at least one expense line'); return }
+    if (validLines.length === 0) { toast.error(t('fw.addExpenseLine')); return }
     setSaving(true)
 
     const { data: draft, error: draftErr } = await supabase.from('vouchers').insert({
@@ -1168,7 +1171,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     const { data: result, error: finalizeErr } = await supabase.rpc('finalize_voucher', { p_voucher_id: draft.id })
     setSaving(false)
     if (finalizeErr) { toast.error(friendlyError(finalizeErr)); return }
-    toast.success(result.status === 'pending' ? 'Saved — awaiting approval before it posts' : 'Expense saved')
+    toast.success(result.status === 'pending' ? t('fw.savedAwaitingApproval') : t('fw.expenseSaved'))
 
     setVoucherForm({ ...emptyVoucherForm, date: voucherForm.date })
     setVoucherAttachment('')
@@ -1177,12 +1180,12 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   }
 
   const saveBill = async () => {
-    if (!billForm.consumer_id) { toast.error('Choose a consumer'); return }
-    if (billLines.length === 0) { toast.error('Add at least one billing item — a connection charge, service, or custom charge'); return }
-    if (billTotal <= 0) { toast.error('The bill total must be greater than zero'); return }
-    if (effectiveDiscountAmount > billTotal) { toast.error('Discount cannot exceed the bill total'); return }
-    if (receiveDepositNow && !billForm.deposit_account_id) { toast.error('Choose where the security deposit is received into'); return }
-    if (receivePaymentNow && (!paymentAmount || paymentAmount <= 0)) { toast.error('Enter a valid payment amount'); return }
+    if (!billForm.consumer_id) { toast.error(t('fw.chooseConsumer')); return }
+    if (billLines.length === 0) { toast.error(t('fw.addBillingItem')); return }
+    if (billTotal <= 0) { toast.error(t('fw.billTotalMustBePositive')); return }
+    if (effectiveDiscountAmount > billTotal) { toast.error(t('fw.discountExceedsTotal')); return }
+    if (receiveDepositNow && !billForm.deposit_account_id) { toast.error(t('fw.chooseDepositAccount')); return }
+    if (receivePaymentNow && (!paymentAmount || paymentAmount <= 0)) { toast.error(t('fw.enterValidPaymentAmount')); return }
     setSaving(true)
 
     const { data: bill, error } = await supabase.from('bills').insert({
@@ -1194,7 +1197,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
     if (error) {
       setSaving(false)
-      toast.error(error.code === '23505' ? 'A bill for this consumer and month already exists — edit it from Billing Management instead.' : error.message)
+      toast.error(error.code === '23505' ? t('fw.billAlreadyExistsEdit') : error.message)
       return
     }
 
@@ -1211,7 +1214,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       })
       if (lineErr) lineErrors.push(`${l.description}: ${lineErr.message}`)
     }
-    if (lineErrors.length > 0) toast.error(`Some items could not be billed — ${lineErrors.join('; ')}`)
+    if (lineErrors.length > 0) toast.error(`${t('fw.someItemsNotBilled')} ${lineErrors.join('; ')}`)
 
     // Cash only moves when explicitly received (checkbox), never as a silent side
     // effect of generating the bill. Leaving it unchecked just records the promised
@@ -1229,7 +1232,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         amount_pkr: billForm.security_deposit_amount, bill_id: bill.id,
         from_account_id: depositLiabilityId, to_account_id: billForm.deposit_account_id,
       }).select('id').single()
-      if (depErr) toast.error(`Security deposit could not be recorded: ${depErr.message}`)
+      if (depErr) toast.error(`${t('fw.depositCouldNotRecord')} ${depErr.message}`)
       else await supabase.from('bills').update({ security_deposit_voucher_id: depositVoucher.id }).eq('id', bill.id)
     }
 
@@ -1237,12 +1240,12 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       const { error: payErr } = await supabase.from('payments').insert({
         bill_id: bill.id, consumer_id: billForm.consumer_id, amount_pkr: paymentAmount, method: paymentMethod,
       })
-      if (payErr) toast.error(`Payment could not be recorded: ${payErr.message}`)
-      else toast.success(`Payment of Rs. ${fmtAmount(paymentAmount)} recorded`)
+      if (payErr) toast.error(`${t('fw.paymentCouldNotRecord')} ${payErr.message}`)
+      else toast.success(`${t('fw.paymentOfRsRecorded')} ${fmtAmount(paymentAmount)} ${t('fw.recordedSuffix')}`)
     }
 
     setSaving(false)
-    toast.success(`Bill ${bill.bill_number} generated`)
+    toast.success(`${t('fw.billFallback')} ${bill.bill_number} ${t('fw.billGeneratedSuffix')}`)
     setSavedBill(bill)
     setBillForm(emptyBillForm)
     setBillLines([])
@@ -1261,13 +1264,13 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
   const updateBill = async () => {
     if (!editingBill) return
-    if (billLines.length === 0) { toast.error('Add at least one billing item — a connection charge, service, or custom charge'); return }
-    if (billTotal <= 0) { toast.error('The bill total must be greater than zero'); return }
-    if (effectiveDiscountAmount > billTotal) { toast.error('Discount cannot exceed the bill total'); return }
+    if (billLines.length === 0) { toast.error(t('fw.addBillingItem')); return }
+    if (billTotal <= 0) { toast.error(t('fw.billTotalMustBePositive')); return }
+    if (effectiveDiscountAmount > billTotal) { toast.error(t('fw.discountExceedsTotal')); return }
     if (!editingBill.security_deposit_voucher_id && receiveDepositNow && !billForm.deposit_account_id) {
-      toast.error('Choose where the security deposit is received into'); return
+      toast.error(t('fw.chooseDepositAccount')); return
     }
-    if (receivePaymentNow && (!paymentAmount || paymentAmount <= 0)) { toast.error('Enter a valid payment amount'); return }
+    if (receivePaymentNow && (!paymentAmount || paymentAmount <= 0)) { toast.error(t('fw.enterValidPaymentAmount')); return }
     setSaving(true)
 
     const { error } = await supabase.from('bills').update({
@@ -1282,7 +1285,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
     if (error) {
       setSaving(false)
-      toast.error(error.code === '23505' ? 'A bill for this consumer and month already exists.' : error.message)
+      toast.error(error.code === '23505' ? t('fw.billAlreadyExists') : error.message)
       return
     }
 
@@ -1303,7 +1306,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       })
       if (lineErr) lineErrors.push(`${l.description}: ${lineErr.message}`)
     }
-    if (lineErrors.length > 0) toast.error(`Some items could not be billed — ${lineErrors.join('; ')}`)
+    if (lineErrors.length > 0) toast.error(`${t('fw.someItemsNotBilled')} ${lineErrors.join('; ')}`)
 
     if (!editingBill.security_deposit_voucher_id && receiveDepositNow && billForm.security_deposit_amount > 0) {
       const consumerName = consumers.find((c) => c.consumer_id === billForm.consumer_id)?.name ?? billForm.consumer_id
@@ -1315,7 +1318,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         amount_pkr: billForm.security_deposit_amount, bill_id: editingBill.id,
         from_account_id: depositLiabilityId, to_account_id: billForm.deposit_account_id,
       }).select('id').single()
-      if (depErr) toast.error(`Security deposit could not be recorded: ${depErr.message}`)
+      if (depErr) toast.error(`${t('fw.depositCouldNotRecord')} ${depErr.message}`)
       else await supabase.from('bills').update({ security_deposit_voucher_id: depositVoucher.id }).eq('id', editingBill.id)
     }
 
@@ -1323,12 +1326,12 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       const { error: payErr } = await supabase.from('payments').insert({
         bill_id: editingBill.id, consumer_id: billForm.consumer_id, amount_pkr: paymentAmount, method: paymentMethod,
       })
-      if (payErr) toast.error(`Payment could not be recorded: ${payErr.message}`)
-      else toast.success(`Payment of Rs. ${fmtAmount(paymentAmount)} recorded`)
+      if (payErr) toast.error(`${t('fw.paymentCouldNotRecord')} ${payErr.message}`)
+      else toast.success(`${t('fw.paymentOfRsRecorded')} ${fmtAmount(paymentAmount)} ${t('fw.recordedSuffix')}`)
     }
 
     setSaving(false)
-    toast.success(`Bill ${editingBill.bill_number} updated`)
+    toast.success(`${t('fw.billFallback')} ${editingBill.bill_number} ${t('fw.billUpdatedSuffix')}`)
     router.push(`/admin/invoice/bill/${editingBill.id}`)
   }
 
@@ -1336,14 +1339,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
   const addPurchaseLine = (): boolean => {
     const item = inventoryItems.find((i) => i.id === newPurchaseLine.itemId)
-    if (!item) { toast.error('Choose an inventory item'); return false }
-    if (!newPurchaseLine.quantity || newPurchaseLine.quantity <= 0) { toast.error('Enter a valid quantity'); return false }
+    if (!item) { toast.error(t('fw.chooseInventoryItem')); return false }
+    if (!newPurchaseLine.quantity || newPurchaseLine.quantity <= 0) { toast.error(t('fw.enterValidQuantity')); return false }
     const isDuplicate = purchaseLines.some((l, i) => {
       if (editingPurchaseLineIndex !== null && i === editingPurchaseLineIndex) return false
       return l.inventory_item_id === item.id
     })
     if (isDuplicate) {
-      toast.error(`${item.name} is already on this purchase — edit that line instead of adding it twice`); return false
+      toast.error(`${item.name} ${t('fw.alreadyOnPurchaseDup')}`); return false
     }
     const line = { inventory_item_id: item.id, description: item.name, quantity: newPurchaseLine.quantity, unit_cost: newPurchaseLine.unit_cost || item.unit_cost }
     if (editingPurchaseLineIndex !== null) {
@@ -1358,7 +1361,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const removePurchaseLine = (idx: number) => setPurchaseLines(purchaseLines.filter((_, i) => i !== idx))
 
   const savePurchaseBill = async () => {
-    if (purchaseLines.length === 0) { toast.error('Add at least one item to the purchase bill'); return }
+    if (purchaseLines.length === 0) { toast.error(t('fw.addPurchaseItem')); return }
     setSaving(true)
 
     // A header row groups this purchase's line items into one document (so it can
@@ -1380,11 +1383,11 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       })
       if (error) errors.push(`${l.description}: ${error.message}`)
     }
-    if (errors.length > 0) toast.error(`Some items could not be recorded — ${errors.join('; ')}`)
+    if (errors.length > 0) toast.error(`${t('fw.someItemsNotRecorded')} ${errors.join('; ')}`)
     if (errors.length < purchaseLines.length) {
       const { error: submitErr } = await supabase.rpc('submit_purchase_for_approval', { p_purchase_id: purchase.id })
       if (submitErr) toast.error(friendlyError(submitErr))
-      else toast.success(`Purchase bill Rs. ${fmtAmount(purchaseTotal)} saved — awaiting approval before it posts to stock`)
+      else toast.success(`${t('fw.purchaseBillSavedPrefix')} ${fmtAmount(purchaseTotal)} ${t('fw.purchaseBillSavedSuffix')}`)
       setPurchaseForm(emptyPurchaseForm)
       setPurchaseLines([])
       load()
@@ -1452,8 +1455,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   }
 
   const saveDonation = async () => {
-    if (!donationForm.name.trim()) { toast.error('Donor name is required'); return }
-    if (!donationForm.amount_pkr || donationForm.amount_pkr <= 0) { toast.error('Enter a valid amount'); return }
+    if (!donationForm.name.trim()) { toast.error(t('fw.donorNameRequired')); return }
+    if (!donationForm.amount_pkr || donationForm.amount_pkr <= 0) { toast.error(t('fw.enterValidAmount')); return }
     setSaving(true)
     const { data: inserted, error } = await supabase.from('donors').insert({
       name: donationForm.name, name_ur: donationForm.name_ur || null, phone: donationForm.phone || null,
@@ -1469,7 +1472,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     if (inserted) await supabase.rpc('assign_donor_numbers', { p_donor_id: inserted.id })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Donation recorded')
+    toast.success(t('fw.donationRecorded'))
     setDonationForm(emptyDonationForm)
     setSelectedDonorKey('')
     load()
@@ -1479,7 +1482,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     const { data, error } = await supabase.from('vouchers')
       .select('id, voucher_no, amount_pkr, voucher_date, particular, party_name, from_account_id, to_account_id')
       .eq('id', voucherId).single()
-    if (error || !data) { toast.error(friendlyError(error ?? new Error('Voucher not found'))); return }
+    if (error || !data) { toast.error(friendlyError(error ?? new Error(t('fw.voucherNotFound')))); return }
     setEditVoucherTarget({ id: data.id, voucherNo: data.voucher_no })
     setEditVoucherForm({
       amount: Number(data.amount_pkr), date: data.voucher_date, particular: data.particular ?? '',
@@ -1492,8 +1495,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   // half-updated. See migration 175 for why this is not delete-then-reinsert.
   const saveEditVoucher = async () => {
     if (!editVoucherTarget) return
-    if (!editVoucherForm.amount || editVoucherForm.amount <= 0) { toast.error('Enter a valid amount'); return }
-    if (!editVoucherForm.from_account_id || !editVoucherForm.to_account_id) { toast.error('Both accounts are required'); return }
+    if (!editVoucherForm.amount || editVoucherForm.amount <= 0) { toast.error(t('fw.enterValidAmount')); return }
+    if (!editVoucherForm.from_account_id || !editVoucherForm.to_account_id) { toast.error(t('fw.bothAccountsRequired')); return }
     setEditVoucherSaving(true)
     const { error } = await supabase.rpc('edit_voucher', {
       p_voucher_id: editVoucherTarget.id,
@@ -1506,7 +1509,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     })
     setEditVoucherSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Voucher updated')
+    toast.success(t('fw.voucherUpdated'))
     setEditVoucherTarget(null)
     load()
   }
@@ -1515,7 +1518,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     if (!confirmDeleteVoucherId) return
     const { error } = await supabase.from('vouchers').delete().eq('id', confirmDeleteVoucherId)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Voucher deleted')
+    toast.success(t('fw.voucherDeleted'))
     setConfirmDeleteVoucherId(null)
     load()
   }
@@ -1526,7 +1529,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     if (!confirmDeleteDonationId) return
     const { error } = await supabase.from('donors').delete().eq('id', confirmDeleteDonationId)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Donation deleted')
+    toast.success(t('fw.donationDeleted'))
     setConfirmDeleteDonationId(null)
     load()
   }
@@ -1535,7 +1538,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     if (!confirmDeleteBillId) return
     const { error } = await supabase.from('bills').delete().eq('id', confirmDeleteBillId)
     if (error) { toast.error(friendlyError(error)); setConfirmDeleteBillId(null); return }
-    toast.success('Bill deleted')
+    toast.success(t('fw.billDeleted'))
     setConfirmDeleteBillId(null)
     load()
   }
@@ -1580,10 +1583,27 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
           else on the page keeps the scoped flip. */}
       <div dir="ltr" className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link href="/admin/finance" className="flex items-center gap-2 text-dp-on-surface-variant hover:text-dp-primary font-sans text-[14px] font-semibold mb-3">
-            <ArrowLeft size={16} /> {t('f.back')}
-          </Link>
           <h1 className="font-heading text-[22px] sm:text-[28px] font-bold leading-[28px] sm:leading-[36px] text-dp-primary">{t(system === 'water_supply' ? 'dash.waterSupplySystem' : 'dash.donorsProjectsSystem', systemLabels[system])} — {t('v.transactions')}</h1>
+          {!access.loading && (access.canWaterSupply || access.canDonorsProjects) && (
+            <div className="flex items-center gap-1 bg-dp-surface-container-low rounded-lg p-1 mt-3 w-fit">
+              {access.canWaterSupply && (
+                <button
+                  onClick={() => system !== 'water_supply' && router.push('/admin/finance/water_supply')}
+                  className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'water_supply' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant hover:bg-dp-surface-container'}`}
+                >
+                  {t('a.waterSupply')}
+                </button>
+              )}
+              {access.canDonorsProjects && (
+                <button
+                  onClick={() => system !== 'donors_projects' && router.push('/admin/finance/donors_projects')}
+                  className={`px-3 py-1.5 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${system === 'donors_projects' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant hover:bg-dp-surface-container'}`}
+                >
+                  {t('a.donorsProjects')}
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <div className="shrink-0 flex items-center gap-2">
           <Link href={`/admin/finance/${system}/register`} className="flex items-center gap-2 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all">

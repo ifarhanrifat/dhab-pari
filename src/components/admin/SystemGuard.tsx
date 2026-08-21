@@ -7,9 +7,11 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 
-const LABEL: Record<SystemTab, string> = {
-  water_supply: 'Water Supply',
-  donors_projects: 'Donors & Projects',
+// Values are i18n keys — resolved via t() at render time (module scope has
+// no useLocale()).
+const LABEL_KEY: Record<SystemTab, string> = {
+  water_supply: 'a.waterSupply',
+  donors_projects: 'a.donorsProjects',
 }
 
 /**
@@ -47,18 +49,17 @@ export function SystemGuard({ system, children }: { system: SystemTab; children:
         <Lock size={24} />
       </div>
       <h1 className="font-heading text-[22px] font-bold text-dp-primary mb-2">
-        {LABEL[system]} is not part of your account
+        {t(LABEL_KEY[system])} {t('sg.notPartOfAccount')}
       </h1>
       <p className="font-sans text-[14px] text-dp-on-surface-variant leading-relaxed mb-6">
-        Your login covers a different set of books. Ask an administrator if you need access
-        to {LABEL[system]}.
+        {t('sg.differentBooksNote')} {t(LABEL_KEY[system])}.
       </p>
       {hasOther ? (
         <Link
           href={`/admin/finance/${other}`}
           className="inline-block px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all"
         >
-          Go to {LABEL[other]}
+          {t('sg.goToPrefix')} {t(LABEL_KEY[other])}
         </Link>
       ) : (
         <Link
