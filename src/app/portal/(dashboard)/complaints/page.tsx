@@ -13,10 +13,10 @@ interface Complaint {
   status: string; created_at: string; sector: string | null
 }
 
-const statusLabel: Record<string, { label: string; cls: string }> = {
-  open: { label: 'Open', cls: 'bg-amber-100 text-amber-700' },
-  awaiting_verification: { label: 'Resolved, Pending Verification', cls: 'bg-blue-100 text-blue-700' },
-  verified: { label: 'Resolved', cls: 'bg-emerald-100 text-emerald-700' },
+const statusKey: Record<string, { key: string; cls: string }> = {
+  open: { key: 'p.complaintStatusOpen', cls: 'bg-amber-100 text-amber-700' },
+  awaiting_verification: { key: 'p.complaintStatusAwaitingVerification', cls: 'bg-blue-100 text-blue-700' },
+  verified: { key: 'p.complaintStatusVerified', cls: 'bg-emerald-100 text-emerald-700' },
 }
 
 export default function PortalComplaintsPage() {
@@ -46,7 +46,7 @@ export default function PortalComplaintsPage() {
   useEffect(() => { load() }, [user])
 
   const submit = async () => {
-    if (!user || !complaintText.trim()) { toast.error('Please describe your complaint'); return }
+    if (!user || !complaintText.trim()) { toast.error(t('p.describeComplaint')); return }
     setSaving(true)
     const supabase = createClient()
     const { error } = await supabase.from('complaints').insert({
@@ -55,7 +55,7 @@ export default function PortalComplaintsPage() {
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Complaint submitted')
+    toast.success(t('p.complaintSubmitted'))
     setComplaintText('')
     load()
   }
@@ -91,9 +91,9 @@ export default function PortalComplaintsPage() {
             </select>
           </div>
         )}
-        <textarea value={complaintText} onChange={(e) => setComplaintText(e.target.value)} rows={4} placeholder="Describe the issue..." className="input-field resize-none mb-4" />
+        <textarea value={complaintText} onChange={(e) => setComplaintText(e.target.value)} rows={4} placeholder={t('p.describeIssuePlaceholder')} className="input-field resize-none mb-4" />
         <button onClick={submit} disabled={saving} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-          <Send size={16} /> {saving ? 'Submitting...' : 'Submit Complaint'}
+          <Send size={16} /> {saving ? t('p.submitting') : t('p.submitComplaint')}
         </button>
       </div>
 
@@ -106,10 +106,10 @@ export default function PortalComplaintsPage() {
             <div key={c.id} className="px-5 py-4 border-b border-dp-outline-variant last:border-b-0">
               <div className="flex items-start justify-between gap-2">
                 <p className="font-sans text-[14px] flex-1">{c.complaint_text}</p>
-                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${statusLabel[c.status]?.cls}`}>{statusLabel[c.status]?.label ?? c.status}</span>
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${statusKey[c.status]?.cls}`}>{statusKey[c.status] ? t(statusKey[c.status].key) : c.status}</span>
               </div>
               <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">
-                {c.complaint_number ?? '—'} · {c.system === 'water_supply' ? 'Water Supply' : 'Donors & Projects'} · {new Date(c.created_at).toLocaleDateString('en-GB')}
+                {c.complaint_number ?? '—'} · {c.system === 'water_supply' ? t('a.waterSupply') : t('a.donorsProjects')} · {new Date(c.created_at).toLocaleDateString('en-GB')}
               </p>
             </div>
           ))

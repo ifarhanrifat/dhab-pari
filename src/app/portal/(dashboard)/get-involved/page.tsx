@@ -10,12 +10,12 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Item { id: string; message: string; type: string; status: string; admin_notes: string | null; created_at: string }
 
-const statusLabel: Record<string, { label: string; cls: string }> = {
-  new: { label: 'Submitted', cls: 'bg-amber-100 text-amber-700' },
-  reviewed: { label: 'Reviewed', cls: 'bg-blue-100 text-blue-700' },
-  actioned: { label: 'Actioned', cls: 'bg-emerald-100 text-emerald-700' },
+const statusKey: Record<string, { key: string; cls: string }> = {
+  new: { key: 'p.statusSubmitted', cls: 'bg-amber-100 text-amber-700' },
+  reviewed: { key: 'p.statusReviewed', cls: 'bg-blue-100 text-blue-700' },
+  actioned: { key: 'p.statusActioned', cls: 'bg-emerald-100 text-emerald-700' },
 }
-const typeLabel: Record<string, string> = { volunteer: 'Volunteer', role_request: 'Publisher Role Request' }
+const typeKey: Record<string, string> = { volunteer: 'p.typeVolunteer', role_request: 'p.typeRoleRequest' }
 
 // Both flows are deliberately lightweight: they just post into the existing
 // `suggestions` inbox (type='volunteer' / 'role_request') for staff to
@@ -42,7 +42,7 @@ export default function PortalGetInvolvedPage() {
   useEffect(() => { load() }, [user])
 
   const submitVolunteer = async () => {
-    if (!user || !skills.trim()) { toast.error('Describe how you can help'); return }
+    if (!user || !skills.trim()) { toast.error(t('p.describeHowHelp')); return }
     setSavingVolunteer(true)
     const supabase = createClient()
     const { error } = await supabase.from('suggestions').insert({
@@ -50,13 +50,13 @@ export default function PortalGetInvolvedPage() {
     })
     setSavingVolunteer(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Volunteer application submitted')
+    toast.success(t('p.volunteerSubmitted'))
     setSkills('')
     load()
   }
 
   const submitRoleRequest = async () => {
-    if (!user || !roleSkills.trim()) { toast.error('Describe your skills'); return }
+    if (!user || !roleSkills.trim()) { toast.error(t('p.describeSkills')); return }
     setSavingRole(true)
     const supabase = createClient()
     const { error } = await supabase.from('suggestions').insert({
@@ -64,7 +64,7 @@ export default function PortalGetInvolvedPage() {
     })
     setSavingRole(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Request submitted')
+    toast.success(t('p.requestSubmitted'))
     setRoleSkills('')
     load()
   }
@@ -75,25 +75,25 @@ export default function PortalGetInvolvedPage() {
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('p.getInvolved')}</h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">Offer your time, skills, or request to help publish content for the committee.</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.getInvolvedBlurb')}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white border border-dp-outline-variant rounded-lg p-6">
           <h2 className="font-heading text-[17px] font-bold text-dp-primary flex items-center gap-2 mb-3"><HandHeart size={18} className="text-dp-secondary" /> {t('p.volunteer')}</h2>
-          <p className="font-sans text-[13px] text-dp-on-surface-variant mb-3">Tell us what you can help with — labor, organizing, skills for ongoing projects.</p>
-          <textarea value={skills} onChange={(e) => setSkills(e.target.value)} rows={4} placeholder="e.g. I can help with plumbing work on weekends..." className="input-field resize-none mb-3" />
+          <p className="font-sans text-[13px] text-dp-on-surface-variant mb-3">{t('p.volunteerBlurb')}</p>
+          <textarea value={skills} onChange={(e) => setSkills(e.target.value)} rows={4} placeholder={t('p.volunteerPlaceholder')} className="input-field resize-none mb-3" />
           <button onClick={submitVolunteer} disabled={savingVolunteer} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-            <Send size={14} /> {savingVolunteer ? 'Submitting...' : 'Submit'}
+            <Send size={14} /> {savingVolunteer ? t('p.submitting') : t('p.submit')}
           </button>
         </div>
 
         <div className="bg-white border border-dp-outline-variant rounded-lg p-6">
           <h2 className="font-heading text-[17px] font-bold text-dp-primary flex items-center gap-2 mb-3"><Sparkles size={18} className="text-dp-secondary" /> {t('p.requestPublisher')}</h2>
-          <p className="font-sans text-[13px] text-dp-on-surface-variant mb-3">Writing, photography, or design skills? Request access to publish news/content on the website.</p>
-          <textarea value={roleSkills} onChange={(e) => setRoleSkills(e.target.value)} rows={4} placeholder="e.g. I have 3 years of photography experience and can cover project events..." className="input-field resize-none mb-3" />
+          <p className="font-sans text-[13px] text-dp-on-surface-variant mb-3">{t('p.requestPublisherBlurb')}</p>
+          <textarea value={roleSkills} onChange={(e) => setRoleSkills(e.target.value)} rows={4} placeholder={t('p.rolePlaceholder')} className="input-field resize-none mb-3" />
           <button onClick={submitRoleRequest} disabled={savingRole} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-            <Send size={14} /> {savingRole ? 'Submitting...' : 'Request'}
+            <Send size={14} /> {savingRole ? t('p.submitting') : t('p.request')}
           </button>
         </div>
       </div>
@@ -107,12 +107,12 @@ export default function PortalGetInvolvedPage() {
             <div key={i.id} className="px-5 py-4 border-b border-dp-outline-variant last:border-b-0">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1">
-                  <span className="font-sans text-[11px] font-bold text-dp-secondary uppercase tracking-wide">{typeLabel[i.type] ?? i.type}</span>
+                  <span className="font-sans text-[11px] font-bold text-dp-secondary uppercase tracking-wide">{typeKey[i.type] ? t(typeKey[i.type]) : i.type}</span>
                   <p className="font-sans text-[14px] mt-0.5">{i.message}</p>
                 </div>
-                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${statusLabel[i.status]?.cls}`}>{statusLabel[i.status]?.label ?? i.status}</span>
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${statusKey[i.status]?.cls}`}>{statusKey[i.status] ? t(statusKey[i.status].key) : i.status}</span>
               </div>
-              {i.admin_notes && <p className="font-sans text-[12.5px] text-dp-secondary mt-1.5">Reply: {i.admin_notes}</p>}
+              {i.admin_notes && <p className="font-sans text-[12.5px] text-dp-secondary mt-1.5">{t('p.replyLabel')}: {i.admin_notes}</p>}
               <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">{new Date(i.created_at).toLocaleDateString('en-GB')}</p>
             </div>
           ))
