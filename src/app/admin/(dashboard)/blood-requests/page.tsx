@@ -30,13 +30,15 @@ interface Eligible {
   already_contacted: boolean; response: string | null
 }
 
-const PERIOD_EN: Record<string, string> = {
-  subha: 'in the morning', dopahar: 'in the afternoon', shaam: 'in the evening', raat: 'at night',
+// Values are i18n keys (module scope has no useLocale()) — resolved via
+// t() at render time.
+const PERIOD_KEY: Record<string, string> = {
+  subha: 'br.periodMorning', dopahar: 'br.periodAfternoon', shaam: 'br.periodEvening', raat: 'br.periodNight',
 }
 // Falls back to the free-text time on requests recorded before the structured
 // hour/period fields existed.
-function fmtTime(r: { needed_hour: number | null; needed_period: string | null; needed_time: string | null }) {
-  if (r.needed_hour && r.needed_period) return `${r.needed_hour} ${PERIOD_EN[r.needed_period] ?? ''}`.trim()
+function fmtTime(t: (key: string, fallback?: string) => string, r: { needed_hour: number | null; needed_period: string | null; needed_time: string | null }) {
+  if (r.needed_hour && r.needed_period) return `${r.needed_hour} ${t(PERIOD_KEY[r.needed_period] ?? '')}`.trim()
   return r.needed_time ?? ''
 }
 
@@ -48,9 +50,9 @@ const STATUS_STYLE: Record<string, string> = {
   cancelled: 'bg-dp-surface-container-high text-dp-on-surface-variant',
   expired: 'bg-dp-surface-container-high text-dp-on-surface-variant',
 }
-const STATUS_LABEL: Record<string, string> = {
-  pending_approval: 'Awaiting approval', open: 'Open — donors notified', paused: 'Paused',
-  fulfilled: 'Fulfilled', cancelled: 'Cancelled', expired: 'Expired',
+const STATUS_LABEL_KEY: Record<string, string> = {
+  pending_approval: 'br.statusPendingApproval', open: 'br.statusOpen', paused: 'br.statusPaused',
+  fulfilled: 'br.statusFulfilled', cancelled: 'br.statusCancelled', expired: 'br.statusExpired',
 }
 
 const emptyForm = {
@@ -113,7 +115,7 @@ export default function AdminBloodRequestsPage() {
   const saveRequest = async () => {
     if (!form.patient_name.trim() || !form.requester_name.trim() || !form.requester_whatsapp.trim()
       || !form.city.trim() || !form.hospital.trim()) {
-      toast.error('Patient, caller, WhatsApp, city and hospital are all required')
+      toast.error(t('br.allFieldsRequired'))
       return
     }
     setSaving(true)
@@ -129,7 +131,7 @@ export default function AdminBloodRequestsPage() {
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Recorded — approve it to notify donors')
+    toast.success(t('br.recordedApproveToNotify'))
     setForm(emptyForm)
     setShowForm(false)
     load()
@@ -146,14 +148,14 @@ export default function AdminBloodRequestsPage() {
     setBusy(false)
     if (error) { toast.error(friendlyError(error)); return }
     setVerifyFor(null)
-    toast.success(`Approved — ${data ?? 0} matching donor(s) notified in their portal`)
+    toast.success(`${t('br.approvedNotifiedPrefix')} ${data ?? 0} ${t('br.matchingDonorsNotifiedSuffix')}`)
     load(); if (openId === id) loadEligible(id)
   }
 
   const setPaused = async (id: string, paused: boolean) => {
     const { error } = await supabase.rpc('set_blood_request_paused', { p_request_id: id, p_paused: paused })
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(paused ? 'Paused' : 'Resumed')
+    toast.success(paused ? t('br.paused') : t('br.resumed'))
     load()
   }
 
@@ -164,24 +166,24 @@ export default function AdminBloodRequestsPage() {
     setBusy(false)
     setCancelFor(null); setCancelReason('')
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(`Cancelled — ${data ?? 0} donor(s) told to stand down`)
+    toast.success(`${t('br.cancelledPrefix')} ${data ?? 0} ${t('br.donorsStandDownSuffix')}`)
     load()
   }
 
   const fulfil = async (id: string) => {
-    if (picked.size === 0) { toast.error('Tick who actually donated — that starts their 12-week rest period'); return }
+    if (picked.size === 0) { toast.error(t('br.tickWhoDonated')); return }
     setBusy(true)
     const { data, error } = await supabase.rpc('fulfil_blood_request', {
       p_request_id: id, p_donor_ids: [...picked], p_donated_on: new Date().toISOString().slice(0, 10),
     })
     setBusy(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(`Closed — ${picked.size} donor(s) recorded, ${data ?? 0} other(s) stood down`)
+    toast.success(`${t('br.closedPrefix')} ${picked.size} ${t('br.donorsRecordedMid')} ${data ?? 0} ${t('br.othersStoodDownSuffix')}`)
     load(); loadEligible(id)
   }
 
   const postTicker = async () => {
-    if (!tickerFor || !tickerNumber.trim()) { toast.error('Give a number for the public to call'); return }
+    if (!tickerFor || !tickerNumber.trim()) { toast.error(t('br.giveNumberToCall')); return }
     const { error } = await supabase.rpc('post_blood_appeal', {
       p_request_id: tickerFor,
       p_contact_number: tickerNumber.trim(),
@@ -191,21 +193,21 @@ export default function AdminBloodRequestsPage() {
     })
     setTickerFor(null); setTickerNumber('')
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Appeal posted — it shows in red at the top of every matching portal')
+    toast.success(t('br.appealPostedRed'))
     load()
   }
 
   const postThanks = async (id: string) => {
     const { error } = await supabase.rpc('post_blood_thanks_ticker', { p_request_id: id })
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Thank-you posted — only donors who agreed to be named appear')
+    toast.success(t('br.thanksPosted'))
     load()
   }
 
   const whatsappDonor = (d: Eligible, r: BloodRequest) => {
     const intl = normalizePakPhone(d.whatsapp_number || d.mobile || '')
-    if (!intl) { toast.error('No usable number for this donor'); return }
-    const msg = `Assalam o Alaikum ${d.full_name}. ${r.units_needed} unit(s) of ${r.blood_group} blood are needed for a patient at ${r.hospital}, ${r.city} on ${new Date(r.needed_on).toLocaleDateString('en-GB')}${fmtTime(r) ? ` at ${fmtTime(r)}` : ''}. If you are able to help, please reply. — ${SITE.fullName}`
+    if (!intl) { toast.error(t('br.noUsableNumber')); return }
+    const msg = `Assalam o Alaikum ${d.full_name}. ${r.units_needed} unit(s) of ${r.blood_group} blood are needed for a patient at ${r.hospital}, ${r.city} on ${new Date(r.needed_on).toLocaleDateString('en-GB')}${fmtTime(t, r) ? ` at ${fmtTime(t, r)}` : ''}. If you are able to help, please reply. — ${SITE.fullName}`
     window.open(`https://wa.me/${intl}?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
@@ -230,8 +232,8 @@ export default function AdminBloodRequestsPage() {
             <Droplet size={26} /> {t('br.title')}
           </h1>
           <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">
-            Every request is taken by phone and approved here. Nobody can raise one themselves.
-            {pendingCount > 0 && <span className="text-amber-700 font-semibold"> · {pendingCount} awaiting approval</span>}
+            {t('br.subtitle')}
+            {pendingCount > 0 && <span className="text-amber-700 font-semibold"> · {pendingCount} {t('br.awaitingApprovalSuffix')}</span>}
           </p>
         </div>
         <button onClick={() => { setForm(emptyForm); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
@@ -242,11 +244,11 @@ export default function AdminBloodRequestsPage() {
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="relative flex-1 min-w-[220px]">
           <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search patient, caller, hospital, city or group..." className="input-field !ps-9" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('br.searchPlaceholder')} className="input-field !ps-9" />
         </div>
         {(['active', 'fulfilled', 'cancelled', 'all'] as const).map((f) => (
           <button key={f} onClick={() => setStatusFilter(f)} className={`px-4 py-1.5 rounded-full font-sans text-[13.5px] font-semibold cursor-pointer transition-all ${statusFilter === f ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-primary'}`}>
-            {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+            {f === 'all' ? t('br.filterAll') : f === 'active' ? t('br.filterActive') : f === 'fulfilled' ? t('br.filterFulfilled') : t('br.filterCancelled')}
           </button>
         ))}
       </div>
@@ -268,20 +270,20 @@ export default function AdminBloodRequestsPage() {
                     <span className="text-rose-600">{r.blood_group}</span> · {r.units_needed} unit(s) · {r.patient_name}
                   </p>
                   <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">
-                    {r.hospital}, {r.city} · {new Date(r.needed_on).toLocaleDateString('en-GB')}{fmtTime(r) ? ` at ${fmtTime(r)}` : ''}
+                    {r.hospital}, {r.city} · {new Date(r.needed_on).toLocaleDateString('en-GB')}{fmtTime(t, r) ? ` at ${fmtTime(t, r)}` : ''}
                   </p>
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">
-                    {r.source === 'public_form' ? 'Requested by' : 'Caller'}: {r.requester_name}{r.requester_relation ? ` (${r.requester_relation})` : ''} · {r.requester_whatsapp}
+                    {r.source === 'public_form' ? t('br.requestedByPrefix') : t('br.callerPrefix')}: {r.requester_name}{r.requester_relation ? ` (${r.requester_relation})` : ''} · {r.requester_whatsapp}
                   </p>
                   {r.source === 'public_form' && r.status === 'pending_approval' && (
                     <p className="font-sans text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-1.5 inline-block">
-                      Submitted from the website — nobody has spoken to them yet. Phone before approving.
+                      {t('br.websiteUnverifiedNote')}
                     </p>
                   )}
                   {r.notes && <p className="font-sans text-[13px] text-dp-on-surface mt-1">{r.notes}</p>}
-                  {r.cancel_reason && <p className="font-sans text-[12.5px] text-dp-error mt-1">Cancelled: {r.cancel_reason}</p>}
+                  {r.cancel_reason && <p className="font-sans text-[12.5px] text-dp-error mt-1">{t('br.cancelledColonPrefix')} {r.cancel_reason}</p>}
                 </div>
-                <span className={`text-[11px] font-bold uppercase px-2.5 py-1 rounded-full font-sans shrink-0 ${STATUS_STYLE[r.status]}`}>{STATUS_LABEL[r.status]}</span>
+                <span className={`text-[11px] font-bold uppercase px-2.5 py-1 rounded-full font-sans shrink-0 ${STATUS_STYLE[r.status]}`}>{t(STATUS_LABEL_KEY[r.status])}</span>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-dp-outline-variant/60">
@@ -299,7 +301,7 @@ export default function AdminBloodRequestsPage() {
                 {(r.status === 'open' || r.status === 'paused') && (
                   <>
                     <button onClick={() => toggleOpen(r.id)} className="px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low transition-all">
-                      {openId === r.id ? 'Hide donors' : 'Matching donors'}
+                      {openId === r.id ? t('br.hideDonors') : t('br.matchingDonors')}
                     </button>
                     <button onClick={() => setPaused(r.id, r.status === 'open')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low transition-all">
                       {r.status === 'open' ? <><Pause size={14} /> {t('br.pause')}</> : <><Play size={14} /> {t('br.resume')}</>}
@@ -327,9 +329,9 @@ export default function AdminBloodRequestsPage() {
             {openId === r.id && (
               <div className="border-t border-dp-outline-variant bg-dp-surface-container-low/40 p-4">
                 <p className="font-sans text-[13px] font-semibold text-dp-on-surface mb-2">
-                  Compatible donors for {r.blood_group} — available and past their rest period
+                  {t('br.compatibleDonorsForPrefix')} {r.blood_group} {t('br.availablePastRestSuffix')}
                 </p>
-                {eligible.length === 0 && <p className="font-sans text-[13px] text-dp-on-surface-variant">Nobody eligible right now. Widen the appeal publicly, or check who is inside their rest period on the Blood Donors page.</p>}
+                {eligible.length === 0 && <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('br.nobodyEligible')}</p>}
                 <div className="space-y-1.5">
                   {eligible.map((d) => (
                     <div key={d.blood_donor_id} className="flex items-center justify-between gap-3 bg-white rounded-lg border border-dp-outline-variant px-3 py-2">
@@ -346,7 +348,7 @@ export default function AdminBloodRequestsPage() {
                           </span>
                           <span className="block font-sans text-[12px] text-dp-on-surface-variant">
                             {d.city || d.sector || '—'} · {d.mobile}
-                            {d.response && d.response !== 'pending' && <span className={d.response === 'yes' ? ' text-emerald-700 font-semibold' : ' text-dp-on-surface-variant'}> · said {d.response}</span>}
+                            {d.response && d.response !== 'pending' && <span className={d.response === 'yes' ? ' text-emerald-700 font-semibold' : ' text-dp-on-surface-variant'}> {t('br.saidResponsePrefix')} {d.response}</span>}
                           </span>
                         </span>
                       </label>
@@ -375,7 +377,7 @@ export default function AdminBloodRequestsPage() {
               <button onClick={() => setShowForm(false)} className="text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><X size={18} /></button>
             </div>
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">
-              Take these details on the phone. Nothing reaches donors until someone approves it.
+              {t('br.phoneNote')}
             </p>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
@@ -403,7 +405,7 @@ export default function AdminBloodRequestsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.relation')}</label>
-                  <input value={form.requester_relation} onChange={(e) => setForm({ ...form, requester_relation: e.target.value })} placeholder="brother, son..." className="input-field !py-2.5 text-[15px]" />
+                  <input value={form.requester_relation} onChange={(e) => setForm({ ...form, requester_relation: e.target.value })} placeholder={t('br.relationPlaceholder')} className="input-field !py-2.5 text-[15px]" />
                 </div>
                 <div>
                   <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.unitsNeeded')}</label>
@@ -444,10 +446,10 @@ export default function AdminBloodRequestsPage() {
               <div>
                 <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.patientIs')}</label>
                 <div className="grid grid-cols-3 gap-2">
-                  {([['man', 'A man'], ['woman', 'A woman'], ['child', 'A child']] as const).map(([v, l]) => (
+                  {([['man', 'br.patientMan'], ['woman', 'br.patientWoman'], ['child', 'br.patientChild']] as const).map(([v, l]) => (
                     <button key={v} type="button" onClick={() => setForm({ ...form, patient_kind: v })}
                       className={`py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer transition-all ${form.patient_kind === v ? 'bg-dp-error text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-error'}`}>
-                      {l}
+                      {t(l)}
                     </button>
                   ))}
                 </div>
@@ -459,7 +461,7 @@ export default function AdminBloodRequestsPage() {
             </div>
             <div className="flex gap-2 mt-5">
               <button onClick={() => setShowForm(false)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
-              <button disabled={saving} onClick={saveRequest} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">{saving ? 'Saving...' : 'Record'}</button>
+              <button disabled={saving} onClick={saveRequest} className="flex-1 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">{saving ? t('br.saving') : t('br.record')}</button>
             </div>
           </div>
         </div>
@@ -473,14 +475,13 @@ export default function AdminBloodRequestsPage() {
           <div className="bg-white rounded-lg p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">{t('br.verifyBefore')}</h2>
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">
-              This request came from the website. Approving it notifies every compatible donor
-              at once, so speak to the person who sent it first.
+              {t('br.verifyModalNote')}
             </p>
 
             <div className="bg-dp-surface-container-low rounded-lg p-3 mb-4">
               <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{verifyFor.requester_name}</p>
               {verifyFor.requester_relation && (
-                <p className="font-sans text-[12px] text-dp-on-surface-variant">{verifyFor.requester_relation} of {verifyFor.patient_name}</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant">{verifyFor.requester_relation} {t('br.ofPatient')} {verifyFor.patient_name}</p>
               )}
               <p dir="ltr" className="font-mono text-[16px] font-bold text-dp-primary mt-1">{verifyFor.requester_whatsapp}</p>
               <div className="flex gap-2 mt-3">
@@ -498,7 +499,7 @@ export default function AdminBloodRequestsPage() {
             <label className="flex items-start gap-2 cursor-pointer mb-4">
               <input type="checkbox" checked={verifyChecked} onChange={(e) => setVerifyChecked(e.target.checked)} className="accent-dp-secondary mt-0.5" />
               <span className="font-sans text-[13px] text-dp-on-surface">
-                I have spoken to {verifyFor.requester_name} and this request is genuine.
+                {t('br.confirmSpokenPrefix')} {verifyFor.requester_name} {t('br.confirmSpokenSuffix')}
                 <span className="block text-[11.5px] text-dp-on-surface-variant">{t('br.againstYourName')}</span>
               </span>
             </label>
@@ -519,9 +520,9 @@ export default function AdminBloodRequestsPage() {
           <div className="bg-white rounded-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">{t('br.cancelThis')}</h2>
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">
-              Everyone already contacted is told to stand down, and they are told why. Say if this was a fake call — that is worth recording.
+              {t('br.cancelModalNote')}
             </p>
-            <input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Fake call / arranged elsewhere / family cancelled" className="input-field !py-2.5 text-[15px]" />
+            <input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder={t('br.cancelReasonPlaceholder')} className="input-field !py-2.5 text-[15px]" />
             <div className="flex gap-2 mt-4">
               <button onClick={() => setCancelFor(null)} className="flex-1 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant cursor-pointer">{t('f.back')}</button>
               <button disabled={busy || !cancelReason.trim()} onClick={doCancel} className="flex-1 px-4 py-2 bg-dp-error text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer disabled:opacity-50">{t('br.cancelRequest')}</button>
@@ -535,8 +536,7 @@ export default function AdminBloodRequestsPage() {
           <div className="bg-white rounded-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-heading text-[17px] font-bold text-dp-primary mb-1">{t('br.postAppeal')}</h2>
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">
-              Shows in red at the top of every matching portal, and on the website if public. The
-              patient is described as &quot;a villager (man/woman/child)&quot; — never by name.
+              {t('br.appealModalNote')}
             </p>
 
             <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('br.numberToCall')}</label>
@@ -544,10 +544,10 @@ export default function AdminBloodRequestsPage() {
 
             <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1 mt-3">{t('g.whoShouldSee')}</label>
             <div className="grid grid-cols-2 gap-2">
-              {([['everyone', 'Everyone'], ['villagers', 'Villagers only'], ['consumers', 'Water consumers'], ['donors', 'Donors only'], ['overseas', 'Overseas only']] as const).map(([v, l]) => (
+              {([['everyone', 'al.audEveryone'], ['villagers', 'al.audVillagers'], ['consumers', 'al.audConsumers'], ['donors', 'al.audDonors'], ['overseas', 'al.audOverseas']] as const).map(([v, l]) => (
                 <button key={v} type="button" onClick={() => setAppealAudience(v)}
                   className={`py-2 rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer transition-all ${appealAudience === v ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-secondary'}`}>
-                  {l}
+                  {t(l)}
                 </button>
               ))}
             </div>
@@ -563,7 +563,7 @@ export default function AdminBloodRequestsPage() {
               <input type="checkbox" checked={appealPublic} onChange={(e) => setAppealPublic(e.target.checked)} className="accent-dp-secondary mt-0.5" />
               <span className="font-sans text-[12.5px] text-dp-on-surface">
                 {t('g.alsoPublic')}
-                <span className="block text-[11px] text-dp-on-surface-variant">Untick to keep it inside the portal only — a targeted appeal usually should not be public.</span>
+                <span className="block text-[11px] text-dp-on-surface-variant">{t('br.untickPortalOnlyNote')}</span>
               </span>
             </label>
             <div className="flex gap-2 mt-4">
