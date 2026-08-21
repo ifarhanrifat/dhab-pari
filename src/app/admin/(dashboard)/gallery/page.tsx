@@ -52,39 +52,39 @@ export default function AdminGalleryPage() {
     if (!selectedAlbum) return
     const ids = Array.from(selectedItems)
     const { error } = await supabase.from('gallery_items').delete().in('id', ids)
-    if (error) { toast.error('Failed to delete items'); return }
-    toast.success(`${ids.length} item(s) deleted`)
+    if (error) { toast.error(t('gl.failedDeleteItems')); return }
+    toast.success(`${ids.length} ${t('gl.itemsDeletedSuffix')}`)
     setSelectedItems(new Set())
     setConfirmDeleteItems(false)
     loadItems(selectedAlbum)
   }
 
   const saveAlbum = async () => {
-    if (!albumForm.title.trim()) { toast.error('Title required'); return }
+    if (!albumForm.title.trim()) { toast.error(t('gl.titleRequired')); return }
     const { error } = await supabase.from('gallery_albums').insert(albumForm)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Album created'); setShowAlbumForm(false); setAlbumForm({ title: '', title_ur: '', category: 'events' }); loadAlbums()
+    toast.success(t('gl.albumCreated')); setShowAlbumForm(false); setAlbumForm({ title: '', title_ur: '', category: 'events' }); loadAlbums()
   }
 
-  const deleteAlbum = async (id: string) => { if (!confirm('Delete album and all its items?')) return; await supabase.from('gallery_albums').delete().eq('id', id); toast.success('Deleted'); loadAlbums() }
+  const deleteAlbum = async (id: string) => { if (!confirm(t('gl.confirmDeleteAlbum'))) return; await supabase.from('gallery_albums').delete().eq('id', id); toast.success(t('gl.deleted')); loadAlbums() }
 
   const addItem = async () => {
-    if (!itemForm.url.trim() || !selectedAlbum) { toast.error('URL required'); return }
+    if (!itemForm.url.trim() || !selectedAlbum) { toast.error(t('gl.urlRequired')); return }
     const { error } = await supabase.from('gallery_items').insert({ album_id: selectedAlbum, url: itemForm.url, caption: itemForm.caption || null, display_order: items.length })
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Item added'); setShowItemForm(false); setItemForm({ url: '', caption: '' }); loadItems(selectedAlbum)
+    toast.success(t('gl.itemAdded')); setShowItemForm(false); setItemForm({ url: '', caption: '' }); loadItems(selectedAlbum)
   }
 
   const addMultiItems = async () => {
     const urls = itemForm._multiUrls ?? (itemForm.url ? [itemForm.url] : [])
-    if (urls.length === 0 || !selectedAlbum) { toast.error('Upload at least one image'); return }
+    if (urls.length === 0 || !selectedAlbum) { toast.error(t('gl.uploadAtLeastOne')); return }
     const inserts = urls.map((url, i) => ({ album_id: selectedAlbum, url, caption: itemForm.caption || null, display_order: items.length + i }))
     const { error } = await supabase.from('gallery_items').insert(inserts)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(`${urls.length} photo(s) added`); setShowItemForm(false); setItemForm({ url: '', caption: '' }); loadItems(selectedAlbum)
+    toast.success(`${urls.length} ${t('gl.photosAddedSuffix')}`); setShowItemForm(false); setItemForm({ url: '', caption: '' }); loadItems(selectedAlbum)
   }
 
-  const deleteItem = async (id: string) => { if (!selectedAlbum) return; await supabase.from('gallery_items').delete().eq('id', id); toast.success('Removed'); loadItems(selectedAlbum) }
+  const deleteItem = async (id: string) => { if (!selectedAlbum) return; await supabase.from('gallery_items').delete().eq('id', id); toast.success(t('gl.removed')); loadItems(selectedAlbum) }
 
   const selectedAlbumData = albums.find((a) => a.id === selectedAlbum)
 
@@ -125,7 +125,7 @@ export default function AdminGalleryPage() {
             count={selectedItems.size}
             onClear={() => setSelectedItems(new Set())}
             actions={[
-              { label: 'Delete Selected', onClick: () => setConfirmDeleteItems(true), variant: 'danger' },
+              { label: t('gl.deleteSelected'), onClick: () => setConfirmDeleteItems(true), variant: 'danger' },
             ]}
           />
 
@@ -155,8 +155,8 @@ export default function AdminGalleryPage() {
 
           <ConfirmDialog
             open={confirmDeleteItems}
-            title="Delete Photos"
-            message={`Are you sure you want to delete ${selectedItems.size} photo(s)? This cannot be undone.`}
+            title={t('gl.deletePhotosTitle')}
+            message={t('gl.deletePhotosMessage').replace('{n}', String(selectedItems.size))}
             onConfirm={bulkDeleteItems}
             onCancel={() => setConfirmDeleteItems(false)}
           />
@@ -182,7 +182,7 @@ export default function AdminGalleryPage() {
           <div className="bg-white rounded-lg p-6 w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">{t('z.addPhoto')}</h2><button onClick={() => setShowItemForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
-              <MultiImageUpload bucket="images" currentUrls={[]} onUpload={(urls) => setItemForm({ ...itemForm, url: urls[urls.length - 1] ?? '', _multiUrls: urls })} label="Photos (select multiple)" max={20} />
+              <MultiImageUpload bucket="images" currentUrls={[]} onUpload={(urls) => setItemForm({ ...itemForm, url: urls[urls.length - 1] ?? '', _multiUrls: urls })} label={t('gl.photosSelectMultiple')} max={20} />
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.captionAll')}</label><input value={itemForm.caption} onChange={(e) => setItemForm({ ...itemForm, caption: e.target.value })} className="input-field" /></div>
               <button onClick={addMultiItems} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{t('z.addPhotos')}</button>
             </div>

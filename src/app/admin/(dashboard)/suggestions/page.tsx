@@ -32,6 +32,12 @@ const typeColors: Record<string, string> = {
   role_request: 'bg-purple-50 text-purple-700',
 }
 
+const typeLabelKey: Record<string, string> = {
+  suggestion: 'su.typeSuggestion', complaint: 'su.typeComplaint', volunteer: 'su.typeVolunteer',
+  general: 'su.typeGeneral', role_request: 'su.typeRoleRequest',
+}
+const statusLabelKey: Record<string, string> = { new: 'su.new', reviewed: 'z.reviewed', actioned: 'z.actioned' }
+
 export default function AdminSuggestionsPage() {
   const { t, isUrdu } = useLocale()
   const [items, setItems] = useState<Suggestion[]>([])
@@ -55,7 +61,7 @@ export default function AdminSuggestionsPage() {
 
   const updateStatus = async (id: string, status: string) => {
     await supabase.from('suggestions').update({ status }).eq('id', id)
-    toast.success(`Marked as ${status}`)
+    toast.success(`${t('su.markedAsPrefix')} ${t(statusLabelKey[status] ?? status)}`)
     load()
     if (selected?.id === id) setSelected({ ...selected, status })
   }
@@ -66,7 +72,7 @@ export default function AdminSuggestionsPage() {
   const useTemplate = async (key: string) => {
     if (!selected) return
     const { data } = await supabase.from('message_templates').select('body').eq('key', key).single()
-    if (!data?.body) { toast.error('Template not found — check Settings'); return }
+    if (!data?.body) { toast.error(t('su.templateNotFound')); return }
 
     // The project is whatever the committee actually put this person on in
     // Volunteers — read it back rather than writing a generic phrase. Someone
@@ -91,7 +97,7 @@ export default function AdminSuggestionsPage() {
     }
 
     if (!project && key === 'volunteer_accepted') {
-      toast.error('Put them on a project in Volunteers first — the reply names it')
+      toast.error(t('su.putOnProjectFirst'))
       return
     }
 
@@ -121,7 +127,7 @@ export default function AdminSuggestionsPage() {
       })
     }
 
-    toast.success('Reply saved' + (selected.mobile ? ' & queued for WhatsApp' : ''))
+    toast.success(t('su.replySaved') + (selected.mobile ? ` ${t('su.queuedWhatsappSuffix')}` : ''))
     setReply('')
     setSelected({ ...selected, admin_notes: notes, status: 'reviewed' })
     load()
@@ -134,7 +140,7 @@ export default function AdminSuggestionsPage() {
           {t('z.suggestionsComplaints')}
         </h1>
         <span className="text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-on-surface-variant">
-          {items.filter((s) => s.status === 'new').length} new
+          {items.filter((s) => s.status === 'new').length} {t('su.newCountSuffix')}
         </span>
       </div>
 
@@ -150,7 +156,7 @@ export default function AdminSuggestionsPage() {
                 : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-primary'
             }`}
           >
-            {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+            {f === 'all' ? t('su.filterAll') : t(statusLabelKey[f] ?? f)}
           </button>
         ))}
       </div>
@@ -169,10 +175,10 @@ export default function AdminSuggestionsPage() {
             >
               <div className="flex items-center gap-2 mb-2">
                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full font-sans ${typeColors[s.type]}`}>
-                  {s.type}
+                  {t(typeLabelKey[s.type] ?? s.type)}
                 </span>
                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full font-sans ${statusColors[s.status]}`}>
-                  {s.status}
+                  {t(statusLabelKey[s.status] ?? s.status)}
                 </span>
                 <span className="text-[12px] font-sans text-dp-on-surface-variant ms-auto">
                   {new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -207,7 +213,7 @@ export default function AdminSuggestionsPage() {
             <div className="space-y-2 mb-4 pb-4 border-b border-dp-outline-variant">
               <div className="flex justify-between text-[14px] font-sans">
                 <span className="text-dp-on-surface-variant">{t('z.fromColon')}</span>
-                <span className="font-semibold">{selected.name || 'Anonymous'}</span>
+                <span className="font-semibold">{selected.name || t('su.anonymousFallback')}</span>
               </div>
               {selected.mobile && (
                 <div className="flex justify-between text-[14px] font-sans">
@@ -217,7 +223,7 @@ export default function AdminSuggestionsPage() {
               )}
               <div className="flex justify-between text-[14px] font-sans">
                 <span className="text-dp-on-surface-variant">{t('z.typeColon')}</span>
-                <span className={`text-[12px] font-bold uppercase px-2 py-0.5 rounded-full ${typeColors[selected.type]}`}>{selected.type}</span>
+                <span className={`text-[12px] font-bold uppercase px-2 py-0.5 rounded-full ${typeColors[selected.type]}`}>{t(typeLabelKey[selected.type] ?? selected.type)}</span>
               </div>
               <div className="flex justify-between text-[14px] font-sans">
                 <span className="text-dp-on-surface-variant">{t('z.dateColon')}</span>
@@ -277,9 +283,7 @@ export default function AdminSuggestionsPage() {
                   )}
                 </div>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant mt-2">
-                  {selected.type === 'role_request'
-                    ? 'Loads an editable reply below. Accepting does not create the account — do that in Users → invite with role Publisher, so they set their own password.'
-                    : 'Loads an editable reply below. Put them on a project in Volunteers to actually accept them.'}
+                  {selected.type === 'role_request' ? t('su.roleRequestNote') : t('su.volunteerNote')}
                 </p>
               </div>
             )}
@@ -291,7 +295,7 @@ export default function AdminSuggestionsPage() {
                 value={reply}
                 onChange={(e) => setReply(e.target.value)}
                 rows={3}
-                placeholder="Write your reply..."
+                placeholder={t('su.writeReplyPlaceholder')}
                 className="input-field resize-none mb-3"
               />
               <button
@@ -300,7 +304,7 @@ export default function AdminSuggestionsPage() {
                 className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50"
               >
                 <Send size={14} />
-                Send Reply {selected.mobile ? '(+ WhatsApp)' : ''}
+                {t('su.sendReply')} {selected.mobile ? t('su.plusWhatsapp') : ''}
               </button>
             </div>
           </div>
