@@ -111,7 +111,7 @@ export default function AllTransactionsPage() {
       system === 'water_supply'
         ? supabase.from('payments').select('id, bill_id, consumer_id, amount_pkr, method, paid_date, receipt_no, note, created_at').gte('paid_date', from).lte('paid_date', to)
         : Promise.resolve({ data: [] as { id: string; bill_id: string; consumer_id: string; amount_pkr: number; method: string | null; paid_date: string; receipt_no: string | null; note: string | null; created_at: string }[] }),
-      supabase.from('vouchers').select('id, voucher_type, voucher_no, receipt_no, voucher_date, particular, amount_pkr, party_name, bill_id, created_at, recurring_schedule_id')
+      supabase.from('vouchers').select('id, voucher_type, voucher_no, receipt_no, voucher_date, particular, amount_pkr, party_name, from_account_id, bill_id, created_at, recurring_schedule_id')
         .eq('system', system).in('status', ['posted', 'approved']).gte('voucher_date', from).lte('voucher_date', to),
       system === 'donors_projects'
         ? supabase.from('donors').select('id, name, amount_pkr, date, payment_method, notes, is_anonymous, created_at, voucher_no, is_verified, payment_status, recurring_schedule_id').gte('date', from).lte('date', to)
@@ -138,9 +138,25 @@ export default function AllTransactionsPage() {
     )
     const voucherIdsForLines = (vouchersRes.data ?? []).map((v) => v.id)
     const { data: lineRows } = voucherIdsForLines.length > 0
-      ? await supabase.from('voucher_line_items').select('voucher_id').in('voucher_id', voucherIdsForLines)
-      : { data: [] as { voucher_id: string }[] }
+      ? await supabase.from('voucher_line_items').select('voucher_id, account_id').in('voucher_id', voucherIdsForLines)
+      : { data: [] as { voucher_id: string; account_id: string }[] }
     const voucherIdsWithLines = new Set((lineRows ?? []).map((l) => l.voucher_id))
+    // voucher_line_items has no ordering column — this takes whichever line
+    // comes back first per voucher, which in practice is insertion order
+    // (a multi-line expense inserts all its lines in one bulk call, and
+    // these rows are never reordered afterward). Good enough for a display
+    // label; not something any real calculation depends on.
+    const firstLineAccountIdByVoucher: Record<string, string> = {}
+    for (const l of lineRows ?? []) { firstLineAccountIdByVoucher[l.voucher_id] ??= l.account_id }
+    const accountIdsNeeded = new Set<string>()
+    for (const v of vouchersRes.data ?? []) { if (v.from_account_id) accountIdsNeeded.add(v.from_account_id) }
+    for (const id of Object.values(firstLineAccountIdByVoucher)) accountIdsNeeded.add(id)
+    const { data: accountsForLabels } = accountIdsNeeded.size > 0
+      ? await supabase.from('accounts').select('id, name, name_ur').in('id', Array.from(accountIdsNeeded))
+      : { data: [] as { id: string; name: string; name_ur: string | null }[] }
+    const accountNameById = Object.fromEntries(
+      (accountsForLabels ?? []).map((a) => [a.id, isUrdu && a.name_ur ? a.name_ur : a.name])
+    )
     const result: TxnRow[] = []
 
     for (const b of billsRes.data ?? []) {
@@ -183,14 +199,23 @@ export default function AllTransactionsPage() {
         ? (v.receipt_no ? `${t('tx.receiptHashPrefix')} ${v.receipt_no}` : t('tx.receiptFallback'))
         : (v.voucher_no ? `${t('tx.voucherHash')} ${v.voucher_no}` : t('tx.voucherFallback'))
       const label = entryTypeLabel('voucher', v.voucher_type, isUrdu ? 'ur' : 'en')
+      // A multi-line expense (several "Paid To" accounts under one "Paid
+      // From") never shows its individual expense-account lines here — the
+      // voucher is already one row, one combined amount. What identifies it
+      // now is the accounts actually involved: which account it came from,
+      // and the first of the accounts it went to.
+      const hasLines = voucherIdsWithLines.has(v.id)
+      const fromName = v.from_account_id ? accountNameById[v.from_account_id] : undefined
+      const firstToName = accountNameById[firstLineAccountIdByVoucher[v.id]]
+      const multiLineLabel = hasLines && fromName && firstToName ? `${fromName} → ${firstToName}` : null
       result.push({
         id: `voucher-${v.id}`, kind: 'voucher', voucherType: v.voucher_type, isRecurring: !!v.recurring_schedule_id,
         borderColor: isSecurityDeposit ? 'border-cyan-500' : 'border-slate-400',
-        typeLabel: label, partyName: v.party_name || label, docLabel,
+        typeLabel: label, partyName: multiLineLabel ?? (v.party_name || label), docLabel,
         date: v.voucher_date, description: v.particular, amount: v.amount_pkr,
         badge: null, note: null, voucherId: v.id, receiptNo: v.receipt_no, autoPosted: autoPostedIds.has(v.id), fullyApproved: fullyApprovedIds.has(v.id), createdAt: v.created_at,
-        hasLineItems: voucherIdsWithLines.has(v.id),
-        searchBlob: `${v.party_name ?? ''} ${label} ${v.voucher_no ?? ''} ${v.receipt_no ?? ''} ${v.particular ?? ''}`.toLowerCase(),
+        hasLineItems: hasLines,
+        searchBlob: `${v.party_name ?? ''} ${label} ${fromName ?? ''} ${firstToName ?? ''} ${v.voucher_no ?? ''} ${v.receipt_no ?? ''} ${v.particular ?? ''}`.toLowerCase(),
       })
     }
 
@@ -242,7 +267,7 @@ export default function AllTransactionsPage() {
     setRows(result)
     setLoading(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [system, from, to, supabase, t])
+  }, [system, from, to, supabase, t, isUrdu])
 
   useEffect(() => { load() }, [load])
 

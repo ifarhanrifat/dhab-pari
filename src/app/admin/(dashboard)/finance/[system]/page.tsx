@@ -343,7 +343,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
     const billsRes = { data: (docs.bills ?? []) as { id: string; bill_number: string | null; consumer_id: string; month: number; year: number; amount_pkr: number; discount_amount: number | null; paid_amount: number | null; due_date: string | null; description: string | null; created_at: string; security_deposit_amount: number | null; security_deposit_voucher_id: string | null; recurring_schedule_id: string | null }[] }
     const paymentsRes = { data: (docs.payments ?? []) as { id: string; bill_id: string; consumer_id: string; amount_pkr: number; method: string | null; paid_date: string; receipt_no: string | null; note: string | null; created_at: string }[] }
-    const vouchersRes = { data: (docs.vouchers ?? []) as { id: string; voucher_type: string; voucher_no: string | null; receipt_no: string | null; voucher_date: string; particular: string; amount_pkr: number; party_name: string | null; bill_id: string | null; created_at: string; recurring_schedule_id: string | null }[] }
+    const vouchersRes = { data: (docs.vouchers ?? []) as { id: string; voucher_type: string; voucher_no: string | null; receipt_no: string | null; voucher_date: string; particular: string; amount_pkr: number; party_name: string | null; from_account_id: string | null; bill_id: string | null; created_at: string; recurring_schedule_id: string | null }[] }
     const donationsRes = { data: (docs.donations ?? []) as { id: string; name: string; name_ur: string | null; amount_pkr: number; date: string; payment_method: string | null; notes: string | null; is_anonymous: boolean; is_verified: boolean; voucher_no: string | null; created_at: string; recurring_schedule_id: string | null; payment_status: string | null }[] }
     const purchasesRes = { data: (docs.purchases ?? []) as { id: string; vendor: string | null; purchase_date: string; method: string; note: string | null; attachment_url: string | null; purchase_number: string | null; created_at: string }[] }
     const autoPostedRes = { data: (docs.approval_statuses ?? []) as { reference_id: string; auto_posted: boolean }[] }
@@ -372,10 +372,17 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     // voucher's real breakdown, grouped by voucher so both the receipt and
     // the "has itemised lines" edit guard can use it.
     const voucherLinesByVoucher: Record<string, { description: string; quantity: number; unitPrice: number }[]> = {}
-    for (const r of (docs.voucher_line_items ?? []) as { voucher_id: string; description: string | null; category: string | null; amount: number }[]) {
+    // Same "no ordering column, so take whichever comes back first" caveat
+    // as All Transactions' identical build of this map — fine for a display
+    // label, insertion order in practice since these rows are never
+    // reordered after a multi-line expense is saved.
+    const firstLineAccountIdByVoucher: Record<string, string> = {}
+    for (const r of (docs.voucher_line_items ?? []) as { voucher_id: string; account_id: string | null; description: string | null; category: string | null; amount: number }[]) {
       const label = r.description || (r.category ? r.category.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : t('tx.itemFallback'))
       ;(voucherLinesByVoucher[r.voucher_id] ??= []).push({ description: label, quantity: 1, unitPrice: Number(r.amount) })
+      if (r.account_id) firstLineAccountIdByVoucher[r.voucher_id] ??= r.account_id
     }
+    const accountNameById = Object.fromEntries(accts.map((a) => [a.id, isUrdu && a.name_ur ? a.name_ur : a.name]))
     const cards: TxnCard[] = []
 
     for (const b of billsList) {
@@ -431,10 +438,18 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       const docLabel = isSecurityDeposit
         ? (v.receipt_no ? `${t('tx.receiptHashPrefix')} ${v.receipt_no}` : t('tx.receiptFallback'))
         : (v.voucher_no ? `${t('tx.voucherHash')} ${v.voucher_no}` : t('tx.voucherFallback'))
+      // A multi-line expense (several "Paid To" accounts under one "Paid
+      // From") never shows its individual expense-account lines here — one
+      // voucher, one combined amount, one row. What identifies it now is
+      // the accounts actually involved: which account it came from, and
+      // the first of the accounts it went to.
+      const fromName = v.from_account_id ? accountNameById[v.from_account_id] : undefined
+      const firstToName = accountNameById[firstLineAccountIdByVoucher[v.id]]
+      const multiLineLabel = fromName && firstToName ? `${fromName} → ${firstToName}` : null
       cards.push({
         id: `voucher-${v.id}`, kind: 'voucher', borderColor: isSecurityDeposit ? 'border-cyan-500' : 'border-slate-400', isRecurring: !!v.recurring_schedule_id,
         typeLabel: fallbackLabel,
-        partyName: v.party_name || cfg?.label || fallbackLabel,
+        partyName: multiLineLabel ?? (v.party_name || cfg?.label || fallbackLabel),
         docLabel,
         date: v.voucher_date, description: v.particular, amount: v.amount_pkr,
         badge: null, note: null, created_at: v.created_at, voucherId: v.id,
@@ -492,7 +507,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setTxnCards(cards.slice(0, 50))
     setLoading(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [system, supabase, logSortDir, t])
+  }, [system, supabase, logSortDir, t, isUrdu])
 
   useEffect(() => { load() }, [load])
 
