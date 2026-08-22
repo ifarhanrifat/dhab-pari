@@ -51,6 +51,11 @@ interface TxnRow {
   // multi-line expense) -- edit_voucher() refuses to touch these (migration
   // 175), so Edit is hidden rather than offered and rejected.
   hasLineItems?: boolean
+  // Voucher rows only: the two accounts actually involved, shown as two
+  // stacked lines (paid-to on top, paid-from underneath) instead of the
+  // free-text party_name / generic type label the row used to lead with.
+  voucherToName?: string
+  voucherFromName?: string
 }
 
 const systemLabels: Record<SystemTab, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects System' }
@@ -111,7 +116,7 @@ export default function AllTransactionsPage() {
       system === 'water_supply'
         ? supabase.from('payments').select('id, bill_id, consumer_id, amount_pkr, method, paid_date, receipt_no, note, created_at').gte('paid_date', from).lte('paid_date', to)
         : Promise.resolve({ data: [] as { id: string; bill_id: string; consumer_id: string; amount_pkr: number; method: string | null; paid_date: string; receipt_no: string | null; note: string | null; created_at: string }[] }),
-      supabase.from('vouchers').select('id, voucher_type, voucher_no, receipt_no, voucher_date, particular, amount_pkr, party_name, from_account_id, bill_id, created_at, recurring_schedule_id')
+      supabase.from('vouchers').select('id, voucher_type, voucher_no, receipt_no, voucher_date, particular, amount_pkr, party_name, from_account_id, to_account_id, bill_id, created_at, recurring_schedule_id')
         .eq('system', system).in('status', ['posted', 'approved']).gte('voucher_date', from).lte('voucher_date', to),
       system === 'donors_projects'
         ? supabase.from('donors').select('id, name, amount_pkr, date, payment_method, notes, is_anonymous, created_at, voucher_no, is_verified, payment_status, recurring_schedule_id').gte('date', from).lte('date', to)
@@ -149,7 +154,10 @@ export default function AllTransactionsPage() {
     const firstLineAccountIdByVoucher: Record<string, string> = {}
     for (const l of lineRows ?? []) { firstLineAccountIdByVoucher[l.voucher_id] ??= l.account_id }
     const accountIdsNeeded = new Set<string>()
-    for (const v of vouchersRes.data ?? []) { if (v.from_account_id) accountIdsNeeded.add(v.from_account_id) }
+    for (const v of vouchersRes.data ?? []) {
+      if (v.from_account_id) accountIdsNeeded.add(v.from_account_id)
+      if (v.to_account_id) accountIdsNeeded.add(v.to_account_id)
+    }
     for (const id of Object.values(firstLineAccountIdByVoucher)) accountIdsNeeded.add(id)
     const { data: accountsForLabels } = accountIdsNeeded.size > 0
       ? await supabase.from('accounts').select('id, name, name_ur').in('id', Array.from(accountIdsNeeded))
@@ -195,10 +203,14 @@ export default function AllTransactionsPage() {
       // Bill-linked security deposits are now folded into their bill's row above.
       if (v.voucher_type === 'security_deposit' && v.bill_id) continue
       const isSecurityDeposit = v.voucher_type === 'security_deposit'
+      const label = entryTypeLabel('voucher', v.voucher_type, isUrdu ? 'ur' : 'en')
+      // The generic "Voucher #" prefix told nobody what actually happened —
+      // Purchases already lead with their own type ("Purchase #PUR-00003");
+      // vouchers now do the same with their real type name ("Expense #",
+      // "Advance Payment #", ...) instead.
       const docLabel = isSecurityDeposit
         ? (v.receipt_no ? `${t('tx.receiptHashPrefix')} ${v.receipt_no}` : t('tx.receiptFallback'))
-        : (v.voucher_no ? `${t('tx.voucherHash')} ${v.voucher_no}` : t('tx.voucherFallback'))
-      const label = entryTypeLabel('voucher', v.voucher_type, isUrdu ? 'ur' : 'en')
+        : (v.voucher_no ? `${label} # ${v.voucher_no}` : label)
       // A multi-line expense (several "Paid To" accounts under one "Paid
       // From") never shows its individual expense-account lines here — the
       // voucher is already one row, one combined amount. What identifies it
@@ -207,15 +219,23 @@ export default function AllTransactionsPage() {
       const hasLines = voucherIdsWithLines.has(v.id)
       const fromName = v.from_account_id ? accountNameById[v.from_account_id] : undefined
       const firstToName = accountNameById[firstLineAccountIdByVoucher[v.id]]
+      const toAccountName = v.to_account_id ? accountNameById[v.to_account_id] : undefined
       const multiLineLabel = hasLines && fromName && firstToName ? `${fromName} → ${firstToName}` : null
+      // Row display: the paid-to account leads, the paid-from account sits
+      // under it — separate lines instead of one combined "A → B" string, so
+      // a long account name on either side never has to share a line with
+      // the other. Falls back to the free-text party name, then the type
+      // label itself, for older/atypical vouchers with no account on either side.
+      const voucherToName = (hasLines ? firstToName : toAccountName) ?? v.party_name ?? label
+      const voucherFromName = fromName
       result.push({
         id: `voucher-${v.id}`, kind: 'voucher', voucherType: v.voucher_type, isRecurring: !!v.recurring_schedule_id,
         borderColor: isSecurityDeposit ? 'border-cyan-500' : 'border-slate-400',
         typeLabel: label, partyName: multiLineLabel ?? (v.party_name || label), docLabel,
         date: v.voucher_date, description: v.particular, amount: v.amount_pkr,
         badge: null, note: null, voucherId: v.id, receiptNo: v.receipt_no, autoPosted: autoPostedIds.has(v.id), fullyApproved: fullyApprovedIds.has(v.id), createdAt: v.created_at,
-        hasLineItems: hasLines,
-        searchBlob: `${v.party_name ?? ''} ${label} ${fromName ?? ''} ${firstToName ?? ''} ${v.voucher_no ?? ''} ${v.receipt_no ?? ''} ${v.particular ?? ''}`.toLowerCase(),
+        hasLineItems: hasLines, voucherToName, voucherFromName,
+        searchBlob: `${v.party_name ?? ''} ${label} ${fromName ?? ''} ${firstToName ?? ''} ${toAccountName ?? ''} ${v.voucher_no ?? ''} ${v.receipt_no ?? ''} ${v.particular ?? ''}`.toLowerCase(),
       })
     }
 
@@ -469,40 +489,81 @@ export default function AllTransactionsPage() {
           {!loading && filteredRows.map((r) => (
             <div key={r.id} className={`flex border-s-[3px] ${r.borderColor}`}>
               <div className="flex-1 min-w-0 p-3.5">
-                <div className="flex justify-between items-start gap-3">
-                  <div className="min-w-0">
-                    {r.typeLabel && <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-tight">{r.typeLabel}</p>}
-                    <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{r.partyName}</p>
-                    {r.isRecurring && (
-                      <span className="inline-block mt-0.5 me-1 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700" title={t('tx.recurringTooltip')}>
-                        {t('a.recurring')}
-                      </span>
-                    )}
-                    {r.autoPosted && (
-                      <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800" title={t('tx.autoPostedRowTooltip')}>
-                        {t('a.autoPosted')}
-                      </span>
-                    )}
-                    {r.fullyApproved && (
-                      <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-800" title={t('tx.fullyApprovedTooltip')}>
-                        {t('f.approved')}
-                      </span>
-                    )}
+                {r.kind === 'voucher' ? (
+                  // Voucher rows lead with the two accounts actually involved
+                  // (paid-to on top, paid-from underneath) instead of a
+                  // free-text party name — and the type/number/amount/status
+                  // stack sits on its own side, so a long account name can
+                  // never crowd the status pills or vice versa.
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{r.voucherToName}</p>
+                      {r.voucherFromName && (
+                        <p className="font-sans text-[12px] text-dp-on-surface-variant truncate">{r.voucherFromName}</p>
+                      )}
+                      <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">{r.description}</p>
+                    </div>
+                    <div className="text-end shrink-0">
+                      <p className="font-sans text-[13px] font-bold text-dp-on-surface whitespace-nowrap">{r.docLabel}</p>
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant whitespace-nowrap">{new Date(r.date).toLocaleDateString('en-GB')}</p>
+                      {r.amount > 0 && <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap mt-1">Rs {fmtAmount(r.amount)}</p>}
+                      <div className="flex flex-wrap justify-end gap-1 mt-1">
+                        {r.isRecurring && (
+                          <span className="inline-block px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700" title={t('tx.recurringTooltip')}>
+                            {t('a.recurring')}
+                          </span>
+                        )}
+                        {r.autoPosted && (
+                          <span className="inline-block px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800" title={t('tx.autoPostedRowTooltip')}>
+                            {t('a.autoPosted')}
+                          </span>
+                        )}
+                        {r.fullyApproved && (
+                          <span className="inline-block px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-800" title={t('tx.fullyApprovedTooltip')}>
+                            {t('f.approved')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-end shrink-0">
-                    <p className="font-sans text-[13px] font-bold text-dp-on-surface whitespace-nowrap">{r.docLabel}</p>
-                    <p className="font-sans text-[12px] text-dp-on-surface-variant whitespace-nowrap">{new Date(r.date).toLocaleDateString('en-GB')}</p>
-                  </div>
-                </div>
-                <div className="flex justify-between items-end gap-3 mt-1.5">
-                  <p className="font-sans text-[13px] text-dp-on-surface-variant truncate">{r.description}</p>
-                  <div className="text-end shrink-0">
-                    {r.amount > 0 && <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">Rs {fmtAmount(r.amount)}</p>}
-                    {r.badge && (
-                      <span className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide ${billBadgeClass[r.badge.tone]}`}>{r.badge.textKey ? t(r.badge.textKey) : r.badge.text}</span>
-                    )}
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="min-w-0">
+                        {r.typeLabel && <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-tight">{r.typeLabel}</p>}
+                        <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{r.partyName}</p>
+                        {r.isRecurring && (
+                          <span className="inline-block mt-0.5 me-1 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700" title={t('tx.recurringTooltip')}>
+                            {t('a.recurring')}
+                          </span>
+                        )}
+                        {r.autoPosted && (
+                          <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800" title={t('tx.autoPostedRowTooltip')}>
+                            {t('a.autoPosted')}
+                          </span>
+                        )}
+                        {r.fullyApproved && (
+                          <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-800" title={t('tx.fullyApprovedTooltip')}>
+                            {t('f.approved')}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-end shrink-0">
+                        <p className="font-sans text-[13px] font-bold text-dp-on-surface whitespace-nowrap">{r.docLabel}</p>
+                        <p className="font-sans text-[12px] text-dp-on-surface-variant whitespace-nowrap">{new Date(r.date).toLocaleDateString('en-GB')}</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-end gap-3 mt-1.5">
+                      <p className="font-sans text-[13px] text-dp-on-surface-variant truncate">{r.description}</p>
+                      <div className="text-end shrink-0">
+                        {r.amount > 0 && <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">Rs {fmtAmount(r.amount)}</p>}
+                        {r.badge && (
+                          <span className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide ${billBadgeClass[r.badge.tone]}`}>{r.badge.textKey ? t(r.badge.textKey) : r.badge.text}</span>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
                 {/* Edit/Delete hand the record back to the screen that owns
                     its form and its rules — a bill's Delete still goes
                     through attemptDeleteBill's own payments-must-go-first

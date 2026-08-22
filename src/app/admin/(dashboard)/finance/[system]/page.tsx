@@ -57,6 +57,11 @@ interface TxnCard {
   isRecurring?: boolean
   autoPosted?: boolean
   fullyApproved?: boolean
+  // Voucher rows only: the two accounts actually involved, shown as two
+  // stacked lines (paid-to on top, paid-from underneath) instead of the
+  // free-text party_name / generic type label the row used to lead with.
+  voucherToName?: string
+  voucherFromName?: string
 }
 interface PendingApproval { id: string; kind: string; particular: string; amount_pkr: number; created_at: string }
 interface InventoryItemOpt { id: string; name: string; unit_price: number; unit_cost: number; unit: string }
@@ -343,7 +348,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
     const billsRes = { data: (docs.bills ?? []) as { id: string; bill_number: string | null; consumer_id: string; month: number; year: number; amount_pkr: number; discount_amount: number | null; paid_amount: number | null; due_date: string | null; description: string | null; created_at: string; security_deposit_amount: number | null; security_deposit_voucher_id: string | null; recurring_schedule_id: string | null }[] }
     const paymentsRes = { data: (docs.payments ?? []) as { id: string; bill_id: string; consumer_id: string; amount_pkr: number; method: string | null; paid_date: string; receipt_no: string | null; note: string | null; created_at: string }[] }
-    const vouchersRes = { data: (docs.vouchers ?? []) as { id: string; voucher_type: string; voucher_no: string | null; receipt_no: string | null; voucher_date: string; particular: string; amount_pkr: number; party_name: string | null; from_account_id: string | null; bill_id: string | null; created_at: string; recurring_schedule_id: string | null }[] }
+    const vouchersRes = { data: (docs.vouchers ?? []) as { id: string; voucher_type: string; voucher_no: string | null; receipt_no: string | null; voucher_date: string; particular: string; amount_pkr: number; party_name: string | null; from_account_id: string | null; to_account_id: string | null; bill_id: string | null; created_at: string; recurring_schedule_id: string | null }[] }
     const donationsRes = { data: (docs.donations ?? []) as { id: string; name: string; name_ur: string | null; amount_pkr: number; date: string; payment_method: string | null; notes: string | null; is_anonymous: boolean; is_verified: boolean; voucher_no: string | null; created_at: string; recurring_schedule_id: string | null; payment_status: string | null }[] }
     const purchasesRes = { data: (docs.purchases ?? []) as { id: string; vendor: string | null; purchase_date: string; method: string; note: string | null; attachment_url: string | null; purchase_number: string | null; created_at: string }[] }
     const autoPostedRes = { data: (docs.approval_statuses ?? []) as { reference_id: string; auto_posted: boolean }[] }
@@ -435,22 +440,35 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       // series. The voucher_no still exists in the database for internal reference,
       // it just isn't the number shown to the user.
       const isSecurityDeposit = v.voucher_type === 'security_deposit'
+      // The generic "Voucher #" prefix told nobody what actually happened —
+      // Purchases already lead with their own type ("Purchase #PUR-00003");
+      // vouchers now do the same with their real type name ("Expense #",
+      // "Advance Payment #", ...) instead.
       const docLabel = isSecurityDeposit
         ? (v.receipt_no ? `${t('tx.receiptHashPrefix')} ${v.receipt_no}` : t('tx.receiptFallback'))
-        : (v.voucher_no ? `${t('tx.voucherHash')} ${v.voucher_no}` : t('tx.voucherFallback'))
+        : (v.voucher_no ? `${fallbackLabel} # ${v.voucher_no}` : fallbackLabel)
       // A multi-line expense (several "Paid To" accounts under one "Paid
       // From") never shows its individual expense-account lines here — one
       // voucher, one combined amount, one row. What identifies it now is
       // the accounts actually involved: which account it came from, and
       // the first of the accounts it went to.
+      const hasLines = !!voucherLinesByVoucher[v.id]?.length
       const fromName = v.from_account_id ? accountNameById[v.from_account_id] : undefined
       const firstToName = accountNameById[firstLineAccountIdByVoucher[v.id]]
+      const toAccountName = v.to_account_id ? accountNameById[v.to_account_id] : undefined
       const multiLineLabel = fromName && firstToName ? `${fromName} → ${firstToName}` : null
+      // Row display: the paid-to account leads, the paid-from account sits
+      // under it — separate lines instead of one combined "A → B" string, so
+      // a long account name on either side never has to share a line with
+      // the other. Falls back to the free-text party name, then the type
+      // label itself, for older/atypical vouchers with no account on either side.
+      const voucherToName = (hasLines ? firstToName : toAccountName) ?? v.party_name ?? cfg?.label ?? fallbackLabel
+      const voucherFromName = fromName
       cards.push({
         id: `voucher-${v.id}`, kind: 'voucher', borderColor: isSecurityDeposit ? 'border-cyan-500' : 'border-slate-400', isRecurring: !!v.recurring_schedule_id,
         typeLabel: fallbackLabel,
         partyName: multiLineLabel ?? (v.party_name || cfg?.label || fallbackLabel),
-        docLabel,
+        docLabel, voucherToName, voucherFromName,
         date: v.voucher_date, description: v.particular, amount: v.amount_pkr,
         badge: null, note: null, created_at: v.created_at, voucherId: v.id,
         voucherType: v.voucher_type, autoPosted: autoPostedIds.has(v.id), fullyApproved: fullyApprovedIds.has(v.id),
@@ -2589,42 +2607,84 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
               {!loading && visibleTxnCards.map((c) => (
                 <div key={c.id} className={`flex border-s-[3px] ${c.borderColor}`}>
                   <div className="flex-1 min-w-0 p-3.5">
-                    <div className="flex justify-between items-start gap-3">
-                      <div className="min-w-0">
-                        {c.typeLabel && <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-tight">{c.typeLabel}</p>}
-                        <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{c.partyName}</p>
-                        {c.isRecurring && (
-                          <span className="inline-block mt-0.5 me-1 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700" title="Generated automatically by a recurring schedule, not entered by hand">
-                            {t('a.recurring')}
-                          </span>
-                        )}
-                        {c.autoPosted && (
-                          <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800" title="Posted after 24 hours without every approver confirming">
-                            {t('a.autoPosted')}
-                          </span>
-                        )}
-                        {c.fullyApproved && (
-                          <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-800" title="Confirmed by every configured approver">
-                            {t('f.approved')}
-                          </span>
-                        )}
+                    {c.kind === 'voucher' ? (
+                      // Voucher rows lead with the two accounts actually
+                      // involved (paid-to on top, paid-from underneath)
+                      // instead of a free-text party name — and the
+                      // type/number/amount/status stack sits on its own
+                      // side, so a long account name can never crowd the
+                      // status pills or vice versa.
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{c.voucherToName}</p>
+                          {c.voucherFromName && (
+                            <p className="font-sans text-[12px] text-dp-on-surface-variant truncate">{c.voucherFromName}</p>
+                          )}
+                          <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">{c.description}</p>
+                        </div>
+                        <div className="text-end shrink-0">
+                          <p className="font-sans text-[13px] font-bold text-dp-on-surface whitespace-nowrap">{c.docLabel}</p>
+                          <p className="font-sans text-[12px] text-dp-on-surface-variant whitespace-nowrap">{new Date(c.date).toLocaleDateString('en-GB')}</p>
+                          <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap mt-1">Rs {fmtAmount(c.amount)}</p>
+                          <div className="flex flex-wrap justify-end gap-1 mt-1">
+                            {c.isRecurring && (
+                              <span className="inline-block px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700" title="Generated automatically by a recurring schedule, not entered by hand">
+                                {t('a.recurring')}
+                              </span>
+                            )}
+                            {c.autoPosted && (
+                              <span className="inline-block px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800" title="Posted after 24 hours without every approver confirming">
+                                {t('a.autoPosted')}
+                              </span>
+                            )}
+                            {c.fullyApproved && (
+                              <span className="inline-block px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-800" title="Confirmed by every configured approver">
+                                {t('f.approved')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-end shrink-0">
-                        <p className="font-sans text-[13px] font-bold text-dp-on-surface whitespace-nowrap">{c.docLabel}</p>
-                        <p className="font-sans text-[12px] text-dp-on-surface-variant whitespace-nowrap">{new Date(c.date).toLocaleDateString('en-GB')}</p>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-end gap-3 mt-1.5">
-                      <p className="font-sans text-[13px] text-dp-on-surface-variant truncate">{c.description}</p>
-                      <div className="text-end shrink-0">
-                        <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">Rs {fmtAmount(c.amount)}</p>
-                        {c.badge && (
-                          <span className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide ${billBadgeClass[c.badge.tone]}`}>
-                            {c.badge.textKey ? t(c.badge.textKey) : c.badge.text}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="min-w-0">
+                            {c.typeLabel && <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-tight">{c.typeLabel}</p>}
+                            <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{c.partyName}</p>
+                            {c.isRecurring && (
+                              <span className="inline-block mt-0.5 me-1 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700" title="Generated automatically by a recurring schedule, not entered by hand">
+                                {t('a.recurring')}
+                              </span>
+                            )}
+                            {c.autoPosted && (
+                              <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800" title="Posted after 24 hours without every approver confirming">
+                                {t('a.autoPosted')}
+                              </span>
+                            )}
+                            {c.fullyApproved && (
+                              <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-800" title="Confirmed by every configured approver">
+                                {t('f.approved')}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-end shrink-0">
+                            <p className="font-sans text-[13px] font-bold text-dp-on-surface whitespace-nowrap">{c.docLabel}</p>
+                            <p className="font-sans text-[12px] text-dp-on-surface-variant whitespace-nowrap">{new Date(c.date).toLocaleDateString('en-GB')}</p>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-end gap-3 mt-1.5">
+                          <p className="font-sans text-[13px] text-dp-on-surface-variant truncate">{c.description}</p>
+                          <div className="text-end shrink-0">
+                            <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">Rs {fmtAmount(c.amount)}</p>
+                            {c.badge && (
+                              <span className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide ${billBadgeClass[c.badge.tone]}`}>
+                                {c.badge.textKey ? t(c.badge.textKey) : c.badge.text}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
                     <div className="flex justify-between items-center gap-3 mt-2.5 pt-2.5 border-t border-dp-outline-variant/60">
                       <p className="font-sans text-[12px] text-dp-on-surface-variant italic truncate">{c.note}</p>
                       <div className="flex items-center gap-0.5 shrink-0">
