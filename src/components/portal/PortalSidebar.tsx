@@ -17,7 +17,6 @@ import {
   Scale,
   Users,
 } from 'lucide-react'
-import { SITE } from '@/lib/constants'
 
 // Mirrors AdminSidebar.tsx's exact pattern (fixed desktop sidebar + mobile
 // slide-in drawer + persistent profile block at the bottom) — the portal
@@ -97,6 +96,31 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   // ms-auto), so that alone is enough to put the icon on the reading
   // "start" side (the right, in Urdu) without moving the menu itself.
   const rowDir = isUrdu ? 'rtl' : 'ltr'
+  // Profile + language used to sit at the very bottom, under a plain
+  // "Donor Portal" title at the top — same restructuring as AdminSidebar:
+  // moved to the top, in the same row/logical-spacing pattern used
+  // everywhere else here, so the avatar mirrors to the reading-start side
+  // (left in English, right in Urdu) with no extra flip logic of its own.
+  const profileBlock = (
+    <div className="shrink-0" dir={rowDir}>
+      <Link href="/portal/profile" onClick={onMobileClose} className="bg-dp-primary-container p-3 rounded-lg flex items-center hover:opacity-90 transition-opacity">
+        {user?.avatar_url ? (
+          <Image src={user.avatar_url} alt="" width={32} height={32} className="w-8 h-8 rounded-full object-cover me-2 shrink-0" />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-[#5bc8a3] text-dp-primary flex items-center justify-center font-bold text-[12px] font-sans me-2 shrink-0">
+            {(user?.full_name ?? '?').charAt(0).toUpperCase()}
+          </div>
+        )}
+        <div className="min-w-0">
+          <p className="text-white text-[13px] font-sans font-semibold truncate">{user?.full_name ?? t('action.loading')}</p>
+          <p className="text-white/60 text-[11px] font-sans">{user?.mobile ?? ''}</p>
+        </div>
+      </Link>
+      <div className="pt-3">
+        <LanguageToggle compact />
+      </div>
+    </div>
+  )
   const sidebarContent = (
     <>
       <nav className="flex-1 space-y-1 overflow-y-auto" dir={rowDir}>
@@ -130,26 +154,8 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
         </a>
       </div>
 
-      <div className="px-4 pt-3 shrink-0">
-        <LanguageToggle compact />
-      </div>
-
-      {/* Persistent profile — a registered user's identity stays visible
-          throughout the portal, same as staff in /admin. */}
-      <div className="px-4 pt-4 mt-auto border-t border-white/10 shrink-0" dir={rowDir}>
-        <Link href="/portal/profile" onClick={onMobileClose} className="bg-dp-primary-container p-3 rounded-lg mb-3 flex items-center hover:opacity-90 transition-opacity">
-          {user?.avatar_url ? (
-            <Image src={user.avatar_url} alt="" width={32} height={32} className="w-8 h-8 rounded-full object-cover me-2 shrink-0" />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-[#5bc8a3] text-dp-primary flex items-center justify-center font-bold text-[12px] font-sans me-2 shrink-0">
-              {(user?.full_name ?? '?').charAt(0).toUpperCase()}
-            </div>
-          )}
-          <div className="min-w-0">
-            <p className="text-white text-[13px] font-sans font-semibold truncate">{user?.full_name ?? 'Loading...'}</p>
-            <p className="text-white/60 text-[11px] font-sans">{user?.mobile ?? ''}</p>
-          </div>
-        </Link>
+      {/* Logout */}
+      <div className="px-4 pt-4 mt-auto border-t border-white/10 shrink-0">
         <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2 bg-dp-error text-white rounded-lg text-[14px] font-sans font-semibold hover:opacity-90 transition-opacity cursor-pointer">
           <LogOut size={16} /> {t('nav.logout')}
         </button>
@@ -161,10 +167,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
     <>
       <aside className="hidden md:flex flex-col h-screen py-6 bg-dp-primary border-e border-dp-outline-variant w-[210px] z-50 print:hidden"
         style={{ position: "fixed", top: 0, left: 0, right: "auto" }}>
-        <div className="px-4 mb-8">
-          <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">{t('portal.title')}</h2>
-          <p className="text-[12px] font-sans text-white/60 mt-1">{SITE.shortCommittee}</p>
-        </div>
+        <div className="px-4 mb-6">{profileBlock}</div>
         {sidebarContent}
       </aside>
 
@@ -180,12 +183,9 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
         }}
         className="h-screen w-[260px] bg-dp-primary z-[100] md:hidden flex flex-col py-6 transition-transform duration-300 ease-in-out"
       >
-        <div className="px-4 mb-8 flex items-center justify-between">
-          <div>
-            <h2 className="font-heading text-[20px] font-bold leading-[28px] text-[#86f8c9]">{t('portal.title')}</h2>
-            <p className="text-[12px] font-sans text-white/60 mt-1">{SITE.shortCommittee}</p>
-          </div>
-          <button onClick={onMobileClose} className="text-white/80 hover:text-white p-1 cursor-pointer" aria-label="Close menu"><X size={22} /></button>
+        <div className="px-4 mb-6 flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">{profileBlock}</div>
+          <button onClick={onMobileClose} className="text-white/80 hover:text-white p-1 cursor-pointer shrink-0" aria-label="Close menu"><X size={22} /></button>
         </div>
         {sidebarContent}
       </aside>
