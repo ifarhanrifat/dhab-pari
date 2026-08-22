@@ -33,7 +33,11 @@ export default function CommitteeNotesPage() {
 
   const load = async () => {
     const [{ data }, { data: projs }] = await Promise.all([
-      supabase.from('committee_notes').select('*').order('release_date', { ascending: false }).order('created_at', { ascending: false }),
+      // Ordered by when it was actually posted, not release_date (an
+      // easy-to-mistype admin field) — matches the public site's identical
+      // ordering, so what shows as "most recent" here agrees with what's
+      // actually featured on the homepage.
+      supabase.from('committee_notes').select('*').order('created_at', { ascending: false }),
       supabase.from('projects').select('id, title, title_ur').order('title'),
     ])
     setNotes(data ?? [])

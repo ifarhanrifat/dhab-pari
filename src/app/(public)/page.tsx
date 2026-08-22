@@ -88,8 +88,13 @@ export default async function HomePage() {
     supabase.rpc('public_kafalat_summary'),
     supabase.rpc('public_wazifa_summary'),
     supabase.rpc('public_sadqa_board'),
+    // Ordered by when it was actually posted, not release_date — release_date
+    // is admin-editable display text (an easy typo away from silently
+    // burying the newest note behind an older one with a later-looking
+    // date); "which one is latest" should never depend on getting that
+    // field right.
     supabase.from('committee_notes').select('id, body_en, body_ur, release_date, linked_project_id, projects(title, title_ur)')
-      .eq('is_published', true).order('release_date', { ascending: false }).order('created_at', { ascending: false }).limit(6),
+      .eq('is_published', true).order('created_at', { ascending: false }).limit(6),
   ])
 
   const projects = projectsRes.data ?? []

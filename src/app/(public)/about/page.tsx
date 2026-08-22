@@ -36,11 +36,15 @@ export default async function AboutPage() {
 
   const allMembers = members ?? []
 
+  // Ordered by when it was actually posted, not release_date — same
+  // reasoning as the homepage card's identical query: keeps this archive's
+  // top entry in agreement with whichever note the homepage is featuring,
+  // rather than the two disagreeing whenever a release_date gets set to an
+  // earlier day than a genuinely newer post.
   const { data: notesRaw } = await supabase
     .from('committee_notes')
     .select('id, body_en, body_ur, release_date, linked_project_id, projects(title, title_ur)')
     .eq('is_published', true)
-    .order('release_date', { ascending: false })
     .order('created_at', { ascending: false })
 
   const committeeNotes = ((notesRaw ?? []) as unknown as {
