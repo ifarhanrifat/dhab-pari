@@ -4,7 +4,7 @@ import {
   Wallet, Landmark, HandCoins, ScrollText, TrendingUp, TrendingDown,
   Users, Heart, Megaphone, PiggyBank, Droplets, HeartHandshake,
   ListFilter, CalendarDays, Repeat, FileBarChart, Receipt, AlertTriangle, Trophy, Coins,
-  UserCheck, UserX, Tag, UserPlus,
+  UserCheck, UserX, Tag, UserPlus, Banknote,
 } from 'lucide-react'
 import { IncomeExpenseChart, FundPieChart } from '@/components/admin/DashboardCharts'
 import { PendingApprovalsWidget } from '@/components/admin/PendingApprovalsWidget'
@@ -54,7 +54,10 @@ export default async function AdminDashboardPage() {
   const currentMonth = now.getMonth() + 1
   const currentYear = now.getFullYear()
 
-  const [{ data: accountsData }, { data: ledgerData }, { data: consumersData }, { data: donorsData }, { data: inventoryData }, { data: topSellingLines }, { data: thisMonthBillsData }] = await Promise.all([
+  const monthStartStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`
+  const nextMonthStartStr = currentMonth === 12 ? `${currentYear + 1}-01-01` : `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`
+
+  const [{ data: accountsData }, { data: ledgerData }, { data: consumersData }, { data: donorsData }, { data: inventoryData }, { data: topSellingLines }, { data: thisMonthBillsData }, { data: thisMonthPaymentsData }] = await Promise.all([
     supabase.from('accounts').select('id, code, name, type, system, opening_balance'),
     supabase.from('ledger_entries').select('account_id, entry_date, debit, credit'),
     showWater ? supabase.from('consumers').select('consumer_id, status, created_at') : Promise.resolve({ data: [] as { consumer_id: string; status: string; created_at: string }[] }),
@@ -66,6 +69,12 @@ export default async function AdminDashboardPage() {
     // even on a phone and pushing the actual consumer list below the fold.
     // These cards link to /admin/billing?quickFilter=<value> instead.
     showWater ? supabase.from('bills').select('consumer_id, discount_amount, amount_pkr').eq('month', currentMonth).eq('year', currentYear) : Promise.resolve({ data: [] as { consumer_id: string; discount_amount: number | null; amount_pkr: number }[] }),
+    // "Bill Wasooli" (bill collection) — actual cash received this month,
+    // distinct from Billed This Month above (what was invoiced, not what
+    // came in). Keyed off paid_date, not the bill's own month/year, since a
+    // payment collected this month against an older bill is still money
+    // collected this month.
+    showWater ? supabase.from('payments').select('amount_pkr').gte('paid_date', monthStartStr).lt('paid_date', nextMonthStartStr) : Promise.resolve({ data: [] as { amount_pkr: number }[] }),
   ])
 
   const accounts: Account[] = accountsData ?? []
@@ -130,6 +139,7 @@ export default async function AdminDashboardPage() {
   const thisMonthBills = thisMonthBillsData ?? []
   const billedThisMonthCount = thisMonthBills.length
   const billedThisMonthTotal = thisMonthBills.reduce((s, b) => s + Number(b.amount_pkr), 0)
+  const billWasooliThisMonth = (thisMonthPaymentsData ?? []).reduce((s, p) => s + Number(p.amount_pkr), 0)
   const discountConsumerIds = new Set(thisMonthBills.filter((b) => Number(b.discount_amount ?? 0) > 0).map((b) => b.consumer_id))
   const withDiscountCount = discountConsumerIds.size
   const withDiscountTotal = thisMonthBills.filter((b) => discountConsumerIds.has(b.consumer_id)).reduce((s, b) => s + Number(b.amount_pkr), 0)
@@ -153,23 +163,18 @@ export default async function AdminDashboardPage() {
 
   return (
     <>
-      {/* rtl-header-row swaps the welcome block and the clock badge under
-          Urdu, per explicit instruction — the welcome heading reads as
-          the primary content and belongs at the reading-start (right)
-          side, with the clock as secondary metadata on the left. Its own
-          class (not .rtl-icon-row) because this row is flex-col on mobile
-          — a plain row-reverse rule with no breakpoint would force it into
-          a cramped side-by-side row there too. */}
-      <header className="rtl-header-row mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="rtl-text font-heading text-[24px] md:text-[32px] font-bold leading-[32px] md:leading-[40px] text-dp-primary">
-            <T k="dash.welcomeBack" fallback="Welcome back," /> {displayName}
+      {/* rtl-header-row swaps the name block and the clock badge under Urdu
+          (see globals.css — applies at every width now, not just md: and
+          up, so the same-row + mirrored positioning holds on a phone too,
+          not just desktop). Just the name, no "Welcome back," preamble —
+          this reads as an identity bar now, not a greeting. */}
+      <header className="rtl-header-row mb-8 flex flex-row items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="rtl-text font-heading text-[20px] md:text-[32px] font-bold leading-[26px] md:leading-[40px] text-dp-primary truncate">
+            {displayName}
           </h1>
-          <p className="rtl-text text-dp-on-surface-variant font-sans text-[15px] mt-1">
-            <T k="y.currentPosition" />
-          </p>
         </div>
-        <span className="text-[13px] font-sans font-semibold tracking-[0.05em] text-dp-outline px-3 py-1 border border-dp-outline-variant rounded-full shrink-0">
+        <span className="text-[11px] md:text-[13px] font-sans font-semibold tracking-[0.05em] text-dp-outline px-2.5 md:px-3 py-1 border border-dp-outline-variant rounded-full shrink-0 whitespace-nowrap">
           {dateStr}, {timeStr}
         </span>
       </header>
@@ -188,9 +193,36 @@ export default async function AdminDashboardPage() {
           icon={<Droplets size={22} />}
           accentClass="text-blue-700"
         >
+          {/* These four used to sit below the stat grid as free-wrapping
+              pills (QuickLinks) — moved above it and pinned to one row of
+              exactly four equal-width buttons, since these are the
+              day-to-day entry points someone opens this dashboard to reach,
+              not a secondary "see also" list. Fixed-width flex-1 cells
+              (not the wrapping pills) plus a shrinking type scale are what
+              keeps "All Transactions" from wrapping or overflowing at
+              360px. */}
+          <div className="rtl-icon-row flex gap-1.5 sm:gap-2.5 mb-5">
+            <Link href="/admin/billing" className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 px-1 py-2.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-dp-on-surface-variant hover:text-dp-primary hover:border-dp-primary/30 hover:shadow-sm transition-all">
+              <Receipt size={16} className="shrink-0" />
+              <span className="text-[10px] sm:text-[12.5px] font-semibold text-center leading-tight whitespace-nowrap"><T k="nav.billing" fallback="Billing" /></span>
+            </Link>
+            <Link href={`/admin/transactions?system=water_supply`} className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 px-1 py-2.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-dp-on-surface-variant hover:text-dp-primary hover:border-dp-primary/30 hover:shadow-sm transition-all">
+              <ListFilter size={16} className="shrink-0" />
+              <span className="text-[10px] sm:text-[12.5px] font-semibold text-center leading-tight whitespace-nowrap"><T k="dash.allTransactions" fallback="All Transactions" /></span>
+            </Link>
+            <Link href={`/admin/reports?system=water_supply`} className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 px-1 py-2.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-dp-on-surface-variant hover:text-dp-primary hover:border-dp-primary/30 hover:shadow-sm transition-all">
+              <FileBarChart size={16} className="shrink-0" />
+              <span className="text-[10px] sm:text-[12.5px] font-semibold text-center leading-tight whitespace-nowrap"><T k="dash.reports" fallback="Reports" /></span>
+            </Link>
+            <Link href={`/admin/register?system=water_supply`} className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 px-1 py-2.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-dp-on-surface-variant hover:text-dp-primary hover:border-dp-primary/30 hover:shadow-sm transition-all">
+              <CalendarDays size={16} className="shrink-0" />
+              <span className="text-[10px] sm:text-[12.5px] font-semibold text-center leading-tight whitespace-nowrap"><T k="dash.dailyRegister" fallback="Daily Register" /></span>
+            </Link>
+          </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
             <StatCard href="/admin/accounts/by-type?system=water_supply&type=cash" icon={<Wallet size={19} />} color="teal" label={<T k="dash.cashInHand" fallback="Cash in Hand" />} value={`Rs. ${fmt(waterStats.cash)}`} />
             <StatCard href="/admin/accounts/by-type?system=water_supply&type=bank" icon={<Landmark size={19} />} color="blue" label={<T k="dash.cashInBank" fallback="Cash in Bank" />} value={`Rs. ${fmt(waterStats.bank)}`} />
+            <StatCard href="/admin/register?system=water_supply" icon={<Banknote size={19} />} color="emerald" label={<T k="dash.billWasooliThisMonth" fallback="Bill Wasooli This Month" />} value={`Rs. ${fmt(billWasooliThisMonth)}`} />
             <StatCard href="/admin/reports?report=consumer_outstanding&system=water_supply" icon={<HandCoins size={19} />} color="amber" label={<T k="dash.totalReceivable" fallback="Total Receivable" />} value={`Rs. ${fmt(waterStats.receivable)}`} />
             <StatCard href="/admin/accounts/by-type?system=water_supply&type=liability" icon={<ScrollText size={19} />} color="rose" label={<T k="dash.totalPayable" fallback="Total Payable" />} value={`Rs. ${fmt(waterStats.liability)}`} />
             <StatCard href="/admin/reports?report=income_expense&system=water_supply" icon={<TrendingUp size={19} />} color="emerald" label={<T k="dash.grossIncome" fallback="Gross Income" />} value={`Rs. ${fmt(waterStats.grossProfit)}`} />
@@ -212,7 +244,6 @@ export default async function AdminDashboardPage() {
             <StatCard href="/admin/billing?quickFilter=without_discount" icon={<Users size={19} />} color="blue" label={<T k="dash.withoutDiscount" fallback="Without Discount" />} value={withoutDiscountCount.toLocaleString()} />
             <StatCard href="/admin/billing?quickFilter=new_this_month" icon={<UserPlus size={19} />} color="violet" label={<T k="dash.newThisMonth" fallback="New This Month" />} value={newConsumersThisMonth.toLocaleString()} />
           </div>
-          <QuickLinks system="water_supply" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <div className="lg:col-span-2 bg-white rounded-lg border border-dp-outline-variant p-5">
               <h3 className="rtl-text font-sans text-[15px] font-bold text-dp-on-surface mb-2"><T k="y.incomeVsExpense" /></h3>

@@ -457,13 +457,11 @@ html[lang='ur'] .rtl-justify-end {
   justify-content: flex-end;
 }
 
-/* Same swap as .rtl-icon-row, but only once the row actually becomes a row
-   (md: and up) — this one starts as flex-col on mobile, so an unscoped
-   row-reverse would force it side-by-side there too instead of stacking. */
-@media (min-width: 768px) {
-  html[lang='ur'] .rtl-header-row {
-    flex-direction: row-reverse;
-  }
+/* Same swap as .rtl-icon-row — the dashboard header (name + date badge) is
+   a real row at every width now, mobile included, so this applies
+   unconditionally rather than only once it becomes a row at md: and up. */
+html[lang='ur'] .rtl-header-row {
+  flex-direction: row-reverse;
 }
 
 /* Page and section headings set with Tailwind's arbitrary text-[Npx]
