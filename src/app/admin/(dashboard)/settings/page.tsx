@@ -192,7 +192,7 @@ function SettingsSection({
 }
 
 export default function AdminSettingsPage() {
-  const { t: tr } = useLocale()
+  const { t: tr, isUrdu } = useLocale()
   const [settings, setSettings] = useState<Setting[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -647,8 +647,11 @@ export default function AdminSettingsPage() {
           </div>
         </nav>
 
-        {/* Category content */}
-        <div className={`flex-1 min-w-0 space-y-6 ${mobileMenuOpen ? 'hidden' : 'block'} md:block`}>
+        {/* Category content — dir flips here only, not on the page root, so
+            the nav stays put on the left (its own flex position never
+            mirrors) while the fields/labels inside this panel read RTL in
+            Urdu. */}
+        <div dir={isUrdu ? 'rtl' : 'ltr'} className={`flex-1 min-w-0 space-y-6 ${mobileMenuOpen ? 'hidden' : 'block'} md:block`}>
           <button
             onClick={() => setMobileMenuOpen(true)}
             className="md:hidden flex items-center gap-1.5 text-dp-secondary font-sans text-[13.5px] font-semibold cursor-pointer mb-1"
