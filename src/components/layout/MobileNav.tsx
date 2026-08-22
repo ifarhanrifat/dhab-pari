@@ -10,7 +10,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 interface MobileNavProps {
   open: boolean
   onClose: () => void
-  navLinks: { href: string; label: string }[]
+  navLinks: { href: string; label: string; tKey: string }[]
   isPortalUser?: boolean
 }
 
@@ -71,7 +71,7 @@ export function MobileNav({ open, onClose, navLinks, isPortalUser }: MobileNavPr
                     : 'text-white/80 hover:bg-dp-primary-container hover:text-white'
                 }`}
               >
-                {link.label}
+                {t(link.tKey, link.label)}
               </Link>
             )
           })}
@@ -85,7 +85,7 @@ export function MobileNav({ open, onClose, navLinks, isPortalUser }: MobileNavPr
             className="flex items-center gap-2 bg-dp-secondary text-white px-4 py-2.5 rounded-lg font-sans text-[14px] font-semibold justify-center"
           >
             <UserCircle2 size={17} />
-            {isPortalUser ? 'My Portal' : 'Donor / Consumer Log In'}
+            {isPortalUser ? t('site.myPortal') : t('site.login')}
           </Link>
         </div>
 
@@ -106,12 +106,7 @@ export function MobileNav({ open, onClose, navLinks, isPortalUser }: MobileNavPr
           </Link>
         </div>
 
-        {/* Language Toggle */}
-        <div className="px-6 mt-4 pb-6">
-          <button className="w-full text-white/80 hover:text-white border border-dp-outline-variant px-4 py-2 rounded-lg text-[14px] font-sans font-semibold tracking-[0.05em] transition-colors">
-            EN / اردو
-          </button>
-        </div>
+        <div className="pb-6" />
       </div>
     </>
   )
