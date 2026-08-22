@@ -3,7 +3,7 @@ import Link from 'next/link'
 import {
   Wallet, Landmark, HandCoins, ScrollText, TrendingUp, TrendingDown,
   Users, Heart, Megaphone, PiggyBank, Droplets, HeartHandshake,
-  ListFilter, CalendarDays, Repeat, FileBarChart, Receipt, AlertTriangle, Trophy, Coins,
+  ListFilter, CalendarDays, FileBarChart, Receipt, AlertTriangle, Trophy, Coins,
   UserCheck, UserX, Tag, UserPlus, Banknote,
 } from 'lucide-react'
 import { IncomeExpenseChart, FundPieChart } from '@/components/admin/DashboardCharts'
@@ -193,32 +193,12 @@ export default async function AdminDashboardPage() {
           icon={<Droplets size={22} />}
           accentClass="text-blue-700"
         >
-          {/* These four used to sit below the stat grid as free-wrapping
-              pills (QuickLinks) — moved above it and pinned to one row of
-              exactly four equal-width buttons, since these are the
-              day-to-day entry points someone opens this dashboard to reach,
-              not a secondary "see also" list. Fixed-width flex-1 cells
-              (not the wrapping pills) plus a shrinking type scale are what
-              keeps "All Transactions" from wrapping or overflowing at
-              360px. */}
-          <div className="rtl-icon-row flex gap-1.5 sm:gap-2.5 mb-5">
-            <Link href="/admin/billing" className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 px-1 py-2.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-dp-on-surface-variant hover:text-dp-primary hover:border-dp-primary/30 hover:shadow-sm transition-all">
-              <Receipt size={16} className="shrink-0" />
-              <span className="text-[10px] sm:text-[12.5px] font-semibold text-center leading-tight whitespace-nowrap"><T k="nav.billing" fallback="Billing" /></span>
-            </Link>
-            <Link href={`/admin/transactions?system=water_supply`} className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 px-1 py-2.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-dp-on-surface-variant hover:text-dp-primary hover:border-dp-primary/30 hover:shadow-sm transition-all">
-              <ListFilter size={16} className="shrink-0" />
-              <span className="text-[10px] sm:text-[12.5px] font-semibold text-center leading-tight whitespace-nowrap"><T k="dash.allTransactions" fallback="All Transactions" /></span>
-            </Link>
-            <Link href={`/admin/reports?system=water_supply`} className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 px-1 py-2.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-dp-on-surface-variant hover:text-dp-primary hover:border-dp-primary/30 hover:shadow-sm transition-all">
-              <FileBarChart size={16} className="shrink-0" />
-              <span className="text-[10px] sm:text-[12.5px] font-semibold text-center leading-tight whitespace-nowrap"><T k="dash.reports" fallback="Reports" /></span>
-            </Link>
-            <Link href={`/admin/register?system=water_supply`} className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 px-1 py-2.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-dp-on-surface-variant hover:text-dp-primary hover:border-dp-primary/30 hover:shadow-sm transition-all">
-              <CalendarDays size={16} className="shrink-0" />
-              <span className="text-[10px] sm:text-[12.5px] font-semibold text-center leading-tight whitespace-nowrap"><T k="dash.dailyRegister" fallback="Daily Register" /></span>
-            </Link>
-          </div>
+          <DashboardQuickButtons items={[
+            { href: '/admin/billing', icon: <Receipt size={16} className="shrink-0" />, labelKey: 'nav.billing', labelFallback: 'Billing' },
+            { href: '/admin/transactions?system=water_supply', icon: <ListFilter size={16} className="shrink-0" />, labelKey: 'dash.allTransactions', labelFallback: 'All Transactions' },
+            { href: '/admin/reports?system=water_supply', icon: <FileBarChart size={16} className="shrink-0" />, labelKey: 'dash.reports', labelFallback: 'Reports' },
+            { href: '/admin/register?system=water_supply', icon: <CalendarDays size={16} className="shrink-0" />, labelKey: 'dash.dailyRegister', labelFallback: 'Daily Register' },
+          ]} />
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
             <StatCard href="/admin/accounts/by-type?system=water_supply&type=cash" icon={<Wallet size={19} />} color="teal" label={<T k="dash.cashInHand" fallback="Cash in Hand" />} value={`Rs. ${fmt(waterStats.cash)}`} />
             <StatCard href="/admin/accounts/by-type?system=water_supply&type=bank" icon={<Landmark size={19} />} color="blue" label={<T k="dash.cashInBank" fallback="Cash in Bank" />} value={`Rs. ${fmt(waterStats.bank)}`} />
@@ -263,6 +243,12 @@ export default async function AdminDashboardPage() {
           icon={<HeartHandshake size={22} />}
           accentClass="text-violet-700"
         >
+          <DashboardQuickButtons items={[
+            { href: '/admin/donors', icon: <Heart size={16} className="shrink-0" />, labelKey: 'nav.donors', labelFallback: 'Donors' },
+            { href: '/admin/transactions?system=donors_projects', icon: <ListFilter size={16} className="shrink-0" />, labelKey: 'dash.allTransactions', labelFallback: 'All Transactions' },
+            { href: '/admin/reports?system=donors_projects', icon: <FileBarChart size={16} className="shrink-0" />, labelKey: 'dash.reports', labelFallback: 'Reports' },
+            { href: '/admin/register?system=donors_projects', icon: <CalendarDays size={16} className="shrink-0" />, labelKey: 'dash.dailyRegister', labelFallback: 'Daily Register' },
+          ]} />
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
             <StatCard href="/admin/accounts/by-type?system=donors_projects&type=cash" icon={<Wallet size={19} />} color="teal" label={<T k="dash.cashInHand" fallback="Cash in Hand" />} value={`Rs. ${fmt(donorStats.cash)}`} />
             <StatCard href="/admin/accounts/by-type?system=donors_projects&type=bank" icon={<Landmark size={19} />} color="blue" label={<T k="dash.cashInBank" fallback="Cash in Bank" />} value={`Rs. ${fmt(donorStats.bank)}`} />
@@ -273,7 +259,6 @@ export default async function AdminDashboardPage() {
             <StatCard href="/admin/accounts/by-type?system=donors_projects&type=expense" icon={<TrendingDown size={19} />} color="red" label={<T k="dash.totalExpenses" fallback="Total Expenses" />} value={`Rs. ${fmt(donorStats.expense)}`} />
             <StatCard href="/admin/reports?report=income_expense&system=donors_projects" icon={donorStats.netProfit >= 0 ? <TrendingUp size={19} /> : <TrendingDown size={19} />} color={donorStats.netProfit >= 0 ? 'emerald' : 'red'} label={<T k="dash.netProfit" fallback="Net Profit" />} value={`Rs. ${fmt(donorStats.netProfit)}`} />
           </div>
-          <QuickLinks system="donors_projects" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <div className="lg:col-span-2 bg-white rounded-lg border border-dp-outline-variant p-5">
               <h3 className="rtl-text font-sans text-[15px] font-bold text-dp-on-surface mb-2"><T k="y.incomeVsExpense" /></h3>
@@ -317,23 +302,32 @@ function StatCard({ href, icon, color, label, value }: {
   )
 }
 
-function QuickLinks({ system }: { system: 'water_supply' | 'donors_projects' }) {
-  const links = [
-    { href: `/admin/transactions?system=${system}`, icon: <ListFilter size={16} />, label: <T k="dash.allTransactions" fallback="All Transactions" /> },
-    { href: `/admin/finance/${system}`, icon: <Receipt size={16} />, label: <T k="dash.transactions" fallback="Transactions" /> },
-    { href: `/admin/register?system=${system}`, icon: <CalendarDays size={16} />, label: <T k="dash.dailyRegister" fallback="Daily Register" /> },
-    { href: `/admin/recurring?system=${system}`, icon: <Repeat size={16} />, label: <T k="dash.recurring" fallback="Recurring" /> },
-    { href: `/admin/reports?system=${system}`, icon: <FileBarChart size={16} />, label: <T k="dash.reports" fallback="Reports" /> },
-  ]
+// The four day-to-day entry points someone opens this dashboard to reach,
+// pinned to one row above the stat grid instead of freely wrapping below it.
+// Fixed-width flex-1 cells plus a shrinking type scale keep the longest
+// label ("All Transactions") from wrapping or overflowing at 360px.
+//
+// paddingTop/paddingBottom are set inline, not via py-* utility classes:
+// globals.css's html[lang='ur'] a { padding-bottom: 0.15em } (the Nastaliq
+// descender fix) is a plain, un-layered rule, and Tailwind v4's utilities
+// all live inside its own @layer — an un-layered rule always beats a
+// layered one regardless of specificity, so any py-* class here was
+// silently losing its bottom half in Urdu mode no matter how generous it
+// was. An inline style wins over both.
+function DashboardQuickButtons({ items }: {
+  items: { href: string; icon: React.ReactNode; labelKey: string; labelFallback: string }[]
+}) {
   return (
-    <div className="rtl-justify-end flex flex-wrap gap-2.5 mb-5">
-      {links.map((l) => (
+    <div className="rtl-icon-row flex gap-1.5 sm:gap-2.5 mb-5">
+      {items.map((item) => (
         <Link
-          key={l.href}
-          href={l.href}
-          className="rtl-icon-row flex items-center gap-1.5 px-3 py-1.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface-variant hover:text-dp-primary hover:border-dp-primary/30 hover:shadow-sm transition-all"
+          key={item.href}
+          href={item.href}
+          style={{ paddingTop: '0.625rem', paddingBottom: '0.625rem' }}
+          className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 px-1 bg-white border border-dp-outline-variant rounded-lg font-sans text-dp-on-surface-variant hover:text-dp-primary hover:border-dp-primary/30 hover:shadow-sm transition-all"
         >
-          {l.icon} {l.label}
+          {item.icon}
+          <span className="text-[10px] sm:text-[12.5px] font-semibold text-center leading-tight whitespace-nowrap"><T k={item.labelKey} fallback={item.labelFallback} /></span>
         </Link>
       ))}
     </div>
