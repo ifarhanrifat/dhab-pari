@@ -872,6 +872,12 @@ export const messages: Record<Locale, Record<string, string>> = {
     'tx.itemsPurchasedSuffix': 'item(s) purchased', 'tx.inventoryPurchase': 'Inventory purchase', 'tx.purchaseFallback': 'Purchase',
     'tx.autoPostedTooltip': 'Vouchers/purchases that posted after 24 hours without every approver confirming',
     'tx.searchPlaceholder': 'Name, account ID, phone, receipt/voucher #, method...',
+    // Filter Transaction bottom sheet — shared between All Transactions and
+    // the Transactions Workspace's Recent Transactions list.
+    'fr.filterTransactions': 'Filter Transactions', 'fr.dateRange': 'Date Range',
+    'fr.today': 'Today', 'fr.thisWeek': 'This Week', 'fr.months3': '3 Months', 'fr.months6': '6 Months', 'fr.custom': 'Custom',
+    'fr.startDate': 'Start Date', 'fr.endDate': 'End Date', 'fr.transactionType': 'Transaction Type',
+    'fr.apply': 'Apply', 'fr.filter': 'Filter',
     // Ledger `particular` text is written once, in English, by SQL triggers —
     // there's no Urdu column, and rewriting historical financial records to
     // "translate" them isn't the right fix. src/lib/ledgerParticular.ts
@@ -4548,6 +4554,10 @@ export const messages: Record<Locale, Record<string, string>> = {
     'tx.itemsPurchasedSuffix': 'آئٹم خریدے گئے', 'tx.inventoryPurchase': 'انوینٹری خریداری', 'tx.purchaseFallback': 'خریداری',
     'tx.autoPostedTooltip': 'واؤچرز/خریداریاں جو ہر اپرووور کی تصدیق کے بغیر 24 گھنٹے بعد پوسٹ ہوئیں',
     'tx.searchPlaceholder': 'نام، اکاؤنٹ آئی ڈی، فون، رسید/واؤچر #، طریقہ...',
+    'fr.filterTransactions': 'لین دین فلٹر کریں', 'fr.dateRange': 'تاریخ کی حد',
+    'fr.today': 'آج', 'fr.thisWeek': 'اس ہفتے', 'fr.months3': '3 ماہ', 'fr.months6': '6 ماہ', 'fr.custom': 'اپنی مرضی',
+    'fr.startDate': 'شروع کی تاریخ', 'fr.endDate': 'آخری تاریخ', 'fr.transactionType': 'لین دین کی قسم',
+    'fr.apply': 'لاگو کریں', 'fr.filter': 'فلٹر',
     'lp.waterBillHash': 'واٹر بل #',
     'lp.discountOnSale': 'فروخت پر رعایت',
     'lp.discountOnBills': 'بلوں پر رعایت',

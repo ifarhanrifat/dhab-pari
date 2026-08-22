@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Search, FileText, Eye, Pencil, Trash2 } from 'lucide-react'
+import { Search, FileText, Eye, Pencil, Trash2, SlidersHorizontal } from 'lucide-react'
 import { billBadge, billBadgeClass, type BillBadgeTone } from '@/lib/billStatus'
 import { donationBadge } from '@/lib/donationStatus'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
@@ -13,6 +13,9 @@ import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { donorReceiptTotals } from '@/lib/donorReceiptTotals'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { fetchPeriodLockRule, dateIsLocked, DEFAULT_PERIOD_LOCK, type PeriodLockRule } from '@/lib/periodLock'
+import { FilterSheet, FilterSheetSection, DateRangePillGroup } from '@/components/admin/FilterSheet'
+import { SearchableField } from '@/components/admin/SearchablePicker'
+import { presetRange, detectPreset, formatRangeLabel, presetLabelKey, PRESET_ORDER, today, monthStart, type DateRangePreset } from '@/lib/dateRangePresets'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 
@@ -55,10 +58,6 @@ const systemLabels: Record<SystemTab, string> = { water_supply: 'Water Supply Sy
 function fmtAmount(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
-const today = () => new Date().toISOString().slice(0, 10)
-const monthStart = () => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10) }
-const yearStart = (y: number) => `${y}-01-01`
-const yearEnd = (y: number) => `${y}-12-31`
 
 export default function AllTransactionsPage() {
   const { t, isUrdu } = useLocale()
@@ -85,19 +84,19 @@ export default function AllTransactionsPage() {
   const [viewReceipt, setViewReceipt] = useState<ReceiptData | null>(null)
   const [loading, setLoading] = useState(true)
   const [lockRule, setLockRule] = useState<PeriodLockRule>(DEFAULT_PERIOD_LOCK)
+  const [showFilterSheet, setShowFilterSheet] = useState(false)
   const supabase = createClient()
-
-  useEffect(() => { fetchPeriodLockRule(supabase).then(setLockRule) }, [supabase])
-
-  const applyYear = (y: string) => {
-    if (!y) return
-    const yr = +y
-    const isCurrent = yr === new Date().getFullYear()
-    setFrom(yearStart(yr))
-    setTo(isCurrent ? today() : yearEnd(yr))
+  // Which preset pill (if any) the current from/to matches — derived, not
+  // stored, so editing the date fields by hand and picking a pill never
+  // fall out of sync with each other.
+  const activePreset = useMemo(() => detectPreset(from, to), [from, to])
+  const applyPreset = (key: DateRangePreset) => {
+    if (key === 'custom') return
+    const r = presetRange(key)
+    setFrom(r.from); setTo(r.to)
   }
 
-  const setCurrentMonth = () => { setFrom(monthStart()); setTo(today()) }
+  useEffect(() => { fetchPeriodLockRule(supabase).then(setLockRule) }, [supabase])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -279,11 +278,6 @@ export default function AllTransactionsPage() {
     .sort((a, b) => (a.autoPosted === b.autoPosted ? 0 : a.autoPosted ? -1 : 1))
   }, [rows, statusFilter, kindFilter, autoPostedOnly, search])
 
-  const years = useMemo(() => {
-    const currentYear = new Date().getFullYear()
-    return Array.from({ length: 6 }, (_, i) => currentYear - i)
-  }, [])
-
   // A read-only audit view — View is the one action that belongs here regardless
   // of type; Edit/Delete stay on the Transactions (finance) page that owns them.
   const openRowReceipt = async (r: TxnRow) => {
@@ -350,78 +344,98 @@ export default function AllTransactionsPage() {
         )}
       </div>
 
-      <div className="bg-white rounded-lg border border-dp-outline-variant p-4 mb-4 space-y-3">
-        <div className="flex flex-wrap items-end gap-3">
+      {/* Search bar + filter trigger, one row — replaces the old always-open
+          bar of labeled fields (six-plus controls wrapping badly under
+          ~640px, three of them native <select>s that render as the OS's
+          own dark picker regardless of this page's white theme). The
+          button carries the active date range as its own label, so that's
+          visible without opening the sheet; a dot marks any other filter
+          left non-default. */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="relative flex-1 min-w-0">
+          <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+          <input
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('tx.searchPlaceholder')}
+            className="input-field !ps-9 text-[14px]"
+          />
+        </div>
+        <button
+          onClick={() => setShowFilterSheet(true)}
+          className="relative shrink-0 flex items-center gap-1.5 px-3 py-2.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:border-dp-primary/30 hover:text-dp-primary transition-all cursor-pointer"
+        >
+          <SlidersHorizontal size={15} />
+          <span dir="ltr" className="whitespace-nowrap">{formatRangeLabel(from, to)}</span>
+          {(statusFilter !== 'all' || kindFilter !== 'all' || autoPostedOnly) && (
+            <span className="absolute -top-1 -end-1 w-2.5 h-2.5 rounded-full bg-dp-error" aria-hidden />
+          )}
+        </button>
+      </div>
+      <p className="font-sans text-[12px] text-dp-on-surface-variant mb-4">{t('tx.showingCountNote').replace('{shown}', String(filteredRows.length)).replace('{total}', String(rows.length))}</p>
+
+      <FilterSheet
+        open={showFilterSheet}
+        title={t('fr.filterTransactions')}
+        onClose={() => setShowFilterSheet(false)}
+        onApply={() => setShowFilterSheet(false)}
+        applyLabel={t('fr.apply')}
+      >
+        <FilterSheetSection label={t('fr.dateRange')}>
+          <DateRangePillGroup
+            options={PRESET_ORDER.map((k) => ({ key: k, label: t(presetLabelKey(k)) }))}
+            active={activePreset}
+            onSelect={(k) => applyPreset(k as DateRangePreset)}
+          />
+        </FilterSheetSection>
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('a.from')}</label>
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="input-field !py-2 text-[14px]" />
+            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">{t('fr.startDate')}</label>
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="input-field text-[14px]" />
           </div>
           <div>
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('tx.to')}</label>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="input-field !py-2 text-[14px]" />
-          </div>
-          <div>
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('a.year')}</label>
-            <select onChange={(e) => applyYear(e.target.value)} defaultValue="" className="input-field !py-2 text-[14px]">
-              <option value="">{t('tx.jumpYear')}</option>
-              {years.map((y) => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
-          <button onClick={setCurrentMonth} className="px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
-            {t('tx.thisMonth')}
-          </button>
-          <div>
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('w.status')}</label>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} className="input-field !py-2 text-[14px]">
-              <option value="all">{t('tx.allStatuses')}</option>
-              <option value="paid">{t('w.paid')}</option>
-              <option value="partial">{t('tx.partial')}</option>
-              <option value="pending">{t('tx.pending')}</option>
-              <option value="overdue">{t('tx.overdue')}</option>
-            </select>
-          </div>
-          <div>
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('a.type')}</label>
-            <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} className="input-field !py-2 text-[14px]">
-              <option value="all">{t('tx.allTypes')}</option>
-              <option value="bill">{t('tx.bills')}</option>
-              <option value="payment">{t('tx.paymentsReceipts')}</option>
-              {system === 'donors_projects' && <option value="donation">{t('tx.donations')}</option>}
-              {system === 'water_supply' && <option value="purchase">{t('tx.purchases')}</option>}
-              <option value="voucher:expense">{t('tx.expenseVouchers')}</option>
-              <option value="voucher:income">{t('tx.incomeVouchers')}</option>
-              <option value="voucher:contra">{t('tx.bankTransfers')}</option>
-              <option value="voucher:withdrawal">{t('tx.cashWithdrawals')}</option>
-              <option value="voucher:deposit">{t('tx.cashDeposits')}</option>
-              <option value="voucher:advance">{t('tx.advancePayments')}</option>
-              <option value="voucher:security_deposit">{t('tx.securityDeposits')}</option>
-              <option value="voucher:security_deposit_refund">{t('tx.depositRefunds')}</option>
-            </select>
-          </div>
-          <div>
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">&nbsp;</label>
-            <button
-              onClick={() => setAutoPostedOnly(!autoPostedOnly)}
-              title={t('tx.autoPostedTooltip')}
-              className={`px-3 py-2 rounded-lg font-sans text-[13px] font-semibold transition-all cursor-pointer border ${autoPostedOnly ? 'bg-amber-100 border-amber-400 text-amber-900' : 'border-dp-outline-variant text-dp-on-surface hover:bg-dp-surface-container-low'}`}
-            >
-              {t('tx.autoPostedOnly')}
-            </button>
-          </div>
-          <div className="flex-1 min-w-[220px]">
-            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('y.search')}</label>
-            <div className="relative">
-              <Search size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
-              <input
-                value={search} onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('tx.searchPlaceholder')}
-                className="input-field !py-2 !ps-9 text-[14px]"
-              />
-            </div>
+            <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">{t('fr.endDate')}</label>
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="input-field text-[14px]" />
           </div>
         </div>
-        <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('tx.showingCountNote').replace('{shown}', String(filteredRows.length)).replace('{total}', String(rows.length))}</p>
-      </div>
+        <SearchableField
+          label={t('fr.transactionType')}
+          value={kindFilter}
+          onChange={setKindFilter}
+          pickerTitle={t('fr.transactionType')}
+          items={[
+            { id: 'all', label: t('tx.allTypes') },
+            { id: 'bill', label: t('tx.bills') },
+            { id: 'payment', label: t('tx.paymentsReceipts') },
+            ...(system === 'donors_projects' ? [{ id: 'donation', label: t('tx.donations') }] : []),
+            ...(system === 'water_supply' ? [{ id: 'purchase', label: t('tx.purchases') }] : []),
+            { id: 'voucher:expense', label: t('tx.expenseVouchers') },
+            { id: 'voucher:income', label: t('tx.incomeVouchers') },
+            { id: 'voucher:contra', label: t('tx.bankTransfers') },
+            { id: 'voucher:withdrawal', label: t('tx.cashWithdrawals') },
+            { id: 'voucher:deposit', label: t('tx.cashDeposits') },
+            { id: 'voucher:advance', label: t('tx.advancePayments') },
+            { id: 'voucher:security_deposit', label: t('tx.securityDeposits') },
+            { id: 'voucher:security_deposit_refund', label: t('tx.depositRefunds') },
+          ]}
+        />
+        <SearchableField
+          label={t('w.status')}
+          value={statusFilter}
+          onChange={(id) => setStatusFilter(id as typeof statusFilter)}
+          pickerTitle={t('w.status')}
+          items={[
+            { id: 'all', label: t('tx.allStatuses') },
+            { id: 'paid', label: t('w.paid') },
+            { id: 'partial', label: t('tx.partial') },
+            { id: 'pending', label: t('tx.pending') },
+            { id: 'overdue', label: t('tx.overdue') },
+          ]}
+        />
+        <label className="flex items-center gap-2.5 cursor-pointer" title={t('tx.autoPostedTooltip')}>
+          <input type="checkbox" checked={autoPostedOnly} onChange={(e) => setAutoPostedOnly(e.target.checked)} className="w-4 h-4 accent-dp-secondary" />
+          <span className="font-sans text-[13.5px] text-dp-on-surface">{t('tx.autoPostedOnly')}</span>
+        </label>
+      </FilterSheet>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         {loading && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">{t('action.loading')}</p>}

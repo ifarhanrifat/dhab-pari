@@ -6,12 +6,14 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   Save, Wallet, ArrowDownCircle, ArrowLeftRight, ArrowUpFromLine,
-  ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck, ChevronDown, Search, PlusCircle, ChevronLeft, HandCoins, Undo2,
+  ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck, ChevronDown, Search, PlusCircle, ChevronLeft, HandCoins, Undo2, SlidersHorizontal,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { SearchableField } from '@/components/admin/SearchablePicker'
+import { FilterSheet, FilterSheetSection, DateRangePillGroup } from '@/components/admin/FilterSheet'
+import { presetRange, detectPreset, formatRangeLabel, presetLabelKey, PRESET_ORDER, type DateRangePreset } from '@/lib/dateRangePresets'
 import { FileAttachment } from '@/components/admin/FileAttachment'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import { donorReceiptTotals } from '@/lib/donorReceiptTotals'
@@ -193,6 +195,15 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [txnCards, setTxnCards] = useState<TxnCard[]>([])
   const [logSortDir, setLogSortDir] = useState<'asc' | 'desc'>('desc')
   const [filterLogByType, setFilterLogByType] = useState(true)
+  // Recent Transactions only ever holds the latest 50 rows per document type
+  // (get_transactions_workspace_documents) — not a real date-range query like
+  // All Transactions runs. So this date range only ever narrows what's
+  // already in memory; it can't reach further back than whatever's loaded,
+  // which is exactly correct for what this panel actually is.
+  const [logSearch, setLogSearch] = useState('')
+  const [logFrom, setLogFrom] = useState(presetRange('6m').from)
+  const [logTo, setLogTo] = useState(today())
+  const [showLogFilterSheet, setShowLogFilterSheet] = useState(false)
   const [confirmDeletePaymentId, setConfirmDeletePaymentId] = useState<string | null>(null)
   const [receivePaymentTarget, setReceivePaymentTarget] = useState<{ billId: string; billNumber: string | null; consumerId: string; outstanding: number } | null>(null)
   const [viewReceipt, setViewReceipt] = useState<ReceiptData | null>(null)
@@ -853,21 +864,33 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   }, [system, t])
 
   const activeTypeLabel = types.find((t) => t.key === activeType)?.label ?? activeType
+  const logActivePreset = useMemo(() => detectPreset(logFrom, logTo), [logFrom, logTo])
+  const applyLogPreset = (key: DateRangePreset) => {
+    if (key === 'custom') return
+    const r = presetRange(key)
+    setLogFrom(r.from); setLogTo(r.to)
+  }
+
   const visibleTxnCards = useMemo(() => {
-    if (!filterLogByType) return txnCards
+    const q = logSearch.trim().toLowerCase()
     return txnCards.filter((c) => {
-      if (activeType === 'bill') return c.kind === 'bill'
-      if (activeType === 'donation') return c.kind === 'donation'
-      if (activeType === 'purchase') return c.kind === 'purchase'
-      if (activeType === 'cash_receipt') return c.kind === 'payment'
-      if (activeType === 'project_transfer') return c.kind === 'voucher' && c.voucherType === 'project_transfer'
-      // An advance settlement's real economic effect is an expense (see
-      // migration 090) — it should show up under Expense, not be invisible
-      // just because its own voucher_type isn't literally 'expense'.
-      if (activeType === 'expense') return c.kind === 'voucher' && (c.voucherType === 'expense' || c.voucherType === 'advance_settlement')
-      return c.kind === 'voucher' && c.voucherType === activeType
+      if (filterLogByType) {
+        if (activeType === 'bill' && c.kind !== 'bill') return false
+        else if (activeType === 'donation' && c.kind !== 'donation') return false
+        else if (activeType === 'purchase' && c.kind !== 'purchase') return false
+        else if (activeType === 'cash_receipt' && c.kind !== 'payment') return false
+        else if (activeType === 'project_transfer' && !(c.kind === 'voucher' && c.voucherType === 'project_transfer')) return false
+        // An advance settlement's real economic effect is an expense (see
+        // migration 090) — it should show up under Expense, not be invisible
+        // just because its own voucher_type isn't literally 'expense'.
+        else if (activeType === 'expense' && !(c.kind === 'voucher' && (c.voucherType === 'expense' || c.voucherType === 'advance_settlement'))) return false
+        else if (!['bill', 'donation', 'purchase', 'cash_receipt', 'project_transfer', 'expense'].includes(activeType) && !(c.kind === 'voucher' && c.voucherType === activeType)) return false
+      }
+      if (c.date < logFrom || c.date > logTo) return false
+      if (q && !`${c.partyName} ${c.description} ${c.docLabel}`.toLowerCase().includes(q)) return false
+      return true
     })
-  }, [txnCards, activeType, filterLogByType])
+  }, [txnCards, activeType, filterLogByType, logSearch, logFrom, logTo])
 
   const selectType = (t: ActiveType) => {
     setActiveType(t)
@@ -2498,6 +2521,53 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 </button>
               </div>
             </div>
+            {/* Search bar + filter trigger, one row — same pattern as All
+                Transactions. Recent Transactions only ever holds the latest
+                50 rows per document type (not a real date-range query), so
+                this date range narrows what's already loaded rather than
+                fetching further back. */}
+            <div className="px-4 py-3 border-b border-dp-outline-variant flex items-center gap-2">
+              <div className="relative flex-1 min-w-0">
+                <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+                <input
+                  value={logSearch} onChange={(e) => setLogSearch(e.target.value)}
+                  placeholder={t('tx.searchPlaceholder')}
+                  className="input-field !ps-9 text-[14px]"
+                />
+              </div>
+              <button
+                onClick={() => setShowLogFilterSheet(true)}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-2.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:border-dp-primary/30 hover:text-dp-primary transition-all cursor-pointer"
+              >
+                <SlidersHorizontal size={15} />
+                <span dir="ltr" className="whitespace-nowrap">{formatRangeLabel(logFrom, logTo)}</span>
+              </button>
+            </div>
+            <FilterSheet
+              open={showLogFilterSheet}
+              title={t('fr.filterTransactions')}
+              onClose={() => setShowLogFilterSheet(false)}
+              onApply={() => setShowLogFilterSheet(false)}
+              applyLabel={t('fr.apply')}
+            >
+              <FilterSheetSection label={t('fr.dateRange')}>
+                <DateRangePillGroup
+                  options={PRESET_ORDER.map((k) => ({ key: k, label: t(presetLabelKey(k)) }))}
+                  active={logActivePreset}
+                  onSelect={(k) => applyLogPreset(k as DateRangePreset)}
+                />
+              </FilterSheetSection>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">{t('fr.startDate')}</label>
+                  <input type="date" value={logFrom} onChange={(e) => setLogFrom(e.target.value)} className="input-field text-[14px]" />
+                </div>
+                <div>
+                  <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">{t('fr.endDate')}</label>
+                  <input type="date" value={logTo} onChange={(e) => setLogTo(e.target.value)} className="input-field text-[14px]" />
+                </div>
+              </div>
+            </FilterSheet>
             {loading && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">{t('action.loading')}</p>}
             {!loading && visibleTxnCards.length === 0 && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">{filterLogByType ? `No ${activeTypeLabel.toLowerCase()} transactions yet.` : 'No transactions yet.'}</p>}
             <div className="divide-y divide-dp-outline-variant">
