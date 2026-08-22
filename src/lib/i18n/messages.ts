@@ -904,7 +904,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'tx.viewInvoiceTitle': 'View invoice', 'tx.viewReceiptTitle': 'View receipt',
     'tx.editBillTitle': 'Edit bill', 'tx.deleteBillTitle': 'Delete bill',
     'tx.editPaymentTitle': 'Edit payment', 'tx.deletePaymentTitle': 'Delete payment',
-    'tx.hasLineItemsTooltip': "This voucher has itemised lines — edit isn't available here; correct it with a reversal instead",
+    'tx.hasLineItemsTooltip': "This voucher has itemised lines — edit isn't available here; delete and recreate it instead",
     'tx.editVoucherTitle': 'Edit voucher', 'tx.deleteVoucherTitle': 'Delete voucher',
     'tx.editDonationTitle': 'Edit donation', 'tx.reviewConfirmTitle': 'Review & confirm',
     'sg.notPartOfAccount': 'is not part of your account',
@@ -1842,7 +1842,6 @@ export const messages: Record<Locale, Record<string, string>> = {
     // ── Locked bills and closed months (migration 204) ───────────────────
     'lock.billPaid': 'Paid — receipt %%receipt%% must be deleted before this bill can be changed',
     'lock.billPaidShort': 'Receipt %%receipt%%',
-    'lock.periodClosed': 'Closed month — corrections go in the current month as a journal voucher',
     'lock.locked': 'Locked',
     'lock.openFullBill': 'Open the full bill',
     'lock.viewOnly': 'Statements and reports are view-only — open the record on its own screen to change it',
@@ -1866,16 +1865,6 @@ export const messages: Record<Locale, Record<string, string>> = {
     'pt.err.overBalance': 'This is more than the project holds. Reduce the amount, or transfer from a project with a larger balance.',
     'pt.ok.pending': 'Saved — waiting for the committee approvers before it posts',
     'pt.ok.posted': 'Transfer posted',
-
-    // ── Reversal of a closed-month entry (migration 207) ─────────────────
-    'rv.title': 'Reverse This Entry',
-    'rv.blurb': 'This entry is in a month that has already been closed and reported, so it cannot be edited. Reversing it posts an exact mirror of it in the current month, which leaves the closed month as it was reported and shows the correction where it actually happened. Enter the corrected transaction afterwards as a new entry.',
-    'rv.reason': 'Why is this being reversed?',
-    'rv.reasonPlaceholder': 'e.g. Entered against the wrong project · Amount was Rs. 5,000, not Rs. 50,000',
-    'rv.reverse': 'Reverse this entry',
-    'rv.confirm': 'Post the Reversal',
-    'rv.ok': 'Reversed —',
-    'rv.err.reason': 'Write why this is being reversed — it is the only record of why the books changed',
 
     // ── Where a donor lives (migration 205) ──────────────────────────────
     'dn.cityInPakistan': 'Living in a Pakistani city',
@@ -4576,7 +4565,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'tx.viewInvoiceTitle': 'انوائس دیکھیں', 'tx.viewReceiptTitle': 'رسید دیکھیں',
     'tx.editBillTitle': 'بل میں ترمیم کریں', 'tx.deleteBillTitle': 'بل حذف کریں',
     'tx.editPaymentTitle': 'ادائیگی میں ترمیم کریں', 'tx.deletePaymentTitle': 'ادائیگی حذف کریں',
-    'tx.hasLineItemsTooltip': 'اس واؤچر میں تفصیلی لائنیں ہیں — یہاں ترمیم دستیاب نہیں؛ اس کے بجائے ریورسل سے درست کریں',
+    'tx.hasLineItemsTooltip': 'اس واؤچر میں تفصیلی لائنیں ہیں — یہاں ترمیم دستیاب نہیں؛ اسے حذف کر کے دوبارہ بنائیں',
     'tx.editVoucherTitle': 'واؤچر میں ترمیم کریں', 'tx.deleteVoucherTitle': 'واؤچر حذف کریں',
     'tx.editDonationTitle': 'عطیہ میں ترمیم کریں', 'tx.reviewConfirmTitle': 'جائزہ لیں اور تصدیق کریں',
     'sg.notPartOfAccount': 'آپ کے اکاؤنٹ کا حصہ نہیں ہے',
@@ -5511,7 +5500,6 @@ export const messages: Record<Locale, Record<string, string>> = {
     // ── Locked bills and closed months (migration 204) ───────────────────
     'lock.billPaid': 'ادا شدہ — اس بل میں تبدیلی سے پہلے رسید %%receipt%% حذف کرنا ضروری ہے',
     'lock.billPaidShort': 'رسید %%receipt%%',
-    'lock.periodClosed': 'بند مہینہ — درستگی رواں مہینے میں جرنل واؤچر کے ذریعے کی جائے',
     'lock.locked': 'مقفل',
     'lock.openFullBill': 'مکمل بل کھولیں',
     'lock.viewOnly': 'گوشوارے اور رپورٹیں صرف دیکھنے کے لیے ہیں — تبدیلی کے لیے ریکارڈ اپنی سکرین پر کھولیں',
@@ -5535,16 +5523,6 @@ export const messages: Record<Locale, Record<string, string>> = {
     'pt.err.overBalance': 'یہ رقم اس پروجیکٹ کے پاس موجود رقم سے زیادہ ہے۔ رقم کم کریں یا کسی اور پروجیکٹ سے منتقل کریں۔',
     'pt.ok.pending': 'محفوظ ہو گیا — کمیٹی کی منظوری کے بعد پوسٹ ہوگا',
     'pt.ok.posted': 'منتقلی پوسٹ ہو گئی',
-
-    // ── Reversal of a closed-month entry (migration 207) ─────────────────
-    'rv.title': 'اس اندراج کو ریورس کریں',
-    'rv.blurb': 'یہ اندراج ایسے مہینے کا ہے جو بند ہو چکا ہے اور جس کی رپورٹ دی جا چکی ہے، اس لیے اس میں ترمیم نہیں ہو سکتی۔ ریورس کرنے سے اسی کا الٹ اندراج رواں مہینے میں ہو جائے گا — بند مہینہ ویسا ہی رہے گا جیسا رپورٹ ہوا تھا، اور درستگی وہیں نظر آئے گی جہاں وہ اصل میں ہوئی۔ درست لین دین بعد میں نئے اندراج کے طور پر درج کریں۔',
-    'rv.reason': 'ریورس کرنے کی وجہ؟',
-    'rv.reasonPlaceholder': 'مثلاً غلط پروجیکٹ میں درج ہو گیا تھا · رقم 50,000 نہیں، 5,000 روپے تھی',
-    'rv.reverse': 'اس اندراج کو ریورس کریں',
-    'rv.confirm': 'ریورسل پوسٹ کریں',
-    'rv.ok': 'ریورس ہو گیا —',
-    'rv.err.reason': 'لکھیں کہ یہ کیوں ریورس کیا جا رہا ہے — حسابات میں تبدیلی کا یہی واحد ریکارڈ ہے',
 
     // ── Where a donor lives (migration 205) ──────────────────────────────
     'dn.cityInPakistan': 'پاکستان کے کسی شہر میں مقیم',

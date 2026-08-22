@@ -12,7 +12,6 @@ import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { donorReceiptTotals } from '@/lib/donorReceiptTotals'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { fetchPeriodLockRule, dateIsLocked, DEFAULT_PERIOD_LOCK, type PeriodLockRule } from '@/lib/periodLock'
 import { FilterSheet, FilterSheetSection, DateRangePillGroup } from '@/components/admin/FilterSheet'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import { presetRange, detectPreset, formatRangeLabel, presetLabelKey, PRESET_ORDER, today, monthStart, type DateRangePreset } from '@/lib/dateRangePresets'
@@ -94,7 +93,6 @@ export default function AllTransactionsPage() {
   const [rows, setRows] = useState<TxnRow[]>([])
   const [viewReceipt, setViewReceipt] = useState<ReceiptData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [lockRule, setLockRule] = useState<PeriodLockRule>(DEFAULT_PERIOD_LOCK)
   const [showFilterSheet, setShowFilterSheet] = useState(false)
   const supabase = createClient()
   // Which preset pill (if any) the current from/to matches — derived, not
@@ -106,8 +104,6 @@ export default function AllTransactionsPage() {
     const r = presetRange(key)
     setFrom(r.from); setTo(r.to)
   }
-
-  useEffect(() => { fetchPeriodLockRule(supabase).then(setLockRule) }, [supabase])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -617,34 +613,30 @@ export default function AllTransactionsPage() {
                     {(r.kind === 'payment' || r.kind === 'voucher' || r.kind === 'purchase' || r.kind === 'donation') && (
                       <button onClick={() => openRowReceipt(r)} title={t('tx.viewReceiptTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Eye size={15} /></button>
                     )}
-                    {!dateIsLocked(r.date, lockRule) && (
+                    {r.kind === 'bill' && r.billId && (
                       <>
-                        {r.kind === 'bill' && r.billId && (
-                          <>
-                            <Link href={`/admin/finance/${system}?action=generate_bill&bill=${r.billId}`} title={t('tx.editBillTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
-                            <Link href={`/admin/finance/${system}?delete_bill=${r.billId}`} title={t('tx.deleteBillTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></Link>
-                          </>
-                        )}
-                        {r.kind === 'payment' && r.paymentId && (
-                          <>
-                            <Link href={`/admin/finance/${system}?edit_payment=${r.paymentId}`} title={t('tx.editPaymentTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
-                            <Link href={`/admin/finance/${system}?delete_payment=${r.paymentId}`} title={t('tx.deletePaymentTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></Link>
-                          </>
-                        )}
-                        {r.kind === 'voucher' && r.voucherId && (
-                          <>
-                            {r.hasLineItems ? (
-                              <span title={t('tx.hasLineItemsTooltip')} className="p-1.5 text-dp-on-surface-variant/40 cursor-not-allowed"><Pencil size={15} /></span>
-                            ) : (
-                              <Link href={`/admin/finance/${system}?edit_voucher=${r.voucherId}`} title={t('tx.editVoucherTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
-                            )}
-                            <Link href={`/admin/finance/${system}?delete_voucher=${r.voucherId}`} title={t('tx.deleteVoucherTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></Link>
-                          </>
-                        )}
-                        {r.kind === 'donation' && r.donationId && (
-                          <Link href={`/admin/donors?edit=${r.donationId}`} title={r.donationVerified ? t('tx.editDonationTitle') : t('tx.reviewConfirmTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
-                        )}
+                        <Link href={`/admin/finance/${system}?action=generate_bill&bill=${r.billId}`} title={t('tx.editBillTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
+                        <Link href={`/admin/finance/${system}?delete_bill=${r.billId}`} title={t('tx.deleteBillTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></Link>
                       </>
+                    )}
+                    {r.kind === 'payment' && r.paymentId && (
+                      <>
+                        <Link href={`/admin/finance/${system}?edit_payment=${r.paymentId}`} title={t('tx.editPaymentTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
+                        <Link href={`/admin/finance/${system}?delete_payment=${r.paymentId}`} title={t('tx.deletePaymentTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></Link>
+                      </>
+                    )}
+                    {r.kind === 'voucher' && r.voucherId && (
+                      <>
+                        {r.hasLineItems ? (
+                          <span title={t('tx.hasLineItemsTooltip')} className="p-1.5 text-dp-on-surface-variant/40 cursor-not-allowed"><Pencil size={15} /></span>
+                        ) : (
+                          <Link href={`/admin/finance/${system}?edit_voucher=${r.voucherId}`} title={t('tx.editVoucherTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
+                        )}
+                        <Link href={`/admin/finance/${system}?delete_voucher=${r.voucherId}`} title={t('tx.deleteVoucherTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></Link>
+                      </>
+                    )}
+                    {r.kind === 'donation' && r.donationId && (
+                      <Link href={`/admin/donors?edit=${r.donationId}`} title={r.donationVerified ? t('tx.editDonationTitle') : t('tx.reviewConfirmTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
                     )}
                   </div>
                 )}

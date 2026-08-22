@@ -20,7 +20,6 @@ import { renderTemplate } from '@/lib/messageTemplates'
 import { findDuplicate, type DuplicateCandidate } from '@/lib/duplicateCheck'
 import { SITE } from '@/lib/constants'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { fetchPeriodLockRule, periodIsLocked, DEFAULT_PERIOD_LOCK, type PeriodLockRule } from '@/lib/periodLock'
 
 interface Consumer {
   consumer_id: string
@@ -135,7 +134,6 @@ function BillingPageInner() {
   // know before it offers the button, and has to be able to name the receipt
   // that must be deleted first.
   const [receiptsByBill, setReceiptsByBill] = useState<Record<string, string[]>>({})
-  const [lockRule, setLockRule] = useState<PeriodLockRule>(DEFAULT_PERIOD_LOCK)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [sectorFilter, setSectorFilter] = useState('')
@@ -214,7 +212,7 @@ function BillingPageInner() {
     setLoading(true)
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-    const [cRes, bRes, secRes, auditRes, recurRes, complaintsRes, inProcessRes, pendingReqRes, payRes, lockRes, advRes, acctRes] = await Promise.all([
+    const [cRes, bRes, secRes, auditRes, recurRes, complaintsRes, inProcessRes, pendingReqRes, payRes, advRes, acctRes] = await Promise.all([
       supabase.from('consumers').select('*').order('consumer_id'),
       supabase.from('bills').select('*').order('year', { ascending: false }).order('month', { ascending: false }),
       supabase.from('sectors').select('id, name').order('display_order').order('name'),
@@ -231,7 +229,6 @@ function BillingPageInner() {
       // ever becomes a real consumer, not just after.
       supabase.from('connection_requests').select('id, consumer_name, consumer_phone, whatsapp_number, father_husband_name').is('consumer_id', null),
       supabase.from('payments').select('bill_id, receipt_no').not('bill_id', 'is', null),
-      fetchPeriodLockRule(supabase),
       supabase.rpc('get_consumer_advance_balances'),
       supabase.from('accounts').select('id, consumer_id').eq('type', 'consumer'),
     ])
@@ -251,7 +248,6 @@ function BillingPageInner() {
       ;(receiptMap[p.bill_id as string] ??= []).push(p.receipt_no ?? '—')
     }
     setReceiptsByBill(receiptMap)
-    setLockRule(lockRes)
     setSectorOptions(secRes.data ?? [])
     // One row per consumer — prefer the active one if there's ever more than
     // one for the same consumer (shouldn't happen now that the query above
@@ -1298,16 +1294,13 @@ function BillingPageInner() {
               <div className="mt-1 flex flex-col gap-2.5">
               {filteredSelectedBills.map((bill) => {
                 const rem = outstanding(bill)
-                // Why this bill cannot be touched, if it cannot. Cash received
-                // is checked first because it is the one an accountant can act
-                // on: delete the receipt and the bill opens again. A closed
-                // month cannot be reopened at all — it needs a journal voucher
-                // in the current month instead.
+                // Why this bill cannot be touched, if it cannot — cash already
+                // received against it; delete the receipt and the bill opens
+                // again.
                 const blockingReceipts = receiptsByBill[bill.id] ?? []
-                const monthClosed = periodIsLocked(bill.year, bill.month, lockRule)
                 const lockReason = blockingReceipts.length > 0
                   ? renderTemplate(t('lock.billPaid'), { receipt: blockingReceipts.join(', ') })
-                  : monthClosed ? t('lock.periodClosed') : null
+                  : null
                 const fullBillHref = `/admin/finance/water_supply?action=generate_bill&bill=${bill.id}&consumer=${bill.consumer_id}`
                 return (
                   <div key={bill.id} className="bg-white border border-dp-outline-variant rounded-[15px] shadow-[0_2px_8px_rgba(20,50,35,0.05)] px-[15px] py-3.5">

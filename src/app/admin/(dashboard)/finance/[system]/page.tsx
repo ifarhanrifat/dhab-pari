@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   Save, Wallet, ArrowDownCircle, ArrowLeftRight, ArrowUpFromLine,
-  ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck, ChevronDown, Search, PlusCircle, ChevronLeft, HandCoins, Undo2, SlidersHorizontal,
+  ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck, ChevronDown, Search, PlusCircle, ChevronLeft, HandCoins, SlidersHorizontal,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
@@ -23,7 +23,6 @@ import { donationBadge } from '@/lib/donationStatus'
 import { QuickAddAccountModal, type NewAccount } from '@/components/admin/QuickAddAccountModal'
 import { voucherReceiptKind, entryTypeLabel } from '@/lib/ledgerLabels'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { fetchPeriodLockRule, periodIsLocked, dateIsLocked, DEFAULT_PERIOD_LOCK, type PeriodLockRule } from '@/lib/periodLock'
 import { renderTemplate } from '@/lib/messageTemplates'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 
@@ -195,9 +194,6 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [projectBalances, setProjectBalances] = useState<Record<string, number>>({})
   const [meetings, setMeetings] = useState<{ id: string; title: string; meeting_date: string }[]>([])
   const [savingTransfer, setSavingTransfer] = useState(false)
-  const [reverseTarget, setReverseTarget] = useState<TxnCard | null>(null)
-  const [reverseReason, setReverseReason] = useState('')
-  const [reversing, setReversing] = useState(false)
   const [txnCards, setTxnCards] = useState<TxnCard[]>([])
   const [logSortDir, setLogSortDir] = useState<'asc' | 'desc'>('desc')
   const [filterLogByType, setFilterLogByType] = useState(true)
@@ -251,8 +247,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [lockedReceipts, setLockedReceipts] = useState<string[]>([])
   // Why this bill is closed to editing, if it is — cash received, or a month
   // that has already been reported and closed.
-  const [billLockReason, setBillLockReason] = useState<'paid' | 'period' | null>(null)
-  const [lockRule, setLockRule] = useState<PeriodLockRule>(DEFAULT_PERIOD_LOCK)
+  const [billLockReason, setBillLockReason] = useState<'paid' | null>(null)
   const [donationForm, setDonationForm] = useState(emptyDonationForm)
   // Every donor already on the books, so a repeat donation is picked rather
   // than retyped. A donor's ledger account is keyed on phone-else-name, so a
@@ -622,10 +617,6 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   }, [searchParams, txnCards.length])
 
   useEffect(() => {
-    fetchPeriodLockRule(supabase).then(setLockRule)
-  }, [supabase])
-
-  useEffect(() => {
     const billParam = searchParams.get('bill')
     if (system !== 'water_supply' || !billParam) return
     setEditLoading(true)
@@ -651,11 +642,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       const { data: pays } = await supabase.from('payments').select('receipt_no').eq('bill_id', billParam).order('created_at')
       const receipts = (pays ?? []).map((p) => p.receipt_no ?? '—')
       setLockedReceipts(receipts.filter((r) => r !== '—'))
-      setBillLockReason(
-        receipts.length > 0 ? 'paid'
-          : periodIsLocked(bill.year, bill.month, lockRule) ? 'period'
-            : null
-      )
+      setBillLockReason(receipts.length > 0 ? 'paid' : null)
       setBillForm({
         consumer_id: bill.consumer_id, month: bill.month, year: bill.year,
         due_date: bill.due_date ?? '', description: bill.description ?? '',
@@ -675,7 +662,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       setActiveType('bill')
       setEditLoading(false)
     })()
-  }, [system, searchParams, supabase, lockRule])
+  }, [system, searchParams, supabase])
 
   const deletePayment = async () => {
     if (!confirmDeletePaymentId) return
@@ -1160,21 +1147,6 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       ))
     })()
   }, [activeType, system, supabase])
-
-  const runReversal = async () => {
-    if (!reverseTarget?.voucherId) return
-    if (!reverseReason.trim()) { toast.error(t('rv.err.reason')); return }
-    setReversing(true)
-    const { data, error } = await supabase.rpc('reverse_voucher', {
-      p_voucher_id: reverseTarget.voucherId, p_reason: reverseReason.trim(),
-    })
-    setReversing(false)
-    if (error) { toast.error(friendlyError(error)); return }
-    toast.success(`${t('rv.ok')} ${(data as { voucher_no?: string } | null)?.voucher_no ?? ''}`.trim())
-    setReverseTarget(null)
-    setReverseReason('')
-    load()
-  }
 
   const saveProjectTransfer = async () => {
     if (!transferForm.fromProjectId || !transferForm.toProjectId) { toast.error(t('pt.err.bothProjects')); return }
@@ -2045,11 +2017,9 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 <h2 className="font-heading text-[20px] font-bold text-dp-primary">Edit Bill {editingBill.bill_number}</h2>
                 <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-4">
                   <p className="font-sans text-[14px] font-semibold text-dp-error mb-1.5">
-                    {billLockReason === 'paid'
-                      ? renderTemplate(t('lock.billPaid'), { receipt: lockedReceipts.join(', ') })
-                      : t('lock.periodClosed')}
+                    {renderTemplate(t('lock.billPaid'), { receipt: lockedReceipts.join(', ') })}
                   </p>
-                  {billLockReason === 'paid' && lockedReceipts.length > 0 && (
+                  {lockedReceipts.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
                       {lockedReceipts.map((r) => (
                         <span key={r} className="px-2.5 py-1 bg-white border border-red-200 rounded-full font-sans text-[12.5px] font-semibold text-dp-error">Receipt #{r}</span>
@@ -2735,30 +2705,20 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                         {c.kind === 'voucher' && c.voucherId && (
                           <>
                             <button onClick={() => openVoucherReceipt(c)} title="View voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><FileText size={15} /></button>
-                            {/* Once the month is closed the entry stops being
-                                editable and starts being reversible. Editing
-                                it would rewrite a month that has already been
-                                reported; a reversal shows the correction in
-                                the month it was actually made. */}
-                            {dateIsLocked(c.date, lockRule) ? (
-                              <button onClick={() => { setReverseTarget(c); setReverseReason('') }} title={t('rv.reverse')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Undo2 size={15} /></button>
+                            {/* edit_voucher() refuses any voucher with real
+                                line items (migration 175) -- a multi-category
+                                voucher like Kafalat's monthly payment or a
+                                water_supply multi-line expense. Greyed out
+                                here so that's known before someone opens the
+                                form and hits an error on Save, not instead of
+                                the guard itself -- delete and recreate is the
+                                correction path for those. */}
+                            {c.voucherLineItems && c.voucherLineItems.length > 0 ? (
+                              <span title="This voucher has itemised lines — edit isn't available here; delete and recreate it instead" className="p-1.5 text-dp-on-surface-variant/40 cursor-not-allowed"><Pencil size={15} /></span>
                             ) : (
-                              <>
-                                {/* edit_voucher() refuses any voucher with real
-                                    line items (migration 175) -- a multi-category
-                                    voucher like Kafalat's monthly payment or a
-                                    water_supply multi-line expense. Greyed out
-                                    here so that's known before someone opens the
-                                    form and hits an error on Save, not instead of
-                                    the guard itself. */}
-                                {c.voucherLineItems && c.voucherLineItems.length > 0 ? (
-                                  <span title="This voucher has itemised lines — edit isn't available here; correct it with a reversal instead" className="p-1.5 text-dp-on-surface-variant/40 cursor-not-allowed"><Pencil size={15} /></span>
-                                ) : (
-                                  <button onClick={() => openEditVoucher(c.voucherId!)} title="Edit voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></button>
-                                )}
-                                <button onClick={() => setConfirmDeleteVoucherId(c.voucherId!)} title="Delete voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
-                              </>
+                              <button onClick={() => openEditVoucher(c.voucherId!)} title="Edit voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></button>
                             )}
+                            <button onClick={() => setConfirmDeleteVoucherId(c.voucherId!)} title="Delete voucher" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
                           </>
                         )}
                         {c.kind === 'purchase' && c.purchaseId && (
@@ -2780,36 +2740,6 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
           </div>
         </div>
       </div>
-
-      {/* A reason is required and goes into the audit log, because in a year's
-          time the entry itself will not explain why the books changed. */}
-      {reverseTarget && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setReverseTarget(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('rv.title')}</h2>
-              <button onClick={() => setReverseTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
-            </div>
-            <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
-              <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{reverseTarget.docLabel} — {reverseTarget.partyName}</p>
-              <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">
-                {new Date(reverseTarget.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · Rs. {fmtAmount(reverseTarget.amount)}
-              </p>
-            </div>
-            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-3">{t('rv.blurb')}</p>
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('rv.reason')}</label>
-            <textarea value={reverseReason} onChange={(e) => setReverseReason(e.target.value)} rows={3}
-              placeholder={t('rv.reasonPlaceholder')} className="input-field resize-none mb-4" />
-            <div className="flex items-center gap-2">
-              <button disabled={reversing} onClick={runReversal}
-                className="flex items-center gap-2 px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                <Undo2 size={16} /> {reversing ? t('action.saving') : t('rv.confirm')}
-              </button>
-              <button onClick={() => setReverseTarget(null)} className="px-4 py-2.5 font-sans font-semibold text-dp-on-surface-variant cursor-pointer">{t('action.cancel')}</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <ConfirmDialog
         open={!!confirmDeleteVoucherId}

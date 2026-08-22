@@ -28,7 +28,12 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
   const nodeRef = useRef<HTMLDivElement>(null)
   const [format, setFormat] = useState<ReceiptFormat>(getPreferredFormat())
   const [busy, setBusy] = useState(false)
-  const [template, setTemplate] = useState<InvoiceTemplate>('classic')
+  // No template is selected yet — rendering ReceiptDocument with any
+  // hardcoded guess here (it used to default to 'classic') would flash that
+  // guess for the round trip fetchBrandingSettings takes before showing the
+  // real one from Settings. Null means "don't render the document yet",
+  // not "assume a template" — see the loading placeholder below.
+  const [template, setTemplate] = useState<InvoiceTemplate | null>(null)
   const [branding, setBranding] = useState<Partial<BrandingSettings>>({})
   // Print target is a runtime choice, never stored on the transaction — the
   // same receipt goes to A4 in the office and to a Bluetooth thermal roll in
@@ -146,18 +151,22 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
             and exported size — making it fluid would change every generated
             PDF/PNG. So on a phone we scroll it horizontally instead of
             resizing it, leaving nodeRef's real box untouched for html2canvas. */}
-        <div className="flex justify-center p-4 overflow-x-auto">
-          <ReceiptDocument ref={nodeRef} data={{ ...data, ...branding }} template={template} format={slipFormat} />
+        <div className="flex justify-center items-center p-4 overflow-x-auto" style={{ minHeight: 400 }}>
+          {template ? (
+            <ReceiptDocument ref={nodeRef} data={{ ...data, ...branding }} template={template} format={slipFormat} />
+          ) : (
+            <p className="font-sans text-[13.5px] text-dp-on-surface-variant">{t('action.loading')}</p>
+          )}
         </div>
 
         <div className="flex items-center gap-2 px-4 py-3 border-t border-dp-outline-variant print:hidden">
-          <button disabled={busy} onClick={handlePrint} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
+          <button disabled={busy || !template} onClick={handlePrint} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
             <Printer size={16} /> {t('g.print')}
           </button>
-          <button disabled={busy} onClick={handleDownload} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
+          <button disabled={busy || !template} onClick={handleDownload} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
             <Download size={16} /> Download {format.toUpperCase()}
           </button>
-          <button disabled={busy} onClick={handleShare} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+          <button disabled={busy || !template} onClick={handleShare} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
             <Share2 size={16} /> {t('y.shareWhatsapp')}
           </button>
         </div>
