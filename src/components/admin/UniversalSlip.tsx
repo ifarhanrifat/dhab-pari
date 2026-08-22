@@ -36,7 +36,12 @@ function L({ data, k, className = '', style }: { data: ReceiptData; k: DocString
     <span className={className} style={style}>
       {en && <span>{en.trim().replace(/:$/, '')}</span>}
       {en && ur && <span style={{ opacity: 0.55 }}> / </span>}
-      {ur && <span style={{ fontFamily: 'var(--font-urdu), serif' }}>{ur.trim().replace(/:$/, '')}</span>}
+      {/* Nastaliq renders visibly larger than the Latin face at the same
+          pixel size — sized down (em, so it scales with whatever this
+          label's own size is) rather than up, so a bilingual pair like
+          "Paid To / ادائیگی بنام" doesn't read as the Urdu half shouting
+          over the English half. */}
+      {ur && <span style={{ fontFamily: 'var(--font-urdu), serif', fontSize: '0.82em' }}>{ur.trim().replace(/:$/, '')}</span>}
     </span>
   )
 }
@@ -61,7 +66,7 @@ function LStack({ data, k, size }: { data: ReceiptData; k: DocStringKey; size: n
   return (
     <span style={{ display: 'block', textAlign: 'center', fontSize: size, lineHeight: 1.3, color: MUTED }}>
       {en && <span style={{ display: 'block' }}>{en}</span>}
-      {ur && <span style={{ display: 'block', fontFamily: 'var(--font-urdu), serif' }}>{ur}</span>}
+      {ur && <span style={{ display: 'block', fontFamily: 'var(--font-urdu), serif', fontSize: '0.9em' }}>{ur}</span>}
     </span>
   )
 }
@@ -200,6 +205,12 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
     if ((data.announcedRemaining ?? 0) > 0) summaryRows.push({ k: 'announcedRemaining', v: data.announcedRemaining! })
   } else if (data.balanceAfter > 0) {
     summaryRows.push({ k: 'outstandingAmount', v: data.balanceAfter })
+    if (data.kind === 'payment' && (data.advanceBalance ?? 0) > 0) summaryRows.push({ k: 'advanceBalance', v: data.advanceBalance! })
+  } else if (data.kind === 'payment' && (data.advanceBalance ?? 0) > 0) {
+    // No outstanding on this bill, but the consumer still carries a credit
+    // on the account — worth printing on its own row rather than only
+    // appearing when there also happens to be something owed.
+    summaryRows.push({ k: 'advanceBalance', v: data.advanceBalance! })
   }
 
   const urduFont = { fontFamily: 'var(--font-urdu), serif' } as const
@@ -453,9 +464,13 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
                   <L data={data} k="paidTo" />
                 </td>
               </tr>
+              {/* An ordinary (non-split) voucher's one "Paid To" row is the
+                  account it actually posted to (data.accountName) — never
+                  the narration. The narration gets its own Remarks line
+                  below, same as every other document kind. */}
               {(hasRealLineItems
                 ? data.lineItems!.map((l) => ({ label: l.quantity > 1 ? `${l.description} × ${l.quantity}` : l.description, amount: l.quantity * l.unitPrice }))
-                : [{ label: data.particular, amount: data.amount }]
+                : [{ label: data.accountName, amount: data.amount }]
               ).map((row, i, arr) => (
                 <tr key={i} style={{ borderBottom: i === arr.length - 1 ? `1px solid ${INK}` : `1px solid ${RULE}` }}>
                   <td style={{ padding: thermal ? '5px 0' : '9px 0', fontSize: b(1) }}>{row.label}</td>
@@ -472,6 +487,11 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
               </tr>
             </tfoot>
           </table>
+          {data.particular && (
+            <div style={{ marginTop: thermal ? 8 : 16, fontSize: b(1) }}>
+              <L data={data} k="remarks" style={{ color: MUTED, fontWeight: 600 }} />{' '}{data.particular}
+            </div>
+          )}
         </>
       ) : (
         <div style={{ textAlign: 'center', marginTop: thermal ? 12 : 26 }}>
@@ -480,7 +500,9 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
             <Ltr>Rs. {fmt(data.amount)}</Ltr>
           </div>
           {data.particular && (
-            <div style={{ fontSize: f(1.05), color: MUTED, marginTop: 6 }}>{data.particular}</div>
+            <div style={{ fontSize: f(1.05), color: MUTED, marginTop: 6 }}>
+              <L data={data} k="remarks" style={{ fontWeight: 600 }} />{' '}{data.particular}
+            </div>
           )}
           {summaryRows.length > 0 && (
             <div style={{ marginTop: thermal ? 10 : 18, border: `1px solid ${RULE}`, borderRadius: 8, overflow: 'hidden', textAlign: 'left' }}>

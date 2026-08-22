@@ -44,6 +44,11 @@ export interface ReceiptData {
   // (the line items above/accountName) so a payment voucher reads as the
   // double-entry document it actually is, not a bare list of what was bought.
   paidFromName?: string
+  // kind: 'payment' only — a consumer's standing credit (see
+  // get_consumer_advance_balances()), separate from this bill's own
+  // outstanding: a consumer can carry both at once (an advance sitting on
+  // the account while a different, unrelated bill is still unpaid).
+  advanceBalance?: number
   discountAmount?: number
   securityDepositAmount?: number
   securityDepositReceiptNo?: string | null

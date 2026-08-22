@@ -57,6 +57,11 @@ interface TxnRow {
   voucherToName?: string
   voucherFromName?: string
   voucherNo?: string | null
+  // kind: 'payment' only — the linked bill's current outstanding balance and
+  // the consumer it belongs to, for the receipt's outstanding-amount row and
+  // advance-balance lookup respectively.
+  paymentBillOutstandingNow?: number
+  paymentConsumerId?: string
 }
 
 const systemLabels: Record<SystemTab, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects System' }
@@ -135,6 +140,12 @@ export default function AllTransactionsPage() {
 
     const consumersById = Object.fromEntries((consumersRes.data ?? []).map((c) => [c.consumer_id, c]))
     const billNumberById = Object.fromEntries((billsRes.data ?? []).map((b) => [b.id, b.bill_number]))
+    // The bill's CURRENT outstanding balance — used to stamp a payment
+    // receipt's outstanding-amount row and PAID/PARTIAL status, same formula
+    // as the Transactions Workspace's own copy of this.
+    const billOutstandingById = Object.fromEntries((billsRes.data ?? []).map((b) => [
+      b.id, Math.max(Math.max(b.amount_pkr - (b.discount_amount ?? 0), 0) - (b.paid_amount ?? 0), 0),
+    ]))
     // A security deposit collected with a bill posts as its own voucher for
     // real double-entry correctness, but it's the same cash-collection event —
     // fold its receipt info into the bill's row instead of showing it as an
@@ -196,6 +207,7 @@ export default function AllTransactionsPage() {
         docLabel: p.receipt_no ? `${t('tx.receiptHashPrefix')} ${p.receipt_no}` : t('tx.receiptFallback'),
         date: p.paid_date, description: billNo ? `${t('tx.againstBill')} ${billNo}` : (p.note || t('tx.paymentReceived')),
         amount: p.amount_pkr, badge: null, note: p.note, billId: p.bill_id, paymentId: p.id, receiptNo: p.receipt_no, createdAt: p.created_at,
+        paymentBillOutstandingNow: billOutstandingById[p.bill_id] ?? 0, paymentConsumerId: p.consumer_id,
         searchBlob: `${consumer?.name ?? ''} ${p.consumer_id} ${consumer?.mobile ?? ''} ${p.receipt_no ?? ''} ${p.method ?? ''} ${p.note ?? ''}`.toLowerCase(),
       })
     }
@@ -328,10 +340,21 @@ export default function AllTransactionsPage() {
   // of type; Edit/Delete stay on the Transactions (finance) page that owns them.
   const openRowReceipt = async (r: TxnRow) => {
     if (r.kind === 'payment' && r.paymentId) {
+      const outstanding = r.paymentBillOutstandingNow ?? 0
+      // A consumer can be carrying a credit on their account from an earlier
+      // over/advance payment, independent of whether THIS bill is fully
+      // settled — worth surfacing on the receipt either way, water_supply
+      // only (see get_consumer_advance_balances()).
+      let advanceBalance = 0
+      if (system === 'water_supply' && r.paymentConsumerId) {
+        const { data: balances } = await supabase.rpc('get_consumer_advance_balances')
+        advanceBalance = Number((balances as Record<string, number> | null)?.[r.paymentConsumerId] ?? 0)
+      }
       setViewReceipt({
         kind: 'payment', receiptNo: r.receiptNo ?? r.paymentId.slice(0, 8).toUpperCase(),
         date: r.date, systemLabel: systemLabels[system], accountName: r.partyName,
-        particular: r.description, amount: r.amount, balanceAfter: 0,
+        particular: r.description, amount: r.amount, balanceAfter: outstanding,
+        billOutstandingAfter: outstanding, advanceBalance,
       })
     } else if (r.kind === 'voucher' && r.voucherId) {
       // A multi-category voucher (Kafalat's monthly payment, a water_supply
@@ -341,12 +364,26 @@ export default function AllTransactionsPage() {
       // their own copy of this same gap) and it never had the breakdown
       // wired in either.
       const { data: items } = await supabase.from('voucher_line_items')
-        .select('description, category, amount').eq('voucher_id', r.voucherId)
+        .select('account_id, description, category, amount').eq('voucher_id', r.voucherId)
+      // Each line's own free-text note ("for pipe repairing at water well
+      // bella") is real detail, but on its own it isn't a category — the
+      // account it actually posted to is what makes this read as a
+      // ledger-accurate document rather than a list of unlabeled notes.
+      const lineAccountIds = Array.from(new Set((items ?? []).map((l) => l.account_id).filter((id): id is string => !!id)))
+      const { data: lineAccounts } = lineAccountIds.length > 0
+        ? await supabase.from('accounts').select('id, name, name_ur').in('id', lineAccountIds)
+        : { data: [] as { id: string; name: string; name_ur: string | null }[] }
+      const lineAccountNameById = Object.fromEntries(
+        (lineAccounts ?? []).map((a) => [a.id, isUrdu && a.name_ur ? a.name_ur : a.name])
+      )
       const lineItems = items && items.length > 0
-        ? items.map((l) => ({
-            description: l.description || (l.category ? l.category.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Item'),
-            quantity: 1, unitPrice: Number(l.amount),
-          }))
+        ? items.map((l) => {
+            const accountName = l.account_id ? lineAccountNameById[l.account_id] : undefined
+            const fallback = l.category ? l.category.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Item'
+            const label = accountName ?? l.description ?? fallback
+            const note = l.description && l.description !== label ? l.description : null
+            return { description: note ? `${label} — ${note}` : label, quantity: 1, unitPrice: Number(l.amount) }
+          })
         : undefined
       setViewReceipt({
         kind: voucherReceiptKind[r.voucherType ?? ''] ?? 'manual',

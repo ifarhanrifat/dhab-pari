@@ -383,12 +383,20 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     // label, insertion order in practice since these rows are never
     // reordered after a multi-line expense is saved.
     const firstLineAccountIdByVoucher: Record<string, string> = {}
+    const accountNameById = Object.fromEntries(accts.map((a) => [a.id, isUrdu && a.name_ur ? a.name_ur : a.name]))
+    // Each line's own free-text note ("for pipe repairing at water well
+    // bella") is real detail, but on its own it isn't a category — the
+    // account it actually posted to (already loaded via accts, above) is
+    // what makes the receipt read as a ledger-accurate document rather than
+    // a list of unlabeled notes.
     for (const r of (docs.voucher_line_items ?? []) as { voucher_id: string; account_id: string | null; description: string | null; category: string | null; amount: number }[]) {
-      const label = r.description || (r.category ? r.category.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : t('tx.itemFallback'))
-      ;(voucherLinesByVoucher[r.voucher_id] ??= []).push({ description: label, quantity: 1, unitPrice: Number(r.amount) })
+      const accountName = r.account_id ? accountNameById[r.account_id] : undefined
+      const fallback = r.category ? r.category.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : t('tx.itemFallback')
+      const label = accountName ?? r.description ?? fallback
+      const note = r.description && r.description !== label ? r.description : null
+      ;(voucherLinesByVoucher[r.voucher_id] ??= []).push({ description: note ? `${label} — ${note}` : label, quantity: 1, unitPrice: Number(r.amount) })
       if (r.account_id) firstLineAccountIdByVoucher[r.voucher_id] ??= r.account_id
     }
-    const accountNameById = Object.fromEntries(accts.map((a) => [a.id, isUrdu && a.name_ur ? a.name_ur : a.name]))
     const cards: TxnCard[] = []
 
     for (const b of billsList) {
@@ -716,9 +724,18 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   // A payment's own View action must show its cash receipt, not the bill's
   // invoice document — the two are separate transactions/documents even though
   // they're related. billOutstandingAfter drives the receipt's PAID/PARTIAL stamp.
-  const openPaymentReceipt = (card: TxnCard) => {
+  const openPaymentReceipt = async (card: TxnCard) => {
     if (!card.paymentId) return
     const outstanding = card.paymentBillOutstandingNow ?? 0
+    // A consumer can be carrying a credit on their account from an earlier
+    // over/advance payment, independent of whether THIS bill is fully
+    // settled — worth surfacing on the receipt either way, water_supply
+    // only (see get_consumer_advance_balances()).
+    let advanceBalance = 0
+    if (system === 'water_supply' && card.paymentConsumerId) {
+      const { data: balances } = await supabase.rpc('get_consumer_advance_balances')
+      advanceBalance = Number((balances as Record<string, number> | null)?.[card.paymentConsumerId] ?? 0)
+    }
     setViewReceipt({
       kind: 'payment',
       receiptNo: card.paymentReceiptNo ?? card.paymentId.slice(0, 8).toUpperCase(),
@@ -729,6 +746,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       amount: card.amount,
       balanceAfter: outstanding,
       billOutstandingAfter: outstanding,
+      advanceBalance,
     })
   }
 
