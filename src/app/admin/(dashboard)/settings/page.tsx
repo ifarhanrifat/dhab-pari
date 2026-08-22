@@ -588,7 +588,7 @@ export default function AdminSettingsPage() {
     // the right instead of staying put on the left. Soft fix like the rest
     // of the admin pages — translate the text, leave the layout alone.
     <div>
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="font-heading text-[28px] sm:text-[32px] font-bold leading-[40px] text-dp-primary">{tr('st.title')}</h1>
           <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">{tr('st.saveBlurb')}</p>
