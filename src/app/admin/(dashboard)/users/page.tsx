@@ -34,6 +34,8 @@ interface AdminUser {
   can_publish_gallery: boolean
   can_publish_ticker: boolean
   can_publish_jobs: boolean
+  can_publish_poetry: boolean
+  can_publish_blog: boolean
   invited_at: string | null
   invite_accepted_at: string | null
   created_at: string
@@ -112,6 +114,8 @@ const publishFields: { key: keyof AdminUser; labelKey: string; hintKey: string }
   { key: 'can_publish_gallery', labelKey: 'us.pub.gallery', hintKey: 'us.pub.galleryHint' },
   { key: 'can_publish_ticker', labelKey: 'us.pub.ticker', hintKey: 'us.pub.tickerHint' },
   { key: 'can_publish_jobs', labelKey: 'us.pub.jobs', hintKey: 'us.pub.jobsHint' },
+  { key: 'can_publish_poetry', labelKey: 'us.pub.poetry', hintKey: 'us.pub.poetryHint' },
+  { key: 'can_publish_blog', labelKey: 'us.pub.blog', hintKey: 'us.pub.blogHint' },
 ]
 
 const adminPermissionFields: { key: keyof AdminUser; labelKey: string }[] = [
@@ -128,6 +132,7 @@ const emptyInvite = {
   access_water_supply: false, access_donors_projects: false,
   can_publish_news: false, can_publish_videos: false, can_publish_gallery: false,
   can_publish_ticker: false, can_publish_jobs: false,
+  can_publish_poetry: false, can_publish_blog: false,
 }
 
 function generatePassword() {
@@ -143,6 +148,7 @@ const emptyCollectorForm = {
   access_water_supply: false, access_donors_projects: false,
   can_publish_news: false, can_publish_videos: false, can_publish_gallery: false,
   can_publish_ticker: false, can_publish_jobs: false,
+  can_publish_poetry: false, can_publish_blog: false,
 }
 
 export default function AdminUsersPage() {
@@ -212,6 +218,7 @@ export default function AdminUsersPage() {
       can_publish_news: u.can_publish_news, can_publish_videos: u.can_publish_videos,
       can_publish_gallery: u.can_publish_gallery, can_publish_ticker: u.can_publish_ticker,
       can_publish_jobs: u.can_publish_jobs,
+      can_publish_poetry: u.can_publish_poetry, can_publish_blog: u.can_publish_blog,
     })
   }
 
@@ -240,6 +247,8 @@ export default function AdminUsersPage() {
       can_publish_gallery: collectorForm.can_publish_gallery,
       can_publish_ticker: collectorForm.can_publish_ticker,
       can_publish_jobs: collectorForm.can_publish_jobs,
+      can_publish_poetry: collectorForm.can_publish_poetry,
+      can_publish_blog: collectorForm.can_publish_blog,
     }).eq('id', editingUser.id)
     setSavingCollector(false)
     if (error) { toast.error(friendlyError(error)); return }

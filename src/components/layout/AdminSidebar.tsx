@@ -48,6 +48,9 @@ import {
   GraduationCap,
   Gift,
   School,
+  Feather,
+  NotebookPen,
+  Megaphone,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -60,7 +63,7 @@ const menuItems: {
   href: string; label: string; icon: LucideIcon
   system?: 'water_supply' | 'donors_projects'
   module?: 'business'
-  publish?: 'news' | 'videos' | 'gallery' | 'ticker' | 'jobs'
+  publish?: 'news' | 'videos' | 'gallery' | 'ticker' | 'jobs' | 'poetry' | 'blog'
   tKey?: string
   badge?: string
   collectorOnly?: boolean; adminAndAbove?: boolean; superAdminOnly?: boolean
@@ -87,6 +90,8 @@ const menuItems: {
   { href: '/admin/collectors', label: 'Collectors', tKey: 'nav.collectors', icon: Coins, system: 'water_supply' },
   { href: '/admin/employees', label: 'Employees', tKey: 'nav.employees', icon: HardHat, system: 'water_supply' },
   { href: '/admin/news', label: 'News', tKey: 'nav.news', icon: Newspaper, publish: 'news' },
+  { href: '/admin/poetry', label: 'Poetry Corner', tKey: 'nav.poetry', icon: Feather, publish: 'poetry' },
+  { href: '/admin/blog', label: 'Blog', tKey: 'nav.blog', icon: NotebookPen, publish: 'blog' },
   { href: '/admin/videos', label: 'Videos', tKey: 'nav.videos', icon: Video, publish: 'videos' },
   { href: '/admin/donors', label: 'Donors', tKey: 'nav.donors', icon: Heart, system: 'donors_projects', badge: 'donors' },
   { href: '/admin/donors/collectors', label: 'Donor Collectors', tKey: 'nav.donorCollectors', icon: Coins, system: 'donors_projects' },
@@ -111,6 +116,7 @@ const menuItems: {
   { href: '/admin/jobs', label: 'Job Listings', tKey: 'nav.jobs', icon: Briefcase, publish: 'jobs' },
   { href: '/admin/reports', label: 'Reports', tKey: 'nav.reports', icon: FileText },
   { href: '/admin/running-capital', label: 'Running Capital', tKey: 'nav.runningCapital', icon: LineChart },
+  { href: '/admin/committee-notes', label: 'Committee Notes', tKey: 'nav.committeeNotes', icon: Megaphone, adminAndAbove: true },
   { href: '/admin/users', label: 'Users', tKey: 'nav.users', icon: UserCog, adminAndAbove: true },
   { href: '/admin/audit-log', label: 'Audit Log', tKey: 'nav.auditLog', icon: History, adminAndAbove: true },
   { href: '/admin/settings', label: 'Settings', tKey: 'nav.settings', icon: Settings, superAdminOnly: true },
@@ -137,6 +143,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
     full_name: string; role: string; can_collect_payments: boolean
     can_publish_news: boolean; can_publish_videos: boolean; can_publish_gallery: boolean
     can_publish_ticker: boolean; can_publish_jobs: boolean
+    can_publish_poetry: boolean; can_publish_blog: boolean
   } | null>(null)
   // Same can_access_system() the RLS policies are built on, rather than a
   // hand-maintained list of role names — the old check only knew about
@@ -151,7 +158,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
       const { data } = await supabase.from('admin_users')
-        .select('full_name, role, can_collect_payments, can_publish_news, can_publish_videos, can_publish_gallery, can_publish_ticker, can_publish_jobs')
+        .select('full_name, role, can_collect_payments, can_publish_news, can_publish_videos, can_publish_gallery, can_publish_ticker, can_publish_jobs, can_publish_poetry, can_publish_blog')
         .eq('auth_user_id', user.id).single()
       if (data) setProfile(data)
     })
@@ -199,6 +206,8 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
       gallery: !!profile.can_publish_gallery,
       ticker: !!profile.can_publish_ticker,
       jobs: !!profile.can_publish_jobs,
+      poetry: !!profile.can_publish_poetry,
+      blog: !!profile.can_publish_blog,
     }
     if (profile.role === 'publisher') {
       if (item.href === '/admin') return true

@@ -33,6 +33,7 @@ import { HomeMobileQuickActions } from '@/components/home/HomeMobileQuickActions
 import { HomeMobileUrduCta } from '@/components/home/HomeMobileUrduCta'
 import { T, LocaleDir } from '@/components/i18n/T'
 import { WelfareCards } from '@/components/home/WelfareCards'
+import { CommitteeNoteCard } from '@/components/home/CommitteeNoteCard'
 
 function fmtPKR(n: number) {
   return Math.round(n).toLocaleString()
@@ -47,7 +48,7 @@ export default async function HomePage() {
   const supabase = await createClient()
 
   const [projectsRes, newsRes, videosRes, donorsRes, statsRes, jobsRes, volunteersRes, achievementsRes, bloodRes,
-         needsRes, kafalatRes, wazifaRes, sadqaRes] = await Promise.all([
+         needsRes, kafalatRes, wazifaRes, sadqaRes, committeeNotesRes] = await Promise.all([
     supabase
       .from('projects')
       .select('id, title, title_ur, status, progress_percent, budget_pkr, spent_pkr, category, location, before_image_url, after_image_url')
@@ -55,8 +56,12 @@ export default async function HomePage() {
       .limit(2),
     supabase
       .from('news_posts')
-      .select('id, title, category, content, published_at')
+      .select('id, title, category, content, published_at, is_featured')
       .eq('is_published', true)
+      // Featured posts lead regardless of category — a publisher's "show
+      // this prominently" carries across News/Poetry/Blog alike, then the
+      // rest fall back to newest first, same as before.
+      .order('is_featured', { ascending: false })
       .order('published_at', { ascending: false })
       .limit(4),
     supabase
@@ -83,6 +88,8 @@ export default async function HomePage() {
     supabase.rpc('public_kafalat_summary'),
     supabase.rpc('public_wazifa_summary'),
     supabase.rpc('public_sadqa_board'),
+    supabase.from('committee_notes').select('id, body_en, body_ur, release_date')
+      .eq('is_published', true).order('release_date', { ascending: false }).order('created_at', { ascending: false }).limit(6),
   ])
 
   const projects = projectsRes.data ?? []
@@ -95,6 +102,9 @@ export default async function HomePage() {
   const achievements = achievementsRes.data ?? []
   const bloodGroups = (bloodRes.data ?? []) as { blood_group: string; registered: number; available_now: number }[]
   const bloodTotal = bloodGroups.reduce((s, g) => s + g.registered, 0)
+  const committeeNotes = committeeNotesRes.data ?? []
+  const latestCommitteeNote = committeeNotes[0] ?? null
+  const committeeNotesArchive = committeeNotes.slice(1)
 
   // The welfare modules. Counts only — no household, child or student is ever
   // named on a public page, so what the village sees is scale rather than
@@ -118,6 +128,9 @@ export default async function HomePage() {
     social: '🤝',
     announcement: '📢',
     event: '🎉',
+    editorial: '✍️',
+    poetry: '🖋️',
+    blog: '📝',
   }
 
   function formatDuration(seconds: number | null) {
@@ -309,6 +322,9 @@ export default async function HomePage() {
                     <span className="text-[10px] font-bold text-dp-secondary uppercase tracking-widest font-sans">
                       {post.category}
                     </span>
+                    {post.is_featured && (
+                      <span className="ms-2 text-[10px] font-extrabold text-amber-600 uppercase tracking-widest font-sans">★ <T k="y.featured" fallback="Featured" /></span>
+                    )}
                     <h4 className="font-bold text-dp-primary group-hover:text-dp-secondary transition-colors text-[16px] font-sans leading-[24px] line-clamp-2">
                       {post.title}
                     </h4>
@@ -424,6 +440,9 @@ export default async function HomePage() {
 
         {/* ===== RIGHT SIDEBAR (280px) ===== */}
         <aside className="w-full lg:w-[280px] shrink-0 space-y-6">
+
+          {/* Committee Note */}
+          <CommitteeNoteCard latest={latestCommitteeNote} archive={committeeNotesArchive} />
 
           {/* Cash Position */}
           <div className="bg-dp-primary text-white rounded-lg p-6 border border-dp-primary-container">

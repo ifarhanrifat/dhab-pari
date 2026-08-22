@@ -31,6 +31,7 @@ const categoryColors: Record<string, { bg: string; text: string; accent: string 
   event: { bg: 'bg-indigo-50', text: 'text-indigo-700', accent: 'bg-indigo-600' },
   editorial: { bg: 'bg-slate-50', text: 'text-slate-700', accent: 'bg-slate-600' },
   poetry: { bg: 'bg-fuchsia-50', text: 'text-fuchsia-700', accent: 'bg-fuchsia-600' },
+  blog: { bg: 'bg-cyan-50', text: 'text-cyan-700', accent: 'bg-cyan-600' },
 }
 
 const categoryEmojis: Record<string, string> = {
@@ -43,6 +44,7 @@ const categoryEmojis: Record<string, string> = {
   event: '🎉',
   editorial: '✍️',
   poetry: '🖋️',
+  blog: '📝',
 }
 
 function formatDate(dateStr: string | null) {

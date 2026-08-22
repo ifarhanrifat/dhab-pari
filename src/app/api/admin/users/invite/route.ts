@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     can_restore_deleted?: boolean; can_invite_users?: boolean
     access_water_supply?: boolean; access_donors_projects?: boolean
     can_publish_news?: boolean; can_publish_videos?: boolean; can_publish_gallery?: boolean
-    can_publish_ticker?: boolean; can_publish_jobs?: boolean
+    can_publish_ticker?: boolean; can_publish_jobs?: boolean; can_publish_poetry?: boolean; can_publish_blog?: boolean
   }
   try {
     body = await req.json()
@@ -118,6 +118,8 @@ export async function POST(req: NextRequest) {
     can_publish_gallery: !!body.can_publish_gallery,
     can_publish_ticker: !!body.can_publish_ticker,
     can_publish_jobs: !!body.can_publish_jobs,
+    can_publish_poetry: !!body.can_publish_poetry,
+    can_publish_blog: !!body.can_publish_blog,
     access_donors_projects: !!body.access_donors_projects,
     invited_at: new Date().toISOString(),
   }, { onConflict: 'email' })
