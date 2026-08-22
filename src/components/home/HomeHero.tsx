@@ -18,11 +18,18 @@ export function HomeHero() {
       {/* Desktop Hero */}
       <div className="hidden md:block pt-16 pb-32">
         <div className="max-w-[1200px] mx-auto px-6 relative z-10 text-center">
+          {/* This block is Arabic/Urdu script unconditionally — it never
+              switches with the site's language toggle — so its size can't
+              lean on globals.css's html[lang='ur'] correction table (Nastaliq
+              renders larger than Latin at the same px; that table only
+              applies when the SITE's language is Urdu). Baked in directly at
+              the sizes that table would have produced, so this reads the
+              same whichever language the rest of the page is in. */}
           <div className="max-w-3xl mx-auto mb-10 animate-in fade-in slide-in-from-top-3 duration-700">
-            <p dir="rtl" className="text-white text-[30px] lg:text-[36px] font-bold leading-[1.9]" style={{ fontFamily: 'var(--font-quran), serif' }}>
+            <p dir="rtl" className="text-white text-[24px] lg:text-[29px] font-bold leading-[1.9]" style={{ fontFamily: 'var(--font-quran), serif' }}>
               ﴿وَيَسْأَلُونَكَ مَاذَا يُنفِقُونَ قُلِ الْعَفْوَ ۗ كَذَٰلِكَ يُبَيِّنُ اللَّهُ لَكُمُ الْآيَاتِ لَعَلَّكُمْ تَتَفَكَّرُونَ﴾
             </p>
-            <p dir="rtl" className="text-dp-on-primary-container text-[18px] lg:text-[20px] mt-3 leading-[2]" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+            <p dir="rtl" className="text-dp-on-primary-container text-[15px] lg:text-[17px] mt-3 leading-[2]" style={{ fontFamily: 'var(--font-urdu), serif' }}>
               اور آپ سے پوچھتے ہیں کہ کیا خرچ کریں؟ کہہ دیجیے: جو ضرورت سے زائد ہو (عفو)۔ اللہ اسی طرح تمہارے لیے احکام کھول کر بیان کرتا ہے تاکہ تم غور و فکر کرو۔
             </p>
             <p dir="rtl" className="text-white/60 text-[13px] mt-2" style={{ fontFamily: 'var(--font-urdu), serif' }}>
@@ -31,16 +38,22 @@ export function HomeHero() {
           </div>
           <h1
             dir="rtl"
-            className="font-bold text-white drop-shadow-xl leading-tight text-[32px] lg:text-[38px] animate-in fade-in slide-in-from-top-3 duration-700 [animation-delay:200ms] [animation-fill-mode:both]"
+            className="font-bold text-white drop-shadow-xl leading-tight text-[26px] lg:text-[31px] animate-in fade-in slide-in-from-top-3 duration-700 [animation-delay:200ms] [animation-fill-mode:both]"
             style={{ fontFamily: 'var(--font-urdu), serif' }}
           >
             {SITE.committeeUrdu}
           </h1>
-          <p className="font-heading text-[26px] lg:text-[30px] font-semibold text-dp-on-primary-container mb-6 mt-1 tracking-wide">
+          {/* Plain English text, but text-[26px]/text-[30px] happened to be
+              exact class names the html[lang='ur'] correction table also
+              targets (it matches by class name, not by which script is
+              actually rendering) — so this shrank in Urdu mode by accident
+              and "grew" back in English, purely from that coincidence. Baked
+              in at the size it already showed in Urdu mode. */}
+          <p className="font-heading text-[21px] lg:text-[24px] font-semibold text-dp-on-primary-container mb-6 mt-1 tracking-wide">
             {SITE.name}
           </p>
           <p
-            className="text-dp-on-primary-container text-[22px] mb-8 leading-relaxed"
+            className="text-dp-on-primary-container text-[18px] mb-8 leading-relaxed"
             style={{ fontFamily: 'var(--font-urdu), serif', lineHeight: '2.5' }}
           >
             {SITE.taglineUrdu}
@@ -65,7 +78,7 @@ export function HomeHero() {
       {/* Mobile Hero */}
       <div className="md:hidden">
         <div className="px-6 pt-8 pb-2 text-center">
-          <p dir="rtl" className="text-white text-[22px] font-bold leading-[1.9]" style={{ fontFamily: 'var(--font-quran), serif' }}>
+          <p dir="rtl" className="text-white text-[18px] font-bold leading-[1.9]" style={{ fontFamily: 'var(--font-quran), serif' }}>
             ﴿وَيَسْأَلُونَكَ مَاذَا يُنفِقُونَ قُلِ الْعَفْوَ ۗ كَذَٰلِكَ يُبَيِّنُ اللَّهُ لَكُمُ الْآيَاتِ لَعَلَّكُمْ تَتَفَكَّرُونَ﴾
           </p>
           <p dir="rtl" className="text-dp-on-primary-container text-[14px] mt-2.5 leading-[2]" style={{ fontFamily: 'var(--font-urdu), serif' }}>

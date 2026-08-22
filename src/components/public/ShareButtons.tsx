@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Share2, Copy, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
-export function ShareButtons({ url, text }: { url: string; text: string }) {
+export function ShareButtons({ url, text, compact = false }: { url: string; text: string; compact?: boolean }) {
   const [showFallback, setShowFallback] = useState(false)
 
   const share = async () => {
@@ -20,11 +20,18 @@ export function ShareButtons({ url, text }: { url: string; text: string }) {
   }
 
   return (
-    <div className="w-full">
-      <button onClick={share}
-        className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3.5 rounded-lg font-sans text-[15px] font-bold hover:bg-dp-primary transition-all cursor-pointer">
-        <Share2 size={18} /> شیئر کریں / Share
-      </button>
+    <div className={compact ? 'inline-block' : 'w-full'}>
+      {compact ? (
+        <button onClick={share} title="Share"
+          className="flex items-center gap-1.5 text-[12.5px] font-sans font-semibold text-dp-on-surface-variant hover:text-dp-secondary transition-colors cursor-pointer">
+          <Share2 size={14} /> شیئر / Share
+        </button>
+      ) : (
+        <button onClick={share}
+          className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3.5 rounded-lg font-sans text-[15px] font-bold hover:bg-dp-primary transition-all cursor-pointer">
+          <Share2 size={18} /> شیئر کریں / Share
+        </button>
+      )}
 
       {showFallback && (
         <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4" onClick={() => setShowFallback(false)}>

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { SITE } from '@/lib/constants'
 import { GraduationCap, Users, CheckCircle2, Heart, ShieldCheck } from 'lucide-react'
-import { ShareButtons } from './ShareButtons'
+import { ShareButtons } from '@/components/public/ShareButtons'
 
 /**
  * The shareable card for one child — the page a WhatsApp/Facebook link

@@ -7,20 +7,22 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, Pencil, Trash2, Eye, EyeOff } from 'lucide-react'
+import { PlusCircle, X, Pencil, Trash2, Eye, EyeOff, FolderKanban } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
-interface Note { id: string; body_en: string; body_ur: string; release_date: string; is_published: boolean; created_at: string }
+interface Note { id: string; body_en: string; body_ur: string; release_date: string; is_published: boolean; created_at: string; linked_project_id: string | null }
+interface ProjectOpt { id: string; title: string; title_ur: string | null }
 
 const today = () => new Date().toISOString().slice(0, 10)
-const empty = { body_en: '', body_ur: '', release_date: today(), is_published: true }
+const empty = { body_en: '', body_ur: '', release_date: today(), is_published: true, linked_project_id: '' }
 
 export default function CommitteeNotesPage() {
   const { t, isUrdu } = useLocale()
   const [notes, setNotes] = useState<Note[]>([])
+  const [projects, setProjects] = useState<ProjectOpt[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
@@ -30,22 +32,33 @@ export default function CommitteeNotesPage() {
   const supabase = createClient()
 
   const load = async () => {
-    const { data } = await supabase.from('committee_notes').select('*').order('release_date', { ascending: false }).order('created_at', { ascending: false })
+    const [{ data }, { data: projs }] = await Promise.all([
+      supabase.from('committee_notes').select('*').order('release_date', { ascending: false }).order('created_at', { ascending: false }),
+      supabase.from('projects').select('id, title, title_ur').order('title'),
+    ])
     setNotes(data ?? [])
+    setProjects(projs ?? [])
     setLoading(false)
   }
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const projectName = (id: string | null) => {
+    if (!id) return null
+    const p = projects.find((p) => p.id === id)
+    return p ? (isUrdu && p.title_ur ? p.title_ur : p.title) : null
+  }
+
   const save = async () => {
     if (!form.body_en.trim() && !form.body_ur.trim()) { toast.error(t('cmn.bodyRequired')); return }
     setSaving(true)
+    const payload = { ...form, linked_project_id: form.linked_project_id || null }
     if (editing) {
-      const { error } = await supabase.from('committee_notes').update(form).eq('id', editing)
+      const { error } = await supabase.from('committee_notes').update(payload).eq('id', editing)
       setSaving(false)
       if (error) { toast.error(friendlyError(error)); return }
       toast.success(t('cmn.noteUpdated'))
     } else {
-      const { error } = await supabase.from('committee_notes').insert(form)
+      const { error } = await supabase.from('committee_notes').insert(payload)
       setSaving(false)
       if (error) { toast.error(friendlyError(error)); return }
       toast.success(t('cmn.noteCreated'))
@@ -58,7 +71,7 @@ export default function CommitteeNotesPage() {
     load()
   }
 
-  const edit = (n: Note) => { setForm({ body_en: n.body_en, body_ur: n.body_ur, release_date: n.release_date, is_published: n.is_published }); setEditing(n.id); setShowForm(true) }
+  const edit = (n: Note) => { setForm({ body_en: n.body_en, body_ur: n.body_ur, release_date: n.release_date, is_published: n.is_published, linked_project_id: n.linked_project_id ?? '' }); setEditing(n.id); setShowForm(true) }
 
   const remove = async () => {
     if (!confirmDeleteId) return
@@ -87,6 +100,9 @@ export default function CommitteeNotesPage() {
               </div>
               {n.body_en && <p className="font-sans text-[14px] text-dp-on-surface mb-1">{n.body_en}</p>}
               {n.body_ur && <p className="font-sans text-[14px] text-dp-on-surface" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{n.body_ur}</p>}
+              {projectName(n.linked_project_id) && (
+                <p className="flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-secondary mt-1.5"><FolderKanban size={12} /> {projectName(n.linked_project_id)}</p>
+              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button onClick={() => togglePublish(n)} className={`px-3 py-1 rounded text-[14px] font-sans font-semibold cursor-pointer transition-all ${n.is_published ? 'border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container' : 'bg-dp-secondary text-white hover:bg-dp-primary'}`}>{n.is_published ? t('nw.unpublishBtn') : t('nw.publishBtn')}</button>
@@ -113,6 +129,14 @@ export default function CommitteeNotesPage() {
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('cmn.releaseDate')}</label><input type="date" value={form.release_date} onChange={(e) => setForm({ ...form, release_date: e.target.value })} className="input-field" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('cmn.bodyEn')}</label><textarea value={form.body_en} onChange={(e) => setForm({ ...form, body_en: e.target.value })} rows={5} className="input-field resize-none" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('cmn.bodyUr')}</label><textarea value={form.body_ur} onChange={(e) => setForm({ ...form, body_ur: e.target.value })} rows={5} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
+              <div>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('cmn.linkedProject')}</label>
+                <select value={form.linked_project_id} onChange={(e) => setForm({ ...form, linked_project_id: e.target.value })} className="input-field">
+                  <option value="">{t('cmn.noProject')}</option>
+                  {projects.map((p) => <option key={p.id} value={p.id}>{p.title}{p.title_ur ? ` — ${p.title_ur}` : ''}</option>)}
+                </select>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('cmn.linkedProjectHint')}</p>
+              </div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_published} onChange={(e) => setForm({ ...form, is_published: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('cmn.publishToHomepage')}</span></label>
               <button disabled={saving} onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{editing ? t('cmn.updateNote') : t('cmn.createNote')}</button>
             </div>

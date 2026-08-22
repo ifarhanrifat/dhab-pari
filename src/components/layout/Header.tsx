@@ -138,8 +138,9 @@ export function Header() {
             ) : (
               <Link
                 href="/portal/login"
-                className="hidden md:flex items-center gap-2 text-white/80 hover:text-white text-[12px] font-sans font-semibold tracking-[0.02em] transition-colors whitespace-nowrap"
+                className="hidden md:flex items-center gap-1 border border-white/40 text-white px-2.5 py-1.5 rounded-lg font-sans text-[12px] font-semibold tracking-[0.02em] hover:bg-white/10 hover:border-white/70 transition-all active:scale-95 whitespace-nowrap"
               >
+                <UserCircle2 size={14} />
                 {t('site.login')}
               </Link>
             )}

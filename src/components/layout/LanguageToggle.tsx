@@ -16,7 +16,15 @@ export function LanguageToggle({ compact = false }: { compact?: boolean }) {
 
   return (
     <div
-      className={`inline-flex items-center rounded-lg border border-dp-outline-variant overflow-hidden ${compact ? 'h-8' : 'h-9'}`}
+      // Arbitrary-value height (h-[32px], not h-8) deliberately, not the bare
+      // Tailwind class — globals.css has a broad html[lang='ur'] .h-8/.h-9/
+      // .h-10 rule that forces those specific classes to height:auto so
+      // Nastaliq labels elsewhere in the app don't get clipped. This pill
+      // was already sized (smaller Urdu font, leading-none, both buttons
+      // h-full) to fit without needing that escape hatch, so it should never
+      // have been caught by it — matching h-8/h-9 by class name was
+      // accidental, not intended for this component specifically.
+      className={`inline-flex items-center rounded-lg border border-dp-outline-variant overflow-hidden ${compact ? 'h-[32px]' : 'h-[36px]'}`}
       role="group"
       aria-label="Language"
     >

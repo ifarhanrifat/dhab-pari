@@ -14,6 +14,7 @@ export const metadata: Metadata = {
 export const revalidate = 300
 import { Phone, Eye, Target } from 'lucide-react'
 import { T } from '@/components/i18n/T'
+import { CommitteeAnnouncementsArchive } from '@/components/home/CommitteeAnnouncementsArchive'
 
 const initialsColors = [
   'bg-dp-primary-container text-dp-on-primary-container',
@@ -34,6 +35,24 @@ export default async function AboutPage() {
     .order('display_order')
 
   const allMembers = members ?? []
+
+  const { data: notesRaw } = await supabase
+    .from('committee_notes')
+    .select('id, body_en, body_ur, release_date, linked_project_id, projects(title, title_ur)')
+    .eq('is_published', true)
+    .order('release_date', { ascending: false })
+    .order('created_at', { ascending: false })
+
+  const committeeNotes = ((notesRaw ?? []) as unknown as {
+    id: string; body_en: string; body_ur: string; release_date: string; linked_project_id: string | null
+    projects: { title: string; title_ur: string | null } | { title: string; title_ur: string | null }[] | null
+  }[]).map((n) => {
+    const proj = Array.isArray(n.projects) ? n.projects[0] : n.projects
+    return {
+      id: n.id, body_en: n.body_en, body_ur: n.body_ur, release_date: n.release_date,
+      project_id: n.linked_project_id, project_title: proj?.title ?? null, project_title_ur: proj?.title_ur ?? null,
+    }
+  })
 
   const { data: settings } = await supabase
     .from('site_settings')
@@ -195,6 +214,12 @@ export default async function AboutPage() {
             <T k="x.noCommitteeMembers" />
           </div>
         )}
+      </section>
+
+      {/* Committee Announcements — every note ever posted, date-wise, not
+          just the latest one the homepage card carries. */}
+      <section className="mt-16">
+        <CommitteeAnnouncementsArchive notes={committeeNotes} />
       </section>
     </div>
   )

@@ -88,7 +88,7 @@ export default async function HomePage() {
     supabase.rpc('public_kafalat_summary'),
     supabase.rpc('public_wazifa_summary'),
     supabase.rpc('public_sadqa_board'),
-    supabase.from('committee_notes').select('id, body_en, body_ur, release_date')
+    supabase.from('committee_notes').select('id, body_en, body_ur, release_date, linked_project_id, projects(title, title_ur)')
       .eq('is_published', true).order('release_date', { ascending: false }).order('created_at', { ascending: false }).limit(6),
   ])
 
@@ -102,7 +102,20 @@ export default async function HomePage() {
   const achievements = achievementsRes.data ?? []
   const bloodGroups = (bloodRes.data ?? []) as { blood_group: string; registered: number; available_now: number }[]
   const bloodTotal = bloodGroups.reduce((s, g) => s + g.registered, 0)
-  const committeeNotes = committeeNotesRes.data ?? []
+  // Supabase returns the embedded FK as an object for a to-one relationship,
+  // but as an array on some PostgREST versions/configurations — normalising
+  // here once rather than at every call site that reads project_title.
+  const committeeNotesRaw = (committeeNotesRes.data ?? []) as unknown as {
+    id: string; body_en: string; body_ur: string; release_date: string; linked_project_id: string | null
+    projects: { title: string; title_ur: string | null } | { title: string; title_ur: string | null }[] | null
+  }[]
+  const committeeNotes = committeeNotesRaw.map((n) => {
+    const proj = Array.isArray(n.projects) ? n.projects[0] : n.projects
+    return {
+      id: n.id, body_en: n.body_en, body_ur: n.body_ur, release_date: n.release_date,
+      project_id: n.linked_project_id, project_title: proj?.title ?? null, project_title_ur: proj?.title_ur ?? null,
+    }
+  })
   const latestCommitteeNote = committeeNotes[0] ?? null
   const committeeNotesArchive = committeeNotes.slice(1)
 
