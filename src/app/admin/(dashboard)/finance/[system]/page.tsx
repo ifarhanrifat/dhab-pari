@@ -62,6 +62,7 @@ interface TxnCard {
   // free-text party_name / generic type label the row used to lead with.
   voucherToName?: string
   voucherFromName?: string
+  voucherNo?: string | null
 }
 interface PendingApproval { id: string; kind: string; particular: string; amount_pkr: number; created_at: string }
 interface InventoryItemOpt { id: string; name: string; unit_price: number; unit_cost: number; unit: string }
@@ -468,7 +469,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         id: `voucher-${v.id}`, kind: 'voucher', borderColor: isSecurityDeposit ? 'border-cyan-500' : 'border-slate-400', isRecurring: !!v.recurring_schedule_id,
         typeLabel: fallbackLabel,
         partyName: multiLineLabel ?? (v.party_name || cfg?.label || fallbackLabel),
-        docLabel, voucherToName, voucherFromName,
+        docLabel, voucherToName, voucherFromName, voucherNo: v.voucher_no,
         date: v.voucher_date, description: v.particular, amount: v.amount_pkr,
         badge: null, note: null, created_at: v.created_at, voucherId: v.id,
         voucherType: v.voucher_type, autoPosted: autoPostedIds.has(v.id), fullyApproved: fullyApprovedIds.has(v.id),
@@ -738,13 +739,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     if (!card.voucherId) return
     setViewReceipt({
       kind: voucherReceiptKind[card.voucherType ?? ''] ?? 'manual',
-      receiptNo: card.docLabel.replace(/^(Voucher # |Receipt # )/, '') || card.voucherId.slice(0, 8).toUpperCase(),
+      receiptNo: card.voucherNo ?? card.voucherId.slice(0, 8).toUpperCase(),
       date: card.date,
       systemLabel: systemLabels[system],
-      accountName: card.partyName,
+      accountName: card.voucherToName ?? card.partyName,
       particular: card.description,
       amount: card.amount,
       balanceAfter: 0,
+      paidFromName: card.voucherFromName,
       // The real category breakdown for a multi-line voucher (Kafalat's
       // monthly payment, a multi-category expense) -- undefined for an
       // ordinary single-leg voucher, same as purchases.

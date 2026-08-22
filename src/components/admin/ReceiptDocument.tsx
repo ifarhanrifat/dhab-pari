@@ -39,6 +39,11 @@ export interface ReceiptData {
   paidAmount?: number
   billOutstandingAfter?: number | null
   lineItems?: ReceiptLineItem[]
+  // purchase_payment only: the account the money actually left (e.g. "Cash",
+  // "Bank Account") — printed as its own "Paid From" row against "Paid To"
+  // (the line items above/accountName) so a payment voucher reads as the
+  // double-entry document it actually is, not a bare list of what was bought.
+  paidFromName?: string
   discountAmount?: number
   securityDepositAmount?: number
   securityDepositReceiptNo?: string | null

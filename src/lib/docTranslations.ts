@@ -102,6 +102,7 @@ export const DOC_STRINGS = {
   announcedRemaining: { en: 'Announced Remaining', ur: 'اعلان شدہ بقایا' },
   outstandingAmount: { en: 'Outstanding Amount', ur: 'بقایا رقم' },
   paidTo: { en: 'Paid To', ur: 'ادائیگی بنام' },
+  paidFrom: { en: 'Paid From', ur: 'ادائیگی بذریعہ' },
   receivedFrom: { en: 'Received From', ur: 'وصول کنندہ از' },
   billedTo: { en: 'Billed To', ur: 'بل بنام' },
   vendor: { en: 'Vendor', ur: 'فراہم کنندہ' },

@@ -97,15 +97,36 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
   // A salary slip without payroll data would render an empty body — fall back
   // to the hero amount rather than printing a blank grid.
   const payroll = data.kind === 'salary' ? data.payroll : undefined
-  // A bill is always itemized even with one line; anything else earns the
+  // A bill is always itemized even with one line; a purchase payment always
+  // gets its own Paid From / Paid To body (below) regardless of whether it
+  // has real line items, so a plain single-account expense still reads as
+  // the double-entry document it is; anything else earns the generic
   // itemized table only when it actually has real lineItems to show — a
-  // multi-category voucher (Kafalat's monthly payment, a water_supply
-  // multi-line expense) or a multi-item purchase, not every plain receipt.
+  // multi-category voucher (Kafalat's monthly payment) or a multi-item
+  // purchase, not every plain receipt.
   const hasRealLineItems = !!data.lineItems && data.lineItems.length > 0
-  const body: 'itemized' | 'hero' | 'payroll' = payroll ? 'payroll' : (isBill || hasRealLineItems) ? 'itemized' : 'hero'
+  const body: 'itemized' | 'hero' | 'payroll' | 'expense' = payroll ? 'payroll' : isPurchase ? 'expense' : (isBill || hasRealLineItems) ? 'itemized' : 'hero'
 
   const titleKey: DocStringKey = data.kind === 'salary' ? 'titleSalarySlip' : isBill ? 'titleBill' : isPurchase ? 'titlePaymentVoucher' : 'titleReceipt'
   const partyKey: DocStringKey = data.kind === 'salary' ? 'employee' : isPurchase ? 'paidTo' : isDonation ? 'donor' : isBill ? 'billedTo' : 'receivedFrom'
+
+  // A muted, desaturated badge per document type — the same "designate it at
+  // a glance" job as this app's own status pills elsewhere (paid/overdue on a
+  // bill, approved/pending on a voucher), applied here to the document kind
+  // itself. Money leaving reads amber (caution), money arriving reads green
+  // (donation gets its own violet so a donation receipt is still visibly not
+  // a water-bill receipt), a bill is neutral slate since nothing has moved
+  // yet, salary its own indigo. Never the accent color scheme of any single
+  // system — this badge has to mean the same thing on both.
+  const kindAccent = data.kind === 'salary'
+    ? { bg: '#eaecfb', fg: '#3730a3' }
+    : isBill
+      ? { bg: '#eceff3', fg: '#3f4c5c' }
+      : isPurchase
+        ? { bg: '#fbebd9', fg: '#9a5714' }
+        : isDonation
+          ? { bg: '#f3e8fb', fg: '#7e3aa8' }
+          : { bg: '#e3f5e9', fg: '#0f7a4d' }
 
   const isDonorSystem = isDonation || /donor/i.test(data.systemLabel ?? '')
   const helplineKey: DocStringKey = data.kind === 'salary'
@@ -223,6 +244,21 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
           </div>
         </div>
         {data.logoUrl && <div style={{ width: logoPx, flexShrink: 0 }} aria-hidden />}
+      </div>
+
+      {/* ── Type badge: the one thing that must be readable in half a
+          second — a bill, a receipt, a payment voucher and a donation
+          receipt otherwise share the exact same chrome. */}
+      <div style={{ textAlign: 'center', marginTop: thermal ? 8 : 14 }}>
+        <span
+          style={{
+            display: 'inline-block', padding: thermal ? '3px 11px' : '5px 18px', borderRadius: 999,
+            fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+            fontSize: Math.max(f(0.88), 10), background: kindAccent.bg, color: kindAccent.fg,
+          }}
+        >
+          <L data={data} k={titleKey} />
+        </span>
       </div>
 
       {/* ── Meta block ───────────────────────────────────────────────
@@ -374,6 +410,68 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
               <Ltr style={{ ...moneyCell, fontWeight: 600, fontSize: b(1) }}>{money(data.securityDepositAmount!)}</Ltr>
             </div>
           )}
+        </>
+      ) : body === 'expense' ? (
+        // Every payment voucher is a double-entry document even when only one
+        // account was paid — "Paid From" (credited) against "Paid To"
+        // (debited), Total repeated in both columns because a real voucher
+        // always balances. A split expense's several line items all sit
+        // under the same "Paid To" group instead of each getting its own —
+        // that grouping IS the fact being shown, not an accident of layout.
+        <>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: thermal ? 10 : 24 }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${INK}` }}>
+                <th style={{ textAlign: 'left', paddingBottom: 6, fontSize: f(0.92), textTransform: 'uppercase', letterSpacing: '0.05em', color: MUTED, fontWeight: 600, lineHeight: 1.9 }}>
+                  <L data={data} k="particular" />
+                </th>
+                <th style={{ textAlign: 'right', paddingBottom: 6, fontSize: f(0.92), textTransform: 'uppercase', letterSpacing: '0.05em', color: MUTED, fontWeight: 600, lineHeight: 1.9, width: thermal ? 64 : 110 }}>
+                  <L data={data} k="debit" />
+                </th>
+                <th style={{ textAlign: 'right', paddingBottom: 6, fontSize: f(0.92), textTransform: 'uppercase', letterSpacing: '0.05em', color: MUTED, fontWeight: 600, lineHeight: 1.9, width: thermal ? 64 : 110 }}>
+                  <L data={data} k="credit" />
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.paidFromName && (
+                <>
+                  <tr>
+                    <td colSpan={3} style={{ paddingTop: thermal ? 6 : 12, paddingBottom: 2, fontSize: b(0.95), fontWeight: 700, fontStyle: 'italic' }}>
+                      <L data={data} k="paidFrom" />
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: `1px solid ${RULE}` }}>
+                    <td style={{ padding: thermal ? '5px 0' : '9px 0', fontSize: b(1) }}>{data.paidFromName}</td>
+                    <td style={{ padding: thermal ? '5px 0' : '9px 0' }} />
+                    <td style={{ padding: thermal ? '5px 0' : '9px 0', textAlign: 'right', fontSize: b(1), whiteSpace: 'nowrap' }}><Ltr>{money(data.amount)}</Ltr></td>
+                  </tr>
+                </>
+              )}
+              <tr>
+                <td colSpan={3} style={{ paddingTop: thermal ? 10 : 16, paddingBottom: 2, fontSize: b(0.95), fontWeight: 700, fontStyle: 'italic' }}>
+                  <L data={data} k="paidTo" />
+                </td>
+              </tr>
+              {(hasRealLineItems
+                ? data.lineItems!.map((l) => ({ label: l.quantity > 1 ? `${l.description} × ${l.quantity}` : l.description, amount: l.quantity * l.unitPrice }))
+                : [{ label: data.particular, amount: data.amount }]
+              ).map((row, i, arr) => (
+                <tr key={i} style={{ borderBottom: i === arr.length - 1 ? `1px solid ${INK}` : `1px solid ${RULE}` }}>
+                  <td style={{ padding: thermal ? '5px 0' : '9px 0', fontSize: b(1) }}>{row.label}</td>
+                  <td style={{ padding: thermal ? '5px 0' : '9px 0', textAlign: 'right', fontSize: b(1), whiteSpace: 'nowrap' }}><Ltr>{money(row.amount)}</Ltr></td>
+                  <td style={{ padding: thermal ? '5px 0' : '9px 0' }} />
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td style={{ paddingTop: thermal ? 8 : 14, fontWeight: 700, fontSize: b(1.1) }}><L data={data} k="total" /></td>
+                <td style={{ paddingTop: thermal ? 8 : 14, textAlign: 'right', fontWeight: 700, fontSize: b(1.1) }}><Ltr>{money(data.amount)}</Ltr></td>
+                <td style={{ paddingTop: thermal ? 8 : 14, textAlign: 'right', fontWeight: 700, fontSize: b(1.1) }}><Ltr>{money(data.amount)}</Ltr></td>
+              </tr>
+            </tfoot>
+          </table>
         </>
       ) : (
         <div style={{ textAlign: 'center', marginTop: thermal ? 12 : 26 }}>

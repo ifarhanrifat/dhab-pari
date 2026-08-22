@@ -56,6 +56,7 @@ interface TxnRow {
   // free-text party_name / generic type label the row used to lead with.
   voucherToName?: string
   voucherFromName?: string
+  voucherNo?: string | null
 }
 
 const systemLabels: Record<SystemTab, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects System' }
@@ -234,7 +235,7 @@ export default function AllTransactionsPage() {
         typeLabel: label, partyName: multiLineLabel ?? (v.party_name || label), docLabel,
         date: v.voucher_date, description: v.particular, amount: v.amount_pkr,
         badge: null, note: null, voucherId: v.id, receiptNo: v.receipt_no, autoPosted: autoPostedIds.has(v.id), fullyApproved: fullyApprovedIds.has(v.id), createdAt: v.created_at,
-        hasLineItems: hasLines, voucherToName, voucherFromName,
+        hasLineItems: hasLines, voucherToName, voucherFromName, voucherNo: v.voucher_no,
         searchBlob: `${v.party_name ?? ''} ${label} ${fromName ?? ''} ${firstToName ?? ''} ${toAccountName ?? ''} ${v.voucher_no ?? ''} ${v.receipt_no ?? ''} ${v.particular ?? ''}`.toLowerCase(),
       })
     }
@@ -349,9 +350,10 @@ export default function AllTransactionsPage() {
         : undefined
       setViewReceipt({
         kind: voucherReceiptKind[r.voucherType ?? ''] ?? 'manual',
-        receiptNo: r.receiptNo ?? r.docLabel.replace(/^\D+/, '') ?? r.voucherId.slice(0, 8).toUpperCase(),
-        date: r.date, systemLabel: systemLabels[system], accountName: r.partyName,
+        receiptNo: r.receiptNo ?? r.voucherNo ?? r.voucherId.slice(0, 8).toUpperCase(),
+        date: r.date, systemLabel: systemLabels[system], accountName: r.voucherToName ?? r.partyName,
         particular: r.description, amount: r.amount, balanceAfter: 0,
+        paidFromName: r.voucherFromName,
         lineItems,
       })
     } else if (r.kind === 'purchase' && r.purchaseId) {
