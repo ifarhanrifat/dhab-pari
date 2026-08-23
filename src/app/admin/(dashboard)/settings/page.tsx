@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Save, PlusCircle, Trash2, Pencil, X, Check, Bell, MessageCircle, ShieldCheck, MessageSquareWarning, AlertTriangle, Copy, MessageSquareText, Building2, Wallet, FileText, MapPin, Heart, ChevronDown, ChevronRight, ChevronLeft, Languages } from 'lucide-react'
+import { Save, PlusCircle, Trash2, Pencil, X, Check, Bell, MessageCircle, ShieldCheck, MessageSquareWarning, AlertTriangle, Copy, MessageSquareText, Building2, Wallet, FileText, MapPin, Heart, HandHeart, ChevronDown, ChevronRight, ChevronLeft, Languages } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ImageUpload } from '@/components/admin/ImageUpload'
@@ -13,6 +13,14 @@ import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { MODULES } from '@/lib/constants'
 import { LanguageSettings } from '@/components/admin/LanguageSettings'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { WELFARE_CARD_KEYS, WELFARE_CARD_FIELDS } from '@/lib/welfareCardContent'
+
+const fieldsFor = (card: string) => WELFARE_CARD_FIELDS.map((f) => `${card}_${f}`)
+// The multi-line fields among the welfare-card keys — tab/cta/stat labels
+// are short enough for a single-line input, the rest read better as a
+// textarea.
+const WELFARE_LONG_FIELDS = WELFARE_CARD_KEYS.flatMap((card) =>
+  ['headline_ur', 'motto_en', 'motto_ur', 'body_en', 'body_ur', 'how_en', 'how_ur'].map((f) => `${card}_${f}`))
 
 interface Setting { id: string; key: string; value: string | null; description: string | null }
 interface Sector { id: string; name: string; display_order: number }
@@ -48,7 +56,7 @@ const invoiceTemplates: { id: string; labelKey: string; blurbKey: string }[] = [
   { id: 'statement', labelKey: 'st.tpl.statement.label', blurbKey: 'st.tpl.statement.blurb' },
 ]
 
-type SettingsCategory = 'general' | 'payments' | 'language' | 'documents' | 'donorTemplates' | 'connections' | 'approvals' | 'danger'
+type SettingsCategory = 'general' | 'payments' | 'language' | 'documents' | 'donorTemplates' | 'welfareCards' | 'connections' | 'approvals' | 'danger'
 
 // Grouped by which part of the system each one belongs to, so a village that
 // runs only water supply — or only donations — sees a settings screen with
@@ -79,6 +87,8 @@ const CATEGORIES: {
 
   { id: 'donorTemplates', labelKey: 'st.cat.donorTemplates.label', icon: Heart, groupKey: 'st.group.donorsProjects', system: 'donors_projects',
     blurbKey: 'st.cat.donorTemplates.blurb' },
+  { id: 'welfareCards', labelKey: 'st.cat.welfareCards.label', icon: HandHeart, groupKey: 'st.group.donorsProjects', system: 'donors_projects',
+    blurbKey: 'st.cat.welfareCards.blurb' },
 
   { id: 'approvals', labelKey: 'st.cat.approvals.label', icon: ShieldCheck, groupKey: 'st.group.system',
     blurbKey: 'st.cat.approvals.blurb' },
@@ -148,6 +158,14 @@ const settingGroups: { labelKey: string; keys: string[]; category: SettingsCateg
     category: 'documents',
   },
   { labelKey: 'st.grp.about', keys: ['about_text', 'vision', 'mission'], category: 'general' },
+  // Migration 307 — every word on the four homepage welfare cards. One
+  // group per card so each opens/collapses on its own rather than one
+  // 60-field wall; fieldsFor(card) keeps the four in the same order the
+  // card itself renders them in (see WelfareCards.tsx).
+  { labelKey: 'st.grp.zakatCard', keys: fieldsFor('zakat'), category: 'welfareCards' },
+  { labelKey: 'st.grp.kafalatCard', keys: fieldsFor('kafalat'), category: 'welfareCards' },
+  { labelKey: 'st.grp.wazifaCard', keys: fieldsFor('wazifa'), category: 'welfareCards' },
+  { labelKey: 'st.grp.esalCard', keys: fieldsFor('esal'), category: 'welfareCards' },
   { labelKey: 'st.grp.reminders', keys: ['defaulter_restore_fee'], category: 'connections' },
   { labelKey: 'st.grp.newConnectionCharges', keys: ['connection_plumber_charge', 'connection_digging_charge', 'connection_security_deposit'], category: 'connections' },
 ]
@@ -496,7 +514,7 @@ export default function AdminSettingsPage() {
           <div className="space-y-4">
             {group.keys.map((key) => {
               const setting = settings.find((s) => s.key === key)
-              const isLong = ['about_text', 'vision', 'mission', 'invoice_instructions', 'donor_invoice_instructions', 'receipt_fund_note', 'donor_receipt_fund_note', 'publisher_guidelines_ur', 'publisher_guidelines_en', 'recurring_policy_ur', 'recurring_policy_en'].includes(key)
+              const isLong = ['about_text', 'vision', 'mission', 'invoice_instructions', 'donor_invoice_instructions', 'receipt_fund_note', 'donor_receipt_fund_note', 'publisher_guidelines_ur', 'publisher_guidelines_en', 'recurring_policy_ur', 'recurring_policy_en'].includes(key) || WELFARE_LONG_FIELDS.includes(key)
               return (
                 <div key={key}>
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">
@@ -911,6 +929,17 @@ export default function AdminSettingsPage() {
                   <button onClick={addDonorContact} className="flex items-center justify-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer shrink-0"><PlusCircle size={15} /> Add</button>
                 </div>
               </SettingsSection>
+            </>
+          )}
+
+          {activeCategory === 'welfareCards' && (
+            <>
+              <div className="bg-white border border-dp-outline-variant rounded-lg p-6">
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                  Every word on the four welfare cards on the homepage (migration 307) — nothing here is code anymore. The figures in the corners of each card stay live data and are not editable here. The &ldquo;headline (Urdu)&rdquo; field is always shown in Urdu regardless of which language a visitor has selected — that is by design, not a translation gap.
+                </p>
+              </div>
+              {renderSettingGroups('welfareCards')}
             </>
           )}
 

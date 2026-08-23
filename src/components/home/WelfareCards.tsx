@@ -30,73 +30,87 @@ interface Props {
   wazifa: Record<string, number>
   sadqaWorking: number
   sadqaTotal: number
+  // Card copy — migration 307, admin-editable from Settings → Donors &
+  // Projects → Welfare Cards. Keyed like `zakat_body_en`. A field falls back
+  // to its old messages.ts text if the settings row is ever missing/blank,
+  // so nothing breaks — it just means nobody has customised it yet.
+  content: Record<string, string>
 }
 
 const fmt = (n: number) => Number(n || 0).toLocaleString()
 
-export function WelfareCards({ needs, kafalat, wazifa, sadqaWorking, sadqaTotal }: Props) {
+export function WelfareCards({ needs, kafalat, wazifa, sadqaWorking, sadqaTotal, content }: Props) {
   const { t, isUrdu } = useLocale()
+
+  // field is e.g. 'tab', 'motto', 'body' — resolved to `{card}_{field}_en` or
+  // `{card}_{field}_ur` depending on the visitor's own language toggle.
+  const get = (card: string, field: string, fallbackKey: string) =>
+    (content[`${card}_${field}_${isUrdu ? 'ur' : 'en'}`] || '').trim() || t(fallbackKey)
+  // headline_ur has no _en counterpart — it's always the Urdu line, by design
+  // (see the render below), regardless of which language is selected.
+  const headline = (card: string, fallbackKey: string) =>
+    (content[`${card}_headline_ur`] || '').trim() || t(fallbackKey)
 
   const cards = [
     {
       key: 'zakat',
       icon: Scale,
       href: '/portal/zakat',
-      title: t('hw.zakat.tab'),
+      title: get('zakat', 'tab', 'hw.zakat.tab'),
       leftValue: needs.verified_households ?? 0,
-      leftLabel: t('hw.zakat.stat1'),
+      leftLabel: get('zakat', 'stat1', 'hw.zakat.stat1'),
       rightValue: needs.widow_headed ?? 0,
-      rightLabel: t('hw.zakat.stat2'),
-      mottoUr: t('hw.zakat.mottoUr'),
-      motto: t('hw.zakat.motto'),
-      body: t('hw.zakat.body'),
-      how: t('hw.zakat.how'),
-      cta: t('hw.zakat.cta'),
+      rightLabel: get('zakat', 'stat2', 'hw.zakat.stat2'),
+      mottoUr: headline('zakat', 'hw.zakat.mottoUr'),
+      motto: get('zakat', 'motto', 'hw.zakat.motto'),
+      body: get('zakat', 'body', 'hw.zakat.body'),
+      how: get('zakat', 'how', 'hw.zakat.how'),
+      cta: get('zakat', 'cta', 'hw.zakat.cta'),
     },
     {
       key: 'kafalat',
       icon: GraduationCap,
       href: '/portal/kafalat',
-      title: t('hw.kafalat.tab'),
+      title: get('kafalat', 'tab', 'hw.kafalat.tab'),
       leftValue: kafalat.active_children ?? 0,
-      leftLabel: t('hw.kafalat.stat1'),
+      leftLabel: get('kafalat', 'stat1', 'hw.kafalat.stat1'),
       rightValue: kafalat.awaiting_sponsor ?? 0,
-      rightLabel: t('hw.kafalat.stat2'),
-      mottoUr: t('hw.kafalat.mottoUr'),
-      motto: t('hw.kafalat.motto'),
-      body: t('hw.kafalat.body'),
-      how: t('hw.kafalat.how'),
-      cta: t('hw.kafalat.cta'),
+      rightLabel: get('kafalat', 'stat2', 'hw.kafalat.stat2'),
+      mottoUr: headline('kafalat', 'hw.kafalat.mottoUr'),
+      motto: get('kafalat', 'motto', 'hw.kafalat.motto'),
+      body: get('kafalat', 'body', 'hw.kafalat.body'),
+      how: get('kafalat', 'how', 'hw.kafalat.how'),
+      cta: get('kafalat', 'cta', 'hw.kafalat.cta'),
     },
     {
       key: 'wazifa',
       icon: BookOpen,
       href: '/portal/wazifa',
-      title: t('hw.wazifa.tab'),
+      title: get('wazifa', 'tab', 'hw.wazifa.tab'),
       leftValue: wazifa.students_supported ?? 0,
-      leftLabel: t('hw.wazifa.stat1'),
+      leftLabel: get('wazifa', 'stat1', 'hw.wazifa.stat1'),
       rightValue: wazifa.graduated ?? 0,
-      rightLabel: t('hw.wazifa.stat2'),
-      mottoUr: t('hw.wazifa.mottoUr'),
-      motto: t('hw.wazifa.motto'),
-      body: t('hw.wazifa.body'),
-      how: t('hw.wazifa.how'),
-      cta: t('hw.wazifa.cta'),
+      rightLabel: get('wazifa', 'stat2', 'hw.wazifa.stat2'),
+      mottoUr: headline('wazifa', 'hw.wazifa.mottoUr'),
+      motto: get('wazifa', 'motto', 'hw.wazifa.motto'),
+      body: get('wazifa', 'body', 'hw.wazifa.body'),
+      how: get('wazifa', 'how', 'hw.wazifa.how'),
+      cta: get('wazifa', 'cta', 'hw.wazifa.cta'),
     },
     {
       key: 'esal',
       icon: Gift,
       href: '/sadqa-jariya',
-      title: t('hw.esal.tab'),
+      title: get('esal', 'tab', 'hw.esal.tab'),
       leftValue: sadqaWorking,
-      leftLabel: t('hw.esal.stat1'),
+      leftLabel: get('esal', 'stat1', 'hw.esal.stat1'),
       rightValue: sadqaTotal,
-      rightLabel: t('hw.esal.stat2'),
-      mottoUr: t('hw.esal.mottoUr'),
-      motto: t('hw.esal.motto'),
-      body: t('hw.esal.body'),
-      how: t('hw.esal.how'),
-      cta: t('hw.esal.cta'),
+      rightLabel: get('esal', 'stat2', 'hw.esal.stat2'),
+      mottoUr: headline('esal', 'hw.esal.mottoUr'),
+      motto: get('esal', 'motto', 'hw.esal.motto'),
+      body: get('esal', 'body', 'hw.esal.body'),
+      how: get('esal', 'how', 'hw.esal.how'),
+      cta: get('esal', 'cta', 'hw.esal.cta'),
     },
   ]
 

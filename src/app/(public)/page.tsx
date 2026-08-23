@@ -34,6 +34,7 @@ import { HomeMobileUrduCta } from '@/components/home/HomeMobileUrduCta'
 import { T, LocaleDir } from '@/components/i18n/T'
 import { WelfareCards } from '@/components/home/WelfareCards'
 import { CommitteeNoteCard } from '@/components/home/CommitteeNoteCard'
+import { welfareCardContentKeys } from '@/lib/welfareCardContent'
 
 function fmtPKR(n: number) {
   return Math.round(n).toLocaleString()
@@ -48,7 +49,7 @@ export default async function HomePage() {
   const supabase = await createClient()
 
   const [projectsRes, newsRes, videosRes, donorsRes, statsRes, jobsRes, volunteersRes, achievementsRes, bloodRes,
-         needsRes, kafalatRes, wazifaRes, sadqaRes, committeeNotesRes] = await Promise.all([
+         needsRes, kafalatRes, wazifaRes, sadqaRes, committeeNotesRes, welfareContentRes] = await Promise.all([
     supabase
       .from('projects')
       .select('id, title, title_ur, status, progress_percent, budget_pkr, spent_pkr, category, location, before_image_url, after_image_url')
@@ -95,6 +96,11 @@ export default async function HomePage() {
     // field right.
     supabase.from('committee_notes').select('id, body_en, body_ur, release_date, linked_project_id, link_url, link_label_en, link_label_ur, projects(title, title_ur)')
       .eq('is_published', true).order('created_at', { ascending: false }).limit(6),
+    // Zakat/Kafalat/Wazifa/Esal-e-Sawab card copy — migration 307, editable
+    // from Settings. Fetched by exact key list rather than a blanket
+    // site_settings select, since this page already avoids reading settings
+    // it doesn't use.
+    supabase.from('site_settings').select('key, value').in('key', welfareCardContentKeys()),
   ])
 
   const projects = projectsRes.data ?? []
@@ -134,6 +140,8 @@ export default async function HomePage() {
   const wazifa = (wazifaRes.data ?? {}) as Record<string, number>
   const sadqaObjects = ((sadqaRes.data ?? []) as { status: string }[])
   const sadqaWorking = sadqaObjects.filter((o) => ['installed', 'in_service'].includes(o.status)).length
+  const welfareContent: Record<string, string> = {}
+  ;((welfareContentRes.data ?? []) as { key: string; value: string | null }[]).forEach((s) => { welfareContent[s.key] = s.value ?? '' })
   const volunteerProjectIds = volunteers.map((v) => v.project_id).filter((id): id is string => !!id)
   const { data: volunteerProjects } = volunteerProjectIds.length
     ? await supabase.from('projects').select('id, title').in('id', volunteerProjectIds)
@@ -318,6 +326,7 @@ export default async function HomePage() {
             wazifa={wazifa}
             sadqaWorking={sadqaWorking}
             sadqaTotal={sadqaObjects.length}
+            content={welfareContent}
           />
 
           {/* --- Latest News --- */}
