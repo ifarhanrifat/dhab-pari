@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Save, PlusCircle, Trash2, Pencil, X, Check, Bell, MessageCircle, ShieldCheck, MessageSquareWarning, AlertTriangle, Copy, MessageSquareText, Building2, Wallet, FileText, MapPin, Heart, HandHeart, ChevronDown, ChevronRight, ChevronLeft, Languages } from 'lucide-react'
+import { Save, PlusCircle, Trash2, Pencil, X, Check, Bell, MessageCircle, ShieldCheck, MessageSquareWarning, AlertTriangle, Copy, MessageSquareText, Building2, Wallet, FileText, MapPin, Heart, HandHeart, HelpCircle, ChevronDown, ChevronRight, ChevronLeft, Languages } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ImageUpload } from '@/components/admin/ImageUpload'
@@ -14,6 +14,7 @@ import { MODULES } from '@/lib/constants'
 import { LanguageSettings } from '@/components/admin/LanguageSettings'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { WELFARE_CARD_KEYS, WELFARE_CARD_FIELDS } from '@/lib/welfareCardContent'
+import { POOL_GUIDE_ITEMS, POOL_GUIDE_INTRO_KEYS, poolItemFields, ZAKAT_GUIDE_KEYS } from '@/lib/portalGuideContent'
 
 const fieldsFor = (card: string) => WELFARE_CARD_FIELDS.map((f) => `${card}_${f}`)
 // The multi-line fields among the welfare-card keys — tab/cta/stat labels
@@ -21,6 +22,13 @@ const fieldsFor = (card: string) => WELFARE_CARD_FIELDS.map((f) => `${card}_${f}
 // textarea.
 const WELFARE_LONG_FIELDS = WELFARE_CARD_KEYS.flatMap((card) =>
   ['headline_ur', 'motto_en', 'motto_ur', 'body_en', 'body_ur', 'how_en', 'how_ur'].map((f) => `${card}_${f}`))
+// Same idea for the portal guide keys — every field except the two
+// question-title fields is a sentence or more.
+const PORTAL_GUIDE_LONG_FIELDS = [
+  'pool_promise_urdu_line', 'pool_promise_en', 'pool_promise_ur',
+  ...POOL_GUIDE_ITEMS.flatMap((item) => [`pool_how_${item}_urdu_line`, `pool_how_${item}_answer_en`, `pool_how_${item}_answer_ur`]),
+  'pzk_blurb_en', 'pzk_blurb_ur', 'pzk_why_urdu_line', 'pzk_why_english_line',
+]
 
 interface Setting { id: string; key: string; value: string | null; description: string | null }
 interface Sector { id: string; name: string; display_order: number }
@@ -56,7 +64,7 @@ const invoiceTemplates: { id: string; labelKey: string; blurbKey: string }[] = [
   { id: 'statement', labelKey: 'st.tpl.statement.label', blurbKey: 'st.tpl.statement.blurb' },
 ]
 
-type SettingsCategory = 'general' | 'payments' | 'language' | 'documents' | 'donorTemplates' | 'welfareCards' | 'connections' | 'approvals' | 'danger'
+type SettingsCategory = 'general' | 'payments' | 'language' | 'documents' | 'donorTemplates' | 'welfareCards' | 'portalGuides' | 'connections' | 'approvals' | 'danger'
 
 // Grouped by which part of the system each one belongs to, so a village that
 // runs only water supply — or only donations — sees a settings screen with
@@ -89,6 +97,8 @@ const CATEGORIES: {
     blurbKey: 'st.cat.donorTemplates.blurb' },
   { id: 'welfareCards', labelKey: 'st.cat.welfareCards.label', icon: HandHeart, groupKey: 'st.group.donorsProjects', system: 'donors_projects',
     blurbKey: 'st.cat.welfareCards.blurb' },
+  { id: 'portalGuides', labelKey: 'st.cat.portalGuides.label', icon: HelpCircle, groupKey: 'st.group.donorsProjects', system: 'donors_projects',
+    blurbKey: 'st.cat.portalGuides.blurb' },
 
   { id: 'approvals', labelKey: 'st.cat.approvals.label', icon: ShieldCheck, groupKey: 'st.group.system',
     blurbKey: 'st.cat.approvals.blurb' },
@@ -166,6 +176,17 @@ const settingGroups: { labelKey: string; keys: string[]; category: SettingsCateg
   { labelKey: 'st.grp.kafalatCard', keys: fieldsFor('kafalat'), category: 'welfareCards' },
   { labelKey: 'st.grp.wazifaCard', keys: fieldsFor('wazifa'), category: 'welfareCards' },
   { labelKey: 'st.grp.esalCard', keys: fieldsFor('esal'), category: 'welfareCards' },
+  // Migration 308 — the sponsorship-pool guide shared by the Kafalat,
+  // Wazifa and Esal-e-Sawab portal pages (one group per question, so this
+  // isn't a single 30-field wall), plus the Zakat portal page's own guide.
+  { labelKey: 'st.grp.poolGuideIntro', keys: POOL_GUIDE_INTRO_KEYS, category: 'portalGuides' },
+  { labelKey: 'st.grp.poolGuideWhat', keys: poolItemFields('what'), category: 'portalGuides' },
+  { labelKey: 'st.grp.poolGuideAmount', keys: poolItemFields('amount'), category: 'portalGuides' },
+  { labelKey: 'st.grp.poolGuideWhen', keys: poolItemFields('when'), category: 'portalGuides' },
+  { labelKey: 'st.grp.poolGuideStop', keys: poolItemFields('stop'), category: 'portalGuides' },
+  { labelKey: 'st.grp.poolGuideShort', keys: poolItemFields('short'), category: 'portalGuides' },
+  { labelKey: 'st.grp.poolGuidePrivacy', keys: poolItemFields('privacy'), category: 'portalGuides' },
+  { labelKey: 'st.grp.zakatGuide', keys: ZAKAT_GUIDE_KEYS, category: 'portalGuides' },
   { labelKey: 'st.grp.reminders', keys: ['defaulter_restore_fee'], category: 'connections' },
   { labelKey: 'st.grp.newConnectionCharges', keys: ['connection_plumber_charge', 'connection_digging_charge', 'connection_security_deposit'], category: 'connections' },
 ]
@@ -514,7 +535,7 @@ export default function AdminSettingsPage() {
           <div className="space-y-4">
             {group.keys.map((key) => {
               const setting = settings.find((s) => s.key === key)
-              const isLong = ['about_text', 'vision', 'mission', 'invoice_instructions', 'donor_invoice_instructions', 'receipt_fund_note', 'donor_receipt_fund_note', 'publisher_guidelines_ur', 'publisher_guidelines_en', 'recurring_policy_ur', 'recurring_policy_en'].includes(key) || WELFARE_LONG_FIELDS.includes(key)
+              const isLong = ['about_text', 'vision', 'mission', 'invoice_instructions', 'donor_invoice_instructions', 'receipt_fund_note', 'donor_receipt_fund_note', 'publisher_guidelines_ur', 'publisher_guidelines_en', 'recurring_policy_ur', 'recurring_policy_en'].includes(key) || WELFARE_LONG_FIELDS.includes(key) || PORTAL_GUIDE_LONG_FIELDS.includes(key)
               return (
                 <div key={key}>
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">
@@ -940,6 +961,17 @@ export default function AdminSettingsPage() {
                 </p>
               </div>
               {renderSettingGroups('welfareCards')}
+            </>
+          )}
+
+          {activeCategory === 'portalGuides' && (
+            <>
+              <div className="bg-white border border-dp-outline-variant rounded-lg p-6">
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                  The &ldquo;how this works&rdquo; guidance shown on the portal (migration 308). The sponsorship-pool guide below is shared by the Kafalat, Wazifa and Esal-e-Sawab portal pages — editing it here changes it on all three at once, since it is one shared feature rather than three separate ones. The Zakat guide at the bottom is that page&rsquo;s own, separate text. Any &ldquo;Urdu line&rdquo; field is always shown in Urdu regardless of which language a visitor has selected — that is by design, not a translation gap.
+                </p>
+              </div>
+              {renderSettingGroups('portalGuides')}
             </>
           )}
 

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Scale, ArrowRight, Users } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { ZakatCalculator } from '@/components/welfare/ZakatCalculator'
+import { ZAKAT_GUIDE_KEYS } from '@/lib/portalGuideContent'
 
 /**
  * The donor's side of Zakat.
@@ -29,6 +30,7 @@ export default function PortalZakatPage() {
   const { t, isUrdu } = useLocale()
   const [round, setRound] = useState<Round | null>(null)
   const [needs, setNeeds] = useState<Record<string, number>>({})
+  const [guideContent, setGuideContent] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const supabase = createClient()
@@ -37,11 +39,29 @@ export default function PortalZakatPage() {
         .not('status', 'in', '("closed","cancelled")')
         .order('opened_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.rpc('needs_register_summary'),
-    ]).then(([{ data: r }, { data: n }]) => {
+      // The blurb/eligibility copy below, admin-editable (Settings → Donors
+      // & Projects → Portal Guides — migration 308).
+      supabase.from('site_settings').select('key, value').in('key', ZAKAT_GUIDE_KEYS),
+    ]).then(([{ data: r }, { data: n }, { data: g }]) => {
       setRound((r ?? null) as Round | null)
       setNeeds((n ?? {}) as Record<string, number>)
+      const gm: Record<string, string> = {}
+      ;((g ?? []) as { key: string; value: string | null }[]).forEach((s) => { gm[s.key] = s.value ?? '' })
+      setGuideContent(gm)
     })
   }, [])
+
+  // Falls back to the original messages.ts text if a field hasn't been
+  // customised yet.
+  const guideGet = (field: string, fallbackKey: string) =>
+    (guideContent[`pzk_${field}_${isUrdu ? 'ur' : 'en'}`] || '').trim() || t(fallbackKey)
+  const guideBlurb = guideGet('blurb', 'pzk.blurb')
+  const guideWhoItReaches = guideGet('who_it_reaches', 'pzk.whoItReaches')
+  const guideWhoItReachesHelp = guideGet('who_it_reaches_help', 'pzk.whoItReachesHelp')
+  // Fixed pair — always Urdu / always English, regardless of which language
+  // is selected (see portalGuideContent.ts).
+  const guideWhyUrdu = (guideContent.pzk_why_urdu_line || '').trim() || t('pzk.whyUrdu')
+  const guideWhyEnglish = (guideContent.pzk_why_english_line || '').trim() || t('pzk.whyEnglish')
 
   const perHousehold = round && round.household_count > 0
     ? round.collected_pkr / round.household_count
@@ -53,24 +73,24 @@ export default function PortalZakatPage() {
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
           <Scale size={24} className="text-dp-secondary" /> {t('pzk.title')}
         </h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1.5 leading-relaxed">{t('pzk.blurb')}</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1.5 leading-relaxed">{guideBlurb}</p>
       </div>
 
       {/* ── Why you do not pick a recipient ─────────────────────────────── */}
       <div className="bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3.5 mb-5">
         <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mb-1.5"
           style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
-          {t('pzk.whyUrdu')}
+          {guideWhyUrdu}
         </p>
-        <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{t('pzk.whyEnglish')}</p>
+        <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{guideWhyEnglish}</p>
       </div>
 
       {/* ── Who it reaches ──────────────────────────────────────────────── */}
       <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-5">
         <h2 className="font-sans text-[15px] font-bold text-dp-on-surface flex items-center gap-2 mb-1">
-          <Users size={17} className="text-dp-secondary" /> {t('pzk.whoItReaches')}
+          <Users size={17} className="text-dp-secondary" /> {guideWhoItReaches}
         </h2>
-        <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('pzk.whoItReachesHelp')}</p>
+        <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{guideWhoItReachesHelp}</p>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {([

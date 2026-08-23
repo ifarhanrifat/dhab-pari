@@ -13,6 +13,7 @@ import {
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { renderTemplate } from '@/lib/messageTemplates'
 import { SITE } from '@/lib/constants'
+import { usePoolGuideContent } from '@/hooks/usePoolGuideContent'
 import Link from 'next/link'
 
 /**
@@ -68,6 +69,17 @@ export default function PortalKafalatPage() {
   const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const { user: portalUser } = usePortalUser()
+
+  // The "How this works" guide below, admin-editable (Settings → Donors &
+  // Projects → Portal Guides — migration 308). Each falls back to the
+  // original messages.ts text if a field hasn't been customised yet.
+  const guideContent = usePoolGuideContent()
+  const guideTitle = (guideContent[`pool_how_title_${isUrdu ? 'ur' : 'en'}`] || '').trim() || t('pool.howTitle')
+  const guideQ = (k: string) => (guideContent[`pool_how_${k}_q_${isUrdu ? 'ur' : 'en'}`] || '').trim() || t(`pool.how.${k}.q`)
+  const guideUrduLine = (k: string) => (guideContent[`pool_how_${k}_urdu_line`] || '').trim() || t(`pool.how.${k}.aUr`)
+  const guideAnswer = (k: string) => (guideContent[`pool_how_${k}_answer_${isUrdu ? 'ur' : 'en'}`] || '').trim() || t(`pool.how.${k}.a`)
+  const guidePromiseUrduLine = (guideContent.pool_promise_urdu_line || '').trim() || t('pool.promiseUr')
+  const guidePromise = (guideContent[`pool_promise_${isUrdu ? 'ur' : 'en'}`] || '').trim() || t('pool.promise')
 
   const [poolId, setPoolId] = useState<string | null>(null)
   const [position, setPosition] = useState<Position | null>(null)
@@ -304,7 +316,7 @@ export default function PortalKafalatPage() {
       <button onClick={() => setShowGuide((v) => !v)}
         className="w-full flex items-center justify-between gap-2 bg-white border border-dp-outline-variant rounded-lg px-4 py-3 mb-5 hover:border-dp-secondary transition-all cursor-pointer">
         <span className="flex items-center gap-2 font-sans text-[13px] font-bold text-dp-primary">
-          <HelpCircle size={16} /> {t('pool.howTitle')}
+          <HelpCircle size={16} /> {guideTitle}
         </span>
         <ChevronDown size={16} className={`text-dp-on-surface-variant transition-transform ${showGuide ? 'rotate-180' : ''}`} />
       </button>
@@ -325,12 +337,12 @@ export default function PortalKafalatPage() {
                   <Icon size={16} className="text-dp-secondary" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-heading text-[14px] font-bold text-dp-primary mb-1">{t(`pool.how.${k}.q`)}</h3>
+                  <h3 className="font-heading text-[14px] font-bold text-dp-primary mb-1">{guideQ(k)}</h3>
                   <p className="font-sans text-[15px] leading-[2] text-dp-on-surface mb-1"
                     style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
-                    {t(`pool.how.${k}.aUr`)}
+                    {guideUrduLine(k)}
                   </p>
-                  <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{t(`pool.how.${k}.a`)}</p>
+                  <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{guideAnswer(k)}</p>
                 </div>
               </div>
             ))}
@@ -340,9 +352,9 @@ export default function PortalKafalatPage() {
             <div>
               <p className="font-sans text-[15px] leading-[2] text-dp-on-surface font-bold"
                 style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
-                {t('pool.promiseUr')}
+                {guidePromiseUrduLine}
               </p>
-              <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{t('pool.promise')}</p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{guidePromise}</p>
             </div>
           </div>
         </section>
