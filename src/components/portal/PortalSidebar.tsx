@@ -14,6 +14,7 @@ import {
   GraduationCap,
   Gift,
   BookOpen,
+  NotebookPen,
   Scale,
   Users,
 } from 'lucide-react'
@@ -33,6 +34,7 @@ const menuItems = [
   { href: '/portal/esal-e-sawab', label: 'Sadqa-e-Jariya', tKey: 'portal.esalESawab', icon: Gift },
   { href: '/portal/wazifa', label: 'Taleemi Wazifa', tKey: 'portal.wazifa', icon: BookOpen },
   { href: '/portal/propose-project', label: 'Propose a Project', tKey: 'portal.proposeProject', icon: Vote },
+  { href: '/portal/submit-blog', label: 'Submit a Blog Post', tKey: 'portal.submitBlog', icon: NotebookPen },
   { href: '/portal/suggestions', label: 'Suggestions', tKey: 'portal.suggestions', icon: MessageSquare },
   { href: '/portal/complaints', label: 'Complaints', tKey: 'portal.complaints', icon: MessageSquareWarning },
   { href: '/portal/blood-donor', label: 'Blood Donor', tKey: 'portal.bloodDonor', icon: Droplet },

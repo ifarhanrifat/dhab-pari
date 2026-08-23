@@ -2,13 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, Pencil, Trash2 } from 'lucide-react'
+import { PlusCircle, X, Pencil, Trash2, Eye, EyeOff, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
-interface Project { id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null; status: string; progress_percent: number; budget_pkr: number | null; spent_pkr: number | null; category: string | null; location: string | null; sector: string | null; is_featured: boolean; before_image_url: string | null; after_image_url: string | null; start_date: string | null; end_date: string | null; beneficiaries_count: number | null; funding_model: string | null; monthly_operating_cost_pkr: number | null }
+interface Project { id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null; status: string; progress_percent: number; budget_pkr: number | null; spent_pkr: number | null; category: string | null; location: string | null; sector: string | null; is_featured: boolean; before_image_url: string | null; after_image_url: string | null; start_date: string | null; end_date: string | null; beneficiaries_count: number | null; funding_model: string | null; monthly_operating_cost_pkr: number | null
+  // Migration 311 — a donor-proposed project, its badge-tier fast-track
+  // flag (skips community voting), and the staff-only visibility switch.
+  admin_hidden: boolean; skip_voting: boolean; proposed_by_portal_user_id: string | null }
 
 const statuses = ['ongoing', 'completed', 'upcoming']
 const categories = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'sports', 'other']
@@ -63,6 +66,15 @@ export default function AdminProjectsPage() {
   const edit = (p: Project) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0 }); setEditing(p.id); setShowForm(true) }
 
   const remove = async (id: string) => { if (!confirm(t('pj.confirmDelete'))) return; await supabase.from('projects').delete().eq('id', id); toast.success(t('pj.deleted')); load() }
+  // Pulls a donor-submitted proposal out of public view without rejecting
+  // it outright — independent of status, so it works on a fast-tracked
+  // (skip_voting) proposal just as well as a normal one awaiting votes.
+  const toggleHidden = async (p: Project) => {
+    const { error } = await supabase.from('projects').update({ admin_hidden: !p.admin_hidden }).eq('id', p.id)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(p.admin_hidden ? t('pj.unhiddenToast') : t('pj.hiddenToast'))
+    load()
+  }
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
@@ -78,15 +90,27 @@ export default function AdminProjectsPage() {
         {!loading && filtered.map((p) => (
           <div key={p.id} className="bg-white border border-dp-outline-variant rounded-lg p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-dp-secondary transition-all">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3 mb-1">
+              <div className="flex items-center gap-3 mb-1 flex-wrap">
                 <StatusPill status={p.status} />
                 {p.is_featured && <span className="text-[10px] font-bold text-amber-600 font-sans">{t('pj.featuredBadge')}</span>}
+                {p.proposed_by_portal_user_id && p.skip_voting && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 rounded-full px-2 py-0.5 font-sans"><Zap size={11} /> {t('pj.fastTrackBadge')}</span>
+                )}
+                {p.admin_hidden && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-dp-error bg-dp-error/10 rounded-full px-2 py-0.5 font-sans"><EyeOff size={11} /> {t('pj.hiddenBadge')}</span>
+                )}
               </div>
               <h3 className="font-sans text-[18px] font-bold text-dp-on-surface truncate">{p.title}</h3>
               <p className="font-sans text-[14px] text-dp-on-surface-variant">{t(categoryLabelKey[p.category ?? ''] ?? p.category ?? '', p.category ?? '')} · {p.location} · {p.progress_percent}%</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <div className="w-32 bg-dp-surface-container-high h-2 rounded-full overflow-hidden"><div className="h-full bg-dp-secondary" style={{ width: `${p.progress_percent}%` }} /></div>
+              {p.proposed_by_portal_user_id && (
+                <button onClick={() => toggleHidden(p)} title={t(p.admin_hidden ? 'pj.unhideAction' : 'pj.hideAction')}
+                  className={`p-2 rounded-lg cursor-pointer ${p.admin_hidden ? 'text-dp-error hover:bg-dp-error/10' : 'text-dp-on-surface-variant hover:bg-dp-surface-container'}`}>
+                  {p.admin_hidden ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              )}
               <button onClick={() => edit(p)} className="p-2 text-dp-primary hover:bg-dp-primary/10 rounded-lg cursor-pointer"><Pencil size={16} /></button>
               <button onClick={() => remove(p.id)} className="p-2 text-dp-error hover:bg-dp-error/10 rounded-lg cursor-pointer"><Trash2 size={16} /></button>
             </div>

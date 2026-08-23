@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { HeartHandshake, Droplets, MessageSquareWarning, MessageSquare, Repeat, Droplet } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { PortalBadgeCard } from '@/components/portal/PortalBadgeCard'
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -64,6 +65,8 @@ export default function PortalDashboardPage() {
           {user.consumer_id ? `${t('p.consumerNo')}${user.consumer_id}` : t('p.noLinkedWaterConnection')} · {t('p.mobileLabel')} {user.mobile}
         </p>
       </div>
+
+      {user.donor_account_id && <PortalBadgeCard portalUserId={user.id} totalDonated={totalDonated} />}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {cards.map((c) => (

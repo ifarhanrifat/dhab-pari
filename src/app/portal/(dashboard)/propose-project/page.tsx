@@ -1,14 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { Vote, Sparkles, ListChecks } from 'lucide-react'
+import { Vote, Sparkles, ListChecks, Lock, Zap } from 'lucide-react'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { DonorBadge } from '@/components/public/DonorBadge'
+import { canFastTrack, type DonorBadgeTier } from '@/lib/donorBadges'
 
 const CATEGORIES = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'sports', 'other']
 
@@ -21,6 +24,10 @@ type Lang = 'en' | 'ur'
 const t: Record<string, { en: string; ur: string }> = {
   heading: { en: 'Propose a Project', ur: 'منصوبہ تجویز کریں' },
   subtitle: { en: "Have an idea for the village? Propose it here — once your commitment is confirmed and enough members vote for it, the committee reviews and can launch it.", ur: 'گاؤں کے لیے کوئی خیال ہے؟ یہاں تجویز کریں — آپ کا وعدہ تصدیق ہونے اور کافی ووٹ ملنے کے بعد کمیٹی جائزہ لے کر اسے شروع کر سکتی ہے۔' },
+  badgeRequiredTitle: { en: 'Proposing needs a donor badge first', ur: 'تجویز دینے کے لیے پہلے عطیہ دہندہ بیج درکار ہے' },
+  badgeRequiredBody: { en: 'Proposing a project is open to donors who have reached at least the Chashma (Spring) badge — real, confirmed giving. Make a donation to start earning yours, then come back here.', ur: 'منصوبہ تجویز کرنا اُن عطیہ دہندگان کے لیے کھلا ہے جو کم از کم چشمہ بیج تک پہنچ چکے ہیں — حقیقی، تصدیق شدہ عطیات۔ اپنا پہلا بیج کمانے کے لیے عطیہ دیں، پھر یہاں واپس آئیں۔' },
+  badgeRequiredCta: { en: 'Go to My Giving', ur: 'میرے عطیات پر جائیں' },
+  fastTrackNote: { en: '⚡ Your badge fast-tracks this proposal — once your self-commitment is confirmed, it skips community voting and goes straight to the committee for review.', ur: '⚡ آپ کا بیج اس تجویز کو فاسٹ ٹریک کرتا ہے — آپ کا وعدہ تصدیق ہوتے ہی یہ کمیونٹی ووٹنگ کو چھوڑ کر براہ راست کمیٹی کے جائزے کے لیے جائے گی۔' },
   conditionsTitle: { en: 'Conditions to get your project approved & voted', ur: 'اپنے منصوبے کی منظوری اور ووٹ حاصل کرنے کی شرائط' },
   cond1: { en: 'Keep the total cost under Rs. 500,000 for the best chance of approval — projects under Rs. 200,000 are the most favored by the community and the committee. Votes needed scale with cost (50 votes per Rs. 100,000, minimum 50).', ur: 'منظوری کے بہترین امکان کے لیے کل لاگت روپے 500,000 سے کم رکھیں — روپے 200,000 سے کم منصوبے کمیونٹی اور کمیٹی کو سب سے زیادہ پسند ہیں۔ درکار ووٹ لاگت کے مطابق بڑھتے ہیں (ہر روپے 100,000 پر 50 ووٹ، کم از کم 50)۔' },
   cond2: { en: 'You must back your own proposal with a self-commitment — a minimum percentage of your requested budget (at least Rs. 10,000), shown live below as you type your budget. Pay it once, or commit to it monthly.', ur: 'آپ کو اپنی تجویز کی حمایت اپنے وعدے سے کرنی ہوگی — آپ کے مطلوبہ بجٹ کا کم از کم فیصد (کم از کم روپے 10,000)، جو نیچے بجٹ لکھتے ہی خودکار دکھایا جائے گا۔ یہ ایک بار ادا کریں یا ماہانہ وعدہ کریں۔' },
@@ -118,6 +125,15 @@ export default function ProposeProjectPage() {
   const [lang, setLang] = useState<Lang>('en')
   const dt = (key: keyof typeof t) => t[key][lang]
   const isUrdu = lang === 'ur'
+
+  // Badge-gated per migration 311: no badge at all blocks the form
+  // entirely; River/Ocean/Wellspring fast-track past community voting.
+  // undefined = still loading, null = no badge yet.
+  const [tier, setTier] = useState<DonorBadgeTier | null | undefined>(undefined)
+  useEffect(() => {
+    if (!user) return
+    createClient().rpc('donor_badge_tier', { p_portal_user_id: user.id }).then(({ data }) => setTier((data ?? null) as DonorBadgeTier | null))
+  }, [user])
 
   const [form, setForm] = useState({
     title: '', description: '', category: 'welfare', location: '', image_url: '',
@@ -230,14 +246,39 @@ export default function ProposeProjectPage() {
     router.push(`/projects/${data.id}`)
   }
 
-  if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{tr('action.loading')}</div>
+  if (userLoading || tier === undefined) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{tr('action.loading')}</div>
+
+  if (tier === null) {
+    return (
+      <div className="max-w-lg" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">
+          <Lock size={28} className="text-dp-on-surface-variant mx-auto mb-3" />
+          <h1 className="font-heading text-[20px] font-bold text-dp-primary mb-2">{dt('badgeRequiredTitle')}</h1>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant leading-relaxed mb-5">{dt('badgeRequiredBody')}</p>
+          <Link href="/portal/statement" className="inline-block px-5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all">
+            {dt('badgeRequiredCta')}
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
       <div className="mb-6" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Vote size={22} className="text-dp-secondary" /> {dt('heading')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{dt('subtitle')}</p>
+        <div className="mt-2 flex items-center gap-2">
+          <DonorBadge tier={tier} isUrdu={isUrdu} />
+        </div>
       </div>
+
+      {canFastTrack(tier) && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3.5 mb-4 max-w-lg flex items-start gap-2.5" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+          <Zap size={16} className="text-indigo-700 shrink-0 mt-0.5" />
+          <p className="font-sans text-[12.5px] text-indigo-900 leading-relaxed">{dt('fastTrackNote')}</p>
+        </div>
+      )}
 
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 max-w-lg" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
         <div className="flex gap-3 mb-2">

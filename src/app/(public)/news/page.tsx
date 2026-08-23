@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Calendar, User, Eye } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { DonorBadge } from '@/components/public/DonorBadge'
+import type { DonorBadgeTier } from '@/lib/donorBadges'
 
 interface NewsPost {
   id: string
@@ -17,6 +19,7 @@ interface NewsPost {
   author: string
   views: number
   published_at: string | null
+  submitted_by_portal_user_id: string | null
 }
 
 interface PostCategory { key: string; label_en: string; icon: string | null }
@@ -57,11 +60,16 @@ function formatDate(dateStr: string | null) {
 }
 
 export default function NewsPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [posts, setPosts] = useState<NewsPost[]>([])
   const [activeFilter, setActiveFilter] = useState('All')
   const [categories, setCategories] = useState<PostCategory[]>([])
   const [loading, setLoading] = useState(true)
+  // Donor-authored posts (migration 312) carry their author's badge —
+  // fetched per unique submitter once the posts themselves are in, same as
+  // project_comments_public already does via a view; here it's a direct
+  // RPC call since news_posts has no equivalent public view.
+  const [authorBadges, setAuthorBadges] = useState<Record<string, DonorBadgeTier>>({})
 
   useEffect(() => {
     const supabase = createClient()
@@ -71,8 +79,12 @@ export default function NewsPage() {
       .eq('is_published', true)
       .order('published_at', { ascending: false })
       .then(({ data }) => {
-        setPosts(data ?? [])
+        const rows = (data ?? []) as NewsPost[]
+        setPosts(rows)
         setLoading(false)
+        const ids = [...new Set(rows.map((p) => p.submitted_by_portal_user_id).filter((v): v is string => !!v))]
+        Promise.all(ids.map((id) => supabase.rpc('donor_badge_tier', { p_portal_user_id: id }).then(({ data: tier }) => [id, tier] as const)))
+          .then((pairs) => setAuthorBadges(Object.fromEntries(pairs.filter(([, tier]) => tier))))
       })
     supabase.from('post_categories').select('key, label_en, icon').eq('is_active', true).order('display_order')
       .then(({ data }) => setCategories(data ?? []))
@@ -171,6 +183,7 @@ export default function NewsPage() {
                 <span className="flex items-center gap-1">
                   <User size={14} />
                   {featured.author}
+                  <DonorBadge tier={authorBadges[featured.submitted_by_portal_user_id ?? '']} isUrdu={isUrdu} size="xs" />
                 </span>
                 <span className="flex items-center gap-1">
                   <Eye size={14} />
@@ -219,6 +232,7 @@ export default function NewsPage() {
                       <span className="flex items-center gap-1">
                         <User size={12} />
                         {post.author}
+                        <DonorBadge tier={authorBadges[post.submitted_by_portal_user_id ?? '']} isUrdu={isUrdu} size="xs" />
                       </span>
                     </div>
                   </div>

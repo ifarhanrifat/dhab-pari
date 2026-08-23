@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   Receipt,
+  Award,
   FolderKanban,
   Users,
   BarChart3,
@@ -95,6 +96,7 @@ const menuItems: {
   { href: '/admin/videos', label: 'Videos', tKey: 'nav.videos', icon: Video, publish: 'videos' },
   { href: '/admin/donors', label: 'Donors', tKey: 'nav.donors', icon: Heart, system: 'donors_projects', badge: 'donors' },
   { href: '/admin/donors/collectors', label: 'Donor Collectors', tKey: 'nav.donorCollectors', icon: Coins, system: 'donors_projects' },
+  { href: '/admin/donor-badges', label: 'Donor Badges', tKey: 'nav.donorBadges', icon: Award, system: 'donors_projects' },
   { href: '/admin/gallery', label: 'Gallery', tKey: 'nav.gallery', icon: Image, publish: 'gallery' },
   { href: '/admin/suggestions', label: 'Suggestions', tKey: 'nav.suggestions', icon: MessageSquare, badge: 'suggestions' },
   { href: '/admin/volunteers', label: 'Volunteers', tKey: 'nav.volunteers', icon: HandHeart, system: 'donors_projects', badge: 'volunteers' },

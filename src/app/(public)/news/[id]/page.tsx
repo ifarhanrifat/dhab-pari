@@ -7,6 +7,8 @@ export const revalidate = 300
 import Link from 'next/link'
 import { Calendar, User, Eye, ArrowLeft } from 'lucide-react'
 import { T } from '@/components/i18n/T'
+import { DonorBadge } from '@/components/public/DonorBadge'
+import type { DonorBadgeTier } from '@/lib/donorBadges'
 
 const categoryColors: Record<string, { bg: string; text: string }> = {
   sports: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
@@ -54,6 +56,13 @@ export default async function NewsDetailPage({
     .single()
 
   if (!post) notFound()
+
+  // Donor-authored posts (migration 312) carry their author's badge.
+  let authorBadge: DonorBadgeTier | null = null
+  if (post.submitted_by_portal_user_id) {
+    const { data } = await supabase.rpc('donor_badge_tier', { p_portal_user_id: post.submitted_by_portal_user_id })
+    authorBadge = (data ?? null) as DonorBadgeTier | null
+  }
 
   const colors = categoryColors[post.category ?? ''] ?? {
     bg: 'bg-dp-surface-container-low',
@@ -112,6 +121,7 @@ export default async function NewsDetailPage({
           <span className="flex items-center gap-1">
             <User size={16} />
             {post.author}
+            <DonorBadge tier={authorBadge} size="sm" />
           </span>
           <span className="flex items-center gap-1">
             <Eye size={16} />

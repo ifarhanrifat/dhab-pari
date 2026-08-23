@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Save, PlusCircle, Trash2, Pencil, X, Check, Bell, MessageCircle, ShieldCheck, MessageSquareWarning, AlertTriangle, Copy, MessageSquareText, Building2, Wallet, FileText, MapPin, Heart, HandHeart, HelpCircle, ClipboardList, ChevronDown, ChevronRight, ChevronLeft, Languages } from 'lucide-react'
+import { Save, PlusCircle, Trash2, Pencil, X, Check, Bell, MessageCircle, ShieldCheck, MessageSquareWarning, AlertTriangle, Copy, MessageSquareText, Building2, Wallet, FileText, MapPin, Heart, HandHeart, HelpCircle, ClipboardList, Award, ChevronDown, ChevronRight, ChevronLeft, Languages } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ImageUpload } from '@/components/admin/ImageUpload'
@@ -69,7 +69,7 @@ const invoiceTemplates: { id: string; labelKey: string; blurbKey: string }[] = [
   { id: 'statement', labelKey: 'st.tpl.statement.label', blurbKey: 'st.tpl.statement.blurb' },
 ]
 
-type SettingsCategory = 'general' | 'payments' | 'language' | 'documents' | 'donorTemplates' | 'welfareCards' | 'portalGuides' | 'adminGuides' | 'connections' | 'approvals' | 'danger'
+type SettingsCategory = 'general' | 'payments' | 'language' | 'documents' | 'donorTemplates' | 'welfareCards' | 'portalGuides' | 'adminGuides' | 'donorBadges' | 'connections' | 'approvals' | 'danger'
 
 // Grouped by which part of the system each one belongs to, so a village that
 // runs only water supply — or only donations — sees a settings screen with
@@ -106,6 +106,8 @@ const CATEGORIES: {
     blurbKey: 'st.cat.portalGuides.blurb' },
   { id: 'adminGuides', labelKey: 'st.cat.adminGuides.label', icon: ClipboardList, groupKey: 'st.group.donorsProjects', system: 'donors_projects',
     blurbKey: 'st.cat.adminGuides.blurb' },
+  { id: 'donorBadges', labelKey: 'st.cat.donorBadges.label', icon: Award, groupKey: 'st.group.donorsProjects', system: 'donors_projects',
+    blurbKey: 'st.cat.donorBadges.blurb' },
 
   { id: 'approvals', labelKey: 'st.cat.approvals.label', icon: ShieldCheck, groupKey: 'st.group.system',
     blurbKey: 'st.cat.approvals.blurb' },
@@ -200,6 +202,10 @@ const settingGroups: { labelKey: string; keys: string[]; category: SettingsCateg
   { labelKey: 'st.grp.kfAdminGuide', keys: adminGuideKeys('kf'), category: 'adminGuides' },
   { labelKey: 'st.grp.wzAdminGuide', keys: adminGuideKeys('wz'), category: 'adminGuides' },
   { labelKey: 'st.grp.esAdminGuide', keys: adminGuideKeys('es'), category: 'adminGuides' },
+  // Migration 310 — the 4 earned badge tiers' PKR thresholds. The 5th tier,
+  // Sarchashma (Wellspring), is never amount-based — granted by hand from
+  // /admin/donor-badges instead.
+  { labelKey: 'st.grp.donorBadgeThresholds', keys: ['badge_tier1_amount', 'badge_tier2_amount', 'badge_tier3_amount', 'badge_tier4_amount'], category: 'donorBadges' },
   { labelKey: 'st.grp.reminders', keys: ['defaulter_restore_fee'], category: 'connections' },
   { labelKey: 'st.grp.newConnectionCharges', keys: ['connection_plumber_charge', 'connection_digging_charge', 'connection_security_deposit'], category: 'connections' },
 ]
@@ -996,6 +1002,17 @@ export default function AdminSettingsPage() {
                 </p>
               </div>
               {renderSettingGroups('adminGuides')}
+            </>
+          )}
+
+          {activeCategory === 'donorBadges' && (
+            <>
+              <div className="bg-white border border-dp-outline-variant rounded-lg p-6">
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
+                  The minimum lifetime confirmed giving (PKR) for each of the 4 earned badge tiers — Chashma/Spring, Nahar/Stream, Darya/River, Samandar/Ocean (migration 310). River and Ocean also unlock fast-track project proposing and donor blog submissions. The 5th tier, Sarchashma/Wellspring, is granted by hand to committee members from the Donor Badges page, not set here.
+                </p>
+              </div>
+              {renderSettingGroups('donorBadges')}
             </>
           )}
 

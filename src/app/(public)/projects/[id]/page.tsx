@@ -9,6 +9,8 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ArrowLeft, MapPin, HeartHandshake, Megaphone, Receipt, CheckCircle, Vote, ThumbsUp, Flag, Share2, Clock, Users, HandHeart, X } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { DonorBadge } from '@/components/public/DonorBadge'
+import type { DonorBadgeTier } from '@/lib/donorBadges'
 
 interface Project {
   id: string; title: string; description: string | null; status: string
@@ -21,13 +23,9 @@ interface ExpenseRow { id: string; entry_date: string; particular: string; debit
 interface VoteRow { id: string; username: string | null; avatar_url: string | null }
 interface CommentRow {
   id: string; content: string; created_at: string; portal_user_id: string | null; parent_comment_id: string | null; comment_type: string
-  username: string | null; avatar_url: string | null; badge_tier: string | null; like_count: number
+  username: string | null; avatar_url: string | null; badge_tier: DonorBadgeTier | null; like_count: number
 }
 
-const BADGE_STYLE: Record<string, string> = {
-  bronze: 'bg-amber-100 text-amber-800', silver: 'bg-slate-200 text-slate-700',
-  gold: 'bg-yellow-100 text-yellow-800', platinum: 'bg-indigo-100 text-indigo-700',
-}
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -493,7 +491,7 @@ export default function ProjectDetailPage() {
 function CommentBody({ c, myLikes, toggleLike, flagComment, onReply }: {
   c: CommentRow; myLikes: Set<string>; toggleLike: (id: string) => void; flagComment: (id: string) => void; onReply?: () => void
 }) {
-  const { t: tr } = useLocale()
+  const { t: tr, isUrdu } = useLocale()
   if (c.comment_type === 'system') {
     return (
       <p className="font-sans text-[13px] text-dp-on-surface-variant italic flex items-center gap-2">
@@ -508,7 +506,7 @@ function CommentBody({ c, myLikes, toggleLike, flagComment, onReply }: {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-sans text-[13.5px] font-bold text-dp-on-surface">{c.username}</span>
-          {c.badge_tier && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${BADGE_STYLE[c.badge_tier]}`}>{c.badge_tier}</span>}
+          <DonorBadge tier={c.badge_tier} isUrdu={isUrdu} size="xs" />
           <span className="font-sans text-[11px] text-dp-on-surface-variant">{new Date(c.created_at).toLocaleDateString('en-GB')}</span>
         </div>
         <p className="font-sans text-[14px] text-dp-on-surface mt-1">{c.content}</p>
