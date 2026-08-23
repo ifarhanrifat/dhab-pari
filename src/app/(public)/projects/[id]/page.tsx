@@ -506,7 +506,7 @@ function CommentBody({ c, myLikes, toggleLike, flagComment, onReply }: {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-sans text-[13.5px] font-bold text-dp-on-surface">{c.username}</span>
-          <DonorBadge tier={c.badge_tier} isUrdu={isUrdu} size="xs" />
+          <DonorBadge tier={c.badge_tier} isUrdu={isUrdu} size="xs" iconOnly />
           <span className="font-sans text-[11px] text-dp-on-surface-variant">{new Date(c.created_at).toLocaleDateString('en-GB')}</span>
         </div>
         <p className="font-sans text-[14px] text-dp-on-surface mt-1">{c.content}</p>

@@ -121,7 +121,7 @@ export default async function NewsDetailPage({
           <span className="flex items-center gap-1">
             <User size={16} />
             {post.author}
-            <DonorBadge tier={authorBadge} size="sm" />
+            <DonorBadge tier={authorBadge} size="sm" iconOnly />
           </span>
           <span className="flex items-center gap-1">
             <Eye size={16} />

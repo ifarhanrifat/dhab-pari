@@ -183,7 +183,7 @@ export default function NewsPage() {
                 <span className="flex items-center gap-1">
                   <User size={14} />
                   {featured.author}
-                  <DonorBadge tier={authorBadges[featured.submitted_by_portal_user_id ?? '']} isUrdu={isUrdu} size="xs" />
+                  <DonorBadge tier={authorBadges[featured.submitted_by_portal_user_id ?? '']} isUrdu={isUrdu} size="xs" iconOnly />
                 </span>
                 <span className="flex items-center gap-1">
                   <Eye size={14} />
@@ -232,7 +232,7 @@ export default function NewsPage() {
                       <span className="flex items-center gap-1">
                         <User size={12} />
                         {post.author}
-                        <DonorBadge tier={authorBadges[post.submitted_by_portal_user_id ?? '']} isUrdu={isUrdu} size="xs" />
+                        <DonorBadge tier={authorBadges[post.submitted_by_portal_user_id ?? '']} isUrdu={isUrdu} size="xs" iconOnly />
                       </span>
                     </div>
                   </div>
