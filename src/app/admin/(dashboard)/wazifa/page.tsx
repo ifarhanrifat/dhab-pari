@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { printNodeInPopup } from '@/lib/receiptExport'
+import { adminGuideKeys } from '@/lib/adminGuideContent'
 
 /**
  * Taleemi Wazifa — help for students who cannot pay to carry on.
@@ -156,8 +157,23 @@ const emptyStudent = {
 }
 
 export default function WazifaPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const supabase = createClient()
+
+  // The "How this works" panel below, admin-editable (Settings → Donors &
+  // Projects → Admin Guides — migration 309). Falls back to the original
+  // messages.ts text if a field hasn't been customised yet.
+  const [guideContent, setGuideContent] = useState<Record<string, string>>({})
+  useEffect(() => {
+    supabase.from('site_settings').select('key, value').in('key', adminGuideKeys('wz')).then(({ data }) => {
+      const m: Record<string, string> = {}
+      ;((data ?? []) as { key: string; value: string | null }[]).forEach((s) => { m[s.key] = s.value ?? '' })
+      setGuideContent(m)
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const guideToggle = (guideContent[`wz_guide_toggle_${isUrdu ? 'ur' : 'en'}`] || '').trim() || t('wz.guide.toggle')
+  const guideTitle = (section: string, fallbackKey: string) => (guideContent[`wz_guide_${section}_title_${isUrdu ? 'ur' : 'en'}`] || '').trim() || t(`${fallbackKey}.title`)
+  const guideBody = (section: string, fallbackKey: string) => (guideContent[`wz_guide_${section}_body_${isUrdu ? 'ur' : 'en'}`] || '').trim() || t(`${fallbackKey}.body`)
 
   const [students, setStudents] = useState<Student[]>([])
   const [applications, setApplications] = useState<Application[]>([])
@@ -1077,7 +1093,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
         <div className="flex gap-2">
           <button onClick={() => setShowGuide((v) => !v)}
             className="flex items-center gap-1.5 px-3.5 py-2.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[13.5px] font-semibold hover:border-dp-secondary transition-all cursor-pointer">
-            <HelpCircle size={16} /> {t('wz.guide.toggle')}
+            <HelpCircle size={16} /> {guideToggle}
             <ChevronDown size={14} className={`transition-transform ${showGuide ? 'rotate-180' : ''}`} />
           </button>
           <button onClick={rescoreAll} disabled={busy}
@@ -1100,8 +1116,8 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
             ['collections', 'wz.guide.collections'],
           ] as const).map(([key, base]) => (
             <div key={key}>
-              <h4 className="font-heading text-[13.5px] font-bold text-dp-primary mb-1">{t(`${base}.title`)}</h4>
-              <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{t(`${base}.body`)}</p>
+              <h4 className="font-heading text-[13.5px] font-bold text-dp-primary mb-1">{guideTitle(key, base)}</h4>
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{guideBody(key, base)}</p>
             </div>
           ))}
         </div>

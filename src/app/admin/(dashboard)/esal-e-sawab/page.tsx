@@ -9,6 +9,7 @@ import {
   HandCoins, Phone, RotateCcw, Info, Wallet,
 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { adminGuideKeys } from '@/lib/adminGuideContent'
 
 /**
  * Esal-e-Sawab — lasting objects dedicated to the deceased.
@@ -88,6 +89,21 @@ const FLOW: Record<string, string> = {
 export default function EsalESawabPage() {
   const { t, isUrdu } = useLocale()
   const supabase = createClient()
+
+  // The "How this works" panel below, admin-editable (Settings → Donors &
+  // Projects → Admin Guides — migration 309). Falls back to the original
+  // messages.ts text if a field hasn't been customised yet.
+  const [guideContent, setGuideContent] = useState<Record<string, string>>({})
+  useEffect(() => {
+    supabase.from('site_settings').select('key, value').in('key', adminGuideKeys('es')).then(({ data }) => {
+      const m: Record<string, string> = {}
+      ;((data ?? []) as { key: string; value: string | null }[]).forEach((s) => { m[s.key] = s.value ?? '' })
+      setGuideContent(m)
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const guideToggle = (guideContent[`es_guide_toggle_${isUrdu ? 'ur' : 'en'}`] || '').trim() || t('es.guide.toggle')
+  const guideTitle = (section: string, fallbackKey: string) => (guideContent[`es_guide_${section}_title_${isUrdu ? 'ur' : 'en'}`] || '').trim() || t(`${fallbackKey}.title`)
+  const guideBody = (section: string, fallbackKey: string) => (guideContent[`es_guide_${section}_body_${isUrdu ? 'ur' : 'en'}`] || '').trim() || t(`${fallbackKey}.body`)
 
   const [objects, setObjects] = useState<SadqaObject[]>([])
   const [catalogue, setCatalogue] = useState<CatalogueItem[]>([])
@@ -414,7 +430,7 @@ export default function EsalESawabPage() {
         </div>
         <button onClick={() => setShowGuide((v) => !v)}
           className="flex items-center gap-1.5 px-3.5 py-2.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[13.5px] font-semibold hover:border-dp-secondary transition-all cursor-pointer">
-          <HelpCircle size={16} /> {t('es.guide.toggle')}
+          <HelpCircle size={16} /> {guideToggle}
           <ChevronDown size={14} className={`transition-transform ${showGuide ? 'rotate-180' : ''}`} />
         </button>
       </div>
@@ -428,8 +444,8 @@ export default function EsalESawabPage() {
             ['catalogue', 'es.guide.catalogue'],
           ] as const).map(([key, base]) => (
             <div key={key}>
-              <h4 className="font-heading text-[13.5px] font-bold text-dp-primary mb-1">{t(`${base}.title`)}</h4>
-              <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{t(`${base}.body`)}</p>
+              <h4 className="font-heading text-[13.5px] font-bold text-dp-primary mb-1">{guideTitle(key, base)}</h4>
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{guideBody(key, base)}</p>
             </div>
           ))}
         </div>
