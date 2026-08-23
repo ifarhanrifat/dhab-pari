@@ -93,7 +93,7 @@ export default async function HomePage() {
     // burying the newest note behind an older one with a later-looking
     // date); "which one is latest" should never depend on getting that
     // field right.
-    supabase.from('committee_notes').select('id, body_en, body_ur, release_date, linked_project_id, projects(title, title_ur)')
+    supabase.from('committee_notes').select('id, body_en, body_ur, release_date, linked_project_id, link_url, link_label_en, link_label_ur, projects(title, title_ur)')
       .eq('is_published', true).order('created_at', { ascending: false }).limit(6),
   ])
 
@@ -112,6 +112,7 @@ export default async function HomePage() {
   // here once rather than at every call site that reads project_title.
   const committeeNotesRaw = (committeeNotesRes.data ?? []) as unknown as {
     id: string; body_en: string; body_ur: string; release_date: string; linked_project_id: string | null
+    link_url: string | null; link_label_en: string | null; link_label_ur: string | null
     projects: { title: string; title_ur: string | null } | { title: string; title_ur: string | null }[] | null
   }[]
   const committeeNotes = committeeNotesRaw.map((n) => {
@@ -119,6 +120,7 @@ export default async function HomePage() {
     return {
       id: n.id, body_en: n.body_en, body_ur: n.body_ur, release_date: n.release_date,
       project_id: n.linked_project_id, project_title: proj?.title ?? null, project_title_ur: proj?.title_ur ?? null,
+      link_url: n.link_url, link_label_en: n.link_label_en, link_label_ur: n.link_label_ur,
     }
   })
   const latestCommitteeNote = committeeNotes[0] ?? null

@@ -13,7 +13,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { X, Megaphone, FolderKanban } from 'lucide-react'
+import { X, Megaphone, FolderKanban, Link2 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { ShareButtons } from '@/components/public/ShareButtons'
 import { SITE } from '@/lib/constants'
@@ -23,9 +23,16 @@ export interface CommitteeNote {
   body_en: string
   body_ur: string
   release_date: string
+  // A project (its own foreign key, resolved from the live record) or a
+  // plain link_url/label pair (a site feature — Kafalat, Zakat, ... — or a
+  // fully custom link, see migration 306 and siteFeatureLinks.ts). At most
+  // one of the two is ever set; project takes precedence if somehow both are.
   project_id: string | null
   project_title: string | null
   project_title_ur: string | null
+  link_url: string | null
+  link_label_en: string | null
+  link_label_ur: string | null
 }
 
 function fmtDate(d: string) {
@@ -40,26 +47,32 @@ export function CommitteeNoteCard({ latest, archive }: { latest: CommitteeNote |
   if (!latest) return null
 
   const body = (n: CommitteeNote) => (isUrdu ? (n.body_ur || n.body_en) : (n.body_en || n.body_ur))
-  const projectTitle = (n: CommitteeNote) => n.project_id ? ((isUrdu && n.project_title_ur) || n.project_title) : null
   const urduStyle = isUrdu ? { fontFamily: 'var(--font-urdu), serif' } as const : undefined
 
-  // A note's own project link + a way to actually pass it on — this is what
-  // "share this announcement" means when it's about a real project: the
-  // project's own public page, not the note text on its own.
-  const ProjectFooter = ({ n }: { n: CommitteeNote }) => {
-    const title = projectTitle(n)
-    if (!title || !n.project_id) return null
-    const url = typeof window !== 'undefined' ? `${window.location.origin}/projects/${n.project_id}` : `/projects/${n.project_id}`
+  // A note's own related link (a project, or a site feature/custom URL) plus
+  // a way to actually pass it on — this is what "share this announcement"
+  // means when it's about something real: that thing's own page, not the
+  // note text on its own.
+  const LinkFooter = ({ n }: { n: CommitteeNote }) => {
+    const isProject = !!n.project_id
+    const href = isProject ? `/projects/${n.project_id}` : n.link_url
+    const label = isProject ? ((isUrdu && n.project_title_ur) || n.project_title) : ((isUrdu && n.link_label_ur) || n.link_label_en || n.link_label_ur)
+    if (!href || !label) return null
+    const isExternal = !isProject && /^https?:\/\//.test(href)
+    const absoluteUrl = isExternal ? href : (typeof window !== 'undefined' ? `${window.location.origin}${href}` : href)
     return (
       <div className="mt-3 pt-3 border-t border-dp-outline-variant/70 flex items-center gap-2 flex-wrap">
-        <Link
-          href={`/projects/${n.project_id}`}
-          className="inline-flex items-center gap-1.5 text-[13px] font-sans font-semibold text-dp-secondary hover:text-dp-primary transition-colors"
-        >
-          <FolderKanban size={14} /> {title}
-        </Link>
+        {isExternal ? (
+          <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[13px] font-sans font-semibold text-dp-secondary hover:text-dp-primary transition-colors">
+            {isProject ? <FolderKanban size={14} /> : <Link2 size={14} />} {label}
+          </a>
+        ) : (
+          <Link href={href} className="inline-flex items-center gap-1.5 text-[13px] font-sans font-semibold text-dp-secondary hover:text-dp-primary transition-colors">
+            {isProject ? <FolderKanban size={14} /> : <Link2 size={14} />} {label}
+          </Link>
+        )}
         <div className="ms-auto">
-          <ShareButtons url={url} text={`${title} — ${SITE.fullName}`} compact />
+          <ShareButtons url={absoluteUrl} text={`${label} — ${SITE.fullName}`} compact />
         </div>
       </div>
     )
@@ -115,7 +128,7 @@ export function CommitteeNoteCard({ latest, archive }: { latest: CommitteeNote |
                 <p className="text-[15px] font-sans leading-relaxed text-dp-on-surface whitespace-pre-wrap" style={urduStyle}>
                   {body(latest)}
                 </p>
-                <ProjectFooter n={latest} />
+                <LinkFooter n={latest} />
               </div>
               {archive.length > 0 && (
                 <div className="pt-5 border-t border-dp-outline-variant space-y-5">
@@ -126,7 +139,7 @@ export function CommitteeNoteCard({ latest, archive }: { latest: CommitteeNote |
                       <p className="text-[13.5px] font-sans text-dp-on-surface-variant leading-relaxed whitespace-pre-wrap" style={urduStyle}>
                         {body(n)}
                       </p>
-                      <ProjectFooter n={n} />
+                      <LinkFooter n={n} />
                     </div>
                   ))}
                 </div>

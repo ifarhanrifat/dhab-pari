@@ -7,17 +7,26 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, Pencil, Trash2, Eye, EyeOff, FolderKanban } from 'lucide-react'
+import { PlusCircle, X, Pencil, Trash2, Eye, EyeOff, FolderKanban, Link2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { SITE_FEATURE_LINKS } from '@/lib/siteFeatureLinks'
 
-interface Note { id: string; body_en: string; body_ur: string; release_date: string; is_published: boolean; created_at: string; linked_project_id: string | null }
+interface Note {
+  id: string; body_en: string; body_ur: string; release_date: string; is_published: boolean; created_at: string
+  linked_project_id: string | null; link_url: string | null; link_label_en: string | null; link_label_ur: string | null
+}
 interface ProjectOpt { id: string; title: string; title_ur: string | null }
+type LinkType = 'none' | 'project' | 'feature' | 'custom'
 
 const today = () => new Date().toISOString().slice(0, 10)
-const empty = { body_en: '', body_ur: '', release_date: today(), is_published: true, linked_project_id: '' }
+const empty = {
+  body_en: '', body_ur: '', release_date: today(), is_published: true,
+  linkType: 'none' as LinkType, linked_project_id: '', feature_key: '',
+  custom_url: '', custom_label_en: '', custom_label_ur: '',
+}
 
 export default function CommitteeNotesPage() {
   const { t, isUrdu } = useLocale()
@@ -52,10 +61,27 @@ export default function CommitteeNotesPage() {
     return p ? (isUrdu && p.title_ur ? p.title_ur : p.title) : null
   }
 
+  // Whichever of the three sources is set, one line to show it in the list —
+  // the reader of this list never needs to know which of the three it came
+  // from, only that the note has a link.
+  const linkChip = (n: Note) => {
+    const proj = projectName(n.linked_project_id)
+    if (proj) return proj
+    if (n.link_url) return (isUrdu ? n.link_label_ur : n.link_label_en) || n.link_label_en || n.link_label_ur
+    return null
+  }
+
   const save = async () => {
     if (!form.body_en.trim() && !form.body_ur.trim()) { toast.error(t('cmn.bodyRequired')); return }
     setSaving(true)
-    const payload = { ...form, linked_project_id: form.linked_project_id || null }
+    const feature = form.linkType === 'feature' ? SITE_FEATURE_LINKS.find((f) => f.key === form.feature_key) : undefined
+    const payload = {
+      body_en: form.body_en, body_ur: form.body_ur, release_date: form.release_date, is_published: form.is_published,
+      linked_project_id: form.linkType === 'project' ? (form.linked_project_id || null) : null,
+      link_url: form.linkType === 'feature' ? (feature?.path ?? null) : form.linkType === 'custom' ? (form.custom_url.trim() || null) : null,
+      link_label_en: form.linkType === 'feature' ? (feature?.labelEn ?? null) : form.linkType === 'custom' ? (form.custom_label_en.trim() || null) : null,
+      link_label_ur: form.linkType === 'feature' ? (feature?.labelUr ?? null) : form.linkType === 'custom' ? (form.custom_label_ur.trim() || null) : null,
+    }
     if (editing) {
       const { error } = await supabase.from('committee_notes').update(payload).eq('id', editing)
       setSaving(false)
@@ -75,7 +101,23 @@ export default function CommitteeNotesPage() {
     load()
   }
 
-  const edit = (n: Note) => { setForm({ body_en: n.body_en, body_ur: n.body_ur, release_date: n.release_date, is_published: n.is_published, linked_project_id: n.linked_project_id ?? '' }); setEditing(n.id); setShowForm(true) }
+  const edit = (n: Note) => {
+    let linkType: LinkType = 'none'
+    let feature_key = ''
+    if (n.linked_project_id) linkType = 'project'
+    else if (n.link_url) {
+      const matched = SITE_FEATURE_LINKS.find((f) => f.path === n.link_url)
+      if (matched) { linkType = 'feature'; feature_key = matched.key } else linkType = 'custom'
+    }
+    setForm({
+      body_en: n.body_en, body_ur: n.body_ur, release_date: n.release_date, is_published: n.is_published,
+      linkType, linked_project_id: n.linked_project_id ?? '', feature_key,
+      custom_url: linkType === 'custom' ? (n.link_url ?? '') : '',
+      custom_label_en: linkType === 'custom' ? (n.link_label_en ?? '') : '',
+      custom_label_ur: linkType === 'custom' ? (n.link_label_ur ?? '') : '',
+    })
+    setEditing(n.id); setShowForm(true)
+  }
 
   const remove = async () => {
     if (!confirmDeleteId) return
@@ -104,8 +146,10 @@ export default function CommitteeNotesPage() {
               </div>
               {n.body_en && <p className="font-sans text-[14px] text-dp-on-surface mb-1">{n.body_en}</p>}
               {n.body_ur && <p className="font-sans text-[14px] text-dp-on-surface" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{n.body_ur}</p>}
-              {projectName(n.linked_project_id) && (
-                <p className="flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-secondary mt-1.5"><FolderKanban size={12} /> {projectName(n.linked_project_id)}</p>
+              {linkChip(n) && (
+                <p className="flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-secondary mt-1.5">
+                  {n.linked_project_id ? <FolderKanban size={12} /> : <Link2 size={12} />} {linkChip(n)}
+                </p>
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -135,11 +179,36 @@ export default function CommitteeNotesPage() {
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('cmn.bodyUr')}</label><textarea value={form.body_ur} onChange={(e) => setForm({ ...form, body_ur: e.target.value })} rows={5} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <div>
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('cmn.linkedProject')}</label>
-                <select value={form.linked_project_id} onChange={(e) => setForm({ ...form, linked_project_id: e.target.value })} className="input-field">
-                  <option value="">{t('cmn.noProject')}</option>
-                  {projects.map((p) => <option key={p.id} value={p.id}>{p.title}{p.title_ur ? ` — ${p.title_ur}` : ''}</option>)}
+                <select value={form.linkType} onChange={(e) => setForm({ ...form, linkType: e.target.value as LinkType })} className="input-field">
+                  <option value="none">{t('cmn.linkNone')}</option>
+                  <option value="project">{t('cmn.linkTypeProject')}</option>
+                  <option value="feature">{t('cmn.linkTypeFeature')}</option>
+                  <option value="custom">{t('cmn.linkTypeCustom')}</option>
                 </select>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('cmn.linkedProjectHint')}</p>
+
+                {form.linkType === 'project' && (
+                  <select value={form.linked_project_id} onChange={(e) => setForm({ ...form, linked_project_id: e.target.value })} className="input-field mt-2">
+                    <option value="">{t('a.select')}</option>
+                    {projects.map((p) => <option key={p.id} value={p.id}>{p.title}{p.title_ur ? ` — ${p.title_ur}` : ''}</option>)}
+                  </select>
+                )}
+
+                {form.linkType === 'feature' && (
+                  <select value={form.feature_key} onChange={(e) => setForm({ ...form, feature_key: e.target.value })} className="input-field mt-2">
+                    <option value="">{t('a.select')}</option>
+                    {SITE_FEATURE_LINKS.map((f) => <option key={f.key} value={f.key}>{f.labelEn} — {f.labelUr}</option>)}
+                  </select>
+                )}
+
+                {form.linkType === 'custom' && (
+                  <div className="space-y-2 mt-2">
+                    <input value={form.custom_url} onChange={(e) => setForm({ ...form, custom_url: e.target.value })} placeholder={t('cmn.customUrlPlaceholder')} className="input-field" />
+                    <input value={form.custom_label_en} onChange={(e) => setForm({ ...form, custom_label_en: e.target.value })} placeholder={t('cmn.customLabelEnPlaceholder')} className="input-field" />
+                    <input value={form.custom_label_ur} onChange={(e) => setForm({ ...form, custom_label_ur: e.target.value })} placeholder={t('cmn.customLabelUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+                  </div>
+                )}
+
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">{t('cmn.linkedProjectHint')}</p>
               </div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_published} onChange={(e) => setForm({ ...form, is_published: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('cmn.publishToHomepage')}</span></label>
               <button disabled={saving} onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{editing ? t('cmn.updateNote') : t('cmn.createNote')}</button>

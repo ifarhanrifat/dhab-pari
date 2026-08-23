@@ -43,18 +43,20 @@ export default async function AboutPage() {
   // earlier day than a genuinely newer post.
   const { data: notesRaw } = await supabase
     .from('committee_notes')
-    .select('id, body_en, body_ur, release_date, linked_project_id, projects(title, title_ur)')
+    .select('id, body_en, body_ur, release_date, linked_project_id, link_url, link_label_en, link_label_ur, projects(title, title_ur)')
     .eq('is_published', true)
     .order('created_at', { ascending: false })
 
   const committeeNotes = ((notesRaw ?? []) as unknown as {
     id: string; body_en: string; body_ur: string; release_date: string; linked_project_id: string | null
+    link_url: string | null; link_label_en: string | null; link_label_ur: string | null
     projects: { title: string; title_ur: string | null } | { title: string; title_ur: string | null }[] | null
   }[]).map((n) => {
     const proj = Array.isArray(n.projects) ? n.projects[0] : n.projects
     return {
       id: n.id, body_en: n.body_en, body_ur: n.body_ur, release_date: n.release_date,
       project_id: n.linked_project_id, project_title: proj?.title ?? null, project_title_ur: proj?.title_ur ?? null,
+      link_url: n.link_url, link_label_en: n.link_label_en, link_label_ur: n.link_label_ur,
     }
   })
 

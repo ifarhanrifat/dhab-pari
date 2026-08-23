@@ -95,7 +95,9 @@ export default function WelfarePage() {
       {/* ── The four modules ────────────────────────────────────────────── */}
       <div className="space-y-6 mb-12">
         {modules.map((m) => (
-          <div key={m.key} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
+          // Anchored — committee notes and other pages link straight to a
+          // specific module (e.g. /welfare#kafalat) via src/lib/siteFeatureLinks.ts.
+          <div key={m.key} id={m.key} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden scroll-mt-24">
             <div className="px-6 py-5 border-b border-dp-outline-variant">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0">

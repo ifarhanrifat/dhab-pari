@@ -8,7 +8,7 @@
 // date read at a glance, not buried in a paragraph.
 
 import Link from 'next/link'
-import { Megaphone, FolderKanban } from 'lucide-react'
+import { Megaphone, FolderKanban, Link2 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { ShareButtons } from '@/components/public/ShareButtons'
 import { SITE } from '@/lib/constants'
@@ -22,8 +22,17 @@ export function CommitteeAnnouncementsArchive({ notes }: { notes: CommitteeNote[
   const { t, isUrdu } = useLocale()
 
   const body = (n: CommitteeNote) => (isUrdu ? (n.body_ur || n.body_en) : (n.body_en || n.body_ur))
-  const projectTitle = (n: CommitteeNote) => n.project_id ? ((isUrdu && n.project_title_ur) || n.project_title) : null
   const urduStyle = isUrdu ? { fontFamily: 'var(--font-urdu), serif' } as const : undefined
+  // Same "project first, else the generic link_url/label pair" resolution as
+  // the homepage card's LinkFooter — a note is about a project (its own
+  // foreign key) or a site feature/custom link (migration 306), never both.
+  const linkFor = (n: CommitteeNote) => {
+    const isProject = !!n.project_id
+    const href = isProject ? `/projects/${n.project_id}` : n.link_url
+    const label = isProject ? ((isUrdu && n.project_title_ur) || n.project_title) : ((isUrdu && n.link_label_ur) || n.link_label_en || n.link_label_ur)
+    if (!href || !label) return null
+    return { href, label, isProject, isExternal: !isProject && /^https?:\/\//.test(href) }
+  }
 
   return (
     <section id="announcements" dir={isUrdu ? 'rtl' : 'ltr'}>
@@ -46,8 +55,8 @@ export function CommitteeAnnouncementsArchive({ notes }: { notes: CommitteeNote[
           <div className="absolute top-2 bottom-2 start-[87px] w-px bg-dp-outline-variant hidden sm:block" aria-hidden />
           <div className="space-y-8">
             {notes.map((n) => {
-              const title = projectTitle(n)
-              const url = typeof window !== 'undefined' ? `${window.location.origin}/projects/${n.project_id}` : `/projects/${n.project_id}`
+              const link = linkFor(n)
+              const absoluteUrl = link ? (link.isExternal ? link.href : (typeof window !== 'undefined' ? `${window.location.origin}${link.href}` : link.href)) : ''
               return (
                 <div key={n.id} className="flex gap-5 sm:gap-6">
                   <div className="hidden sm:flex flex-col items-center w-[70px] shrink-0 pt-1">
@@ -66,16 +75,19 @@ export function CommitteeAnnouncementsArchive({ notes }: { notes: CommitteeNote[
                     >
                       {body(n)}
                     </p>
-                    {title && n.project_id && (
+                    {link && (
                       <div className="mt-4 pt-4 border-t border-dp-outline-variant/70 flex items-center gap-3 flex-wrap">
-                        <Link
-                          href={`/projects/${n.project_id}`}
-                          className="inline-flex items-center gap-1.5 text-[13.5px] font-sans font-semibold text-dp-secondary hover:text-dp-primary transition-colors"
-                        >
-                          <FolderKanban size={15} /> {title}
-                        </Link>
+                        {link.isExternal ? (
+                          <a href={link.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[13.5px] font-sans font-semibold text-dp-secondary hover:text-dp-primary transition-colors">
+                            {link.isProject ? <FolderKanban size={15} /> : <Link2 size={15} />} {link.label}
+                          </a>
+                        ) : (
+                          <Link href={link.href} className="inline-flex items-center gap-1.5 text-[13.5px] font-sans font-semibold text-dp-secondary hover:text-dp-primary transition-colors">
+                            {link.isProject ? <FolderKanban size={15} /> : <Link2 size={15} />} {link.label}
+                          </Link>
+                        )}
                         <div className="ms-auto">
-                          <ShareButtons url={url} text={`${title} — ${SITE.fullName}`} compact />
+                          <ShareButtons url={absoluteUrl} text={`${link.label} — ${SITE.fullName}`} compact />
                         </div>
                       </div>
                     )}
