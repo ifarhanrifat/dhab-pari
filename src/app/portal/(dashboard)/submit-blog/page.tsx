@@ -61,7 +61,12 @@ export default function SubmitBlogPage() {
 
   if (userLoading || tier === undefined) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
 
-  if (!canFastTrack(tier)) {
+  // Two independent doors to the same form (migration 325): a high-tier
+  // donor, or an admin-approved mentor — a volunteering doctor/freelancer
+  // has no donation history to check, so gating on badge tier alone would
+  // lock out exactly the people this door was built for.
+  const isApprovedMentor = user?.mentor_status === 'approved'
+  if (!canFastTrack(tier) && !isApprovedMentor) {
     return (
       <div className="max-w-lg" dir={isUrdu ? 'rtl' : 'ltr'}>
         <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">

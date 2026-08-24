@@ -6,12 +6,18 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { HeartHandshake, AlertTriangle } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { MentorshipProfileFields, type MentorshipFieldsValue } from '@/components/portal/MentorshipProfileFields'
 
 export default function PortalSignupPage() {
   const { t, isUrdu } = useLocale()
   const [form, setForm] = useState({
     full_name: '', name_ur: '', father_husband_name: '', mobile: '', whatsapp_number: '',
     donor_type: 'villager', country: '', sector: '', username: '', email: '', password: '',
+  })
+  const [mentorship, setMentorship] = useState<MentorshipFieldsValue>({
+    gender: '', profession: '', profession_other: '', education_level: '', education_details: '',
+    is_currently_studying: true, seeking_mentorship: false, is_minor: false,
+    guardian_name: '', guardian_mobile: '', phone_private: false,
   })
   const [sectors, setSectors] = useState<string[]>([])
   const [error, setError] = useState('')
@@ -41,11 +47,15 @@ export default function PortalSignupPage() {
       setError(t('p.passwordMinLengthPeriod'))
       return
     }
+    if (mentorship.seeking_mentorship && mentorship.is_minor && (!mentorship.guardian_name.trim() || !mentorship.guardian_mobile.trim())) {
+      setError(t('m.guardianRequiredError'))
+      return
+    }
     setLoading(true)
     try {
       const res = await fetch('/api/portal/signup', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form), credentials: 'same-origin',
+        body: JSON.stringify({ ...form, ...mentorship }), credentials: 'same-origin',
       })
       const data = await res.json()
       if (!res.ok) {
@@ -130,6 +140,10 @@ export default function PortalSignupPage() {
           <div>
             <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('g.passwordReq')}</label>
             <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required autoComplete="new-password" className="input-field" />
+          </div>
+
+          <div className="border-t border-dp-outline-variant pt-4">
+            <MentorshipProfileFields value={mentorship} onChange={(patch) => setMentorship({ ...mentorship, ...patch })} />
           </div>
 
           {error && (

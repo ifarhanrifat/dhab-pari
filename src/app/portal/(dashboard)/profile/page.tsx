@@ -9,6 +9,7 @@ import { UserCog, KeyRound, Droplets, CheckCircle2, Copy } from 'lucide-react'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { SITE } from '@/lib/constants'
+import { MentorshipProfileFields, type MentorshipFieldsValue } from '@/components/portal/MentorshipProfileFields'
 
 function syntheticEmail(mobile: string) {
   return `${mobile.replace(/[^0-9]/g, '')}@portal.dhabpari.local`
@@ -21,6 +22,11 @@ export default function PortalProfilePage() {
   const [form, setForm] = useState({
     full_name: '', name_ur: '', father_husband_name: '', whatsapp_number: '',
     donor_type: 'villager', country: '', sector: '', avatar_url: '', username: '', email: '',
+  })
+  const [mentorship, setMentorship] = useState<MentorshipFieldsValue>({
+    gender: '', profession: '', profession_other: '', education_level: '', education_details: '',
+    is_currently_studying: true, seeking_mentorship: false, is_minor: false,
+    guardian_name: '', guardian_mobile: '', phone_private: false,
   })
   const [saving, setSaving] = useState(false)
 
@@ -40,6 +46,13 @@ export default function PortalProfilePage() {
       country: user.country ?? '', sector: user.sector ?? '', avatar_url: user.avatar_url ?? '',
       username: user.username ?? '', email: user.email ?? '',
     })
+    setMentorship({
+      gender: user.gender ?? '', profession: user.profession ?? '', profession_other: user.profession_other ?? '',
+      education_level: user.education_level ?? '', education_details: user.education_details ?? '',
+      is_currently_studying: user.is_currently_studying ?? true, seeking_mentorship: user.seeking_mentorship,
+      is_minor: user.is_minor, guardian_name: user.guardian_name ?? '', guardian_mobile: user.guardian_mobile ?? '',
+      phone_private: user.phone_private,
+    })
   }, [user])
 
   const save = async () => {
@@ -53,6 +66,10 @@ export default function PortalProfilePage() {
       return
     }
     if (form.donor_type === 'overseas' && !form.country.trim()) { toast.error(t('p.enterCountry')); return }
+    if (mentorship.seeking_mentorship && mentorship.is_minor && (!mentorship.guardian_name.trim() || !mentorship.guardian_mobile.trim())) {
+      toast.error(t('m.guardianRequiredError'))
+      return
+    }
     setSaving(true)
     const supabase = createClient()
     const { error } = await supabase.from('portal_users').update({
@@ -61,6 +78,14 @@ export default function PortalProfilePage() {
       donor_type: form.donor_type, country: form.donor_type === 'overseas' ? (form.country.trim() || null) : null,
       sector: form.sector.trim() || null, avatar_url: form.avatar_url || null,
       username: form.username.trim(), email: form.email.trim() || null,
+      gender: mentorship.gender || null, profession: mentorship.profession || null,
+      profession_other: mentorship.profession === 'other' ? (mentorship.profession_other.trim() || null) : null,
+      education_level: mentorship.education_level || null, education_details: mentorship.education_details.trim() || null,
+      is_currently_studying: mentorship.is_currently_studying, seeking_mentorship: mentorship.seeking_mentorship,
+      is_minor: mentorship.seeking_mentorship && mentorship.is_minor,
+      guardian_name: mentorship.seeking_mentorship && mentorship.is_minor ? (mentorship.guardian_name.trim() || null) : null,
+      guardian_mobile: mentorship.seeking_mentorship && mentorship.is_minor ? (mentorship.guardian_mobile.trim() || null) : null,
+      phone_private: mentorship.phone_private,
     }).eq('id', user.id)
     setSaving(false)
     if (error) {
@@ -145,6 +170,10 @@ export default function PortalProfilePage() {
             </div>
           )}
         </div>
+        <div className="border-t border-dp-outline-variant pt-4">
+          <MentorshipProfileFields value={mentorship} onChange={(patch) => setMentorship({ ...mentorship, ...patch })} />
+        </div>
+
         <button onClick={save} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
           {saving ? t('p.saving') : t('p.saveChanges')}
         </button>

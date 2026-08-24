@@ -35,6 +35,7 @@ const menuItems = [
   { href: '/portal/wazifa', label: 'Taleemi Wazifa', tKey: 'portal.wazifa', icon: BookOpen },
   { href: '/portal/propose-project', label: 'Propose a Project', tKey: 'portal.proposeProject', icon: Vote },
   { href: '/portal/submit-blog', label: 'Submit a Blog Post', tKey: 'portal.submitBlog', icon: NotebookPen },
+  { href: '/portal/mentors', label: 'Mentors & Career Help', tKey: 'portal.mentors', icon: Users },
   { href: '/portal/suggestions', label: 'Suggestions', tKey: 'portal.suggestions', icon: MessageSquare },
   { href: '/portal/complaints', label: 'Complaints', tKey: 'portal.complaints', icon: MessageSquareWarning },
   { href: '/portal/blood-donor', label: 'Blood Donor', tKey: 'portal.bloodDonor', icon: Droplet },

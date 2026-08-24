@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Search, UserCog, Lock, Ban, CheckCircle2, Trash2, Link2, Unlink, X } from 'lucide-react'
+import { Search, UserCog, Lock, Ban, CheckCircle2, Trash2, Link2, Unlink, X, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -19,6 +19,8 @@ interface PortalUser {
   id: string; full_name: string; name_ur: string | null; mobile: string; username: string | null
   is_active: boolean; consumer_id: string | null; donor_account_id: string | null
   manual_badge_tier: DonorBadgeTier | null; created_at: string; auth_user_id: string | null
+  phone_private: boolean; seeking_mentorship: boolean
+  mentor_status: string; mentor_type: string | null; mentor_bio: string | null; mentor_expertise: string | null
 }
 interface ConsumerOpt { consumer_id: string; name: string | null }
 
@@ -39,7 +41,7 @@ export default function PortalAccountsPage() {
 
   const load = async () => {
     const [{ data }, { data: cons }] = await Promise.all([
-      supabase.from('portal_users').select('id, full_name, name_ur, mobile, username, is_active, consumer_id, donor_account_id, manual_badge_tier, created_at, auth_user_id').order('created_at', { ascending: false }),
+      supabase.from('portal_users').select('id, full_name, name_ur, mobile, username, is_active, consumer_id, donor_account_id, manual_badge_tier, created_at, auth_user_id, phone_private, seeking_mentorship, mentor_status, mentor_type, mentor_bio, mentor_expertise').order('created_at', { ascending: false }),
       supabase.from('consumers').select('consumer_id, name').order('consumer_id'),
     ])
     const list = (data ?? []) as PortalUser[]
@@ -114,6 +116,15 @@ export default function PortalAccountsPage() {
     load()
   }
 
+  const reviewMentor = async (r: PortalUser, approve: boolean) => {
+    setBusyId(r.id)
+    const { error } = await supabase.rpc('review_mentor_request', { p_portal_user_id: r.id, p_approve: approve })
+    setBusyId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(approve ? t('pa.mentorApproved') : t('pa.mentorRejected'))
+    load()
+  }
+
   const remove = async () => {
     if (!confirmDeleteId) return
     setBusyId(confirmDeleteId)
@@ -158,8 +169,28 @@ export default function PortalAccountsPage() {
                     ? <span className="font-sans text-[10px] font-bold text-emerald-700 bg-emerald-50 rounded-full px-2 py-0.5">{t('g.active')}</span>
                     : <span className="font-sans text-[10px] font-bold text-dp-error bg-dp-error/10 rounded-full px-2 py-0.5">{t('pa.blocked')}</span>}
                   <DonorBadge tier={badgeByUser[r.id]} isUrdu={isUrdu} size="xs" />
+                  {r.mentor_status === 'approved' && <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 rounded-full px-2 py-0.5">{t('pa.mentorApprovedBadge')}</span>}
+                  {r.mentor_status === 'pending' && <span className="text-[10px] font-bold text-amber-700 bg-amber-50 rounded-full px-2 py-0.5">{t('pa.mentorPendingBadge')}</span>}
                 </div>
-                <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{r.mobile}</p>
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1 flex items-center gap-1.5">
+                  {r.mobile}
+                  {r.phone_private && <span title={t('pa.phonePrivateHint')} className="inline-flex items-center gap-0.5 text-[10px] font-bold text-dp-secondary"><Lock size={10} /> {t('pa.private')}</span>}
+                  {r.seeking_mentorship && <span className="text-[10px] font-bold text-amber-700 bg-amber-50 rounded-full px-1.5 py-0.5">{t('pa.seekingMentorship')}</span>}
+                </p>
+                {r.mentor_status === 'pending' && (
+                  <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 max-w-md">
+                    <p className="font-sans text-[11.5px] text-amber-900"><strong>{r.mentor_type === 'professional' ? t('mn.typeProfessional') : t('mn.typeFreelancer')}</strong> — {r.mentor_expertise}</p>
+                    {r.mentor_bio && <p className="font-sans text-[11.5px] text-amber-900 mt-0.5">{r.mentor_bio}</p>}
+                    <div className="flex items-center gap-2 mt-2">
+                      <button onClick={() => reviewMentor(r, true)} disabled={busyId === r.id} className="flex items-center gap-1 text-[11.5px] font-sans font-bold text-emerald-700 hover:underline cursor-pointer disabled:opacity-50">
+                        <CheckCircle2 size={12} /> {t('pa.approve')}
+                      </button>
+                      <button onClick={() => reviewMentor(r, false)} disabled={busyId === r.id} className="flex items-center gap-1 text-[11.5px] font-sans font-bold text-dp-error hover:underline cursor-pointer disabled:opacity-50">
+                        <XCircle size={12} /> {t('pa.reject')}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                   <span className="font-sans text-[12px] text-dp-on-surface-variant">
                     {t('pa.consumerLabel')}: {r.consumer_id ? <strong className="text-dp-on-surface">{r.consumer_id}</strong> : t('pa.none')}

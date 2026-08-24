@@ -17,6 +17,22 @@ export interface PortalUser {
   email: string | null
   consumer_id: string | null
   donor_account_id: string | null
+  gender: string | null
+  profession: string | null
+  profession_other: string | null
+  education_level: string | null
+  education_details: string | null
+  is_currently_studying: boolean | null
+  seeking_mentorship: boolean
+  is_minor: boolean
+  guardian_name: string | null
+  guardian_mobile: string | null
+  phone_private: boolean
+  mentor_type: string | null
+  mentor_status: string
+  mentor_bio: string | null
+  mentor_expertise: string | null
+  mentor_available: boolean
 }
 
 // Single source of truth for "who is the logged-in portal user" — mirrors
@@ -27,17 +43,22 @@ export function usePortalUser() {
   const [user, setUser] = useState<PortalUser | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const refresh = async () => {
     const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user: authUser } }) => {
-      if (!authUser) { setLoading(false); return }
-      const { data } = await supabase.from('portal_users')
-        .select('id, full_name, name_ur, mobile, whatsapp_number, father_husband_name, donor_type, country, sector, avatar_url, username, email, consumer_id, donor_account_id')
-        .eq('auth_user_id', authUser.id).single()
-      setUser(data ?? null)
-      setLoading(false)
-    })
-  }, [])
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    if (!authUser) { setLoading(false); return }
+    const { data } = await supabase.from('portal_users')
+      .select('id, full_name, name_ur, mobile, whatsapp_number, father_husband_name, donor_type, country, sector, avatar_url, username, email, consumer_id, donor_account_id, gender, profession, profession_other, education_level, education_details, is_currently_studying, seeking_mentorship, is_minor, guardian_name, guardian_mobile, phone_private, mentor_type, mentor_status, mentor_bio, mentor_expertise, mentor_available')
+      .eq('auth_user_id', authUser.id).single()
+    setUser(data ?? null)
+    setLoading(false)
+  }
 
-  return { user, loading }
+  // refresh is deliberately excluded from the effect's deps — it's
+  // recreated every render (closes over nothing stateful) and including it
+  // would just be a lint-satisfying no-op; the mount-only fetch is what's
+  // actually wanted here.
+  useEffect(() => { refresh() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return { user, loading, refresh }
 }

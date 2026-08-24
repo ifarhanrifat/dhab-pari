@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { Calendar, User, Eye, ArrowLeft } from 'lucide-react'
 import { T } from '@/components/i18n/T'
 import { DonorBadge } from '@/components/public/DonorBadge'
+import { NewsComments } from '@/components/public/NewsComments'
 import type { DonorBadgeTier } from '@/lib/donorBadges'
 
 const categoryColors: Record<string, { bg: string; text: string }> = {
@@ -162,6 +163,8 @@ export default async function NewsDetailPage({
             ))}
           </div>
         )}
+
+        <NewsComments newsPostId={post.id} />
       </article>
     </div>
   )

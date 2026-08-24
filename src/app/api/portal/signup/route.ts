@@ -24,6 +24,10 @@ export async function POST(req: NextRequest) {
     mobile?: string; whatsapp_number?: string; password?: string
     donor_type?: string; country?: string; sector?: string
     username?: string; email?: string
+    gender?: string; profession?: string; profession_other?: string
+    education_level?: string; education_details?: string; is_currently_studying?: boolean
+    seeking_mentorship?: boolean; is_minor?: boolean; guardian_name?: string; guardian_mobile?: string
+    phone_private?: boolean
   }
   try {
     body = await req.json()
@@ -42,6 +46,21 @@ export async function POST(req: NextRequest) {
   const sector = body.sector?.trim() || null
   const username = body.username?.trim()
   const userEmail = body.email?.trim() || null
+
+  const gender = body.gender === 'male' || body.gender === 'female' ? body.gender : null
+  const profession = body.profession?.trim() || null
+  const professionOther = profession === 'other' ? (body.profession_other?.trim() || null) : null
+  const educationLevel = body.education_level?.trim() || null
+  const educationDetails = body.education_details?.trim() || null
+  const isCurrentlyStudying = typeof body.is_currently_studying === 'boolean' ? body.is_currently_studying : null
+  const seekingMentorship = body.seeking_mentorship === true
+  const isMinor = seekingMentorship && body.is_minor === true
+  const guardianName = isMinor ? (body.guardian_name?.trim() || null) : null
+  const guardianMobile = isMinor ? (body.guardian_mobile?.trim() || null) : null
+  const phonePrivate = body.phone_private === true
+  if (isMinor && (!guardianName || !guardianMobile)) {
+    return NextResponse.json({ error: "Please enter your parent/guardian's name and mobile number." }, { status: 400 })
+  }
 
   if (!fullName || !mobile || !password || !whatsapp || !fatherName || !username) {
     return NextResponse.json({ error: "Name, father's/husband's name, mobile, WhatsApp number, username, and password are required." }, { status: 400 })
@@ -121,12 +140,20 @@ export async function POST(req: NextRequest) {
   // full_name/mobile stay whatever the accountant already recorded (that is
   // what any earlier confirmed cash gift is already attributed to); this
   // only fills in what a placeholder row never had.
+  const mentorshipFields = {
+    gender, profession, profession_other: professionOther,
+    education_level: educationLevel, education_details: educationDetails,
+    is_currently_studying: isCurrentlyStudying, seeking_mentorship: seekingMentorship,
+    is_minor: isMinor, guardian_name: guardianName, guardian_mobile: guardianMobile,
+    phone_private: phonePrivate,
+  }
   const { error: writeErr } = claiming
     ? await admin.from('portal_users').update({
         auth_user_id: authUser.user.id, username, email: userEmail, name_ur: nameUr,
         whatsapp_number: whatsapp, donor_type: donorType, country, sector,
         consumer_id: matchedConsumer?.consumer_id ?? null,
         donor_account_id: matchedDonorAccount?.id ?? null,
+        ...mentorshipFields,
       }).eq('id', claiming.id)
     : await admin.from('portal_users').insert({
         auth_user_id: authUser.user.id, full_name: fullName, name_ur: nameUr,
@@ -134,6 +161,7 @@ export async function POST(req: NextRequest) {
         donor_type: donorType, country, sector, username, email: userEmail,
         consumer_id: matchedConsumer?.consumer_id ?? null,
         donor_account_id: matchedDonorAccount?.id ?? null,
+        ...mentorshipFields,
       })
   if (writeErr) {
     await admin.auth.admin.deleteUser(authUser.user.id)
