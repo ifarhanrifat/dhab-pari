@@ -52,6 +52,7 @@ import {
   Feather,
   NotebookPen,
   Megaphone,
+  KeyRound,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -120,6 +121,7 @@ const menuItems: {
   { href: '/admin/running-capital', label: 'Running Capital', tKey: 'nav.runningCapital', icon: LineChart },
   { href: '/admin/committee-notes', label: 'Committee Notes', tKey: 'nav.committeeNotes', icon: Megaphone, adminAndAbove: true },
   { href: '/admin/users', label: 'Users', tKey: 'nav.users', icon: UserCog, adminAndAbove: true },
+  { href: '/admin/portal-accounts', label: 'Portal Accounts', tKey: 'nav.portalAccounts', icon: KeyRound, adminAndAbove: true },
   { href: '/admin/audit-log', label: 'Audit Log', tKey: 'nav.auditLog', icon: History, adminAndAbove: true },
   { href: '/admin/settings', label: 'Settings', tKey: 'nav.settings', icon: Settings, superAdminOnly: true },
 ]

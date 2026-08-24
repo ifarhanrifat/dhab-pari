@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { ArrowLeft, MapPin, HeartHandshake, Megaphone, Receipt, CheckCircle, Vote, ThumbsUp, Flag, Share2, Clock, Users, HandHeart, X } from 'lucide-react'
+import { ArrowLeft, MapPin, HeartHandshake, Megaphone, Receipt, CheckCircle, Vote, ThumbsUp, Flag, Share2, Clock, Users, HandHeart, X, ShieldCheck } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { DonorBadge } from '@/components/public/DonorBadge'
 import type { DonorBadgeTier } from '@/lib/donorBadges'
@@ -22,8 +22,17 @@ interface DonorRow { id: string; name: string; amount_pkr: number; date: string;
 interface ExpenseRow { id: string; entry_date: string; particular: string; debit: number }
 interface VoteRow { id: string; username: string | null; avatar_url: string | null }
 interface CommentRow {
-  id: string; content: string; created_at: string; portal_user_id: string | null; parent_comment_id: string | null; comment_type: string
-  username: string | null; avatar_url: string | null; badge_tier: DonorBadgeTier | null; like_count: number
+  id: string; content: string; created_at: string; portal_user_id: string | null; admin_user_id: string | null
+  parent_comment_id: string | null; comment_type: string
+  username: string | null; avatar_url: string | null; badge_tier: DonorBadgeTier | null; staff_role: string | null; like_count: number
+}
+// admin_users.role — used to label a staff comment. Kept here rather than
+// importing the settings page's own copy, since this is the one small
+// mapping a public page needs.
+const STAFF_ROLE_LABEL: Record<string, string> = {
+  super_admin: 'Super Admin', admin: 'Admin', accountant: 'Accountant',
+  water_accountant: 'Water Accountant', donor_accountant: 'Donor Accountant',
+  publisher: 'Publisher', viewer: 'Viewer',
 }
 
 
@@ -70,6 +79,11 @@ export default function ProjectDetailPage() {
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyText, setReplyText] = useState('')
   const [portalUser, setPortalUser] = useState<{ id: string; full_name: string; mobile: string; whatsapp_number: string | null; name_ur: string | null; donor_type: string | null } | null>(null)
+  // A staff member browsing the public site under their own /admin session —
+  // migration 319. Lets them comment as themselves (name + role), with no
+  // separate donor-portal signup. Donations/votes/volunteering stay
+  // portal-only; this only ever affects comment authorship.
+  const [staffUser, setStaffUser] = useState<{ id: string; full_name: string; role: string } | null>(null)
 
   const [showAnnounce, setShowAnnounce] = useState(false)
   const [announceAmount, setAnnounceAmount] = useState(0)
@@ -119,6 +133,8 @@ export default function ProjectDetailPage() {
     if (authUser) {
       const { data: pu } = await supabase.from('portal_users').select('id, full_name, mobile, whatsapp_number, name_ur, donor_type').eq('auth_user_id', authUser.id).maybeSingle()
       setPortalUser(pu ?? null)
+      const { data: au } = await supabase.from('admin_users').select('id, full_name, role').eq('auth_user_id', authUser.id).eq('is_active', true).maybeSingle()
+      setStaffUser(au ?? null)
       if (pu) {
         const { data: myVote } = await supabase.from('project_votes').select('id').eq('project_id', id).eq('portal_user_id', pu.id).maybeSingle()
         setMyVoteId(myVote?.id ?? null)
@@ -209,12 +225,18 @@ export default function ProjectDetailPage() {
   }
 
   const postComment = async (parentId?: string) => {
-    if (!portalUser) { router.push(`/portal/login?next=/projects/${id}`); return }
+    if (!portalUser && !staffUser) { router.push(`/portal/login?next=/projects/${id}`); return }
     const content = parentId ? replyText : newComment
     if (!content.trim()) return
     setPostingComment(true)
     const supabase = createClient()
-    const { error } = await supabase.from('project_comments').insert({ project_id: id, portal_user_id: portalUser.id, content: content.trim(), parent_comment_id: parentId ?? null })
+    // Staff takes priority for comment authorship when both identities
+    // exist — donations/votes/volunteering below still use portalUser.
+    const { error } = await supabase.from('project_comments').insert({
+      project_id: id, content: content.trim(), parent_comment_id: parentId ?? null,
+      admin_user_id: staffUser?.id ?? null, portal_user_id: staffUser ? null : (portalUser!.id),
+      comment_type: staffUser ? 'staff' : 'user',
+    })
     setPostingComment(false)
     if (error) { toast.error(friendlyError(error)); return }
     if (parentId) { setReplyText(''); setReplyingTo(null) } else { setNewComment('') }
@@ -427,9 +449,10 @@ export default function ProjectDetailPage() {
       <div>
         <p className="font-sans text-[14px] font-bold text-dp-on-surface mb-2" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('discussionHeading')}</p>
         <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-4">
-          <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} rows={2} placeholder={portalUser ? 'Share your thoughts...' : 'Log in to join the discussion'}
-            disabled={!portalUser} className="input-field resize-none mb-2" />
-          <button onClick={() => postComment()} disabled={postingComment || !portalUser} className="px-5 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+          <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} rows={2}
+            placeholder={staffUser ? `Commenting as ${staffUser.full_name} (${STAFF_ROLE_LABEL[staffUser.role] ?? staffUser.role})` : portalUser ? 'Share your thoughts...' : 'Log in to join the discussion'}
+            disabled={!portalUser && !staffUser} className="input-field resize-none mb-2" />
+          <button onClick={() => postComment()} disabled={postingComment || (!portalUser && !staffUser)} className="px-5 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
             {postingComment ? 'Posting...' : 'Post Comment'}
           </button>
         </div>
@@ -506,7 +529,13 @@ function CommentBody({ c, myLikes, toggleLike, flagComment, onReply }: {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-sans text-[13.5px] font-bold text-dp-on-surface">{c.username}</span>
-          <DonorBadge tier={c.badge_tier} isUrdu={isUrdu} size="xs" iconOnly />
+          {c.comment_type === 'staff' ? (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold font-sans px-1.5 py-0.5 rounded-full bg-dp-primary/10 text-dp-primary whitespace-nowrap">
+              <ShieldCheck size={10} /> {c.staff_role ? (STAFF_ROLE_LABEL[c.staff_role] ?? c.staff_role) : 'Staff'}
+            </span>
+          ) : (
+            <DonorBadge tier={c.badge_tier} isUrdu={isUrdu} size="xs" iconOnly />
+          )}
           <span className="font-sans text-[11px] text-dp-on-surface-variant">{new Date(c.created_at).toLocaleDateString('en-GB')}</span>
         </div>
         <p className="font-sans text-[14px] text-dp-on-surface mt-1">{c.content}</p>
