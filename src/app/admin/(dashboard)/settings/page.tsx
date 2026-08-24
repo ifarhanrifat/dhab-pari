@@ -287,6 +287,13 @@ export default function AdminSettingsPage() {
   const [welfareResetOpen, setWelfareResetOpen] = useState(false)
   const [welfareResetConfirmText, setWelfareResetConfirmText] = useState('')
   const [welfareResetting, setWelfareResetting] = useState(false)
+  // Migration 318 — everything neither reset above touches: Meetings &
+  // Agenda, reminders, employees, suggestions, complaints, the news
+  // ticker, appeals, notifications, blood donors, job listings, monthly
+  // closing reports, and the audit log.
+  const [opsResetOpen, setOpsResetOpen] = useState(false)
+  const [opsResetConfirmText, setOpsResetConfirmText] = useState('')
+  const [opsResetting, setOpsResetting] = useState(false)
   const [templates, setTemplates] = useState<MessageTemplate[]>([])
   const [savingTemplate, setSavingTemplate] = useState<string | null>(null)
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>('general')
@@ -331,6 +338,16 @@ export default function AdminSettingsPage() {
     toast.success(tr('st.welfareResetDone'))
     setWelfareResetOpen(false)
     setWelfareResetConfirmText('')
+  }
+
+  const handleOpsReset = async () => {
+    setOpsResetting(true)
+    const { error } = await supabase.rpc('reset_operational_data')
+    setOpsResetting(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(tr('st.opsResetDone'))
+    setOpsResetOpen(false)
+    setOpsResetConfirmText('')
   }
 
   const loadSectors = async () => {
@@ -1264,6 +1281,39 @@ export default function AdminSettingsPage() {
                   )}
                 </div>
               )}
+
+              <div className="border border-dp-outline-variant rounded-lg p-4 mt-4">
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3 pb-3 border-b border-dp-outline-variant">
+                  {tr('st.opsResetBlurb')}
+                </p>
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <span className="font-sans text-[14px] font-semibold text-dp-on-surface">{tr('st.opsResetLabel')}</span>
+                  {!opsResetOpen && (
+                    <button onClick={() => { setOpsResetOpen(true); setOpsResetConfirmText('') }} className="px-3 py-1.5 border border-dp-error text-dp-error rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-error/5 transition-all cursor-pointer">{tr('st.reset')}</button>
+                  )}
+                </div>
+                {opsResetOpen && (
+                  <div className="mt-3 space-y-2 bg-dp-error-container/30 rounded-lg p-3">
+                    <p className="font-sans text-[12.5px] text-dp-on-surface">
+                      {tr('a.type')} <span className="font-mono font-bold">RESET OPERATIONAL DATA</span> {tr('st.toConfirmSuffix')}
+                    </p>
+                    <input
+                      autoFocus value={opsResetConfirmText} onChange={(e) => setOpsResetConfirmText(e.target.value)}
+                      placeholder={tr('st.typeToConfirmPlaceholder')} className="input-field !py-2 text-[14px]"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => setOpsResetOpen(false)} className="flex-1 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{tr('action.cancel')}</button>
+                      <button
+                        disabled={opsResetConfirmText !== 'RESET OPERATIONAL DATA' || opsResetting}
+                        onClick={handleOpsReset}
+                        className="flex-1 px-3 py-2 bg-dp-error text-white rounded-lg font-sans text-[13px] font-semibold hover:opacity-90 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {opsResetting ? tr('st.resetting') : tr('st.confirmReset')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
