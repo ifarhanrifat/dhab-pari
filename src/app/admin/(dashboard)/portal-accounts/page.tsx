@@ -65,9 +65,17 @@ export default function PortalAccountsPage() {
 
   const toggleActive = async (r: PortalUser) => {
     setBusyId(r.id)
-    const { error } = await supabase.from('portal_users').update({ is_active: !r.is_active }).eq('id', r.id)
+    // Goes through the API route (not a direct client update) — blocking
+    // also bans the underlying auth.users row so it takes effect on the
+    // account's very next request, not just whenever something happens to
+    // re-check is_active.
+    const res = await fetch('/api/admin/portal-users/set-active', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ portalUserId: r.id, active: !r.is_active }),
+    })
+    const body = await res.json()
     setBusyId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (!res.ok) { toast.error(body.error ?? t('pa.genericError')); return }
     toast.success(r.is_active ? t('pa.blockedToast') : t('pa.unblockedToast'))
     load()
   }

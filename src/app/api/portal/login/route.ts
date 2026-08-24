@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { SITE } from '@/lib/constants'
 
 // Mirrors src/app/api/admin/login/route.ts's rate-limit shape exactly, but
 // for portal_users — entirely separate in-memory limiter/table, no shared
@@ -74,9 +75,13 @@ export async function POST(req: NextRequest) {
   }
 
   // Same generic "Invalid credentials" outcome whether the username doesn't
-  // exist or the password is wrong — don't leak which one it was.
+  // exist or the password is wrong — don't leak which one it was. is_active
+  // is fetched here too, but only ever acted on AFTER the password itself
+  // checks out below — revealing "this account is blocked" to someone who
+  // hasn't proven they own it would just be a second way to leak account
+  // existence.
   const admin = createAdminClient()
-  const { data: portalUser } = await admin.from('portal_users').select('mobile').ilike('username', username.trim()).maybeSingle()
+  const { data: portalUser } = await admin.from('portal_users').select('mobile, is_active').ilike('username', username.trim()).maybeSingle()
   if (!portalUser) {
     recordFailure(ip)
     const newState = getRateLimitState(ip)
@@ -93,10 +98,36 @@ export async function POST(req: NextRequest) {
   const { error } = await supabase.auth.signInWithPassword({ email: syntheticEmail(portalUser.mobile), password })
 
   if (error) {
+    // A blocked account's auth.users row is banned (see
+    // /api/admin/portal-users/set-active) — GoTrue rejects the sign-in
+    // itself with this code before password correctness even factors in,
+    // so this has to be checked ahead of the generic "invalid credentials"
+    // case below, not folded into it.
+    if (error.code === 'user_banned') {
+      recordFailure(ip)
+      return NextResponse.json(
+        { error: `Your account has been blocked. If you think this is a mistake, message us on WhatsApp: ${SITE.whatsapp}.` },
+        { status: 403 }
+      )
+    }
     recordFailure(ip)
     const newState = getRateLimitState(ip)
     const remainingMsg = newState.remaining > 0 ? ` (${newState.remaining} attempt${newState.remaining === 1 ? '' : 's'} left)` : ''
     return NextResponse.json({ error: `Invalid credentials.${remainingMsg}`, remaining: newState.remaining, retryAfter: newState.retryAfter }, { status: 401 })
+  }
+
+  if (!portalUser.is_active) {
+    // Correct password, blocked account — sign right back out so no session
+    // cookie survives this response (blocking also bans the auth.users row
+    // via /api/admin/portal-users/set-active, so this branch is really only
+    // reached for a blocked row whose ban hasn't propagated yet, or was set
+    // before that route existed — belt and braces).
+    await supabase.auth.signOut()
+    recordFailure(ip)
+    return NextResponse.json(
+      { error: `Your account has been blocked. If you think this is a mistake, message us on WhatsApp: ${SITE.whatsapp}.` },
+      { status: 403 }
+    )
   }
 
   recordSuccess(ip)
