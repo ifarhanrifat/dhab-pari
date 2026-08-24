@@ -280,6 +280,13 @@ export default function AdminSettingsPage() {
   const [resetSystem, setResetSystem] = useState<'water_supply' | 'donors_projects' | null>(null)
   const [resetConfirmText, setResetConfirmText] = useState('')
   const [resetting, setResetting] = useState(false)
+  // Migration 313 — the companion reset for everything reset_accounting_system
+  // doesn't touch: projects, Kafalat/Wazifa/Zakat/Esal-e-Sawab data, the
+  // needs register, and shared-pool pledges. Separate confirm-text state
+  // since it isn't system-scoped like the two above.
+  const [welfareResetOpen, setWelfareResetOpen] = useState(false)
+  const [welfareResetConfirmText, setWelfareResetConfirmText] = useState('')
+  const [welfareResetting, setWelfareResetting] = useState(false)
   const [templates, setTemplates] = useState<MessageTemplate[]>([])
   const [savingTemplate, setSavingTemplate] = useState<string | null>(null)
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>('general')
@@ -314,6 +321,16 @@ export default function AdminSettingsPage() {
     toast.success(`${system === 'water_supply' ? tr('a.waterSupply') : tr('a.donorsProjects')} ${tr('st.accountingReset')}`)
     setResetSystem(null)
     setResetConfirmText('')
+  }
+
+  const handleWelfareReset = async () => {
+    setWelfareResetting(true)
+    const { error } = await supabase.rpc('reset_welfare_and_projects_data')
+    setWelfareResetting(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(tr('st.welfareResetDone'))
+    setWelfareResetOpen(false)
+    setWelfareResetConfirmText('')
   }
 
   const loadSectors = async () => {
@@ -1169,7 +1186,7 @@ export default function AdminSettingsPage() {
                 <AlertTriangle size={20} /> {tr('st.dangerZone')}
               </h2>
               <p className="font-sans text-[12px] text-dp-on-surface-variant mb-4 pb-3 border-b border-dp-outline-variant">
-                Resetting a system permanently clears its bills, payments, vouchers, purchases, inventory movement history, and recurring schedules. Consumers, inventory stock levels, and the chart of accounts are kept exactly as they are. This cannot be undone.
+                Resetting a system permanently clears its bills, payments, vouchers, purchases, inventory movement history, and recurring schedules — and, once that history is gone, the consumer/donor identity records themselves too (Water Supply: consumers; Donors &amp; Projects: the persistent per-donor accounts). Inventory stock levels and the chart of accounts headers are always kept exactly as they are, and a real portal login is never deleted — only unlinked. This cannot be undone.
               </p>
               <div className="space-y-3">
                 {(['water_supply', 'donors_projects'] as const)
@@ -1212,6 +1229,41 @@ export default function AdminSettingsPage() {
                   </div>
                 ))}
               </div>
+
+              {MODULES.donors && access.canDonorsProjects && (
+                <div className="border border-dp-outline-variant rounded-lg p-4 mt-4">
+                  <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3 pb-3 border-b border-dp-outline-variant">
+                    {tr('st.welfareResetBlurb')}
+                  </p>
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <span className="font-sans text-[14px] font-semibold text-dp-on-surface">{tr('st.welfareResetLabel')}</span>
+                    {!welfareResetOpen && (
+                      <button onClick={() => { setWelfareResetOpen(true); setWelfareResetConfirmText('') }} className="px-3 py-1.5 border border-dp-error text-dp-error rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-error/5 transition-all cursor-pointer">{tr('st.reset')}</button>
+                    )}
+                  </div>
+                  {welfareResetOpen && (
+                    <div className="mt-3 space-y-2 bg-dp-error-container/30 rounded-lg p-3">
+                      <p className="font-sans text-[12.5px] text-dp-on-surface">
+                        {tr('a.type')} <span className="font-mono font-bold">RESET WELFARE DATA</span> {tr('st.toConfirmSuffix')}
+                      </p>
+                      <input
+                        autoFocus value={welfareResetConfirmText} onChange={(e) => setWelfareResetConfirmText(e.target.value)}
+                        placeholder={tr('st.typeToConfirmPlaceholder')} className="input-field !py-2 text-[14px]"
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={() => setWelfareResetOpen(false)} className="flex-1 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{tr('action.cancel')}</button>
+                        <button
+                          disabled={welfareResetConfirmText !== 'RESET WELFARE DATA' || welfareResetting}
+                          onClick={handleWelfareReset}
+                          className="flex-1 px-3 py-2 bg-dp-error text-white rounded-lg font-sans text-[13px] font-semibold hover:opacity-90 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {welfareResetting ? tr('st.resetting') : tr('st.confirmReset')}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
