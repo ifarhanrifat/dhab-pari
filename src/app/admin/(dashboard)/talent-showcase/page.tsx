@@ -46,6 +46,7 @@ export default function TalentShowcaseAdminPage() {
   const [supporters, setSupporters] = useState<Supporter[]>([])
   const [supportersFor, setSupportersFor] = useState<string | null>(null)
   const [donorNames, setDonorNames] = useState<string[]>([])
+  const [helperOffers, setHelperOffers] = useState<{ name: string; portalUserId: string; offerId: string }[]>([])
   const [newSupporterName, setNewSupporterName] = useState('')
   const [addingSupporter, setAddingSupporter] = useState(false)
 
@@ -152,10 +153,12 @@ export default function TalentShowcaseAdminPage() {
     setOffers((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)))
   }
 
-  // "chose the name from all the donors, or set any name" — the datalist
-  // below is loaded once (not scoped to this one entry) so any donor who
-  // ever gave, however they gave it, can be picked; typing anything else
-  // just credits that free-text name with no donor_id link.
+  // "chose the name from all the donors, or set any name" — the general
+  // donor list is loaded once (not scoped to this one entry) so any donor
+  // who ever gave, however they gave it, can be picked. On top of that,
+  // whoever called in on THIS entry's "I can help" offers is loaded fresh
+  // each time and shown labeled distinctly in the picker — someone who
+  // already said "I'll help" shouldn't have to be retyped by hand.
   const openSupporters = async (id: string) => {
     setSupportersFor(id)
     setNewSupporterName('')
@@ -164,6 +167,14 @@ export default function TalentShowcaseAdminPage() {
     if (donorNames.length === 0) {
       const { data: donors } = await supabase.from('donors').select('name').order('date', { ascending: false }).limit(500)
       setDonorNames(Array.from(new Set((donors ?? []).map((d) => d.name).filter(Boolean))))
+    }
+    const { data: offerRows } = await supabase.from('talent_showcase_help_offers').select('id, portal_user_id').eq('talent_showcase_id', id)
+    if (offerRows?.length) {
+      const { data: names } = await supabase.from('portal_users').select('id, full_name').in('id', offerRows.map((o) => o.portal_user_id))
+      const nameMap = Object.fromEntries((names ?? []).map((n) => [n.id, n.full_name]))
+      setHelperOffers(offerRows.map((o) => ({ name: nameMap[o.portal_user_id], portalUserId: o.portal_user_id, offerId: o.id })).filter((h) => h.name))
+    } else {
+      setHelperOffers([])
     }
   }
 
@@ -184,6 +195,14 @@ export default function TalentShowcaseAdminPage() {
     toast.success(t('ts.supporterAdded'))
     setNewSupporterName('')
     setSupporters((prev) => [...prev, row as Supporter])
+    // The person credited is the same one who called in offering to help
+    // on this entry — label their offer resolved instead of leaving it
+    // sitting there looking outstanding.
+    const matchedOffer = helperOffers.find((h) => h.name === name)
+    if (matchedOffer) {
+      await supabase.from('talent_showcase_help_offers').update({ status: 'resolved' }).eq('id', matchedOffer.offerId)
+      setOffers((prev) => prev.map((o) => (o.id === matchedOffer.offerId ? { ...o, status: 'resolved' } : o)))
+    }
   }
 
   const removeSupporter = async (id: string) => {
@@ -299,7 +318,12 @@ export default function TalentShowcaseAdminPage() {
                         <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('ts.noSupporters')}</p>
                       ) : supporters.map((s) => (
                         <div key={s.id} className="flex items-center justify-between gap-2 bg-dp-surface-container-low rounded-lg px-3 py-1.5">
-                          <span className="font-sans text-[12px] font-semibold text-dp-on-surface">{s.name}</span>
+                          <span className="font-sans text-[12px] font-semibold text-dp-on-surface flex items-center gap-1.5">
+                            {s.name}
+                            {helperOffers.some((h) => h.name === s.name) && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-dp-secondary bg-dp-secondary/10 rounded-full px-1.5 py-0.5"><HandHeart size={10} /> {t('ts.calledToHelp')}</span>
+                            )}
+                          </span>
                           <button onClick={() => removeSupporter(s.id)} className="text-dp-error cursor-pointer"><X size={13} /></button>
                         </div>
                       ))}
@@ -310,6 +334,7 @@ export default function TalentShowcaseAdminPage() {
                           className="flex-1 text-[12px] border border-dp-outline-variant rounded-lg px-2.5 py-1.5"
                         />
                         <datalist id={`donor-names-${r.id}`}>
+                          {helperOffers.map((h) => <option key={`offer-${h.offerId}`} value={h.name} label={`${h.name} — ${t('ts.calledToHelp')}`} />)}
                           {donorNames.map((n) => <option key={n} value={n} />)}
                         </datalist>
                         <button onClick={() => addSupporter(r.id)} disabled={addingSupporter} className="text-[11.5px] font-sans font-semibold bg-dp-secondary text-white px-3 py-1.5 rounded-lg cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50 shrink-0">
