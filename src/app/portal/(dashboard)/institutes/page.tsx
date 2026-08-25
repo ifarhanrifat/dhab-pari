@@ -6,8 +6,8 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { School, MapPin, Phone, Globe } from 'lucide-react'
 
 interface Institute {
-  id: string; name: string; name_ur: string | null; description: string | null
-  address: string | null; category: string; subjects: string | null
+  id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
+  address: string | null; category: string; subjects: string | null; subjects_ur: string | null
   phone: string | null; website: string | null
 }
 
@@ -42,8 +42,8 @@ export default function PortalInstitutesPage() {
                 <p className="font-sans text-[14px] font-bold text-dp-on-surface">{isUrdu && r.name_ur ? r.name_ur : r.name}</p>
                 <span className="text-[9px] font-bold uppercase text-dp-secondary bg-dp-secondary/10 rounded-full px-1.5 py-0.5">{r.category}</span>
               </div>
-              {r.subjects && <p className="font-sans text-[12px] text-dp-secondary font-semibold mb-1">{r.subjects}</p>}
-              {r.description && <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed mb-2">{r.description}</p>}
+              {r.subjects && <p className="font-sans text-[12px] text-dp-secondary font-semibold mb-1">{isUrdu && r.subjects_ur ? r.subjects_ur : r.subjects}</p>}
+              {r.description && <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed mb-2">{isUrdu && r.description_ur ? r.description_ur : r.description}</p>}
               <div className="space-y-1">
                 {r.address && <p className="font-sans text-[12px] text-dp-on-surface-variant flex items-center gap-1.5"><MapPin size={12} /> {r.address}</p>}
                 {r.phone && <p className="font-sans text-[12px] text-dp-on-surface-variant flex items-center gap-1.5"><Phone size={12} /> {r.phone}</p>}

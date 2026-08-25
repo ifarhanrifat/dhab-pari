@@ -13,12 +13,12 @@ import { School, Plus, Pencil, Trash2, X } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 
 interface Institute {
-  id: string; name: string; name_ur: string | null; description: string | null
-  address: string | null; category: string; subjects: string | null
+  id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
+  address: string | null; category: string; subjects: string | null; subjects_ur: string | null
   phone: string | null; website: string | null; is_active: boolean
 }
 
-const empty = { name: '', name_ur: '', description: '', address: '', category: 'vocational', subjects: '', phone: '', website: '', is_active: true }
+const empty = { name: '', name_ur: '', description: '', description_ur: '', address: '', category: 'vocational', subjects: '', subjects_ur: '', phone: '', website: '', is_active: true }
 const CATEGORIES = ['freelancing', 'vocational', 'academic', 'other']
 
 export default function InstitutesPage() {
@@ -40,7 +40,11 @@ export default function InstitutesPage() {
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const edit = (r: Institute) => {
-    setForm({ name: r.name, name_ur: r.name_ur ?? '', description: r.description ?? '', address: r.address ?? '', category: r.category, subjects: r.subjects ?? '', phone: r.phone ?? '', website: r.website ?? '', is_active: r.is_active })
+    setForm({
+      name: r.name, name_ur: r.name_ur ?? '', description: r.description ?? '', description_ur: r.description_ur ?? '',
+      address: r.address ?? '', category: r.category, subjects: r.subjects ?? '', subjects_ur: r.subjects_ur ?? '',
+      phone: r.phone ?? '', website: r.website ?? '', is_active: r.is_active,
+    })
     setEditing(r.id)
     setShowForm(true)
   }
@@ -49,8 +53,10 @@ export default function InstitutesPage() {
     if (!form.name.trim()) { toast.error(t('in.nameRequired')); return }
     setSaving(true)
     const payload = {
-      name: form.name.trim(), name_ur: form.name_ur.trim() || null, description: form.description.trim() || null,
-      address: form.address.trim() || null, category: form.category, subjects: form.subjects.trim() || null,
+      name: form.name.trim(), name_ur: form.name_ur.trim() || null,
+      description: form.description.trim() || null, description_ur: form.description_ur.trim() || null,
+      address: form.address.trim() || null, category: form.category,
+      subjects: form.subjects.trim() || null, subjects_ur: form.subjects_ur.trim() || null,
       phone: form.phone.trim() || null, website: form.website.trim() || null, is_active: form.is_active,
     }
     const { error } = editing
@@ -98,8 +104,8 @@ export default function InstitutesPage() {
                 <span className="text-[10px] font-bold uppercase text-dp-secondary bg-dp-secondary/10 rounded-full px-2 py-0.5">{r.category}</span>
                 {!r.is_active && <span className="text-[10px] font-bold text-dp-error bg-dp-error/10 rounded-full px-2 py-0.5">{t('g.inactive')}</span>}
               </div>
-              {r.subjects && <p className="font-sans text-[12.5px] text-dp-secondary font-semibold mt-1">{r.subjects}</p>}
-              {r.description && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{r.description}</p>}
+              {r.subjects && <p className="font-sans text-[12.5px] text-dp-secondary font-semibold mt-1">{isUrdu && r.subjects_ur ? r.subjects_ur : r.subjects}</p>}
+              {r.description && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{isUrdu && r.description_ur ? r.description_ur : r.description}</p>}
               <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{[r.address, r.phone, r.website].filter(Boolean).join(' · ')}</p>
             </div>
             <div className="flex items-center gap-1 shrink-0">
@@ -124,7 +130,9 @@ export default function InstitutesPage() {
                 {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
               <input value={form.subjects} onChange={(e) => setForm({ ...form, subjects: e.target.value })} placeholder={t('in.subjects')} className="input-field" />
+              <input value={form.subjects_ur} onChange={(e) => setForm({ ...form, subjects_ur: e.target.value })} placeholder={t('in.subjectsUr')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder={t('in.description')} rows={2} className="input-field resize-none" />
+              <textarea value={form.description_ur} onChange={(e) => setForm({ ...form, description_ur: e.target.value })} placeholder={t('in.descriptionUr')} rows={2} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
               <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder={t('in.address')} className="input-field" />
               <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder={t('in.phone')} className="input-field" />
               <input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder={t('in.website')} className="input-field" />

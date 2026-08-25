@@ -9,9 +9,10 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { CalendarClock, MapPin, CheckCircle2 } from 'lucide-react'
 
 interface Program {
-  id: string; title: string; title_ur: string | null; description: string | null
+  id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null
   location: string | null; start_date: string | null; capacity: number | null
-  category: string; status: string; eligibility: string | null; requirements: string | null
+  category: string; status: string
+  eligibility: string | null; eligibility_ur: string | null; requirements: string | null; requirements_ur: string | null
 }
 
 export default function PortalTrainingProgramsPage() {
@@ -73,9 +74,9 @@ export default function PortalTrainingProgramsPage() {
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="min-w-0">
                     <p className="font-sans text-[14.5px] font-bold text-dp-on-surface">{isUrdu && r.title_ur ? r.title_ur : r.title}</p>
-                    {r.description && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{r.description}</p>}
-                    {r.eligibility && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1"><strong className="text-dp-on-surface">{t('tp.eligibilityLabel')}:</strong> {r.eligibility}</p>}
-                    {r.requirements && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5"><strong className="text-dp-on-surface">{t('tp.requirementsLabel')}:</strong> {r.requirements}</p>}
+                    {r.description && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{isUrdu && r.description_ur ? r.description_ur : r.description}</p>}
+                    {r.eligibility && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1"><strong className="text-dp-on-surface">{t('tp.eligibilityLabel')}:</strong> {isUrdu && r.eligibility_ur ? r.eligibility_ur : r.eligibility}</p>}
+                    {r.requirements && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5"><strong className="text-dp-on-surface">{t('tp.requirementsLabel')}:</strong> {isUrdu && r.requirements_ur ? r.requirements_ur : r.requirements}</p>}
                     <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                       {r.location && <span className="font-sans text-[12px] text-dp-on-surface-variant flex items-center gap-1"><MapPin size={12} /> {r.location}</span>}
                       {r.start_date && <span className="font-sans text-[12px] text-dp-on-surface-variant">{r.start_date}</span>}

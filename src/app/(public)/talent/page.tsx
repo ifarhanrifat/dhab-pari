@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { Sparkles } from 'lucide-react'
 import { T } from '@/components/i18n/T'
+import { VideoEmbed } from '@/components/public/VideoEmbed'
 
 export const revalidate = 300
 
@@ -58,11 +59,7 @@ export default async function TalentShowcasePage() {
                     <T k="talent.needs" fallback="Needs:" /> {e.needs}
                   </p>
                 )}
-                {e.video_url && (
-                  <a href={e.video_url} target="_blank" rel="noreferrer" className="inline-block mt-3 font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline">
-                    <T k="talent.watchVideo" fallback="Watch video" />
-                  </a>
-                )}
+                {e.video_url && <div className="mt-3"><VideoEmbed url={e.video_url} /></div>}
               </div>
             </div>
           ))}

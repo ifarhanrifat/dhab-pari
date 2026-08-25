@@ -24,6 +24,7 @@ interface Message { id: string; conversation_id: string; sender_portal_user_id: 
 interface Conversation {
   id: string; student_portal_user_id: string; mentor_portal_user_id: string; status: string
   student_name: string; mentor_name: string
+  mentor_type: string | null; mentor_expertise: string | null; mentor_bio: string | null
 }
 
 export default function MentorChatThreadPage() {
@@ -59,7 +60,12 @@ export default function MentorChatThreadPage() {
   useEffect(() => {
     const channel = supabase.channel(`mentor_chat_${id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mentor_messages', filter: `conversation_id=eq.${id}` }, (payload) => {
-        setMessages((prev) => [...prev, payload.new as Message])
+        const incoming = payload.new as Message
+        // The sender's own send() already appends this message locally the
+        // moment the insert confirms — this realtime echo arrives right
+        // after for everyone (sender included), so without the id check
+        // the sender briefly saw their own message twice.
+        setMessages((prev) => (prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming]))
         supabase.rpc('mark_mentor_conversation_read', { p_conversation_id: id })
       })
       .subscribe()
@@ -76,14 +82,20 @@ export default function MentorChatThreadPage() {
       return
     }
     setSending(true)
-    const { error } = await supabase.from('mentor_messages').insert({ conversation_id: id, sender_portal_user_id: user!.id, content })
+    const { data, error } = await supabase.from('mentor_messages')
+      .insert({ conversation_id: id, sender_portal_user_id: user!.id, content })
+      .select().single()
     setSending(false)
     if (error) {
       toast.error(error.message.includes('not allowed') ? t('mn.noContactInfo') : friendlyError(error))
       return
     }
     setText('')
-    load()
+    // Append immediately rather than waiting on the realtime echo — the
+    // channel handler above dedupes by id, so this and the echo can never
+    // both land.
+    const sent = data as Message
+    setMessages((prev) => (prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]))
   }
 
   const doBlock = async () => {
@@ -100,10 +112,11 @@ export default function MentorChatThreadPage() {
   if (!conversation) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('mn.notFound')}</div>
 
   const isClosed = conversation.status === 'closed'
+  const amStudent = conversation.student_portal_user_id === user.id
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="flex flex-col h-[calc(100vh-140px)] max-h-[800px]">
-      <div className="flex items-center justify-between gap-3 mb-3">
+      <div className="flex items-center justify-between gap-3 mb-1">
         <div className="flex items-center gap-2">
           <button onClick={() => router.push('/portal/mentors')} className="p-2 hover:bg-dp-surface-container-low rounded-lg cursor-pointer"><ArrowLeft size={18} className={isUrdu ? 'rotate-180' : ''} /></button>
           <h1 className="font-heading text-[18px] font-bold text-dp-primary">{otherName || t('mn.chat')}</h1>
@@ -114,6 +127,22 @@ export default function MentorChatThreadPage() {
           </button>
         )}
       </div>
+
+      {/* Who this mentor actually is — a student opening a chat had
+          nothing but a name to go on before this; matches what the
+          directory card already shows, just repeated here where it's
+          actually needed mid-conversation. */}
+      {amStudent && (conversation.mentor_type || conversation.mentor_expertise || conversation.mentor_bio) && (
+        <div className="ms-11 mb-2.5 flex flex-wrap items-center gap-1.5">
+          {conversation.mentor_type && (
+            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${conversation.mentor_type === 'professional' ? 'bg-indigo-50 text-indigo-700' : 'bg-emerald-50 text-emerald-700'}`}>
+              {conversation.mentor_type === 'professional' ? t('mn.typeProfessional') : t('mn.typeFreelancer')}
+            </span>
+          )}
+          {conversation.mentor_expertise && <span className="font-sans text-[12px] text-dp-secondary font-semibold">{conversation.mentor_expertise}</span>}
+          {conversation.mentor_bio && <span className="font-sans text-[11.5px] text-dp-on-surface-variant">— {conversation.mentor_bio}</span>}
+        </div>
+      )}
 
       <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 mb-3 flex items-start gap-2">
         <ShieldAlert size={15} className="text-amber-700 shrink-0 mt-0.5" />

@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Trash2 } from 'lucide-react'
+import { Bell, Trash2, Volume2, VolumeX } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { playNotificationSound } from '@/lib/notificationSound'
+import { useNotificationSoundMuted } from '@/hooks/useNotificationSoundMuted'
 
 interface PortalNotification {
   id: string; title: string; body: string | null; link: string | null
@@ -35,6 +37,7 @@ export function PortalNotificationBell() {
   const [items, setItems] = useState<PortalNotification[]>([])
   const [portalUserId, setPortalUserId] = useState<string | null>(null)
   const boxRef = useRef<HTMLDivElement>(null)
+  const { muted, setMuted } = useNotificationSoundMuted()
 
   const load = async (recipientId: string) => {
     const { data } = await supabase.from('portal_notifications').select('id, title, body, link, is_read, created_at')
@@ -51,6 +54,13 @@ export function PortalNotificationBell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // A ref, not a dependency — re-subscribing the whole realtime channel
+  // every time someone toggles mute would be a needless teardown/rebuild
+  // for a value the handler only needs to read at the moment a message
+  // arrives.
+  const mutedRef = useRef(muted)
+  useEffect(() => { mutedRef.current = muted }, [muted])
+
   useEffect(() => {
     if (!portalUserId) return
     const channel = supabase
@@ -59,6 +69,7 @@ export function PortalNotificationBell() {
         (payload) => {
           const n = payload.new as PortalNotification
           setItems((cur) => [n, ...cur.filter((x) => x.id !== n.id)])
+          if (!mutedRef.current) playNotificationSound()
           toast.info(n.title, { description: n.body ?? undefined, action: n.link ? { label: 'View', onClick: () => router.push(n.link!) } : undefined })
         })
       .subscribe()
@@ -120,7 +131,12 @@ export function PortalNotificationBell() {
       {open && (
         <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white border border-dp-outline-variant rounded-lg shadow-lg overflow-hidden text-dp-on-surface">
           <div className="px-4 py-2.5 border-b border-dp-outline-variant flex items-center justify-between">
-            <span className="font-sans text-[13px] font-bold">{t('g.notifications')}</span>
+            <div className="flex items-center gap-2.5">
+              <span className="font-sans text-[13px] font-bold">{t('g.notifications')}</span>
+              <button onClick={() => setMuted(!muted)} title={muted ? t('g.notifSoundOff') : t('g.notifSoundOn')} className="text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
+                {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+              </button>
+            </div>
             {unreadCount > 0 && <button onClick={markAllRead} className="font-sans text-[11.5px] font-semibold text-dp-secondary hover:underline cursor-pointer">{t('g.markAllRead')}</button>}
           </div>
           <div className="max-h-96 overflow-y-auto">

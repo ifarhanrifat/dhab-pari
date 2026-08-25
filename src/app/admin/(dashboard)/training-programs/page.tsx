@@ -12,14 +12,14 @@ import { CalendarClock, Plus, Pencil, Trash2, X, Users } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 
 interface Program {
-  id: string; title: string; title_ur: string | null; description: string | null
+  id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null
   location: string | null; start_date: string | null; end_date: string | null
   capacity: number | null; category: string; status: string
-  eligibility: string | null; requirements: string | null
+  eligibility: string | null; eligibility_ur: string | null; requirements: string | null; requirements_ur: string | null
 }
 interface Registration { id: string; portal_user_id: string; status: string; full_name?: string }
 
-const empty = { title: '', title_ur: '', description: '', location: '', start_date: '', end_date: '', capacity: '', category: 'freelancing', status: 'upcoming', eligibility: '', requirements: '' }
+const empty = { title: '', title_ur: '', description: '', description_ur: '', location: '', start_date: '', end_date: '', capacity: '', category: 'freelancing', status: 'upcoming', eligibility: '', eligibility_ur: '', requirements: '', requirements_ur: '' }
 const CATEGORIES = ['freelancing', 'vocational', 'academic', 'other']
 const STATUSES = ['upcoming', 'ongoing', 'completed', 'cancelled']
 
@@ -45,9 +45,10 @@ export default function TrainingProgramsPage() {
 
   const edit = (r: Program) => {
     setForm({
-      title: r.title, title_ur: r.title_ur ?? '', description: r.description ?? '', location: r.location ?? '',
-      start_date: r.start_date ?? '', end_date: r.end_date ?? '', capacity: r.capacity?.toString() ?? '',
-      category: r.category, status: r.status, eligibility: r.eligibility ?? '', requirements: r.requirements ?? '',
+      title: r.title, title_ur: r.title_ur ?? '', description: r.description ?? '', description_ur: r.description_ur ?? '',
+      location: r.location ?? '', start_date: r.start_date ?? '', end_date: r.end_date ?? '', capacity: r.capacity?.toString() ?? '',
+      category: r.category, status: r.status, eligibility: r.eligibility ?? '', eligibility_ur: r.eligibility_ur ?? '',
+      requirements: r.requirements ?? '', requirements_ur: r.requirements_ur ?? '',
     })
     setEditing(r.id)
     setShowForm(true)
@@ -57,10 +58,12 @@ export default function TrainingProgramsPage() {
     if (!form.title.trim()) { toast.error(t('tp.titleRequired')); return }
     setSaving(true)
     const payload = {
-      title: form.title.trim(), title_ur: form.title_ur.trim() || null, description: form.description.trim() || null,
+      title: form.title.trim(), title_ur: form.title_ur.trim() || null,
+      description: form.description.trim() || null, description_ur: form.description_ur.trim() || null,
       location: form.location.trim() || null, start_date: form.start_date || null, end_date: form.end_date || null,
       capacity: form.capacity ? parseInt(form.capacity, 10) : null, category: form.category, status: form.status,
-      eligibility: form.eligibility.trim() || null, requirements: form.requirements.trim() || null,
+      eligibility: form.eligibility.trim() || null, eligibility_ur: form.eligibility_ur.trim() || null,
+      requirements: form.requirements.trim() || null, requirements_ur: form.requirements_ur.trim() || null,
     }
     const { error } = editing
       ? await supabase.from('training_programs').update(payload).eq('id', editing)
@@ -126,9 +129,9 @@ export default function TrainingProgramsPage() {
                   <span className="text-[10px] font-bold uppercase text-dp-secondary bg-dp-secondary/10 rounded-full px-2 py-0.5">{r.category}</span>
                   <span className={`text-[10px] font-bold uppercase rounded-full px-2 py-0.5 ${r.status === 'cancelled' ? 'text-dp-error bg-dp-error/10' : 'text-emerald-700 bg-emerald-50'}`}>{r.status}</span>
                 </div>
-                {r.description && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{r.description}</p>}
-                {r.eligibility && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1"><strong>{t('tp.eligibilityLabel')}:</strong> {r.eligibility}</p>}
-                {r.requirements && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5"><strong>{t('tp.requirementsLabel')}:</strong> {r.requirements}</p>}
+                {r.description && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{isUrdu && r.description_ur ? r.description_ur : r.description}</p>}
+                {r.eligibility && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1"><strong>{t('tp.eligibilityLabel')}:</strong> {isUrdu && r.eligibility_ur ? r.eligibility_ur : r.eligibility}</p>}
+                {r.requirements && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5"><strong>{t('tp.requirementsLabel')}:</strong> {isUrdu && r.requirements_ur ? r.requirements_ur : r.requirements}</p>}
                 <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{[r.location, r.start_date, r.capacity ? `${t('tp.capacityLabel')}: ${r.capacity}` : null].filter(Boolean).join(' · ')}</p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
@@ -174,8 +177,11 @@ export default function TrainingProgramsPage() {
               <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder={t('tp.programTitle')} className="input-field" />
               <input value={form.title_ur} onChange={(e) => setForm({ ...form, title_ur: e.target.value })} placeholder={t('w.nameUrdu')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder={t('in.description')} rows={2} className="input-field resize-none" />
+              <textarea value={form.description_ur} onChange={(e) => setForm({ ...form, description_ur: e.target.value })} placeholder={t('in.descriptionUr')} rows={2} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
               <textarea value={form.eligibility} onChange={(e) => setForm({ ...form, eligibility: e.target.value })} placeholder={t('tp.eligibilityPlaceholder')} rows={2} className="input-field resize-none" />
+              <textarea value={form.eligibility_ur} onChange={(e) => setForm({ ...form, eligibility_ur: e.target.value })} placeholder={t('tp.eligibilityPlaceholderUr')} rows={2} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
               <textarea value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} placeholder={t('tp.requirementsPlaceholder')} rows={2} className="input-field resize-none" />
+              <textarea value={form.requirements_ur} onChange={(e) => setForm({ ...form, requirements_ur: e.target.value })} placeholder={t('tp.requirementsPlaceholderUr')} rows={2} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
               <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder={t('tp.location')} className="input-field" />
               <div className="grid grid-cols-2 gap-3">
                 <div>
