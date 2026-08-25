@@ -108,7 +108,7 @@ function PortalDonatePageInner() {
       // Unchanged path — exactly what this page always did when nothing
       // pending is involved.
       const { error } = await supabase.from('donors').insert({
-        name: user.full_name, name_ur: user.name_ur, phone: user.mobile, whatsapp_number: user.whatsapp_number,
+        name: user.display_name || user.username || user.full_name, name_ur: user.name_ur, phone: user.mobile, whatsapp_number: user.whatsapp_number,
         father_husband_name: user.father_husband_name, donor_type: user.donor_type ?? 'villager',
         amount_pkr: amount, date: new Date().toISOString().split('T')[0],
         payment_method: method, project_id: projectId || null, is_anonymous: isAnonymous,

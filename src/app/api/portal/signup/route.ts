@@ -46,6 +46,9 @@ export async function POST(req: NextRequest) {
   const sector = body.sector?.trim() || null
   const username = body.username?.trim()
   const userEmail = body.email?.trim() || null
+  if (!userEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
+    return NextResponse.json({ error: 'A valid email address is required.' }, { status: 400 })
+  }
 
   const gender = body.gender === 'male' || body.gender === 'female' ? body.gender : null
   const profession = body.profession?.trim() || null

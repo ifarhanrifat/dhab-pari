@@ -15,6 +15,7 @@ export interface PortalUser {
   avatar_url: string | null
   username: string | null
   email: string | null
+  display_name: string | null
   consumer_id: string | null
   donor_account_id: string | null
   gender: string | null
@@ -48,7 +49,7 @@ export function usePortalUser() {
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) { setLoading(false); return }
     const { data } = await supabase.from('portal_users')
-      .select('id, full_name, name_ur, mobile, whatsapp_number, father_husband_name, donor_type, country, sector, avatar_url, username, email, consumer_id, donor_account_id, gender, profession, profession_other, education_level, education_details, is_currently_studying, seeking_mentorship, is_minor, guardian_name, guardian_mobile, phone_private, mentor_type, mentor_status, mentor_bio, mentor_expertise, mentor_available')
+      .select('id, full_name, name_ur, mobile, whatsapp_number, father_husband_name, donor_type, country, sector, avatar_url, username, email, display_name, consumer_id, donor_account_id, gender, profession, profession_other, education_level, education_details, is_currently_studying, seeking_mentorship, is_minor, guardian_name, guardian_mobile, phone_private, mentor_type, mentor_status, mentor_bio, mentor_expertise, mentor_available')
       .eq('auth_user_id', authUser.id).single()
     setUser(data ?? null)
     setLoading(false)

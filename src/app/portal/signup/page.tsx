@@ -6,18 +6,13 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { HeartHandshake, AlertTriangle } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { MentorshipProfileFields, type MentorshipFieldsValue } from '@/components/portal/MentorshipProfileFields'
+import { SectorSelect } from '@/components/portal/SectorSelect'
 
 export default function PortalSignupPage() {
   const { t, isUrdu } = useLocale()
   const [form, setForm] = useState({
     full_name: '', name_ur: '', father_husband_name: '', mobile: '', whatsapp_number: '',
     donor_type: 'villager', country: '', sector: '', username: '', email: '', password: '',
-  })
-  const [mentorship, setMentorship] = useState<MentorshipFieldsValue>({
-    gender: '', profession: '', profession_other: '', education_level: '', education_details: '',
-    is_currently_studying: true, seeking_mentorship: false, is_minor: false,
-    guardian_name: '', guardian_mobile: '', phone_private: false,
   })
   const [sectors, setSectors] = useState<string[]>([])
   const [error, setError] = useState('')
@@ -31,8 +26,12 @@ export default function PortalSignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!form.full_name.trim() || !form.father_husband_name.trim() || !form.mobile.trim() || !form.whatsapp_number.trim() || !form.username.trim() || !form.password) {
+    if (!form.full_name.trim() || !form.father_husband_name.trim() || !form.mobile.trim() || !form.whatsapp_number.trim() || !form.username.trim() || !form.password || !form.email.trim()) {
       setError(t('p.signupRequiredFields'))
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setError(t('p.invalidEmail'))
       return
     }
     if (!/^[a-zA-Z0-9_]{6,30}$/.test(form.username.trim())) {
@@ -47,15 +46,11 @@ export default function PortalSignupPage() {
       setError(t('p.passwordMinLengthPeriod'))
       return
     }
-    if (mentorship.seeking_mentorship && mentorship.is_minor && (!mentorship.guardian_name.trim() || !mentorship.guardian_mobile.trim())) {
-      setError(t('m.guardianRequiredError'))
-      return
-    }
     setLoading(true)
     try {
       const res = await fetch('/api/portal/signup', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, ...mentorship }), credentials: 'same-origin',
+        body: JSON.stringify(form), credentials: 'same-origin',
       })
       const data = await res.json()
       if (!res.ok) {
@@ -63,7 +58,7 @@ export default function PortalSignupPage() {
         setLoading(false)
         return
       }
-      router.push('/portal')
+      router.push('/portal/welcome')
       router.refresh()
     } catch {
       setError(t('p.networkErrorRetry'))
@@ -86,6 +81,7 @@ export default function PortalSignupPage() {
           <div>
             <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('g.fullNameReq')}</label>
             <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required className="input-field" />
+            <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('p.fullNamePrivateHint')}</p>
           </div>
           <div>
             <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('w.nameUrdu')}</label>
@@ -112,6 +108,7 @@ export default function PortalSignupPage() {
                 <option value="villager">{t('w.villageResident')}</option>
                 <option value="overseas">{t('w.overseas')}</option>
               </select>
+              <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('p.overseasHint')}</p>
             </div>
             {form.donor_type === 'overseas' ? (
               <div>
@@ -121,10 +118,7 @@ export default function PortalSignupPage() {
             ) : (
               <div>
                 <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('w.sector')}</label>
-                <input value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} list="sector-options" placeholder={t('p.selectOrTypeSector')} className="input-field" />
-                <datalist id="sector-options">
-                  {sectors.map((s) => <option key={s} value={s} />)}
-                </datalist>
+                <SectorSelect sectors={sectors} value={form.sector} onChange={(v) => setForm({ ...form, sector: v })} />
               </div>
             )}
           </div>
@@ -134,16 +128,12 @@ export default function PortalSignupPage() {
             <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('p.usernameHint')}</p>
           </div>
           <div>
-            <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('w.emailOptional')}</label>
-            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input-field" />
+            <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('g.emailReq')}</label>
+            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required className="input-field" />
           </div>
           <div>
             <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('g.passwordReq')}</label>
             <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required autoComplete="new-password" className="input-field" />
-          </div>
-
-          <div className="border-t border-dp-outline-variant pt-4">
-            <MentorshipProfileFields value={mentorship} onChange={(patch) => setMentorship({ ...mentorship, ...patch })} />
           </div>
 
           {error && (

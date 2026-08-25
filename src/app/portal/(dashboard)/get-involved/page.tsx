@@ -46,7 +46,7 @@ export default function PortalGetInvolvedPage() {
     setSavingVolunteer(true)
     const supabase = createClient()
     const { error } = await supabase.from('suggestions').insert({
-      name: user.full_name, mobile: user.whatsapp_number ?? user.mobile, message: skills.trim(), portal_user_id: user.id, type: 'volunteer',
+      name: user.display_name || user.username || user.full_name, mobile: user.whatsapp_number ?? user.mobile, message: skills.trim(), portal_user_id: user.id, type: 'volunteer',
     })
     setSavingVolunteer(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -60,7 +60,7 @@ export default function PortalGetInvolvedPage() {
     setSavingRole(true)
     const supabase = createClient()
     const { error } = await supabase.from('suggestions').insert({
-      name: user.full_name, mobile: user.whatsapp_number ?? user.mobile, message: roleSkills.trim(), portal_user_id: user.id, type: 'role_request',
+      name: user.display_name || user.username || user.full_name, mobile: user.whatsapp_number ?? user.mobile, message: roleSkills.trim(), portal_user_id: user.id, type: 'role_request',
     })
     setSavingRole(false)
     if (error) { toast.error(friendlyError(error)); return }

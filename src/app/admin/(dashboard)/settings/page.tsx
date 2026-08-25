@@ -506,7 +506,11 @@ export default function AdminSettingsPage() {
 
   const renameSector = async (id: string) => {
     if (!editingSectorName.trim()) { toast.error(tr('st.sectorNameRequired')); return }
-    const { error } = await supabase.from('sectors').update({ name: editingSectorName.trim() }).eq('id', id)
+    // Goes through the RPC, not a direct update — a sector is stored as a
+    // plain matching string on 9 other tables (consumers, portal_users,
+    // projects...), not a foreign key, so the rename has to cascade there
+    // too or every existing record still carries the old name.
+    const { error } = await supabase.rpc('rename_sector', { p_id: id, p_new_name: editingSectorName.trim() })
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(tr('st.sectorRenamed'))
     setEditingSector(null)

@@ -281,7 +281,7 @@ export default function PortalEsalESawabPage() {
     const { error } = await supabase.from('sadqa_objects').insert({
       catalogue_id: form.catalogue_id || null,
       item_name: form.item_name.trim(),
-      donor_name: portalUser.full_name,
+      donor_name: portalUser.display_name || portalUser.username || portalUser.full_name,
       donor_phone: portalUser.mobile ?? null,
       portal_user_id: portalUser.id,
       donor_is_anonymous: form.donor_is_anonymous,

@@ -78,7 +78,7 @@ export default function ProjectDetailPage() {
   const [postingComment, setPostingComment] = useState(false)
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyText, setReplyText] = useState('')
-  const [portalUser, setPortalUser] = useState<{ id: string; full_name: string; mobile: string; whatsapp_number: string | null; name_ur: string | null; donor_type: string | null } | null>(null)
+  const [portalUser, setPortalUser] = useState<{ id: string; full_name: string; username: string | null; display_name: string | null; mobile: string; whatsapp_number: string | null; name_ur: string | null; donor_type: string | null } | null>(null)
   // A staff member browsing the public site under their own /admin session —
   // migration 319. Lets them comment as themselves (name + role), with no
   // separate donor-portal signup. Donations/votes/volunteering stay
@@ -131,7 +131,7 @@ export default function ProjectDetailPage() {
 
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (authUser) {
-      const { data: pu } = await supabase.from('portal_users').select('id, full_name, mobile, whatsapp_number, name_ur, donor_type').eq('auth_user_id', authUser.id).maybeSingle()
+      const { data: pu } = await supabase.from('portal_users').select('id, full_name, username, display_name, mobile, whatsapp_number, name_ur, donor_type').eq('auth_user_id', authUser.id).maybeSingle()
       setPortalUser(pu ?? null)
       const { data: au } = await supabase.from('admin_users').select('id, full_name, role').eq('auth_user_id', authUser.id).eq('is_active', true).maybeSingle()
       setStaffUser(au ?? null)
@@ -184,7 +184,7 @@ export default function ProjectDetailPage() {
     setAnnouncing(true)
     const supabase = createClient()
     const { error } = await supabase.from('donors').insert({
-      name: portalUser.full_name, name_ur: portalUser.name_ur, phone: portalUser.mobile, whatsapp_number: portalUser.whatsapp_number,
+      name: portalUser.display_name || portalUser.username || portalUser.full_name, name_ur: portalUser.name_ur, phone: portalUser.mobile, whatsapp_number: portalUser.whatsapp_number,
       donor_type: portalUser.donor_type ?? 'villager', amount_pkr: announceAmount, date: new Date().toISOString().split('T')[0],
       payment_method: 'jazzcash', project_id: id, is_anonymous: false, is_verified: false, submitted_via: 'public',
       payment_status: 'pledged', portal_user_id: portalUser.id,

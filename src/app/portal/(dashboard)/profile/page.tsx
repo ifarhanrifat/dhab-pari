@@ -10,6 +10,7 @@ import { ImageUpload } from '@/components/admin/ImageUpload'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { SITE } from '@/lib/constants'
 import { MentorshipProfileFields, type MentorshipFieldsValue } from '@/components/portal/MentorshipProfileFields'
+import { SectorSelect } from '@/components/portal/SectorSelect'
 
 function syntheticEmail(mobile: string) {
   return `${mobile.replace(/[^0-9]/g, '')}@portal.dhabpari.local`
@@ -21,7 +22,7 @@ export default function PortalProfilePage() {
   const [sectors, setSectors] = useState<string[]>([])
   const [form, setForm] = useState({
     full_name: '', name_ur: '', father_husband_name: '', whatsapp_number: '',
-    donor_type: 'villager', country: '', sector: '', avatar_url: '', username: '', email: '',
+    donor_type: 'villager', country: '', sector: '', avatar_url: '', username: '', email: '', display_name: '',
   })
   const [mentorship, setMentorship] = useState<MentorshipFieldsValue>({
     gender: '', profession: '', profession_other: '', education_level: '', education_details: '',
@@ -44,7 +45,7 @@ export default function PortalProfilePage() {
       full_name: user.full_name, name_ur: user.name_ur ?? '', father_husband_name: user.father_husband_name ?? '',
       whatsapp_number: user.whatsapp_number ?? '', donor_type: user.donor_type ?? 'villager',
       country: user.country ?? '', sector: user.sector ?? '', avatar_url: user.avatar_url ?? '',
-      username: user.username ?? '', email: user.email ?? '',
+      username: user.username ?? '', email: user.email ?? '', display_name: user.display_name ?? '',
     })
     setMentorship({
       gender: user.gender ?? '', profession: user.profession ?? '', profession_other: user.profession_other ?? '',
@@ -78,6 +79,7 @@ export default function PortalProfilePage() {
       donor_type: form.donor_type, country: form.donor_type === 'overseas' ? (form.country.trim() || null) : null,
       sector: form.sector.trim() || null, avatar_url: form.avatar_url || null,
       username: form.username.trim(), email: form.email.trim() || null,
+      display_name: form.display_name.trim() || null,
       gender: mentorship.gender || null, profession: mentorship.profession || null,
       profession_other: mentorship.profession === 'other' ? (mentorship.profession_other.trim() || null) : null,
       education_level: mentorship.education_level || null, education_details: mentorship.education_details.trim() || null,
@@ -136,10 +138,16 @@ export default function PortalProfilePage() {
         <div>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.fullNameReq')}</label>
           <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="input-field" />
+          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1 leading-relaxed">{t('p.fullNamePrivateHint')}</p>
         </div>
         <div>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.nameUrdu')}</label>
           <input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+        </div>
+        <div>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('p.displayName')}</label>
+          <input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder={form.username || form.full_name} className="input-field" />
+          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1 leading-relaxed">{t('p.displayNameHint')}</p>
         </div>
         <div>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.fatherReq')}</label>
@@ -165,8 +173,7 @@ export default function PortalProfilePage() {
           ) : (
             <div>
               <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.sector')}</label>
-              <input value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} list="sector-options" className="input-field" />
-              <datalist id="sector-options">{sectors.map((s) => <option key={s} value={s} />)}</datalist>
+              <SectorSelect sectors={sectors} value={form.sector} onChange={(v) => setForm({ ...form, sector: v })} />
             </div>
           )}
         </div>

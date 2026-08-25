@@ -11,7 +11,7 @@ import { CalendarClock, MapPin, CheckCircle2 } from 'lucide-react'
 interface Program {
   id: string; title: string; title_ur: string | null; description: string | null
   location: string | null; start_date: string | null; capacity: number | null
-  category: string; status: string
+  category: string; status: string; eligibility: string | null; requirements: string | null
 }
 
 export default function PortalTrainingProgramsPage() {
@@ -74,6 +74,8 @@ export default function PortalTrainingProgramsPage() {
                   <div className="min-w-0">
                     <p className="font-sans text-[14.5px] font-bold text-dp-on-surface">{isUrdu && r.title_ur ? r.title_ur : r.title}</p>
                     {r.description && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{r.description}</p>}
+                    {r.eligibility && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1"><strong className="text-dp-on-surface">{t('tp.eligibilityLabel')}:</strong> {r.eligibility}</p>}
+                    {r.requirements && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5"><strong className="text-dp-on-surface">{t('tp.requirementsLabel')}:</strong> {r.requirements}</p>}
                     <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                       {r.location && <span className="font-sans text-[12px] text-dp-on-surface-variant flex items-center gap-1"><MapPin size={12} /> {r.location}</span>}
                       {r.start_date && <span className="font-sans text-[12px] text-dp-on-surface-variant">{r.start_date}</span>}

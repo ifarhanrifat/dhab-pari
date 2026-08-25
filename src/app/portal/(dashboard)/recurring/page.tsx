@@ -108,7 +108,7 @@ export default function PortalRecurringPage() {
     const supabase = createClient()
     const { error } = await supabase.from('recurring_schedules').insert({
       system: 'donors_projects', schedule_type: 'donation', created_by_portal_user_id: user.id,
-      donor_name: user.full_name, donor_name_ur: user.name_ur, donor_phone: user.mobile, donor_type: 'villager',
+      donor_name: user.display_name || user.username || user.full_name, donor_name_ur: user.name_ur, donor_phone: user.mobile, donor_type: 'villager',
       amount_pkr: form.amount_pkr, frequency: form.frequency, next_run_date: form.next_run_date,
       project_id: form.project_id || null, payment_method: form.payment_method,
       particular: form.particular || 'Recurring donation', is_active: true,
