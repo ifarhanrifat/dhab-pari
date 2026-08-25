@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { playNotificationSound } from '@/lib/notificationSound'
 import { useNotificationSoundMuted } from '@/hooks/useNotificationSoundMuted'
+import { PushPermissionBanner } from '@/components/layout/PushPermissionBanner'
 
 interface PortalNotification {
   id: string; title: string; body: string | null; link: string | null
@@ -116,9 +117,11 @@ export function PortalNotificationBell() {
   if (!portalUserId) return null
 
   return (
-    // Fixed, floating — mirrors src/components/layout/NotificationBell.tsx
-    // (the admin equivalent). top-16 clears the mobile header bar on small
-    // screens; top-4 on desktop where there's no header bar above it.
+    <>
+    <PushPermissionBanner owner={{ portalUserId }} />
+    {/* Fixed, floating — mirrors src/components/layout/NotificationBell.tsx
+    (the admin equivalent). top-16 clears the mobile header bar on small
+    screens; top-4 on desktop where there's no header bar above it. */}
     <div ref={boxRef} className="fixed top-16 right-4 md:top-4 md:right-4 z-[95] print:hidden">
       <button onClick={() => setOpen(!open)} className="relative w-10 h-10 flex items-center justify-center bg-white border border-dp-outline-variant rounded-full shadow-md hover:shadow-lg transition-all cursor-pointer" aria-label="Notifications">
         <Bell size={18} className="text-dp-primary" />
@@ -164,5 +167,6 @@ export function PortalNotificationBell() {
         </div>
       )}
     </div>
+    </>
   )
 }

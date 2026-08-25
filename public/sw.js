@@ -94,3 +94,38 @@ self.addEventListener('fetch', (event) => {
     )
   }
 })
+
+// Real Web Push (migration 348 / /api/push/dispatch) — this is what fires
+// even when nobody has the site open, the whole point of the exercise. The
+// payload is the small JSON object the dispatch route sends: title, body,
+// link. No caching concerns here — a push always carries fresh data, never
+// reused from a prior show().
+self.addEventListener('push', (event) => {
+  let data = { title: 'Dhab Pari', body: '', link: '/' }
+  try { data = { ...data, ...event.data.json() } } catch { /* non-JSON payload, keep defaults */ }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      data: { link: data.link },
+    })
+  )
+})
+
+// Focus an already-open tab on the right page rather than always opening a
+// new one — the common case is someone tapping a notification while the app
+// is already open in the background.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const link = event.notification.data?.link || '/'
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ('focus' in client) { client.navigate(link); return client.focus() }
+      }
+      return self.clients.openWindow(link)
+    })
+  )
+})

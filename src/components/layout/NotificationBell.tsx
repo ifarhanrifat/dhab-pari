@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { playNotificationSound } from '@/lib/notificationSound'
 import { useNotificationSoundMuted } from '@/hooks/useNotificationSoundMuted'
+import { PushPermissionBanner } from '@/components/layout/PushPermissionBanner'
 
 interface Notification {
   id: string; title: string; body: string | null; link: string | null
@@ -109,9 +110,11 @@ export function NotificationBell() {
   if (!adminUserId) return null
 
   return (
-    // top-16 clears the mobile header bar (AdminHeader, md:hidden, ~60px tall
-    // with its own hamburger button in the same top-right corner) so the two
-    // don't overlap; on desktop there's no header bar, so it sits at top-4.
+    <>
+    <PushPermissionBanner owner={{ adminUserId }} />
+    {/* top-16 clears the mobile header bar (AdminHeader, md:hidden, ~60px tall
+    with its own hamburger button in the same top-right corner) so the two
+    don't overlap; on desktop there's no header bar, so it sits at top-4. */}
     <div ref={boxRef} className="fixed top-16 right-4 md:top-4 md:right-4 z-[95] print:hidden">
       <button
         onClick={() => setOpen(!open)}
@@ -161,5 +164,6 @@ export function NotificationBell() {
         </div>
       )}
     </div>
+    </>
   )
 }
