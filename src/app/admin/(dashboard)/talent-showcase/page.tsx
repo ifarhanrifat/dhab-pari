@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { Sparkles, Plus, Pencil, Trash2, X, CheckCircle2, XCircle, Clock, ShieldCheck, HandHeart, Wallet } from 'lucide-react'
+import { Sparkles, Plus, Pencil, Trash2, X, CheckCircle2, XCircle, Clock, ShieldCheck, HandHeart, Wallet, Award } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { VideoUpload } from '@/components/admin/VideoUpload'
@@ -23,6 +23,7 @@ interface Entry {
   needs_amount_pkr: number | null; support_status: string
 }
 interface HelpOffer { id: string; talent_showcase_id: string; message: string; status: string; created_at: string; supporter_name?: string }
+interface Supporter { id: string; talent_showcase_id: string; donor_id: string | null; name: string; created_at: string }
 
 const empty = { display_name: '', talent_description: '', needs: '', aspiration: '', photo_url: '', video_url: '', needs_amount_pkr: '', guardian_consent_confirmed_by_admin: false }
 const SUPPORT_STATUSES = ['open', 'partially_supported', 'fulfilled']
@@ -42,6 +43,11 @@ export default function TalentShowcaseAdminPage() {
   const [raised, setRaised] = useState<Record<string, number>>({})
   const [offers, setOffers] = useState<HelpOffer[]>([])
   const [offersFor, setOffersFor] = useState<string | null>(null)
+  const [supporters, setSupporters] = useState<Supporter[]>([])
+  const [supportersFor, setSupportersFor] = useState<string | null>(null)
+  const [donorNames, setDonorNames] = useState<string[]>([])
+  const [newSupporterName, setNewSupporterName] = useState('')
+  const [addingSupporter, setAddingSupporter] = useState(false)
 
   const load = async () => {
     const { data } = await supabase.from('talent_showcases').select('*').order('created_at', { ascending: false })
@@ -146,6 +152,47 @@ export default function TalentShowcaseAdminPage() {
     setOffers((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)))
   }
 
+  // "chose the name from all the donors, or set any name" — the datalist
+  // below is loaded once (not scoped to this one entry) so any donor who
+  // ever gave, however they gave it, can be picked; typing anything else
+  // just credits that free-text name with no donor_id link.
+  const openSupporters = async (id: string) => {
+    setSupportersFor(id)
+    setNewSupporterName('')
+    const { data } = await supabase.from('talent_showcase_supporters').select('id, talent_showcase_id, donor_id, name, created_at').eq('talent_showcase_id', id).order('created_at')
+    setSupporters((data ?? []) as Supporter[])
+    if (donorNames.length === 0) {
+      const { data: donors } = await supabase.from('donors').select('name').order('date', { ascending: false }).limit(500)
+      setDonorNames(Array.from(new Set((donors ?? []).map((d) => d.name).filter(Boolean))))
+    }
+  }
+
+  const addSupporter = async (talentShowcaseId: string) => {
+    const name = newSupporterName.trim()
+    if (!name) { toast.error(t('ts.supporterNameRequired')); return }
+    setAddingSupporter(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: admin } = await supabase.from('admin_users').select('id').eq('auth_user_id', user!.id).single()
+    // A typed name that exactly matches a known donor gets linked
+    // (donor_id) for traceability; anything else is credited as-is.
+    const { data: matchedDonor } = await supabase.from('donors').select('id').eq('name', name).order('date', { ascending: false }).limit(1).maybeSingle()
+    const { data: row, error } = await supabase.from('talent_showcase_supporters').insert({
+      talent_showcase_id: talentShowcaseId, name, donor_id: matchedDonor?.id ?? null, added_by: admin!.id,
+    }).select('id, talent_showcase_id, donor_id, name, created_at').single()
+    setAddingSupporter(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('ts.supporterAdded'))
+    setNewSupporterName('')
+    setSupporters((prev) => [...prev, row as Supporter])
+  }
+
+  const removeSupporter = async (id: string) => {
+    const { error } = await supabase.from('talent_showcase_supporters').delete().eq('id', id)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('ts.supporterRemoved'))
+    setSupporters((prev) => prev.filter((s) => s.id !== id))
+  }
+
   const pending = rows.filter((r) => r.moderation_status === 'pending')
   const reviewed = rows.filter((r) => r.moderation_status !== 'pending')
 
@@ -222,6 +269,7 @@ export default function TalentShowcaseAdminPage() {
                         {SUPPORT_STATUSES.map((s) => <option key={s} value={s}>{t(`ts.status.${s}`)}</option>)}
                       </select>
                       <button onClick={() => openOffers(r.id)} className="flex items-center gap-1 text-[11.5px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer"><HandHeart size={12} /> {t('ts.viewOffers')}</button>
+                      <button onClick={() => (supportersFor === r.id ? setSupportersFor(null) : openSupporters(r.id))} className="flex items-center gap-1 text-[11.5px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer"><Award size={12} /> {t('ts.supporters')}</button>
                     </div>
                   )}
 
@@ -242,6 +290,32 @@ export default function TalentShowcaseAdminPage() {
                           <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{o.message}</p>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {supportersFor === r.id && (
+                    <div className="mt-2 space-y-1.5">
+                      {supporters.length === 0 ? (
+                        <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('ts.noSupporters')}</p>
+                      ) : supporters.map((s) => (
+                        <div key={s.id} className="flex items-center justify-between gap-2 bg-dp-surface-container-low rounded-lg px-3 py-1.5">
+                          <span className="font-sans text-[12px] font-semibold text-dp-on-surface">{s.name}</span>
+                          <button onClick={() => removeSupporter(s.id)} className="text-dp-error cursor-pointer"><X size={13} /></button>
+                        </div>
+                      ))}
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          list={`donor-names-${r.id}`} value={newSupporterName} onChange={(e) => setNewSupporterName(e.target.value)}
+                          placeholder={`${t('ts.chooseDonor')} / ${t('ts.orCustomName')}`}
+                          className="flex-1 text-[12px] border border-dp-outline-variant rounded-lg px-2.5 py-1.5"
+                        />
+                        <datalist id={`donor-names-${r.id}`}>
+                          {donorNames.map((n) => <option key={n} value={n} />)}
+                        </datalist>
+                        <button onClick={() => addSupporter(r.id)} disabled={addingSupporter} className="text-[11.5px] font-sans font-semibold bg-dp-secondary text-white px-3 py-1.5 rounded-lg cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50 shrink-0">
+                          {t('ts.addSupporter')}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

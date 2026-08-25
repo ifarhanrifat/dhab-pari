@@ -3,6 +3,7 @@ import { Sparkles } from 'lucide-react'
 import { T } from '@/components/i18n/T'
 import { VideoEmbed } from '@/components/public/VideoEmbed'
 import { TalentSupportActions } from '@/components/public/TalentSupportActions'
+import { TalentComments } from '@/components/public/TalentComments'
 
 export const revalidate = 300
 
@@ -63,6 +64,7 @@ export default async function TalentShowcasePage() {
                 )}
                 {e.video_url && <div className="mt-3"><VideoEmbed url={e.video_url} /></div>}
                 <TalentSupportActions talentShowcaseId={e.id} needsAmountPkr={e.needs_amount_pkr} supportStatus={e.support_status} />
+                <TalentComments talentShowcaseId={e.id} />
               </div>
             </div>
           ))}

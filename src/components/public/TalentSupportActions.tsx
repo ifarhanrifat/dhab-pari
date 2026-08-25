@@ -13,7 +13,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { HandHeart, Wallet, X, CheckCircle2 } from 'lucide-react'
+import { HandHeart, Wallet, X, CheckCircle2, Award } from 'lucide-react'
 
 function fmt(n: number) {
   return Math.round(n).toLocaleString()
@@ -33,11 +33,20 @@ export function TalentSupportActions({ talentShowcaseId, needsAmountPkr, support
   const [amount, setAmount] = useState('')
   const [helpMessage, setHelpMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const [supporterNames, setSupporterNames] = useState<string[]>([])
 
   useEffect(() => {
     if (!needsAmountPkr) return
     createClient().rpc('talent_showcase_raised', { p_id: talentShowcaseId }).then(({ data }) => setRaised(Number(data ?? 0)))
   }, [talentShowcaseId, needsAmountPkr])
+
+  // Credit for who helped — admin-curated (migration 344), shown once
+  // there's at least one, regardless of exact support_status, so partial
+  // help is credited just as visibly as a fully met need.
+  useEffect(() => {
+    createClient().from('talent_showcase_supporters_public').select('name').eq('talent_showcase_id', talentShowcaseId).order('created_at')
+      .then(({ data }) => setSupporterNames((data ?? []).map((s) => s.name)))
+  }, [talentShowcaseId])
 
   const requireLogin = async () => {
     const supabase = createClient()
@@ -90,9 +99,16 @@ export function TalentSupportActions({ talentShowcaseId, needsAmountPkr, support
 
   if (supportStatus === 'fulfilled') {
     return (
-      <p dir={isUrdu ? 'rtl' : 'ltr'} className="mt-3 inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[12.5px] font-semibold">
-        <CheckCircle2 size={14} /> {t('talent.needsMet')}
-      </p>
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="mt-3">
+        <p className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[12.5px] font-semibold">
+          <CheckCircle2 size={14} /> {t('talent.needsMet')}
+        </p>
+        {supporterNames.length > 0 && (
+          <p className="mt-1 flex items-start gap-1.5 font-sans text-[11.5px] text-dp-on-surface-variant">
+            <Award size={13} className="text-dp-secondary shrink-0 mt-0.5" /> {t('talent.supportedByColon')} {supporterNames.join(isUrdu ? '، ' : ', ')}
+          </p>
+        )}
+      </div>
     )
   }
 
@@ -104,11 +120,16 @@ export function TalentSupportActions({ talentShowcaseId, needsAmountPkr, support
             <div className="h-full bg-dp-secondary rounded-full transition-all" style={{ width: `${Math.min(100, (raised / needsAmountPkr) * 100)}%` }} />
           </div>
           <div className="flex items-center justify-between mt-1 font-sans text-[11px] text-dp-on-surface-variant">
-            <span>{t('talent.raisedLabel')}: Rs. {fmt(raised)}</span>
-            <span>{t('talent.targetLabel')}: Rs. {fmt(needsAmountPkr)}</span>
+            <span>{t('talent.raisedColon')} Rs. {fmt(raised)}</span>
+            <span>{t('talent.targetColon')} Rs. {fmt(needsAmountPkr)}</span>
           </div>
           {supportStatus === 'partially_supported' && (
             <p className="mt-1 font-sans text-[11px] text-amber-700 font-semibold">{t('talent.partiallySupported')}</p>
+          )}
+          {supporterNames.length > 0 && (
+            <p className="mt-1 flex items-start gap-1.5 font-sans text-[11px] text-dp-on-surface-variant">
+              <Award size={12} className="text-dp-secondary shrink-0 mt-0.5" /> {t('talent.supportedByColon')} {supporterNames.join(isUrdu ? '، ' : ', ')}
+            </p>
           )}
         </div>
       ) : null}
