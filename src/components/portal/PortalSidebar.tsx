@@ -17,6 +17,9 @@ import {
   NotebookPen,
   Scale,
   Users,
+  School,
+  CalendarClock,
+  Sparkles,
 } from 'lucide-react'
 
 // Mirrors AdminSidebar.tsx's exact pattern (fixed desktop sidebar + mobile
@@ -36,6 +39,9 @@ const menuItems = [
   { href: '/portal/propose-project', label: 'Propose a Project', tKey: 'portal.proposeProject', icon: Vote },
   { href: '/portal/submit-blog', label: 'Submit a Blog Post', tKey: 'portal.submitBlog', icon: NotebookPen },
   { href: '/portal/mentors', label: 'Mentors & Career Help', tKey: 'portal.mentors', icon: Users },
+  { href: '/portal/institutes', label: 'Institutes', tKey: 'portal.institutes', icon: School },
+  { href: '/portal/training-programs', label: 'Training Programs', tKey: 'portal.trainingPrograms', icon: CalendarClock },
+  { href: '/portal/talent-showcase', label: 'Talent Showcase', tKey: 'portal.talentShowcase', icon: Sparkles },
   { href: '/portal/suggestions', label: 'Suggestions', tKey: 'portal.suggestions', icon: MessageSquare },
   { href: '/portal/complaints', label: 'Complaints', tKey: 'portal.complaints', icon: MessageSquareWarning },
   { href: '/portal/blood-donor', label: 'Blood Donor', tKey: 'portal.bloodDonor', icon: Droplet },

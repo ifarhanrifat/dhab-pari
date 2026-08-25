@@ -9,7 +9,7 @@ import { VideoUpload } from '@/components/admin/VideoUpload'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Video { id: string; title: string; title_ur: string | null; description: string | null; video_url: string; thumbnail_url: string | null; category: string | null; duration_seconds: number | null; is_published: boolean; is_featured: boolean; views: number }
-const categories = ['wedding', 'interview', 'event', 'sports', 'news', 'documentary', 'project']
+const categories = ['wedding', 'interview', 'event', 'sports', 'news', 'documentary', 'project', 'freelancing']
 const empty = { title: '', title_ur: '', description: '', video_url: '', thumbnail_url: '', category: 'event', duration_seconds: 0, is_published: false, is_featured: false }
 
 export default function AdminVideosPage() {

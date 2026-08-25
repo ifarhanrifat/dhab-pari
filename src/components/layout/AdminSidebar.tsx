@@ -54,6 +54,7 @@ import {
   Megaphone,
   KeyRound,
   MessageCircle,
+  Sparkles,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -124,6 +125,9 @@ const menuItems: {
   { href: '/admin/users', label: 'Users', tKey: 'nav.users', icon: UserCog, adminAndAbove: true },
   { href: '/admin/portal-accounts', label: 'Portal Accounts', tKey: 'nav.portalAccounts', icon: KeyRound, adminAndAbove: true },
   { href: '/admin/mentor-chats', label: 'Mentor Chats', tKey: 'nav.mentorChats', icon: MessageCircle, adminAndAbove: true },
+  { href: '/admin/institutes', label: 'Institutes', tKey: 'nav.institutes', icon: School, adminAndAbove: true },
+  { href: '/admin/training-programs', label: 'Training Programs', tKey: 'nav.trainingPrograms', icon: CalendarClock, adminAndAbove: true },
+  { href: '/admin/talent-showcase', label: 'Talent Showcase', tKey: 'nav.talentShowcase', icon: Sparkles, adminAndAbove: true },
   { href: '/admin/audit-log', label: 'Audit Log', tKey: 'nav.auditLog', icon: History, adminAndAbove: true },
   { href: '/admin/settings', label: 'Settings', tKey: 'nav.settings', icon: Settings, superAdminOnly: true },
 ]

@@ -27,6 +27,7 @@ const categoryTabs = [
   'Sports',
   'Documentary',
   'Project',
+  'Freelancing',
 ]
 
 const categoryBadgeColors: Record<string, string> = {
@@ -37,6 +38,7 @@ const categoryBadgeColors: Record<string, string> = {
   documentary: 'bg-amber-600',
   project: 'bg-dp-primary-container',
   news: 'bg-red-600',
+  freelancing: 'bg-dp-secondary',
 }
 
 function formatDuration(seconds: number | null) {

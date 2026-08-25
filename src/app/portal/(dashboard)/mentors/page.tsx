@@ -10,7 +10,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { Users, MessageCircle, GraduationCap, Briefcase, Clock, CheckCircle2, XCircle, ChevronRight } from 'lucide-react'
+import { Users, MessageCircle, GraduationCap, Briefcase, Clock, CheckCircle2, XCircle, ChevronRight, School, CalendarClock, Sparkles } from 'lucide-react'
 
 interface MentorRow {
   id: string; full_name: string; avatar_url: string | null; mentor_type: string
@@ -83,6 +83,25 @@ export default function MentorsHubPage() {
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Users size={22} className="text-dp-secondary" /> {t('mn.title')}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('mn.subtitle')}</p>
+      </div>
+
+      {/* ── The rest of the registration-note promise ────────────────────
+          Course videos, institutes, training programs — the mentor
+          directory above is only one piece of what was promised at
+          signup. */}
+      <div className="grid sm:grid-cols-3 gap-3 mb-6">
+        <Link href="/portal/institutes" className="bg-white border border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-all flex items-center gap-3">
+          <School size={20} className="text-dp-secondary shrink-0" />
+          <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{t('portal.institutes')}</span>
+        </Link>
+        <Link href="/portal/training-programs" className="bg-white border border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-all flex items-center gap-3">
+          <CalendarClock size={20} className="text-dp-secondary shrink-0" />
+          <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{t('portal.trainingPrograms')}</span>
+        </Link>
+        <Link href="/portal/talent-showcase" className="bg-white border border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-all flex items-center gap-3">
+          <Sparkles size={20} className="text-dp-secondary shrink-0" />
+          <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{t('portal.talentShowcase')}</span>
+        </Link>
       </div>
 
       {/* ── Mentor status card ─────────────────────────────────────────── */}
