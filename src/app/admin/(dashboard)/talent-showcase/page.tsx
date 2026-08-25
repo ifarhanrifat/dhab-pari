@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { Sparkles, Plus, Pencil, Trash2, X, CheckCircle2, XCircle, Clock, ShieldCheck } from 'lucide-react'
+import { Sparkles, Plus, Pencil, Trash2, X, CheckCircle2, XCircle, Clock, ShieldCheck, HandHeart, Wallet } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { VideoUpload } from '@/components/admin/VideoUpload'
@@ -20,9 +20,13 @@ interface Entry {
   id: string; display_name: string; talent_description: string; needs: string | null; aspiration: string | null
   photo_url: string | null; video_url: string | null; moderation_status: string; is_published: boolean
   portal_user_id: string | null; submitted_by_admin_id: string | null; created_at: string
+  needs_amount_pkr: number | null; support_status: string
 }
+interface HelpOffer { id: string; talent_showcase_id: string; message: string; status: string; created_at: string; supporter_name?: string }
 
-const empty = { display_name: '', talent_description: '', needs: '', aspiration: '', photo_url: '', video_url: '', guardian_consent_confirmed_by_admin: false }
+const empty = { display_name: '', talent_description: '', needs: '', aspiration: '', photo_url: '', video_url: '', needs_amount_pkr: '', guardian_consent_confirmed_by_admin: false }
+const SUPPORT_STATUSES = ['open', 'partially_supported', 'fulfilled']
+const fmt = (n: number) => Math.round(n).toLocaleString()
 
 export default function TalentShowcaseAdminPage() {
   const { t, isUrdu } = useLocale()
@@ -35,11 +39,23 @@ export default function TalentShowcaseAdminPage() {
   const [saving, setSaving] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [raised, setRaised] = useState<Record<string, number>>({})
+  const [offers, setOffers] = useState<HelpOffer[]>([])
+  const [offersFor, setOffersFor] = useState<string | null>(null)
 
   const load = async () => {
     const { data } = await supabase.from('talent_showcases').select('*').order('created_at', { ascending: false })
-    setRows((data ?? []) as Entry[])
+    const list = (data ?? []) as Entry[]
+    setRows(list)
     setLoading(false)
+    const fundable = list.filter((r) => r.needs_amount_pkr)
+    if (fundable.length) {
+      const pairs = await Promise.all(fundable.map(async (r) => {
+        const { data: amt } = await supabase.rpc('talent_showcase_raised', { p_id: r.id })
+        return [r.id, Number(amt ?? 0)] as const
+      }))
+      setRaised(Object.fromEntries(pairs))
+    }
   }
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -48,7 +64,7 @@ export default function TalentShowcaseAdminPage() {
     setForm({
       display_name: r.display_name, talent_description: r.talent_description,
       needs: r.needs ?? '', aspiration: r.aspiration ?? '', photo_url: r.photo_url ?? '', video_url: r.video_url ?? '',
-      guardian_consent_confirmed_by_admin: true,
+      needs_amount_pkr: r.needs_amount_pkr?.toString() ?? '', guardian_consent_confirmed_by_admin: true,
     })
     setEditing(r)
     setShowForm(true)
@@ -60,12 +76,14 @@ export default function TalentShowcaseAdminPage() {
     // already exists (self-submitted or staff-authored) doesn't ask again.
     if (!editing && !form.guardian_consent_confirmed_by_admin) { toast.error(t('ts.consentRequired')); return }
     setSaving(true)
+    const shared = {
+      display_name: form.display_name.trim(), talent_description: form.talent_description.trim(),
+      needs: form.needs.trim() || null, aspiration: form.aspiration.trim() || null,
+      photo_url: form.photo_url || null, video_url: form.video_url || null,
+      needs_amount_pkr: form.needs_amount_pkr ? parseFloat(form.needs_amount_pkr) : null,
+    }
     if (editing) {
-      const { error } = await supabase.from('talent_showcases').update({
-        display_name: form.display_name.trim(), talent_description: form.talent_description.trim(),
-        needs: form.needs.trim() || null, aspiration: form.aspiration.trim() || null,
-        photo_url: form.photo_url || null, video_url: form.video_url || null,
-      }).eq('id', editing.id)
+      const { error } = await supabase.from('talent_showcases').update(shared).eq('id', editing.id)
       setSaving(false)
       if (error) { toast.error(friendlyError(error)); return }
       toast.success(t('ts.saved'))
@@ -73,10 +91,7 @@ export default function TalentShowcaseAdminPage() {
       const { data: { user } } = await supabase.auth.getUser()
       const { data: admin } = await supabase.from('admin_users').select('id').eq('auth_user_id', user!.id).single()
       const { error } = await supabase.from('talent_showcases').insert({
-        display_name: form.display_name.trim(), talent_description: form.talent_description.trim(),
-        needs: form.needs.trim() || null, aspiration: form.aspiration.trim() || null,
-        photo_url: form.photo_url || null, video_url: form.video_url || null,
-        guardian_consent_confirmed_by_admin: true, submitted_by_admin_id: admin!.id,
+        ...shared, guardian_consent_confirmed_by_admin: true, submitted_by_admin_id: admin!.id,
       })
       setSaving(false)
       if (error) { toast.error(friendlyError(error)); return }
@@ -105,6 +120,30 @@ export default function TalentShowcaseAdminPage() {
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('ts.deleted'))
     load()
+  }
+
+  const changeSupportStatus = async (id: string, status: string) => {
+    const { error } = await supabase.from('talent_showcases').update({ support_status: status }).eq('id', id)
+    if (error) { toast.error(friendlyError(error)); return }
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, support_status: status } : r)))
+  }
+
+  const openOffers = async (id: string) => {
+    setOffersFor(id)
+    const { data } = await supabase.from('talent_showcase_help_offers').select('id, talent_showcase_id, message, status, created_at, portal_user_id').eq('talent_showcase_id', id).order('created_at', { ascending: false })
+    const list = (data ?? []) as (HelpOffer & { portal_user_id: string })[]
+    if (list.length) {
+      const { data: names } = await supabase.from('portal_users').select('id, full_name').in('id', list.map((o) => o.portal_user_id))
+      const nameMap = Object.fromEntries((names ?? []).map((n) => [n.id, n.full_name]))
+      list.forEach((o) => { o.supporter_name = nameMap[o.portal_user_id] })
+    }
+    setOffers(list)
+  }
+
+  const markOfferStatus = async (id: string, status: string) => {
+    const { error } = await supabase.from('talent_showcase_help_offers').update({ status }).eq('id', id)
+    if (error) { toast.error(friendlyError(error)); return }
+    setOffers((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)))
   }
 
   const pending = rows.filter((r) => r.moderation_status === 'pending')
@@ -136,8 +175,9 @@ export default function TalentShowcaseAdminPage() {
                   <div className="min-w-0">
                     <p className="font-sans text-[14px] font-bold text-dp-on-surface">{r.display_name}</p>
                     <p className="font-sans text-[13px] text-dp-on-surface mt-1">{r.talent_description}</p>
-                    {r.needs && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1"><strong>{t('ts.needs')}:</strong> {r.needs}</p>}
-                    {r.aspiration && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5"><strong>{t('ts.aspiration')}:</strong> {r.aspiration}</p>}
+                    {r.needs && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1"><strong>{t('ts.needsColon')}</strong> {r.needs}</p>}
+                    {r.needs_amount_pkr && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5"><strong>{t('ts.needsAmountColon')}</strong> Rs. {fmt(r.needs_amount_pkr)}</p>}
+                    {r.aspiration && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5"><strong>{t('ts.aspirationColon')}</strong> {r.aspiration}</p>}
                     {r.photo_url && <img src={r.photo_url} alt="" className="w-24 h-24 object-cover rounded-lg mt-2" />}
                     {r.video_url && <div className="max-w-xs mt-2"><VideoEmbed url={r.video_url} /></div>}
                   </div>
@@ -172,6 +212,38 @@ export default function TalentShowcaseAdminPage() {
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{r.talent_description}</p>
                   {r.photo_url && <img src={r.photo_url} alt="" className="w-20 h-20 object-cover rounded-lg mt-2" />}
                   {r.video_url && <div className="max-w-xs mt-2"><VideoEmbed url={r.video_url} /></div>}
+
+                  {r.moderation_status === 'approved' && (
+                    <div className="mt-3 pt-3 border-t border-dp-outline-variant flex items-center gap-3 flex-wrap">
+                      {r.needs_amount_pkr ? (
+                        <span className="flex items-center gap-1.5 font-sans text-[12px] text-dp-on-surface"><Wallet size={13} className="text-dp-secondary" /> Rs. {fmt(raised[r.id] ?? 0)} / {fmt(r.needs_amount_pkr)}</span>
+                      ) : null}
+                      <select value={r.support_status} onChange={(e) => changeSupportStatus(r.id, e.target.value)} className="text-[11.5px] border border-dp-outline-variant rounded px-2 py-1">
+                        {SUPPORT_STATUSES.map((s) => <option key={s} value={s}>{t(`ts.status.${s}`)}</option>)}
+                      </select>
+                      <button onClick={() => openOffers(r.id)} className="flex items-center gap-1 text-[11.5px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer"><HandHeart size={12} /> {t('ts.viewOffers')}</button>
+                    </div>
+                  )}
+
+                  {offersFor === r.id && (
+                    <div className="mt-2 space-y-1.5">
+                      {offers.length === 0 ? (
+                        <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('ts.noOffers')}</p>
+                      ) : offers.map((o) => (
+                        <div key={o.id} className="bg-dp-surface-container-low rounded-lg px-3 py-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-sans text-[12px] font-semibold text-dp-on-surface">{o.supporter_name}</span>
+                            <select value={o.status} onChange={(e) => markOfferStatus(o.id, e.target.value)} className="text-[10.5px] border border-dp-outline-variant rounded px-1.5 py-0.5">
+                              <option value="pending">{t('ts.offerPending')}</option>
+                              <option value="contacted">{t('ts.offerContacted')}</option>
+                              <option value="resolved">{t('ts.offerResolved')}</option>
+                            </select>
+                          </div>
+                          <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{o.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => openEdit(r)} className="p-2 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Pencil size={15} /></button>
@@ -202,6 +274,10 @@ export default function TalentShowcaseAdminPage() {
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ts.needs')}</label>
                 <textarea value={form.needs} onChange={(e) => setForm({ ...form, needs: e.target.value })} placeholder={t('ts.needsPlaceholder')} rows={2} className="input-field resize-none" />
+              </div>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ts.needsAmount')}</label>
+                <input type="number" min="0" value={form.needs_amount_pkr} onChange={(e) => setForm({ ...form, needs_amount_pkr: e.target.value })} placeholder={t('ts.needsAmountPlaceholder')} className="input-field" />
               </div>
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ts.aspiration')}</label>

@@ -130,8 +130,8 @@ export default function TrainingProgramsPage() {
                   <span className={`text-[10px] font-bold uppercase rounded-full px-2 py-0.5 ${r.status === 'cancelled' ? 'text-dp-error bg-dp-error/10' : 'text-emerald-700 bg-emerald-50'}`}>{r.status}</span>
                 </div>
                 {r.description && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{isUrdu && r.description_ur ? r.description_ur : r.description}</p>}
-                {r.eligibility && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1"><strong>{t('tp.eligibilityLabel')}:</strong> {isUrdu && r.eligibility_ur ? r.eligibility_ur : r.eligibility}</p>}
-                {r.requirements && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5"><strong>{t('tp.requirementsLabel')}:</strong> {isUrdu && r.requirements_ur ? r.requirements_ur : r.requirements}</p>}
+                {r.eligibility && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1"><strong>{t('tp.eligibilityColon')}</strong> {isUrdu && r.eligibility_ur ? r.eligibility_ur : r.eligibility}</p>}
+                {r.requirements && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5"><strong>{t('tp.requirementsColon')}</strong> {isUrdu && r.requirements_ur ? r.requirements_ur : r.requirements}</p>}
                 <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{[r.location, r.start_date, r.capacity ? `${t('tp.capacityLabel')}: ${r.capacity}` : null].filter(Boolean).join(' · ')}</p>
               </div>
               <div className="flex items-center gap-1 shrink-0">

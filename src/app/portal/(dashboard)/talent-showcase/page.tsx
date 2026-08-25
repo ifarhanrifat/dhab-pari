@@ -19,7 +19,7 @@ interface Entry {
   id: string; display_name: string; talent_description: string; moderation_status: string; created_at: string
 }
 
-const empty = { display_name: '', talent_description: '', needs: '', aspiration: '', photo_url: '', video_url: '' }
+const empty = { display_name: '', talent_description: '', needs: '', needs_amount_pkr: '', aspiration: '', photo_url: '', video_url: '' }
 
 export default function PortalTalentShowcasePage() {
   const { t, isUrdu } = useLocale()
@@ -41,7 +41,7 @@ export default function PortalTalentShowcasePage() {
     setSaving(true)
     const { error } = await supabase.from('talent_showcases').insert({
       portal_user_id: user.id, display_name: form.display_name.trim(), talent_description: form.talent_description.trim(),
-      needs: form.needs.trim() || null, aspiration: form.aspiration.trim() || null,
+      needs: form.needs.trim() || null, needs_amount_pkr: form.needs_amount_pkr ? parseFloat(form.needs_amount_pkr) : null, aspiration: form.aspiration.trim() || null,
       photo_url: form.photo_url || null, video_url: form.video_url || null,
     })
     setSaving(false)
@@ -102,6 +102,10 @@ export default function PortalTalentShowcasePage() {
           <div>
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ts.needs')}</label>
             <textarea value={form.needs} onChange={(e) => setForm({ ...form, needs: e.target.value })} placeholder={t('ts.needsPlaceholder')} rows={2} className="input-field resize-none" />
+          </div>
+          <div>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ts.needsAmount')}</label>
+            <input type="number" min="0" value={form.needs_amount_pkr} onChange={(e) => setForm({ ...form, needs_amount_pkr: e.target.value })} placeholder={t('ts.needsAmountPlaceholder')} className="input-field" />
           </div>
           <div>
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ts.aspiration')}</label>

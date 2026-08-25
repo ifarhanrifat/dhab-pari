@@ -75,8 +75,8 @@ export default function PortalTrainingProgramsPage() {
                   <div className="min-w-0">
                     <p className="font-sans text-[14.5px] font-bold text-dp-on-surface">{isUrdu && r.title_ur ? r.title_ur : r.title}</p>
                     {r.description && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{isUrdu && r.description_ur ? r.description_ur : r.description}</p>}
-                    {r.eligibility && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1"><strong className="text-dp-on-surface">{t('tp.eligibilityLabel')}:</strong> {isUrdu && r.eligibility_ur ? r.eligibility_ur : r.eligibility}</p>}
-                    {r.requirements && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5"><strong className="text-dp-on-surface">{t('tp.requirementsLabel')}:</strong> {isUrdu && r.requirements_ur ? r.requirements_ur : r.requirements}</p>}
+                    {r.eligibility && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1"><strong className="text-dp-on-surface">{t('tp.eligibilityColon')}</strong> {isUrdu && r.eligibility_ur ? r.eligibility_ur : r.eligibility}</p>}
+                    {r.requirements && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5"><strong className="text-dp-on-surface">{t('tp.requirementsColon')}</strong> {isUrdu && r.requirements_ur ? r.requirements_ur : r.requirements}</p>}
                     <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                       {r.location && <span className="font-sans text-[12px] text-dp-on-surface-variant flex items-center gap-1"><MapPin size={12} /> {r.location}</span>}
                       {r.start_date && <span className="font-sans text-[12px] text-dp-on-surface-variant">{r.start_date}</span>}

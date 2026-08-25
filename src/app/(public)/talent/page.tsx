@@ -2,19 +2,21 @@ import { createClient } from '@/lib/supabase/server'
 import { Sparkles } from 'lucide-react'
 import { T } from '@/components/i18n/T'
 import { VideoEmbed } from '@/components/public/VideoEmbed'
+import { TalentSupportActions } from '@/components/public/TalentSupportActions'
 
 export const revalidate = 300
 
 interface Entry {
   id: string; display_name: string; talent_description: string
   needs: string | null; aspiration: string | null; photo_url: string | null; video_url: string | null
+  needs_amount_pkr: number | null; support_status: string
 }
 
 export default async function TalentShowcasePage() {
   const supabase = await createClient()
   const { data } = await supabase
     .from('talent_showcases')
-    .select('id, display_name, talent_description, needs, aspiration, photo_url, video_url')
+    .select('id, display_name, talent_description, needs, aspiration, photo_url, video_url, needs_amount_pkr, support_status')
     .eq('is_published', true)
     .order('created_at', { ascending: false })
   const entries = (data ?? []) as Entry[]
@@ -60,6 +62,7 @@ export default async function TalentShowcasePage() {
                   </p>
                 )}
                 {e.video_url && <div className="mt-3"><VideoEmbed url={e.video_url} /></div>}
+                <TalentSupportActions talentShowcaseId={e.id} needsAmountPkr={e.needs_amount_pkr} supportStatus={e.support_status} />
               </div>
             </div>
           ))}

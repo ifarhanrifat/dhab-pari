@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   const username = body.username?.trim()
   const userEmail = body.email?.trim() || null
   if (!userEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
-    return NextResponse.json({ error: 'A valid email address is required.' }, { status: 400 })
+    return NextResponse.json({ error: 'براہ کرم ایک درست ای میل ایڈریس درج کریں۔ A valid email address is required.' }, { status: 400 })
   }
 
   const gender = body.gender === 'male' || body.gender === 'female' ? body.gender : null
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
   const guardianMobile = isMinor ? (body.guardian_mobile?.trim() || null) : null
   const phonePrivate = body.phone_private === true
   if (isMinor && (!guardianName || !guardianMobile)) {
-    return NextResponse.json({ error: "Please enter your parent/guardian's name and mobile number." }, { status: 400 })
+    return NextResponse.json({ error: 'براہ کرم اپنے والدین/سرپرست کا نام اور موبائل نمبر درج کریں۔ Please enter your parent/guardian\'s name and mobile number.' }, { status: 400 })
   }
 
   if (!fullName || !mobile || !password || !whatsapp || !fatherName || !username) {
