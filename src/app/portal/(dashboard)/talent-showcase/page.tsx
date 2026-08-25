@@ -91,10 +91,22 @@ export default function PortalTalentShowcasePage() {
         </div>
       ) : (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-6 space-y-3">
-          <input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder={t('ts.displayName')} className="input-field" />
-          <textarea value={form.talent_description} onChange={(e) => setForm({ ...form, talent_description: e.target.value })} placeholder={t('ts.talentDescription')} rows={2} className="input-field resize-none" />
-          <textarea value={form.needs} onChange={(e) => setForm({ ...form, needs: e.target.value })} placeholder={t('ts.needsPlaceholder')} rows={2} className="input-field resize-none" />
-          <input value={form.aspiration} onChange={(e) => setForm({ ...form, aspiration: e.target.value })} placeholder={t('ts.aspirationPlaceholder')} className="input-field" />
+          <div>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ts.displayName')}</label>
+            <input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} className="input-field" />
+          </div>
+          <div>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ts.talentDescription')}</label>
+            <textarea value={form.talent_description} onChange={(e) => setForm({ ...form, talent_description: e.target.value })} rows={2} className="input-field resize-none" />
+          </div>
+          <div>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ts.needs')}</label>
+            <textarea value={form.needs} onChange={(e) => setForm({ ...form, needs: e.target.value })} placeholder={t('ts.needsPlaceholder')} rows={2} className="input-field resize-none" />
+          </div>
+          <div>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ts.aspiration')}</label>
+            <input value={form.aspiration} onChange={(e) => setForm({ ...form, aspiration: e.target.value })} placeholder={t('ts.aspirationPlaceholder')} className="input-field" />
+          </div>
           <ImageUpload bucket="images" currentUrl={form.photo_url} onUpload={(url) => setForm({ ...form, photo_url: url })} label={t('ts.photo')} />
           <VideoUpload currentUrl={form.video_url} onUpload={(url) => setForm({ ...form, video_url: url })} />
           <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-relaxed">{t('ts.reviewNotice')}</p>
