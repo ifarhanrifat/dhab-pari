@@ -196,15 +196,13 @@ export default function AdminSuggestionsPage() {
           )}
         </div>
 
-        {/* Detail Panel — a real modal below the lg breakpoint. This used to
-            be "hidden lg:block" with no fallback at all, so on any window
-            narrower than ~1024px, clicking a suggestion silently did
-            nothing — no panel, no way to act on it. The lg:contents wrapper
-            makes the backdrop disappear from layout at lg+ so the card
-            below becomes a direct flex item again, unchanged from before. */}
+        {/* Detail Panel — always a popup, on every screen size (used to be a
+            desktop-only sticky sidebar, invisible below lg with no
+            fallback at all; a consistent popup reads more like a mobile
+            app and works identically everywhere). */}
         {selected && (
-          <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 lg:contents" onClick={() => setSelected(null)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[400px] lg:w-[400px] shrink-0 bg-white border border-dp-outline-variant rounded-lg p-6 lg:sticky lg:top-6 self-start max-h-[85vh] lg:max-h-[80vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setSelected(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[400px] bg-white border border-dp-outline-variant rounded-lg p-6 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <MessageSquare size={18} className="text-dp-primary" />
