@@ -25,7 +25,7 @@ const t: Record<string, { en: string; ur: string }> = {
   heading: { en: 'Propose a Project', ur: 'منصوبہ تجویز کریں' },
   subtitle: { en: "Have an idea for the village? Propose it here — once your commitment is confirmed and enough members vote for it, the committee reviews and can launch it.", ur: 'گاؤں کے لیے کوئی خیال ہے؟ یہاں تجویز کریں — آپ کا وعدہ تصدیق ہونے اور کافی ووٹ ملنے کے بعد کمیٹی جائزہ لے کر اسے شروع کر سکتی ہے۔' },
   badgeRequiredTitle: { en: 'Proposing needs a donor badge first', ur: 'تجویز دینے کے لیے پہلے عطیہ دہندہ بیج درکار ہے' },
-  badgeRequiredBody: { en: 'Proposing a project is open to donors who have reached at least the Chashma (Spring) badge — real, confirmed giving. Make a donation to start earning yours, then come back here.', ur: 'منصوبہ تجویز کرنا اُن عطیہ دہندگان کے لیے کھلا ہے جو کم از کم چشمہ بیج تک پہنچ چکے ہیں — حقیقی، تصدیق شدہ عطیات۔ اپنا پہلا بیج کمانے کے لیے عطیہ دیں، پھر یہاں واپس آئیں۔' },
+  badgeRequiredBody: { en: 'Proposing a project is open to donors who have reached at least the Silver badge — real, confirmed giving. Make a donation to start earning yours, then come back here.', ur: 'منصوبہ تجویز کرنا اُن عطیہ دہندگان کے لیے کھلا ہے جو کم از کم چاندی بیج تک پہنچ چکے ہیں — حقیقی، تصدیق شدہ عطیات۔ اپنا پہلا بیج کمانے کے لیے عطیہ دیں، پھر یہاں واپس آئیں۔' },
   badgeRequiredCta: { en: 'Go to My Giving', ur: 'میرے عطیات پر جائیں' },
   fastTrackNote: { en: '⚡ Your badge fast-tracks this proposal — once your self-commitment is confirmed, it skips community voting and goes straight to the committee for review.', ur: '⚡ آپ کا بیج اس تجویز کو فاسٹ ٹریک کرتا ہے — آپ کا وعدہ تصدیق ہوتے ہی یہ کمیونٹی ووٹنگ کو چھوڑ کر براہ راست کمیٹی کے جائزے کے لیے جائے گی۔' },
   conditionsTitle: { en: 'Conditions to get your project approved & voted', ur: 'اپنے منصوبے کی منظوری اور ووٹ حاصل کرنے کی شرائط' },
@@ -127,7 +127,9 @@ export default function ProposeProjectPage() {
   const isUrdu = lang === 'ur'
 
   // Badge-gated per migration 311: no badge at all blocks the form
-  // entirely; River/Ocean/Wellspring fast-track past community voting.
+  // entirely; Platinum/Diamond/Royal Patron fast-track past community
+  // voting (internal tier codes river/ocean/wellspring, unchanged since
+  // migration 310's display-name-only rename).
   // undefined = still loading, null = no badge yet.
   const [tier, setTier] = useState<DonorBadgeTier | null | undefined>(undefined)
   useEffect(() => {

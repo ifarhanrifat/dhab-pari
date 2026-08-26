@@ -1,6 +1,6 @@
 'use client'
 
-// A donor at Darya (River) or above can submit their own blog post here —
+// A donor at Platinum (river) or above can submit their own blog post here —
 // migration 312. It lands as an ordinary pending news_posts row; once
 // staff approves it on the admin Blog page, it's a real published post
 // with this donor's own badge next to the byline, same as any other post.

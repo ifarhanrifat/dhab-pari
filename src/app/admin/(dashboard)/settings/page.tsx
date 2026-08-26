@@ -1047,7 +1047,7 @@ export default function AdminSettingsPage() {
             <>
               <div className="bg-white border border-dp-outline-variant rounded-lg p-6">
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
-                  The minimum lifetime confirmed giving (PKR) for each of the 4 earned badge tiers — Chashma/Spring, Nahar/Stream, Darya/River, Samandar/Ocean (migration 310). River and Ocean also unlock fast-track project proposing and donor blog submissions. The 5th tier, Sarchashma/Wellspring, is granted by hand to committee members from the Donor Badges page, not set here.
+                  The minimum lifetime confirmed giving (PKR) for each of the 4 earned badge tiers — Silver, Gold, Platinum, Diamond (renamed from the original water-metaphor names — Spring/Stream/River/Ocean — by migration 310; those internal tier codes are unchanged). Platinum and Diamond also unlock fast-track project proposing and donor blog submissions. The 5th tier, Royal Patron (internal code: wellspring), is granted by hand to committee members from the Donor Badges page, not set here.
                 </p>
               </div>
               {renderSettingGroups('donorBadges')}
