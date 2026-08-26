@@ -41,6 +41,7 @@ interface Project {
   before_image_url: string | null
   after_image_url: string | null
   proposal_image_url: string | null
+  funding_model: string | null
 }
 
 type Lang = 'en' | 'ur'
@@ -570,11 +571,24 @@ function CompletedCard({ project, isHot, dt, isUrdu, received, expense }: { proj
               {dt('completedOn')} {new Date(project.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           ) : <span />}
-          <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
-            <Link href={`/projects/${project.id}`} className="flex items-center gap-1.5 px-6 py-2 bg-dp-surface-container-highest text-dp-on-surface font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg shadow-sm hover:bg-dp-outline-variant hover:shadow-md transition-all" style={isUrdu ? urduStyle : undefined}>
-              <Eye size={15} /> {dt('viewAudit')}
-            </Link>
-          </motion.div>
+          <div className="flex items-center gap-2">
+            {/* A one-time build is done once it's completed — but a
+                recurring_support project (a salary, a monthly running
+                cost) still needs donors regardless of the build's own
+                status, so it keeps its Donate link even here. */}
+            {project.funding_model === 'recurring_support' && (
+              <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
+                <Link href={`/projects/${project.id}`} className="flex items-center gap-1.5 px-4 py-2 bg-dp-primary text-white font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg shadow-sm hover:bg-dp-primary-container transition-all">
+                  <HandHeart size={15} /> {dt('donateBtn')}
+                </Link>
+              </motion.div>
+            )}
+            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
+              <Link href={`/projects/${project.id}`} className="flex items-center gap-1.5 px-6 py-2 bg-dp-surface-container-highest text-dp-on-surface font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg shadow-sm hover:bg-dp-outline-variant hover:shadow-md transition-all" style={isUrdu ? urduStyle : undefined}>
+                <Eye size={15} /> {dt('viewAudit')}
+              </Link>
+            </motion.div>
+          </div>
         </div>
       </div>
     </div>

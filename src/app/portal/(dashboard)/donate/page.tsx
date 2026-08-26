@@ -68,7 +68,12 @@ function PortalDonatePageInner() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.from('projects').select('id, title, display_name').neq('status', 'upcoming').order('title').then(({ data }) => setProjects(data ?? []))
+    // A completed one-time build doesn't need more donations — except a
+    // recurring_support project (a salary, a monthly running cost), which
+    // keeps needing donors regardless of the build's own status.
+    supabase.from('projects').select('id, title, display_name')
+      .or('funding_model.eq.recurring_support,and(status.neq.completed,status.neq.upcoming)')
+      .order('title').then(({ data }) => setProjects(data ?? []))
   }, [])
 
   useEffect(() => {

@@ -53,6 +53,8 @@ const t: Record<string, { en: string; ur: string }> = {
   noConfirmed: { en: 'No verified donations yet.', ur: 'ابھی تک کوئی تصدیق شدہ عطیہ نہیں۔' },
   noExpenses: { en: 'No expenses recorded yet.', ur: 'ابھی تک کوئی خرچ درج نہیں ہوا۔' },
   receivedVia: { en: 'Received via', ur: 'موصولہ ذریعہ' },
+  completedNoMoreDonations: { en: 'This project is complete', ur: 'یہ منصوبہ مکمل ہو چکا ہے' },
+  completedNoMoreDonationsSub: { en: "It's no longer accepting new donations or pledges — thank you to everyone who contributed.", ur: 'اب اس کے لیے نئے عطیات یا وعدے قبول نہیں کیے جا رہے — تمام معاونت کرنے والوں کا شکریہ۔' },
 }
 
 // The first public, per-project real financial view in this app — everything
@@ -361,6 +363,18 @@ export default function ProjectDetailPage() {
               ))}
             </div>
           )}
+        </div>
+      ) : project.status === 'completed' && project.funding_model !== 'recurring_support' ? (
+        // Donations lock the moment a project is marked completed — a
+        // one-time build doesn't need more money once it's done. The one
+        // exception is recurring_support: a monthly salary/operating cost
+        // keeps needing donors regardless of the build's own status.
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6 mb-8 flex items-center gap-3">
+          <CheckCircle size={22} className="text-emerald-600 shrink-0" />
+          <div>
+            <p className="font-heading text-[17px] font-bold text-emerald-800">{dt('completedNoMoreDonations')}</p>
+            <p className="font-sans text-[13px] text-emerald-700 mt-0.5">{dt('completedNoMoreDonationsSub')}</p>
+          </div>
         </div>
       ) : (
         <div className="flex flex-wrap gap-3 mb-8">

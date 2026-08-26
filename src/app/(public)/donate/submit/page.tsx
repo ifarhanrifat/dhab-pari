@@ -77,7 +77,12 @@ function DonateSubmitPageInner() {
     })
     // Not yet launched (upcoming) or already wrapped up (completed) — a
     // donor picking who to give to shouldn't be offered either.
-    supabase.from('projects').select('id, title, display_name').not('status', 'in', '(upcoming,completed)').order('title').then(({ data }) => {
+    // A completed one-time build doesn't need more donations — except a
+    // recurring_support project (a salary, a monthly running cost), which
+    // keeps needing donors regardless of the build's own status.
+    supabase.from('projects').select('id, title, display_name')
+      .or('funding_model.eq.recurring_support,and(status.neq.completed,status.neq.upcoming)')
+      .order('title').then(({ data }) => {
       setProjects(data ?? [])
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
