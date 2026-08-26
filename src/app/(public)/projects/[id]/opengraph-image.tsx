@@ -22,9 +22,12 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const { id } = await params
   const supabase = await createClient()
   const { data: project } = await supabase.from('projects')
-    .select('title, category, budget_pkr, status, proposal_image_url, after_image_url, before_image_url').eq('id', id).maybeSingle()
+    .select('title, display_name, category, budget_pkr, status, proposal_image_url, after_image_url, before_image_url').eq('id', id).maybeSingle()
 
-  const title = project?.title ?? 'Village Project'
+  // This PNG is exactly what shows up as the link preview on WhatsApp/
+  // Facebook — arguably the single most-seen surface a shared link has,
+  // so it gets the same display_name (364) preference as everything else.
+  const title = project?.display_name || project?.title || 'Village Project'
   const category = (project?.category ?? 'project').toUpperCase()
   const budget = project?.budget_pkr ? `Rs. ${Number(project.budget_pkr).toLocaleString()}` : null
   const statusLabel = STATUS_LABEL[project?.status ?? ''] ?? ''

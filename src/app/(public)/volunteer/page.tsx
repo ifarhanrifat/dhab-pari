@@ -14,7 +14,7 @@ interface VolunteerRow {
   id: string; project_id: string | null; message: string | null; status: string; created_at: string
   full_name: string; avatar_url: string | null
 }
-interface ProjectOption { id: string; title: string }
+interface ProjectOption { id: string; title: string; display_name: string | null }
 
 const STATUS_LABEL: Record<string, string> = { offered: 'Offered', assigned: 'Assigned', completed: 'Completed' }
 
@@ -35,7 +35,7 @@ export default function VolunteerPage() {
     const supabase = createClient()
     const [{ data: v }, { data: p }] = await Promise.all([
       supabase.from('volunteers_public').select('*').order('created_at', { ascending: false }),
-      supabase.from('projects').select('id, title').in('status', ['ongoing', 'reviewing']).order('title'),
+      supabase.from('projects').select('id, title, display_name').in('status', ['ongoing', 'reviewing']).eq('unlisted', false).order('title'),
     ])
     setVolunteers(v ?? [])
     setProjects(p ?? [])
@@ -109,7 +109,7 @@ export default function VolunteerPage() {
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('p.projectOptional')}</label>
                 <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="input-field">
                   <option value="">{t('p.generalAnyProject')}</option>
-                  {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                  {projects.map((p) => <option key={p.id} value={p.id}>{p.display_name || p.title}</option>)}
                 </select>
               </div>
               <div>

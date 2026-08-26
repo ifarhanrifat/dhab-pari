@@ -53,8 +53,13 @@ export default async function HomePage() {
          needsRes, kafalatRes, wazifaRes, sadqaRes, committeeNotesRes, welfareContentRes, careerCountsRes] = await Promise.all([
     supabase
       .from('projects')
-      .select('id, title, title_ur, status, progress_percent, budget_pkr, spent_pkr, category, location, before_image_url, after_image_url')
+      .select('id, title, title_ur, display_name, status, progress_percent, budget_pkr, spent_pkr, category, location, before_image_url, after_image_url')
       .eq('status', 'ongoing')
+      // unlisted (365) keeps a row off every public "project" listing, not
+      // just /projects — this card grid is exactly that. display_name
+      // (364) is selected above so a medical project's real title (the
+      // patient's name) never reaches this page either.
+      .eq('unlisted', false)
       .limit(2),
     supabase
       .from('news_posts')
@@ -95,7 +100,7 @@ export default async function HomePage() {
     // burying the newest note behind an older one with a later-looking
     // date); "which one is latest" should never depend on getting that
     // field right.
-    supabase.from('committee_notes').select('id, body_en, body_ur, release_date, linked_project_id, link_url, link_label_en, link_label_ur, projects(title, title_ur)')
+    supabase.from('committee_notes').select('id, body_en, body_ur, release_date, linked_project_id, link_url, link_label_en, link_label_ur, projects(title, title_ur, display_name)')
       .eq('is_published', true).order('created_at', { ascending: false }).limit(6),
     // Zakat/Kafalat/Wazifa/Esal-e-Sawab card copy — migration 307, editable
     // from Settings. Fetched by exact key list rather than a blanket
@@ -121,13 +126,16 @@ export default async function HomePage() {
   const committeeNotesRaw = (committeeNotesRes.data ?? []) as unknown as {
     id: string; body_en: string; body_ur: string; release_date: string; linked_project_id: string | null
     link_url: string | null; link_label_en: string | null; link_label_ur: string | null
-    projects: { title: string; title_ur: string | null } | { title: string; title_ur: string | null }[] | null
+    projects: { title: string; title_ur: string | null; display_name: string | null } | { title: string; title_ur: string | null; display_name: string | null }[] | null
   }[]
   const committeeNotes = committeeNotesRaw.map((n) => {
     const proj = Array.isArray(n.projects) ? n.projects[0] : n.projects
     return {
       id: n.id, body_en: n.body_en, body_ur: n.body_ur, release_date: n.release_date,
-      project_id: n.linked_project_id, project_title: proj?.title ?? null, project_title_ur: proj?.title_ur ?? null,
+      // display_name (364) over the real title, same as everywhere else a
+      // donor/visitor sees a project — a note mentioning a medical project
+      // shouldn't be the one place its real title still leaks through.
+      project_id: n.linked_project_id, project_title: (proj?.display_name || proj?.title) ?? null, project_title_ur: proj?.display_name ? null : (proj?.title_ur ?? null),
       link_url: n.link_url, link_label_en: n.link_label_en, link_label_ur: n.link_label_ur,
     }
   })
@@ -279,7 +287,7 @@ export default async function HomePage() {
                       {project.status}
                     </span>
                     <h3 className="text-[20px] font-sans font-semibold leading-[28px] mt-2 text-dp-primary group-hover:text-dp-secondary transition-colors">
-                      {project.title}
+                      {project.display_name || project.title}
                     </h3>
                     <div className="mt-4 space-y-2">
                       <div className="flex justify-between text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-on-surface-variant">
