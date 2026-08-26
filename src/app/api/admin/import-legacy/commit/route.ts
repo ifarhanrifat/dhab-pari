@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     const particular = `${e.category}${e.narration ? ' — ' + e.narration : ''} (BookKeeper ${e.vchNo})`
     const { error } = await supabase.rpc('import_legacy_expense', {
       p_external_ref: `bookkeeper:payment:${e.vchNo}`, p_expense_account_name: e.mappedAccount,
-      p_project_id: projectId, p_amount: e.amount, p_date: e.date, p_particular: particular,
+      p_project_id: projectId, p_amount: e.amount, p_date: e.date, p_particular: particular, p_receipt_no: e.vchNo,
     })
     if (error) errors.push(`Expense ${e.vchNo}: ${error.message}`)
     else imported++

@@ -114,16 +114,18 @@ function ReportsPageInner() {
     const [accountsRes, headersRes, ledgerRes, consumersRes] = await Promise.all([
       supabase.from('accounts').select('id, code, name, type, system, opening_balance, consumer_id').eq('system', system).order('code'),
       supabase.from('account_headers').select('system, code, label').eq('system', system),
-      supabase.from('ledger_entries').select('account_id, debit, credit'),
+      // Aggregated in Postgres (migration 351), not fetched raw and summed
+      // client-side — an unbounded select on ledger_entries silently
+      // truncates at PostgREST's 1000-row default once the ledger grows
+      // past that, with no error, just quietly wrong report totals.
+      supabase.from('ledger_account_balances').select('account_id, total_debit, total_credit'),
       supabase.from('consumers').select('consumer_id, name, mobile, sector'),
     ])
     setAccounts(accountsRes.data ?? [])
     setHeaders(headersRes.data ?? [])
     const bMap: Record<string, LedgerAgg> = {}
-    ;(ledgerRes.data ?? []).forEach((l: { account_id: string; debit: number; credit: number }) => {
-      const cur = bMap[l.account_id] ?? { account_id: l.account_id, debit: 0, credit: 0 }
-      cur.debit += Number(l.debit); cur.credit += Number(l.credit)
-      bMap[l.account_id] = cur
+    ;(ledgerRes.data ?? []).forEach((l: { account_id: string; total_debit: number; total_credit: number }) => {
+      bMap[l.account_id] = { account_id: l.account_id, debit: Number(l.total_debit), credit: Number(l.total_credit) }
     })
     setBalances(bMap)
     const cMap: Record<string, Consumer> = {}

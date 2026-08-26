@@ -21,7 +21,8 @@ function fmt(n: number) {
 }
 
 interface Account { id: string; code: string; name: string; type: string; system: string; opening_balance: number }
-interface LedgerEntry { account_id: string; entry_date: string; debit: number; credit: number }
+interface AccountBalance { account_id: string; total_debit: number; total_credit: number }
+interface MonthlyBalance { account_id: string; month: string; total_debit: number; total_credit: number }
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient()
@@ -57,9 +58,14 @@ export default async function AdminDashboardPage() {
   const monthStartStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`
   const nextMonthStartStr = currentMonth === 12 ? `${currentYear + 1}-01-01` : `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`
 
-  const [{ data: accountsData }, { data: ledgerData }, { data: consumersData }, { data: donorsData }, { data: inventoryData }, { data: topSellingLines }, { data: thisMonthBillsData }, { data: thisMonthPaymentsData }] = await Promise.all([
+  const [{ data: accountsData }, { data: balancesData }, { data: monthlyData }, { data: consumersData }, { data: donorsData }, { data: inventoryData }, { data: topSellingLines }, { data: thisMonthBillsData }, { data: thisMonthPaymentsData }] = await Promise.all([
     supabase.from('accounts').select('id, code, name, type, system, opening_balance'),
-    supabase.from('ledger_entries').select('account_id, entry_date, debit, credit'),
+    // Aggregated in Postgres (migration 351), not fetched raw and summed in
+    // JS — a plain unbounded select on ledger_entries silently truncates at
+    // PostgREST's 1000-row default once the ledger grows past that, which
+    // is exactly what quietly broke Cash in Hand / Total Expenses here.
+    supabase.from('ledger_account_balances').select('account_id, total_debit, total_credit'),
+    supabase.from('ledger_monthly_by_account').select('account_id, month, total_debit, total_credit'),
     showWater ? supabase.from('consumers').select('consumer_id, status, created_at') : Promise.resolve({ data: [] as { consumer_id: string; status: string; created_at: string }[] }),
     showDonor ? supabase.from('donors').select('id, amount_pkr, date') : Promise.resolve({ data: [] as { id: string; amount_pkr: number; date: string }[] }),
     showWater ? supabase.from('inventory_items').select('id, name, quantity_on_hand, reorder_level').eq('system', 'water_supply').eq('is_active', true) : Promise.resolve({ data: [] as { id: string; name: string; quantity_on_hand: number; reorder_level: number }[] }),
@@ -78,11 +84,12 @@ export default async function AdminDashboardPage() {
   ])
 
   const accounts: Account[] = accountsData ?? []
-  const entries: LedgerEntry[] = ledgerData ?? []
+  const balances: AccountBalance[] = balancesData ?? []
+  const monthly: MonthlyBalance[] = monthlyData ?? []
   const accountMap = Object.fromEntries(accounts.map((a) => [a.id, a]))
 
   const netByAccount: Record<string, number> = {}
-  entries.forEach((e) => { netByAccount[e.account_id] = (netByAccount[e.account_id] ?? 0) + Number(e.debit) - Number(e.credit) })
+  balances.forEach((b) => { netByAccount[b.account_id] = Number(b.total_debit) - Number(b.total_credit) })
 
   const balanceOf = (a: Account) => {
     const net = netByAccount[a.id] ?? 0
@@ -110,14 +117,14 @@ export default async function AdminDashboardPage() {
     }
     const buckets: Record<string, { income: number; expense: number }> = {}
     months.forEach((m) => { buckets[m.key] = { income: 0, expense: 0 } })
-    entries.forEach((e) => {
-      const acc = accountMap[e.account_id]
+    monthly.forEach((row) => {
+      const acc = accountMap[row.account_id]
       if (!acc || acc.system !== system) return
-      const d = new Date(e.entry_date)
+      const d = new Date(row.month)
       const key = `${d.getFullYear()}-${d.getMonth()}`
       if (!(key in buckets)) return
-      if (acc.type === 'income') buckets[key].income += Number(e.credit) - Number(e.debit)
-      else if (acc.type === 'expense') buckets[key].expense += Number(e.debit) - Number(e.credit)
+      if (acc.type === 'income') buckets[key].income += Number(row.total_credit) - Number(row.total_debit)
+      else if (acc.type === 'expense') buckets[key].expense += Number(row.total_debit) - Number(row.total_credit)
     })
     return months.map((m) => ({ month: m.label, income: Math.max(0, buckets[m.key].income), expense: Math.max(0, buckets[m.key].expense) }))
   }

@@ -58,14 +58,18 @@ function AccountsByTypePageInner() {
     const [{ data: accts }, { data: ledger }, { data: header }] = await Promise.all([
       supabase.from('accounts').select('id, code, name, name_ur, type, system, opening_balance, is_active, is_protected')
         .eq('system', system).eq('type', type).order('code'),
-      supabase.from('ledger_entries').select('account_id, debit, credit'),
+      // Aggregated in Postgres (migration 351), not fetched raw and summed
+      // client-side — an unbounded select on ledger_entries silently
+      // truncates at PostgREST's 1000-row default once the ledger grows
+      // past that, with no error, just quietly wrong balances.
+      supabase.from('ledger_account_balances').select('account_id, total_debit, total_credit'),
       supabase.from('account_headers').select('label').eq('system', system).eq('code', type).single(),
     ])
     setAccounts(accts ?? [])
     setHeaderLabel(header?.label ?? type)
     const bMap: Record<string, number> = {}
-    ;(ledger ?? []).forEach((l: { account_id: string; debit: number; credit: number }) => {
-      bMap[l.account_id] = (bMap[l.account_id] ?? 0) + Number(l.debit) - Number(l.credit)
+    ;(ledger ?? []).forEach((l: { account_id: string; total_debit: number; total_credit: number }) => {
+      bMap[l.account_id] = Number(l.total_debit) - Number(l.total_credit)
     })
     setBalances(bMap)
     setLoading(false)

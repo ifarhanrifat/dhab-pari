@@ -107,7 +107,11 @@ export default function AccountsPage() {
       supabase.from('accounts').select('*').order('code'),
       supabase.from('account_headers').select('*').order('display_order'),
       supabase.from('consumers').select('consumer_id, mobile, address, connections, monthly_rate, status'),
-      supabase.from('ledger_entries').select('account_id, debit, credit'),
+      // Aggregated in Postgres (migration 351), not fetched raw and summed
+      // client-side — an unbounded select on ledger_entries silently
+      // truncates at PostgREST's 1000-row default once the ledger grows
+      // past that, with no error, just quietly wrong balances.
+      supabase.from('ledger_account_balances').select('account_id, total_debit, total_credit'),
       supabase.from('payments').select('consumer_id, receipt_no'),
     ])
     setAccounts(accountsRes.data ?? [])
@@ -116,8 +120,8 @@ export default function AccountsPage() {
     ;(consumersRes.data ?? []).forEach((c) => { cMap[c.consumer_id] = c })
     setConsumers(cMap)
     const bMap: Record<string, number> = {}
-    ;(ledgerRes.data ?? []).forEach((l: { account_id: string; debit: number; credit: number }) => {
-      bMap[l.account_id] = (bMap[l.account_id] ?? 0) + Number(l.debit) - Number(l.credit)
+    ;(ledgerRes.data ?? []).forEach((l: { account_id: string; total_debit: number; total_credit: number }) => {
+      bMap[l.account_id] = Number(l.total_debit) - Number(l.total_credit)
     })
     setBalances(bMap)
     const rMap: Record<string, string[]> = {}

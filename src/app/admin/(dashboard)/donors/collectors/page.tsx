@@ -54,13 +54,16 @@ export default function DonorCollectorsPage() {
     const [{ data: collectorsData }, { data: accountsData }, { data: ledgerData }, { data: settlementsData }] = await Promise.all([
       supabase.rpc('get_field_collectors_by_system', { p_system: 'donors_projects' }),
       supabase.from('accounts').select('id, name, type, collector_id, opening_balance').eq('system', 'donors_projects').in('type', ['collector', 'cash', 'bank']),
-      supabase.from('ledger_entries').select('account_id, debit, credit'),
+      // Aggregated in Postgres (migration 351), not fetched raw — an
+      // unbounded select on ledger_entries silently truncates at
+      // PostgREST's 1000-row default once the ledger grows past that.
+      supabase.from('ledger_account_balances').select('account_id, total_debit, total_credit'),
       supabase.from('collector_settlements').select('*').eq('system', 'donors_projects').order('settled_date', { ascending: false }).limit(50),
     ])
     setCollectors(collectorsData ?? [])
     setAccounts((accountsData ?? []).filter((a) => a.type === 'collector'))
     setCashBankAccounts((accountsData ?? []).filter((a) => a.type === 'cash' || a.type === 'bank').map((a) => ({ id: a.id, name: a.name })))
-    setLedger(ledgerData ?? [])
+    setLedger((ledgerData ?? []).map((l) => ({ account_id: l.account_id, debit: Number(l.total_debit), credit: Number(l.total_credit) })))
     setSettlements(settlementsData ?? [])
     setLoading(false)
   }
