@@ -56,6 +56,7 @@ import {
   MessageCircle,
   Sparkles,
   Trophy,
+  DatabaseZap,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -131,6 +132,7 @@ const menuItems: {
   { href: '/admin/talent-showcase', label: 'Talent Showcase', tKey: 'nav.talentShowcase', icon: Sparkles, adminAndAbove: true },
   { href: '/admin/achievements', label: 'Achievements', tKey: 'nav.achievements', icon: Trophy, adminAndAbove: true },
   { href: '/admin/audit-log', label: 'Audit Log', tKey: 'nav.auditLog', icon: History, adminAndAbove: true },
+  { href: '/admin/import-legacy', label: 'Import Legacy Data', tKey: 'nav.importLegacy', icon: DatabaseZap, superAdminOnly: true },
   { href: '/admin/settings', label: 'Settings', tKey: 'nav.settings', icon: Settings, superAdminOnly: true },
 ]
 
