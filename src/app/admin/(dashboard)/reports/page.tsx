@@ -56,6 +56,15 @@ function fmtAmount(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 const creditNormal = (type: string) => type === 'donor' || type === 'income' || type === 'liability'
+// A donation posts a donor leg AND a project leg for the same amount (one
+// real double-entry pair — donor/cash — plus a memo leg tracking which
+// project it belongs to); an expense posts the mirror. Kafalat/Wazifa
+// similarly mirror onto 'restricted_fund'/'student'/'institution'. None of
+// these four represent independent money — they duplicate a leg already
+// counted via a real asset/liability/income/expense/donor account, so a
+// report that sums every account (Trial Balance, Balance Sheet) must
+// exclude them or it disagrees with itself by exactly their net activity.
+const SUBSIDIARY_LEDGER_TYPES = ['project', 'restricted_fund', 'student', 'institution']
 
 export default function ReportsPage() {
   const { t } = useLocale()
@@ -161,7 +170,16 @@ function ReportsPageInner() {
   const headerLabel = (type: string) => headers.find((h) => h.code === type)?.label ?? type
 
   const trialBalanceRows = useMemo(() => {
-    return accounts.map((a) => {
+    // A donation posts 3 legs (donor, cash, project), an expense posts 2-3
+    // (expense, cash, project again if project-tagged) — 'project' (and
+    // 'restricted_fund'/'student'/'institution', the same subsidiary shape
+    // elsewhere) is a MEMO leg duplicating money already counted via the
+    // real donor/cash or expense/cash pair, not an independent double-entry
+    // account. Including it here made the Trial Balance disagree with
+    // itself by exactly the net project activity — the Balance Sheet
+    // already excludes these same types for the same reason (see its own
+    // comment below); the Trial Balance never had the matching exclusion.
+    return accounts.filter((a) => !SUBSIDIARY_LEDGER_TYPES.includes(a.type)).map((a) => {
       const bal = balanceOf(a)
       const isDebitNormal = !creditNormal(a.type)
       return {
@@ -252,7 +270,16 @@ function ReportsPageInner() {
   const netCredit = (a: Account) => (rangeLedger[a.id]?.credit ?? 0) - (rangeLedger[a.id]?.debit ?? 0)
   const netDebit = (a: Account) => (rangeLedger[a.id]?.debit ?? 0) - (rangeLedger[a.id]?.credit ?? 0)
 
-  const grossRevenue = incomeExpense.incomeAccounts.reduce((s, a) => s + netCredit(a), 0)
+  // A donation posts to the donor's own account (type='donor'), never to
+  // any 'income'-type account — the "Donations Income" line below was
+  // always Rs. 0 and Revenue never reflected real donations at all, so
+  // Net Surplus showed nothing but a straight loss every period regardless
+  // of how much actually came in. Date-only filtered (not the donor_report
+  // tab's own project filter, a control this tab doesn't show).
+  const donationsInRange = useMemo(() => donations.filter((d) => d.date >= from && d.date <= to), [donations, from, to])
+  const donationsRevenue = donationsInRange.reduce((s, d) => s + Number(d.amount_pkr), 0)
+
+  const grossRevenue = donationsRevenue + incomeExpense.incomeAccounts.reduce((s, a) => s + netCredit(a), 0)
   const discountTotal = incomeExpense.discountAccount ? netDebit(incomeExpense.discountAccount) : 0
   const netRevenue = grossRevenue - discountTotal
   const cogsTotal = incomeExpense.cogsAccount ? netDebit(incomeExpense.cogsAccount) : 0
@@ -424,6 +451,9 @@ function ReportsPageInner() {
             <div className="max-w-2xl mx-auto">
               <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
                 <div className="px-4 py-3 bg-dp-surface-container-low/60 border-b border-dp-outline-variant font-sans text-[14px] font-bold">{dt(lang, 'revenue')}</div>
+                {system === 'donors_projects' && (
+                  <div className="flex justify-between px-4 py-2.5 border-t border-dp-outline-variant font-sans text-[13.5px]"><span>{dt(lang, 'donationsReceived')}</span><span className="font-semibold">{fmtAmount(donationsRevenue)}</span></div>
+                )}
                 {incomeExpense.incomeAccounts.map((a) => (
                   <div key={a.id} className="flex justify-between px-4 py-2.5 border-t border-dp-outline-variant font-sans text-[13.5px]"><span>{a.name}</span><span className="font-semibold">{fmtAmount(netCredit(a))}</span></div>
                 ))}
