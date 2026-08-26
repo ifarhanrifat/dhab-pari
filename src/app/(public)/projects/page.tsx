@@ -79,7 +79,7 @@ const t: Record<string, { en: string; ur: string }> = {
   before: { en: 'Before', ur: 'پہلے' },
   present: { en: 'Present', ur: 'اب' },
   ongoingBadge: { en: 'Ongoing', ur: 'جاری' },
-  completionLabel: { en: 'Project Completion', ur: 'منصوبے کی تکمیل' },
+  completionLabel: { en: 'Progress', ur: 'پیش رفت' },
   budgetLabel: { en: 'Budget', ur: 'بجٹ' },
   spentLabel: { en: 'Spent', ur: 'خرچ شدہ' },
   detailsBtn: { en: 'Details', ur: 'تفصیلات' },
@@ -168,6 +168,10 @@ export default function ProjectsPage() {
     supabase
       .from('projects')
       .select('*')
+      // Migration 365 — an "unlisted" project (e.g. the committee's own
+      // general account) is fully public everywhere else; it just doesn't
+      // render as a card here.
+      .eq('unlisted', false)
       .order('created_at', { ascending: false })
       .then(async ({ data }) => {
         setProjects(data ?? [])

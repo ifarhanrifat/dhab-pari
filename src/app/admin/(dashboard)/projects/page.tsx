@@ -26,7 +26,12 @@ interface Project { id: string; title: string; title_ur: string | null; descript
   // donor-facing surface (card, detail page, donate picker, ticker,
   // receipts) shows this instead when it's set — for a project whose
   // real title *is* someone's private information (a patient's name).
-  display_name: string | null }
+  display_name: string | null
+  // Migration 365 — not a privacy control at all: just keeps a row (the
+  // committee's own general account, e.g.) off the public projects
+  // listing as a "project" card, while it stays exactly as donatable and
+  // exactly as visible in donation/expense history as any normal project.
+  unlisted: boolean }
 
 const statuses = ['ongoing', 'completed', 'upcoming']
 const categories = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'sports', 'other']
@@ -41,7 +46,7 @@ const categoryLabelKey: Record<string, string> = {
   environment: 'pj.catEnvironment', welfare: 'pj.catWelfare', sports: 'pj.catSports', other: 'pj.catOther',
 }
 
-const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0, funding_model: 'one_time', monthly_operating_cost_pkr: 0, is_private: false, hide_donations: false, hide_expenses: false, hide_donor_names: false, display_name: '' }
+const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0, funding_model: 'one_time', monthly_operating_cost_pkr: 0, is_private: false, hide_donations: false, hide_expenses: false, hide_donor_names: false, display_name: '', unlisted: false }
 
 export default function AdminProjectsPage() {
   const { t, isUrdu } = useLocale()
@@ -78,7 +83,7 @@ export default function AdminProjectsPage() {
     setShowForm(false); setEditing(null); setForm(empty); load()
   }
 
-  const edit = (p: Project) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0, is_private: p.is_private, hide_donations: p.hide_donations, hide_expenses: p.hide_expenses, hide_donor_names: p.hide_donor_names, display_name: p.display_name ?? '' }); setEditing(p.id); setShowForm(true) }
+  const edit = (p: Project) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0, is_private: p.is_private, hide_donations: p.hide_donations, hide_expenses: p.hide_expenses, hide_donor_names: p.hide_donor_names, display_name: p.display_name ?? '', unlisted: p.unlisted }); setEditing(p.id); setShowForm(true) }
 
   const remove = async (id: string) => { if (!confirm(t('pj.confirmDelete'))) return; await supabase.from('projects').delete().eq('id', id); toast.success(t('pj.deleted')); load() }
   // Pulls a donor-submitted proposal out of public view without rejecting
@@ -123,6 +128,9 @@ export default function AdminProjectsPage() {
                 )}
                 {p.admin_hidden && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold text-dp-error bg-dp-error/10 rounded-full px-2 py-0.5 font-sans"><EyeOff size={11} /> {t('pj.hiddenBadge')}</span>
+                )}
+                {p.unlisted && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-100 rounded-full px-2 py-0.5 font-sans" title={t('pj.unlistedHint')}>{t('pj.unlisted')}</span>
                 )}
                 {p.is_private && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 bg-purple-50 rounded-full px-2 py-0.5 font-sans"><Lock size={11} /> {t('pj.privateBadge')}</span>
@@ -210,6 +218,10 @@ export default function AdminProjectsPage() {
                 </div>
               )}
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_featured} onChange={(e) => setForm({ ...form, is_featured: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('z.featuredProject')}</span></label>
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.unlisted} onChange={(e) => setForm({ ...form, unlisted: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('pj.unlisted')}</span></label>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1 ms-6">{t('pj.unlistedHint')}</p>
+              </div>
 
               <div className="border border-dp-outline-variant rounded-lg p-3.5 space-y-2.5">
                 <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('pj.privacyOptionsTitle')}</p>
