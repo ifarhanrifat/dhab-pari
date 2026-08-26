@@ -85,6 +85,10 @@ const t: Record<string, { en: string; ur: string }> = {
   operationalStatus: { en: 'Operational Status', ur: 'آپریشنل حیثیت' },
   fullyFunctional: { en: '100% Fully Functional', ur: '100% مکمل طور پر فعال' },
   totalCost: { en: 'Total Cost', ur: 'کل لاگت' },
+  totalReceived: { en: 'Total Received', ur: 'کل موصولہ' },
+  totalSpent: { en: 'Total Spent', ur: 'کل خرچ' },
+  balanceRemaining: { en: 'Balance remaining in this account', ur: 'اس اکاؤنٹ میں باقی رقم' },
+  balanceDeficit: { en: 'Covered by the general fund', ur: 'عمومی فنڈ سے پورا کیا گیا' },
   beneficiaries: { en: 'Beneficiaries', ur: 'مستفید افراد' },
   homes: { en: 'Homes', ur: 'گھر' },
   completedOn: { en: 'Completed', ur: 'مکمل ہوا' },
@@ -134,6 +138,12 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [voteCounts, setVoteCounts] = useState<Record<string, number>>({})
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
+  // Real ledger totals, not the manual budget_pkr/spent_pkr fields — those
+  // were never populated for the legacy-imported projects (still 0/null
+  // for most), which is why a completed project's card was showing
+  // Rs. 0 spent despite the real ledger having real numbers all along.
+  const [receivedByProject, setReceivedByProject] = useState<Record<string, number>>({})
+  const [expenseByProject, setExpenseByProject] = useState<Record<string, number>>({})
   const [activeFilter, setActiveFilter] = useState('All')
   const [loading, setLoading] = useState(true)
   const [lang, setLang] = useState<Lang>('en')
@@ -159,9 +169,11 @@ export default function ProjectsPage() {
         setLoading(false)
         const allIds = (data ?? []).map((p) => p.id)
         if (allIds.length > 0) {
-          const [{ data: voteRows }, { data: commentRows }] = await Promise.all([
+          const [{ data: voteRows }, { data: commentRows }, { data: donationRows }, { data: expenseRows }] = await Promise.all([
             supabase.from('project_votes_public').select('project_id').in('project_id', allIds),
             supabase.from('project_comments_public').select('project_id').in('project_id', allIds),
+            supabase.from('donors_public').select('project_id, amount_pkr').eq('is_verified', true).in('project_id', allIds),
+            supabase.from('project_expenses_public').select('project_id, debit').in('project_id', allIds),
           ])
           const vCounts: Record<string, number> = {}
           for (const v of voteRows ?? []) vCounts[v.project_id] = (vCounts[v.project_id] ?? 0) + 1
@@ -169,6 +181,12 @@ export default function ProjectsPage() {
           const cCounts: Record<string, number> = {}
           for (const c of commentRows ?? []) cCounts[c.project_id] = (cCounts[c.project_id] ?? 0) + 1
           setCommentCounts(cCounts)
+          const received: Record<string, number> = {}
+          for (const d of donationRows ?? []) received[d.project_id] = (received[d.project_id] ?? 0) + Number(d.amount_pkr)
+          setReceivedByProject(received)
+          const expense: Record<string, number> = {}
+          for (const e of expenseRows ?? []) expense[e.project_id] = (expense[e.project_id] ?? 0) + Number(e.debit)
+          setExpenseByProject(expense)
         }
       })
   }, [])
@@ -260,7 +278,7 @@ export default function ProjectsPage() {
         <div className="space-y-8">
           {filtered.map((project) => {
             if (project.status === 'ongoing') return <OngoingCard key={project.id} project={project} isHot={hotIds.has(project.id)} commentCount={commentCounts[project.id] ?? 0} dt={dt} isUrdu={isUrdu} />
-            if (project.status === 'completed') return <CompletedCard key={project.id} project={project} isHot={hotIds.has(project.id)} dt={dt} isUrdu={isUrdu} />
+            if (project.status === 'completed') return <CompletedCard key={project.id} project={project} isHot={hotIds.has(project.id)} dt={dt} isUrdu={isUrdu} received={receivedByProject[project.id] ?? 0} expense={expenseByProject[project.id] ?? 0} />
             if (project.status === 'upcoming') return <UpcomingCard key={project.id} project={project} voteCount={voteCounts[project.id] ?? 0} isHot={hotIds.has(project.id)} dt={dt} isUrdu={isUrdu} />
             if (project.status === 'announced') return <AnnouncedCard key={project.id} project={project} dt={dt} isUrdu={isUrdu} />
             return null
@@ -444,8 +462,16 @@ function OngoingCard({ project, isHot, commentCount, dt, isUrdu }: { project: Pr
 }
 
 /* ========== COMPLETED CARD ========== */
-function CompletedCard({ project, isHot, dt, isUrdu }: { project: Project; isHot: boolean; dt: Dt; isUrdu: boolean }) {
+function CompletedCard({ project, isHot, dt, isUrdu, received, expense }: { project: Project; isHot: boolean; dt: Dt; isUrdu: boolean; received: number; expense: number }) {
   const { t: tr } = useLocale()
+  // A completed project's real final numbers, not the original budget
+  // estimate — a leftover balance (received > expense) is money still
+  // sitting in this project's account, not yet moved anywhere; a deficit
+  // (expense > received) was covered by the general pool. Both shown
+  // as-is for now — reconciling either via a real project-transfer is a
+  // separate, deliberate accounting action, not something this card
+  // decides on its own.
+  const remaining = received - expense
   return (
     <div className="relative bg-white border border-dp-outline-variant rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 hover:border-dp-secondary transition-all">
       {isHot && <HotBadge />}
@@ -495,25 +521,39 @@ function CompletedCard({ project, isHot, dt, isUrdu }: { project: Project; isHot
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-3 gap-3 mb-3">
             <div className="p-3 border border-dp-outline-variant rounded-lg">
-              <p className="text-dp-on-surface-variant text-[12px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
-                {dt('totalCost')}
+              <p className="text-dp-on-surface-variant text-[11px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
+                {dt('totalReceived')}
               </p>
-              <p className="text-[20px] font-bold text-dp-on-surface font-sans leading-[28px]">
-                {formatPKR(project.budget_pkr)}{' '}
-                <span className="text-[14px] font-normal">PKR</span>
+              <p className="text-[16px] font-bold text-dp-on-surface font-sans leading-[22px]">
+                {formatPKR(received)}
               </p>
             </div>
             <div className="p-3 border border-dp-outline-variant rounded-lg">
-              <p className="text-dp-on-surface-variant text-[12px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
+              <p className="text-dp-on-surface-variant text-[11px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
+                {dt('totalSpent')}
+              </p>
+              <p className="text-[16px] font-bold text-dp-on-surface font-sans leading-[22px]">
+                {formatPKR(expense)}
+              </p>
+            </div>
+            <div className="p-3 border border-dp-outline-variant rounded-lg">
+              <p className="text-dp-on-surface-variant text-[11px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
                 {dt('beneficiaries')}
               </p>
-              <p className="text-[20px] font-bold text-dp-on-surface font-sans leading-[28px]">
+              <p className="text-[16px] font-bold text-dp-on-surface font-sans leading-[22px]">
                 {project.beneficiaries_count ?? 0}+{' '}
-                <span className="text-[14px] font-normal" style={isUrdu ? urduStyle : undefined}>{dt('homes')}</span>
+                <span className="text-[12px] font-normal" style={isUrdu ? urduStyle : undefined}>{dt('homes')}</span>
               </p>
             </div>
+          </div>
+          <div className="mb-6">
+            {remaining !== 0 && (
+              <p className={`font-sans text-[13px] font-semibold ${remaining > 0 ? 'text-dp-secondary' : 'text-dp-error'}`} style={isUrdu ? urduStyle : undefined}>
+                {remaining > 0 ? dt('balanceRemaining') : dt('balanceDeficit')}: Rs. {formatPKR(Math.abs(remaining))}
+              </p>
+            )}
           </div>
         </div>
 
