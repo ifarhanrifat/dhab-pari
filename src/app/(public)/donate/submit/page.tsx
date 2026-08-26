@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { PaymentAccountDetails } from '@/components/public/PaymentAccountDetails'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { SearchableField } from '@/components/admin/SearchablePicker'
 
 type Lang = 'en' | 'ur'
 
@@ -74,7 +75,9 @@ function DonateSubmitPageInner() {
     supabase.from('site_settings').select('value').eq('key', 'display_language').maybeSingle().then(({ data }) => {
       if (data?.value === 'ur') setLang('ur')
     })
-    supabase.from('projects').select('id, title').neq('status', 'upcoming').order('title').then(({ data }) => {
+    // Not yet launched (upcoming) or already wrapped up (completed) — a
+    // donor picking who to give to shouldn't be offered either.
+    supabase.from('projects').select('id, title').not('status', 'in', '(upcoming,completed)').order('title').then(({ data }) => {
       setProjects(data ?? [])
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -227,11 +230,13 @@ function DonateSubmitPageInner() {
                 </div>
                 <div>
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{dt('project')}</label>
-                  <select value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })}
-                    className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px]">
-                    <option value="">{dt('noProject')}</option>
-                    {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-                  </select>
+                  <SearchableField
+                    value={form.project_id}
+                    onChange={(id) => setForm({ ...form, project_id: id })}
+                    placeholder={dt('noProject')}
+                    pickerTitle={dt('project')}
+                    items={projects.map((p) => ({ id: p.id, label: p.title }))}
+                  />
                 </div>
               </div>
 
