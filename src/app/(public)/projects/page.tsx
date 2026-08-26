@@ -171,7 +171,11 @@ export default function ProjectsPage() {
         if (allIds.length > 0) {
           const [{ data: voteRows }, { data: commentRows }, { data: donationRows }, { data: expenseRows }] = await Promise.all([
             supabase.from('project_votes_public').select('project_id').in('project_id', allIds),
-            supabase.from('project_comments_public').select('project_id').in('project_id', allIds),
+            // Excludes comment_type='system' — those are the auto-posted "X submitted
+            // a donation of Rs. Y" lines the donation trigger writes on every submission,
+            // not something a visitor typed. Counting them made e.g. a 73-donor medical
+            // project's card claim "73 comments" when the thread held zero real ones.
+            supabase.from('project_comments_public').select('project_id').eq('comment_type', 'user').in('project_id', allIds),
             supabase.from('donors_public').select('project_id, amount_pkr').eq('is_verified', true).in('project_id', allIds),
             supabase.from('project_expenses_public').select('project_id, debit').in('project_id', allIds),
           ])
@@ -277,7 +281,7 @@ export default function ProjectsPage() {
       {!loading && (
         <div className="space-y-8">
           {filtered.map((project) => {
-            if (project.status === 'ongoing') return <OngoingCard key={project.id} project={project} isHot={hotIds.has(project.id)} commentCount={commentCounts[project.id] ?? 0} dt={dt} isUrdu={isUrdu} />
+            if (project.status === 'ongoing') return <OngoingCard key={project.id} project={project} isHot={hotIds.has(project.id)} commentCount={commentCounts[project.id] ?? 0} expense={expenseByProject[project.id] ?? 0} dt={dt} isUrdu={isUrdu} />
             if (project.status === 'completed') return <CompletedCard key={project.id} project={project} isHot={hotIds.has(project.id)} dt={dt} isUrdu={isUrdu} received={receivedByProject[project.id] ?? 0} expense={expenseByProject[project.id] ?? 0} />
             if (project.status === 'upcoming') return <UpcomingCard key={project.id} project={project} voteCount={voteCounts[project.id] ?? 0} isHot={hotIds.has(project.id)} dt={dt} isUrdu={isUrdu} />
             if (project.status === 'announced') return <AnnouncedCard key={project.id} project={project} dt={dt} isUrdu={isUrdu} />
@@ -339,7 +343,7 @@ function HotBadge() {
 
 const urduStyle = { fontFamily: 'var(--font-urdu), serif' } as const
 
-function OngoingCard({ project, isHot, commentCount, dt, isUrdu }: { project: Project; isHot: boolean; commentCount: number; dt: Dt; isUrdu: boolean }) {
+function OngoingCard({ project, isHot, commentCount, expense, dt, isUrdu }: { project: Project; isHot: boolean; commentCount: number; expense: number; dt: Dt; isUrdu: boolean }) {
   const { t: tr } = useLocale()
   return (
     <div className="relative bg-white border border-dp-outline-variant rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 hover:border-dp-secondary transition-all">
@@ -425,7 +429,7 @@ function OngoingCard({ project, isHot, commentCount, dt, isUrdu }: { project: Pr
                 {dt('spentLabel')}
               </p>
               <p className="text-[20px] font-bold text-dp-secondary font-sans leading-[28px]">
-                {formatPKR(project.spent_pkr)}{' '}
+                {formatPKR(expense)}{' '}
                 <span className="text-[14px] font-normal">PKR</span>
               </p>
             </div>
