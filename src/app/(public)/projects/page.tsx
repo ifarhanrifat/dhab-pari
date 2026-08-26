@@ -122,13 +122,6 @@ const CATEGORY_LABEL_UR: Record<string, string> = {
 
 const filters = ['All', 'Ongoing', 'Completed', 'Upcoming', 'Announced']
 
-function formatPKR(val: number | null) {
-  if (!val) return '0'
-  if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`
-  if (val >= 1000) return `${Math.round(val / 1000)}k`
-  return val.toLocaleString()
-}
-
 function fmtFull(val: number | null) {
   return (val ?? 0).toLocaleString()
 }
@@ -429,7 +422,7 @@ function OngoingCard({ project, isHot, commentCount, expense, dt, isUrdu }: { pr
                 {dt('budgetLabel')}
               </p>
               <p className="text-[20px] font-bold text-dp-primary font-sans leading-[28px]">
-                {formatPKR(project.budget_pkr)}{' '}
+                {fmtFull(project.budget_pkr)}{' '}
                 <span className="text-[14px] font-normal">PKR</span>
               </p>
             </div>
@@ -438,7 +431,7 @@ function OngoingCard({ project, isHot, commentCount, expense, dt, isUrdu }: { pr
                 {dt('spentLabel')}
               </p>
               <p className="text-[20px] font-bold text-dp-secondary font-sans leading-[28px]">
-                {formatPKR(expense)}{' '}
+                {fmtFull(expense)}{' '}
                 <span className="text-[14px] font-normal">PKR</span>
               </p>
             </div>
@@ -540,7 +533,7 @@ function CompletedCard({ project, isHot, dt, isUrdu, received, expense }: { proj
                 {dt('totalReceived')}
               </p>
               <p className="text-[16px] font-bold text-dp-on-surface font-sans leading-[22px]">
-                {formatPKR(received)}
+                {fmtFull(received)}
               </p>
             </div>
             <div className="p-3 border border-dp-outline-variant rounded-lg">
@@ -548,7 +541,7 @@ function CompletedCard({ project, isHot, dt, isUrdu, received, expense }: { proj
                 {dt('totalSpent')}
               </p>
               <p className="text-[16px] font-bold text-dp-on-surface font-sans leading-[22px]">
-                {formatPKR(expense)}
+                {fmtFull(expense)}
               </p>
             </div>
             <div className="p-3 border border-dp-outline-variant rounded-lg">
@@ -564,7 +557,7 @@ function CompletedCard({ project, isHot, dt, isUrdu, received, expense }: { proj
           <div className="mb-6">
             {remaining !== 0 && (
               <p className={`font-sans text-[13px] font-semibold ${remaining > 0 ? 'text-dp-secondary' : 'text-dp-error'}`} style={isUrdu ? urduStyle : undefined}>
-                {remaining > 0 ? dt('balanceRemaining') : dt('balanceDeficit')}: Rs. {formatPKR(Math.abs(remaining))}
+                {remaining > 0 ? dt('balanceRemaining') : dt('balanceDeficit')}: Rs. {fmtFull(Math.abs(remaining))}
               </p>
             )}
           </div>
