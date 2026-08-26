@@ -186,7 +186,14 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
     // imported expense showed a meaningless code like "C245644B" instead
     // of its real, traceable reference. Only entries with genuinely
     // neither (a true one-off manual posting) still fall back to it.
-    let receiptNo = row.receipt_no ?? row.bill_number ?? row.id.slice(0, 8).toUpperCase()
+    //
+    // A voucher's own voucher_no (the system's real, serially-numbered
+    // reference, e.g. DP-EXP-V-0249) takes priority over receipt_no —
+    // receipt_no on a legacy-imported voucher holds the ORIGINAL
+    // BookKeeper reference (e.g. "PAY31"), kept for traceability and
+    // already printed in the particular/remarks text, but it is not this
+    // system's own document number and should not headline the receipt.
+    let receiptNo = (row.reference_type === 'voucher' ? row.voucher_no : null) ?? row.receipt_no ?? row.bill_number ?? row.id.slice(0, 8).toUpperCase()
     let phone: string | null = null
     let billOutstandingAfter: number | null = null
     if (row.reference_type === 'payment' && row.reference_id) {
@@ -219,6 +226,11 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
     let voucherAccountNameUr: string | null | undefined
     let paidFromName: string | undefined
     let voucherKind: ReceiptData['kind'] | undefined
+    // A multi-line voucher's own amount_pkr (the real total across every
+    // category) — NOT the amount on whichever single leg/account happened
+    // to be open, which for a split voucher is only that one category's
+    // slice and understates "Paid From"/Total on every template.
+    let voucherAmount: number | undefined
     if (row.reference_type === 'voucher' && row.reference_id) {
       const { data: items } = await supabase.from('voucher_line_items')
         .select('description, category, amount').eq('voucher_id', row.reference_id)
@@ -230,10 +242,11 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
       }
 
       const { data: v } = await supabase.from('vouchers')
-        .select('voucher_type, from_account_id, to_account_id, party_name')
+        .select('voucher_type, from_account_id, to_account_id, party_name, amount_pkr')
         .eq('id', row.reference_id).single()
       if (v) {
         voucherKind = voucherReceiptKind[v.voucher_type ?? ''] ?? 'manual'
+        if (lineItems && lineItems.length > 0) voucherAmount = Number(v.amount_pkr)
         const acctIds = [v.from_account_id, v.to_account_id].filter((x): x is string => !!x)
         let namesById: Record<string, { name: string; name_ur: string | null }> = {}
         if (acctIds.length > 0) {
@@ -314,7 +327,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
       accountNameUr: donorName ? donorNameUr : (voucherAccountNameUr ?? account?.name_ur),
       accountAddress: consumerInfo?.address,
       particular: translateParticular(row.particular, t, isUrdu),
-      amount: row.debit > 0 ? row.debit : row.credit,
+      amount: voucherAmount ?? (row.debit > 0 ? row.debit : row.credit),
       balanceAfter,
       billOutstandingAfter,
       projectName,

@@ -34,7 +34,7 @@ export default function ImportLegacyPage() {
     setPhase('previewed')
   }
 
-  const runBatches = async <T,>(phaseName: 'projects' | 'donations' | 'expenses' | 'expenseReversals', items: T[], label: string) => {
+  const runBatches = async <T,>(phaseName: 'projects' | 'donations' | 'expenses' | 'expenseSplits' | 'expenseReversals', items: T[], label: string) => {
     let imported = 0
     const errors: string[] = []
     if (phaseName === 'projects') {
@@ -79,10 +79,16 @@ export default function ImportLegacyPage() {
     const expRes = await runBatches('expenses', data.expenses, t('il.phaseExpenses'))
     allErrors.push(...expRes.errors)
 
+    const splitRes = await runBatches('expenseSplits', data.expenseSplits, t('il.phaseExpenseSplits'))
+    allErrors.push(...splitRes.errors)
+
     const revRes = await runBatches('expenseReversals', data.expenseReversals, t('il.phaseExpenseReversals'))
     allErrors.push(...revRes.errors)
 
-    setResult({ projects: projRes.imported, donations: donRes.imported, expenses: expRes.imported, expenseReversals: revRes.imported, errors: allErrors })
+    setResult({
+      projects: projRes.imported, donations: donRes.imported,
+      expenses: expRes.imported + splitRes.imported, expenseReversals: revRes.imported, errors: allErrors,
+    })
     setPhase('done')
     toast.success(t('il.importDone'))
   }
@@ -113,7 +119,8 @@ export default function ImportLegacyPage() {
             <StatCard icon={<FolderKanban size={16} />} label={t('il.projects')} value={data.projects.length} />
             <StatCard icon={<Users size={16} />} label={t('il.donors')} value={new Set(data.donations.map((d) => d.donorName)).size} />
             <StatCard icon={<HeartHandshake size={16} />} label={t('il.donations')} value={data.donations.length} sub={`Rs. ${fmt(data.donations.reduce((s, d) => s + d.amount, 0))}`} />
-            <StatCard icon={<Receipt size={16} />} label={t('il.expenses')} value={data.expenses.length} sub={`Rs. ${fmt(data.expenses.reduce((s, e) => s + e.amount, 0))}`} />
+            <StatCard icon={<Receipt size={16} />} label={t('il.expenses')} value={data.expenses.length + data.expenseSplits.length}
+              sub={`Rs. ${fmt(data.expenses.reduce((s, e) => s + e.amount, 0) + data.expenseSplits.reduce((s, e) => s + e.amount, 0))}`} />
           </div>
 
           <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
@@ -122,6 +129,7 @@ export default function ImportLegacyPage() {
               {data.projects.map((p) => {
                 const total = data.donations.filter((d) => d.projectAname === p.aname).reduce((s, d) => s + d.amount, 0)
                 const spent = data.expenses.filter((e) => e.projectAname === p.aname).reduce((s, e) => s + e.amount, 0)
+                  + data.expenseSplits.filter((e) => e.projectAname === p.aname).reduce((s, e) => s + e.amount, 0)
                 return (
                   <div key={p.aname} className="flex items-center justify-between gap-3 text-[12.5px] font-sans py-1 border-b border-dp-outline-variant/50 last:border-0">
                     <span className="text-dp-on-surface truncate">{p.aname}</span>

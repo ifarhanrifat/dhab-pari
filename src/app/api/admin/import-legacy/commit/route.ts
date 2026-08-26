@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import type { LegacyDonation, LegacyExpense, LegacyExpenseReversal, LegacyProject } from '@/lib/legacyImport/parseBookKeeper'
+import type { LegacyDonation, LegacyExpense, LegacyExpenseReversal, LegacyExpenseSplit, LegacyProject } from '@/lib/legacyImport/parseBookKeeper'
 
 // Runs as the logged-in admin's own session (not a service-role bypass) —
 // import_legacy_project/donation/expense (migration 350) check
@@ -24,6 +24,7 @@ type Body =
   | { phase: 'projects'; items: LegacyProject[] }
   | { phase: 'donations'; items: LegacyDonation[] }
   | { phase: 'expenses'; items: LegacyExpense[] }
+  | { phase: 'expenseSplits'; items: LegacyExpenseSplit[] }
   | { phase: 'expenseReversals'; items: LegacyExpenseReversal[] }
 
 export async function POST(req: NextRequest) {
@@ -77,18 +78,38 @@ export async function POST(req: NextRequest) {
 
     for (const e of body.items) {
       const projectId = projectIds[e.projectAname]
-      if (!projectId) { errors.push(`Expense ${e.externalRef}: project "${e.projectAname}" not found — run the Projects phase first`); continue }
-      // e.externalRef is the plain vchNo for a simple voucher, or
-      // "<vchNo>-<n>" for one real line of a compound BookKeeper voucher
-      // that got split across several categories — receipt_no always
-      // stays the plain original number so statements show the real
-      // BookKeeper voucher number, not the synthetic per-line suffix.
+      if (!projectId) { errors.push(`Expense ${e.vchNo}: project "${e.projectAname}" not found — run the Projects phase first`); continue }
       const particular = `${e.category}${e.narration ? ' — ' + e.narration : ''} (BookKeeper ${e.vchNo})`
       const { error } = await supabase.rpc('import_legacy_expense', {
-        p_external_ref: `bookkeeper:payment:${e.externalRef}`, p_expense_account_name: e.category,
+        p_external_ref: `bookkeeper:payment:${e.vchNo}`, p_expense_account_name: e.category,
         p_project_id: projectId, p_amount: e.amount, p_date: e.date, p_particular: particular, p_receipt_no: e.vchNo,
       })
-      if (error) errors.push(`Expense ${e.externalRef}: ${error.message}`)
+      if (error) errors.push(`Expense ${e.vchNo}: ${error.message}`)
+      else imported++
+    }
+    return NextResponse.json({ imported, errors })
+  }
+
+  if (body.phase === 'expenseSplits') {
+    // A single real BookKeeper voucher that covered several expense
+    // categories at once — imported as ONE voucher with a real per-
+    // category voucher_line_items breakdown, not several separate
+    // vouchers (that used to fragment one payment into unrelated-
+    // looking entries with synthetic reference numbers).
+    const anames = [...new Set(body.items.map((s) => s.projectAname))]
+    const { data: projRows } = await supabase.from('legacy_import_records').select('external_ref, entity_id')
+      .eq('entity_type', 'project').in('external_ref', anames.map((a) => `bookkeeper:project:${a}`))
+    const projectIds = Object.fromEntries((projRows ?? []).map((r) => [r.external_ref.replace('bookkeeper:project:', ''), r.entity_id]))
+
+    for (const s of body.items) {
+      const projectId = projectIds[s.projectAname]
+      if (!projectId) { errors.push(`Expense ${s.vchNo}: project "${s.projectAname}" not found — run the Projects phase first`); continue }
+      const particular = `${s.lines.map((l) => l.category).join(', ')}${s.narration ? ' — ' + s.narration : ''} (BookKeeper ${s.vchNo})`
+      const { error } = await supabase.rpc('import_legacy_expense_split', {
+        p_external_ref: `bookkeeper:payment:${s.vchNo}`, p_project_id: projectId, p_amount: s.amount,
+        p_date: s.date, p_particular: particular, p_receipt_no: s.vchNo, p_lines: s.lines,
+      })
+      if (error) errors.push(`Expense ${s.vchNo}: ${error.message}`)
       else imported++
     }
     return NextResponse.json({ imported, errors })

@@ -27,19 +27,27 @@ export interface LegacyDonation {
 }
 
 export interface LegacyExpense {
-  /** The real BookKeeper voucher number this line belongs to — kept
-   *  un-suffixed so it prints as the correct bill/receipt number on
-   *  statements even when several lines share one original voucher. */
   vchNo: string
-  /** Unique key for idempotent import: same as vchNo for a plain
-   *  single-category voucher, `${vchNo}-${n}` for one of several real
-   *  split lines pulled out of a compound voucher. */
-  externalRef: string
   date: string
   category: string
   projectAname: string
   amount: number
   narration: string | null
+}
+
+/** A single BookKeeper voucher that really covered several expense
+ *  categories in one payment (e.g. a trip that paid Vehicle Rent, an OT
+ *  Expenses advance, and a misc cost all at once) — imported as ONE real
+ *  voucher with its true per-category breakdown as line items, so it
+ *  prints as one itemized Payment Voucher instead of several unrelated-
+ *  looking ones under synthetic reference numbers. */
+export interface LegacyExpenseSplit {
+  vchNo: string
+  date: string
+  projectAname: string
+  amount: number
+  narration: string | null
+  lines: { category: string; amount: number }[]
 }
 
 /** A Receipt voucher where money flowed back INTO an expense account (a
@@ -60,6 +68,7 @@ export interface LegacyImportData {
   projects: LegacyProject[]
   donations: LegacyDonation[]
   expenses: LegacyExpense[]
+  expenseSplits: LegacyExpenseSplit[]
   expenseReversals: LegacyExpenseReversal[]
   /** Receipts whose credited party is neither a real donor account nor a
    *  recognizable expense-refund — surfaced, never silently dropped or
@@ -182,21 +191,25 @@ export async function parseBookKeeperDb(fileBuffer: Buffer): Promise<LegacyImpor
   }
 
   const expenses: LegacyExpense[] = []
+  const expenseSplits: LegacyExpenseSplit[] = []
   for (const p of payments) {
     if (!projects.some((proj) => proj.aname === p.credit)) continue
     const lines = linesByVoucher.get(p.v_id) ?? []
-    const multi = lines.length > 1
-    lines.forEach((l, i) => {
-      expenses.push({
-        vchNo: p.vch_no,
-        externalRef: multi ? `${p.vch_no}-${i + 1}` : p.vch_no,
-        date: p.date, category: l.debit, projectAname: p.credit,
-        amount: l.amount, narration: p.narration,
+    if (lines.length > 1) {
+      expenseSplits.push({
+        vchNo: p.vch_no, date: p.date, projectAname: p.credit,
+        amount: lines.reduce((s, l) => s + l.amount, 0), narration: p.narration,
+        lines: lines.map((l) => ({ category: l.debit, amount: l.amount })),
       })
-    })
+    } else if (lines.length === 1) {
+      expenses.push({
+        vchNo: p.vch_no, date: p.date, category: lines[0].debit,
+        projectAname: p.credit, amount: lines[0].amount, narration: p.narration,
+      })
+    }
   }
 
   db.close()
 
-  return { companyName: company[0]?.c_name ?? null, projects, donations, expenses, expenseReversals, anomalies }
+  return { companyName: company[0]?.c_name ?? null, projects, donations, expenses, expenseSplits, expenseReversals, anomalies }
 }
