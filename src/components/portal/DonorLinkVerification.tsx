@@ -65,13 +65,28 @@ export function DonorLinkVerification({ user, onLinked }: { user: PortalUser; on
         setTotal((legs ?? []).reduce((s, e) => s + Number(e.credit) - Number(e.debit), 0))
         if (acct) setAccountLabel({ name: (isUrdu && acct.name_ur) || acct.name, accountNo: acct.donor_account_no ?? '' })
       } else {
-        const { data } = await supabase.rpc('match_donor_account_by_phone', { p_phone: user.mobile }).maybeSingle<Match>()
-        if (data?.account_id && data.already_claimed) setClaimedElsewhere(true)
+        // Not just a read-only check — an account that was created or
+        // matched AFTER this login already existed (this app was deployed
+        // without this flow yet, or the donor's own account was only
+        // added/corrected later) would otherwise sit unmatched forever,
+        // since signup is the only other place a link normally happens.
+        // portal_rematch_donor_by_phone links it immediately if it's a
+        // real, unclaimed match — refreshing the parent then re-renders
+        // this component straight into the confirm state below.
+        const { data } = await supabase.rpc('portal_rematch_donor_by_phone', { p_phone: user.mobile }).maybeSingle<Match>()
+        if (data?.account_id) {
+          if (data.already_claimed) setClaimedElsewhere(true)
+          else { onLinked(); return }
+        }
       }
       setChecking(false)
     })()
+    // Re-runs when donor_account_id changes — specifically the moment the
+    // "else" branch above links one and calls onLinked(), so this fetches
+    // the now-real total/account label instead of leaving the confirm
+    // card below showing Rs. 0.00 from before the link existed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [user.donor_account_id])
 
   const confirm = async () => {
     setBusy(true)
