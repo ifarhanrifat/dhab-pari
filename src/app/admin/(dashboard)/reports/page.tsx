@@ -215,7 +215,34 @@ function ReportsPageInner() {
     const liabilities = accounts.filter((a) => a.type === 'liability').map((a) => ({ account: a, balance: balanceOf(a) }))
     const totalAssets = assets.reduce((s, r) => s + r.balance, 0)
     const totalLiabilities = liabilities.reduce((s, r) => s + r.balance, 0)
-    return { assets, liabilities, totalAssets, totalLiabilities, fundBalance: totalAssets - totalLiabilities }
+
+    // Every project account is a promise: money donors gave FOR that project
+    // specifically, sitting inside the Cash figure above but not free to
+    // spend on anything else — a positive balance is unspent committed
+    // funds, a negative one means the project was spent past what it was
+    // ever specifically donated (funded from elsewhere, in effect a loan
+    // FROM the general pool TO that project). Cash-in-hand alone made every
+    // rupee of it look like free surplus; this is the piece that was
+    // missing to tell the two apart. credit-normal here regardless of the
+    // shared creditNormal() list above (which governs Trial Balance
+    // inclusion, not this) — a project increases on a donation credit,
+    // decreases on an expense debit, the same direction as a liability.
+    const restrictedFunds = accounts.filter((a) => a.type === 'project').map((a) => {
+      const b = balances[a.id]
+      const balance = Number(a.opening_balance) + (b ? b.credit - b.debit : 0)
+      return { account: a, balance }
+    }).sort((a, b) => b.balance - a.balance)
+    const totalRestrictedFunds = restrictedFunds.reduce((s, r) => s + r.balance, 0)
+    const heldForProjects = restrictedFunds.filter((r) => r.balance > 0).reduce((s, r) => s + r.balance, 0)
+    const overspentProjects = restrictedFunds.filter((r) => r.balance < 0).reduce((s, r) => s + r.balance, 0)
+
+    return {
+      assets, liabilities, totalAssets, totalLiabilities,
+      restrictedFunds, totalRestrictedFunds, heldForProjects, overspentProjects,
+      // The real freely-available amount — what "Fund Balance" was silently
+      // claiming to be before this existed.
+      fundBalance: totalAssets - totalLiabilities - totalRestrictedFunds,
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accounts, balances])
 
@@ -443,6 +470,29 @@ function ReportsPageInner() {
                 <div className="flex justify-between px-4 py-3 border-t-2 border-dp-outline-variant font-sans text-[14px] font-bold bg-dp-surface-container-low/40"><span>{dt(lang, 'totalLiabilities')}</span><span>{fmtAmount(balanceSheetData.totalLiabilities)}</span></div>
                 <div className="flex justify-between px-4 py-3 border-t border-dp-outline-variant font-sans text-[13.5px]"><span className="font-semibold">{dt(lang, 'fundBalance')}</span><span className="font-bold">{fmtAmount(balanceSheetData.fundBalance)}</span></div>
               </div>
+
+              {system === 'donors_projects' && balanceSheetData.restrictedFunds.length > 0 && (
+                <div className="md:col-span-2 bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
+                  <div className="px-4 py-3 bg-dp-surface-container-low/60 border-b border-dp-outline-variant font-sans text-[14px] font-bold">{dt(lang, 'restrictedProjectFunds')}</div>
+                  {balanceSheetData.restrictedFunds.map(({ account, balance }) => (
+                    <div key={account.id} className="flex justify-between px-4 py-2.5 border-t border-dp-outline-variant font-sans text-[13.5px]">
+                      <span>{account.name}</span>
+                      <span className={`font-semibold ${balance < 0 ? 'text-dp-error' : ''}`}>{fmtAmount(balance)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between px-4 py-2.5 border-t border-dp-outline-variant font-sans text-[13.5px] text-dp-on-surface-variant">
+                    <span>{dt(lang, 'heldForProjects')}</span><span>{fmtAmount(balanceSheetData.heldForProjects)}</span>
+                  </div>
+                  <div className="flex justify-between px-4 py-2.5 border-t border-dp-outline-variant font-sans text-[13.5px] text-dp-error">
+                    <span>{dt(lang, 'overspentProjects')}</span><span>{fmtAmount(balanceSheetData.overspentProjects)}</span>
+                  </div>
+                  <div className="flex justify-between px-4 py-3 border-t-2 border-dp-outline-variant font-sans text-[14px] font-bold bg-dp-surface-container-low/40">
+                    <span>{dt(lang, 'totalRestrictedFunds')}</span><span>{fmtAmount(balanceSheetData.totalRestrictedFunds)}</span>
+                  </div>
+                  <p className="px-4 py-2.5 border-t border-dp-outline-variant font-sans text-[12px] text-dp-on-surface-variant">{dt(lang, 'restrictedProjectFundsFootnote')}</p>
+                </div>
+              )}
+
               <p className="md:col-span-2 font-sans text-[12px] text-dp-on-surface-variant px-1">{dt(lang, 'fundBalanceFootnote')}</p>
             </div>
           )}

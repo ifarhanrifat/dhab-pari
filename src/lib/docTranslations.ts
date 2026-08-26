@@ -165,11 +165,19 @@ export const DOC_STRINGS = {
   totalAssets: { en: 'Total Assets', ur: 'کل اثاثے' },
   liabilities: { en: 'Liabilities', ur: 'واجبات' },
   totalLiabilities: { en: 'Total Liabilities', ur: 'کل واجبات' },
-  fundBalance: { en: 'Fund Balance (Assets − Liabilities)', ur: 'فنڈ بیلنس (اثاثے − واجبات)' },
+  fundBalance: { en: 'Unrestricted Fund Balance (Assets − Liabilities − Restricted Funds)', ur: 'غیر مخصوص فنڈ بیلنس (اثاثے − واجبات − مخصوص فنڈز)' },
   fundBalanceFootnote: {
-    en: 'As of today. Fund Balance is a computed residual (accumulated surplus/deficit), not a separate postable account — appropriate for a committee rather than a shareholder "equity" figure.',
-    ur: 'آج تک کے مطابق۔ فنڈ بیلنس ایک حسابی باقیات (مجموعی فاضل/خسارہ) ہے، الگ سے پوسٹ کیا جانے والا اکاؤنٹ نہیں — یہ کمیٹی کے لیے موزوں ہے نہ کہ شیئر ہولڈر کے "ایکویٹی" اعداد کے لیے۔',
+    en: 'As of today. Unrestricted Fund Balance is a computed residual (accumulated surplus/deficit) after setting aside money still committed to specific projects below — not a separate postable account, appropriate for a committee rather than a shareholder "equity" figure.',
+    ur: 'آج تک کے مطابق۔ غیر مخصوص فنڈ بیلنس ایک حسابی باقیات (مجموعی فاضل/خسارہ) ہے، نیچے مخصوص پروجیکٹس کے لیے مختص رقم الگ کرنے کے بعد — الگ سے پوسٹ کیا جانے والا اکاؤنٹ نہیں، یہ کمیٹی کے لیے موزوں ہے نہ کہ شیئر ہولڈر کے "ایکویٹی" اعداد کے لیے۔',
   },
+  restrictedProjectFunds: { en: 'Restricted Funds — Committed to Specific Projects', ur: 'مخصوص فنڈز — مخصوص پروجیکٹس کے لیے مختص' },
+  restrictedProjectFundsFootnote: {
+    en: 'Money donors gave FOR a specific project, sitting inside Cash above but not free to spend on anything else. A positive balance is still unspent; a negative one means that project was spent past what it was ever specifically donated — funded, in effect, by a loan from the general pool.',
+    ur: 'وہ رقم جو عطیہ دہندگان نے کسی مخصوص پروجیکٹ کے لیے دی، جو اوپر کیش میں شامل ہے مگر کسی اور چیز پر خرچ کرنے کے لیے آزاد نہیں۔ مثبت بیلنس ابھی خرچ نہیں ہوا؛ منفی بیلنس کا مطلب ہے کہ اس پروجیکٹ پر اس سے زیادہ خرچ ہوا جتنا اسے مخصوص طور پر عطیہ ملا — یعنی عمومی فنڈ سے قرض لے کر پورا کیا گیا۔',
+  },
+  heldForProjects: { en: 'Held for Incomplete Projects', ur: 'نامکمل پروجیکٹس کے لیے محفوظ' },
+  overspentProjects: { en: 'Overspent Projects', ur: 'زائد خرچ شدہ پروجیکٹس' },
+  totalRestrictedFunds: { en: 'Net Restricted Funds', ur: 'خالص مخصوص فنڈز' },
 
   // Profit & Loss
   revenue: { en: 'Revenue', ur: 'آمدنی' },
