@@ -44,6 +44,14 @@ interface Project {
 
 type Lang = 'en' | 'ur'
 
+// Health/medical projects use one fixed, non-editable cover image instead
+// of a real before/after pair — the "before" photo of an actual patient's
+// treatment isn't something the committee has (or should be showing)
+// publicly, unlike a street or a water tank. Same asset admin's project
+// form is blocked from replacing (see the admin projects page).
+const HEALTH_COVER_IMAGE = '/images/health-project-cover.jpg'
+const isHealthCategory = (category: string | null) => category === 'health'
+
 // Same site-wide "Accounts Display Language" toggle every other bilingual
 // page here already respects (site_settings.display_language).
 const t: Record<string, { en: string; ur: string }> = {
@@ -318,29 +326,36 @@ function OngoingCard({ project, isHot, commentCount, dt, isUrdu }: { project: Pr
   return (
     <div className="relative bg-white border border-dp-outline-variant rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 hover:border-dp-secondary transition-all">
       {isHot && <HotBadge />}
-      {/* Left: Before / Present */}
-      <div className="relative grid grid-cols-2 gap-[2px] bg-dp-outline-variant p-[2px]">
-        <div className="relative aspect-[4/3]">
-          <div className="absolute top-2 left-2 z-10 bg-black/50 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded font-sans">
-            {dt('before')}
-          </div>
-          {project.before_image_url ? (
-            <Image src={project.before_image_url} alt="Before" fill sizes="(min-width: 768px) 25vw, 50vw" className="object-cover" />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-dp-surface-container-high to-dp-surface-dim" />
-          )}
+      {/* Left: Before / Present — except health projects, which get one
+          fixed cover image, never a real before/after pair. */}
+      {isHealthCategory(project.category) ? (
+        <div className="relative aspect-[4/3] md:aspect-auto md:h-full min-h-[240px]">
+          <Image src={HEALTH_COVER_IMAGE} alt={project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
         </div>
-        <div className="relative aspect-[4/3]">
-          <div className="absolute top-2 left-2 z-10 bg-dp-primary text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded font-sans">
-            {dt('present')}
+      ) : (
+        <div className="relative grid grid-cols-2 gap-[2px] bg-dp-outline-variant p-[2px]">
+          <div className="relative aspect-[4/3]">
+            <div className="absolute top-2 left-2 z-10 bg-black/50 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded font-sans">
+              {dt('before')}
+            </div>
+            {project.before_image_url ? (
+              <Image src={project.before_image_url} alt="Before" fill sizes="(min-width: 768px) 25vw, 50vw" className="object-cover" />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-dp-surface-container-high to-dp-surface-dim" />
+            )}
           </div>
-          {project.after_image_url || project.proposal_image_url ? (
-            <Image src={project.after_image_url ?? project.proposal_image_url ?? ''} alt="Present" fill sizes="(min-width: 768px) 25vw, 50vw" className="object-cover" />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container" />
-          )}
+          <div className="relative aspect-[4/3]">
+            <div className="absolute top-2 left-2 z-10 bg-dp-primary text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded font-sans">
+              {dt('present')}
+            </div>
+            {project.after_image_url || project.proposal_image_url ? (
+              <Image src={project.after_image_url ?? project.proposal_image_url ?? ''} alt="Present" fill sizes="(min-width: 768px) 25vw, 50vw" className="object-cover" />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container" />
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Right: Content */}
       <div className="p-8 flex flex-col justify-between">
@@ -439,7 +454,9 @@ function CompletedCard({ project, isHot, dt, isUrdu }: { project: Project; isHot
         <div className="absolute top-4 left-4 z-10 bg-dp-primary text-white text-[10px] uppercase font-bold px-3 py-1 rounded font-sans">
           {dt('successStory')}
         </div>
-        {project.after_image_url || project.proposal_image_url ? (
+        {isHealthCategory(project.category) ? (
+          <Image src={HEALTH_COVER_IMAGE} alt={project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+        ) : project.after_image_url || project.proposal_image_url ? (
           <Image src={project.after_image_url ?? project.proposal_image_url ?? ''} alt={project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-dp-secondary to-dp-primary-container" />
@@ -535,7 +552,9 @@ function UpcomingCard({ project, voteCount, isHot, dt, isUrdu }: { project: Proj
       {isHot && <HotBadge />}
       {/* Left: Photo when the proposer submitted one, else the illustration */}
       <div className="relative bg-blue-50 flex items-center justify-center min-h-[300px]">
-        {project.proposal_image_url ? (
+        {isHealthCategory(project.category) ? (
+          <Image src={HEALTH_COVER_IMAGE} alt={project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+        ) : project.proposal_image_url ? (
           <Image src={project.proposal_image_url} alt={project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
         ) : (
           <div className="text-center p-8">

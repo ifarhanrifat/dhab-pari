@@ -15,7 +15,12 @@ interface Project { id: string; title: string; title_ur: string | null; descript
   // Migration 359 — fully invisible to the public (not admin_hidden, which
   // means "draft/rejected proposal", a different concept from "this is a
   // real, live project that must never be individually identifiable").
-  is_private: boolean }
+  is_private: boolean
+  // Migration 361 — independent, combinable controls for when full
+  // invisibility (is_private) is more than what's actually needed: hide
+  // just the donation list, just the expense list, or just donor names
+  // (amounts still shown) — any combination, project stays listed either way.
+  hide_donations: boolean; hide_expenses: boolean; hide_donor_names: boolean }
 
 const statuses = ['ongoing', 'completed', 'upcoming']
 const categories = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'sports', 'other']
@@ -30,7 +35,7 @@ const categoryLabelKey: Record<string, string> = {
   environment: 'pj.catEnvironment', welfare: 'pj.catWelfare', sports: 'pj.catSports', other: 'pj.catOther',
 }
 
-const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0, funding_model: 'one_time', monthly_operating_cost_pkr: 0, is_private: false }
+const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0, funding_model: 'one_time', monthly_operating_cost_pkr: 0, is_private: false, hide_donations: false, hide_expenses: false, hide_donor_names: false }
 
 export default function AdminProjectsPage() {
   const { t, isUrdu } = useLocale()
@@ -67,7 +72,7 @@ export default function AdminProjectsPage() {
     setShowForm(false); setEditing(null); setForm(empty); load()
   }
 
-  const edit = (p: Project) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0, is_private: p.is_private }); setEditing(p.id); setShowForm(true) }
+  const edit = (p: Project) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0, is_private: p.is_private, hide_donations: p.hide_donations, hide_expenses: p.hide_expenses, hide_donor_names: p.hide_donor_names }); setEditing(p.id); setShowForm(true) }
 
   const remove = async (id: string) => { if (!confirm(t('pj.confirmDelete'))) return; await supabase.from('projects').delete().eq('id', id); toast.success(t('pj.deleted')); load() }
   // Pulls a donor-submitted proposal out of public view without rejecting
@@ -115,6 +120,11 @@ export default function AdminProjectsPage() {
                 )}
                 {p.is_private && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 bg-purple-50 rounded-full px-2 py-0.5 font-sans"><Lock size={11} /> {t('pj.privateBadge')}</span>
+                )}
+                {!p.is_private && (p.hide_donor_names || p.hide_donations || p.hide_expenses) && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 bg-purple-50 rounded-full px-2 py-0.5 font-sans" title={[p.hide_donor_names && t('pj.hideDonorNames'), p.hide_donations && t('pj.hideDonations'), p.hide_expenses && t('pj.hideExpenses')].filter(Boolean).join(' · ')}>
+                    <Lock size={11} /> {t('pj.privacyOptionsTitle')}
+                  </span>
                 )}
               </div>
               <h3 className="font-sans text-[18px] font-bold text-dp-on-surface truncate">{p.title}</h3>
@@ -179,13 +189,33 @@ export default function AdminProjectsPage() {
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.sector')}</label><input value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} placeholder={t('pj.sectorPlaceholder')} className="input-field" /></div>
               </div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.beneficiaries')}</label><input type="number" value={form.beneficiaries_count || ''} onChange={(e) => setForm({ ...form, beneficiaries_count: +e.target.value })} className="input-field" /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <ImageUpload bucket="images" currentUrl={form.before_image_url} onUpload={(url) => setForm({ ...form, before_image_url: url })} label={t('pj.beforePhoto')} />
-                <ImageUpload bucket="images" currentUrl={form.after_image_url} onUpload={(url) => setForm({ ...form, after_image_url: url })} label={t('pj.afterPhoto')} />
-              </div>
+              {form.category === 'health' ? (
+                // Health/medical projects always use one fixed cover image,
+                // never a real patient's before/after photo — not editable
+                // here on purpose.
+                <div className="flex items-center gap-3 bg-dp-surface-container-low border border-dp-outline-variant rounded-lg p-3">
+                  <img src="/images/health-project-cover.jpg" alt="" className="w-16 h-16 rounded object-cover shrink-0" />
+                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{t('pj.healthImageNote')}</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <ImageUpload bucket="images" currentUrl={form.before_image_url} onUpload={(url) => setForm({ ...form, before_image_url: url })} label={t('pj.beforePhoto')} />
+                  <ImageUpload bucket="images" currentUrl={form.after_image_url} onUpload={(url) => setForm({ ...form, after_image_url: url })} label={t('pj.afterPhoto')} />
+                </div>
+              )}
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_featured} onChange={(e) => setForm({ ...form, is_featured: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('z.featuredProject')}</span></label>
-              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_private} onChange={(e) => setForm({ ...form, is_private: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('pj.privateProject')}</span></label>
-              {form.is_private && <p className="font-sans text-[12px] text-dp-on-surface-variant -mt-2">{t('pj.privateProjectHint')}</p>}
+
+              <div className="border border-dp-outline-variant rounded-lg p-3.5 space-y-2.5">
+                <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('pj.privacyOptionsTitle')}</p>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.hide_donor_names} disabled={form.is_private} onChange={(e) => setForm({ ...form, hide_donor_names: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('pj.hideDonorNames')}</span></label>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.hide_donations} disabled={form.is_private} onChange={(e) => setForm({ ...form, hide_donations: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('pj.hideDonations')}</span></label>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.hide_expenses} disabled={form.is_private} onChange={(e) => setForm({ ...form, hide_expenses: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('pj.hideExpenses')}</span></label>
+                <div className="border-t border-dp-outline-variant pt-2.5">
+                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_private} onChange={(e) => setForm({ ...form, is_private: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px] font-semibold">{t('pj.privateProject')}</span></label>
+                  {form.is_private && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('pj.privateProjectHint')}</p>}
+                </div>
+              </div>
+
               <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">{editing ? t('pj.updateProjectBtn') : t('pj.createProjectBtn')}</button>
             </div>
           </div>
