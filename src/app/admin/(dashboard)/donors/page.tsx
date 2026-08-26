@@ -44,7 +44,7 @@ function fundBadge(d: Donor): { label: string; className: string } | null {
   if (d.fund_type === 'sadqa') return { label: 'Sadqa', className: 'bg-emerald-100 text-emerald-700' }
   return null
 }
-interface Project { id: string; title: string }
+interface Project { id: string; title: string; display_name: string | null }
 // One real-world bank transfer covering several pledges (migration 254) —
 // the review unit this panel works in, rather than the individual rows
 // each pledge still is everywhere else in the app.
@@ -113,7 +113,7 @@ function AdminDonorsPageInner() {
   const load = async () => {
     const [donorsRes, projectsRes, accountsRes] = await Promise.all([
       supabase.from('donors').select('*').order('date', { ascending: false }),
-      supabase.from('projects').select('id, title').order('title'),
+      supabase.from('projects').select('id, title, display_name').order('title'),
       supabase.from('accounts').select('donor_key, donor_account_no').eq('system', 'donors_projects').eq('type', 'donor').not('donor_account_no', 'is', null),
     ])
     setDonors(donorsRes.data ?? [])
@@ -147,7 +147,13 @@ function AdminDonorsPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [donors.length, searchParams])
 
-  const projectTitle = (id: string | null) => projects.find((p) => p.id === id)?.title ?? null
+  // Only feeds the outbound WhatsApp thank-you text and the printed
+  // receipt (both handed to the donor) — prefers the public display_name
+  // (364) over the real title for the same reason a receipt does.
+  const projectTitle = (id: string | null) => {
+    const p = projects.find((p) => p.id === id)
+    return p ? (p.display_name || p.title) : null
+  }
 
   const save = async () => {
     if (!form.name.trim()) { toast.error(t('dn.nameRequired')); return }

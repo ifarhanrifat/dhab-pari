@@ -13,7 +13,7 @@ import { DonorBadge } from '@/components/public/DonorBadge'
 import type { DonorBadgeTier } from '@/lib/donorBadges'
 
 interface Project {
-  id: string; title: string; description: string | null; status: string
+  id: string; title: string; display_name: string | null; description: string | null; status: string
   budget_pkr: number | null; category: string | null; location: string | null
   vote_target: number | null; minimum_monthly_commitment_pkr: number | null
   funding_model: string | null; monthly_operating_cost_pkr: number | null
@@ -102,7 +102,7 @@ export default function ProjectDetailPage() {
   const load = useCallback(async () => {
     const supabase = createClient()
     const [{ data: p }, { data: v }, { data: a }, { data: expenseAcct }, { data: voteRows }, { data: commentRows }] = await Promise.all([
-      supabase.from('projects').select('id, title, description, status, budget_pkr, category, location, vote_target, minimum_monthly_commitment_pkr, funding_model, monthly_operating_cost_pkr').eq('id', id).single(),
+      supabase.from('projects').select('id, title, display_name, description, status, budget_pkr, category, location, vote_target, minimum_monthly_commitment_pkr, funding_model, monthly_operating_cost_pkr').eq('id', id).single(),
       supabase.from('donors_public').select('id, name, amount_pkr, date, is_verified, payment_status').eq('project_id', id).eq('is_verified', true).order('amount_pkr', { ascending: false }),
       supabase.from('donors_public').select('id, name, amount_pkr, date, is_verified, payment_status').eq('project_id', id).eq('is_verified', false).order('date', { ascending: false }),
       supabase.from('project_accounts_public').select('id').eq('project_id', id).maybeSingle(),
@@ -260,9 +260,9 @@ export default function ProjectDetailPage() {
   // own share-to-any-chat picker.
   const shareProject = async () => {
     const url = typeof window !== 'undefined' ? window.location.href : ''
-    const text = `Vote for "${project?.title}" — help it reach ${project?.vote_target ?? 'the'} votes! ${url}`
+    const text = `Vote for "${project?.display_name || project?.title}" — help it reach ${project?.vote_target ?? 'the'} votes! ${url}`
     if (typeof navigator !== 'undefined' && navigator.share) {
-      try { await navigator.share({ title: project?.title ?? 'Vote for this project', text, url }); return } catch { /* user cancelled */ return }
+      try { await navigator.share({ title: (project?.display_name || project?.title) ?? 'Vote for this project', text, url }); return } catch { /* user cancelled */ return }
     }
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
@@ -286,7 +286,7 @@ export default function ProjectDetailPage() {
 
       <div className="mb-8">
         <span className="bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded font-sans text-[12px] font-semibold uppercase tracking-[0.05em]">{project.category}</span>
-        <h1 className="font-heading text-[28px] md:text-[32px] font-bold text-dp-primary mt-3">{project.title}</h1>
+        <h1 className="font-heading text-[28px] md:text-[32px] font-bold text-dp-primary mt-3">{project.display_name || project.title}</h1>
         {project.location && <p className="flex items-center gap-1 text-dp-on-surface-variant font-sans text-[15px] mt-1"><MapPin size={15} /> {project.location}</p>}
         <p className="font-sans text-[16px] text-dp-on-surface-variant mt-4 leading-[26px]">{project.description}</p>
       </div>

@@ -11,18 +11,22 @@ import { SITE } from '@/lib/constants'
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
   const supabase = await createClient()
-  const { data: project } = await supabase.from('projects').select('title, description, budget_pkr').eq('id', id).maybeSingle()
+  const { data: project } = await supabase.from('projects').select('title, display_name, description, budget_pkr').eq('id', id).maybeSingle()
 
   if (!project) return { title: 'Project Not Found' }
 
+  // Migration 364 — this is exactly the kind of surface display_name
+  // exists for: a shared link's tab title / WhatsApp preview reaches
+  // people who never touched the site itself.
+  const title = project.display_name || project.title
   const budgetLine = project.budget_pkr ? `Budget: Rs. ${Number(project.budget_pkr).toLocaleString()}. ` : ''
   const description = `${budgetLine}${project.description ?? `A community project by ${SITE.fullName}.`}`.slice(0, 200)
 
   return {
-    title: project.title,
+    title,
     description,
-    openGraph: { title: project.title, description, type: 'website' },
-    twitter: { card: 'summary_large_image', title: project.title, description },
+    openGraph: { title, description, type: 'website' },
+    twitter: { card: 'summary_large_image', title, description },
   }
 }
 

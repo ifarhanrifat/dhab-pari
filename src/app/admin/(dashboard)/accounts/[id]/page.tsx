@@ -284,8 +284,11 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
       donorNameUr = donor?.name_ur
       donorVoucherNo = donor?.voucher_no ?? undefined
       if (donor?.project_id) {
-        const { data: proj } = await supabase.from('projects').select('title').eq('id', donor.project_id).single()
-        projectName = proj?.title ?? undefined
+        // Same public label (migration 364) a donor already saw on the
+        // project's card — this receipt is handed to them, never the real
+        // title, for a project whose real title is a patient's name.
+        const { data: proj } = await supabase.from('projects').select('title, display_name').eq('id', donor.project_id).single()
+        projectName = proj?.display_name || proj?.title || undefined
       } else {
         const { data: pp } = await supabase.from('pool_payments')
           .select('pool:support_pools(name), kafalat_child_id, wazifa_student_id, sadqa_object_id')

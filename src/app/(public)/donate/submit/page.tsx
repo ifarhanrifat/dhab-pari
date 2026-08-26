@@ -40,7 +40,7 @@ const t: Record<string, { en: string; ur: string }> = {
   errorFailed: { en: 'Failed to submit. Please try again.', ur: 'جمع نہیں ہو سکا۔ دوبارہ کوشش کریں۔' },
 }
 
-interface Project { id: string; title: string }
+interface Project { id: string; title: string; display_name: string | null }
 
 export default function DonateSubmitPage() {
   const { t: tr } = useLocale()
@@ -77,7 +77,7 @@ function DonateSubmitPageInner() {
     })
     // Not yet launched (upcoming) or already wrapped up (completed) — a
     // donor picking who to give to shouldn't be offered either.
-    supabase.from('projects').select('id, title').not('status', 'in', '(upcoming,completed)').order('title').then(({ data }) => {
+    supabase.from('projects').select('id, title, display_name').not('status', 'in', '(upcoming,completed)').order('title').then(({ data }) => {
       setProjects(data ?? [])
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -235,7 +235,7 @@ function DonateSubmitPageInner() {
                     onChange={(id) => setForm({ ...form, project_id: id })}
                     placeholder={dt('noProject')}
                     pickerTitle={dt('project')}
-                    items={projects.map((p) => ({ id: p.id, label: p.title }))}
+                    items={projects.map((p) => ({ id: p.id, label: p.display_name || p.title }))}
                   />
                 </div>
               </div>

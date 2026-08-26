@@ -26,7 +26,7 @@ export async function donorReceiptTotals(donorId: string): Promise<DonorReceiptT
   const supabase = createClient()
   const [totalsRes, projectRes] = await Promise.all([
     supabase.rpc('donor_receipt_totals', { p_donor_id: donorId }),
-    supabase.from('donors').select('projects(title)').eq('id', donorId).maybeSingle(),
+    supabase.from('donors').select('projects(title, display_name)').eq('id', donorId).maybeSingle(),
   ])
 
   const row = Array.isArray(totalsRes.data) ? totalsRes.data[0] : totalsRes.data
@@ -37,7 +37,10 @@ export async function donorReceiptTotals(donorId: string): Promise<DonorReceiptT
   return {
     totalContributed: failed ? 0 : Number(row.total_contributed ?? 0),
     announcedRemaining: failed ? 0 : Number(row.announced_remaining ?? 0),
-    projectName: project?.title ?? null,
+    // A receipt leaves the building — it must show the same public label
+    // (migration 364) the donor already saw on the project's card, never
+    // the real title, for a project whose real title is a patient's name.
+    projectName: project?.display_name || project?.title || null,
     // If the RPC could not be read at all, treat the donation as unconfirmed
     // rather than asserting a confirmed receipt off numbers we do not have.
     isConfirmed: failed ? false : row.is_confirmed === true,

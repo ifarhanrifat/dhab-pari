@@ -24,6 +24,7 @@ interface Project {
   id: string
   title: string
   title_ur: string | null
+  display_name: string | null
   description: string | null
   description_ur: string | null
   status: string
@@ -51,6 +52,10 @@ type Lang = 'en' | 'ur'
 // form is blocked from replacing (see the admin projects page).
 const HEALTH_COVER_IMAGE = '/images/health-project-cover.jpg'
 const isHealthCategory = (category: string | null) => category === 'health'
+// Every donor-facing surface on this page prefers the admin-set public
+// label (see migration 364) over the real title — for a medical project
+// whose real title is a patient's name, this is the whole point.
+const displayTitle = (project: Project) => project.display_name || project.title
 
 // Same site-wide "Accounts Display Language" toggle every other bilingual
 // page here already respects (site_settings.display_language).
@@ -352,7 +357,7 @@ function OngoingCard({ project, isHot, commentCount, expense, dt, isUrdu }: { pr
           fixed cover image, never a real before/after pair. */}
       {isHealthCategory(project.category) ? (
         <div className="relative aspect-[4/3] md:aspect-auto md:h-full min-h-[240px]">
-          <Image src={HEALTH_COVER_IMAGE} alt={project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+          <Image src={HEALTH_COVER_IMAGE} alt={displayTitle(project)} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
         </div>
       ) : (
         <div className="relative grid grid-cols-2 gap-[2px] bg-dp-outline-variant p-[2px]">
@@ -392,7 +397,7 @@ function OngoingCard({ project, isHot, commentCount, expense, dt, isUrdu }: { pr
             </span>
           </div>
           <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-1 text-dp-on-surface">
-            {project.title}
+            {displayTitle(project)}
           </h3>
           <div className="flex items-center text-dp-on-surface-variant mb-6 gap-1">
             <MapPin size={16} />
@@ -485,9 +490,9 @@ function CompletedCard({ project, isHot, dt, isUrdu, received, expense }: { proj
           {dt('successStory')}
         </div>
         {isHealthCategory(project.category) ? (
-          <Image src={HEALTH_COVER_IMAGE} alt={project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+          <Image src={HEALTH_COVER_IMAGE} alt={displayTitle(project)} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
         ) : project.after_image_url || project.proposal_image_url ? (
-          <Image src={project.after_image_url ?? project.proposal_image_url ?? ''} alt={project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+          <Image src={project.after_image_url ?? project.proposal_image_url ?? ''} alt={displayTitle(project)} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-dp-secondary to-dp-primary-container" />
         )}
@@ -506,7 +511,7 @@ function CompletedCard({ project, isHot, dt, isUrdu, received, expense }: { proj
             </span>
           </div>
           <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-1 text-dp-on-surface">
-            {project.title}
+            {displayTitle(project)}
           </h3>
           <div className="flex items-center text-dp-on-surface-variant mb-6 gap-1">
             <MapPin size={16} />
@@ -584,9 +589,9 @@ function UpcomingCard({ project, voteCount, isHot, dt, isUrdu }: { project: Proj
   const { t: tr } = useLocale()
   const share = async () => {
     const url = typeof window !== 'undefined' ? `${window.location.origin}/projects/${project.id}` : ''
-    const text = `${project.title} — ${url}`
+    const text = `${displayTitle(project)} — ${url}`
     if (typeof navigator !== 'undefined' && navigator.share) {
-      try { await navigator.share({ title: project.title, text, url }); return } catch { return }
+      try { await navigator.share({ title: displayTitle(project), text, url }); return } catch { return }
     }
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
@@ -597,9 +602,9 @@ function UpcomingCard({ project, voteCount, isHot, dt, isUrdu }: { project: Proj
       {/* Left: Photo when the proposer submitted one, else the illustration */}
       <div className="relative bg-blue-50 flex items-center justify-center min-h-[300px]">
         {isHealthCategory(project.category) ? (
-          <Image src={HEALTH_COVER_IMAGE} alt={project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+          <Image src={HEALTH_COVER_IMAGE} alt={displayTitle(project)} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
         ) : project.proposal_image_url ? (
-          <Image src={project.proposal_image_url} alt={project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+          <Image src={project.proposal_image_url} alt={displayTitle(project)} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
         ) : (
           <div className="text-center p-8">
             <Vote size={64} className="text-blue-500 mb-4 mx-auto" />
@@ -631,7 +636,7 @@ function UpcomingCard({ project, voteCount, isHot, dt, isUrdu }: { project: Proj
             </span>
           </div>
           <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-1 text-dp-on-surface">
-            {project.title}
+            {displayTitle(project)}
           </h3>
           <div className="flex items-center text-dp-on-surface-variant mb-6 gap-1">
             <MapPin size={16} />
@@ -708,7 +713,7 @@ function AnnouncedCard({ project, dt, isUrdu }: { project: Project; dt: Dt; isUr
     <div className="relative bg-dp-surface-container-low border-2 border-dashed border-dp-outline-variant rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 opacity-90">
       <div className="relative bg-slate-100 flex items-center justify-center min-h-[220px] md:min-h-[300px]">
         {project.proposal_image_url && (
-          <Image src={project.proposal_image_url} alt={project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover grayscale opacity-40" />
+          <Image src={project.proposal_image_url} alt={displayTitle(project)} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover grayscale opacity-40" />
         )}
         <div className="relative text-center p-8">
           <Lock size={56} className="text-slate-400 mb-4 mx-auto" />
@@ -726,7 +731,7 @@ function AnnouncedCard({ project, dt, isUrdu }: { project: Project; dt: Dt; isUr
             </span>
           </div>
           <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-1 text-dp-on-surface-variant">
-            {project.title}
+            {displayTitle(project)}
           </h3>
           <div className="flex items-center text-dp-on-surface-variant mb-6 gap-1">
             <MapPin size={16} />

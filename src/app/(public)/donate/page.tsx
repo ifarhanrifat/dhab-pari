@@ -35,10 +35,10 @@ export default async function DonatePage() {
       .eq('is_verified', true).order('amount_pkr', { ascending: false }).limit(10),
     supabase.from('donors_public').select('id, name, amount_pkr, date, is_anonymous, project_id')
       .eq('is_verified', false).order('date', { ascending: false }).limit(10),
-    supabase.from('projects').select('id, title'),
+    supabase.from('projects').select('id, title, display_name'),
   ])
 
-  const projectTitleById = new Map((projectRows ?? []).map((p) => [p.id, p.title]))
+  const projectTitleById = new Map((projectRows ?? []).map((p) => [p.id, p.display_name || p.title]))
   const allDonors = donors ?? []
   const announcedDonors = announced ?? []
 

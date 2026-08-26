@@ -11,7 +11,7 @@ import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload
 import { PaymentAccountDetails } from '@/components/public/PaymentAccountDetails'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
-interface Project { id: string; title: string }
+interface Project { id: string; title: string; display_name: string | null }
 interface DonationRow { id: string; amount_pkr: number; payment_status: string; is_verified: boolean }
 interface PoolPending { id: string; source: 'pool'; amount_pkr: number; has_proof: boolean; particular: string }
 interface PendingItem { key: string; kind: 'donor' | 'pool'; id: string; amount: number; label: string }
@@ -68,7 +68,7 @@ function PortalDonatePageInner() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.from('projects').select('id, title').neq('status', 'upcoming').order('title').then(({ data }) => setProjects(data ?? []))
+    supabase.from('projects').select('id, title, display_name').neq('status', 'upcoming').order('title').then(({ data }) => setProjects(data ?? []))
   }, [])
 
   useEffect(() => {
@@ -202,7 +202,7 @@ function PortalDonatePageInner() {
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.project')}</label>
           <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="input-field">
             <option value="">{t('w.generalFund')}</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+            {projects.map((p) => <option key={p.id} value={p.id}>{p.display_name || p.title}</option>)}
           </select>
         </div>
         <label dir={isUrdu ? 'rtl' : 'ltr'} className="flex items-start gap-2.5 cursor-pointer font-sans text-[13.5px] text-dp-on-surface">
