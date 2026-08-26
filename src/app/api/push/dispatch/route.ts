@@ -11,12 +11,13 @@ import { createAdminClient } from '@/lib/supabase/admin'
 // Fire-and-forget from Postgres's side: the trigger doesn't wait on this
 // route's response, so a slow push service or a dead subscription here
 // never holds up the notification insert itself.
-
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
+//
+// setVapidDetails() is called inside the handler, not up here at module
+// scope — Next.js evaluates every route module during the build's page-
+// data-collection step (to figure out which routes are dynamic), so a
+// top-level call throws at BUILD time, not request time, the moment any
+// one of the three VAPID env vars is missing — which took down the whole
+// site's build, not just this one feature, until this was moved.
 
 interface DispatchBody {
   table: 'notifications' | 'portal_notifications'
@@ -28,6 +29,15 @@ export async function POST(req: NextRequest) {
   if (auth !== `Bearer ${process.env.PUSH_TRIGGER_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const { VAPID_SUBJECT, NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY } = process.env
+  if (!VAPID_SUBJECT || !NEXT_PUBLIC_VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+    // Push notifications are genuinely optional — the trigger that calls
+    // this route doesn't wait on the response, so failing loudly here just
+    // means this one delivery is skipped, never that anything else breaks.
+    return NextResponse.json({ error: 'Push notifications are not configured (missing VAPID env vars).' }, { status: 503 })
+  }
+  webpush.setVapidDetails(VAPID_SUBJECT, NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 
   const { table, id } = (await req.json()) as DispatchBody
   if (table !== 'notifications' && table !== 'portal_notifications') {
