@@ -454,15 +454,21 @@ function AdminDonorsPageInner() {
                       </span>
                     )}
                   </p>
-                  <p className="font-sans text-[15px] font-bold text-dp-secondary shrink-0 whitespace-nowrap">Rs. {Number(d.amount_pkr).toLocaleString()}</p>
+                  <p className="font-sans text-[15px] font-bold text-dp-secondary shrink-0 whitespace-nowrap">{Number(d.amount_pkr).toLocaleString()}</p>
                 </div>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5 truncate">
                   {/* font-mono on a bare <p> forces display:inline-block under
                       Urdu (globals.css, so LTR numbers embed correctly inside
                       RTL text) — which can pull this row onto the same line
                       as an inline sibling above it. Scoped to a nested span
-                      instead, so the <p> itself stays a normal block. */}
-                  <span className="font-mono">{accountNoByKey.get(donorKeyFor(d.name, d.phone)) ?? '—'}{d.phone ? ` · ${d.phone}` : ''}</span>
+                      instead, so the <p> itself stays a normal block. The
+                      phone number gets its own dir="ltr" span rather than
+                      sharing font-mono's embed with the account number — a
+                      "+92..." number's leading + is direction-weak enough
+                      that Urdu's RTL context could still pull it to the end
+                      ("923..." + trailing +) without an explicit direction. */}
+                  <span className="font-mono">{accountNoByKey.get(donorKeyFor(d.name, d.phone)) ?? '—'}</span>
+                  {d.phone && <> · <span dir="ltr" className="font-mono tabular-nums">{d.phone}</span></>}
                 </p>
                 <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">
                   {new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -533,8 +539,8 @@ function AdminDonorsPageInner() {
                       Scoped to a nested span instead — same fix already applied
                       to the mobile card view above. */}
                   <td className="p-4 border-b border-dp-outline-variant text-[13px] text-dp-on-surface-variant whitespace-nowrap"><span className="font-mono">{accountNoByKey.get(donorKeyFor(d.name, d.phone)) ?? '—'}</span></td>
-                  <td className="p-4 border-b border-dp-outline-variant text-[14px] text-dp-on-surface-variant whitespace-nowrap">{d.phone ?? '—'}</td>
-                  <td className="p-4 border-b border-dp-outline-variant font-bold text-dp-secondary whitespace-nowrap">Rs. {Number(d.amount_pkr).toLocaleString()}</td>
+                  <td className="p-4 border-b border-dp-outline-variant text-[14px] text-dp-on-surface-variant whitespace-nowrap">{d.phone ? <span dir="ltr" className="font-mono tabular-nums">{d.phone}</span> : '—'}</td>
+                  <td className="p-4 border-b border-dp-outline-variant font-bold text-dp-secondary whitespace-nowrap">{Number(d.amount_pkr).toLocaleString()}</td>
                   <td className="p-4 border-b border-dp-outline-variant text-[14px] text-dp-on-surface-variant whitespace-nowrap">{new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                   <td className="p-4 border-b border-dp-outline-variant">
                     <span className="inline-flex flex-wrap gap-1">
