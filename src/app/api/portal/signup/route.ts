@@ -13,10 +13,6 @@ function syntheticEmail(mobile: string) {
   return `${mobile.replace(/[^0-9]/g, '')}@portal.dhabpari.local`
 }
 
-function donorKeyFor(name: string, phone: string | null) {
-  const p = (phone ?? '').trim()
-  return (p !== '' ? p : name.trim()).toLowerCase()
-}
 
 export async function POST(req: NextRequest) {
   let body: {
@@ -132,11 +128,23 @@ export async function POST(req: NextRequest) {
     .limit(1)
     .maybeSingle()
 
-  const donorKey = donorKeyFor(fullName, mobile)
-  const { data: matchedDonorAccount } = await admin.from('accounts')
-    .select('id')
-    .eq('type', 'donor').eq('system', 'donors_projects').eq('donor_key', donorKey)
-    .maybeSingle()
+  // match_donor_account_by_phone (migration 357) normalizes both sides to
+  // bare core digits before comparing, so "+923001234567", "03001234567",
+  // "0300-1234567" etc. all resolve to the same donor regardless of which
+  // format the old donation happened to be recorded in — an exact string
+  // match here would miss most real matches given how differently a
+  // number can end up typed/imported over the years. Tries the mobile
+  // number first, then WhatsApp, same two fields the consumer match above
+  // already checks. Never auto-links onto an account a different portal
+  // login already claims — that account_id comes back null in that case,
+  // same as a genuine no-match, and is resolved later through the
+  // confirm/dispute flow on the portal side instead of silently here.
+  let matchedDonorAccountId: string | null = null
+  for (const candidate of [mobile, whatsapp]) {
+    const { data: match } = await admin.rpc('match_donor_account_by_phone', { p_phone: candidate })
+      .maybeSingle<{ account_id: string; already_claimed: boolean }>()
+    if (match?.account_id && !match.already_claimed) { matchedDonorAccountId = match.account_id; break }
+  }
 
   // Claiming an accountant-created placeholder updates that same row rather
   // than inserting a second one — the whole point is one account per donor.
@@ -155,7 +163,7 @@ export async function POST(req: NextRequest) {
         auth_user_id: authUser.user.id, username, email: userEmail, name_ur: nameUr,
         whatsapp_number: whatsapp, donor_type: donorType, country, sector,
         consumer_id: matchedConsumer?.consumer_id ?? null,
-        donor_account_id: matchedDonorAccount?.id ?? null,
+        donor_account_id: matchedDonorAccountId,
         ...mentorshipFields,
       }).eq('id', claiming.id)
     : await admin.from('portal_users').insert({
@@ -163,7 +171,7 @@ export async function POST(req: NextRequest) {
         mobile, whatsapp_number: whatsapp, father_husband_name: fatherName,
         donor_type: donorType, country, sector, username, email: userEmail,
         consumer_id: matchedConsumer?.consumer_id ?? null,
-        donor_account_id: matchedDonorAccount?.id ?? null,
+        donor_account_id: matchedDonorAccountId,
         ...mentorshipFields,
       })
   if (writeErr) {

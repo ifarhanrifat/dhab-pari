@@ -17,11 +17,12 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { GraduationCap, HeartHandshake, UserCircle2 } from 'lucide-react'
 import { MentorshipProfileFields, type MentorshipFieldsValue } from '@/components/portal/MentorshipProfileFields'
+import { DonorLinkVerification } from '@/components/portal/DonorLinkVerification'
 
 export default function PortalWelcomePage() {
   const { t, isUrdu } = useLocale()
   const router = useRouter()
-  const { user, loading: userLoading } = usePortalUser()
+  const { user, loading: userLoading, refresh } = usePortalUser()
   const supabase = createClient()
 
   const [displayName, setDisplayName] = useState('')
@@ -69,6 +70,8 @@ export default function PortalWelcomePage() {
         <h1 className="font-heading text-[24px] font-bold text-dp-primary">{t('p.welcomeTitle').replace('{name}', user.full_name)}</h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1 max-w-sm">{t('p.welcomeSubtitle')}</p>
       </div>
+
+      <DonorLinkVerification user={user} onLinked={refresh} />
 
       <div className="bg-white rounded-lg border border-dp-outline-variant p-6 md:p-8 w-full max-w-md">
         <h2 className="font-sans text-[13px] font-bold text-dp-primary uppercase tracking-wide mb-3 flex items-center gap-1.5"><UserCircle2 size={15} /> {t('p.displayName')}</h2>
