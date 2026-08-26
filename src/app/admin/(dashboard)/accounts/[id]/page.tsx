@@ -10,7 +10,7 @@ import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { printNodeInPopup } from '@/lib/receiptExport'
-import { entryTypeLabel } from '@/lib/ledgerLabels'
+import { entryTypeLabel, voucherReceiptKind } from '@/lib/ledgerLabels'
 import { dt } from '@/lib/docTranslations'
 import { translateParticular } from '@/lib/ledgerParticular'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -206,6 +206,19 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
     // the statement's own receipt view showed the same bare lump total the
     // Transactions Workspace's did before that got the same fix.
     let lineItems: { description: string; quantity: number; unitPrice: number }[] | undefined
+    // A voucher-sourced ledger row was always being printed with the SAME
+    // generic "Receipt / Received From / Outstanding Amount" wording a
+    // donation or a water bill payment gets — an expense (money paid OUT)
+    // read exactly like money coming in, and whichever account's statement
+    // happened to be open printed as if IT were the payee, same class of
+    // bug as the donor-vs-project mixup fixed earlier. The Transactions
+    // Workspace already solved this correctly (voucherReceiptKind +
+    // resolving the real from/to account names, not the page's own
+    // account) — replicated here rather than re-invented.
+    let voucherAccountName: string | undefined
+    let voucherAccountNameUr: string | null | undefined
+    let paidFromName: string | undefined
+    let voucherKind: ReceiptData['kind'] | undefined
     if (row.reference_type === 'voucher' && row.reference_id) {
       const { data: items } = await supabase.from('voucher_line_items')
         .select('description, category, amount').eq('voucher_id', row.reference_id)
@@ -214,6 +227,23 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
           description: l.description || (l.category ? l.category.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Item'),
           quantity: 1, unitPrice: Number(l.amount),
         }))
+      }
+
+      const { data: v } = await supabase.from('vouchers')
+        .select('voucher_type, from_account_id, to_account_id, party_name')
+        .eq('id', row.reference_id).single()
+      if (v) {
+        voucherKind = voucherReceiptKind[v.voucher_type ?? ''] ?? 'manual'
+        const acctIds = [v.from_account_id, v.to_account_id].filter((x): x is string => !!x)
+        let namesById: Record<string, { name: string; name_ur: string | null }> = {}
+        if (acctIds.length > 0) {
+          const { data: accts } = await supabase.from('accounts').select('id, name, name_ur').in('id', acctIds)
+          namesById = Object.fromEntries((accts ?? []).map((a) => [a.id, { name: a.name, name_ur: a.name_ur }]))
+        }
+        const toAccount = v.to_account_id ? namesById[v.to_account_id] : undefined
+        voucherAccountName = toAccount?.name ?? v.party_name ?? entryTypeLabel('voucher', v.voucher_type, lang)
+        voucherAccountNameUr = toAccount?.name_ur
+        paidFromName = v.from_account_id ? namesById[v.from_account_id]?.name : undefined
       }
     }
 
@@ -268,20 +298,27 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
       }
     }
 
-    const receiptKind = row.reference_type === 'bill' || row.reference_type === 'payment' || row.reference_type === 'donation' ? row.reference_type : 'manual'
+    const receiptKind = row.reference_type === 'bill' || row.reference_type === 'payment' || row.reference_type === 'donation'
+      ? row.reference_type
+      : row.reference_type === 'voucher' ? (voucherKind ?? 'manual') : 'manual'
+    // A voucher has no "outstanding balance" concept — the running figure
+    // on whichever account statement happened to be open was being printed
+    // under that label regardless, which read as a real amount owed.
+    const balanceAfter = row.reference_type === 'voucher' ? 0 : row.balance
     setReceipt({
       kind: receiptKind,
       receiptNo: donorVoucherNo ?? receiptNo,
       date: row.entry_date,
       systemLabel: systemLabels[account?.system ?? ''] ?? '',
-      accountName: donorName ?? account?.name ?? '',
-      accountNameUr: donorName ? donorNameUr : account?.name_ur,
+      accountName: donorName ?? voucherAccountName ?? account?.name ?? '',
+      accountNameUr: donorName ? donorNameUr : (voucherAccountNameUr ?? account?.name_ur),
       accountAddress: consumerInfo?.address,
       particular: translateParticular(row.particular, t, isUrdu),
       amount: row.debit > 0 ? row.debit : row.credit,
-      balanceAfter: row.balance,
+      balanceAfter,
       billOutstandingAfter,
       projectName,
+      paidFromName,
       lineItems,
     })
     void phone
