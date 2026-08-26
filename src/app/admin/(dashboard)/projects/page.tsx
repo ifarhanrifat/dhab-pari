@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, Pencil, Trash2, Eye, EyeOff, Zap } from 'lucide-react'
+import { PlusCircle, X, Pencil, Trash2, Eye, EyeOff, Zap, Lock, LockOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ImageUpload } from '@/components/admin/ImageUpload'
@@ -11,7 +11,11 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 interface Project { id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null; status: string; progress_percent: number; budget_pkr: number | null; spent_pkr: number | null; category: string | null; location: string | null; sector: string | null; is_featured: boolean; before_image_url: string | null; after_image_url: string | null; start_date: string | null; end_date: string | null; beneficiaries_count: number | null; funding_model: string | null; monthly_operating_cost_pkr: number | null
   // Migration 311 — a donor-proposed project, its badge-tier fast-track
   // flag (skips community voting), and the staff-only visibility switch.
-  admin_hidden: boolean; skip_voting: boolean; proposed_by_portal_user_id: string | null }
+  admin_hidden: boolean; skip_voting: boolean; proposed_by_portal_user_id: string | null
+  // Migration 359 — fully invisible to the public (not admin_hidden, which
+  // means "draft/rejected proposal", a different concept from "this is a
+  // real, live project that must never be individually identifiable").
+  is_private: boolean }
 
 const statuses = ['ongoing', 'completed', 'upcoming']
 const categories = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'sports', 'other']
@@ -26,7 +30,7 @@ const categoryLabelKey: Record<string, string> = {
   environment: 'pj.catEnvironment', welfare: 'pj.catWelfare', sports: 'pj.catSports', other: 'pj.catOther',
 }
 
-const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0, funding_model: 'one_time', monthly_operating_cost_pkr: 0 }
+const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0, funding_model: 'one_time', monthly_operating_cost_pkr: 0, is_private: false }
 
 export default function AdminProjectsPage() {
   const { t, isUrdu } = useLocale()
@@ -63,7 +67,7 @@ export default function AdminProjectsPage() {
     setShowForm(false); setEditing(null); setForm(empty); load()
   }
 
-  const edit = (p: Project) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0 }); setEditing(p.id); setShowForm(true) }
+  const edit = (p: Project) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0, is_private: p.is_private }); setEditing(p.id); setShowForm(true) }
 
   const remove = async (id: string) => { if (!confirm(t('pj.confirmDelete'))) return; await supabase.from('projects').delete().eq('id', id); toast.success(t('pj.deleted')); load() }
   // Pulls a donor-submitted proposal out of public view without rejecting
@@ -73,6 +77,16 @@ export default function AdminProjectsPage() {
     const { error } = await supabase.from('projects').update({ admin_hidden: !p.admin_hidden }).eq('id', p.id)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(p.admin_hidden ? t('pj.unhiddenToast') : t('pj.hiddenToast'))
+    load()
+  }
+
+  // Fully invisible to the public (RLS blocks it, not a client-side filter
+  // that could be forgotten on some page) — available on every project,
+  // not just donor-proposed ones like toggleHidden above.
+  const togglePrivate = async (p: Project) => {
+    const { error } = await supabase.from('projects').update({ is_private: !p.is_private }).eq('id', p.id)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(p.is_private ? t('pj.madePublicToast') : t('pj.madePrivateToast'))
     load()
   }
 
@@ -99,6 +113,9 @@ export default function AdminProjectsPage() {
                 {p.admin_hidden && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold text-dp-error bg-dp-error/10 rounded-full px-2 py-0.5 font-sans"><EyeOff size={11} /> {t('pj.hiddenBadge')}</span>
                 )}
+                {p.is_private && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 bg-purple-50 rounded-full px-2 py-0.5 font-sans"><Lock size={11} /> {t('pj.privateBadge')}</span>
+                )}
               </div>
               <h3 className="font-sans text-[18px] font-bold text-dp-on-surface truncate">{p.title}</h3>
               <p className="font-sans text-[14px] text-dp-on-surface-variant">{t(categoryLabelKey[p.category ?? ''] ?? p.category ?? '', p.category ?? '')} · {p.location} · {p.progress_percent}%</p>
@@ -111,6 +128,10 @@ export default function AdminProjectsPage() {
                   {p.admin_hidden ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               )}
+              <button onClick={() => togglePrivate(p)} title={t(p.is_private ? 'pj.makePublicAction' : 'pj.makePrivateAction')}
+                className={`p-2 rounded-lg cursor-pointer ${p.is_private ? 'text-purple-700 hover:bg-purple-50' : 'text-dp-on-surface-variant hover:bg-dp-surface-container'}`}>
+                {p.is_private ? <Lock size={16} /> : <LockOpen size={16} />}
+              </button>
               <button onClick={() => edit(p)} className="p-2 text-dp-primary hover:bg-dp-primary/10 rounded-lg cursor-pointer"><Pencil size={16} /></button>
               <button onClick={() => remove(p.id)} className="p-2 text-dp-error hover:bg-dp-error/10 rounded-lg cursor-pointer"><Trash2 size={16} /></button>
             </div>
@@ -163,6 +184,8 @@ export default function AdminProjectsPage() {
                 <ImageUpload bucket="images" currentUrl={form.after_image_url} onUpload={(url) => setForm({ ...form, after_image_url: url })} label={t('pj.afterPhoto')} />
               </div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_featured} onChange={(e) => setForm({ ...form, is_featured: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('z.featuredProject')}</span></label>
+              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_private} onChange={(e) => setForm({ ...form, is_private: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('pj.privateProject')}</span></label>
+              {form.is_private && <p className="font-sans text-[12px] text-dp-on-surface-variant -mt-2">{t('pj.privateProjectHint')}</p>}
               <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">{editing ? t('pj.updateProjectBtn') : t('pj.createProjectBtn')}</button>
             </div>
           </div>

@@ -49,6 +49,8 @@ type Lang = 'en' | 'ur'
 const t: Record<string, { en: string; ur: string }> = {
   pageTitle: { en: 'Village Welfare Projects', ur: 'گاؤں کی فلاحی منصوبے' },
   pageSubtitle: { en: `Tracking the growth of ${SITE.name} through community-funded infrastructure, healthcare, and educational initiatives.`, ur: `کمیونٹی کی مالی معاونت سے تعمیرات، صحت اور تعلیمی اقدامات کے ذریعے ${SITE.nameUrdu} کی ترقی کا سفر۔` },
+  privateTotalLabel: { en: 'Spent on confidential medical support', ur: 'خفیہ طبی امداد پر خرچ' },
+  privateTotalNote: { en: "Individual cases are kept private — names, amounts, and details are never shown here to protect the people involved.", ur: 'انفرادی کیسز کو خفیہ رکھا جاتا ہے — متعلقہ افراد کی حفاظت کے لیے یہاں نام، رقم یا تفصیلات ظاہر نہیں کی جاتیں۔' },
   filterAll: { en: 'All', ur: 'تمام' },
   filterOngoing: { en: 'Ongoing', ur: 'جاری' },
   filterCompleted: { en: 'Completed', ur: 'مکمل' },
@@ -127,6 +129,10 @@ export default function ProjectsPage() {
   const [activeFilter, setActiveFilter] = useState('All')
   const [loading, setLoading] = useState(true)
   const [lang, setLang] = useState<Lang>('en')
+  // Private/medical projects never appear individually anywhere on this
+  // page (RLS blocks the rows themselves) — this is the one honest number
+  // the public IS told, naming no one and no specific case.
+  const [privateTotal, setPrivateTotal] = useState(0)
   const dt = (key: keyof typeof t) => t[key][lang]
   const isUrdu = lang === 'ur'
 
@@ -135,6 +141,7 @@ export default function ProjectsPage() {
     supabase.from('site_settings').select('value').eq('key', 'display_language').maybeSingle().then(({ data }) => {
       if (data?.value === 'ur') setLang('ur')
     })
+    supabase.rpc('public_private_projects_total').then(({ data }) => setPrivateTotal(Number(data ?? 0)))
     supabase
       .from('projects')
       .select('*')
@@ -187,6 +194,23 @@ export default function ProjectsPage() {
           {dt('pageSubtitle')}
         </p>
       </div>
+
+      {/* Private/medical support — the one aggregate figure for projects
+          this page never lists individually. Quiet by design, not a hero
+          stat, since the point is discretion, not drawing attention. */}
+      {privateTotal > 0 && (
+        <div className="flex items-start gap-3 bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-5 py-4 mb-8 max-w-2xl" dir={isUrdu ? 'rtl' : 'ltr'}>
+          <Lock size={17} className="text-dp-on-surface-variant shrink-0 mt-0.5" />
+          <div>
+            <p className="font-sans text-[15px] font-bold text-dp-on-surface" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+              {dt('privateTotalLabel')}: Rs. {fmtFull(privateTotal)}
+            </p>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5 leading-relaxed" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+              {dt('privateTotalNote')}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Filter Bar */}
       <div className="flex flex-wrap items-center gap-4 mb-8">
