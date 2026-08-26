@@ -27,9 +27,29 @@ export interface LegacyDonation {
 }
 
 export interface LegacyExpense {
+  /** The real BookKeeper voucher number this line belongs to — kept
+   *  un-suffixed so it prints as the correct bill/receipt number on
+   *  statements even when several lines share one original voucher. */
   vchNo: string
+  /** Unique key for idempotent import: same as vchNo for a plain
+   *  single-category voucher, `${vchNo}-${n}` for one of several real
+   *  split lines pulled out of a compound voucher. */
+  externalRef: string
   date: string
   category: string
+  projectAname: string
+  amount: number
+  narration: string | null
+}
+
+/** A Receipt voucher where money flowed back INTO an expense account (a
+ *  refund of a prior payment, e.g. a hospital returning an unused advance)
+ *  — this is a reduction of that expense, not new donor income, and must
+ *  never be posted as a donation. */
+export interface LegacyExpenseReversal {
+  vchNo: string
+  date: string
+  expenseAccountName: string
   projectAname: string
   amount: number
   narration: string | null
@@ -40,9 +60,10 @@ export interface LegacyImportData {
   projects: LegacyProject[]
   donations: LegacyDonation[]
   expenses: LegacyExpense[]
-  /** Receipts whose credited party isn't a real donor account (the one
-   *  known case: a refund posted against an expense account) — surfaced,
-   *  never silently dropped or silently guessed at. */
+  expenseReversals: LegacyExpenseReversal[]
+  /** Receipts whose credited party is neither a real donor account nor a
+   *  recognizable expense-refund — surfaced, never silently dropped or
+   *  silently guessed at. */
   anomalies: { vchNo: string; date: string; credit: string; debit: string; amount: number }[]
 }
 
@@ -92,16 +113,30 @@ export async function parseBookKeeperDb(fileBuffer: Buffer): Promise<LegacyImpor
     donorAccounts.set(r.aname, { phone: r.phone, address: r.address, group: r.account_group })
   }
 
+  // Expense-account names — used below to recognize a Receipt that's
+  // actually a refund flowing back into an expense account, not a donation.
+  const expenseAccountNames = new Set(
+    one<{ aname: string }>(`SELECT aname FROM account_detail WHERE a_type = 'Direct Expenses'`).map((r) => r.aname)
+  )
+
   const receipts = one<{ v_id: number; date: string; vch_no: string; debit: string; credit: string; amount: number; narration: string | null }>(
     `SELECT v_id, date, vch_no, debit, credit, amount, narration FROM vouchers WHERE v_type = 'Receipt' ORDER BY v_id`
   )
 
   const donations: LegacyDonation[] = []
+  const expenseReversals: LegacyImportData['expenseReversals'] = []
   const anomalies: LegacyImportData['anomalies'] = []
   for (const r of receipts) {
     const donor = donorAccounts.get(r.credit)
     if (!donor) {
-      anomalies.push({ vchNo: r.vch_no, date: r.date, credit: r.credit, debit: r.debit, amount: r.amount })
+      if (expenseAccountNames.has(r.credit)) {
+        expenseReversals.push({
+          vchNo: r.vch_no, date: r.date, expenseAccountName: r.credit,
+          projectAname: r.debit, amount: r.amount, narration: r.narration,
+        })
+      } else {
+        anomalies.push({ vchNo: r.vch_no, date: r.date, credit: r.credit, debit: r.debit, amount: r.amount })
+      }
       continue
     }
     donations.push({
@@ -116,29 +151,52 @@ export async function parseBookKeeperDb(fileBuffer: Buffer): Promise<LegacyImpor
       narration: r.narration,
     })
   }
-  // The one known real-world anomaly (a refund credited against an expense
-  // account, not a donor) — per explicit instruction, imported as-is rather
-  // than silently recategorized. Still surfaced in `anomalies` for the
-  // preview screen so it's never a surprise.
-  for (const a of anomalies) {
-    donations.push({
-      vchNo: a.vchNo, date: a.date, donorName: a.credit, donorPhone: null, donorAddress: null,
-      donorType: 'villager', projectAname: projects.some((p) => p.aname === a.debit) ? a.debit : null,
-      amount: a.amount, narration: `(refund/adjustment — originally credited against "${a.credit}")`,
+  // `anomalies` (a Receipt credited against neither a real donor nor a
+  // known expense account) stays surfaced-only, never guessed into a
+  // donation — the one real case seen so far (a hospital refund posted
+  // against "OT Expenses") turned out to be exactly this misclassification
+  // and is now caught by the expense-account check above instead.
+
+  // BookKeeper's `vouchers` table only ever stores ONE debit/credit pair per
+  // voucher — for a genuinely compound payment (a single trip that covered
+  // Doctor Fee + Medicine + Vehicle Rent, say) it collapses every real
+  // category into the FIRST one and just sums the total amount there. The
+  // true per-category split lives in `vouchers_all` (same v_id, one row per
+  // real leg) — BookKeeper's own per-account reports read from there, which
+  // is why a category like "Photocopy Expense" can show real entries on
+  // BookKeeper's screen while being entirely invisible in `vouchers`.
+  // Reading `vouchers_all` here (not `vouchers.debit`/`vouchers.amount`) is
+  // the only way to get category totals that actually match BookKeeper's
+  // own reports.
+  const payments = one<{ v_id: number; date: string; vch_no: string; credit: string; narration: string | null }>(
+    `SELECT v_id, date, vch_no, credit, narration FROM vouchers WHERE v_type = 'Payment' ORDER BY v_id`
+  )
+  const splitLines = one<{ v_id: number; debit: string; amount: number }>(
+    `SELECT v_id, debit, amount FROM vouchers_all ORDER BY v_id, rowid`
+  )
+  const linesByVoucher = new Map<number, { debit: string; amount: number }[]>()
+  for (const l of splitLines) {
+    if (!l.amount || l.amount <= 0) continue // e.g. a leftover "Round off" placeholder line of 0.00
+    if (!linesByVoucher.has(l.v_id)) linesByVoucher.set(l.v_id, [])
+    linesByVoucher.get(l.v_id)!.push({ debit: l.debit, amount: l.amount })
+  }
+
+  const expenses: LegacyExpense[] = []
+  for (const p of payments) {
+    if (!projects.some((proj) => proj.aname === p.credit)) continue
+    const lines = linesByVoucher.get(p.v_id) ?? []
+    const multi = lines.length > 1
+    lines.forEach((l, i) => {
+      expenses.push({
+        vchNo: p.vch_no,
+        externalRef: multi ? `${p.vch_no}-${i + 1}` : p.vch_no,
+        date: p.date, category: l.debit, projectAname: p.credit,
+        amount: l.amount, narration: p.narration,
+      })
     })
   }
 
-  const payments = one<{ v_id: number; date: string; vch_no: string; debit: string; credit: string; amount: number; narration: string | null }>(
-    `SELECT v_id, date, vch_no, debit, credit, amount, narration FROM vouchers WHERE v_type = 'Payment' ORDER BY v_id`
-  )
-  const expenses: LegacyExpense[] = payments
-    .filter((p) => projects.some((proj) => proj.aname === p.credit))
-    .map((p) => ({
-      vchNo: p.vch_no, date: p.date, category: p.debit,
-      projectAname: p.credit, amount: p.amount, narration: p.narration,
-    }))
-
   db.close()
 
-  return { companyName: company[0]?.c_name ?? null, projects, donations, expenses, anomalies }
+  return { companyName: company[0]?.c_name ?? null, projects, donations, expenses, expenseReversals, anomalies }
 }

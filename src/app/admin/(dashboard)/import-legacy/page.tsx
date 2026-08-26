@@ -20,7 +20,7 @@ export default function ImportLegacyPage() {
   const [phase, setPhase] = useState<Phase>('idle')
   const [data, setData] = useState<LegacyImportData | null>(null)
   const [progress, setProgress] = useState({ label: '', done: 0, total: 0 })
-  const [result, setResult] = useState({ projects: 0, donations: 0, expenses: 0, errors: [] as string[] })
+  const [result, setResult] = useState({ projects: 0, donations: 0, expenses: 0, expenseReversals: 0, errors: [] as string[] })
 
   const analyze = async () => {
     if (!file) return
@@ -34,7 +34,7 @@ export default function ImportLegacyPage() {
     setPhase('previewed')
   }
 
-  const runBatches = async <T,>(phaseName: 'projects' | 'donations' | 'expenses', items: T[], label: string) => {
+  const runBatches = async <T,>(phaseName: 'projects' | 'donations' | 'expenses' | 'expenseReversals', items: T[], label: string) => {
     let imported = 0
     const errors: string[] = []
     if (phaseName === 'projects') {
@@ -79,7 +79,10 @@ export default function ImportLegacyPage() {
     const expRes = await runBatches('expenses', data.expenses, t('il.phaseExpenses'))
     allErrors.push(...expRes.errors)
 
-    setResult({ projects: projRes.imported, donations: donRes.imported, expenses: expRes.imported, errors: allErrors })
+    const revRes = await runBatches('expenseReversals', data.expenseReversals, t('il.phaseExpenseReversals'))
+    allErrors.push(...revRes.errors)
+
+    setResult({ projects: projRes.imported, donations: donRes.imported, expenses: expRes.imported, expenseReversals: revRes.imported, errors: allErrors })
     setPhase('done')
     toast.success(t('il.importDone'))
   }
@@ -164,6 +167,7 @@ export default function ImportLegacyPage() {
               <p className="font-sans text-[13.5px] font-bold text-dp-on-surface flex items-center gap-2"><CheckCircle2 size={16} className="text-dp-secondary" /> {t('il.importDone')}</p>
               <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">
                 {result.projects} {t('il.projects').toLowerCase()} · {result.donations} {t('il.donations').toLowerCase()} · {result.expenses} {t('il.expenses').toLowerCase()}
+                {result.expenseReversals > 0 ? ` · ${result.expenseReversals} ${t('il.phaseExpenseReversals').toLowerCase()}` : ''}
               </p>
               {result.errors.length > 0 && (
                 <div className="mt-3 bg-white rounded-lg p-3 max-h-48 overflow-y-auto">

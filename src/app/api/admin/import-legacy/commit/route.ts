@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import type { LegacyDonation, LegacyExpense, LegacyProject } from '@/lib/legacyImport/parseBookKeeper'
+import type { LegacyDonation, LegacyExpense, LegacyExpenseReversal, LegacyProject } from '@/lib/legacyImport/parseBookKeeper'
 
 // Runs as the logged-in admin's own session (not a service-role bypass) —
 // import_legacy_project/donation/expense (migration 350) check
@@ -24,6 +24,7 @@ type Body =
   | { phase: 'projects'; items: LegacyProject[] }
   | { phase: 'donations'; items: LegacyDonation[] }
   | { phase: 'expenses'; items: LegacyExpense[] }
+  | { phase: 'expenseReversals'; items: LegacyExpenseReversal[] }
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -68,21 +69,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ imported, errors })
   }
 
-  // expenses
-  const anames = [...new Set(body.items.map((e) => e.projectAname))]
+  if (body.phase === 'expenses') {
+    const anames = [...new Set(body.items.map((e) => e.projectAname))]
+    const { data: projRows } = await supabase.from('legacy_import_records').select('external_ref, entity_id')
+      .eq('entity_type', 'project').in('external_ref', anames.map((a) => `bookkeeper:project:${a}`))
+    const projectIds = Object.fromEntries((projRows ?? []).map((r) => [r.external_ref.replace('bookkeeper:project:', ''), r.entity_id]))
+
+    for (const e of body.items) {
+      const projectId = projectIds[e.projectAname]
+      if (!projectId) { errors.push(`Expense ${e.externalRef}: project "${e.projectAname}" not found — run the Projects phase first`); continue }
+      // e.externalRef is the plain vchNo for a simple voucher, or
+      // "<vchNo>-<n>" for one real line of a compound BookKeeper voucher
+      // that got split across several categories — receipt_no always
+      // stays the plain original number so statements show the real
+      // BookKeeper voucher number, not the synthetic per-line suffix.
+      const particular = `${e.category}${e.narration ? ' — ' + e.narration : ''} (BookKeeper ${e.vchNo})`
+      const { error } = await supabase.rpc('import_legacy_expense', {
+        p_external_ref: `bookkeeper:payment:${e.externalRef}`, p_expense_account_name: e.category,
+        p_project_id: projectId, p_amount: e.amount, p_date: e.date, p_particular: particular, p_receipt_no: e.vchNo,
+      })
+      if (error) errors.push(`Expense ${e.externalRef}: ${error.message}`)
+      else imported++
+    }
+    return NextResponse.json({ imported, errors })
+  }
+
+  // expenseReversals — a BookKeeper Receipt that refunded money back into an
+  // expense account (e.g. a hospital returning an unused advance), never a
+  // donation.
+  const anames = [...new Set(body.items.map((r) => r.projectAname).filter((a): a is string => !!a))]
   const { data: projRows } = await supabase.from('legacy_import_records').select('external_ref, entity_id')
     .eq('entity_type', 'project').in('external_ref', anames.map((a) => `bookkeeper:project:${a}`))
   const projectIds = Object.fromEntries((projRows ?? []).map((r) => [r.external_ref.replace('bookkeeper:project:', ''), r.entity_id]))
 
-  for (const e of body.items) {
-    const projectId = projectIds[e.projectAname]
-    if (!projectId) { errors.push(`Expense ${e.vchNo}: project "${e.projectAname}" not found — run the Projects phase first`); continue }
-    const particular = `${e.category}${e.narration ? ' — ' + e.narration : ''} (BookKeeper ${e.vchNo})`
-    const { error } = await supabase.rpc('import_legacy_expense', {
-      p_external_ref: `bookkeeper:payment:${e.vchNo}`, p_expense_account_name: e.category,
-      p_project_id: projectId, p_amount: e.amount, p_date: e.date, p_particular: particular, p_receipt_no: e.vchNo,
+  for (const r of body.items) {
+    const projectId = r.projectAname ? projectIds[r.projectAname] ?? null : null
+    const particular = `Refund into ${r.expenseAccountName}${r.narration ? ' — ' + r.narration : ''} (BookKeeper ${r.vchNo})`
+    const { error } = await supabase.rpc('import_legacy_expense_reversal', {
+      p_external_ref: `bookkeeper:receipt:${r.vchNo}`, p_expense_account_name: r.expenseAccountName,
+      p_project_id: projectId, p_amount: r.amount, p_date: r.date, p_particular: particular, p_receipt_no: r.vchNo,
     })
-    if (error) errors.push(`Expense ${e.vchNo}: ${error.message}`)
+    if (error) errors.push(`Reversal ${r.vchNo}: ${error.message}`)
     else imported++
   }
   return NextResponse.json({ imported, errors })
