@@ -117,6 +117,21 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
       voucherById = Object.fromEntries((vouchersData ?? []).map((v) => [v.id, { voucher_type: v.voucher_type, voucher_no: v.voucher_no }]))
     }
 
+    // A donation ledger row stores reference_type='donation' with
+    // reference_id pointing at the donors row, not a vouchers row — its
+    // real voucher number (assigned by confirm_donation()/the legacy
+    // importer, same DP-INC-V-#### series) lives there and was never
+    // being looked up here, so every donation showed a bare "—" instead
+    // of its actual number.
+    const donationIds = Array.from(new Set((entries ?? [])
+      .filter((e) => e.reference_type === 'donation' && e.reference_id)
+      .map((e) => e.reference_id as string)))
+    let donationById: Record<string, { voucher_no: string | null }> = {}
+    if (donationIds.length > 0) {
+      const { data: donationsData } = await supabase.from('donors').select('id, voucher_no').in('id', donationIds)
+      donationById = Object.fromEntries((donationsData ?? []).map((d) => [d.id, { voucher_no: d.voucher_no }]))
+    }
+
     // Same normal-balance rule as the Chart of Accounts list: income/liability/donor
     // accounts increase with a credit, everything else increases with a debit. Project
     // accounts (migration 118) are the same shape as donor accounts — credited on
@@ -126,7 +141,8 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
     const withBalance = (entries ?? []).map((e) => {
       running += creditNormal ? Number(e.credit) - Number(e.debit) : Number(e.debit) - Number(e.credit)
       const v = e.reference_id ? voucherById[e.reference_id] : undefined
-      return { ...e, voucher_type: v?.voucher_type ?? null, voucher_no: v?.voucher_no ?? null, balance: running }
+      const d = e.reference_id ? donationById[e.reference_id] : undefined
+      return { ...e, voucher_type: v?.voucher_type ?? null, voucher_no: v?.voucher_no ?? d?.voucher_no ?? null, balance: running }
     })
     setRows(withBalance)
 
@@ -162,7 +178,15 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
   useEffect(() => { load() }, [load])
 
   const openView = async (row: LedgerRow & { balance: number }) => {
-    let receiptNo = row.id.slice(0, 8).toUpperCase()
+    // A voucher-sourced ledger row (a real expense, an advance settlement,
+    // any bill_id-linked posting) already carries a real receipt_no/
+    // bill_number right on itself — post_voucher_ledger_legs() copies it
+    // onto every leg. The random 8-character UUID slice below was being
+    // used unconditionally regardless, so a printed receipt for e.g. an
+    // imported expense showed a meaningless code like "C245644B" instead
+    // of its real, traceable reference. Only entries with genuinely
+    // neither (a true one-off manual posting) still fall back to it.
+    let receiptNo = row.receipt_no ?? row.bill_number ?? row.id.slice(0, 8).toUpperCase()
     let phone: string | null = null
     let billOutstandingAfter: number | null = null
     if (row.reference_type === 'payment' && row.reference_id) {
@@ -199,9 +223,23 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
     // unearmarked general giving, where "General Fund" is the true answer
     // rather than a fallback standing in for a lookup nobody ran.
     let projectName: string | undefined
+    // Who actually gave this — not whichever account's statement page the
+    // receipt happened to be opened from. A donation shows up on three
+    // different accounts' ledgers (the donor's own, cash/bank, and the
+    // project's), and printing it from the project's page was silently
+    // using the project's own name as "Donor" on the receipt — same
+    // account.name field the bill/payment receipts below correctly use
+    // for THEIR own account, but wrong for a donation specifically, whose
+    // real party lives on the donors row, not the account being viewed.
+    let donorName: string | undefined
+    let donorNameUr: string | null | undefined
+    let donorVoucherNo: string | undefined
     if (row.reference_type === 'donation' && row.reference_id) {
       const { data: donor } = await supabase.from('donors')
-        .select('project_id, fund_type').eq('id', row.reference_id).single()
+        .select('project_id, fund_type, name, name_ur, voucher_no').eq('id', row.reference_id).single()
+      donorName = donor?.name ?? undefined
+      donorNameUr = donor?.name_ur
+      donorVoucherNo = donor?.voucher_no ?? undefined
       if (donor?.project_id) {
         const { data: proj } = await supabase.from('projects').select('title').eq('id', donor.project_id).single()
         projectName = proj?.title ?? undefined
@@ -233,11 +271,11 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
     const receiptKind = row.reference_type === 'bill' || row.reference_type === 'payment' || row.reference_type === 'donation' ? row.reference_type : 'manual'
     setReceipt({
       kind: receiptKind,
-      receiptNo,
+      receiptNo: donorVoucherNo ?? receiptNo,
       date: row.entry_date,
       systemLabel: systemLabels[account?.system ?? ''] ?? '',
-      accountName: account?.name ?? '',
-      accountNameUr: account?.name_ur,
+      accountName: donorName ?? account?.name ?? '',
+      accountNameUr: donorName ? donorNameUr : account?.name_ur,
       accountAddress: consumerInfo?.address,
       particular: translateParticular(row.particular, t, isUrdu),
       amount: row.debit > 0 ? row.debit : row.credit,

@@ -30,7 +30,6 @@ export interface LegacyExpense {
   vchNo: string
   date: string
   category: string
-  mappedAccount: 'Labour Cost' | 'Project Expenditure'
   projectAname: string
   amount: number
   narration: string | null
@@ -60,10 +59,6 @@ function normalizePhone(raw: string | null): string | null {
   if (digits.startsWith('0')) return '+92' + digits.slice(1)
   if (digits.startsWith('92')) return '+' + digits
   return digits
-}
-
-function mapExpenseCategory(category: string): 'Labour Cost' | 'Project Expenditure' {
-  return category.includes('مزدور') ? 'Labour Cost' : 'Project Expenditure'
 }
 
 function toArrayBuffer(buf: Buffer): ArrayBuffer {
@@ -139,7 +134,7 @@ export async function parseBookKeeperDb(fileBuffer: Buffer): Promise<LegacyImpor
   const expenses: LegacyExpense[] = payments
     .filter((p) => projects.some((proj) => proj.aname === p.credit))
     .map((p) => ({
-      vchNo: p.vch_no, date: p.date, category: p.debit, mappedAccount: mapExpenseCategory(p.debit),
+      vchNo: p.vch_no, date: p.date, category: p.debit,
       projectAname: p.credit, amount: p.amount, narration: p.narration,
     }))
 
