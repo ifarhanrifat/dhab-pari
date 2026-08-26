@@ -13,6 +13,7 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { DonorBadge } from '@/components/public/DonorBadge'
+import { SearchableField } from '@/components/admin/SearchablePicker'
 import type { DonorBadgeTier } from '@/lib/donorBadges'
 
 interface PortalUser {
@@ -23,11 +24,13 @@ interface PortalUser {
   mentor_status: string; mentor_type: string | null; mentor_bio: string | null; mentor_expertise: string | null
 }
 interface ConsumerOpt { consumer_id: string; name: string | null }
+interface DonorAccountOpt { id: string; name: string; donor_account_no: string | null; donor_key: string | null }
 
 export default function PortalAccountsPage() {
   const { t, isUrdu } = useLocale()
   const [rows, setRows] = useState<PortalUser[]>([])
   const [consumers, setConsumers] = useState<ConsumerOpt[]>([])
+  const [donorAccounts, setDonorAccounts] = useState<DonorAccountOpt[]>([])
   const [badgeByUser, setBadgeByUser] = useState<Record<string, DonorBadgeTier>>({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -36,17 +39,25 @@ export default function PortalAccountsPage() {
   const [newPassword, setNewPassword] = useState('')
   const [linkingFor, setLinkingFor] = useState<string | null>(null)
   const [linkConsumerId, setLinkConsumerId] = useState('')
+  const [linkingDonorFor, setLinkingDonorFor] = useState<string | null>(null)
+  const [linkDonorAccountId, setLinkDonorAccountId] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const supabase = createClient()
 
   const load = async () => {
-    const [{ data }, { data: cons }] = await Promise.all([
+    const [{ data }, { data: cons }, { data: donorAccts }] = await Promise.all([
       supabase.from('portal_users').select('id, full_name, name_ur, mobile, username, is_active, consumer_id, donor_account_id, manual_badge_tier, created_at, auth_user_id, phone_private, seeking_mentorship, mentor_status, mentor_type, mentor_bio, mentor_expertise').order('created_at', { ascending: false }),
       supabase.from('consumers').select('consumer_id, name').order('consumer_id'),
+      // Same identity every auto-match (signup, confirm_donation, pool
+      // payments) already links against — donor_key doubles as the phone
+      // number when one was ever recorded, so it's included in the
+      // searchable label without needing a separate phone column here.
+      supabase.from('accounts').select('id, name, donor_account_no, donor_key').eq('system', 'donors_projects').eq('type', 'donor').order('name'),
     ])
     const list = (data ?? []) as PortalUser[]
     setRows(list)
     setConsumers((cons ?? []) as ConsumerOpt[])
+    setDonorAccounts((donorAccts ?? []) as DonorAccountOpt[])
     setLoading(false)
     const ids = list.filter((r) => r.donor_account_id).map((r) => r.id)
     if (ids.length) {
@@ -113,6 +124,22 @@ export default function PortalAccountsPage() {
     setBusyId(null)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('pa.unlinkedToast'))
+    load()
+  }
+
+  // The manual counterpart to the automatic phone-match at signup/
+  // confirm_donation — for when it missed (no phone was ever recorded on
+  // the old donation, or the number's changed since) and staff have
+  // verified through some other means (a conversation, a screenshot) which
+  // real donor account this portal login actually belongs to.
+  const saveLinkDonor = async () => {
+    if (!linkingDonorFor) return
+    setBusyId(linkingDonorFor)
+    const { error } = await supabase.from('portal_users').update({ donor_account_id: linkDonorAccountId || null }).eq('id', linkingDonorFor)
+    setBusyId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('pa.linkedToast'))
+    setLinkingDonorFor(null); setLinkDonorAccountId('')
     load()
   }
 
@@ -198,6 +225,12 @@ export default function PortalAccountsPage() {
                   <button onClick={() => { setLinkingFor(r.id); setLinkConsumerId(r.consumer_id ?? '') }} className="text-dp-secondary text-[11.5px] font-sans font-semibold hover:underline cursor-pointer flex items-center gap-1">
                     <Link2 size={11} /> {t('pa.editLink')}
                   </button>
+                  <span className="font-sans text-[12px] text-dp-on-surface-variant">
+                    {t('pa.donorAccountLabel')}: {r.donor_account_id ? <strong className="text-dp-on-surface">{donorAccounts.find((a) => a.id === r.donor_account_id)?.donor_account_no ?? donorAccounts.find((a) => a.id === r.donor_account_id)?.name ?? '—'}</strong> : t('pa.none')}
+                  </span>
+                  <button onClick={() => { setLinkingDonorFor(r.id); setLinkDonorAccountId(r.donor_account_id ?? '') }} className="text-dp-secondary text-[11.5px] font-sans font-semibold hover:underline cursor-pointer flex items-center gap-1">
+                    <Link2 size={11} /> {t('pa.editDonorLink')}
+                  </button>
                   {r.donor_account_id && (
                     <button onClick={() => unlinkDonor(r)} className="text-dp-error text-[11.5px] font-sans font-semibold hover:underline cursor-pointer flex items-center gap-1">
                       <Unlink size={11} /> {t('pa.unlinkDonor')}
@@ -251,6 +284,30 @@ export default function PortalAccountsPage() {
               {consumers.map((c) => <option key={c.consumer_id} value={c.consumer_id}>{c.consumer_id}{c.name ? ` — ${c.name}` : ''}</option>)}
             </select>
             <button disabled={busyId === linkingFor} onClick={saveLink} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+              {t('action.save')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {linkingDonorFor && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setLinkingDonorFor(null)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('pa.editDonorLink')}</h2>
+              <button onClick={() => setLinkingDonorFor(null)} className="cursor-pointer"><X size={18} /></button>
+            </div>
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pa.donorAccountLabel')}</label>
+            <SearchableField
+              value={linkDonorAccountId}
+              onChange={setLinkDonorAccountId}
+              placeholder={t('pa.selectDonorAccount')}
+              items={donorAccounts.map((a) => ({
+                id: a.id,
+                label: `${a.donor_account_no ?? '—'} — ${a.name}${a.donor_key ? ` · ${a.donor_key}` : ''}`,
+              }))}
+            />
+            <button disabled={busyId === linkingDonorFor} onClick={saveLinkDonor} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50 mt-4">
               {t('action.save')}
             </button>
           </div>
