@@ -67,7 +67,7 @@ export default async function AdminDashboardPage() {
     supabase.from('ledger_account_balances').select('account_id, total_debit, total_credit'),
     supabase.from('ledger_monthly_by_account').select('account_id, month, total_debit, total_credit'),
     showWater ? supabase.from('consumers').select('consumer_id, status, created_at') : Promise.resolve({ data: [] as { consumer_id: string; status: string; created_at: string }[] }),
-    showDonor ? supabase.from('donors').select('id, amount_pkr, date') : Promise.resolve({ data: [] as { id: string; amount_pkr: number; date: string }[] }),
+    showDonor ? supabase.from('donors').select('id, amount_pkr, date, is_verified') : Promise.resolve({ data: [] as { id: string; amount_pkr: number; date: string; is_verified: boolean }[] }),
     showWater ? supabase.from('inventory_items').select('id, name, quantity_on_hand, reorder_level').eq('system', 'water_supply').eq('is_active', true) : Promise.resolve({ data: [] as { id: string; name: string; quantity_on_hand: number; reorder_level: number }[] }),
     showWater ? supabase.from('bill_line_items').select('inventory_item_id, description, line_total').eq('item_type', 'inventory') : Promise.resolve({ data: [] as { inventory_item_id: string | null; description: string; line_total: number }[] }),
     // Feeds the billing quick-filter cards below — that whole 6-card grid
@@ -162,8 +162,15 @@ export default async function AdminDashboardPage() {
   const topSellingItem = Object.values(revenueByItem).sort((a, b) => b.revenue - a.revenue)[0] ?? null
   const collectorHoldings = accounts.filter((a) => a.type === 'collector' && a.system === 'water_supply').reduce((s, a) => s + Math.max(balanceOf(a), 0), 0)
   const donorPartyCount = accounts.filter((a) => a.system === 'donors_projects' && a.type === 'donor').length
+  // "Announced" is deliberately every donation record regardless of state —
+  // same vocabulary as the receipt's own "announced but not yet collected"
+  // row. "Received" is a real money figure and must be verified-only, same
+  // as the Reports page's Donor Report and the public homepage_stats() —
+  // an unconfirmed/pledged donation hasn't posted to the ledger yet
+  // (trg_donor_ledger), so counting it here disagreed with the ledger-
+  // derived Cash in Hand shown right next to it on this same page.
   const donationsAnnounced = (donorsData ?? []).length
-  const donationsReceived = (donorsData ?? []).reduce((s, d) => s + Number(d.amount_pkr), 0)
+  const donationsReceived = (donorsData ?? []).filter((d) => d.is_verified).reduce((s, d) => s + Number(d.amount_pkr), 0)
 
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
   const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
