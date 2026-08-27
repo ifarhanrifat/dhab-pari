@@ -59,13 +59,13 @@ export default function PortalTrainingProgramsPage() {
               <div>
                 <p className="font-sans text-[14.5px] font-bold text-dp-on-surface">{f.student_name} — {f.program_title}</p>
                 {f.batch_label && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{f.batch_label}</p>}
-                {f.due_soon.length > 0 ? (
+                {(f.due_soon ?? []).length > 0 ? (
                   <p className="font-sans text-[12.5px] text-amber-700 mt-1 flex items-center gap-1"><Clock size={12} /> {t('tp.feeDue')}: Rs. {f.due_soon[0].amount.toLocaleString()}</p>
                 ) : (
                   <p className="font-sans text-[12.5px] text-emerald-700 mt-1 flex items-center gap-1"><CheckCircle2 size={12} /> {t('tp.feeUpToDate')}</p>
                 )}
               </div>
-              {f.due_soon.length > 0 && (
+              {(f.due_soon ?? []).length > 0 && (
                 <Link href={`/portal/donate?project=${f.project_id}`} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-colors">
                   {t('tp.payFeeBtn')}
                 </Link>
