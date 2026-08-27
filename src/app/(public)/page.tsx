@@ -1,7 +1,13 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { SITE } from '@/lib/constants'
+
+// Same fixed cover used on /projects for a medical/health project — a real
+// photo of someone's treatment is never shown publicly, on this page either.
+const HEALTH_COVER_IMAGE = '/images/health-project-cover.jpg'
+const isHealthCategory = (category: string | null) => category === 'health'
 
 export const metadata: Metadata = {
   title: 'Home',
@@ -111,6 +117,16 @@ export default async function HomePage() {
   ])
 
   const projects = projectsRes.data ?? []
+  // Real ledger totals, not the unused manual spent_pkr column — same fix
+  // already applied on /projects, just never carried over to this page's
+  // own separate query. The project ids are only known after the query
+  // above resolves, so this can't join the first Promise.all.
+  const projectIds = projects.map((p) => p.id)
+  const { data: expenseRows } = projectIds.length > 0
+    ? await supabase.from('project_expenses_public').select('project_id, debit').in('project_id', projectIds)
+    : { data: [] as { project_id: string; debit: number }[] }
+  const expenseByProject: Record<string, number> = {}
+  for (const e of expenseRows ?? []) expenseByProject[e.project_id] = (expenseByProject[e.project_id] ?? 0) + Number(e.debit)
   const news = newsRes.data ?? []
   const videos = videosRes.data ?? []
   const donors = donorsRes.data ?? []
@@ -277,10 +293,16 @@ export default async function HomePage() {
                   href={`/projects`}
                   className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden hover:shadow-md transition-shadow group"
                 >
-                  <div className="h-48 bg-dp-surface-container overflow-hidden">
-                    <div className="w-full h-full bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container flex items-center justify-center">
-                      <GitBranch size={48} className="text-dp-on-primary-container/40" />
-                    </div>
+                  <div className="relative h-48 bg-dp-surface-container overflow-hidden">
+                    {isHealthCategory(project.category) ? (
+                      <Image src={HEALTH_COVER_IMAGE} alt={project.display_name || project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+                    ) : project.after_image_url || project.before_image_url ? (
+                      <Image src={project.after_image_url ?? project.before_image_url ?? ''} alt={project.display_name || project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container flex items-center justify-center">
+                        <GitBranch size={48} className="text-dp-on-primary-container/40" />
+                      </div>
+                    )}
                   </div>
                   <div className="p-6">
                     <span className="bg-dp-secondary-container text-dp-on-secondary-container text-[10px] font-extrabold px-2 py-1 rounded uppercase tracking-wider">
@@ -311,7 +333,7 @@ export default async function HomePage() {
                       <div className="text-end">
                         <p className="text-dp-on-surface-variant"><T k="home.spent" /></p>
                         <p className="font-bold text-dp-primary">
-                          PKR {(project.spent_pkr ?? 0).toLocaleString()}
+                          PKR {(expenseByProject[project.id] ?? 0).toLocaleString()}
                         </p>
                       </div>
                     </div>
