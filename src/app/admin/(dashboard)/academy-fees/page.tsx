@@ -15,7 +15,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Users, PlusCircle, X, HandCoins, CheckCircle2, Clock } from 'lucide-react'
+import { Users, PlusCircle, X, HandCoins, CheckCircle2, Clock, Pencil, UserMinus } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -24,6 +24,7 @@ interface Academy { id: string; title: string; display_name: string | null; cate
 interface Charge { id: string; charge_no: number; due_on: string; amount_pkr: number; paid_pkr: number; status: string }
 interface Enrollment {
   id: string; student_name: string; guardian_name: string | null; guardian_whatsapp_number: string | null
+  address: string | null; sector: string | null
   participant_type: string; fee_type: string; fee_amount_pkr: number; discount_pct: number | null
   discount_reason: string | null; status: string
 }
@@ -52,6 +53,8 @@ export default function AcademyFeesPage() {
   const [payFor, setPayFor] = useState<{ chargeId: string; remaining: number; studentName: string } | null>(null)
   const [payAmount, setPayAmount] = useState(0)
   const [payMethod, setPayMethod] = useState('cash')
+  const [editing, setEditing] = useState<Enrollment | null>(null)
+  const [editForm, setEditForm] = useState({ guardian_name: '', guardian_whatsapp_number: '', address: '', sector: '', fee_amount_pkr: 0, discount_reason: '' })
 
   const loadAcademies = async () => {
     setLoading(true)
@@ -65,7 +68,7 @@ export default function AcademyFeesPage() {
   const loadRoster = async (academy: Academy) => {
     setSelected(academy)
     const { data: rows } = await supabase.from('training_enrollments')
-      .select('id, student_name, guardian_name, guardian_whatsapp_number, participant_type, fee_type, fee_amount_pkr, discount_pct, discount_reason, status')
+      .select('id, student_name, guardian_name, guardian_whatsapp_number, address, sector, participant_type, fee_type, fee_amount_pkr, discount_pct, discount_reason, status')
       .eq('project_id', academy.id).eq('status', 'active').order('student_name')
     setEnrollments(rows ?? [])
     if (rows && rows.length > 0) {
@@ -111,6 +114,51 @@ export default function AcademyFeesPage() {
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(`${t('af.paymentRecorded')} — ${(data as { voucher_no: string })?.voucher_no ?? ''}`)
     setPayFor(null); setPayAmount(0)
+    if (selected) loadRoster(selected)
+  }
+
+  const openEdit = (e: Enrollment) => {
+    setEditing(e)
+    setEditForm({
+      guardian_name: e.guardian_name ?? '', guardian_whatsapp_number: e.guardian_whatsapp_number ?? '',
+      address: e.address ?? '', sector: e.sector ?? '', fee_amount_pkr: e.fee_amount_pkr, discount_reason: e.discount_reason ?? '',
+    })
+  }
+
+  // fee_amount_pkr here is a direct manual override, not a recomputation
+  // from the rate card + discount_pct — the same "resolved once, doesn't
+  // move retroactively" rule as enrollment, just correctable by hand when
+  // it was entered wrong. Already-raised charges keep their own stored
+  // amount; only charges training_fee_run() raises from here on use the
+  // new figure.
+  const saveEdit = async () => {
+    if (!editing) return
+    setSaving(true)
+    const { error } = await supabase.from('training_enrollments').update({
+      guardian_name: editForm.guardian_name || null, guardian_whatsapp_number: editForm.guardian_whatsapp_number || null,
+      address: editForm.address || null, sector: editForm.sector || null,
+      fee_amount_pkr: editForm.fee_amount_pkr, discount_reason: editForm.discount_reason || null,
+    }).eq('id', editing.id)
+    setSaving(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('af.changesSavedToast'))
+    setEditing(null)
+    if (selected) loadRoster(selected)
+  }
+
+  // Withdrawing waives whatever's still outstanding rather than leaving it
+  // to age forever on the non-payment report for a student who's no
+  // longer actually enrolled.
+  const withdraw = async (e: Enrollment) => {
+    if (!confirm(t('af.withdrawConfirm'))) return
+    setSaving(true)
+    const [{ error: e1 }, { error: e2 }] = await Promise.all([
+      supabase.from('training_enrollments').update({ status: 'withdrawn' }).eq('id', e.id),
+      supabase.from('training_fee_charges').update({ status: 'waived' }).eq('enrollment_id', e.id).in('status', ['due', 'part_paid']),
+    ])
+    setSaving(false)
+    if (e1 || e2) { toast.error(friendlyError(e1 ?? e2)); return }
+    toast.success(t('af.withdrawnToast'))
     if (selected) loadRoster(selected)
   }
 
@@ -163,6 +211,10 @@ export default function AcademyFeesPage() {
                       {e.guardian_name} · {e.guardian_whatsapp_number} · Rs. {fmt(e.fee_amount_pkr)}/{t(e.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}
                       {e.discount_pct ? ` · ${e.discount_pct}% ${t('af.discount')}${e.discount_reason ? ` (${e.discount_reason})` : ''}` : ''}
                     </p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => openEdit(e)} title={t('af.editBtn')} className="p-2 rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container cursor-pointer"><Pencil size={15} /></button>
+                    <button onClick={() => withdraw(e)} title={t('af.withdrawBtn')} className="p-2 rounded-lg text-dp-error hover:bg-dp-error/10 cursor-pointer"><UserMinus size={15} /></button>
                   </div>
                 </div>
                 {(charges[e.id] ?? []).length > 0 && (
@@ -244,6 +296,32 @@ export default function AcademyFeesPage() {
               </select>
               <button onClick={recordPayment} disabled={saving} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">
                 {saving ? t('af.saving') : t('af.collectBtn')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit enrollment modal */}
+      {editing && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setEditing(null)}>
+          <div className="bg-white rounded-lg max-w-[480px] w-full max-h-[85vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-heading text-[18px] font-bold text-dp-primary">{t('af.editEnrollment')} — {editing.student_name}</h3>
+              <button onClick={() => setEditing(null)} className="cursor-pointer"><X size={20} /></button>
+            </div>
+            <div className="space-y-3">
+              <input value={editForm.guardian_name} onChange={(e) => setEditForm({ ...editForm, guardian_name: e.target.value })} placeholder={t('af.guardianName')} className="input-field" />
+              <input value={editForm.guardian_whatsapp_number} onChange={(e) => setEditForm({ ...editForm, guardian_whatsapp_number: e.target.value })} placeholder={t('af.guardianWhatsapp')} className="input-field" />
+              <input value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} placeholder={t('z.location')} className="input-field" />
+              <input value={editForm.sector} onChange={(e) => setEditForm({ ...editForm, sector: e.target.value })} placeholder={t('w.sector')} className="input-field" />
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">Rs. {t(editing.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}</label>
+                <input type="number" value={editForm.fee_amount_pkr || ''} onChange={(e) => setEditForm({ ...editForm, fee_amount_pkr: +e.target.value })} className="input-field" />
+              </div>
+              <input value={editForm.discount_reason} onChange={(e) => setEditForm({ ...editForm, discount_reason: e.target.value })} placeholder={t('af.discountReason')} className="input-field" />
+              <button onClick={saveEdit} disabled={saving} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">
+                {saving ? t('af.saving') : t('af.saveChangesBtn')}
               </button>
             </div>
           </div>

@@ -230,6 +230,20 @@ export const DOC_STRINGS = {
   pendingBills: { en: 'Pending Bills', ur: 'زیر التوا بل' },
   dueSuffix: { en: ' due', ur: ' واجب الادا' },
 
+  // Training Academy Fee Non-Payment Report
+  reportTrainingNonPayment: { en: 'Academy Fee Non-Payment Report', ur: 'اکیڈمی فیس عدم ادائیگی کی رپورٹ' },
+  trainingNonPaymentSubtitle: {
+    en: 'Students with an overdue fee charge, grouped by academy',
+    ur: 'وہ طلبہ جن کی فیس واجب الادا ہے، اکیڈمی کے مطابق گروپ کیے گئے',
+  },
+  studentsFlagged: { en: 'Students Flagged', ur: 'نشان زدہ طلبہ' },
+  academiesAffected: { en: 'Academies Affected', ur: 'متاثرہ اکیڈمیز' },
+  totalPendingFees: { en: 'Total Pending Fees', ur: 'کل زیر التوا فیس' },
+  noStudentsFailedToPay: { en: 'No overdue fees right now.', ur: 'اس وقت کوئی فیس واجب الادا نہیں۔' },
+  academyLabel: { en: 'Academy', ur: 'اکیڈمی' },
+  guardianLabel: { en: 'Guardian', ur: 'سرپرست' },
+  pendingCharges: { en: 'Pending Charges', ur: 'زیر التوا فیسیں' },
+
   // Daily Register / Account Statement
   dailyRegister: { en: 'Daily Register', ur: 'روزانہ رجسٹر' },
   closingBalance: { en: 'Closing Balance', ur: 'اختتامی بیلنس' },
