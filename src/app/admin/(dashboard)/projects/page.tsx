@@ -31,10 +31,15 @@ interface Project { id: string; title: string; title_ur: string | null; descript
   // committee's own general account, e.g.) off the public projects
   // listing as a "project" card, while it stays exactly as donatable and
   // exactly as visible in donation/expense history as any normal project.
-  unlisted: boolean }
+  unlisted: boolean
+  // Migration 366 — the rate card for a fee-charging sports/training
+  // academy: villager vs outsider, monthly vs one-off full-course. Only
+  // meaningful when category is 'sports'/'training'; null/0 = free.
+  fee_villager_monthly_pkr: number | null; fee_outsider_monthly_pkr: number | null
+  fee_villager_full_pkr: number | null; fee_outsider_full_pkr: number | null }
 
 const statuses = ['ongoing', 'completed', 'upcoming']
-const categories = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'sports', 'other']
+const categories = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'sports', 'training', 'other']
 // Values are i18n keys (module scope has no useLocale()) — resolved via
 // t() at render time.
 const statusLabelKey: Record<string, string> = {
@@ -43,10 +48,11 @@ const statusLabelKey: Record<string, string> = {
 }
 const categoryLabelKey: Record<string, string> = {
   infrastructure: 'pj.catInfrastructure', water: 'pj.catWater', health: 'pj.catHealth', education: 'pj.catEducation',
-  environment: 'pj.catEnvironment', welfare: 'pj.catWelfare', sports: 'pj.catSports', other: 'pj.catOther',
+  environment: 'pj.catEnvironment', welfare: 'pj.catWelfare', sports: 'pj.catSports', training: 'pj.catTraining', other: 'pj.catOther',
 }
+const feeChargingCategory = (category: string) => category === 'sports' || category === 'training'
 
-const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0, funding_model: 'one_time', monthly_operating_cost_pkr: 0, is_private: false, hide_donations: false, hide_expenses: false, hide_donor_names: false, display_name: '', unlisted: false }
+const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0, funding_model: 'one_time', monthly_operating_cost_pkr: 0, is_private: false, hide_donations: false, hide_expenses: false, hide_donor_names: false, display_name: '', unlisted: false, fee_villager_monthly_pkr: 0, fee_outsider_monthly_pkr: 0, fee_villager_full_pkr: 0, fee_outsider_full_pkr: 0 }
 
 export default function AdminProjectsPage() {
   const { t, isUrdu } = useLocale()
@@ -70,6 +76,10 @@ export default function AdminProjectsPage() {
       end_date: form.end_date || null, beneficiaries_count: form.beneficiaries_count || null, sector: form.sector || null,
       description_ur: form.description_ur || null, display_name: form.display_name.trim() || null,
       monthly_operating_cost_pkr: form.funding_model === 'recurring_support' ? (form.monthly_operating_cost_pkr || null) : null,
+      fee_villager_monthly_pkr: feeChargingCategory(form.category) ? (form.fee_villager_monthly_pkr || null) : null,
+      fee_outsider_monthly_pkr: feeChargingCategory(form.category) ? (form.fee_outsider_monthly_pkr || null) : null,
+      fee_villager_full_pkr: feeChargingCategory(form.category) ? (form.fee_villager_full_pkr || null) : null,
+      fee_outsider_full_pkr: feeChargingCategory(form.category) ? (form.fee_outsider_full_pkr || null) : null,
     }
     if (editing) {
       const { error } = await supabase.from('projects').update(payload).eq('id', editing)
@@ -83,7 +93,9 @@ export default function AdminProjectsPage() {
     setShowForm(false); setEditing(null); setForm(empty); load()
   }
 
-  const edit = (p: Project) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0, is_private: p.is_private, hide_donations: p.hide_donations, hide_expenses: p.hide_expenses, hide_donor_names: p.hide_donor_names, display_name: p.display_name ?? '', unlisted: p.unlisted }); setEditing(p.id); setShowForm(true) }
+  const edit = (p: Project) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0, is_private: p.is_private, hide_donations: p.hide_donations, hide_expenses: p.hide_expenses, hide_donor_names: p.hide_donor_names, display_name: p.display_name ?? '', unlisted: p.unlisted,
+    fee_villager_monthly_pkr: p.fee_villager_monthly_pkr ?? 0, fee_outsider_monthly_pkr: p.fee_outsider_monthly_pkr ?? 0,
+    fee_villager_full_pkr: p.fee_villager_full_pkr ?? 0, fee_outsider_full_pkr: p.fee_outsider_full_pkr ?? 0 }); setEditing(p.id); setShowForm(true) }
 
   const remove = async (id: string) => { if (!confirm(t('pj.confirmDelete'))) return; await supabase.from('projects').delete().eq('id', id); toast.success(t('pj.deleted')); load() }
   // Pulls a donor-submitted proposal out of public view without rejecting
@@ -203,6 +215,20 @@ export default function AdminProjectsPage() {
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.sector')}</label><input value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} placeholder={t('pj.sectorPlaceholder')} className="input-field" /></div>
               </div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('z.beneficiaries')}</label><input type="number" value={form.beneficiaries_count || ''} onChange={(e) => setForm({ ...form, beneficiaries_count: +e.target.value })} className="input-field" /></div>
+              {feeChargingCategory(form.category) && (
+                <div className="border border-dp-outline-variant rounded-lg p-4 space-y-3">
+                  <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('pj.feeCardTitle')}</p>
+                  <p className="font-sans text-[12px] text-dp-on-surface-variant -mt-2">{t('pj.feeCardHint')}</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pj.feeVillagerMonthly')}</label><input type="number" value={form.fee_villager_monthly_pkr || ''} onChange={(e) => setForm({ ...form, fee_villager_monthly_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
+                    <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pj.feeOutsiderMonthly')}</label><input type="number" value={form.fee_outsider_monthly_pkr || ''} onChange={(e) => setForm({ ...form, fee_outsider_monthly_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pj.feeVillagerFull')}</label><input type="number" value={form.fee_villager_full_pkr || ''} onChange={(e) => setForm({ ...form, fee_villager_full_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
+                    <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pj.feeOutsiderFull')}</label><input type="number" value={form.fee_outsider_full_pkr || ''} onChange={(e) => setForm({ ...form, fee_outsider_full_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
+                  </div>
+                </div>
+              )}
               {form.category === 'health' ? (
                 // Health/medical projects always use one fixed cover image,
                 // never a real patient's before/after photo — not editable

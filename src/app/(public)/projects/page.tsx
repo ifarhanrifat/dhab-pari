@@ -42,6 +42,23 @@ interface Project {
   after_image_url: string | null
   proposal_image_url: string | null
   funding_model: string | null
+  // Migration 366 — a sports/training academy's rate card. Every field
+  // null/0 means free; otherwise the card shows what a villager pays,
+  // since that's the rate most visitors on this site care about.
+  fee_villager_monthly_pkr: number | null; fee_outsider_monthly_pkr: number | null
+  fee_villager_full_pkr: number | null; fee_outsider_full_pkr: number | null
+}
+
+const isFeeCategory = (category: string | null) => category === 'sports' || category === 'training'
+function feeBadgeLabel(p: Project, isUrdu: boolean): string | null {
+  if (!isFeeCategory(p.category)) return null
+  const free = !p.fee_villager_monthly_pkr && !p.fee_outsider_monthly_pkr && !p.fee_villager_full_pkr && !p.fee_outsider_full_pkr
+  if (free) return isUrdu ? 'مفت' : 'Free'
+  const monthly = p.fee_villager_monthly_pkr || p.fee_outsider_monthly_pkr
+  const full = p.fee_villager_full_pkr || p.fee_outsider_full_pkr
+  if (monthly) return isUrdu ? `فیس — Rs. ${monthly.toLocaleString()}/ماہ` : `Fee — Rs. ${monthly.toLocaleString()}/mo`
+  if (full) return isUrdu ? `فیس — Rs. ${full.toLocaleString()}` : `Fee — Rs. ${full.toLocaleString()}`
+  return null
 }
 
 type Lang = 'en' | 'ur'
@@ -385,10 +402,17 @@ function OngoingCard({ project, isHot, commentCount, expense, dt, isUrdu }: { pr
       {/* Right: Content */}
       <div className="p-8 flex flex-col justify-between">
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <span className="bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded font-sans text-[12px] font-semibold tracking-[0.05em] uppercase" style={isUrdu ? urduStyle : undefined}>
-              {categoryLabel(project.category, isUrdu)}
-            </span>
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded font-sans text-[12px] font-semibold tracking-[0.05em] uppercase" style={isUrdu ? urduStyle : undefined}>
+                {categoryLabel(project.category, isUrdu)}
+              </span>
+              {feeBadgeLabel(project, isUrdu) && (
+                <span className={`px-3 py-1 rounded font-sans text-[12px] font-semibold ${feeBadgeLabel(project, isUrdu) === (isUrdu ? 'مفت' : 'Free') ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`} style={isUrdu ? urduStyle : undefined}>
+                  {feeBadgeLabel(project, isUrdu)}
+                </span>
+              )}
+            </div>
             <span className="bg-amber-100 text-amber-900 px-3 py-1 rounded-full font-sans text-[12px] font-semibold flex items-center gap-1" style={isUrdu ? urduStyle : undefined}>
               <span className="w-2 h-2 bg-amber-600 rounded-full animate-pulse" />
               {dt('ongoingBadge')}
