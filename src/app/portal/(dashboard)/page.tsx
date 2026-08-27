@@ -7,6 +7,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { HeartHandshake, Droplets, MessageSquareWarning, MessageSquare, Repeat, Droplet } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalBadgeCard } from '@/components/portal/PortalBadgeCard'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -60,7 +61,7 @@ export default function PortalDashboardPage() {
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-8">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('p.welcome')}, {user.full_name}</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2">{t('p.welcome')}, {user.full_name} <PortalHelp pageKey="dashboard" /></h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">
           {user.consumer_id ? `${t('p.consumerNo')}${user.consumer_id}` : t('p.noLinkedWaterConnection')} · {t('p.mobileLabel')} {user.mobile}
         </p>

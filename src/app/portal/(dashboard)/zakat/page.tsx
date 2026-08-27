@@ -7,6 +7,7 @@ import { Scale, ArrowRight, Users } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { ZakatCalculator } from '@/components/welfare/ZakatCalculator'
 import { ZAKAT_GUIDE_KEYS } from '@/lib/portalGuideContent'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 
 /**
  * The donor's side of Zakat.
@@ -71,7 +72,7 @@ export default function PortalZakatPage() {
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="max-w-3xl">
       <div className="mb-6">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
-          <Scale size={24} className="text-dp-secondary" /> {t('pzk.title')}
+          <Scale size={24} className="text-dp-secondary" /> {t('pzk.title')} <PortalHelp pageKey="zakat" />
         </h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1.5 leading-relaxed">{guideBlurb}</p>
       </div>

@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { Droplet, ShieldCheck } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 
 const GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 
@@ -150,7 +151,7 @@ export default function PortalBloodDonorPage() {
   return (
     <div>
       <div dir={isUrdu ? 'rtl' : 'ltr'} className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Droplet size={22} className="text-dp-error" /> {t('p.bloodRegistration')}</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Droplet size={22} className="text-dp-error" /> {t('p.bloodRegistration')} <PortalHelp pageKey="bloodDonor" /></h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.bloodRegBlurb')}</p>
       </div>
 

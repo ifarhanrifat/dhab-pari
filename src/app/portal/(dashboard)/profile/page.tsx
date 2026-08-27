@@ -11,6 +11,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { SITE } from '@/lib/constants'
 import { MentorshipProfileFields, type MentorshipFieldsValue } from '@/components/portal/MentorshipProfileFields'
 import { SectorSelect } from '@/components/portal/SectorSelect'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 
 function syntheticEmail(mobile: string) {
   return `${mobile.replace(/[^0-9]/g, '')}@portal.dhabpari.local`
@@ -120,7 +121,7 @@ export default function PortalProfilePage() {
   return (
     <div>
       <div dir={isUrdu ? 'rtl' : 'ltr'} className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><UserCog size={22} className="text-dp-secondary" /> {t('p.myProfile')}</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><UserCog size={22} className="text-dp-secondary" /> {t('p.myProfile')} <PortalHelp pageKey="profile" /></h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.mobileCannotChange').replace('{mobile}', user.mobile)}</p>
       </div>
 

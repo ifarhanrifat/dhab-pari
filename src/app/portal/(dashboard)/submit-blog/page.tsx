@@ -13,6 +13,7 @@ import { friendlyError } from '@/lib/errors'
 import { NotebookPen, Lock, Clock, CheckCircle2, XCircle, Send } from 'lucide-react'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 import { DonorBadge } from '@/components/public/DonorBadge'
 import { canFastTrack, type DonorBadgeTier } from '@/lib/donorBadges'
 
@@ -81,7 +82,7 @@ export default function SubmitBlogPage() {
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="max-w-2xl">
       <div className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><NotebookPen size={22} className="text-dp-secondary" /> {t('sb.heading')}</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><NotebookPen size={22} className="text-dp-secondary" /> {t('sb.heading')} <PortalHelp pageKey="submitBlog" /></h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('sb.subtitle')}</p>
         <div className="mt-2"><DonorBadge tier={tier} isUrdu={isUrdu} /></div>
       </div>

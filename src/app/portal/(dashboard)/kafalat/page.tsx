@@ -13,6 +13,7 @@ import {
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { renderTemplate } from '@/lib/messageTemplates'
 import { SITE } from '@/lib/constants'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 import { usePoolGuideContent } from '@/hooks/usePoolGuideContent'
 import Link from 'next/link'
 
@@ -272,7 +273,7 @@ export default function PortalKafalatPage() {
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="max-w-4xl">
       <div className="mb-6">
         <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2.5">
-          <GraduationCap size={24} className="text-dp-secondary" /> {t('pkf.title')}
+          <GraduationCap size={24} className="text-dp-secondary" /> {t('pkf.title')} <PortalHelp pageKey="kafalat" />
         </h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1.5 leading-relaxed">{t('pkf.blurb')}</p>
       </div>

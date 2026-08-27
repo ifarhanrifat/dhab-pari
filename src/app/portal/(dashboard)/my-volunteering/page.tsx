@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { HeartHandshake, PlusCircle, X, Trash2 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 
 interface Signup { id: string; project_id: string | null; message: string | null; status: string; created_at: string }
 interface ProjectOption { id: string; title: string }
@@ -126,7 +127,7 @@ export default function PortalMyVolunteeringPage() {
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><HeartHandshake size={22} className="text-dp-secondary" /> {tr('p.myVolunteering')}</h1>
+          <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><HeartHandshake size={22} className="text-dp-secondary" /> {tr('p.myVolunteering')} <PortalHelp pageKey="myVolunteering" /></h1>
           <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{tr('p.signupsBlurb')}</p>
         </div>
         <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">

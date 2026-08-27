@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { CalendarClock, MapPin, CheckCircle2 } from 'lucide-react'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 
 interface Program {
   id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null
@@ -56,7 +57,7 @@ export default function PortalTrainingProgramsPage() {
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><CalendarClock size={22} className="text-dp-secondary" /> {t('tp.title')}</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><CalendarClock size={22} className="text-dp-secondary" /> {t('tp.title')} <PortalHelp pageKey="trainingPrograms" /></h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('tp.portalBlurb')}</p>
       </div>
 

@@ -10,6 +10,7 @@ import { HeartHandshake, X, CheckSquare, Square } from 'lucide-react'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { PaymentAccountDetails } from '@/components/public/PaymentAccountDetails'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 
 interface LedgerRow { id: string; entry_date: string; particular: string; debit: number; credit: number }
 interface AccountInfo { donor_account_no: string | null; opening_balance: number }
@@ -163,7 +164,7 @@ function PortalStatementInner() {
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('p.givingStatement')}</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2">{t('p.givingStatement')} <PortalHelp pageKey="statement" /></h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{account?.donor_account_no ? `${t('p.donorAccountLabel')}: ${account.donor_account_no}` : t('p.noConfirmedDonationsYet')}</p>
       </div>
 

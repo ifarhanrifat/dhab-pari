@@ -12,6 +12,7 @@ import { ImageUpload } from '@/components/admin/ImageUpload'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { DonorBadge } from '@/components/public/DonorBadge'
 import { canFastTrack, type DonorBadgeTier } from '@/lib/donorBadges'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 
 const CATEGORIES = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'sports', 'other']
 
@@ -268,7 +269,7 @@ export default function ProposeProjectPage() {
   return (
     <div>
       <div className="mb-6" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Vote size={22} className="text-dp-secondary" /> {dt('heading')}</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Vote size={22} className="text-dp-secondary" /> {dt('heading')} <PortalHelp pageKey="proposeProject" /></h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{dt('subtitle')}</p>
         <div className="mt-2 flex items-center gap-2">
           <DonorBadge tier={tier} isUrdu={isUrdu} />

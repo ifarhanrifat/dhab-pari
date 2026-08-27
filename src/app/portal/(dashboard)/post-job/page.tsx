@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { Briefcase, PlusCircle, X, Pencil, Pause, Play, Megaphone } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 
 const CATEGORIES = ['plumber', 'electrician', 'mason', 'carpenter', 'painter', 'laborer', 'driver', 'tailor', 'cook', 'tutor', 'mechanic', 'other']
 const CATEGORY_KEY: Record<string, string> = {
@@ -94,7 +95,7 @@ export default function PostJobPage() {
     <div>
       <div dir={isUrdu ? 'rtl' : 'ltr'} className="mb-6 flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Briefcase size={22} className="text-dp-secondary" /> {t('p.myJobListings')}</h1>
+          <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Briefcase size={22} className="text-dp-secondary" /> {t('p.myJobListings')} <PortalHelp pageKey="postJob" /></h1>
           <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.jobsBlurb')}</p>
         </div>
         <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">

@@ -13,6 +13,7 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { Sparkles, Clock, CheckCircle2, XCircle, ShieldAlert } from 'lucide-react'
 import { ImageUpload } from '@/components/admin/ImageUpload'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 import { VideoUpload } from '@/components/admin/VideoUpload'
 
 interface Entry {
@@ -58,7 +59,7 @@ export default function PortalTalentShowcasePage() {
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="max-w-xl">
       <div className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Sparkles size={22} className="text-dp-secondary" /> {t('ts.title')}</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Sparkles size={22} className="text-dp-secondary" /> {t('ts.title')} <PortalHelp pageKey="talentShowcase" /></h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('ts.portalBlurb')}</p>
       </div>
 

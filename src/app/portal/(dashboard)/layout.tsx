@@ -6,12 +6,14 @@ import { PortalHeader } from '@/components/portal/PortalHeader'
 import { PortalNotificationBell } from '@/components/portal/PortalNotificationBell'
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar'
 import { PoolAppealBanner } from '@/components/portal/PoolAppealBanner'
+import { WelcomeTour } from '@/components/portal/WelcomeTour'
 
 export default function PortalDashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
     <div className="portal-shell flex min-h-screen bg-[#F5F8F6]">
+      <WelcomeTour />
       <PortalSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <PortalNotificationBell />
       <div className="flex-1 min-w-0 md:ml-[210px] print:ml-0">

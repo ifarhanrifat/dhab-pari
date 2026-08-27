@@ -10,6 +10,7 @@ import { HeartHandshake, CheckCircle, CheckSquare, Square } from 'lucide-react'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { PaymentAccountDetails } from '@/components/public/PaymentAccountDetails'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 
 interface Project { id: string; title: string; display_name: string | null }
 interface DonationRow { id: string; amount_pkr: number; payment_status: string; is_verified: boolean }
@@ -167,7 +168,7 @@ function PortalDonatePageInner() {
   return (
     <div>
       <div dir={isUrdu ? 'rtl' : 'ltr'} className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><HeartHandshake size={22} className="text-dp-secondary" /> {t('p.makeDonation')}</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><HeartHandshake size={22} className="text-dp-secondary" /> {t('p.makeDonation')} <PortalHelp pageKey="donate" /></h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.donatingAs')} {user?.full_name} · {user?.mobile}</p>
       </div>
 

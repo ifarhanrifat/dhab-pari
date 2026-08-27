@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { HandHeart, Sparkles, Send } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 
 interface Item { id: string; message: string; type: string; status: string; admin_notes: string | null; created_at: string }
 
@@ -74,7 +75,7 @@ export default function PortalGetInvolvedPage() {
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('p.getInvolved')}</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2">{t('p.getInvolved')} <PortalHelp pageKey="getInvolved" /></h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.getInvolvedBlurb')}</p>
       </div>
 

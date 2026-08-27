@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { School, MapPin, Phone, Globe } from 'lucide-react'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 
 interface Institute {
   id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
@@ -26,7 +27,7 @@ export default function PortalInstitutesPage() {
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><School size={22} className="text-dp-secondary" /> {t('in.title')}</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><School size={22} className="text-dp-secondary" /> {t('in.title')} <PortalHelp pageKey="institutes" /></h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('in.portalBlurb')}</p>
       </div>
 

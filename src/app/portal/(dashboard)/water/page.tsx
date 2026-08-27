@@ -10,6 +10,7 @@ import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload
 import { PaymentAccountDetails } from '@/components/public/PaymentAccountDetails'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import Link from 'next/link'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 
 interface Bill {
   id: string; month: number; year: number; amount_pkr: number; paid_amount: number
@@ -96,7 +97,7 @@ export default function PortalWaterPage() {
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('p.waterBillsPayments')}</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2">{t('p.waterBillsPayments')} <PortalHelp pageKey="water" /></h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.consumerNo')}{user.consumer_id}</p>
       </div>
 

@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { Send } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { PortalHelp } from '@/components/portal/PortalHelp'
 
 interface Suggestion { id: string; message: string; status: string; admin_notes: string | null; created_at: string }
 
@@ -53,7 +54,7 @@ export default function PortalSuggestionsPage() {
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('g.suggestions')}</h1>
+        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2">{t('g.suggestions')} <PortalHelp pageKey="suggestions" /></h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.suggestionsBlurb')}</p>
       </div>
 
