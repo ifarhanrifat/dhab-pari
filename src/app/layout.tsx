@@ -74,8 +74,15 @@ export const metadata: Metadata = {
 
 // Colours the Android status bar / iOS notch area to match the site header
 // so the installed app doesn't show a white strip above the green header.
+// viewportFit: 'cover' is the other half of that — without it iOS never
+// extends the page under the notch/home-indicator area at all, so every
+// env(safe-area-inset-*) value silently reads 0 and a fixed bottom bar
+// (BottomNav) sits flush against the very edge of the screen instead of
+// clearing the home-indicator gesture strip, which is what "the page
+// isn't displaying full" looks like on an iPhone.
 export const viewport: Viewport = {
   themeColor: "#0B3B2E",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

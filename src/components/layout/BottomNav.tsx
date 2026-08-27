@@ -19,7 +19,10 @@ export function BottomNav() {
   const { setOpen } = useMobileNav()
 
   return (
-    <nav className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 md:hidden bg-dp-primary border-t border-dp-outline-variant shadow-lg">
+    <nav
+      className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 pt-3 md:hidden bg-dp-primary border-t border-dp-outline-variant shadow-lg"
+      style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+    >
       {tabs.map((tab) => {
         const isActive = pathname === tab.href
         const Icon = tab.icon

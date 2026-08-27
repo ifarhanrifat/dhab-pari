@@ -16,8 +16,11 @@ export default function PublicLayout({
       <main className="flex-1">{children}</main>
       <Footer />
       <BottomNav />
-      {/* Bottom padding on mobile so content isn't hidden behind bottom nav */}
-      <div className="h-16 md:hidden" />
+      {/* Bottom padding on mobile so content isn't hidden behind bottom nav —
+          matches BottomNav's own safe-area-aware height (viewport.viewportFit
+          'cover' in the root layout is what makes the env() value non-zero
+          on an iPhone's home-indicator area). */}
+      <div className="md:hidden" style={{ height: 'calc(3.5rem + max(0.75rem, env(safe-area-inset-bottom)))' }} />
     </MobileNavProvider>
   )
 }
