@@ -10,16 +10,15 @@ const HEALTH_COVER_IMAGE = '/images/health-project-cover.jpg'
 const isHealthCategory = (category: string | null) => category === 'health'
 // Same i18n keys the admin Projects page already uses for these category
 // names (src/app/admin/(dashboard)/projects/page.tsx) — one dictionary,
-// not a second copy just for this page.
+// not a second copy just for this page. Shown as a small heading on each
+// card now, not as a whole-section grouping — grouping into one grid per
+// category left a category with just one live project stranded alone,
+// full-width, breaking the two-up rhythm every other card keeps. One flat
+// grid, category named per card, pairs up regardless of the mix.
 const CATEGORY_LABEL_KEY: Record<string, string> = {
   infrastructure: 'pj.catInfrastructure', water: 'pj.catWater', health: 'pj.catHealth', education: 'pj.catEducation',
   environment: 'pj.catEnvironment', welfare: 'pj.catWelfare', sports: 'pj.catSports', training: 'pj.catTraining', other: 'pj.catOther',
 }
-// Section order — sports/training and health lead (the categories most
-// likely to have several live cards at once: multiple academies, or the
-// rare visible medical case), everything else follows by however common
-// it is on this site.
-const CATEGORY_ORDER = ['sports', 'training', 'health', 'infrastructure', 'water', 'education', 'welfare', 'environment', 'other']
 
 export const metadata: Metadata = {
   title: 'Home',
@@ -84,7 +83,7 @@ export default async function HomePage() {
       // patient's name) never reaches this page either.
       .eq('unlisted', false)
       .order('created_at', { ascending: false })
-      .limit(24),
+      .limit(6),
     supabase
       .from('news_posts')
       .select('id, title, category, content, published_at, is_featured')
@@ -146,19 +145,6 @@ export default async function HomePage() {
   const expenseByProject: Record<string, number> = {}
   for (const e of expenseRows ?? []) expenseByProject[e.project_id] = (expenseByProject[e.project_id] ?? 0) + Number(e.debit)
 
-  // Grouped by category — several cards per category that actually has
-  // live projects, not one flat two-card grid. Capped per section so an
-  // active category can't push the whole homepage impossibly long; the
-  // section's own "View all" link is where the rest live.
-  const PROJECTS_PER_SECTION = 4
-  const projectsByCategory: Record<string, typeof projects> = {}
-  for (const p of projects) {
-    const cat = p.category ?? 'other'
-    ;(projectsByCategory[cat] ??= []).push(p)
-  }
-  const categorySections = CATEGORY_ORDER
-    .filter((cat) => (projectsByCategory[cat] ?? []).length > 0)
-    .map((cat) => ({ category: cat, items: projectsByCategory[cat].slice(0, PROJECTS_PER_SECTION) }))
   const news = newsRes.data ?? []
   const videos = videosRes.data ?? []
   const donors = donorsRes.data ?? []
@@ -310,79 +296,80 @@ export default async function HomePage() {
         {/* ===== MAIN COLUMN ===== */}
         <div className="flex-1 space-y-8">
 
-          {/* --- Projects, grouped by category --- */}
-          {categorySections.length === 0 ? (
-            <section>
-              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title mb-6"><T k="home.ongoingProjects" /></h2>
-              <div className="text-center py-12 text-dp-on-surface-variant"><T k="home.noProjects" /></div>
-            </section>
-          ) : categorySections.map(({ category, items }) => (
-            <section key={category}>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary section-title">
-                  <T k={CATEGORY_LABEL_KEY[category] ?? 'pj.catOther'} fallback={category} />
-                </h2>
-                <Link href="/projects" className="text-dp-secondary font-bold hover:underline flex items-center text-[14px] font-sans tracking-[0.05em]">
-                  <T k="home.viewAll" /> <ArrowRight size={16} className="ms-1 rtl:-scale-x-100" />
-                </Link>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {items.map((project) => (
-                  <Link
-                    key={project.id}
-                    href={`/projects`}
-                    className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden hover:shadow-md transition-shadow group"
-                  >
-                    <div className="relative h-48 bg-dp-surface-container overflow-hidden">
-                      {isHealthCategory(project.category) ? (
-                        <Image src={HEALTH_COVER_IMAGE} alt={project.display_name || project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
-                      ) : project.after_image_url || project.before_image_url ? (
-                        <Image src={project.after_image_url ?? project.before_image_url ?? ''} alt={project.display_name || project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container flex items-center justify-center">
-                          <GitBranch size={48} className="text-dp-on-primary-container/40" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-6">
-                      <span className="bg-dp-secondary-container text-dp-on-secondary-container text-[10px] font-extrabold px-2 py-1 rounded uppercase tracking-wider">
+          {/* --- Projects --- */}
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title"><T k="home.ongoingProjects" /></h2>
+              <Link href="/projects" className="text-dp-secondary font-bold hover:underline flex items-center text-[14px] font-sans tracking-[0.05em]">
+                <T k="home.viewAll" /> <ArrowRight size={16} className="ms-1 rtl:-scale-x-100" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {projects.map((project) => (
+                <Link
+                  key={project.id}
+                  href={`/projects`}
+                  className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden hover:shadow-md transition-shadow group"
+                >
+                  <div className="relative h-48 bg-dp-surface-container overflow-hidden">
+                    {isHealthCategory(project.category) ? (
+                      <Image src={HEALTH_COVER_IMAGE} alt={project.display_name || project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+                    ) : project.after_image_url || project.before_image_url ? (
+                      <Image src={project.after_image_url ?? project.before_image_url ?? ''} alt={project.display_name || project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container flex items-center justify-center">
+                        <GitBranch size={48} className="text-dp-on-primary-container/40" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-6">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <p className="text-[11px] font-sans font-extrabold uppercase tracking-[0.08em] text-dp-secondary">
+                        <T k={CATEGORY_LABEL_KEY[project.category ?? 'other'] ?? 'pj.catOther'} fallback={project.category ?? ''} />
+                      </p>
+                      <span className="bg-dp-secondary-container text-dp-on-secondary-container text-[10px] font-extrabold px-2 py-1 rounded uppercase tracking-wider shrink-0">
                         {project.status}
                       </span>
-                      <h3 className="text-[20px] font-sans font-semibold leading-[28px] mt-2 text-dp-primary group-hover:text-dp-secondary transition-colors">
-                        {project.display_name || project.title}
-                      </h3>
-                      <div className="mt-4 space-y-2">
-                        <div className="flex justify-between text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-on-surface-variant">
-                          <span><T k="home.progress" /></span>
-                          <span>{project.progress_percent}%</span>
-                        </div>
-                        <div className="w-full bg-dp-surface-container-high h-2 rounded-full overflow-hidden">
-                          <div
-                            className="bg-dp-secondary h-full transition-all duration-1000"
-                            style={{ width: `${project.progress_percent}%` }}
-                          />
-                        </div>
+                    </div>
+                    <h3 className="text-[20px] font-sans font-semibold leading-[28px] text-dp-primary group-hover:text-dp-secondary transition-colors">
+                      {project.display_name || project.title}
+                    </h3>
+                    <div className="mt-4 space-y-2">
+                      <div className="flex justify-between text-[14px] font-sans font-semibold tracking-[0.05em] text-dp-on-surface-variant">
+                        <span><T k="home.progress" /></span>
+                        <span>{project.progress_percent}%</span>
                       </div>
-                      <div className="flex justify-between mt-6 pt-4 border-t border-dp-outline-variant text-[14px] font-sans font-semibold tracking-[0.05em]">
-                        <div>
-                          <p className="text-dp-on-surface-variant"><T k="home.budget" /></p>
-                          <p className="font-bold text-dp-primary">
-                            PKR {(project.budget_pkr ?? 0).toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="text-end">
-                          <p className="text-dp-on-surface-variant"><T k="home.spent" /></p>
-                          <p className="font-bold text-dp-primary">
-                            PKR {(expenseByProject[project.id] ?? 0).toLocaleString()}
-                          </p>
-                        </div>
+                      <div className="w-full bg-dp-surface-container-high h-2 rounded-full overflow-hidden">
+                        <div
+                          className="bg-dp-secondary h-full transition-all duration-1000"
+                          style={{ width: `${project.progress_percent}%` }}
+                        />
                       </div>
                     </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ))}
+                    <div className="flex justify-between mt-6 pt-4 border-t border-dp-outline-variant text-[14px] font-sans font-semibold tracking-[0.05em]">
+                      <div>
+                        <p className="text-dp-on-surface-variant"><T k="home.budget" /></p>
+                        <p className="font-bold text-dp-primary">
+                          PKR {(project.budget_pkr ?? 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-end">
+                        <p className="text-dp-on-surface-variant"><T k="home.spent" /></p>
+                        <p className="font-bold text-dp-primary">
+                          PKR {(expenseByProject[project.id] ?? 0).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+              {projects.length === 0 && (
+                <div className="col-span-2 text-center py-12 text-dp-on-surface-variant">
+                  <T k="home.noProjects" />
+                </div>
+              )}
+            </div>
+          </section>
 
           {/* --- Welfare: Zakat, Kafalat, Taleemi Wazifa, Esal-e-Sawab ---
               A client island, because the counters animate as they scroll

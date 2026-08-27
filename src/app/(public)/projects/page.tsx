@@ -135,8 +135,9 @@ const t: Record<string, { en: string; ur: string }> = {
 
 const CATEGORY_LABEL_UR: Record<string, string> = {
   infrastructure: 'تعمیرات', water: 'پانی', health: 'صحت', education: 'تعلیم',
-  environment: 'ماحولیات', welfare: 'بہبود', sports: 'کھیل', other: 'دیگر',
+  environment: 'ماحولیات', welfare: 'بہبود', sports: 'کھیل', training: 'تربیت', other: 'دیگر',
 }
+const ALL_CATEGORIES = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'sports', 'training', 'other']
 
 const filters = ['All', 'Ongoing', 'Completed', 'Upcoming', 'Announced']
 
@@ -162,6 +163,11 @@ export default function ProjectsPage() {
   const [expenseByProject, setExpenseByProject] = useState<Record<string, number>>({})
   const [feeByProject, setFeeByProject] = useState<Record<string, FeeSummary>>({})
   const [activeFilter, setActiveFilter] = useState('All')
+  // A second, independent exclusive filter — status and category each
+  // narrow on their own axis and combine (AND), same as any normal
+  // category+status facet filter; within each row only one button is
+  // ever active at a time, never several ANDed together as booleans.
+  const [categoryFilter, setCategoryFilter] = useState('All')
   const [loading, setLoading] = useState(true)
   const [lang, setLang] = useState<Lang>('en')
   // Private/medical projects never appear individually anywhere on this
@@ -237,11 +243,23 @@ export default function ProjectsPage() {
       .filter((p) => engagementScore(p) > 0).map((p) => p.id)
   )
 
-  const filtered = (
-    activeFilter === 'All'
-      ? projects
-      : projects.filter((p) => p.status === activeFilter.toLowerCase())
-  ).slice().sort((a, b) => engagementScore(b) - engagementScore(a))
+  const filtered = projects
+    .filter((p) => activeFilter === 'All' || p.status === activeFilter.toLowerCase())
+    .filter((p) => categoryFilter === 'All' || (p.category ?? 'other') === categoryFilter)
+    .slice().sort((a, b) => engagementScore(b) - engagementScore(a))
+
+  // Counts follow the status filter (so "Medical (3)" always matches
+  // what clicking it will actually show) but not each other — every
+  // category button's own count is computed as if it, not whichever one
+  // happens to be active, were selected.
+  const categoryCounts: Record<string, number> = { All: 0 }
+  for (const p of projects) {
+    if (activeFilter !== 'All' && p.status !== activeFilter.toLowerCase()) continue
+    categoryCounts.All += 1
+    const cat = p.category ?? 'other'
+    categoryCounts[cat] = (categoryCounts[cat] ?? 0) + 1
+  }
+  const presentCategories = ALL_CATEGORIES.filter((c) => (categoryCounts[c] ?? 0) > 0)
 
   const filterKeys: Record<string, keyof typeof t> = {
     All: 'filterAll', Ongoing: 'filterOngoing', Completed: 'filterCompleted', Upcoming: 'filterUpcoming', Announced: 'filterAnnounced',
@@ -298,6 +316,40 @@ export default function ProjectsPage() {
           </span>
         </div>
       </div>
+
+      {/* Category filter — its own exclusive row, combines with the status
+          filter above rather than replacing it. Counts follow whichever
+          status is active, so "Medical (3)" always matches what clicking
+          it actually shows. */}
+      {presentCategories.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2.5 mb-8 -mt-3">
+          <button
+            onClick={() => setCategoryFilter('All')}
+            className={`px-4 py-1.5 rounded-full font-sans text-[13px] font-semibold tracking-[0.03em] transition-all cursor-pointer ${
+              categoryFilter === 'All'
+                ? 'bg-dp-secondary text-white shadow-sm'
+                : 'bg-dp-surface-container-low text-dp-on-surface-variant hover:bg-dp-surface-container'
+            }`}
+            style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
+          >
+            {dt('filterAll')} ({categoryCounts.All ?? 0})
+          </button>
+          {presentCategories.map((c) => (
+            <button
+              key={c}
+              onClick={() => setCategoryFilter(c)}
+              className={`px-4 py-1.5 rounded-full font-sans text-[13px] font-semibold tracking-[0.03em] transition-all cursor-pointer ${
+                categoryFilter === c
+                  ? 'bg-dp-secondary text-white shadow-sm'
+                  : 'bg-dp-surface-container-low text-dp-on-surface-variant hover:bg-dp-surface-container'
+              }`}
+              style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
+            >
+              {categoryLabel(c, isUrdu)} ({categoryCounts[c] ?? 0})
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Loading */}
       {loading && (
