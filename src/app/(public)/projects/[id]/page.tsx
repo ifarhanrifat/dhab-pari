@@ -100,6 +100,7 @@ export default function ProjectDetailPage() {
   const [voting, setVoting] = useState(false)
   const [monthlySponsored, setMonthlySponsored] = useState(0)
   const [channels, setChannels] = useState<{ payment_method: string; total_pkr: number }[]>([])
+  const [joinableBatchCount, setJoinableBatchCount] = useState(0)
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -126,6 +127,11 @@ export default function ProjectDetailPage() {
     if (p?.funding_model === 'recurring_support') {
       const { data: sponsored } = await supabase.rpc('project_monthly_sponsorship_pkr', { p_project_id: id })
       setMonthlySponsored(Number(sponsored ?? 0))
+    }
+    if (p?.category === 'sports' || p?.category === 'training') {
+      const { count } = await supabase.from('training_batches').select('id', { count: 'exact', head: true })
+        .eq('project_id', id).eq('status', 'active')
+      setJoinableBatchCount(count ?? 0)
     }
     const { data: ch } = await supabase.rpc('project_donation_channels_pkr', { p_project_id: id })
     setChannels(ch ?? [])
@@ -387,6 +393,14 @@ export default function ProjectDetailPage() {
           <button onClick={() => (portalUser ? setShowVolunteer(true) : router.push(`/portal/login?next=/projects/${id}`))} className="flex items-center gap-2 border-2 border-dp-secondary text-dp-secondary px-6 py-3 rounded-lg font-sans font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
             <HandHeart size={16} /> {tr('x.volunteerForProject')}
           </button>
+          {joinableBatchCount > 0 && (
+            <button
+              onClick={() => router.push(portalUser ? `/portal/training-programs/join/${id}` : `/portal/login?next=/portal/training-programs/join/${id}`)}
+              className="flex items-center gap-2 border-2 border-amber-600 text-amber-700 px-6 py-3 rounded-lg font-sans font-semibold hover:bg-amber-600 hover:text-white transition-all cursor-pointer"
+            >
+              <Users size={16} /> {tr('x.joinAcademyBtn')}
+            </button>
+          )}
         </div>
       )}
 

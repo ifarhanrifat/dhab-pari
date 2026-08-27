@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useRef, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, HeartHandshake, AlertTriangle } from 'lucide-react'
 import { SITE } from '@/lib/constants'
@@ -10,7 +10,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 const MIN_DELAY_MS = 1000
 const MAX_DELAY_MS = 8000
 
-export default function PortalLoginPage() {
+function PortalLoginInner() {
   const { t, isUrdu } = useLocale()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -23,6 +23,15 @@ export default function PortalLoginPage() {
   const [delayLeft, setDelayLeft] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  // Only ever follow a same-origin relative path — a bare `next` value
+  // from the URL is untrusted input, and honoring an absolute or
+  // protocol-relative URL here would turn "log in, then continue where
+  // you were" into an open redirect. Callers pass either a /portal path
+  // (Join Academy) or a public page they came from (Volunteer/Announce
+  // Pledge on /projects/[id]) — both are just "starts with a single /".
+  const next = searchParams.get('next')
+  const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : '/portal'
 
   useEffect(() => {
     if (lockedUntil === 0) return
@@ -62,7 +71,7 @@ export default function PortalLoginPage() {
 
       if (res.ok) {
         setFailCount(0)
-        router.push('/portal')
+        router.push(safeNext)
         router.refresh()
         return
       }
@@ -135,5 +144,13 @@ export default function PortalLoginPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function PortalLoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <PortalLoginInner />
+    </Suspense>
   )
 }
