@@ -18,7 +18,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Users, PlusCircle, X, HandCoins, CheckCircle2, Clock, Pencil, UserMinus, Layers } from 'lucide-react'
+import { Users, PlusCircle, X, HandCoins, CheckCircle2, Clock, Pencil, UserMinus, Layers, UserCheck, UserX, Bell } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -28,6 +28,8 @@ interface Batch {
   id: string; label: string; label_ur: string | null; schedule_note: string | null; status: string
   fee_villager_monthly_pkr: number | null; fee_outsider_monthly_pkr: number | null
   fee_villager_full_pkr: number | null; fee_outsider_full_pkr: number | null
+  capacity: number | null; age_min: number | null; age_max: number | null
+  session_days: number[] | null; session_time: string | null
 }
 interface Charge { id: string; charge_no: number; due_on: string; amount_pkr: number; paid_pkr: number; status: string }
 interface Enrollment {
@@ -36,6 +38,14 @@ interface Enrollment {
   participant_type: string; fee_type: string; fee_amount_pkr: number; discount_pct: number | null
   discount_reason: string | null; status: string
 }
+interface PendingRequest {
+  id: string; student_name: string; student_age: number | null
+  guardian_name: string | null; guardian_whatsapp_number: string | null
+  address: string | null; sector: string | null; participant_type: string
+  fee_type: string; fee_amount_pkr: number; batch_label: string | null; requested_at: string
+}
+
+const DAY_KEYS = ['af.daySun', 'af.dayMon', 'af.dayTue', 'af.dayWed', 'af.dayThu', 'af.dayFri', 'af.daySat']
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -49,6 +59,7 @@ const emptyEnroll = {
 const emptyBatch = {
   label: '', label_ur: '', schedule_note: '',
   fee_villager_monthly_pkr: 0, fee_outsider_monthly_pkr: 0, fee_villager_full_pkr: 0, fee_outsider_full_pkr: 0,
+  capacity: '', age_min: '', age_max: '', session_days: [] as number[], session_time: '',
 }
 
 function AcademyFeesInner() {
@@ -60,6 +71,7 @@ function AcademyFeesInner() {
   const [batches, setBatches] = useState<Batch[]>([])
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
   const [charges, setCharges] = useState<Record<string, Charge[]>>({})
+  const [requests, setRequests] = useState<PendingRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [showEnroll, setShowEnroll] = useState(false)
   const [form, setForm] = useState(emptyEnroll)
@@ -89,15 +101,17 @@ function AcademyFeesInner() {
 
   const loadRoster = async (academy: Academy) => {
     setSelected(academy)
-    const [{ data: batchRows }, { data: rows }] = await Promise.all([
-      supabase.from('training_batches').select('id, label, label_ur, schedule_note, status, fee_villager_monthly_pkr, fee_outsider_monthly_pkr, fee_villager_full_pkr, fee_outsider_full_pkr')
+    const [{ data: batchRows }, { data: rows }, { data: reqRows }] = await Promise.all([
+      supabase.from('training_batches').select('id, label, label_ur, schedule_note, status, fee_villager_monthly_pkr, fee_outsider_monthly_pkr, fee_villager_full_pkr, fee_outsider_full_pkr, capacity, age_min, age_max, session_days, session_time')
         .eq('project_id', academy.id).eq('status', 'active').order('created_at'),
       supabase.from('training_enrollments')
         .select('id, student_name, guardian_name, guardian_whatsapp_number, address, sector, batch_id, participant_type, fee_type, fee_amount_pkr, discount_pct, discount_reason, status')
         .eq('project_id', academy.id).eq('status', 'active').order('student_name'),
+      supabase.rpc('training_enrollment_requests', { p_project_id: academy.id }),
     ])
     setBatches(batchRows ?? [])
     setEnrollments(rows ?? [])
+    setRequests((reqRows ?? []) as PendingRequest[])
     if (rows && rows.length > 0) {
       const { data: chargeRows } = await supabase.from('training_fee_charges')
         .select('id, enrollment_id, charge_no, due_on, amount_pkr, paid_pkr, status')
@@ -192,6 +206,25 @@ function AcademyFeesInner() {
     if (selected) loadRoster(selected)
   }
 
+  const confirmRequest = async (r: PendingRequest) => {
+    setSaving(true)
+    const { error } = await supabase.rpc('confirm_training_enrollment', { p_enrollment_id: r.id })
+    setSaving(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('af.confirmedToast'))
+    if (selected) loadRoster(selected)
+  }
+
+  const rejectRequest = async (r: PendingRequest) => {
+    const reason = window.prompt(t('af.rejectReasonPrompt')) ?? undefined
+    setSaving(true)
+    const { error } = await supabase.rpc('reject_training_enrollment', { p_enrollment_id: r.id, p_reason: reason || null })
+    setSaving(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('af.rejectedToast'))
+    if (selected) loadRoster(selected)
+  }
+
   const openNewBatch = () => { setEditingBatch(null); setBatchForm(emptyBatch); setShowBatchForm(true) }
   const openEditBatch = (b: Batch) => {
     setEditingBatch(b)
@@ -199,8 +232,14 @@ function AcademyFeesInner() {
       label: b.label, label_ur: b.label_ur ?? '', schedule_note: b.schedule_note ?? '',
       fee_villager_monthly_pkr: b.fee_villager_monthly_pkr ?? 0, fee_outsider_monthly_pkr: b.fee_outsider_monthly_pkr ?? 0,
       fee_villager_full_pkr: b.fee_villager_full_pkr ?? 0, fee_outsider_full_pkr: b.fee_outsider_full_pkr ?? 0,
+      capacity: b.capacity != null ? String(b.capacity) : '', age_min: b.age_min != null ? String(b.age_min) : '',
+      age_max: b.age_max != null ? String(b.age_max) : '', session_days: b.session_days ?? [], session_time: b.session_time ?? '',
     })
     setShowBatchForm(true)
+  }
+
+  const toggleDay = (d: number) => {
+    setBatchForm((f) => ({ ...f, session_days: f.session_days.includes(d) ? f.session_days.filter((x) => x !== d) : [...f.session_days, d].sort() }))
   }
 
   const saveBatch = async () => {
@@ -210,6 +249,10 @@ function AcademyFeesInner() {
       label: batchForm.label, label_ur: batchForm.label_ur || null, schedule_note: batchForm.schedule_note || null,
       fee_villager_monthly_pkr: batchForm.fee_villager_monthly_pkr || null, fee_outsider_monthly_pkr: batchForm.fee_outsider_monthly_pkr || null,
       fee_villager_full_pkr: batchForm.fee_villager_full_pkr || null, fee_outsider_full_pkr: batchForm.fee_outsider_full_pkr || null,
+      capacity: batchForm.capacity ? Number(batchForm.capacity) : null,
+      age_min: batchForm.age_min ? Number(batchForm.age_min) : null, age_max: batchForm.age_max ? Number(batchForm.age_max) : null,
+      session_days: batchForm.session_days.length > 0 ? batchForm.session_days : null,
+      session_time: batchForm.session_time || null,
     }
     const { error } = editingBatch
       ? await supabase.from('training_batches').update(payload).eq('id', editingBatch.id)
@@ -274,6 +317,15 @@ function AcademyFeesInner() {
                       <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">
                         {t('af.villager')}: Rs. {fmt(b.fee_villager_monthly_pkr ?? 0)}/{t('af.perMonth')} · {t('af.outsider')}: Rs. {fmt(b.fee_outsider_monthly_pkr ?? 0)}/{t('af.perMonth')}
                       </p>
+                      {(b.age_min != null || b.age_max != null || b.capacity != null || (b.session_days && b.session_days.length > 0)) && (
+                        <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1 flex flex-wrap gap-x-2">
+                          {(b.age_min != null || b.age_max != null) && <span>{t('af.agesLabel')} {b.age_min ?? 0}–{b.age_max ?? '∞'}</span>}
+                          {b.capacity != null && <span>· {t('af.capacityLabel')}: {b.capacity}</span>}
+                          {b.session_days && b.session_days.length > 0 && (
+                            <span>· {b.session_days.map((d) => t(DAY_KEYS[d])).join(', ')}{b.session_time ? ` @ ${b.session_time.slice(0, 5)}` : ''}</span>
+                          )}
+                        </p>
+                      )}
                     </div>
                     <button onClick={() => openEditBatch(b)} title={t('af.editBtn')} className="p-1.5 rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container cursor-pointer shrink-0"><Pencil size={14} /></button>
                   </div>
@@ -281,6 +333,42 @@ function AcademyFeesInner() {
               </div>
             )}
           </div>
+
+          {/* Pending join requests — submitted by a portal user via the "Join Academy" flow */}
+          {requests.length > 0 && (
+            <div className="mb-6">
+              <p className="font-sans text-[12px] font-bold text-amber-700 uppercase tracking-[0.05em] mb-2 flex items-center gap-1.5">
+                <Bell size={13} /> {t('af.pendingRequestsHeading')} ({requests.length})
+              </p>
+              <div className="space-y-2">
+                {requests.map((r) => (
+                  <div key={r.id} className="bg-amber-50 border border-amber-200 rounded-lg p-3.5 flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                      <p className="font-sans text-[14px] font-semibold text-dp-on-surface flex items-center gap-2 flex-wrap">
+                        {r.student_name}
+                        {r.student_age != null && <span className="text-[11px] font-normal text-dp-on-surface-variant">({r.student_age})</span>}
+                        {r.batch_label && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase bg-blue-100 text-blue-700">{r.batch_label}</span>}
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${r.participant_type === 'villager' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {t(r.participant_type === 'villager' ? 'af.villager' : 'af.outsider')}
+                        </span>
+                      </p>
+                      <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">
+                        {r.guardian_name} · {r.guardian_whatsapp_number} · Rs. {fmt(r.fee_amount_pkr)}/{t(r.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button onClick={() => confirmRequest(r)} disabled={saving} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-emerald-700 disabled:opacity-50">
+                        <UserCheck size={13} /> {t('af.confirmBtn')}
+                      </button>
+                      <button onClick={() => rejectRequest(r)} disabled={saving} className="flex items-center gap-1 px-3 py-1.5 border border-dp-error text-dp-error rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp-error/10 disabled:opacity-50">
+                        <UserX size={13} /> {t('af.rejectBtn')}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-3">
             {enrollments.length === 0 && <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('af.noStudents')}</p>}
@@ -352,6 +440,29 @@ function AcademyFeesInner() {
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('pj.feeVillagerFull')}</label><input type="number" value={batchForm.fee_villager_full_pkr || ''} onChange={(e) => setBatchForm({ ...batchForm, fee_villager_full_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
                 <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('pj.feeOutsiderFull')}</label><input type="number" value={batchForm.fee_outsider_full_pkr || ''} onChange={(e) => setBatchForm({ ...batchForm, fee_outsider_full_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
+              </div>
+              <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] pt-1">{t('af.slotsHeading')}</p>
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant -mt-2">{t('af.slotsHint')}</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('af.capacityLabel')}</label><input type="number" value={batchForm.capacity} onChange={(e) => setBatchForm({ ...batchForm, capacity: e.target.value })} className="input-field" placeholder="∞" /></div>
+                <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('af.ageMinLabel')}</label><input type="number" value={batchForm.age_min} onChange={(e) => setBatchForm({ ...batchForm, age_min: e.target.value })} className="input-field" placeholder="0" /></div>
+                <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('af.ageMaxLabel')}</label><input type="number" value={batchForm.age_max} onChange={(e) => setBatchForm({ ...batchForm, age_max: e.target.value })} className="input-field" placeholder="∞" /></div>
+              </div>
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('af.sessionDaysLabel')}</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {DAY_KEYS.map((key, d) => (
+                    <button key={d} type="button" onClick={() => toggleDay(d)}
+                      className={`px-2.5 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer border ${
+                        batchForm.session_days.includes(d) ? 'bg-dp-secondary text-white border-dp-secondary' : 'border-dp-outline-variant text-dp-on-surface-variant'}`}>
+                      {t(key)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('af.sessionTimeLabel')}</label>
+                <input type="time" value={batchForm.session_time} onChange={(e) => setBatchForm({ ...batchForm, session_time: e.target.value })} className="input-field" />
               </div>
               <button onClick={saveBatch} disabled={saving} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">
                 {saving ? t('af.saving') : t('af.saveChangesBtn')}
