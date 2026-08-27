@@ -42,23 +42,23 @@ interface Project {
   after_image_url: string | null
   proposal_image_url: string | null
   funding_model: string | null
-  // Migration 366 — a sports/training academy's rate card. Every field
-  // null/0 means free; otherwise the card shows what a villager pays,
-  // since that's the rate most visitors on this site care about.
-  fee_villager_monthly_pkr: number | null; fee_outsider_monthly_pkr: number | null
-  fee_villager_full_pkr: number | null; fee_outsider_full_pkr: number | null
 }
 
+// Migration 370 — the rate card moved off the project onto its batches
+// (kids/adults, day/night, tape/hard ball, as many as the academy needs),
+// since one number was never going to describe a whole academy. The card
+// badge shows the cheapest villager rate across all of an academy's
+// batches — "starting from" is the honest summary for something that can
+// now have several different prices at once.
+interface FeeSummary { free: boolean; cheapestVillagerMonthly: number | null }
 const isFeeCategory = (category: string | null) => category === 'sports' || category === 'training'
-function feeBadgeLabel(p: Project, isUrdu: boolean): string | null {
-  if (!isFeeCategory(p.category)) return null
-  const free = !p.fee_villager_monthly_pkr && !p.fee_outsider_monthly_pkr && !p.fee_villager_full_pkr && !p.fee_outsider_full_pkr
-  if (free) return isUrdu ? 'مفت' : 'Free'
-  const monthly = p.fee_villager_monthly_pkr || p.fee_outsider_monthly_pkr
-  const full = p.fee_villager_full_pkr || p.fee_outsider_full_pkr
-  if (monthly) return isUrdu ? `فیس — Rs. ${monthly.toLocaleString()}/ماہ` : `Fee — Rs. ${monthly.toLocaleString()}/mo`
-  if (full) return isUrdu ? `فیس — Rs. ${full.toLocaleString()}` : `Fee — Rs. ${full.toLocaleString()}`
-  return null
+function feeBadgeLabel(p: Project, fee: FeeSummary | undefined, isUrdu: boolean): string | null {
+  if (!isFeeCategory(p.category) || !fee) return null
+  if (fee.free) return isUrdu ? 'مفت' : 'Free'
+  if (fee.cheapestVillagerMonthly) {
+    return isUrdu ? `فیس — Rs. ${fee.cheapestVillagerMonthly.toLocaleString()} سے/ماہ` : `Fee — from Rs. ${fee.cheapestVillagerMonthly.toLocaleString()}/mo`
+  }
+  return isUrdu ? 'فیس لاگو' : 'Fee applies'
 }
 
 type Lang = 'en' | 'ur'
@@ -160,6 +160,7 @@ export default function ProjectsPage() {
   // Rs. 0 spent despite the real ledger having real numbers all along.
   const [receivedByProject, setReceivedByProject] = useState<Record<string, number>>({})
   const [expenseByProject, setExpenseByProject] = useState<Record<string, number>>({})
+  const [feeByProject, setFeeByProject] = useState<Record<string, FeeSummary>>({})
   const [activeFilter, setActiveFilter] = useState('All')
   const [loading, setLoading] = useState(true)
   const [lang, setLang] = useState<Lang>('en')
@@ -189,7 +190,7 @@ export default function ProjectsPage() {
         setLoading(false)
         const allIds = (data ?? []).map((p) => p.id)
         if (allIds.length > 0) {
-          const [{ data: voteRows }, { data: commentRows }, { data: donationRows }, { data: expenseRows }] = await Promise.all([
+          const [{ data: voteRows }, { data: commentRows }, { data: donationRows }, { data: expenseRows }, { data: batchRows }] = await Promise.all([
             supabase.from('project_votes_public').select('project_id').in('project_id', allIds),
             // Excludes comment_type='system' — those are the auto-posted "X submitted
             // a donation of Rs. Y" lines the donation trigger writes on every submission,
@@ -198,6 +199,7 @@ export default function ProjectsPage() {
             supabase.from('project_comments_public').select('project_id').eq('comment_type', 'user').in('project_id', allIds),
             supabase.from('donors_public').select('project_id, amount_pkr').eq('is_verified', true).in('project_id', allIds),
             supabase.from('project_expenses_public').select('project_id, debit').in('project_id', allIds),
+            supabase.from('training_batches').select('project_id, fee_villager_monthly_pkr, fee_outsider_monthly_pkr, fee_villager_full_pkr, fee_outsider_full_pkr').eq('status', 'active').in('project_id', allIds),
           ])
           const vCounts: Record<string, number> = {}
           for (const v of voteRows ?? []) vCounts[v.project_id] = (vCounts[v.project_id] ?? 0) + 1
@@ -211,6 +213,18 @@ export default function ProjectsPage() {
           const expense: Record<string, number> = {}
           for (const e of expenseRows ?? []) expense[e.project_id] = (expense[e.project_id] ?? 0) + Number(e.debit)
           setExpenseByProject(expense)
+          const fee: Record<string, FeeSummary> = {}
+          for (const b of batchRows ?? []) {
+            const existing = fee[b.project_id] ?? { free: true, cheapestVillagerMonthly: null }
+            const batchIsFree = !b.fee_villager_monthly_pkr && !b.fee_outsider_monthly_pkr && !b.fee_villager_full_pkr && !b.fee_outsider_full_pkr
+            const villagerMonthly = Number(b.fee_villager_monthly_pkr) || null
+            fee[b.project_id] = {
+              free: existing.free && batchIsFree,
+              cheapestVillagerMonthly: villagerMonthly && (!existing.cheapestVillagerMonthly || villagerMonthly < existing.cheapestVillagerMonthly)
+                ? villagerMonthly : existing.cheapestVillagerMonthly,
+            }
+          }
+          setFeeByProject(fee)
         }
       })
   }, [])
@@ -301,7 +315,7 @@ export default function ProjectsPage() {
       {!loading && (
         <div className="space-y-8">
           {filtered.map((project) => {
-            if (project.status === 'ongoing') return <OngoingCard key={project.id} project={project} isHot={hotIds.has(project.id)} commentCount={commentCounts[project.id] ?? 0} expense={expenseByProject[project.id] ?? 0} dt={dt} isUrdu={isUrdu} />
+            if (project.status === 'ongoing') return <OngoingCard key={project.id} project={project} isHot={hotIds.has(project.id)} commentCount={commentCounts[project.id] ?? 0} expense={expenseByProject[project.id] ?? 0} fee={feeByProject[project.id]} dt={dt} isUrdu={isUrdu} />
             if (project.status === 'completed') return <CompletedCard key={project.id} project={project} isHot={hotIds.has(project.id)} dt={dt} isUrdu={isUrdu} received={receivedByProject[project.id] ?? 0} expense={expenseByProject[project.id] ?? 0} />
             if (project.status === 'upcoming') return <UpcomingCard key={project.id} project={project} voteCount={voteCounts[project.id] ?? 0} isHot={hotIds.has(project.id)} dt={dt} isUrdu={isUrdu} />
             if (project.status === 'announced') return <AnnouncedCard key={project.id} project={project} dt={dt} isUrdu={isUrdu} />
@@ -363,7 +377,7 @@ function HotBadge() {
 
 const urduStyle = { fontFamily: 'var(--font-urdu), serif' } as const
 
-function OngoingCard({ project, isHot, commentCount, expense, dt, isUrdu }: { project: Project; isHot: boolean; commentCount: number; expense: number; dt: Dt; isUrdu: boolean }) {
+function OngoingCard({ project, isHot, commentCount, expense, fee, dt, isUrdu }: { project: Project; isHot: boolean; commentCount: number; expense: number; fee: FeeSummary | undefined; dt: Dt; isUrdu: boolean }) {
   const { t: tr } = useLocale()
   return (
     <div className="relative bg-white border border-dp-outline-variant rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 hover:border-dp-secondary transition-all">
@@ -407,9 +421,9 @@ function OngoingCard({ project, isHot, commentCount, expense, dt, isUrdu }: { pr
               <span className="bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded font-sans text-[12px] font-semibold tracking-[0.05em] uppercase" style={isUrdu ? urduStyle : undefined}>
                 {categoryLabel(project.category, isUrdu)}
               </span>
-              {feeBadgeLabel(project, isUrdu) && (
-                <span className={`px-3 py-1 rounded font-sans text-[12px] font-semibold ${feeBadgeLabel(project, isUrdu) === (isUrdu ? 'مفت' : 'Free') ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`} style={isUrdu ? urduStyle : undefined}>
-                  {feeBadgeLabel(project, isUrdu)}
+              {feeBadgeLabel(project, fee, isUrdu) && (
+                <span className={`px-3 py-1 rounded font-sans text-[12px] font-semibold ${fee?.free ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`} style={isUrdu ? urduStyle : undefined}>
+                  {feeBadgeLabel(project, fee, isUrdu)}
                 </span>
               )}
             </div>

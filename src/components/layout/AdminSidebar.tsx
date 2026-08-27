@@ -128,7 +128,6 @@ const menuItems: {
   { href: '/admin/portal-accounts', label: 'Portal Accounts', tKey: 'nav.portalAccounts', icon: KeyRound, adminAndAbove: true },
   { href: '/admin/mentor-chats', label: 'Mentor Chats', tKey: 'nav.mentorChats', icon: MessageCircle, adminAndAbove: true },
   { href: '/admin/institutes', label: 'Institutes', tKey: 'nav.institutes', icon: School, adminAndAbove: true },
-  { href: '/admin/training-programs', label: 'Training Programs', tKey: 'nav.trainingPrograms', icon: CalendarClock, adminAndAbove: true },
   // Not adminAndAbove — a scoped trainer (role='viewer', can_collect_payments,
   // assigned_training_program_ids) needs this link too; RLS narrows what
   // they actually see once they're on the page to just their own academy.
