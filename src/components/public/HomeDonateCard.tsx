@@ -1,8 +1,10 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Copy } from 'lucide-react'
 import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { T } from '@/components/i18n/T'
 import type { PaymentAccount } from '@/lib/paymentAccounts'
@@ -13,6 +15,12 @@ import type { PaymentAccount } from '@/lib/paymentAccounts'
  * data in site_settings) — a donor copying either would send money nowhere.
  * Same real UBL account the /donate page and donation forms now use,
  * just themed for this card's dark green background.
+ *
+ * The button used to link to /donate — the public honor-wall page, not
+ * a submission form at all. Same routing DonateCTAButton already uses
+ * elsewhere: a signed-in portal user goes straight to their own
+ * prefilled /portal/donate flow; everyone else goes to the anonymous
+ * /donate/submit form.
  */
 function CopyRow({ label, value }: { label: string; value: string }) {
   const { t } = useLocale()
@@ -36,6 +44,17 @@ function CopyRow({ label, value }: { label: string; value: string }) {
 
 export function HomeDonateCard({ account }: { account: PaymentAccount }) {
   const { t } = useLocale()
+  const [href, setHref] = useState('/donate/submit')
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data } = await supabase.from('portal_users').select('id').eq('auth_user_id', user.id).eq('is_active', true).maybeSingle()
+      if (data) setHref('/portal/donate')
+    })
+  }, [])
+
   return (
     <div className="bg-dp-secondary text-white rounded-lg p-6 relative overflow-hidden">
       <div className="relative z-10">
@@ -56,7 +75,7 @@ export function HomeDonateCard({ account }: { account: PaymentAccount }) {
           {t('p.payOnlyNote')}
         </p>
         <Link
-          href="/donate"
+          href={href}
           className="block w-full mt-6 py-3 bg-white text-dp-secondary rounded-lg text-center font-bold font-sans hover:bg-dp-secondary-container transition-all"
         >
           <T k="home.submitReceipt" />
