@@ -59,7 +59,7 @@ function DonateSubmitPageInner() {
   const [form, setForm] = useState({
     name: '', father_husband_name: '', whatsapp_number: '', phone: '',
     amount_pkr: 0, date: new Date().toISOString().split('T')[0],
-    payment_method: 'jazzcash', project_id: searchParams.get('project') ?? '', is_anonymous: false,
+    payment_method: 'bank', project_id: searchParams.get('project') ?? '', is_anonymous: false,
   })
   const [receiptPath, setReceiptPath] = useState('')
   const [international, setInternational] = useState(false)
@@ -226,8 +226,6 @@ function DonateSubmitPageInner() {
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{dt('paymentMethod')}</label>
                   <select value={form.payment_method} disabled={international} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
                     className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px] disabled:opacity-60">
-                    {!international && <option value="jazzcash">{tr('w.jazzcash')}</option>}
-                    {!international && <option value="easypaisa">{tr('w.easypaisa')}</option>}
                     <option value="bank">{tr('w.bankTransfer')}</option>
                     {!international && <option value="cash">{tr('w.cash')}</option>}
                   </select>

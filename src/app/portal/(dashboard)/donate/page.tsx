@@ -49,7 +49,7 @@ function PortalDonatePageInner() {
   const [projects, setProjects] = useState<Project[]>([])
   const [amount, setAmount] = useState(0)
   const [projectId, setProjectId] = useState(searchParams.get('project') ?? '')
-  const [method, setMethod] = useState('jazzcash')
+  const [method, setMethod] = useState('bank')
   const [isAnonymous, setIsAnonymous] = useState(false)
   const [international, setInternational] = useState(false)
   const [receiptPath, setReceiptPath] = useState('')
@@ -220,8 +220,6 @@ function PortalDonatePageInner() {
         <div dir={isUrdu ? 'rtl' : 'ltr'}>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
           <select value={method} disabled={international} onChange={(e) => setMethod(e.target.value)} className="input-field disabled:opacity-60">
-            {!international && <option value="jazzcash">{t('w.jazzcash')}</option>}
-            {!international && <option value="easypaisa">{t('w.easypaisa')}</option>}
             <option value="bank">{t('w.bankTransfer')}</option>
             {!international && <option value="cash">{t('w.cash')}</option>}
           </select>

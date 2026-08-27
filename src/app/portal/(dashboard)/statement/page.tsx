@@ -56,7 +56,7 @@ function PortalStatementInner() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [showPay, setShowPay] = useState(false)
   const [payProof, setPayProof] = useState('')
-  const [payMethod, setPayMethod] = useState('jazzcash')
+  const [payMethod, setPayMethod] = useState('bank')
   const [international, setInternational] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   // Arrived here from a "Confirm your payment" button on a Kafalat/Wazifa/
@@ -121,7 +121,7 @@ function PortalStatementInner() {
     if (match) {
       setSelected(new Set([match.key]))
       setPayProof('')
-      setPayMethod('jazzcash')
+      setPayMethod('bank')
       setShowPay(true)
     }
     setAutoOpened(true)
@@ -192,7 +192,7 @@ function PortalStatementInner() {
             <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">
               {selectedItems.length} {t('p.selectedTotalLabel')} <span className="text-dp-secondary">Rs. {fmt(selectedTotal)}</span>
             </p>
-            <button disabled={selectedItems.length === 0} onClick={() => { setPayProof(''); setPayMethod('jazzcash'); setShowPay(true) }}
+            <button disabled={selectedItems.length === 0} onClick={() => { setPayProof(''); setPayMethod('bank'); setShowPay(true) }}
               className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed">
               {t('p.payNow')}
             </button>
@@ -319,12 +319,7 @@ function PortalStatementInner() {
                 <span>{t('p.sendingFromAbroad')}</span>
               </label>
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
-                <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} disabled={international} className="input-field disabled:opacity-60">
-                  {!international && <option value="jazzcash">{t('w.jazzcash')}</option>}
-                  {!international && <option value="easypaisa">{t('w.easypaisa')}</option>}
-                  <option value="bank">{t('w.bankTransfer')}</option>
-                </select>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.bankTransfer')}</label>
                 <PaymentAccountDetails system="donors_projects" method={payMethod} international={international} />
               </div>
               <DonationReceiptUpload onUpload={setPayProof} />
