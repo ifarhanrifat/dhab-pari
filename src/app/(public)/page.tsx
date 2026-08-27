@@ -3,6 +3,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { SITE } from '@/lib/constants'
+import { getPaymentAccount } from '@/lib/paymentAccounts'
+import { HomeDonateCard } from '@/components/public/HomeDonateCard'
 
 // Same fixed cover used on /projects for a medical/health project — a real
 // photo of someone's treatment is never shown publicly, on this page either.
@@ -67,7 +69,7 @@ export default async function HomePage() {
   const supabase = await createClient()
 
   const [projectsRes, newsRes, videosRes, donorsRes, statsRes, jobsRes, volunteersRes, achievementsRes, bloodRes,
-         needsRes, kafalatRes, wazifaRes, sadqaRes, committeeNotesRes, welfareContentRes, careerCountsRes] = await Promise.all([
+         needsRes, kafalatRes, wazifaRes, sadqaRes, committeeNotesRes, welfareContentRes, careerCountsRes, paymentAccount] = await Promise.all([
     supabase
       .from('projects')
       .select('id, title, title_ur, display_name, status, progress_percent, budget_pkr, spent_pkr, category, location, before_image_url, after_image_url, funding_model')
@@ -131,6 +133,7 @@ export default async function HomePage() {
     // it doesn't use.
     supabase.from('site_settings').select('key, value').in('key', welfareCardContentKeys()),
     supabase.rpc('career_program_counts'),
+    getPaymentAccount(supabase, 'donors_projects'),
   ])
 
   const projects = projectsRes.data ?? []
@@ -680,32 +683,7 @@ export default async function HomePage() {
           )}
 
           {/* Donate Now Card */}
-          <div className="bg-dp-secondary text-white rounded-lg p-6 relative overflow-hidden">
-            <div className="relative z-10">
-              <h3 className="text-[20px] font-sans font-semibold leading-[28px] mb-2"><T k="home.donateNow" /></h3>
-              <p className="text-[14px] font-sans font-semibold tracking-[0.05em] opacity-90 mb-6">
-                <T k="home.donateBlurb" />
-              </p>
-              <div className="space-y-4">
-                <div className="bg-white/10 p-3 rounded border border-white/20">
-                  <p className="text-[10px] uppercase font-bold opacity-60 font-sans"><T k="home.jazzcashEasypaisa" /></p>
-                  <p className="font-mono text-[18px]">{SITE.jazzcash}</p>
-                </div>
-                <div className="bg-white/10 p-3 rounded border border-white/20">
-                  <p className="text-[10px] uppercase font-bold opacity-60 font-sans">Bank Account ({SITE.bankName})</p>
-                  <p className="font-mono text-[14px]">{SITE.bankAccount}</p>
-                  <p className="text-[10px] mt-1 font-sans">Title: {SITE.jazzcashName}</p>
-                </div>
-              </div>
-              <Link
-                href="/donate"
-                className="block w-full mt-6 py-3 bg-white text-dp-secondary rounded-lg text-center font-bold font-sans hover:bg-dp-secondary-container transition-all"
-              >
-                <T k="home.submitReceipt" />
-              </Link>
-            </div>
-            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-          </div>
+          <HomeDonateCard account={paymentAccount} />
         </aside>
       </div>
 
