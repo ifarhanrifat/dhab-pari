@@ -1,24 +1,23 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { SITE } from '@/lib/constants'
+import { getPaymentAccount } from '@/lib/paymentAccounts'
 
 export const metadata: Metadata = {
   title: 'Donate',
-  description: `Support ${SITE.name} village growth — donate via JazzCash, Easypaisa, or bank transfer.`,
+  description: `Support ${SITE.name} village growth — donate via bank transfer.`,
 }
 
 // No per-visitor content — payment method details/instructions change rarely.
 export const revalidate = 300
-import Link from 'next/link'
 import {
   Heart,
   Smartphone,
   Wallet,
-  Building2,
-  Copy,
   MessageCircle,
 } from 'lucide-react'
 import { DonateCTAButton } from '@/components/public/DonateCTAButton'
+import { BankAccountCard } from '@/components/public/BankAccountCard'
 import { T } from '@/components/i18n/T'
 
 export default async function DonatePage() {
@@ -30,12 +29,13 @@ export default async function DonatePage() {
   // anonymous donors and exposes is_verified so "Announced" (pending
   // accountant verification) donations can be shown separately from the
   // honor wall.
-  const [{ data: donors }, { data: announced }, { data: projectRows }] = await Promise.all([
+  const [{ data: donors }, { data: announced }, { data: projectRows }, account] = await Promise.all([
     supabase.from('donors_public').select('id, name, amount_pkr, date, is_anonymous, project_id')
       .eq('is_verified', true).order('amount_pkr', { ascending: false }).limit(10),
     supabase.from('donors_public').select('id, name, amount_pkr, date, is_anonymous, project_id')
       .eq('is_verified', false).order('date', { ascending: false }).limit(10),
     supabase.from('projects').select('id, title, display_name'),
+    getPaymentAccount(supabase, 'donors_projects'),
   ])
 
   const projectTitleById = new Map((projectRows ?? []).map((p) => [p.id, p.display_name || p.title]))
@@ -83,67 +83,42 @@ export default async function DonatePage() {
           <T k="x.securePayment" />
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* JazzCash */}
-          <div className="bg-white border border-dp-outline-variant p-8 flex flex-col items-center text-center hover:border-dp-secondary transition-all rounded-lg">
+          {/* JazzCash — not accepted; number deliberately zeroed out rather
+              than showing a real-looking dummy number that could confuse a
+              donor into sending money nobody will see. */}
+          <div className="bg-white border border-dp-outline-variant p-8 flex flex-col items-center text-center opacity-70 rounded-lg">
             <div className="w-16 h-16 mb-6 flex items-center justify-center bg-red-500/10 rounded-lg">
               <Smartphone size={32} className="text-red-500" />
             </div>
             <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-2"><T k="w.jazzcash" /></h3>
-            <p className="text-dp-on-surface-variant mb-6 font-sans text-[16px]">
-              <T k="x.instantMobile" />
-            </p>
-            <div className="w-full bg-dp-surface-container p-4 rounded-lg flex items-center justify-between mb-4">
-              <span className="font-bold text-dp-primary font-sans text-[18px] tracking-wider">
-                {SITE.jazzcash}
+            <div className="w-full bg-dp-surface-container p-4 rounded-lg mb-4">
+              <span className="font-bold text-dp-on-surface-variant font-sans text-[18px] tracking-wider">
+                000000000
               </span>
-              <Copy size={16} className="text-dp-secondary cursor-pointer" />
             </div>
-            <p className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]">
-              Account Name: {SITE.jazzcashName}
+            <p className="text-dp-on-surface-variant text-[13px] font-sans font-semibold">
+              <T k="p.notCurrentlyAccepted" />
             </p>
           </div>
 
-          {/* Easypaisa */}
-          <div className="bg-white border border-dp-outline-variant p-8 flex flex-col items-center text-center hover:border-dp-secondary transition-all rounded-lg">
+          {/* Easypaisa — same as JazzCash above. */}
+          <div className="bg-white border border-dp-outline-variant p-8 flex flex-col items-center text-center opacity-70 rounded-lg">
             <div className="w-16 h-16 mb-6 flex items-center justify-center bg-emerald-500/10 rounded-lg">
               <Wallet size={32} className="text-emerald-500" />
             </div>
             <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-2"><T k="w.easypaisa" /></h3>
-            <p className="text-dp-on-surface-variant mb-6 font-sans text-[16px]">
-              <T k="x.easyAccessible" />
-            </p>
-            <div className="w-full bg-dp-surface-container p-4 rounded-lg flex items-center justify-between mb-4">
-              <span className="font-bold text-dp-primary font-sans text-[18px] tracking-wider">
-                {SITE.easypaisa}
+            <div className="w-full bg-dp-surface-container p-4 rounded-lg mb-4">
+              <span className="font-bold text-dp-on-surface-variant font-sans text-[18px] tracking-wider">
+                000000000
               </span>
-              <Copy size={16} className="text-dp-secondary cursor-pointer" />
             </div>
-            <p className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]">
-              Account Name: {SITE.easypaisaName}
+            <p className="text-dp-on-surface-variant text-[13px] font-sans font-semibold">
+              <T k="p.notCurrentlyAccepted" />
             </p>
           </div>
 
-          {/* Bank */}
-          <div className="bg-white border border-dp-outline-variant p-8 flex flex-col items-center text-center hover:border-dp-secondary transition-all rounded-lg">
-            <div className="w-16 h-16 mb-6 flex items-center justify-center bg-dp-primary-container/10 rounded-lg">
-              <Building2 size={32} className="text-dp-primary" />
-            </div>
-            <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-2">
-              Bank {SITE.bankName}
-            </h3>
-            <p className="text-dp-on-surface-variant mb-6 font-sans text-[16px]">
-              <T k="x.directWire" />
-            </p>
-            <div className="w-full bg-dp-surface-container p-4 rounded-lg flex items-center justify-between mb-4">
-              <span className="font-bold text-dp-primary font-sans text-[14px]">
-                {SITE.bankAccount}
-              </span>
-              <Copy size={16} className="text-dp-secondary cursor-pointer" />
-            </div>
-            <p className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]">
-              {SITE.bankBranch}
-            </p>
-          </div>
+          {/* Bank — the one real, live account. */}
+          <BankAccountCard account={account} />
         </div>
       </section>
 
@@ -155,7 +130,7 @@ export default async function DonatePage() {
           </h2>
           <div className="space-y-8">
             {[
-              { n: '1', title: 'Select Channel', desc: 'Choose your preferred payment method from JazzCash, Easypaisa, or Bank Transfer.' },
+              { n: '1', title: 'Send via Bank Transfer', desc: 'Transfer to our United Bank Ltd account above — the account number for a local transfer, the IBAN for an international one.' },
               { n: '2', title: 'Make Payment', desc: 'Enter the account details and amount. Please include "Welfare" or "Project Name" in the reference.' },
               { n: '3', title: 'Submit Your Receipt', desc: 'Fill out our donation form with your details and upload the payment screenshot for verification.' },
             ].map((step) => (
