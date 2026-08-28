@@ -23,7 +23,7 @@ interface Batch {
   age_min: number | null; age_max: number | null; session_days: number[] | null; session_time: string | null
   fee_villager_monthly_pkr: number | null; fee_outsider_monthly_pkr: number | null
   fee_villager_full_pkr: number | null; fee_outsider_full_pkr: number | null
-  capacity: number | null; spots_left: number | null
+  sibling_discount_pct: number | null; capacity: number | null; spots_left: number | null
 }
 
 const DAY_KEYS = ['af.daySun', 'af.dayMon', 'af.dayTue', 'af.dayWed', 'af.dayThu', 'af.dayFri', 'af.daySat']
@@ -46,6 +46,7 @@ export default function JoinAcademyPage({ params }: { params: Promise<{ projectI
 
   const [projectTitle, setProjectTitle] = useState('')
   const [batches, setBatches] = useState<Batch[]>([])
+  const [hasSibling, setHasSibling] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
@@ -55,14 +56,19 @@ export default function JoinAcademyPage({ params }: { params: Promise<{ projectI
   })
 
   const load = async () => {
-    const [{ data: proj }, { data: batchRows }] = await Promise.all([
+    const [{ data: proj }, { data: batchRows }, { data: feeRows }] = await Promise.all([
       supabase.from('projects').select('title, display_name').eq('id', projectId).maybeSingle(),
       supabase.rpc('training_batches_for_join', { p_project_id: projectId }),
+      supabase.rpc('my_training_fees'),
     ])
     setProjectTitle(proj ? (proj.display_name || proj.title) : '')
     const rows = (batchRows ?? []) as Batch[]
     setBatches(rows)
     setForm((f) => ({ ...f, batch_id: rows[0]?.id ?? '' }))
+    // A 2nd (or later) request from this account qualifies for the
+    // sibling discount, regardless of which academy/batch the first one
+    // was for — same rule request_training_enrollment() itself applies.
+    setHasSibling(((feeRows ?? []) as { status: string }[]).some((f) => f.status === 'pending' || f.status === 'active'))
     setLoading(false)
   }
   useEffect(() => { load() }, [projectId]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -83,7 +89,9 @@ export default function JoinAcademyPage({ params }: { params: Promise<{ projectI
 
   const selectedBatch = batches.find((b) => b.id === form.batch_id) ?? null
   const isFull = selectedBatch?.spots_left === 0
-  const previewFee = selectedBatch ? feeFor(selectedBatch, form.participant_type, form.fee_type) : 0
+  const baseFee = selectedBatch ? feeFor(selectedBatch, form.participant_type, form.fee_type) : 0
+  const applicableDiscount = hasSibling && selectedBatch?.sibling_discount_pct ? selectedBatch.sibling_discount_pct : 0
+  const previewFee = applicableDiscount > 0 ? Math.max(0, baseFee - (baseFee * applicableDiscount) / 100) : baseFee
 
   const submit = async () => {
     if (!form.batch_id) { toast.error(t('tp.pickBatch')); return }
@@ -145,6 +153,9 @@ export default function JoinAcademyPage({ params }: { params: Promise<{ projectI
                         <span>· {b.session_days.map((d) => t(DAY_KEYS[d])).join(', ')}{b.session_time ? ` @ ${b.session_time.slice(0, 5)}` : ''}</span>
                       )}
                     </p>
+                    {hasSibling && !!b.sibling_discount_pct && (
+                      <p className="font-sans text-[11px] text-dp-secondary font-semibold mt-1">{t('tp.siblingDiscountNote').replace('{pct}', String(b.sibling_discount_pct))}</p>
+                    )}
                   </button>
                 )
               })}
@@ -170,7 +181,10 @@ export default function JoinAcademyPage({ params }: { params: Promise<{ projectI
 
           {selectedBatch && (
             <p className="font-sans text-[13px] font-semibold text-dp-primary bg-dp-secondary-container/20 rounded-lg px-3 py-2">
-              {t('tp.feePreview')}: Rs. {fmt(previewFee)} / {t(form.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}
+              {t('tp.feePreview')}: {applicableDiscount > 0 && (
+                <span className="line-through text-dp-on-surface-variant font-normal me-1.5">Rs. {fmt(baseFee)}</span>
+              )}
+              Rs. {fmt(previewFee)} / {t(form.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}
             </p>
           )}
 

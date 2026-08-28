@@ -29,7 +29,7 @@ interface Batch {
   fee_villager_monthly_pkr: number | null; fee_outsider_monthly_pkr: number | null
   fee_villager_full_pkr: number | null; fee_outsider_full_pkr: number | null
   capacity: number | null; age_min: number | null; age_max: number | null
-  session_days: number[] | null; session_time: string | null
+  session_days: number[] | null; session_time: string | null; sibling_discount_pct: number | null
 }
 interface Charge { id: string; charge_no: number; due_on: string; amount_pkr: number; paid_pkr: number; status: string }
 interface Enrollment {
@@ -59,7 +59,7 @@ const emptyEnroll = {
 const emptyBatch = {
   label: '', label_ur: '', schedule_note: '',
   fee_villager_monthly_pkr: 0, fee_outsider_monthly_pkr: 0, fee_villager_full_pkr: 0, fee_outsider_full_pkr: 0,
-  capacity: '', age_min: '', age_max: '', session_days: [] as number[], session_time: '',
+  capacity: '', age_min: '', age_max: '', session_days: [] as number[], session_time: '', sibling_discount_pct: '',
 }
 
 function AcademyFeesInner() {
@@ -102,7 +102,7 @@ function AcademyFeesInner() {
   const loadRoster = async (academy: Academy) => {
     setSelected(academy)
     const [{ data: batchRows }, { data: rows }, { data: reqRows }] = await Promise.all([
-      supabase.from('training_batches').select('id, label, label_ur, schedule_note, status, fee_villager_monthly_pkr, fee_outsider_monthly_pkr, fee_villager_full_pkr, fee_outsider_full_pkr, capacity, age_min, age_max, session_days, session_time')
+      supabase.from('training_batches').select('id, label, label_ur, schedule_note, status, fee_villager_monthly_pkr, fee_outsider_monthly_pkr, fee_villager_full_pkr, fee_outsider_full_pkr, capacity, age_min, age_max, session_days, session_time, sibling_discount_pct')
         .eq('project_id', academy.id).eq('status', 'active').order('created_at'),
       supabase.from('training_enrollments')
         .select('id, student_name, guardian_name, guardian_whatsapp_number, address, sector, batch_id, participant_type, fee_type, fee_amount_pkr, discount_pct, discount_reason, status')
@@ -234,6 +234,7 @@ function AcademyFeesInner() {
       fee_villager_full_pkr: b.fee_villager_full_pkr ?? 0, fee_outsider_full_pkr: b.fee_outsider_full_pkr ?? 0,
       capacity: b.capacity != null ? String(b.capacity) : '', age_min: b.age_min != null ? String(b.age_min) : '',
       age_max: b.age_max != null ? String(b.age_max) : '', session_days: b.session_days ?? [], session_time: b.session_time ?? '',
+      sibling_discount_pct: b.sibling_discount_pct != null ? String(b.sibling_discount_pct) : '',
     })
     setShowBatchForm(true)
   }
@@ -253,6 +254,7 @@ function AcademyFeesInner() {
       age_min: batchForm.age_min ? Number(batchForm.age_min) : null, age_max: batchForm.age_max ? Number(batchForm.age_max) : null,
       session_days: batchForm.session_days.length > 0 ? batchForm.session_days : null,
       session_time: batchForm.session_time || null,
+      sibling_discount_pct: batchForm.sibling_discount_pct ? Number(batchForm.sibling_discount_pct) : null,
     }
     const { error } = editingBatch
       ? await supabase.from('training_batches').update(payload).eq('id', editingBatch.id)
@@ -317,13 +319,14 @@ function AcademyFeesInner() {
                       <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">
                         {t('af.villager')}: Rs. {fmt(b.fee_villager_monthly_pkr ?? 0)}/{t('af.perMonth')} · {t('af.outsider')}: Rs. {fmt(b.fee_outsider_monthly_pkr ?? 0)}/{t('af.perMonth')}
                       </p>
-                      {(b.age_min != null || b.age_max != null || b.capacity != null || (b.session_days && b.session_days.length > 0)) && (
+                      {(b.age_min != null || b.age_max != null || b.capacity != null || (b.session_days && b.session_days.length > 0) || b.sibling_discount_pct) && (
                         <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1 flex flex-wrap gap-x-2">
                           {(b.age_min != null || b.age_max != null) && <span>{t('af.agesLabel')} {b.age_min ?? 0}–{b.age_max ?? '∞'}</span>}
                           {b.capacity != null && <span>· {t('af.capacityLabel')}: {b.capacity}</span>}
                           {b.session_days && b.session_days.length > 0 && (
                             <span>· {b.session_days.map((d) => t(DAY_KEYS[d])).join(', ')}{b.session_time ? ` @ ${b.session_time.slice(0, 5)}` : ''}</span>
                           )}
+                          {!!b.sibling_discount_pct && <span>· {t('af.siblingDiscountLabel')}: {b.sibling_discount_pct}%</span>}
                         </p>
                       )}
                     </div>
@@ -463,6 +466,11 @@ function AcademyFeesInner() {
               <div>
                 <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('af.sessionTimeLabel')}</label>
                 <input type="time" value={batchForm.session_time} onChange={(e) => setBatchForm({ ...batchForm, session_time: e.target.value })} className="input-field" />
+              </div>
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('af.siblingDiscountLabel')}</label>
+                <input type="number" min="0" max="100" value={batchForm.sibling_discount_pct} onChange={(e) => setBatchForm({ ...batchForm, sibling_discount_pct: e.target.value })} className="input-field" placeholder="0" />
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('af.siblingDiscountHint')}</p>
               </div>
               <button onClick={saveBatch} disabled={saving} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">
                 {saving ? t('af.saving') : t('af.saveChangesBtn')}

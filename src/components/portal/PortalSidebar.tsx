@@ -40,7 +40,7 @@ const menuItems = [
   { href: '/portal/submit-blog', label: 'Submit a Blog Post', tKey: 'portal.submitBlog', icon: NotebookPen },
   { href: '/portal/mentors', label: 'Mentors & Career Help', tKey: 'portal.mentors', icon: Users },
   { href: '/portal/institutes', label: 'Institutes', tKey: 'portal.institutes', icon: School },
-  { href: '/portal/training-programs', label: 'Academy Fees', tKey: 'portal.trainingPrograms', icon: CalendarClock },
+  { href: '/portal/training-programs', label: 'Academies', tKey: 'portal.trainingPrograms', icon: CalendarClock },
   { href: '/portal/talent-showcase', label: 'Talent Showcase', tKey: 'portal.talentShowcase', icon: Sparkles },
   { href: '/portal/suggestions', label: 'Suggestions', tKey: 'portal.suggestions', icon: MessageSquare },
   { href: '/portal/complaints', label: 'Complaints', tKey: 'portal.complaints', icon: MessageSquareWarning },
