@@ -6,7 +6,22 @@
 
 export type DateRangePreset = 'today' | 'week' | 'month' | '3m' | '6m' | 'custom'
 
-export const today = () => new Date().toISOString().slice(0, 10)
+// Pakistan is a fixed UTC+5, no DST. Every voucher_date/donor date in the
+// database is stamped via (now() AT TIME ZONE 'Asia/Karachi')::date — but
+// this file used to compute "today" from the raw UTC instant. Those agree
+// most of the day, but for the ~5 hours after local midnight (UTC is still
+// "yesterday" until 5am PKT) the two disagreed: the database would already
+// have posted a voucher under today's PKT date while this file's `to`
+// still pointed at yesterday, silently dropping same-day activity off the
+// end of "This Month". Working off a PKT-shifted instant — and reading it
+// back out through the UTC getters/setters below, so the browser's own
+// ambient local timezone (which might not even be PKT) never gets applied
+// a second time on top — keeps this file in agreement with the database
+// regardless of what timezone the admin's own device happens to be set to.
+const PKT_OFFSET_MS = 5 * 60 * 60 * 1000
+function pktNow() { return new Date(Date.now() + PKT_OFFSET_MS) }
+
+export const today = () => toStr(pktNow())
 
 function toStr(d: Date) {
   return d.toISOString().slice(0, 10)
@@ -14,19 +29,21 @@ function toStr(d: Date) {
 
 function startOfWeek(d: Date) {
   // Monday-start, matching the work week this app's billing/reminders
-  // already run on.
-  const day = d.getDay() // 0=Sun..6=Sat
+  // already run on. d is already PKT-shifted — UTC getters/setters read
+  // and write that shifted instant directly, instead of letting the
+  // browser's own local timezone reinterpret it.
+  const day = d.getUTCDay() // 0=Sun..6=Sat
   const diff = (day === 0 ? -6 : 1) - day
   const monday = new Date(d)
-  monday.setDate(d.getDate() + diff)
+  monday.setUTCDate(d.getUTCDate() + diff)
   return monday
 }
 
-export const monthStart = () => { const d = new Date(); d.setDate(1); return toStr(d) }
+export const monthStart = () => { const d = pktNow(); d.setUTCDate(1); return toStr(d) }
 
 function monthsAgo(n: number) {
-  const d = new Date()
-  d.setMonth(d.getMonth() - n)
+  const d = pktNow()
+  d.setUTCMonth(d.getUTCMonth() - n)
   return toStr(d)
 }
 
@@ -36,7 +53,7 @@ export function presetRange(key: Exclude<DateRangePreset, 'custom'>): { from: st
   const t = today()
   switch (key) {
     case 'today': return { from: t, to: t }
-    case 'week': return { from: toStr(startOfWeek(new Date())), to: t }
+    case 'week': return { from: toStr(startOfWeek(pktNow())), to: t }
     case 'month': return { from: monthStart(), to: t }
     case '3m': return { from: monthsAgo(3), to: t }
     case '6m': return { from: monthsAgo(6), to: t }

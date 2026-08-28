@@ -351,15 +351,15 @@ export default function AccountsPage() {
             it have to sit in the same column, and a chevron is not the same
             width as a menu button. tabular-nums keeps the digits themselves in
             line so the decimal points stack. */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           {a.type === 'consumer' && bal < 0 ? (
-            <span className="font-sans text-[13.5px] font-bold text-emerald-600 w-28 sm:w-36 text-end tabular-nums ltr-num">-{fmtAmount(-bal)}</span>
+            <span className="font-sans text-[13.5px] font-bold text-emerald-600 w-24 sm:w-32 text-end tabular-nums ltr-num">-{fmtAmount(-bal)}</span>
           ) : (
-            <span className={`font-sans text-[13.5px] font-bold w-28 sm:w-36 text-end tabular-nums ltr-num ${a.type === 'consumer' && bal > 0 ? 'text-dp-error' : 'text-dp-on-surface'}`}>
+            <span className={`font-sans text-[13.5px] font-bold w-24 sm:w-32 text-end tabular-nums ltr-num ${a.type === 'consumer' && bal > 0 ? 'text-dp-error' : 'text-dp-on-surface'}`}>
               {fmtAmount(bal)}
             </span>
           )}
-          <div className="relative w-7 flex justify-center">
+          <div className="relative w-6 flex justify-center">
             <button
               onClick={(e) => { e.stopPropagation(); setMenuId(menuId === a.id ? null : a.id) }}
               className="p-1 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"
@@ -484,9 +484,9 @@ export default function AccountsPage() {
                   className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-dp-surface-container-low/60 hover:bg-dp-surface-container-low cursor-pointer transition-colors"
                 >
                   <span className="font-sans text-[13.5px] font-bold text-dp-on-surface" style={lang === 'ur' && h.label_ur ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{displayName(h.label, h.label_ur)}</span>
-                  <span className="flex items-center gap-2 shrink-0">
-                    <span className="font-sans text-[13.5px] font-bold text-dp-secondary w-28 sm:w-36 text-end tabular-nums ltr-num">{fmtAmount(headerTotals[h.code] ?? 0)}</span>
-                    <span className="w-7 flex justify-center">
+                  <span className="flex items-center gap-1 shrink-0">
+                    <span className="font-sans text-[13.5px] font-bold text-dp-secondary w-24 sm:w-32 text-end tabular-nums ltr-num">{fmtAmount(headerTotals[h.code] ?? 0)}</span>
+                    <span className="w-6 flex justify-center">
                       {isCollapsed ? <ChevronDown size={16} className="text-dp-on-surface-variant" /> : <ChevronUp size={16} className="text-dp-on-surface-variant" />}
                     </span>
                   </span>

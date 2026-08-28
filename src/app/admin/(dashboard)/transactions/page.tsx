@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Search, FileText, Eye, Pencil, Trash2, SlidersHorizontal } from 'lucide-react'
@@ -105,7 +105,21 @@ export default function AllTransactionsPage() {
     setFrom(r.from); setTo(r.to)
   }
 
+  // system defaults to 'water_supply' on mount, then a separate effect
+  // (85) flips it to access.defaultSystem once permissions load — each
+  // change re-fires load() (its own effect below depends on the load
+  // callback's identity, which changes with system/from/to). Nothing
+  // cancelled the earlier in-flight request, so a slow 'water_supply'
+  // fetch resolving *after* the real 'donors_projects' one had already
+  // landed silently overwrote it with an empty result — a real donation
+  // or fee payment would render as "no transactions found" depending on
+  // which request happened to finish last, not which one was current.
+  // This ref makes only the most recently *started* load() allowed to
+  // commit its result.
+  const loadSeq = useRef(0)
+
   const load = useCallback(async () => {
+    const mySeq = ++loadSeq.current
     setLoading(true)
     const [consumersRes, billsRes, paymentsRes, vouchersRes, donationsRes, purchasesRes, autoPostedRes] = await Promise.all([
       system === 'water_supply'
@@ -293,6 +307,10 @@ export default function AllTransactionsPage() {
     }
 
     result.sort((a, b) => (a.date !== b.date ? (a.date < b.date ? 1 : -1) : (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0)))
+    // A newer load() already started (and possibly already finished) while
+    // this one was in flight — this result is stale, drop it instead of
+    // clobbering whatever the current request already committed.
+    if (mySeq !== loadSeq.current) return
     setRows(result)
     setLoading(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
