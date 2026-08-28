@@ -37,6 +37,20 @@ function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
+// A freshly-confirmed monthly enrollment has zero charges until the next
+// daily billing run — due_soon being empty then does NOT mean "paid up",
+// it means "no bill exists yet". Only total_paid > 0 (or a free program,
+// monthly_amount_pkr === 0) is genuinely "nothing owed"; conflating the
+// two showed a real student as "paid" the moment they were confirmed,
+// with no way to tell the fee simply hadn't been raised yet.
+function FeeStatus({ f, t }: { f: MyFee; t: (k: string) => string }) {
+  if (f.status === 'pending') return <p className="font-sans text-[11.5px] text-amber-700 flex items-center gap-1"><Hourglass size={10} /> {t('tp.pendingLabel')}</p>
+  if (f.status === 'rejected') return <p className="font-sans text-[11.5px] text-dp-error flex items-center gap-1"><XCircle size={10} /> {t('tp.rejectedLabel')}{f.rejected_reason ? ` — ${f.rejected_reason}` : ''}</p>
+  if ((f.due_soon ?? []).length > 0) return <p className="font-sans text-[11.5px] text-amber-700 flex items-center gap-1"><Clock size={10} /> Rs. {fmt(f.due_soon[0].amount)}</p>
+  if (f.monthly_amount_pkr > 0 && f.total_paid === 0) return <p className="font-sans text-[11.5px] text-dp-on-surface-variant flex items-center gap-1"><Hourglass size={10} /> {t('tp.awaitingFirstBill')}</p>
+  return <p className="font-sans text-[11.5px] text-emerald-700 flex items-center gap-1"><CheckCircle2 size={10} /> {t('tp.feeUpToDate')}</p>
+}
+
 export default function PortalTrainingProgramsPage() {
   const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
@@ -119,15 +133,7 @@ export default function PortalTrainingProgramsPage() {
                       <div key={f.enrollment_id} className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="min-w-0">
                           <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface flex items-center gap-1"><Users size={11} className="text-dp-on-surface-variant shrink-0" /> {f.student_name}</p>
-                          {f.status === 'pending' ? (
-                            <p className="font-sans text-[11.5px] text-amber-700 flex items-center gap-1"><Hourglass size={10} /> {t('tp.pendingLabel')}</p>
-                          ) : f.status === 'rejected' ? (
-                            <p className="font-sans text-[11.5px] text-dp-error flex items-center gap-1"><XCircle size={10} /> {t('tp.rejectedLabel')}{f.rejected_reason ? ` — ${f.rejected_reason}` : ''}</p>
-                          ) : (f.due_soon ?? []).length > 0 ? (
-                            <p className="font-sans text-[11.5px] text-amber-700 flex items-center gap-1"><Clock size={10} /> Rs. {fmt(f.due_soon[0].amount)}</p>
-                          ) : (
-                            <p className="font-sans text-[11.5px] text-emerald-700 flex items-center gap-1"><CheckCircle2 size={10} /> {t('tp.feeUpToDate')}</p>
-                          )}
+                          <FeeStatus f={f} t={t} />
                         </div>
                         {f.status === 'active' && (f.due_soon ?? []).length > 0 && (
                           <Link href={`/portal/donate?project=${f.project_id}`} className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[11.5px] font-semibold hover:bg-dp-primary transition-colors shrink-0">
@@ -162,15 +168,7 @@ export default function PortalTrainingProgramsPage() {
                 <div>
                   <p className="font-sans text-[14px] font-bold text-dp-on-surface">{f.student_name} — {f.program_title}</p>
                   {f.batch_label && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{f.batch_label}</p>}
-                  {f.status === 'pending' ? (
-                    <p className="font-sans text-[12.5px] text-amber-700 mt-1 flex items-center gap-1"><Hourglass size={12} /> {t('tp.pendingLabel')}</p>
-                  ) : f.status === 'rejected' ? (
-                    <p className="font-sans text-[12.5px] text-dp-error mt-1 flex items-center gap-1"><XCircle size={12} /> {t('tp.rejectedLabel')}{f.rejected_reason ? ` — ${f.rejected_reason}` : ''}</p>
-                  ) : (f.due_soon ?? []).length > 0 ? (
-                    <p className="font-sans text-[12.5px] text-amber-700 mt-1 flex items-center gap-1"><Clock size={12} /> Rs. {fmt(f.due_soon[0].amount)}</p>
-                  ) : (
-                    <p className="font-sans text-[12.5px] text-emerald-700 mt-1 flex items-center gap-1"><CheckCircle2 size={12} /> {t('tp.feeUpToDate')}</p>
-                  )}
+                  <FeeStatus f={f} t={t} />
                 </div>
                 {f.status === 'active' && (f.due_soon ?? []).length > 0 && (
                   <Link href={`/portal/donate?project=${f.project_id}`} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-colors">
