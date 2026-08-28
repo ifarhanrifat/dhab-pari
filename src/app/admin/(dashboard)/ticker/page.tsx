@@ -26,7 +26,18 @@ export default function AdminTickerPage() {
     toast.success('Added'); setShowForm(false); setForm({ message: '', message_ur: '', display_order: 0 }); load()
   }
 
-  const toggleActive = async (id: string, current: boolean) => { await supabase.from('news_ticker').update({ is_active: !current }).eq('id', id); load() }
+  // Turning a message ON here is a publisher/admin decision — it should
+  // stay on until a human turns it off again, not silently re-expire on
+  // the next page load because it still carries an old 24h expires_at
+  // from when it was first auto-posted (a donation thank-you) or last
+  // active. expire_ticker_messages() only ever touches expires_at IS NOT
+  // NULL rows, so clearing it here is what actually hands the message
+  // over to manual control. Turning OFF doesn't need to touch it — an
+  // inactive row's expires_at is irrelevant either way.
+  const toggleActive = async (id: string, current: boolean) => {
+    await supabase.from('news_ticker').update(current ? { is_active: false } : { is_active: true, expires_at: null }).eq('id', id)
+    load()
+  }
   const remove = async (id: string) => { if (!confirm('Delete?')) return; await supabase.from('news_ticker').delete().eq('id', id); toast.success('Deleted'); load() }
 
   return (
