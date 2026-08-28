@@ -105,13 +105,12 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
   const track = appeals
     .map((a) => `${label(a)}  ●  ${a.body_ur}  ●  ${a.body_en}`)
     .join(SEPARATOR)
-  const tickerText = messages
-    .map((m) => {
-      const parts = [m.message]
-      if (m.message_ur) parts.push(m.message_ur)
-      return parts.join('  |  ')
-    })
-    .join(SEPARATOR)
+  // Urdu-only, no English concatenated in — message_ur is what a
+  // publisher/admin actually writes for a manually-authored entry; an
+  // auto-generated donation thank-you now stores the same Urdu text in
+  // both columns (migration 375), so falling back to .message when
+  // .message_ur is unset still only ever shows Urdu, never English.
+  const tickerText = messages.map((m) => m.message_ur || m.message).join(SEPARATOR)
   const appealTicker = useTickerDuration(track)
   const messageTicker = useTickerDuration(tickerText)
 

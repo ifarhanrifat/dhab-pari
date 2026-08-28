@@ -91,9 +91,23 @@ export function PostsManager({ titleKey, newPostKey, fixedCategory, excludeCateg
     load()
   }
 
+  // Poetry is Urdu-only (no English version at all) — the Urdu fields are
+  // what's required and shown; on save they're mirrored into the plain
+  // title/content columns too (still NOT NULL in the schema, shared with
+  // News/Blog) so every other place that reads .title/.content raw — the
+  // public listing, the detail page, RSS if it's ever added — just works
+  // without needing its own poetry-aware branch.
+  const isPoetry = fixedCategory === 'poetry'
+
   const save = async () => {
-    if (!form.title.trim() || !form.content.trim()) { toast.error(t('nw.titleContentRequired')); return }
-    const payload = { ...form, published_at: form.is_published ? new Date().toISOString() : null }
+    if (isPoetry) {
+      if (!form.title_ur.trim() || !form.content_ur.trim()) { toast.error(t('nw.titleContentRequired')); return }
+    } else if (!form.title.trim() || !form.content.trim()) { toast.error(t('nw.titleContentRequired')); return }
+    const payload = {
+      ...form,
+      ...(isPoetry ? { title: form.title_ur, content: form.content_ur } : {}),
+      published_at: form.is_published ? new Date().toISOString() : null,
+    }
     if (editing) {
       const { error } = await supabase.from('news_posts').update(payload).eq('id', editing)
       if (error) { toast.error(friendlyError(error)); return }
@@ -177,10 +191,14 @@ export function PostsManager({ titleKey, newPostKey, fixedCategory, excludeCateg
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">{editing ? t('nw.editPostTitle') : t(newPostKey)}</h2><button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.titleEn')}</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" /></div>
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.titleUr')}</label><input value={form.title_ur} onChange={(e) => setForm({ ...form, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('y.contentEn')}</label><textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} rows={6} className="input-field resize-none" /></div>
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('y.contentUr')}</label><textarea value={form.content_ur} onChange={(e) => setForm({ ...form, content_ur: e.target.value })} rows={4} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
+              {!isPoetry && (
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.titleEn')}</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" /></div>
+              )}
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{isPoetry ? t('y.poemTitle') : t('a.titleUr')}</label><input value={form.title_ur} onChange={(e) => setForm({ ...form, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
+              {!isPoetry && (
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('y.contentEn')}</label><textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} rows={6} className="input-field resize-none" /></div>
+              )}
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{isPoetry ? t('y.poemContent') : t('y.contentUr')}</label><textarea value={form.content_ur} onChange={(e) => setForm({ ...form, content_ur: e.target.value })} rows={4} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
               <ImageUpload bucket="images" currentUrl={form.cover_image_url} onUpload={(url) => setForm({ ...form, cover_image_url: url })} label={t('nw.coverImage')} />
               <div className="grid grid-cols-2 gap-4">
                 {!fixedCategory && (
