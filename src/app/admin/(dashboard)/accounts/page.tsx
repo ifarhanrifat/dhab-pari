@@ -324,11 +324,20 @@ export default function AccountsPage() {
     return (
       <div
         key={a.id}
+        dir="ltr"
         onClick={() => viewAccount(a)}
         className={`flex items-center justify-between gap-3 px-4 py-3.5 border-t border-dp-outline-variant hover:bg-dp-surface-container-low/50 cursor-pointer transition-colors ${!a.is_active ? 'opacity-50' : ''} ${indented ? 'ps-10 bg-dp-surface-container-low/30' : ''}`}
       >
-        <div className="min-w-0 flex-1">
-          <p className={`font-sans font-semibold text-dp-on-surface truncate ${isUrduLine ? 'text-[13px]' : 'text-[14.5px]'}`} style={isUrduLine ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+        {/* dir="ltr" on the row keeps the balance pinned to the physical
+            right edge regardless of language — under the page's own RTL
+            wrapper this same justify-between would otherwise flip name and
+            balance to opposite sides (Urdu account names on a mobile-width
+            row, previously either fighting for space against the balance
+            or leaving it stranded away from the edge). The Urdu name text
+            itself gets its own explicit dir="rtl" below so it still reads
+            and right-aligns correctly inside its own box either way. */}
+        <div className="min-w-0 flex-1" dir={isUrduLine ? 'rtl' : undefined}>
+          <p className={`font-sans font-semibold text-dp-on-surface ${isUrduLine ? 'text-[13px]' : 'text-[13.5px]'}`} style={isUrduLine ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
             {indented && <span className="text-dp-on-surface-variant font-normal">↳ </span>}{primary}
           </p>
           {a.type === 'consumer' && a.consumer_id && consumers[a.consumer_id] && (
@@ -341,9 +350,9 @@ export default function AccountsPage() {
             line so the decimal points stack. */}
         <div className="flex items-center gap-2 shrink-0">
           {a.type === 'consumer' && bal < 0 ? (
-            <span className="font-sans text-[14.5px] font-bold text-emerald-600 w-36 text-end tabular-nums ltr-num">-{fmtAmount(-bal)}</span>
+            <span className="font-sans text-[13.5px] font-bold text-emerald-600 w-28 sm:w-36 text-end tabular-nums ltr-num">-{fmtAmount(-bal)}</span>
           ) : (
-            <span className={`font-sans text-[14.5px] font-bold w-36 text-end tabular-nums ltr-num ${a.type === 'consumer' && bal > 0 ? 'text-dp-error' : 'text-dp-on-surface'}`}>
+            <span className={`font-sans text-[13.5px] font-bold w-28 sm:w-36 text-end tabular-nums ltr-num ${a.type === 'consumer' && bal > 0 ? 'text-dp-error' : 'text-dp-on-surface'}`}>
               {fmtAmount(bal)}
             </span>
           )}
@@ -385,14 +394,14 @@ export default function AccountsPage() {
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('ac.title')}</h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('ac.subtitle')}</p>
+        <h1 className={`font-heading font-bold text-dp-primary ${isUrdu ? 'text-[32px] leading-[40px]' : 'text-[26px] leading-[34px]'}`}>{t('ac.title')}</h1>
+        <p className={`font-sans text-dp-on-surface-variant mt-1 ${isUrdu ? 'text-[14px]' : 'text-[13px]'}`}>{t('ac.subtitle')}</p>
       </div>
 
       <div className="flex gap-2 mb-6">
         {access.canWaterSupply && <button
           onClick={() => setTab('water_supply')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-sans text-[14px] font-semibold transition-all cursor-pointer ${tab === 'water_supply' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-sans font-semibold transition-all cursor-pointer ${isUrdu ? 'text-[14px]' : 'text-[13px]'} ${tab === 'water_supply' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
         >
           <Droplets size={16} />
           {t('a.waterSupplySystem')}
@@ -400,7 +409,7 @@ export default function AccountsPage() {
         </button>}
         {access.canDonorsProjects && <button
           onClick={() => setTab('donors_projects')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-sans text-[14px] font-semibold transition-all cursor-pointer ${tab === 'donors_projects' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-sans font-semibold transition-all cursor-pointer ${isUrdu ? 'text-[14px]' : 'text-[13px]'} ${tab === 'donors_projects' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
         >
           <Heart size={16} />
           {t('a.donorsProjects')}
@@ -411,7 +420,7 @@ export default function AccountsPage() {
       <div className="bg-white rounded-lg border border-dp-outline-variant p-3 mb-4 flex items-center gap-3">
         <button
           onClick={() => router.push(tab === 'donors_projects' ? '/admin/donors' : '/admin/billing')}
-          className="shrink-0 px-4 py-2 rounded-lg bg-dp-surface-container-low text-dp-on-surface font-sans text-[13.5px] font-bold hover:bg-dp-surface-container transition-all cursor-pointer"
+          className={`shrink-0 px-4 py-2 rounded-lg bg-dp-surface-container-low text-dp-on-surface font-sans font-bold hover:bg-dp-surface-container transition-all cursor-pointer ${isUrdu ? 'text-[13.5px]' : 'text-[12.5px]'}`}
         >
           {tab === 'donors_projects' ? t('ac.donorBtn') : t('ac.consumerBtn')}
         </button>
@@ -421,7 +430,7 @@ export default function AccountsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('ac.searchPlaceholder')}
-            className="w-full ps-9 pe-3 py-2 rounded-lg border border-dp-outline-variant text-[13.5px] font-sans focus:outline-none focus:border-dp-primary"
+            className={`w-full ps-9 pe-3 py-2 rounded-lg border border-dp-outline-variant font-sans focus:outline-none focus:border-dp-primary ${isUrdu ? 'text-[13.5px]' : 'text-[12.5px]'}`}
           />
         </div>
         <button
@@ -439,19 +448,19 @@ export default function AccountsPage() {
         <div className="space-y-4 pb-24">
           {partyAccounts.length > 0 && (
             <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 bg-dp-surface-container-low/60">
+              <div className="flex items-center justify-between px-4 py-3 bg-dp-surface-container-low/60" dir="ltr">
                 <button
                   onClick={() => toggleGroup(partyType)}
                   className="flex-1 flex items-center gap-2 cursor-pointer"
                 >
-                  <span className="font-sans text-[14px] font-bold text-dp-on-surface">{partyLabel}</span>
-                  <span className="font-sans text-[13px] font-bold text-dp-secondary ms-auto pe-2">{fmtAmount(partyTotal)}</span>
+                  <span className="font-sans text-[13.5px] font-bold text-dp-on-surface" dir={isUrdu ? 'rtl' : undefined}>{partyLabel}</span>
+                  <span className="font-sans text-[12.5px] font-bold text-dp-secondary ms-auto pe-2 ltr-num">{fmtAmount(partyTotal)}</span>
                   {collapsed[partyType] ? <ChevronDown size={16} className="text-dp-on-surface-variant" /> : <ChevronUp size={16} className="text-dp-on-surface-variant" />}
                 </button>
                 {partyType === 'consumer' && (
                   <button
                     onClick={() => router.push('/admin/reports?report=consumer_outstanding&system=water_supply')}
-                    className="shrink-0 text-[12.5px] font-sans font-semibold text-dp-secondary hover:text-dp-primary cursor-pointer"
+                    className="shrink-0 text-[12px] font-sans font-semibold text-dp-secondary hover:text-dp-primary cursor-pointer"
                   >
                     {t('ac.viewReceivable')}
                   </button>
@@ -469,11 +478,12 @@ export default function AccountsPage() {
               <div key={h.code} className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
                 <button
                   onClick={() => toggleGroup(h.code)}
+                  dir="ltr"
                   className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-dp-surface-container-low/60 hover:bg-dp-surface-container-low cursor-pointer transition-colors"
                 >
-                  <span className="font-sans text-[14px] font-bold text-dp-on-surface" style={lang === 'ur' && h.label_ur ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{displayName(h.label, h.label_ur)}</span>
+                  <span className="font-sans text-[13.5px] font-bold text-dp-on-surface" dir={lang === 'ur' && h.label_ur ? 'rtl' : undefined} style={lang === 'ur' && h.label_ur ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{displayName(h.label, h.label_ur)}</span>
                   <span className="flex items-center gap-2 shrink-0">
-                    <span className="font-sans text-[14.5px] font-bold text-dp-secondary w-36 text-end tabular-nums ltr-num">{fmtAmount(headerTotals[h.code] ?? 0)}</span>
+                    <span className="font-sans text-[13.5px] font-bold text-dp-secondary w-28 sm:w-36 text-end tabular-nums ltr-num">{fmtAmount(headerTotals[h.code] ?? 0)}</span>
                     <span className="w-7 flex justify-center">
                       {isCollapsed ? <ChevronDown size={16} className="text-dp-on-surface-variant" /> : <ChevronUp size={16} className="text-dp-on-surface-variant" />}
                     </span>
