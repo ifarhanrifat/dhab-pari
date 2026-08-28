@@ -14,12 +14,20 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const DISMISS_KEY = 'dp_install_dismissed'
+// iOS has no install button at all — this banner's iOS branch is a
+// villager's *only* path to finding out Add to Home Screen exists. A
+// permanent one-tap dismiss (like the Android button gets, where Chrome's
+// own menu is still a fallback) would mean one curious tap of the ✕ loses
+// that guidance forever. Instead it comes back after two weeks.
+const IOS_DISMISS_KEY = 'dp_ios_hint_dismissed_at'
+const IOS_RESURFACE_MS = 14 * 24 * 60 * 60 * 1000
 
 export function PwaProvider() {
   const { t } = useLocale()
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
   const [showIosHint, setShowIosHint] = useState(false)
   const [iosNeedsSafari, setIosNeedsSafari] = useState(false)
+  const [isIos, setIsIos] = useState(false)
   const [dismissed, setDismissed] = useState(true) // assume dismissed until localStorage is read (avoids a flash)
   const pathname = usePathname()
 
@@ -66,15 +74,6 @@ export function PwaProvider() {
       || (window.navigator as Navigator & { standalone?: boolean }).standalone === true
     if (isStandalone) return
 
-    if (localStorage.getItem(DISMISS_KEY) === '1') return
-    setDismissed(false)
-
-    const handler = (e: Event) => {
-      e.preventDefault() // stop Chrome's own mini-infobar; we show our own button
-      setDeferred(e as BeforeInstallPromptEvent)
-    }
-    window.addEventListener('beforeinstallprompt', handler)
-
     // iOS never fires beforeinstallprompt — there is no programmatic install
     // at all, the user must use Share → Add to Home Screen. Worse, only
     // *Safari* can install: Chrome/Firefox/Edge on iOS are all Safari's engine
@@ -83,11 +82,32 @@ export function PwaProvider() {
     // iPhone saw nothing at all and had no idea why. Now every iOS browser
     // gets a hint — and non-Safari ones are told to switch to Safari.
     const ua = window.navigator.userAgent
-    const isIos = /iPad|iPhone|iPod/.test(ua) ||
+    const iosDetected = /iPad|iPhone|iPod/.test(ua) ||
       // iPadOS 13+ reports itself as desktop Safari; touch points give it away.
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    setIsIos(iosDetected)
+
+    // Two different dismiss rules: Android's install-button case has
+    // Chrome's own menu as a permanent fallback, so a one-tap dismiss can
+    // stay permanent. iOS has nothing else — dismissing loses the only
+    // guidance this site ever gives, so it resurfaces after two weeks
+    // instead of vanishing for good.
+    if (iosDetected) {
+      const dismissedAt = Number(localStorage.getItem(IOS_DISMISS_KEY) ?? 0)
+      if (dismissedAt && Date.now() - dismissedAt < IOS_RESURFACE_MS) return
+    } else {
+      if (localStorage.getItem(DISMISS_KEY) === '1') return
+    }
+    setDismissed(false)
+
+    const handler = (e: Event) => {
+      e.preventDefault() // stop Chrome's own mini-infobar; we show our own button
+      setDeferred(e as BeforeInstallPromptEvent)
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+
     const isIosNonSafari = /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua)
-    if (isIos) {
+    if (iosDetected) {
       setShowIosHint(true)
       setIosNeedsSafari(isIosNonSafari)
     }
@@ -96,7 +116,8 @@ export function PwaProvider() {
   }, [])
 
   const dismiss = () => {
-    localStorage.setItem(DISMISS_KEY, '1')
+    if (isIos) localStorage.setItem(IOS_DISMISS_KEY, String(Date.now()))
+    else localStorage.setItem(DISMISS_KEY, '1')
     setDismissed(true)
     setDeferred(null)
     setShowIosHint(false)
@@ -124,19 +145,18 @@ export function PwaProvider() {
         <div className="min-w-0 flex-1">
           <p className="font-sans text-[14px] font-bold leading-[20px]">Install {SITE.name}</p>
           {showIosHint ? (
-            iosNeedsSafari ? (
-              <p className="font-sans text-[12.5px] text-white/75 leading-[18px] mt-1">
-                {t('y.iphoneOnly')} <span className="font-semibold text-white">{t('y.safari')}</span> can install apps.
-                Open <span className="font-semibold text-white">dhabpari.com</span> in Safari, then tap{' '}
-                <Share size={12} className="inline align-[-1px]" /> Share →{' '}
-                <span className="font-semibold text-white">{t('y.addHomeScreen')}</span>.
-              </p>
-            ) : (
-              <p className="font-sans text-[12.5px] text-white/75 leading-[18px] mt-1">
-                {t('y.tap')} <Share size={12} className="inline align-[-1px]" /> Share at the bottom, then{' '}
-                <span className="font-semibold text-white">{t('y.addHomeScreen')}</span>.
-              </p>
-            )
+            <>
+              {iosNeedsSafari && (
+                <p className="font-sans text-[12.5px] text-white/75 leading-[18px] mt-1">
+                  {t('y.iosSwitchSafari')}
+                </p>
+              )}
+              <ol className="mt-1.5 space-y-1 font-sans text-[12.5px] text-white/90 leading-[18px] list-decimal ps-4">
+                <li>{t('y.iosStep1')} <Share size={12} className="inline align-[-1px] ms-0.5" /></li>
+                <li>{t('y.iosStep2')}</li>
+                <li>{t('y.iosStep3')}</li>
+              </ol>
+            </>
           ) : (
             <>
               <p className="font-sans text-[12.5px] text-white/75 leading-[18px] mt-1">
