@@ -324,19 +324,22 @@ export default function AccountsPage() {
     return (
       <div
         key={a.id}
-        dir="ltr"
         onClick={() => viewAccount(a)}
         className={`flex items-center justify-between gap-3 px-4 py-3.5 border-t border-dp-outline-variant hover:bg-dp-surface-container-low/50 cursor-pointer transition-colors ${!a.is_active ? 'opacity-50' : ''} ${indented ? 'ps-10 bg-dp-surface-container-low/30' : ''}`}
       >
-        {/* dir="ltr" on the row keeps the balance pinned to the physical
-            right edge regardless of language — under the page's own RTL
-            wrapper this same justify-between would otherwise flip name and
-            balance to opposite sides (Urdu account names on a mobile-width
-            row, previously either fighting for space against the balance
-            or leaving it stranded away from the edge). The Urdu name text
-            itself gets its own explicit dir="rtl" below so it still reads
-            and right-aligns correctly inside its own box either way. */}
-        <div className="min-w-0 flex-1" dir={isUrduLine ? 'rtl' : undefined}>
+        {/* No dir override here — the row inherits the page's real dir
+            (386), so under Urdu the browser's own RTL flex reversal is
+            what correctly puts the name on the right and the balance on
+            the left (and vice versa in English), matching normal reading
+            order in both languages. What actually needed fixing: an
+            *English* account name (no Urdu translation set) wasn't
+            getting right-aligned under Urdu — Latin text default-aligns
+            left within its own box, so it sat stranded mid-row instead of
+            flush against the right edge like every Urdu name beside it.
+            Aligning the whole name block to the page's direction (not the
+            individual name's own script) fixes that regardless of which
+            accounts happen to have a translation yet. */}
+        <div className="min-w-0 flex-1" dir={isUrdu ? 'rtl' : 'ltr'}>
           <p className={`font-sans font-semibold text-dp-on-surface ${isUrduLine ? 'text-[13px]' : 'text-[13.5px]'}`} style={isUrduLine ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
             {indented && <span className="text-dp-on-surface-variant font-normal">↳ </span>}{primary}
           </p>
@@ -448,12 +451,12 @@ export default function AccountsPage() {
         <div className="space-y-4 pb-24">
           {partyAccounts.length > 0 && (
             <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 bg-dp-surface-container-low/60" dir="ltr">
+              <div className="flex items-center justify-between px-4 py-3 bg-dp-surface-container-low/60">
                 <button
                   onClick={() => toggleGroup(partyType)}
                   className="flex-1 flex items-center gap-2 cursor-pointer"
                 >
-                  <span className="font-sans text-[13.5px] font-bold text-dp-on-surface" dir={isUrdu ? 'rtl' : undefined}>{partyLabel}</span>
+                  <span className="font-sans text-[13.5px] font-bold text-dp-on-surface">{partyLabel}</span>
                   <span className="font-sans text-[12.5px] font-bold text-dp-secondary ms-auto pe-2 ltr-num">{fmtAmount(partyTotal)}</span>
                   {collapsed[partyType] ? <ChevronDown size={16} className="text-dp-on-surface-variant" /> : <ChevronUp size={16} className="text-dp-on-surface-variant" />}
                 </button>
@@ -478,10 +481,9 @@ export default function AccountsPage() {
               <div key={h.code} className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
                 <button
                   onClick={() => toggleGroup(h.code)}
-                  dir="ltr"
                   className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-dp-surface-container-low/60 hover:bg-dp-surface-container-low cursor-pointer transition-colors"
                 >
-                  <span className="font-sans text-[13.5px] font-bold text-dp-on-surface" dir={lang === 'ur' && h.label_ur ? 'rtl' : undefined} style={lang === 'ur' && h.label_ur ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{displayName(h.label, h.label_ur)}</span>
+                  <span className="font-sans text-[13.5px] font-bold text-dp-on-surface" style={lang === 'ur' && h.label_ur ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{displayName(h.label, h.label_ur)}</span>
                   <span className="flex items-center gap-2 shrink-0">
                     <span className="font-sans text-[13.5px] font-bold text-dp-secondary w-28 sm:w-36 text-end tabular-nums ltr-num">{fmtAmount(headerTotals[h.code] ?? 0)}</span>
                     <span className="w-7 flex justify-center">
