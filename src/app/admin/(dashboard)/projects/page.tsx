@@ -32,7 +32,15 @@ interface Project { id: string; title: string; title_ur: string | null; descript
   // committee's own general account, e.g.) off the public projects
   // listing as a "project" card, while it stays exactly as donatable and
   // exactly as visible in donation/expense history as any normal project.
-  unlisted: boolean }
+  unlisted: boolean
+  // Migration 382 — an already-published video_content row (the same
+  // table Featured Videos on the home page reads), not a second upload
+  // pipeline. Trainer assignment isn't a projects column at all — it
+  // lives on admin_users.assigned_training_program_ids, moved via the
+  // assign_academy_trainer() RPC below.
+  intro_video_id: string | null }
+interface TrainerCandidate { id: string; full_name: string; assigned_training_program_ids: string[] | null }
+interface VideoOption { id: string; title: string }
 
 const statuses = ['ongoing', 'completed', 'upcoming']
 const categories = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'sports', 'training', 'other']
@@ -48,7 +56,7 @@ const categoryLabelKey: Record<string, string> = {
 }
 const feeChargingCategory = (category: string) => category === 'sports' || category === 'training'
 
-const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0, funding_model: 'one_time', monthly_operating_cost_pkr: 0, is_private: false, hide_donations: false, hide_expenses: false, hide_donor_names: false, hide_fees: false, display_name: '', unlisted: false }
+const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0, funding_model: 'one_time', monthly_operating_cost_pkr: 0, is_private: false, hide_donations: false, hide_expenses: false, hide_donor_names: false, hide_fees: false, display_name: '', unlisted: false, intro_video_id: '' }
 
 export default function AdminProjectsPage() {
   const { t, isUrdu } = useLocale()
@@ -58,9 +66,22 @@ export default function AdminProjectsPage() {
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState(empty)
   const [filter, setFilter] = useState('all')
+  const [trainerAdminId, setTrainerAdminId] = useState('')
+  const [trainerCandidates, setTrainerCandidates] = useState<TrainerCandidate[]>([])
+  const [videoOptions, setVideoOptions] = useState<VideoOption[]>([])
   const supabase = createClient()
 
-  const load = async () => { const { data } = await supabase.from('projects').select('*').order('created_at', { ascending: false }); setProjects(data ?? []); setLoading(false) }
+  const load = async () => {
+    const [{ data }, { data: candidates }, { data: videos }] = await Promise.all([
+      supabase.from('projects').select('*').order('created_at', { ascending: false }),
+      supabase.rpc('academy_trainer_candidates'),
+      supabase.from('video_content').select('id, title').eq('is_published', true).order('title'),
+    ])
+    setProjects(data ?? [])
+    setTrainerCandidates((candidates ?? []) as TrainerCandidate[])
+    setVideoOptions(videos ?? [])
+    setLoading(false)
+  }
   useEffect(() => { load() }, [])
 
   const filtered = filter === 'all' ? projects : projects.filter((p) => p.status === filter)
@@ -72,20 +93,39 @@ export default function AdminProjectsPage() {
       end_date: form.end_date || null, beneficiaries_count: form.beneficiaries_count || null, sector: form.sector || null,
       description_ur: form.description_ur || null, display_name: form.display_name.trim() || null,
       monthly_operating_cost_pkr: form.funding_model === 'recurring_support' ? (form.monthly_operating_cost_pkr || null) : null,
+      intro_video_id: form.intro_video_id || null,
     }
+    let projectId = editing
     if (editing) {
       const { error } = await supabase.from('projects').update(payload).eq('id', editing)
       if (error) { toast.error(friendlyError(error)); return }
       toast.success(t('pj.projectUpdated'))
     } else {
-      const { error } = await supabase.from('projects').insert(payload)
+      const { data, error } = await supabase.from('projects').insert(payload).select('id').single()
       if (error) { toast.error(friendlyError(error)); return }
+      projectId = data.id
       toast.success(t('pj.projectCreated'))
     }
-    setShowForm(false); setEditing(null); setForm(empty); load()
+    // Trainer assignment lives on admin_users, not this row — only touched
+    // for a fee-charging academy, and only if it actually changed, so a
+    // plain edit of an unrelated field never silently re-fires it.
+    if (feeChargingCategory(form.category) && projectId) {
+      const currentTrainer = trainerCandidates.find((c) => (c.assigned_training_program_ids ?? []).includes(projectId!))
+      if ((currentTrainer?.id ?? '') !== trainerAdminId) {
+        const { error: assignError } = await supabase.rpc('assign_academy_trainer', {
+          p_project_id: projectId, p_admin_user_id: trainerAdminId || null,
+        })
+        if (assignError) toast.error(friendlyError(assignError))
+      }
+    }
+    setShowForm(false); setEditing(null); setForm(empty); setTrainerAdminId(''); load()
   }
 
-  const edit = (p: Project) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0, is_private: p.is_private, hide_donations: p.hide_donations, hide_expenses: p.hide_expenses, hide_donor_names: p.hide_donor_names, hide_fees: p.hide_fees, display_name: p.display_name ?? '', unlisted: p.unlisted }); setEditing(p.id); setShowForm(true) }
+  const edit = (p: Project) => {
+    setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0, is_private: p.is_private, hide_donations: p.hide_donations, hide_expenses: p.hide_expenses, hide_donor_names: p.hide_donor_names, hide_fees: p.hide_fees, display_name: p.display_name ?? '', unlisted: p.unlisted, intro_video_id: p.intro_video_id ?? '' })
+    setTrainerAdminId(trainerCandidates.find((c) => (c.assigned_training_program_ids ?? []).includes(p.id))?.id ?? '')
+    setEditing(p.id); setShowForm(true)
+  }
 
   const remove = async (id: string) => { if (!confirm(t('pj.confirmDelete'))) return; await supabase.from('projects').delete().eq('id', id); toast.success(t('pj.deleted')); load() }
   // Pulls a donor-submitted proposal out of public view without rejecting
@@ -112,7 +152,7 @@ export default function AdminProjectsPage() {
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-[26px] sm:text-[32px] font-bold leading-[34px] sm:leading-[40px] text-dp-primary">{t('z.projects')}</h1>
-        <button onClick={() => { setForm(empty); setEditing(null); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('z.newProject')}</button>
+        <button onClick={() => { setForm(empty); setEditing(null); setTrainerAdminId(''); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('z.newProject')}</button>
       </div>
       <div className="flex flex-wrap gap-3 mb-6">
         {['all', ...statuses].map((s) => <button key={s} onClick={() => setFilter(s)} className={`px-4 py-1.5 rounded-full font-sans text-[14px] font-semibold tracking-[0.05em] cursor-pointer transition-all ${filter === s ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-primary'}`}>{s === 'all' ? t('pj.filterAll') : t(statusLabelKey[s] ?? s)}</button>)}
@@ -218,6 +258,27 @@ export default function AdminProjectsPage() {
                   ) : (
                     <p className="font-sans text-[12px] text-dp-on-surface-variant italic">{t('pj.saveFirstHint')}</p>
                   )}
+                </div>
+              )}
+              {feeChargingCategory(form.category) && (
+                <div className="border border-dp-outline-variant rounded-lg p-4">
+                  <label className="block font-sans text-[13.5px] font-semibold text-dp-on-surface mb-1">{t('pj.trainerLabel')}</label>
+                  <select value={trainerAdminId} onChange={(e) => setTrainerAdminId(e.target.value)} className="input-field">
+                    <option value="">{t('pj.noTrainerAssigned')}</option>
+                    {trainerCandidates.map((c) => <option key={c.id} value={c.id}>{c.full_name}</option>)}
+                  </select>
+                  <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('pj.trainerHint')}</p>
+                  <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">{t('pj.trainerBioEditHint')}</p>
+                </div>
+              )}
+              {feeChargingCategory(form.category) && (
+                <div>
+                  <label className="block font-sans text-[13.5px] font-semibold text-dp-on-surface mb-1">{t('pj.introVideoLabel')}</label>
+                  <select value={form.intro_video_id} onChange={(e) => setForm({ ...form, intro_video_id: e.target.value })} className="input-field">
+                    <option value="">{t('pj.noIntroVideo')}</option>
+                    {videoOptions.map((v) => <option key={v.id} value={v.id}>{v.title}</option>)}
+                  </select>
+                  {videoOptions.length === 0 && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('pj.noPublishedVideos')}</p>}
                 </div>
               )}
               {form.category === 'health' ? (

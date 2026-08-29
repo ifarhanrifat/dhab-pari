@@ -7,17 +7,27 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { ArrowLeft, MapPin, HeartHandshake, Megaphone, Receipt, CheckCircle, Vote, ThumbsUp, Flag, Share2, Clock, Users, HandHeart, X, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, MapPin, HeartHandshake, Megaphone, Receipt, CheckCircle, Vote, ThumbsUp, Flag, Share2, Clock, Users, HandHeart, X, ShieldCheck, Cake } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { DonorBadge } from '@/components/public/DonorBadge'
 import type { DonorBadgeTier } from '@/lib/donorBadges'
+import { VideoPlayer } from '@/components/VideoPlayer'
 
 interface Project {
   id: string; title: string; display_name: string | null; description: string | null; status: string
   budget_pkr: number | null; category: string | null; location: string | null
   vote_target: number | null; minimum_monthly_commitment_pkr: number | null
   funding_model: string | null; monthly_operating_cost_pkr: number | null
+  hide_fees: boolean; intro_video_id: string | null
 }
+interface AcademyBatch {
+  id: string; project_id: string; label: string; label_ur: string | null; schedule_note: string | null
+  age_min: number | null; age_max: number | null
+  fee_villager_monthly_pkr: number | null; fee_outsider_monthly_pkr: number | null
+  fee_villager_full_pkr: number | null; fee_outsider_full_pkr: number | null
+  sibling_discount_pct: number | null; capacity: number | null; spots_left: number | null
+}
+interface AcademyTrainer { project_id: string; trainer_name: string; trainer_bio: string | null; trainer_bio_ur: string | null; trainer_photo_url: string | null }
 interface DonorRow { id: string; name: string; amount_pkr: number; date: string; is_verified: boolean; payment_status: string }
 interface ExpenseRow { id: string; entry_date: string; particular: string; debit: number }
 interface VoteRow { id: string; username: string | null; avatar_url: string | null }
@@ -101,11 +111,14 @@ export default function ProjectDetailPage() {
   const [monthlySponsored, setMonthlySponsored] = useState(0)
   const [channels, setChannels] = useState<{ payment_method: string; total_pkr: number }[]>([])
   const [joinableBatchCount, setJoinableBatchCount] = useState(0)
+  const [academyBatches, setAcademyBatches] = useState<AcademyBatch[]>([])
+  const [trainer, setTrainer] = useState<AcademyTrainer | null>(null)
+  const [introVideo, setIntroVideo] = useState<{ video_url: string; title: string } | null>(null)
 
   const load = useCallback(async () => {
     const supabase = createClient()
     const [{ data: p }, { data: v }, { data: a }, { data: expenseAcct }, { data: voteRows }, { data: commentRows }] = await Promise.all([
-      supabase.from('projects').select('id, title, display_name, description, status, budget_pkr, category, location, vote_target, minimum_monthly_commitment_pkr, funding_model, monthly_operating_cost_pkr').eq('id', id).single(),
+      supabase.from('projects').select('id, title, display_name, description, status, budget_pkr, category, location, vote_target, minimum_monthly_commitment_pkr, funding_model, monthly_operating_cost_pkr, hide_fees, intro_video_id').eq('id', id).single(),
       supabase.from('donors_public').select('id, name, amount_pkr, date, is_verified, payment_status').eq('project_id', id).eq('is_verified', true).order('amount_pkr', { ascending: false }),
       supabase.from('donors_public').select('id, name, amount_pkr, date, is_verified, payment_status').eq('project_id', id).eq('is_verified', false).order('date', { ascending: false }),
       supabase.from('project_accounts_public').select('id').eq('project_id', id).maybeSingle(),
@@ -132,6 +145,22 @@ export default function ProjectDetailPage() {
       const { count } = await supabase.from('training_batches').select('id', { count: 'exact', head: true })
         .eq('project_id', id).eq('status', 'active')
       setJoinableBatchCount(count ?? 0)
+
+      // Public detail page didn't used to carry any of this — batches,
+      // fees, sibling discount, slots, and the trainer's profile only
+      // ever rendered on the portal's Academies catalog, which requires
+      // logging in. A visitor deciding whether to join shouldn't have to
+      // create an account first just to see what the fee is.
+      const [{ data: batchRows }, { data: trainerRows }] = await Promise.all([
+        supabase.rpc('training_batches_public'),
+        supabase.rpc('academy_trainers_public'),
+      ])
+      setAcademyBatches(((batchRows ?? []) as AcademyBatch[]).filter((b) => b.project_id === id))
+      setTrainer(((trainerRows ?? []) as AcademyTrainer[]).find((tn) => tn.project_id === id) ?? null)
+    }
+    if (p?.intro_video_id) {
+      const { data: vid } = await supabase.from('video_content').select('video_url, title').eq('id', p.intro_video_id).maybeSingle()
+      setIntroVideo(vid ?? null)
     }
     const { data: ch } = await supabase.rpc('project_donation_channels_pkr', { p_project_id: id })
     setChannels(ch ?? [])
@@ -299,6 +328,12 @@ export default function ProjectDetailPage() {
         <p className="font-sans text-[16px] text-dp-on-surface-variant mt-4 leading-[26px]">{project.description}</p>
       </div>
 
+      {introVideo && (
+        <div className="mb-8">
+          <VideoPlayer url={introVideo.video_url} title={introVideo.title} />
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
           <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{tr('home.budget')}</p>
@@ -401,6 +436,80 @@ export default function ProjectDetailPage() {
               <Users size={16} /> {tr('x.joinAcademyBtn')}
             </button>
           )}
+        </div>
+      )}
+
+      {/* Batches, fees, sibling discount, slots — the same real detail the
+          portal's Academies catalog shows, now visible to anyone deciding
+          whether to join without first creating an account. */}
+      {academyBatches.length > 0 && (
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-8">
+          <p className="font-sans text-[13.5px] font-bold text-dp-primary mb-3">{tr('x.batchesFeesTitle')}</p>
+          <div className="space-y-3">
+            {academyBatches.map((b) => {
+              const ageRange = b.age_min != null || b.age_max != null
+                ? b.age_min != null && b.age_max != null ? `${b.age_min}–${b.age_max}` : `${b.age_min ?? b.age_max}+`
+                : null
+              const full = b.spots_left === 0
+              return (
+                <div key={b.id} className="border border-dp-outline-variant/60 rounded-lg p-3.5">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="font-sans text-[14px] font-semibold text-dp-on-surface">{isUrdu && b.label_ur ? b.label_ur : b.label}</p>
+                    {b.capacity != null && (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${full ? 'bg-dp-error/10 text-dp-error' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {full ? tr('x.batchFullLabel') : `${b.spots_left} ${tr('x.spotsLeftLabel')}`}
+                      </span>
+                    )}
+                  </div>
+                  {(b.schedule_note || ageRange) && (
+                    <div className="flex items-center gap-3 mt-1 text-[12.5px] text-dp-on-surface-variant">
+                      {b.schedule_note && <span className="flex items-center gap-1"><MapPin size={11} className="shrink-0" /> {b.schedule_note}</span>}
+                      {ageRange && <span className="flex items-center gap-1"><Cake size={11} className="shrink-0" /> {tr('x.agesLabelFull')} {ageRange}</span>}
+                    </div>
+                  )}
+                  {project.hide_fees ? (
+                    <p className="mt-2 text-[13px] font-semibold text-dp-on-surface-variant">{tr('x.feeHiddenLabelFull')}</p>
+                  ) : (
+                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[13px] font-sans">
+                      {(b.fee_villager_monthly_pkr || b.fee_villager_full_pkr) && (
+                        <span className="text-dp-on-surface">{tr('x.villagerLabelFull')}: Rs. {fmt(b.fee_villager_monthly_pkr || b.fee_villager_full_pkr || 0)}{b.fee_villager_monthly_pkr ? `/${tr('x.perMonthFull')}` : ` ${tr('x.fullCourseFull')}`}</span>
+                      )}
+                      {(b.fee_outsider_monthly_pkr || b.fee_outsider_full_pkr) && (
+                        <span className="text-dp-on-surface-variant">{tr('x.outsiderLabelFull')}: Rs. {fmt(b.fee_outsider_monthly_pkr || b.fee_outsider_full_pkr || 0)}{b.fee_outsider_monthly_pkr ? `/${tr('x.perMonthFull')}` : ` ${tr('x.fullCourseFull')}`}</span>
+                      )}
+                      {!b.fee_villager_monthly_pkr && !b.fee_villager_full_pkr && !b.fee_outsider_monthly_pkr && !b.fee_outsider_full_pkr && (
+                        <span className="text-emerald-700 font-semibold">{tr('x.freeLabelFull')}</span>
+                      )}
+                    </div>
+                  )}
+                  {!project.hide_fees && b.sibling_discount_pct ? (
+                    <p className="mt-1.5 text-[12px] font-semibold text-dp-secondary">{tr('x.siblingDiscountFull').replace('{pct}', String(b.sibling_discount_pct))}</p>
+                  ) : null}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {trainer && (
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-8 flex items-center gap-4">
+          {trainer.trainer_photo_url ? (
+            <div className="relative w-16 h-16 rounded-full overflow-hidden shrink-0 bg-dp-surface-container">
+              <Image src={trainer.trainer_photo_url} alt="" fill sizes="64px" className="object-cover" />
+            </div>
+          ) : (
+            <div className="w-16 h-16 rounded-full bg-dp-secondary-container text-dp-on-secondary-container flex items-center justify-center shrink-0 font-heading text-[22px] font-bold">
+              {trainer.trainer_name.charAt(0)}
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-wide">{tr('x.meetYourTrainerFull')}</p>
+            <p className="font-sans text-[15px] font-semibold text-dp-on-surface">{trainer.trainer_name}</p>
+            {(isUrdu ? trainer.trainer_bio_ur || trainer.trainer_bio : trainer.trainer_bio) && (
+              <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">{isUrdu ? trainer.trainer_bio_ur || trainer.trainer_bio : trainer.trainer_bio}</p>
+            )}
+          </div>
         </div>
       )}
 

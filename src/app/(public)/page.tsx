@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { SITE } from '@/lib/constants'
 import { getPaymentAccount } from '@/lib/paymentAccounts'
 import { HomeDonateCard } from '@/components/public/HomeDonateCard'
+import { FeeBadge } from '@/components/public/FeeBadge'
 
 // Same fixed cover used on /projects for a medical/health project — a real
 // photo of someone's treatment is never shown publicly, on this page either.
@@ -147,6 +148,26 @@ export default async function HomePage() {
     : { data: [] as { project_id: string; debit: number }[] }
   const expenseByProject: Record<string, number> = {}
   for (const e of expenseRows ?? []) expenseByProject[e.project_id] = (expenseByProject[e.project_id] ?? 0) + Number(e.debit)
+
+  // Fee badge for a sports/training card — same "starting from" logic
+  // /projects already uses, just never carried over to this page's own
+  // separate query, so a new academy showed up here with zero fee info
+  // at all until a visitor clicked through.
+  interface FeeSummary { free: boolean; cheapestVillagerMonthly: number | null }
+  const feeByProject: Record<string, FeeSummary> = {}
+  if (projects.some((p) => p.category === 'sports' || p.category === 'training')) {
+    const { data: batchRows } = await supabase.rpc('training_batches_public')
+    for (const b of (batchRows ?? []) as { project_id: string; fee_villager_monthly_pkr: number | null; fee_outsider_monthly_pkr: number | null; fee_villager_full_pkr: number | null; fee_outsider_full_pkr: number | null }[]) {
+      const existing = feeByProject[b.project_id] ?? { free: true, cheapestVillagerMonthly: null }
+      const batchIsFree = !b.fee_villager_monthly_pkr && !b.fee_outsider_monthly_pkr && !b.fee_villager_full_pkr && !b.fee_outsider_full_pkr
+      const villagerMonthly = Number(b.fee_villager_monthly_pkr) || null
+      feeByProject[b.project_id] = {
+        free: existing.free && batchIsFree,
+        cheapestVillagerMonthly: villagerMonthly && (!existing.cheapestVillagerMonthly || villagerMonthly < existing.cheapestVillagerMonthly)
+          ? villagerMonthly : existing.cheapestVillagerMonthly,
+      }
+    }
+  }
 
   const news = newsRes.data ?? []
   const videos = videosRes.data ?? []
@@ -311,7 +332,7 @@ export default async function HomePage() {
               {projects.map((project) => (
                 <Link
                   key={project.id}
-                  href={`/projects`}
+                  href={`/projects/${project.id}`}
                   className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden hover:shadow-md transition-shadow group"
                 >
                   <div className="relative h-48 bg-dp-surface-container overflow-hidden">
@@ -330,9 +351,14 @@ export default async function HomePage() {
                       <p className="text-[11px] font-sans font-extrabold uppercase tracking-[0.08em] text-dp-secondary">
                         <T k={CATEGORY_LABEL_KEY[project.category ?? 'other'] ?? 'pj.catOther'} fallback={project.category ?? ''} />
                       </p>
-                      <span className="bg-dp-secondary-container text-dp-on-secondary-container text-[10px] font-extrabold px-2 py-1 rounded uppercase tracking-wider shrink-0">
-                        {project.status}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {(project.category === 'sports' || project.category === 'training') && feeByProject[project.id] && (
+                          <FeeBadge free={feeByProject[project.id].free} cheapestVillagerMonthly={feeByProject[project.id].cheapestVillagerMonthly} />
+                        )}
+                        <span className="bg-dp-secondary-container text-dp-on-secondary-container text-[10px] font-extrabold px-2 py-1 rounded uppercase tracking-wider shrink-0">
+                          {project.status}
+                        </span>
+                      </div>
                     </div>
                     <h3 className="text-[20px] font-sans font-semibold leading-[28px] text-dp-primary group-hover:text-dp-secondary transition-colors">
                       {project.display_name || project.title}
