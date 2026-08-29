@@ -18,7 +18,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Users, PlusCircle, X, HandCoins, CheckCircle2, Clock, Pencil, UserMinus, Layers, UserCheck, UserX, Bell } from 'lucide-react'
+import { Users, PlusCircle, X, HandCoins, CheckCircle2, Clock, Pencil, UserMinus, Layers, UserCheck, UserX, Bell, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -44,6 +44,15 @@ interface PendingRequest {
   address: string | null; sector: string | null; participant_type: string
   fee_type: string; fee_amount_pkr: number; batch_label: string | null; requested_at: string
 }
+// One row per academy, from academy_summary_report() (380/381) — fill
+// rate, fee-collection rate, and (for a trainer-salary academy) funding
+// rate, so the landing grid answers "how are all the academies doing"
+// without opening each one.
+interface Summary {
+  project_id: string; batches_count: number; capacity_total: number; filled_total: number
+  fees_charged_total: number; fees_collected_total: number; fees_overdue_total: number
+  raised_total: number; spent_total: number; funding_model: string | null; monthly_operating_cost_pkr: number | null
+}
 
 const DAY_KEYS = ['af.daySun', 'af.dayMon', 'af.dayTue', 'af.dayWed', 'af.dayThu', 'af.dayFri', 'af.daySat']
 
@@ -67,6 +76,7 @@ function AcademyFeesInner() {
   const searchParams = useSearchParams()
   const supabase = createClient()
   const [academies, setAcademies] = useState<Academy[]>([])
+  const [summary, setSummary] = useState<Record<string, Summary>>({})
   const [villageSectors, setVillageSectors] = useState<string[]>([])
   const [selected, setSelected] = useState<Academy | null>(null)
   const [batches, setBatches] = useState<Batch[]>([])
@@ -88,13 +98,17 @@ function AcademyFeesInner() {
 
   const loadAcademies = async () => {
     setLoading(true)
-    const [{ data }, { data: sectorRows }] = await Promise.all([
+    const [{ data }, { data: sectorRows }, { data: summaryRows }] = await Promise.all([
       supabase.from('projects').select('id, title, display_name, category')
         .in('category', ['sports', 'training']).order('created_at', { ascending: false }),
       supabase.from('sectors').select('name'),
+      supabase.rpc('academy_summary_report'),
     ])
     setAcademies(data ?? [])
     setVillageSectors((sectorRows ?? []).map((s) => s.name))
+    const byId: Record<string, Summary> = {}
+    for (const s of (summaryRows ?? []) as Summary[]) byId[s.project_id] = s
+    setSummary(byId)
     setLoading(false)
     const preselect = searchParams.get('project')
     if (preselect) {
@@ -294,13 +308,53 @@ function AcademyFeesInner() {
           {!loading && academies.length === 0 && (
             <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('af.noAcademies')}</p>
           )}
-          {academies.map((a) => (
-            <button key={a.id} onClick={() => loadRoster(a)}
-              className="text-left bg-white border border-dp-outline-variant rounded-lg p-5 hover:border-dp-secondary transition-colors cursor-pointer">
-              <p className="font-sans text-[16px] font-semibold text-dp-primary">{a.display_name || a.title}</p>
-              <p className="font-sans text-[12px] text-dp-on-surface-variant uppercase mt-1">{a.category}</p>
-            </button>
-          ))}
+          {academies.map((a) => {
+            const s = summary[a.id]
+            const fillPct = s && s.capacity_total > 0 ? Math.min(100, Math.round((s.filled_total / s.capacity_total) * 100)) : null
+            const isSalaryFunded = s?.funding_model === 'recurring_support'
+            return (
+              <button key={a.id} onClick={() => loadRoster(a)}
+                className="text-left bg-white border border-dp-outline-variant rounded-lg p-5 hover:border-dp-secondary transition-colors cursor-pointer">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-sans text-[16px] font-semibold text-dp-primary">{a.display_name || a.title}</p>
+                  {s && s.fees_overdue_total > 0 && (
+                    <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase bg-dp-error/10 text-dp-error shrink-0">
+                      <AlertTriangle size={10} /> Rs. {fmt(s.fees_overdue_total)} {t('af.overdueLabel')}
+                    </span>
+                  )}
+                </div>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant uppercase mt-1">{a.category}</p>
+
+                {s && (
+                  <div className="mt-3 space-y-2">
+                    {s.capacity_total > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between text-[11.5px] font-sans text-dp-on-surface-variant mb-1">
+                          <span>{t('af.fillRateLabel')}</span>
+                          <span className="ltr-num">{s.filled_total}/{s.capacity_total} ({fillPct}%)</span>
+                        </div>
+                        <div className="h-1.5 bg-dp-surface-container rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${fillPct === 100 ? 'bg-dp-error' : 'bg-dp-secondary'}`} style={{ width: `${fillPct}%` }} />
+                        </div>
+                      </div>
+                    )}
+                    {s.fees_charged_total > 0 && (
+                      <div className="flex items-center justify-between text-[11.5px] font-sans text-dp-on-surface-variant ltr-num">
+                        <span>{t('af.feesCollectedLabel')}</span>
+                        <span>Rs. {fmt(s.fees_collected_total)} / {fmt(s.fees_charged_total)}</span>
+                      </div>
+                    )}
+                    {isSalaryFunded && (
+                      <div className="flex items-center justify-between text-[11.5px] font-sans text-dp-on-surface-variant ltr-num pt-1 border-t border-dp-outline-variant">
+                        <span>{t('af.salaryFundingLabel')}</span>
+                        <span>Rs. {fmt(s.raised_total)}{s.monthly_operating_cost_pkr ? ` / ${fmt(s.monthly_operating_cost_pkr)}${t('af.perMonthShort')}` : ''}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </button>
+            )
+          })}
         </div>
       ) : (
         <div>
