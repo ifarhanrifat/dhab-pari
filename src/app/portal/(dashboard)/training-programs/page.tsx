@@ -13,10 +13,11 @@
 // other donation already goes through, nothing new to learn there.
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { Layers, Clock, CheckCircle2, Hourglass, XCircle, ArrowRight, Users } from 'lucide-react'
+import { Layers, Clock, CheckCircle2, Hourglass, XCircle, ArrowRight, Users, MapPin, Cake, HandHeart } from 'lucide-react'
 import { PortalHelp } from '@/components/portal/PortalHelp'
 import Link from 'next/link'
 
@@ -25,13 +26,20 @@ interface MyFee {
   fee_type: string; monthly_amount_pkr: number; total_paid: number; total_overdue: number; rejected_reason: string | null
   due_soon: { id: string; due_on: string; amount: number; paid: number; status: string }[]
 }
-interface Academy { id: string; title: string; display_name: string | null; category: string }
+interface Academy {
+  id: string; title: string; display_name: string | null; category: string
+  after_image_url: string | null; before_image_url: string | null
+  hide_fees: boolean; funding_model: string | null; monthly_operating_cost_pkr: number | null
+}
 interface Batch {
   id: string; project_id: string; label: string; label_ur: string | null
+  schedule_note: string | null; age_min: number | null; age_max: number | null
   fee_villager_monthly_pkr: number | null; fee_outsider_monthly_pkr: number | null
   fee_villager_full_pkr: number | null; fee_outsider_full_pkr: number | null
   sibling_discount_pct: number | null; capacity: number | null; spots_left: number | null
 }
+interface Trainer { project_id: string; trainer_name: string; trainer_bio: string | null; trainer_bio_ur: string | null; trainer_photo_url: string | null }
+interface FundingRow { raised: number; spent: number }
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -58,19 +66,39 @@ export default function PortalTrainingProgramsPage() {
   const [myFees, setMyFees] = useState<MyFee[]>([])
   const [academies, setAcademies] = useState<Academy[]>([])
   const [batches, setBatches] = useState<Batch[]>([])
+  const [trainers, setTrainers] = useState<Trainer[]>([])
+  const [funding, setFunding] = useState<Record<string, FundingRow>>({})
   const [loading, setLoading] = useState(true)
 
   const load = async () => {
-    const [{ data: fees }, { data: acads }, { data: batchRows }] = await Promise.all([
+    const [{ data: fees }, { data: acads }, { data: batchRows }, { data: trainerRows }] = await Promise.all([
       user ? supabase.rpc('my_training_fees') : Promise.resolve({ data: [] }),
-      supabase.from('projects').select('id, title, display_name, category')
+      supabase.from('projects').select('id, title, display_name, category, after_image_url, before_image_url, hide_fees, funding_model, monthly_operating_cost_pkr')
         .in('category', ['sports', 'training']).in('status', ['ongoing', 'upcoming']).order('created_at', { ascending: false }),
       supabase.rpc('training_batches_public'),
+      supabase.rpc('academy_trainers_public'),
     ])
     setMyFees((fees ?? []) as MyFee[])
     setAcademies(acads ?? [])
     setBatches((batchRows ?? []) as Batch[])
+    setTrainers((trainerRows ?? []) as Trainer[])
     setLoading(false)
+
+    // Real funding position (raised/spent) for recurring_support academies
+    // (a trainer's ongoing salary) — same source as the portal dashboard
+    // cards: the project's own ledger account, reversal pairs excluded.
+    const salaryIds = (acads ?? []).filter((a) => a.funding_model === 'recurring_support').map((a) => a.id)
+    if (salaryIds.length > 0) {
+      const [{ data: incomeRows }, { data: expenseRows }] = await Promise.all([
+        supabase.from('project_income_public').select('project_id, credit').in('project_id', salaryIds),
+        supabase.from('project_expenses_public').select('project_id, debit').in('project_id', salaryIds),
+      ])
+      const computed: Record<string, FundingRow> = {}
+      for (const id of salaryIds) computed[id] = { raised: 0, spent: 0 }
+      for (const c of incomeRows ?? []) computed[c.project_id].raised += Number(c.credit)
+      for (const e of expenseRows ?? []) computed[e.project_id].spent += Number(e.debit)
+      setFunding(computed)
+    }
   }
   useEffect(() => { if (!userLoading) load() }, [userLoading]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -93,38 +121,93 @@ export default function PortalTrainingProgramsPage() {
             const academyBatches = batches.filter((b) => b.project_id === a.id)
             const myRowsHere = myFees.filter((f) => f.project_id === a.id)
             const bestSiblingDiscount = Math.max(0, ...academyBatches.map((b) => b.sibling_discount_pct ?? 0))
+            const trainer = trainers.find((tr) => tr.project_id === a.id)
+            const cover = a.after_image_url || a.before_image_url
+            const isSalaryFunded = a.funding_model === 'recurring_support'
+            const f = funding[a.id]
             return (
-              <div key={a.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
+              <div key={a.id} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
+                {cover && (
+                  <div className="relative w-full h-32">
+                    <Image src={cover} alt="" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+                  </div>
+                )}
+                <div className="p-4">
                 <p className="font-sans text-[15px] font-bold text-dp-primary">{a.display_name || a.title}</p>
 
                 {academyBatches.length > 0 && (
-                  <div className="mt-2 space-y-1">
+                  <div className="mt-2 space-y-2">
                     {academyBatches.map((b) => {
                       const monthly = isVillager ? b.fee_villager_monthly_pkr : b.fee_outsider_monthly_pkr
                       const full = isVillager ? b.fee_villager_full_pkr : b.fee_outsider_full_pkr
                       const isFree = !monthly && !full
                       const full_ = b.spots_left === 0
+                      const ageRange = b.age_min != null || b.age_max != null
+                        ? b.age_min != null && b.age_max != null ? `${b.age_min}–${b.age_max}` : `${b.age_min ?? b.age_max}+`
+                        : null
                       return (
-                        <div key={b.id} className="flex items-center justify-between gap-2 text-[12.5px] font-sans">
-                          <span className="text-dp-on-surface truncate">{isUrdu && b.label_ur ? b.label_ur : b.label}</span>
-                          <span className="flex items-center gap-1.5 shrink-0">
-                            <span className="text-dp-on-surface-variant">
-                              {isFree ? t('tp.freeLabel') : `Rs. ${fmt(monthly || full || 0)}${monthly ? `/${t('af.perMonth')}` : ` ${t('af.fullCourse')}`}`}
-                            </span>
+                        <div key={b.id} className="text-[12.5px] font-sans border-b border-dp-outline-variant/50 last:border-b-0 pb-2 last:pb-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-dp-on-surface font-semibold truncate">{isUrdu && b.label_ur ? b.label_ur : b.label}</span>
                             {b.capacity != null && (
-                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase ${full_ ? 'bg-dp-error/10 text-dp-error' : 'bg-emerald-100 text-emerald-700'}`}>
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase shrink-0 ${full_ ? 'bg-dp-error/10 text-dp-error' : 'bg-emerald-100 text-emerald-700'}`}>
                                 {full_ ? t('tp.batchFull') : `${b.spots_left} ${t('tp.spotsLeft')}`}
                               </span>
                             )}
-                          </span>
+                          </div>
+                          {(b.schedule_note || ageRange) && (
+                            <div className="flex items-center gap-2.5 mt-0.5 text-[11px] text-dp-on-surface-variant">
+                              {b.schedule_note && <span className="flex items-center gap-1"><MapPin size={10} className="shrink-0" /> {b.schedule_note}</span>}
+                              {ageRange && <span className="flex items-center gap-1"><Cake size={10} className="shrink-0" /> {t('tp.agesLabel')} {ageRange}</span>}
+                            </div>
+                          )}
+                          <div className="mt-0.5 text-dp-on-surface-variant">
+                            {a.hide_fees
+                              ? t('tp.feeHiddenLabel')
+                              : isFree ? t('tp.freeLabel') : `Rs. ${fmt(monthly || full || 0)}${monthly ? `/${t('af.perMonth')}` : ` ${t('af.fullCourse')}`}`}
+                          </div>
                         </div>
                       )
                     })}
                   </div>
                 )}
 
-                {bestSiblingDiscount > 0 && (
+                {bestSiblingDiscount > 0 && !a.hide_fees && (
                   <p className="font-sans text-[11.5px] text-dp-secondary font-semibold mt-2">{t('tp.siblingDiscountNote').replace('{pct}', String(bestSiblingDiscount))}</p>
+                )}
+
+                {trainer && (
+                  <div className="mt-3 pt-3 border-t border-dp-outline-variant flex items-center gap-2.5">
+                    {trainer.trainer_photo_url ? (
+                      <div className="relative w-9 h-9 rounded-full overflow-hidden shrink-0 bg-dp-surface-container">
+                        <Image src={trainer.trainer_photo_url} alt="" fill sizes="36px" className="object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-dp-secondary-container text-dp-on-secondary-container flex items-center justify-center shrink-0 font-heading text-[13px] font-bold">
+                        {trainer.trainer_name.charAt(0)}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-wide">{t('tp.meetYourTrainer')}</p>
+                      <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface truncate">{trainer.trainer_name}</p>
+                      {(isUrdu ? trainer.trainer_bio_ur || trainer.trainer_bio : trainer.trainer_bio) && (
+                        <p className="font-sans text-[11.5px] text-dp-on-surface-variant line-clamp-2">{isUrdu ? trainer.trainer_bio_ur || trainer.trainer_bio : trainer.trainer_bio}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {isSalaryFunded && f && (
+                  <div className="mt-3 pt-3 border-t border-dp-outline-variant">
+                    <div className="flex items-center justify-between gap-1 font-sans text-[11px] text-dp-on-surface-variant ltr-num mb-2">
+                      <span>{t('pj.raisedShort')} Rs. {fmt(f.raised)}</span>
+                      <span>{t('pj.spentShort')} Rs. {fmt(f.spent)}</span>
+                    </div>
+                    <Link href={`/portal/donate?project=${a.id}`}
+                      className="flex items-center justify-center gap-1 w-full py-2 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-colors">
+                      <HandHeart size={13} /> {t('p.donateNow')}
+                    </Link>
+                  </div>
                 )}
 
                 {myRowsHere.length > 0 && (
@@ -148,6 +231,7 @@ export default function PortalTrainingProgramsPage() {
                 <Link href={`/portal/training-programs/join/${a.id}`} className="mt-3 flex items-center justify-center gap-1 w-full py-2 border-2 border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-colors">
                   {myRowsHere.length > 0 ? t('tp.bookAnotherBtn') : t('tp.joinBtn')} <ArrowRight size={12} className={isUrdu ? 'rotate-180' : ''} />
                 </Link>
+                </div>
               </div>
             )
           })}

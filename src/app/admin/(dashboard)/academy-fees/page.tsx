@@ -67,6 +67,7 @@ function AcademyFeesInner() {
   const searchParams = useSearchParams()
   const supabase = createClient()
   const [academies, setAcademies] = useState<Academy[]>([])
+  const [villageSectors, setVillageSectors] = useState<string[]>([])
   const [selected, setSelected] = useState<Academy | null>(null)
   const [batches, setBatches] = useState<Batch[]>([])
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
@@ -87,9 +88,13 @@ function AcademyFeesInner() {
 
   const loadAcademies = async () => {
     setLoading(true)
-    const { data } = await supabase.from('projects').select('id, title, display_name, category')
-      .in('category', ['sports', 'training']).order('created_at', { ascending: false })
+    const [{ data }, { data: sectorRows }] = await Promise.all([
+      supabase.from('projects').select('id, title, display_name, category')
+        .in('category', ['sports', 'training']).order('created_at', { ascending: false }),
+      supabase.from('sectors').select('name'),
+    ])
     setAcademies(data ?? [])
+    setVillageSectors((sectorRows ?? []).map((s) => s.name))
     setLoading(false)
     const preselect = searchParams.get('project')
     if (preselect) {
@@ -129,6 +134,16 @@ function AcademyFeesInner() {
     if (!b) return ''
     return isUrdu && b.label_ur ? b.label_ur : b.label
   }
+
+  // A "villager" claim is self-declared at request time — nothing stops
+  // someone typing a sector that isn't actually one of the village's own
+  // to get the cheaper rate. Not blocked (a genuine resident might just
+  // phrase their sector differently, or the list might be incomplete),
+  // just flagged here so admin sees it before confirming rather than
+  // trusting it silently.
+  const sectorMismatch = (participantType: string, sector: string | null) =>
+    participantType === 'villager' && villageSectors.length > 0
+    && !(sector && villageSectors.some((s) => s.trim().toLowerCase() === sector.trim().toLowerCase()))
 
   const openEnroll = () => {
     setForm({ ...emptyEnroll, batch_id: batches[0]?.id ?? '' })
@@ -354,9 +369,15 @@ function AcademyFeesInner() {
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${r.participant_type === 'villager' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                           {t(r.participant_type === 'villager' ? 'af.villager' : 'af.outsider')}
                         </span>
+                        {sectorMismatch(r.participant_type, r.sector) && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase bg-dp-error/10 text-dp-error" title={t('af.sectorMismatchHint')}>
+                            {t('af.sectorMismatch')}
+                          </span>
+                        )}
                       </p>
                       <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">
                         {r.guardian_name} · {r.guardian_whatsapp_number} · Rs. {fmt(r.fee_amount_pkr)}/{t(r.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}
+                        {r.sector ? ` · ${r.sector}` : ''}
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">

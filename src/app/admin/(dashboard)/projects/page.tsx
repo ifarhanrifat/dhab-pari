@@ -21,7 +21,7 @@ interface Project { id: string; title: string; title_ur: string | null; descript
   // invisibility (is_private) is more than what's actually needed: hide
   // just the donation list, just the expense list, or just donor names
   // (amounts still shown) — any combination, project stays listed either way.
-  hide_donations: boolean; hide_expenses: boolean; hide_donor_names: boolean
+  hide_donations: boolean; hide_expenses: boolean; hide_donor_names: boolean; hide_fees: boolean
   // Migration 364 — an optional public stand-in for `title`. The real
   // title never changes (accounting/ledger identity), but every
   // donor-facing surface (card, detail page, donate picker, ticker,
@@ -48,7 +48,7 @@ const categoryLabelKey: Record<string, string> = {
 }
 const feeChargingCategory = (category: string) => category === 'sports' || category === 'training'
 
-const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0, funding_model: 'one_time', monthly_operating_cost_pkr: 0, is_private: false, hide_donations: false, hide_expenses: false, hide_donor_names: false, display_name: '', unlisted: false }
+const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0, funding_model: 'one_time', monthly_operating_cost_pkr: 0, is_private: false, hide_donations: false, hide_expenses: false, hide_donor_names: false, hide_fees: false, display_name: '', unlisted: false }
 
 export default function AdminProjectsPage() {
   const { t, isUrdu } = useLocale()
@@ -85,7 +85,7 @@ export default function AdminProjectsPage() {
     setShowForm(false); setEditing(null); setForm(empty); load()
   }
 
-  const edit = (p: Project) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0, is_private: p.is_private, hide_donations: p.hide_donations, hide_expenses: p.hide_expenses, hide_donor_names: p.hide_donor_names, display_name: p.display_name ?? '', unlisted: p.unlisted }); setEditing(p.id); setShowForm(true) }
+  const edit = (p: Project) => { setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0, is_private: p.is_private, hide_donations: p.hide_donations, hide_expenses: p.hide_expenses, hide_donor_names: p.hide_donor_names, hide_fees: p.hide_fees, display_name: p.display_name ?? '', unlisted: p.unlisted }); setEditing(p.id); setShowForm(true) }
 
   const remove = async (id: string) => { if (!confirm(t('pj.confirmDelete'))) return; await supabase.from('projects').delete().eq('id', id); toast.success(t('pj.deleted')); load() }
   // Pulls a donor-submitted proposal out of public view without rejecting
@@ -137,8 +137,8 @@ export default function AdminProjectsPage() {
                 {p.is_private && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 bg-purple-50 rounded-full px-2 py-0.5 font-sans"><Lock size={11} /> {t('pj.privateBadge')}</span>
                 )}
-                {!p.is_private && (p.hide_donor_names || p.hide_donations || p.hide_expenses) && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 bg-purple-50 rounded-full px-2 py-0.5 font-sans" title={[p.hide_donor_names && t('pj.hideDonorNames'), p.hide_donations && t('pj.hideDonations'), p.hide_expenses && t('pj.hideExpenses')].filter(Boolean).join(' · ')}>
+                {!p.is_private && (p.hide_donor_names || p.hide_donations || p.hide_expenses || p.hide_fees) && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 bg-purple-50 rounded-full px-2 py-0.5 font-sans" title={[p.hide_donor_names && t('pj.hideDonorNames'), p.hide_donations && t('pj.hideDonations'), p.hide_expenses && t('pj.hideExpenses'), p.hide_fees && t('pj.hideFees')].filter(Boolean).join(' · ')}>
                     <Lock size={11} /> {t('pj.privacyOptionsTitle')}
                   </span>
                 )}
@@ -250,6 +250,12 @@ export default function AdminProjectsPage() {
                 <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.hide_donor_names} disabled={form.is_private} onChange={(e) => setForm({ ...form, hide_donor_names: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('pj.hideDonorNames')}</span></label>
                 <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.hide_donations} disabled={form.is_private} onChange={(e) => setForm({ ...form, hide_donations: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('pj.hideDonations')}</span></label>
                 <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.hide_expenses} disabled={form.is_private} onChange={(e) => setForm({ ...form, hide_expenses: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('pj.hideExpenses')}</span></label>
+                {feeChargingCategory(form.category) && (
+                  <div>
+                    <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.hide_fees} disabled={form.is_private} onChange={(e) => setForm({ ...form, hide_fees: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('pj.hideFees')}</span></label>
+                    <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1 ms-6">{t('pj.hideFeesHint')}</p>
+                  </div>
+                )}
                 <div className="border-t border-dp-outline-variant pt-2.5">
                   <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_private} onChange={(e) => setForm({ ...form, is_private: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px] font-semibold">{t('pj.privateProject')}</span></label>
                   {form.is_private && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('pj.privateProjectHint')}</p>}

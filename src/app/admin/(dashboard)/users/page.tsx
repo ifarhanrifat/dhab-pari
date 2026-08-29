@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, Save, ShieldCheck, UserCircle2, Clock, CheckCircle2, Truck, Pencil, Trash2, Power, ChevronDown, ChevronUp, Key, Copy, Eye, EyeOff, RefreshCw, Search } from 'lucide-react'
+import { PlusCircle, X, Save, ShieldCheck, UserCircle2, Clock, CheckCircle2, Truck, Pencil, Trash2, Power, ChevronDown, ChevronUp, Key, Copy, Eye, EyeOff, RefreshCw, Search, GraduationCap } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { ImageUpload } from '@/components/admin/ImageUpload'
 
 interface AdminUser {
   id: string
@@ -43,6 +44,10 @@ interface AdminUser {
   assigned_sectors: string[] | null
   can_collect_payments: boolean
   can_verify_complaints: boolean
+  assigned_training_program_ids: string[] | null
+  trainer_bio: string | null
+  trainer_bio_ur: string | null
+  trainer_photo_url: string | null
 }
 
 const roleColors: Record<string, string> = {
@@ -149,6 +154,8 @@ const emptyCollectorForm = {
   can_publish_news: false, can_publish_videos: false, can_publish_gallery: false,
   can_publish_ticker: false, can_publish_jobs: false,
   can_publish_poetry: false, can_publish_blog: false,
+  assigned_training_program_ids: [] as string[],
+  trainer_bio: '', trainer_bio_ur: '', trainer_photo_url: '',
 }
 
 export default function AdminUsersPage() {
@@ -162,6 +169,7 @@ export default function AdminUsersPage() {
   const [currentAuthUserId, setCurrentAuthUserId] = useState<string | null>(null)
   const [currentRole, setCurrentRole] = useState<string | null>(null)
   const [sectorOptions, setSectorOptions] = useState<{ id: string; name: string }[]>([])
+  const [academyOptions, setAcademyOptions] = useState<{ id: string; title: string; display_name: string | null }[]>([])
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null)
   const [showRoleDetails, setShowRoleDetails] = useState(false)
   const [collectorForm, setCollectorForm] = useState(emptyCollectorForm)
@@ -195,12 +203,14 @@ export default function AdminUsersPage() {
   const load = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     setCurrentAuthUserId(user?.id ?? null)
-    const [{ data }, { data: sectorsData }] = await Promise.all([
+    const [{ data }, { data: sectorsData }, { data: academiesData }] = await Promise.all([
       supabase.from('admin_users').select('*').order('role').order('full_name'),
       supabase.from('sectors').select('id, name').order('display_order').order('name'),
+      supabase.from('projects').select('id, title, display_name').in('category', ['sports', 'training']).order('title'),
     ])
     setUsers(data ?? [])
     setSectorOptions(sectorsData ?? [])
+    setAcademyOptions(academiesData ?? [])
     if (user) {
       const mine = (data ?? []).find((u) => u.auth_user_id === user.id)
       setCurrentRole(mine?.role ?? null)
@@ -219,6 +229,8 @@ export default function AdminUsersPage() {
       can_publish_gallery: u.can_publish_gallery, can_publish_ticker: u.can_publish_ticker,
       can_publish_jobs: u.can_publish_jobs,
       can_publish_poetry: u.can_publish_poetry, can_publish_blog: u.can_publish_blog,
+      assigned_training_program_ids: u.assigned_training_program_ids ?? [],
+      trainer_bio: u.trainer_bio ?? '', trainer_bio_ur: u.trainer_bio_ur ?? '', trainer_photo_url: u.trainer_photo_url ?? '',
     })
   }
 
@@ -226,6 +238,14 @@ export default function AdminUsersPage() {
     setCollectorForm((f) => ({
       ...f,
       assigned_sectors: f.assigned_sectors.includes(name) ? f.assigned_sectors.filter((s) => s !== name) : [...f.assigned_sectors, name],
+    }))
+  }
+
+  const toggleAcademy = (id: string) => {
+    setCollectorForm((f) => ({
+      ...f,
+      assigned_training_program_ids: f.assigned_training_program_ids.includes(id)
+        ? f.assigned_training_program_ids.filter((a) => a !== id) : [...f.assigned_training_program_ids, id],
     }))
   }
 
@@ -238,6 +258,10 @@ export default function AdminUsersPage() {
       mobile: collectorForm.mobile.trim() || null,
       can_collect_payments: collectorForm.can_collect_payments,
       assigned_sectors: collectorForm.can_collect_payments && collectorForm.assigned_sectors.length > 0 ? collectorForm.assigned_sectors : null,
+      assigned_training_program_ids: collectorForm.can_collect_payments && collectorForm.assigned_training_program_ids.length > 0 ? collectorForm.assigned_training_program_ids : null,
+      trainer_bio: collectorForm.trainer_bio.trim() || null,
+      trainer_bio_ur: collectorForm.trainer_bio_ur.trim() || null,
+      trainer_photo_url: collectorForm.trainer_photo_url.trim() || null,
       can_verify_complaints: collectorForm.can_verify_complaints,
       secondary_role: collectorForm.secondary_role || null,
       access_water_supply: collectorForm.access_water_supply,
@@ -495,9 +519,14 @@ export default function AdminUsersPage() {
                         + {t(roleLabelKey[u.secondary_role] ?? u.secondary_role, u.secondary_role)}
                       </span>
                     )}
-                    {u.can_collect_payments && (
+                    {u.can_collect_payments && (u.assigned_sectors?.length ?? 0) > 0 && (
                       <span className="ms-1.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-teal-700 bg-teal-100 px-1.5 py-0.5 rounded-full" title={`${t('us.fieldCollectorTitlePrefix')} ${(u.assigned_sectors ?? []).join(', ') || t('us.noSectorsAssigned')}`}>
                         <Truck size={10} /> {t('a.collector')}
+                      </span>
+                    )}
+                    {u.can_collect_payments && (u.assigned_training_program_ids?.length ?? 0) > 0 && (
+                      <span className="ms-1.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-teal-700 bg-teal-100 px-1.5 py-0.5 rounded-full" title={t('us.trainerTitlePrefix')}>
+                        <GraduationCap size={10} /> {t('us.trainer')}
                       </span>
                     )}
                   </td>
@@ -822,6 +851,40 @@ export default function AdminUsersPage() {
                         </div>
                       )}
                       <p className="font-sans text-[11.5px] text-teal-800 mt-1.5">{t('us.collectorSectorRestriction')}</p>
+                    </div>
+                  )}
+                  {collectorForm.can_collect_payments && (
+                    <div className="border-t border-teal-200 pt-3">
+                      <p className="font-sans text-[12.5px] font-semibold text-teal-900 mb-1.5 flex items-center gap-1.5"><GraduationCap size={13} /> {t('us.assignedAcademies')}</p>
+                      {academyOptions.length === 0 ? (
+                        <p className="font-sans text-[12px] text-teal-800">{t('us.noAcademiesDefined')}</p>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-1.5 max-h-40 overflow-y-auto">
+                          {academyOptions.map((a) => (
+                            <label key={a.id} className="flex items-center gap-1.5 cursor-pointer">
+                              <input type="checkbox" checked={collectorForm.assigned_training_program_ids.includes(a.id)} onChange={() => toggleAcademy(a.id)} className="accent-teal-700" />
+                              <span className="font-sans text-[12.5px] text-teal-900">{a.display_name || a.title}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                      <p className="font-sans text-[11.5px] text-teal-800 mt-1.5">{t('us.trainerAcademyRestriction')}</p>
+
+                      {collectorForm.assigned_training_program_ids.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-teal-200 space-y-2.5">
+                          <p className="font-sans text-[12.5px] font-semibold text-teal-900">{t('us.trainerPublicProfile')}</p>
+                          <ImageUpload bucket="images" currentUrl={collectorForm.trainer_photo_url} onUpload={(url) => setCollectorForm({ ...collectorForm, trainer_photo_url: url })} label={t('us.trainerPhoto')} />
+                          <div>
+                            <label className="block font-sans text-[12px] font-semibold text-teal-900 mb-1">{t('us.trainerBioEn')}</label>
+                            <textarea value={collectorForm.trainer_bio} onChange={(e) => setCollectorForm({ ...collectorForm, trainer_bio: e.target.value })} rows={2} className="input-field" />
+                          </div>
+                          <div>
+                            <label className="block font-sans text-[12px] font-semibold text-teal-900 mb-1">{t('us.trainerBioUr')}</label>
+                            <textarea value={collectorForm.trainer_bio_ur} onChange={(e) => setCollectorForm({ ...collectorForm, trainer_bio_ur: e.target.value })} rows={2} dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }} className="input-field" />
+                          </div>
+                          <p className="font-sans text-[11.5px] text-teal-800">{t('us.trainerProfileHint')}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
