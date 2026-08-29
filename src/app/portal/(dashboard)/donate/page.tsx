@@ -11,8 +11,9 @@ import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload
 import { PaymentAccountDetails } from '@/components/public/PaymentAccountDetails'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
+import { SearchableField, type PickerItem } from '@/components/admin/SearchablePicker'
+import { fetchDonationTargets, parseDonationTargetId, encodeProjectTarget } from '@/lib/donationTargets'
 
-interface Project { id: string; title: string; display_name: string | null }
 interface DonationRow { id: string; amount_pkr: number; payment_status: string; is_verified: boolean }
 interface PoolPending { id: string; source: 'pool'; amount_pkr: number; has_proof: boolean; particular: string }
 interface PendingItem { key: string; kind: 'donor' | 'pool'; id: string; amount: number; label: string }
@@ -42,13 +43,18 @@ export default function PortalDonatePage() {
 // Never forced: leaving every box unticked submits exactly the plain new
 // donation this page always did.
 function PortalDonatePageInner() {
-  const { t, isUrdu } = useLocale()
+  const { t, isUrdu, locale } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [projects, setProjects] = useState<Project[]>([])
+  const [targetItems, setTargetItems] = useState<PickerItem[]>([])
   const [amount, setAmount] = useState(0)
-  const [projectId, setProjectId] = useState(searchParams.get('project') ?? '')
+  // A raw ?project=<uuid> (the existing, still-used contract from the
+  // project detail page / academy fee links) wins over the picker's own
+  // default; otherwise the list's default (کمیٹی اکاؤنٹ Main) applies once
+  // it has loaded.
+  const projectParam = searchParams.get('project')
+  const [targetId, setTargetId] = useState(projectParam ? encodeProjectTarget(projectParam) : '')
   const [method, setMethod] = useState('bank')
   const [isAnonymous, setIsAnonymous] = useState(false)
   const [international, setInternational] = useState(false)
@@ -69,13 +75,12 @@ function PortalDonatePageInner() {
 
   useEffect(() => {
     const supabase = createClient()
-    // A completed one-time build doesn't need more donations — except a
-    // recurring_support project (a salary, a monthly running cost), which
-    // keeps needing donors regardless of the build's own status.
-    supabase.from('projects').select('id, title, display_name')
-      .or('funding_model.eq.recurring_support,and(status.neq.completed,status.neq.upcoming)')
-      .order('title').then(({ data }) => setProjects(data ?? []))
-  }, [])
+    fetchDonationTargets(supabase, locale).then(({ items, defaultTargetId }) => {
+      setTargetItems(items)
+      setTargetId((current) => current || defaultTargetId)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale])
 
   useEffect(() => {
     if (!user) return
@@ -109,6 +114,7 @@ function PortalDonatePageInner() {
     if (grandTotal <= 0 || !receiptPath) { toast.error('Enter a valid amount and upload your payment slip'); return }
     setSaving(true)
     const supabase = createClient()
+    const { projectId, fundType } = parseDonationTargetId(targetId)
 
     if (selectedPendingItems.length === 0) {
       // Unchanged path — exactly what this page always did when nothing
@@ -117,7 +123,7 @@ function PortalDonatePageInner() {
         name: user.display_name || user.username || user.full_name, name_ur: user.name_ur, phone: user.mobile, whatsapp_number: user.whatsapp_number,
         father_husband_name: user.father_husband_name, donor_type: user.donor_type ?? 'villager',
         amount_pkr: amount, date: new Date().toISOString().split('T')[0],
-        payment_method: method, project_id: projectId || null, is_anonymous: isAnonymous,
+        payment_method: method, project_id: projectId, fund_type: fundType, is_anonymous: isAnonymous,
         payment_proof_url: receiptPath, is_verified: false, submitted_via: 'public',
         // Missing here since this page was first built — a standalone donation
         // (nothing pending to bundle it with) never linked back to the donor's
@@ -139,8 +145,8 @@ function PortalDonatePageInner() {
     const poolIds = selectedPendingItems.filter((i) => i.kind === 'pool').map((i) => i.id)
     const { error } = await supabase.rpc('submit_combined_pledge_payment', {
       p_donor_ids: donorIds, p_pool_payment_ids: poolIds, p_proof_url: receiptPath, p_method: method,
-      p_new_amount: amount > 0 ? amount : null, p_new_project_id: amount > 0 ? (projectId || null) : null,
-      p_new_is_anonymous: isAnonymous,
+      p_new_amount: amount > 0 ? amount : null, p_new_project_id: amount > 0 ? projectId : null,
+      p_new_is_anonymous: isAnonymous, p_new_fund_type: amount > 0 ? fundType : 'general',
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -205,11 +211,11 @@ function PortalDonatePageInner() {
           )}
         </div>
         <div dir={isUrdu ? 'rtl' : 'ltr'}>
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.project')}</label>
-          <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="input-field">
-            <option value="">{t('w.generalFund')}</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.display_name || p.title}</option>)}
-          </select>
+          <SearchableField
+            label={t('dt.selectDonationTarget')} value={targetId} onChange={setTargetId}
+            items={targetItems} pickerTitle={t('dt.selectDonationTarget')}
+            searchPlaceholder={t('dt.searchAccounts')} compact
+          />
         </div>
         <label dir={isUrdu ? 'rtl' : 'ltr'} className="flex items-start gap-2.5 cursor-pointer font-sans text-[13.5px] text-dp-on-surface">
           <input type="checkbox" checked={international}

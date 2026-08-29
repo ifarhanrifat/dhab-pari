@@ -1,0 +1,11 @@
+-- Migration 377: CREATE OR REPLACE FUNCTION only replaces a function whose
+-- argument list matches exactly — adding p_new_fund_type in 376 didn't
+-- replace the old 7-arg submit_combined_pledge_payment, it silently
+-- overloaded it. PostgREST then can't pick between the two whenever a
+-- caller omits a defaulted param, which every caller of this RPC other
+-- than the just-updated /portal/donate page still does implicitly
+-- (nothing in this app calls it any other way, but leaving a stale
+-- overload around is exactly the kind of landmine that breaks the next
+-- caller). Drop the old signature; the 8-arg one from 376 is the only one
+-- left.
+DROP FUNCTION IF EXISTS submit_combined_pledge_payment(uuid[], uuid[], text, varchar, decimal, uuid, boolean);

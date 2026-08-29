@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
-import { HeartHandshake, Droplets, Repeat, ArrowRight, Layers, HandCoins } from 'lucide-react'
+import { HeartHandshake, Droplets, Repeat, ArrowRight, Layers, HandCoins, HandHeart } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalBadgeCard } from '@/components/portal/PortalBadgeCard'
 import { PortalHelp } from '@/components/portal/PortalHelp'
@@ -16,6 +16,7 @@ function fmt(n: number) {
 interface ProjectCard { id: string; title: string; display_name: string | null; category: string | null; progress_percent: number }
 interface AcademyCard { id: string; title: string; display_name: string | null; category: string | null }
 interface BatchFee { project_id: string; fee_villager_monthly_pkr: number | null; fee_outsider_monthly_pkr: number | null }
+interface FundingRow { project_id: string; raised: number; spent: number }
 
 const CATEGORY_LABEL: Record<string, string> = {
   infrastructure: 'pj.catInfrastructure', water: 'pj.catWater', health: 'pj.catHealth', education: 'pj.catEducation',
@@ -32,6 +33,7 @@ export default function PortalDashboardPage() {
   const [projects, setProjects] = useState<ProjectCard[]>([])
   const [academies, setAcademies] = useState<AcademyCard[]>([])
   const [batchFees, setBatchFees] = useState<BatchFee[]>([])
+  const [funding, setFunding] = useState<Record<string, FundingRow>>({})
 
   useEffect(() => {
     if (!user) return
@@ -52,16 +54,53 @@ export default function PortalDashboardPage() {
     supabase.from('recurring_schedules').select('id', { count: 'exact', head: true })
       .eq('created_by_portal_user_id', user.id).eq('is_active', true).then(({ count }) => setActiveRecurring(count ?? 0))
 
+    // Funding position (raised + spent) for whatever cards end up on
+    // screen — real ledger totals for the project's own account, not the
+    // manual budget_pkr/spent_pkr fields (those are mostly unset).
+    //
+    // project_income_public/project_expenses_public (migration 378), not
+    // donors_public — an academy's training fees post straight to the
+    // project's account via a voucher, never through the donors table, so
+    // donors_public alone was blind to every fee payment; both views also
+    // exclude reversed vouchers (and the reversals themselves) so a
+    // cancelled transaction nets to zero instead of still counting as
+    // real money raised or spent.
+    const loadFunding = (ids: string[]) => {
+      if (ids.length === 0) return
+      Promise.all([
+        supabase.from('project_income_public').select('project_id, credit').in('project_id', ids),
+        supabase.from('project_expenses_public').select('project_id, debit').in('project_id', ids),
+      ]).then(([{ data: incomeRows }, { data: expenseRows }]) => {
+        // Computed fresh into a local object, not accumulated on top of
+        // whatever was already in state — React 18 Strict Mode (on by
+        // default in dev) runs this effect twice, and usePortalUser's
+        // own refresh() does too, so loadFunding can genuinely run more
+        // than once for the exact same ids. Reusing/adding onto a prior
+        // entry across calls silently doubled every Raised/Spent figure;
+        // recomputing from scratch each time and merging the result is
+        // idempotent no matter how many times this fires.
+        const computed: Record<string, FundingRow> = {}
+        for (const id of ids) computed[id] = { project_id: id, raised: 0, spent: 0 }
+        for (const c of incomeRows ?? []) computed[c.project_id].raised += Number(c.credit)
+        for (const e of expenseRows ?? []) computed[e.project_id].spent += Number(e.debit)
+        setFunding((prev) => ({ ...prev, ...computed }))
+      })
+    }
+
     supabase.from('projects').select('id, title, display_name, category, progress_percent')
       .not('category', 'in', '(sports,training)').or('status.eq.ongoing,funding_model.eq.recurring_support')
       .eq('unlisted', false).order('created_at', { ascending: false }).limit(4)
-      .then(({ data }) => setProjects(data ?? []))
+      .then(({ data }) => {
+        setProjects(data ?? [])
+        loadFunding((data ?? []).map((p) => p.id))
+      })
 
     supabase.from('projects').select('id, title, display_name, category')
       .in('category', ['sports', 'training']).in('status', ['ongoing', 'upcoming'])
       .order('created_at', { ascending: false }).limit(4)
       .then(({ data }) => {
         setAcademies(data ?? [])
+        loadFunding((data ?? []).map((a) => a.id))
         if (data && data.length > 0) {
           supabase.from('training_batches').select('project_id, fee_villager_monthly_pkr, fee_outsider_monthly_pkr')
             .in('project_id', data.map((a) => a.id)).eq('status', 'active')
@@ -130,15 +169,35 @@ export default function PortalDashboardPage() {
             </Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-            {projects.map((p) => (
-              <Link key={p.id} href={`/projects/${p.id}`} className="bg-white border border-dp-outline-variant rounded-lg p-3 hover:border-dp-secondary transition-colors">
-                <p className="text-[9.5px] font-bold text-dp-secondary uppercase tracking-wide flex items-center gap-1"><Layers size={10} /> {t(CATEGORY_LABEL[p.category ?? 'other'] ?? 'pj.catOther')}</p>
-                <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface mt-1 leading-[16px] line-clamp-2">{p.display_name || p.title}</p>
-                <div className="h-1.5 bg-dp-surface-container rounded-full mt-2 overflow-hidden">
-                  <div className="h-full bg-dp-secondary rounded-full" style={{ width: `${Math.min(100, p.progress_percent ?? 0)}%` }} />
+            {projects.map((p) => {
+              const f = funding[p.id]
+              return (
+                <div key={p.id} className="bg-white border border-dp-outline-variant rounded-lg p-3 hover:border-dp-secondary transition-colors flex flex-col">
+                  <Link href={`/projects/${p.id}`}>
+                    <p className="text-[9.5px] font-bold text-dp-secondary uppercase tracking-wide flex items-center gap-1"><Layers size={10} /> {t(CATEGORY_LABEL[p.category ?? 'other'] ?? 'pj.catOther')}</p>
+                    {/* A fixed 16px line-height clips Nastaliq's taller
+                        glyphs against line-clamp's overflow-hidden — the
+                        reported "cut off from the bottom". Urdu needs a
+                        visibly taller line-height for the same 2 lines to
+                        render whole. */}
+                    <p className={`font-sans text-[12.5px] font-semibold text-dp-on-surface mt-1 line-clamp-2 ${isUrdu ? 'leading-[22px]' : 'leading-[16px]'}`}>{p.display_name || p.title}</p>
+                    <div className="h-1.5 bg-dp-surface-container rounded-full mt-2 overflow-hidden">
+                      <div className="h-full bg-dp-secondary rounded-full" style={{ width: `${Math.min(100, p.progress_percent ?? 0)}%` }} />
+                    </div>
+                    {f && (
+                      <div className="flex items-center justify-between gap-1 mt-1.5 font-sans text-[9px] text-dp-on-surface-variant ltr-num">
+                        <span>{t('pj.raisedShort')} Rs. {fmt(f.raised)}</span>
+                        <span>{t('pj.spentShort')} Rs. {fmt(f.spent)}</span>
+                      </div>
+                    )}
+                  </Link>
+                  <Link href={`/portal/donate?project=${p.id}`}
+                    className="mt-2 flex items-center justify-center gap-1 bg-dp-secondary text-white text-[10.5px] font-sans font-semibold py-1.5 rounded-md hover:bg-dp-primary transition-colors">
+                    <HandHeart size={11} /> {t('p.donateNow')}
+                  </Link>
                 </div>
-              </Link>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
@@ -155,12 +214,25 @@ export default function PortalDashboardPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
             {academies.map((a) => {
               const fee = cheapestFee(a.id)
+              const f = funding[a.id]
               return (
-                <Link key={a.id} href="/portal/training-programs" className="bg-white border border-dp-outline-variant rounded-lg p-3 hover:border-dp-secondary transition-colors">
-                  <p className="text-[9.5px] font-bold text-amber-600 uppercase tracking-wide flex items-center gap-1"><HandCoins size={10} /> {t(CATEGORY_LABEL[a.category ?? 'sports'] ?? 'pj.catSports')}</p>
-                  <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface mt-1 leading-[16px] line-clamp-2">{a.display_name || a.title}</p>
-                  <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">{fee > 0 ? `Rs. ${fmt(fee)}/${t('af.perMonth')}` : t('tp.freeLabel')}</p>
-                </Link>
+                <div key={a.id} className="bg-white border border-dp-outline-variant rounded-lg p-3 hover:border-dp-secondary transition-colors flex flex-col">
+                  <Link href="/portal/training-programs">
+                    <p className="text-[9.5px] font-bold text-amber-600 uppercase tracking-wide flex items-center gap-1"><HandCoins size={10} /> {t(CATEGORY_LABEL[a.category ?? 'sports'] ?? 'pj.catSports')}</p>
+                    <p className={`font-sans text-[12.5px] font-semibold text-dp-on-surface mt-1 line-clamp-2 ${isUrdu ? 'leading-[22px]' : 'leading-[16px]'}`}>{a.display_name || a.title}</p>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">{fee > 0 ? `Rs. ${fmt(fee)}/${t('af.perMonth')}` : t('tp.freeLabel')}</p>
+                    {f && (
+                      <div className="flex items-center justify-between gap-1 mt-1.5 font-sans text-[9px] text-dp-on-surface-variant ltr-num">
+                        <span>{t('pj.raisedShort')} Rs. {fmt(f.raised)}</span>
+                        <span>{t('pj.spentShort')} Rs. {fmt(f.spent)}</span>
+                      </div>
+                    )}
+                  </Link>
+                  <Link href={`/portal/donate?project=${a.id}`}
+                    className="mt-2 flex items-center justify-center gap-1 bg-dp-secondary text-white text-[10.5px] font-sans font-semibold py-1.5 rounded-md hover:bg-dp-primary transition-colors">
+                    <HandHeart size={11} /> {t('p.donateNow')}
+                  </Link>
+                </div>
               )
             })}
           </div>

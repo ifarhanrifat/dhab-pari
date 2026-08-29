@@ -150,7 +150,12 @@ export function WelfareCards({ needs, kafalat, wazifa, sadqaWorking, sadqaTotal,
 
                 <div className="flex-1 min-w-0 text-center pt-1">
                   <c.icon size={20} className="mx-auto opacity-90 mb-1.5" />
-                  <p className="font-heading text-[16px] font-bold leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                  {/* leading-tight (1.25) clips Nastaliq's taller glyphs against
+                      overflow-hidden — the single-line-truncation this needs —
+                      cutting the bottom off every Urdu title. Urdu gets a much
+                      taller line-height instead, matching the ratio the rest of
+                      the app already uses for this same face (globals.css). */}
+                  <p className={`font-heading text-[16px] font-bold whitespace-nowrap overflow-hidden text-ellipsis ${isUrdu ? 'leading-[2] pb-0.5' : 'leading-tight'}`}>
                     {c.title}
                   </p>
                 </div>

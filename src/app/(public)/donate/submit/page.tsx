@@ -8,7 +8,8 @@ import Link from 'next/link'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { PaymentAccountDetails } from '@/components/public/PaymentAccountDetails'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { SearchableField } from '@/components/admin/SearchablePicker'
+import { SearchableField, type PickerItem } from '@/components/admin/SearchablePicker'
+import { fetchDonationTargets, parseDonationTargetId, encodeProjectTarget } from '@/lib/donationTargets'
 
 type Lang = 'en' | 'ur'
 
@@ -32,6 +33,8 @@ const t: Record<string, { en: string; ur: string }> = {
   paymentMethod: { en: 'Payment Method', ur: 'ادائیگی کا طریقہ' },
   project: { en: 'Project (optional)', ur: 'منصوبہ (اختیاری)' },
   noProject: { en: 'General Fund', ur: 'عمومی فنڈ' },
+  selectDonationTarget: { en: 'Where should this go?', ur: 'یہ رقم کہاں جائے؟' },
+  searchAccounts: { en: 'Search accounts...', ur: 'اکاؤنٹس تلاش کریں...' },
   anonymous: { en: 'Keep my donation anonymous on the website', ur: 'ویب سائٹ پر میرا عطیہ گمنام رکھیں' },
   submit: { en: 'Submit Donation', ur: 'عطیہ جمع کروائیں' },
   submitting: { en: 'Submitting...', ur: 'جمع ہو رہا ہے...' },
@@ -39,8 +42,6 @@ const t: Record<string, { en: string; ur: string }> = {
   errorRequired: { en: 'Name, WhatsApp number, amount, and payment receipt are required.', ur: 'نام، واٹس ایپ نمبر، رقم، اور رسید درکار ہیں۔' },
   errorFailed: { en: 'Failed to submit. Please try again.', ur: 'جمع نہیں ہو سکا۔ دوبارہ کوشش کریں۔' },
 }
-
-interface Project { id: string; title: string; display_name: string | null }
 
 export default function DonateSubmitPage() {
   const { t: tr } = useLocale()
@@ -55,11 +56,16 @@ function DonateSubmitPageInner() {
   const { t: tr } = useLocale()
   const searchParams = useSearchParams()
   const [lang, setLang] = useState<Lang>('en')
-  const [projects, setProjects] = useState<Project[]>([])
+  const [targetItems, setTargetItems] = useState<PickerItem[]>([])
+  // A raw ?project=<uuid> (the existing contract other pages link with)
+  // wins over the picker's own default; otherwise the list's default
+  // (کمیٹی اکاؤنٹ Main) applies once it has loaded.
+  const projectParam = searchParams.get('project')
+  const [targetId, setTargetId] = useState(projectParam ? encodeProjectTarget(projectParam) : '')
   const [form, setForm] = useState({
     name: '', father_husband_name: '', whatsapp_number: '', phone: '',
     amount_pkr: 0, date: new Date().toISOString().split('T')[0],
-    payment_method: 'bank', project_id: searchParams.get('project') ?? '', is_anonymous: false,
+    payment_method: 'bank', is_anonymous: false,
   })
   const [receiptPath, setReceiptPath] = useState('')
   const [international, setInternational] = useState(false)
@@ -73,17 +79,18 @@ function DonateSubmitPageInner() {
 
   useEffect(() => {
     supabase.from('site_settings').select('value').eq('key', 'display_language').maybeSingle().then(({ data }) => {
-      if (data?.value === 'ur') setLang('ur')
-    })
-    // Not yet launched (upcoming) or already wrapped up (completed) — a
-    // donor picking who to give to shouldn't be offered either.
-    // A completed one-time build doesn't need more donations — except a
-    // recurring_support project (a salary, a monthly running cost), which
-    // keeps needing donors regardless of the build's own status.
-    supabase.from('projects').select('id, title, display_name')
-      .or('funding_model.eq.recurring_support,and(status.neq.completed,status.neq.upcoming)')
-      .order('title').then(({ data }) => {
-      setProjects(data ?? [])
+      // The picker's own labels (group headings, fund names) follow this
+      // same site-default lookup, not the shared LocaleProvider — that
+      // provider resolves independently for a signed-out visitor and can
+      // briefly (or permanently, with no saved preference) disagree with
+      // it, which would otherwise leave half the picker in English while
+      // this page's own Urdu text renders normally around it.
+      const resolvedLang: Lang = data?.value === 'ur' ? 'ur' : 'en'
+      setLang(resolvedLang)
+      fetchDonationTargets(supabase, resolvedLang).then(({ items, defaultTargetId }) => {
+        setTargetItems(items)
+        setTargetId((current) => current || defaultTargetId)
+      })
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -110,6 +117,7 @@ function DonateSubmitPageInner() {
       return
     }
 
+    const { projectId, fundType } = parseDonationTargetId(targetId)
     const { error: insertErr } = await supabase.from('donors').insert({
       name: form.name.trim(),
       father_husband_name: form.father_husband_name.trim() || null,
@@ -118,7 +126,8 @@ function DonateSubmitPageInner() {
       amount_pkr: form.amount_pkr,
       date: form.date,
       payment_method: form.payment_method,
-      project_id: form.project_id || null,
+      project_id: projectId,
+      fund_type: fundType,
       is_anonymous: form.is_anonymous,
       payment_proof_url: receiptPath,
       is_verified: false,
@@ -232,13 +241,14 @@ function DonateSubmitPageInner() {
                   <PaymentAccountDetails system="donors_projects" method={form.payment_method} international={international} />
                 </div>
                 <div>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{dt('project')}</label>
+                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{dt('selectDonationTarget')}</label>
                   <SearchableField
-                    value={form.project_id}
-                    onChange={(id) => setForm({ ...form, project_id: id })}
-                    placeholder={dt('noProject')}
-                    pickerTitle={dt('project')}
-                    items={projects.map((p) => ({ id: p.id, label: p.display_name || p.title }))}
+                    value={targetId}
+                    onChange={setTargetId}
+                    pickerTitle={dt('selectDonationTarget')}
+                    searchPlaceholder={dt('searchAccounts')}
+                    items={targetItems}
+                    compact
                   />
                 </div>
               </div>

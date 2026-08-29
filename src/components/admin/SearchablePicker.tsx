@@ -14,6 +14,10 @@ interface SearchablePickerProps {
   searchPlaceholder?: string
   emptyMessage?: string
   extraAction?: { label: string; onClick: () => void }
+  // Smaller row text — the donation-target list (many categorised
+  // accounts, viewed mostly on a phone) asked for this; every existing
+  // caller leaves it unset and keeps the original sizing.
+  compact?: boolean
 }
 
 // A searchable, optionally-grouped modal list — the same reusable picker for
@@ -21,7 +25,7 @@ interface SearchablePickerProps {
 // reference app's single searchable-list pattern used for every such selection.
 export function SearchablePicker({
   open, title, items, onSelect, onClose,
-  searchPlaceholder = 'Search...', emptyMessage = 'No results', extraAction,
+  searchPlaceholder = 'Search...', emptyMessage = 'No results', extraAction, compact,
 }: SearchablePickerProps) {
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -86,10 +90,10 @@ export function SearchablePicker({
                 <button
                   key={item.id}
                   onClick={() => { onSelect(item.id); onClose() }}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-start hover:bg-dp-surface-container-low transition-all cursor-pointer border-b border-dp-outline-variant/50 last:border-b-0"
+                  className={`w-full flex items-center justify-between gap-3 text-start hover:bg-dp-surface-container-low transition-all cursor-pointer border-b border-dp-outline-variant/50 last:border-b-0 ${compact ? 'px-4 py-2' : 'px-4 py-2.5'}`}
                 >
-                  <span className="font-sans text-[14px] text-dp-on-surface truncate">{item.label}</span>
-                  {item.sublabel && <span className="font-sans text-[12px] text-dp-on-surface-variant shrink-0">{item.sublabel}</span>}
+                  <span className={`font-sans text-dp-on-surface truncate ${compact ? 'text-[12.5px]' : 'text-[14px]'}`}>{item.label}</span>
+                  {item.sublabel && <span className={`font-sans font-semibold text-dp-secondary shrink-0 ltr-num ${compact ? 'text-[11px]' : 'text-[12px]'}`}>{item.sublabel}</span>}
                 </button>
               ))}
             </div>
@@ -110,6 +114,7 @@ interface SearchableFieldProps {
   pickerTitle?: string
   searchPlaceholder?: string
   extraAction?: { label: string; onClick: () => void }
+  compact?: boolean
 }
 
 // Drop-in replacement for a plain <select> — renders like .input-field, opens
@@ -117,7 +122,7 @@ interface SearchableFieldProps {
 // where a native <select> becomes unusable without search.
 export function SearchableField({
   label, value, items, onChange, placeholder = 'Select...', disabled,
-  pickerTitle, searchPlaceholder, extraAction,
+  pickerTitle, searchPlaceholder, extraAction, compact,
 }: SearchableFieldProps) {
   const [open, setOpen] = useState(false)
   const selected = items.find((i) => i.id === value)
@@ -137,6 +142,7 @@ export function SearchableField({
         onSelect={onChange} onClose={() => setOpen(false)}
         searchPlaceholder={searchPlaceholder}
         extraAction={extraAction}
+        compact={compact}
       />
     </div>
   )
