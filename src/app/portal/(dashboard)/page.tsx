@@ -14,7 +14,7 @@ function fmt(n: number) {
 }
 
 interface ProjectCard { id: string; title: string; display_name: string | null; category: string | null; progress_percent: number }
-interface AcademyCard { id: string; title: string; display_name: string | null; category: string | null }
+interface AcademyCard { id: string; title: string; display_name: string | null; category: string | null; funding_model: string | null; monthly_operating_cost_pkr: number | null }
 interface BatchFee { project_id: string; fee_villager_monthly_pkr: number | null; fee_outsider_monthly_pkr: number | null }
 interface FundingRow { project_id: string; raised: number; spent: number }
 
@@ -95,7 +95,7 @@ export default function PortalDashboardPage() {
         loadFunding((data ?? []).map((p) => p.id))
       })
 
-    supabase.from('projects').select('id, title, display_name, category')
+    supabase.from('projects').select('id, title, display_name, category, funding_model, monthly_operating_cost_pkr')
       .in('category', ['sports', 'training']).in('status', ['ongoing', 'upcoming'])
       .order('created_at', { ascending: false }).limit(4)
       .then(({ data }) => {
@@ -215,13 +215,23 @@ export default function PortalDashboardPage() {
             {academies.map((a) => {
               const fee = cheapestFee(a.id)
               const f = funding[a.id]
+              const isSalaryFunded = a.funding_model === 'recurring_support'
               return (
                 <div key={a.id} className="bg-white border border-dp-outline-variant rounded-lg p-3 hover:border-dp-secondary transition-colors flex flex-col">
                   <Link href="/portal/training-programs">
                     <p className="text-[9.5px] font-bold text-amber-600 uppercase tracking-wide flex items-center gap-1"><HandCoins size={10} /> {t(CATEGORY_LABEL[a.category ?? 'sports'] ?? 'pj.catSports')}</p>
                     <p className={`font-sans text-[12.5px] font-semibold text-dp-on-surface mt-1 line-clamp-2 ${isUrdu ? 'leading-[22px]' : 'leading-[16px]'}`}>{a.display_name || a.title}</p>
                     <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">{fee > 0 ? `Rs. ${fmt(fee)}/${t('af.perMonth')}` : t('tp.freeLabel')}</p>
-                    {f && (
+                    {/* A trainer-salary academy (funding_model=recurring_support)
+                        shows what it's raised against the actual monthly need,
+                        not a generic Raised/Spent pair — same distinction the
+                        Academies catalog and admin summary already make. */}
+                    {isSalaryFunded && f ? (
+                      <div className="flex items-center justify-between gap-1 mt-1.5 font-sans text-[9px] text-dp-on-surface-variant ltr-num">
+                        <span>{t('af.salaryFundingLabel')}</span>
+                        <span>Rs. {fmt(f.raised)}{a.monthly_operating_cost_pkr ? ` / ${fmt(a.monthly_operating_cost_pkr)}${t('af.perMonthShort')}` : ''}</span>
+                      </div>
+                    ) : f && (
                       <div className="flex items-center justify-between gap-1 mt-1.5 font-sans text-[9px] text-dp-on-surface-variant ltr-num">
                         <span>{t('pj.raisedShort')} Rs. {fmt(f.raised)}</span>
                         <span>{t('pj.spentShort')} Rs. {fmt(f.spent)}</span>

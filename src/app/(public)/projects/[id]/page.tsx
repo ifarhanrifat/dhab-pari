@@ -19,6 +19,7 @@ interface Project {
   vote_target: number | null; minimum_monthly_commitment_pkr: number | null
   funding_model: string | null; monthly_operating_cost_pkr: number | null
   hide_fees: boolean; intro_video_id: string | null
+  before_image_url: string | null; after_image_url: string | null
 }
 interface AcademyBatch {
   id: string; project_id: string; label: string; label_ur: string | null; schedule_note: string | null
@@ -118,7 +119,7 @@ export default function ProjectDetailPage() {
   const load = useCallback(async () => {
     const supabase = createClient()
     const [{ data: p }, { data: v }, { data: a }, { data: expenseAcct }, { data: voteRows }, { data: commentRows }] = await Promise.all([
-      supabase.from('projects').select('id, title, display_name, description, status, budget_pkr, category, location, vote_target, minimum_monthly_commitment_pkr, funding_model, monthly_operating_cost_pkr, hide_fees, intro_video_id').eq('id', id).single(),
+      supabase.from('projects').select('id, title, display_name, description, status, budget_pkr, category, location, vote_target, minimum_monthly_commitment_pkr, funding_model, monthly_operating_cost_pkr, hide_fees, intro_video_id, before_image_url, after_image_url').eq('id', id).single(),
       supabase.from('donors_public').select('id, name, amount_pkr, date, is_verified, payment_status').eq('project_id', id).eq('is_verified', true).order('amount_pkr', { ascending: false }),
       supabase.from('donors_public').select('id, name, amount_pkr, date, is_verified, payment_status').eq('project_id', id).eq('is_verified', false).order('date', { ascending: false }),
       supabase.from('project_accounts_public').select('id').eq('project_id', id).maybeSingle(),
@@ -327,6 +328,39 @@ export default function ProjectDetailPage() {
         {project.location && <p className="flex items-center gap-1 text-dp-on-surface-variant font-sans text-[15px] mt-1"><MapPin size={15} /> {project.location}</p>}
         <p className="font-sans text-[16px] text-dp-on-surface-variant mt-4 leading-[26px]">{project.description}</p>
       </div>
+
+      {/* Photos — a health/medical project always uses the fixed generic
+          cover (same rule /projects and the home page already follow); a
+          real patient's before/after photo is never shown publicly, even
+          if one happens to be uploaded. Everyone else shows whichever of
+          before/after they actually have, side by side when both exist —
+          this page never rendered either at all before, so an uploaded
+          photo silently never appeared anywhere except the small listing
+          thumbnail. */}
+      {project.category === 'health' ? (
+        <div className="mb-8 relative w-full h-64 rounded-lg overflow-hidden">
+          <Image src="/images/health-project-cover.jpg" alt="" fill sizes="1000px" className="object-cover" />
+        </div>
+      ) : (project.before_image_url || project.after_image_url) && (
+        <div className={`grid gap-3 mb-8 ${project.before_image_url && project.after_image_url ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {project.before_image_url && (
+            <div>
+              <div className="relative w-full h-56 rounded-lg overflow-hidden bg-dp-surface-container">
+                <Image src={project.before_image_url} alt="" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+              </div>
+              {project.after_image_url && <p className="font-sans text-[11.5px] font-bold text-dp-on-surface-variant uppercase tracking-wide mt-1.5">{tr('pj.beforePhoto')}</p>}
+            </div>
+          )}
+          {project.after_image_url && (
+            <div>
+              <div className="relative w-full h-56 rounded-lg overflow-hidden bg-dp-surface-container">
+                <Image src={project.after_image_url} alt="" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+              </div>
+              {project.before_image_url && <p className="font-sans text-[11.5px] font-bold text-dp-on-surface-variant uppercase tracking-wide mt-1.5">{tr('pj.afterPhoto')}</p>}
+            </div>
+          )}
+        </div>
+      )}
 
       {introVideo && (
         <div className="mb-8">
