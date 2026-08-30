@@ -173,7 +173,7 @@ export default function PortalTrainingProgramsPage() {
                 )}
 
                 {bestSiblingDiscount > 0 && !a.hide_fees && (
-                  <p className="font-sans text-[11.5px] text-dp-secondary font-semibold mt-2">{t('tp.siblingDiscountNote').replace('{pct}', String(bestSiblingDiscount))}</p>
+                  <p className="font-sans text-[11.5px] text-dp-secondary font-semibold mt-2">{t('tp.siblingDiscountAvailableNote').replace('{pct}', String(bestSiblingDiscount))}</p>
                 )}
 
                 {trainer && (

@@ -42,6 +42,11 @@ interface Project {
   after_image_url: string | null
   proposal_image_url: string | null
   funding_model: string | null
+  // A designated cover (383) — merged in after the main fetch, since it
+  // lives on project_media, not this row. Wins over after_image_url as
+  // the single "here's this project" hero image; OngoingCard's genuine
+  // before/after pairing is untouched by it on purpose.
+  cover_photo_url?: string | null
 }
 
 // Migration 370 — the rate card moved off the project onto its batches
@@ -196,7 +201,7 @@ export default function ProjectsPage() {
         setLoading(false)
         const allIds = (data ?? []).map((p) => p.id)
         if (allIds.length > 0) {
-          const [{ data: voteRows }, { data: commentRows }, { data: donationRows }, { data: expenseRows }, { data: batchRows }] = await Promise.all([
+          const [{ data: voteRows }, { data: commentRows }, { data: donationRows }, { data: expenseRows }, { data: batchRows }, { data: coverRows }] = await Promise.all([
             supabase.from('project_votes_public').select('project_id').in('project_id', allIds),
             // Excludes comment_type='system' — those are the auto-posted "X submitted
             // a donation of Rs. Y" lines the donation trigger writes on every submission,
@@ -206,7 +211,13 @@ export default function ProjectsPage() {
             supabase.from('donors_public').select('project_id, amount_pkr').eq('is_verified', true).in('project_id', allIds),
             supabase.from('project_expenses_public').select('project_id, debit').in('project_id', allIds),
             supabase.from('training_batches').select('project_id, fee_villager_monthly_pkr, fee_outsider_monthly_pkr, fee_villager_full_pkr, fee_outsider_full_pkr').eq('status', 'active').in('project_id', allIds),
+            supabase.from('project_media').select('project_id, url').eq('is_cover', true).in('project_id', allIds),
           ])
+          if (coverRows && coverRows.length > 0) {
+            const coverByProject: Record<string, string> = {}
+            for (const c of coverRows) coverByProject[c.project_id] = c.url
+            setProjects((prev) => prev.map((p) => coverByProject[p.id] ? { ...p, cover_photo_url: coverByProject[p.id] } : p))
+          }
           const vCounts: Record<string, number> = {}
           for (const v of voteRows ?? []) vCounts[v.project_id] = (vCounts[v.project_id] ?? 0) + 1
           setVoteCounts(vCounts)
@@ -579,8 +590,8 @@ function CompletedCard({ project, isHot, dt, isUrdu, received, expense }: { proj
         </div>
         {isHealthCategory(project.category) ? (
           <Image src={HEALTH_COVER_IMAGE} alt={displayTitle(project)} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
-        ) : project.after_image_url || project.proposal_image_url ? (
-          <Image src={project.after_image_url ?? project.proposal_image_url ?? ''} alt={displayTitle(project)} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+        ) : project.cover_photo_url || project.after_image_url || project.proposal_image_url ? (
+          <Image src={project.cover_photo_url ?? project.after_image_url ?? project.proposal_image_url ?? ''} alt={displayTitle(project)} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-dp-secondary to-dp-primary-container" />
         )}

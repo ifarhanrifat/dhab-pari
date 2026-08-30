@@ -54,6 +54,14 @@ export default function JoinAcademyPage({ params }: { params: Promise<{ projectI
     guardian_name: '', guardian_whatsapp_number: '', address: '', sector: '',
     participant_type: 'villager', fee_type: 'monthly',
   })
+  // Account-history detection (hasSibling below) only ever catches a 2nd
+  // child registered from the SAME portal login — it misses an elder
+  // sibling with their own account, or a different parent/guardian
+  // registering the first child. This is the explicit alternative: the
+  // parent names who the sibling is, admin sees the claim (discount_reason)
+  // and can still correct it at confirmation if it doesn't check out.
+  const [claimSibling, setClaimSibling] = useState(false)
+  const [siblingNote, setSiblingNote] = useState('')
 
   const load = async () => {
     const [{ data: proj }, { data: batchRows }, { data: feeRows }] = await Promise.all([
@@ -90,7 +98,8 @@ export default function JoinAcademyPage({ params }: { params: Promise<{ projectI
   const selectedBatch = batches.find((b) => b.id === form.batch_id) ?? null
   const isFull = selectedBatch?.spots_left === 0
   const baseFee = selectedBatch ? feeFor(selectedBatch, form.participant_type, form.fee_type) : 0
-  const applicableDiscount = hasSibling && selectedBatch?.sibling_discount_pct ? selectedBatch.sibling_discount_pct : 0
+  const siblingEligible = hasSibling || (claimSibling && siblingNote.trim().length > 0)
+  const applicableDiscount = siblingEligible && selectedBatch?.sibling_discount_pct ? selectedBatch.sibling_discount_pct : 0
   const previewFee = applicableDiscount > 0 ? Math.max(0, baseFee - (baseFee * applicableDiscount) / 100) : baseFee
 
   const submit = async () => {
@@ -98,6 +107,7 @@ export default function JoinAcademyPage({ params }: { params: Promise<{ projectI
     if (!form.student_name.trim() || !form.guardian_whatsapp_number.trim()) {
       toast.error(t('af.requiredFields')); return
     }
+    if (claimSibling && !siblingNote.trim()) { toast.error(t('tp.siblingNameRequired')); return }
     setSaving(true)
     const { error } = await supabase.rpc('request_training_enrollment', {
       p_batch_id: form.batch_id, p_student_name: form.student_name, p_student_name_ur: form.student_name_ur || null,
@@ -105,6 +115,7 @@ export default function JoinAcademyPage({ params }: { params: Promise<{ projectI
       p_guardian_name: form.guardian_name || null, p_guardian_whatsapp_number: form.guardian_whatsapp_number,
       p_address: form.address || null, p_sector: form.sector || null,
       p_participant_type: form.participant_type, p_fee_type: form.fee_type,
+      p_sibling_note: claimSibling ? siblingNote.trim() : null,
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -153,7 +164,10 @@ export default function JoinAcademyPage({ params }: { params: Promise<{ projectI
                         <span>· {b.session_days.map((d) => t(DAY_KEYS[d])).join(', ')}{b.session_time ? ` @ ${b.session_time.slice(0, 5)}` : ''}</span>
                       )}
                     </p>
-                    {hasSibling && !!b.sibling_discount_pct && (
+                    {!!b.sibling_discount_pct && (
+                      <p className="font-sans text-[10.5px] text-dp-on-surface-variant mt-1">{t('tp.siblingDiscountAvailableNote').replace('{pct}', String(b.sibling_discount_pct))}</p>
+                    )}
+                    {siblingEligible && !!b.sibling_discount_pct && (
                       <p className="font-sans text-[11px] text-dp-secondary font-semibold mt-1">{t('tp.siblingDiscountNote').replace('{pct}', String(b.sibling_discount_pct))}</p>
                     )}
                   </button>
@@ -168,6 +182,21 @@ export default function JoinAcademyPage({ params }: { params: Promise<{ projectI
           <input value={form.guardian_whatsapp_number} onChange={(e) => setForm({ ...form, guardian_whatsapp_number: e.target.value })} placeholder={t('af.guardianWhatsapp')} className="input-field" />
           <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder={t('z.location')} className="input-field" />
           <input value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} placeholder={t('w.sector')} className="input-field" />
+
+          {!hasSibling && (
+            <div className="border border-dp-outline-variant rounded-lg p-3.5">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={claimSibling} onChange={(e) => setClaimSibling(e.target.checked)} className="accent-dp-secondary" />
+                <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{t('tp.claimSiblingLabel')}</span>
+              </label>
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1 ms-6">{t('tp.claimSiblingHint')}</p>
+              {claimSibling && (
+                <input value={siblingNote} onChange={(e) => setSiblingNote(e.target.value)} placeholder={t('tp.siblingNamePlaceholder')}
+                  className="input-field mt-2.5" />
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <select value={form.participant_type} onChange={(e) => setForm({ ...form, participant_type: e.target.value })} className="input-field">
               <option value="villager">{t('af.villager')}</option>

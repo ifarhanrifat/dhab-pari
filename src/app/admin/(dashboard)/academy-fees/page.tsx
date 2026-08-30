@@ -42,7 +42,8 @@ interface PendingRequest {
   id: string; student_name: string; student_age: number | null
   guardian_name: string | null; guardian_whatsapp_number: string | null
   address: string | null; sector: string | null; participant_type: string
-  fee_type: string; fee_amount_pkr: number; batch_label: string | null; requested_at: string
+  fee_type: string; fee_amount_pkr: number; discount_pct: number | null; discount_reason: string | null
+  batch_label: string | null; requested_at: string
 }
 // One row per academy, from academy_summary_report() (380/381) — fill
 // rate, fee-collection rate, and (for a trainer-salary academy) funding
@@ -433,6 +434,16 @@ function AcademyFeesInner() {
                         {r.guardian_name} · {r.guardian_whatsapp_number} · Rs. {fmt(r.fee_amount_pkr)}/{t(r.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}
                         {r.sector ? ` · ${r.sector}` : ''}
                       </p>
+                      {/* Sibling discount claimed on the request — auto-detected
+                          (same portal account) is low-risk; a parent-typed claim
+                          (383) is exactly what this line exists to let admin check
+                          before confirming it. */}
+                      {r.discount_pct != null && (
+                        <p className="font-sans text-[11.5px] font-semibold text-dp-secondary mt-1">
+                          {r.discount_reason?.includes('parent declared') ? <span className="text-amber-700">{t('af.verifyClaim')}: </span> : null}
+                          {r.discount_pct}% · {r.discount_reason}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button onClick={() => confirmRequest(r)} disabled={saving} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-emerald-700 disabled:opacity-50">

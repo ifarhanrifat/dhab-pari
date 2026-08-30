@@ -149,6 +149,16 @@ export default async function HomePage() {
   const expenseByProject: Record<string, number> = {}
   for (const e of expenseRows ?? []) expenseByProject[e.project_id] = (expenseByProject[e.project_id] ?? 0) + Number(e.debit)
 
+  // A designated cover photo (383) wins over the before/after fallback —
+  // an admin picking one specific photo to represent the project should
+  // actually show up as the card image, not whichever of before/after
+  // happened to be set.
+  const coverByProject: Record<string, string> = {}
+  if (projectIds.length > 0) {
+    const { data: coverRows } = await supabase.from('project_media').select('project_id, url').eq('is_cover', true).in('project_id', projectIds)
+    for (const c of coverRows ?? []) coverByProject[c.project_id] = c.url
+  }
+
   // Fee badge for a sports/training card — same "starting from" logic
   // /projects already uses, just never carried over to this page's own
   // separate query, so a new academy showed up here with zero fee info
@@ -338,8 +348,8 @@ export default async function HomePage() {
                   <div className="relative h-48 bg-dp-surface-container overflow-hidden">
                     {isHealthCategory(project.category) ? (
                       <Image src={HEALTH_COVER_IMAGE} alt={project.display_name || project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
-                    ) : project.after_image_url || project.before_image_url ? (
-                      <Image src={project.after_image_url ?? project.before_image_url ?? ''} alt={project.display_name || project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+                    ) : coverByProject[project.id] || project.after_image_url || project.before_image_url ? (
+                      <Image src={coverByProject[project.id] ?? project.after_image_url ?? project.before_image_url ?? ''} alt={project.display_name || project.title} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container flex items-center justify-center">
                         <GitBranch size={48} className="text-dp-on-primary-container/40" />

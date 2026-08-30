@@ -12,6 +12,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { DonorBadge } from '@/components/public/DonorBadge'
 import type { DonorBadgeTier } from '@/lib/donorBadges'
 import { VideoPlayer } from '@/components/VideoPlayer'
+import { Lightbox } from '@/components/public/Lightbox'
 
 interface Project {
   id: string; title: string; display_name: string | null; description: string | null; status: string
@@ -29,6 +30,7 @@ interface AcademyBatch {
   sibling_discount_pct: number | null; capacity: number | null; spots_left: number | null
 }
 interface AcademyTrainer { project_id: string; trainer_name: string; trainer_bio: string | null; trainer_bio_ur: string | null; trainer_photo_url: string | null }
+interface GalleryPhoto { id: string; url: string; caption: string | null }
 interface DonorRow { id: string; name: string; amount_pkr: number; date: string; is_verified: boolean; payment_status: string }
 interface ExpenseRow { id: string; entry_date: string; particular: string; debit: number }
 interface VoteRow { id: string; username: string | null; avatar_url: string | null }
@@ -115,6 +117,8 @@ export default function ProjectDetailPage() {
   const [academyBatches, setAcademyBatches] = useState<AcademyBatch[]>([])
   const [trainer, setTrainer] = useState<AcademyTrainer | null>(null)
   const [introVideo, setIntroVideo] = useState<{ video_url: string; title: string } | null>(null)
+  const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>([])
+  const [lightboxIndex, setLightboxIndex] = useState(-1)
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -162,6 +166,13 @@ export default function ProjectDetailPage() {
     if (p?.intro_video_id) {
       const { data: vid } = await supabase.from('video_content').select('video_url, title').eq('id', p.intro_video_id).maybeSingle()
       setIntroVideo(vid ?? null)
+    }
+    // Gallery — same rule as before/after: a health/medical project never
+    // shows a real photo publicly, even one that's been uploaded.
+    if (p?.category !== 'health') {
+      const { data: media } = await supabase.from('project_media').select('id, url, caption')
+        .eq('project_id', id).eq('type', 'photo').order('display_order')
+      setGalleryPhotos(media ?? [])
     }
     const { data: ch } = await supabase.rpc('project_donation_channels_pkr', { p_project_id: id })
     setChannels(ch ?? [])
@@ -318,6 +329,21 @@ export default function ProjectDetailPage() {
   if (loading) return <div className="text-center py-20 text-dp-on-surface-variant font-sans">{tr('action.loading')}</div>
   if (!project) return <div className="text-center py-20 text-dp-on-surface-variant font-sans">{tr('x.projectNotFound')}</div>
 
+  // One combined, clickable set — before/after first (they're a real
+  // comparison pair, kept as their own labelled row), then whatever's in
+  // the gallery — so the lightbox can step through all of it in order
+  // regardless of which thumbnail was clicked first. Never populated at
+  // all for health/medical (project.category === 'health' skips both the
+  // fetch above and this list) — a real patient's photo is never shown.
+  const allImages: { url: string; caption?: string }[] = [
+    ...(project.before_image_url ? [{ url: project.before_image_url, caption: tr('pj.beforePhoto') }] : []),
+    ...(project.after_image_url ? [{ url: project.after_image_url, caption: tr('pj.afterPhoto') }] : []),
+    ...galleryPhotos.map((g) => ({ url: g.url, caption: g.caption ?? undefined })),
+  ]
+  const beforeIndex = project.before_image_url ? 0 : -1
+  const afterIndex = project.after_image_url ? (project.before_image_url ? 1 : 0) : -1
+  const galleryStartIndex = (project.before_image_url ? 1 : 0) + (project.after_image_url ? 1 : 0)
+
   return (
     <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-10 min-h-screen">
       <Link href="/projects" className="inline-flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold hover:underline mb-6"><ArrowLeft size={16} /> {tr('x.allProjects')}</Link>
@@ -341,25 +367,43 @@ export default function ProjectDetailPage() {
         <div className="mb-8 relative w-full h-64 rounded-lg overflow-hidden">
           <Image src="/images/health-project-cover.jpg" alt="" fill sizes="1000px" className="object-cover" />
         </div>
-      ) : (project.before_image_url || project.after_image_url) && (
-        <div className={`grid gap-3 mb-8 ${project.before_image_url && project.after_image_url ? 'grid-cols-2' : 'grid-cols-1'}`} dir={isUrdu ? 'rtl' : 'ltr'}>
-          {project.before_image_url && (
-            <div>
-              <div className="relative w-full h-56 rounded-lg overflow-hidden bg-dp-surface-container">
-                <Image src={project.before_image_url} alt="" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
-              </div>
-              {project.after_image_url && <p className="font-sans text-[11.5px] font-bold text-dp-on-surface-variant uppercase tracking-wide mt-1.5">{tr('pj.beforePhoto')}</p>}
+      ) : (
+        <>
+          {(project.before_image_url || project.after_image_url) && (
+            <div className={`grid gap-3 mb-3 ${project.before_image_url && project.after_image_url ? 'grid-cols-2' : 'grid-cols-1'}`} dir={isUrdu ? 'rtl' : 'ltr'}>
+              {project.before_image_url && (
+                <div>
+                  <button type="button" onClick={() => setLightboxIndex(beforeIndex)} className="relative w-full h-56 rounded-lg overflow-hidden bg-dp-surface-container cursor-pointer block">
+                    <Image src={project.before_image_url} alt="" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+                  </button>
+                  {project.after_image_url && <p className="font-sans text-[11.5px] font-bold text-dp-on-surface-variant uppercase tracking-wide mt-1.5">{tr('pj.beforePhoto')}</p>}
+                </div>
+              )}
+              {project.after_image_url && (
+                <div>
+                  <button type="button" onClick={() => setLightboxIndex(afterIndex)} className="relative w-full h-56 rounded-lg overflow-hidden bg-dp-surface-container cursor-pointer block">
+                    <Image src={project.after_image_url} alt="" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+                  </button>
+                  {project.before_image_url && <p className="font-sans text-[11.5px] font-bold text-dp-on-surface-variant uppercase tracking-wide mt-1.5">{tr('pj.afterPhoto')}</p>}
+                </div>
+              )}
             </div>
           )}
-          {project.after_image_url && (
-            <div>
-              <div className="relative w-full h-56 rounded-lg overflow-hidden bg-dp-surface-container">
-                <Image src={project.after_image_url} alt="" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
-              </div>
-              {project.before_image_url && <p className="font-sans text-[11.5px] font-bold text-dp-on-surface-variant uppercase tracking-wide mt-1.5">{tr('pj.afterPhoto')}</p>}
+          {galleryPhotos.length > 0 && (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 mb-8">
+              {galleryPhotos.map((g, i) => (
+                <button key={g.id} type="button" onClick={() => setLightboxIndex(galleryStartIndex + i)}
+                  className="relative aspect-square rounded-lg overflow-hidden bg-dp-surface-container cursor-pointer block hover:opacity-90 transition-opacity">
+                  <Image src={g.url} alt={g.caption ?? ''} fill sizes="200px" className="object-cover" />
+                </button>
+              ))}
             </div>
           )}
-        </div>
+        </>
+      )}
+
+      {lightboxIndex >= 0 && (
+        <Lightbox images={allImages} index={lightboxIndex} onClose={() => setLightboxIndex(-1)} onNavigate={setLightboxIndex} />
       )}
 
       {introVideo && (

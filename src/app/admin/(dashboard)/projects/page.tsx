@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, Pencil, Trash2, Eye, EyeOff, Zap, Lock, LockOpen } from 'lucide-react'
+import { PlusCircle, X, Pencil, Trash2, Eye, EyeOff, Zap, Lock, LockOpen, Star, ImagePlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ImageUpload } from '@/components/admin/ImageUpload'
@@ -41,6 +41,11 @@ interface Project { id: string; title: string; title_ur: string | null; descript
   intro_video_id: string | null }
 interface TrainerCandidate { id: string; full_name: string; assigned_training_program_ids: string[] | null }
 interface VideoOption { id: string; title: string }
+// project_media (116) — a real photo gallery, separate from the single
+// before_image_url/after_image_url pair. is_cover (383) marks which one
+// (if any) represents the project on the home page / listing card;
+// before/after keep their own dedicated slots regardless.
+interface GalleryPhoto { id: string; url: string; caption: string | null; is_cover: boolean; display_order: number }
 
 const statuses = ['ongoing', 'completed', 'upcoming']
 const categories = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'sports', 'training', 'other']
@@ -69,6 +74,7 @@ export default function AdminProjectsPage() {
   const [trainerAdminId, setTrainerAdminId] = useState('')
   const [trainerCandidates, setTrainerCandidates] = useState<TrainerCandidate[]>([])
   const [videoOptions, setVideoOptions] = useState<VideoOption[]>([])
+  const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>([])
   const supabase = createClient()
 
   const load = async () => {
@@ -118,13 +124,45 @@ export default function AdminProjectsPage() {
         if (assignError) toast.error(friendlyError(assignError))
       }
     }
-    setShowForm(false); setEditing(null); setForm(empty); setTrainerAdminId(''); load()
+    setShowForm(false); setEditing(null); setForm(empty); setTrainerAdminId(''); setGalleryPhotos([]); load()
   }
 
   const edit = (p: Project) => {
     setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0, is_private: p.is_private, hide_donations: p.hide_donations, hide_expenses: p.hide_expenses, hide_donor_names: p.hide_donor_names, hide_fees: p.hide_fees, display_name: p.display_name ?? '', unlisted: p.unlisted, intro_video_id: p.intro_video_id ?? '' })
     setTrainerAdminId(trainerCandidates.find((c) => (c.assigned_training_program_ids ?? []).includes(p.id))?.id ?? '')
     setEditing(p.id); setShowForm(true)
+    loadGallery(p.id)
+  }
+
+  const loadGallery = async (projectId: string) => {
+    const { data } = await supabase.from('project_media').select('id, url, caption, is_cover, display_order')
+      .eq('project_id', projectId).order('display_order')
+    setGalleryPhotos(data ?? [])
+  }
+
+  const addGalleryPhoto = async (url: string) => {
+    if (!editing) return
+    const { error } = await supabase.from('project_media').insert({
+      project_id: editing, url, type: 'photo', display_order: galleryPhotos.length,
+    })
+    if (error) { toast.error(friendlyError(error)); return }
+    loadGallery(editing)
+  }
+
+  const removeGalleryPhoto = async (photoId: string) => {
+    const { error } = await supabase.from('project_media').delete().eq('id', photoId)
+    if (error) { toast.error(friendlyError(error)); return }
+    setGalleryPhotos((prev) => prev.filter((g) => g.id !== photoId))
+  }
+
+  const setCoverPhoto = async (photoId: string | null) => {
+    if (!editing) return
+    // The partial unique index (one cover per project) means the old
+    // cover has to be cleared before the new one can be set — two steps,
+    // not one UPDATE.
+    await supabase.from('project_media').update({ is_cover: false }).eq('project_id', editing).eq('is_cover', true)
+    if (photoId) await supabase.from('project_media').update({ is_cover: true }).eq('id', photoId)
+    loadGallery(editing)
   }
 
   const remove = async (id: string) => { if (!confirm(t('pj.confirmDelete'))) return; await supabase.from('projects').delete().eq('id', id); toast.success(t('pj.deleted')); load() }
@@ -152,7 +190,7 @@ export default function AdminProjectsPage() {
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-[26px] sm:text-[32px] font-bold leading-[34px] sm:leading-[40px] text-dp-primary">{t('z.projects')}</h1>
-        <button onClick={() => { setForm(empty); setEditing(null); setTrainerAdminId(''); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('z.newProject')}</button>
+        <button onClick={() => { setForm(empty); setEditing(null); setTrainerAdminId(''); setGalleryPhotos([]); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('z.newProject')}</button>
       </div>
       <div className="flex flex-wrap gap-3 mb-6">
         {['all', ...statuses].map((s) => <button key={s} onClick={() => setFilter(s)} className={`px-4 py-1.5 rounded-full font-sans text-[14px] font-semibold tracking-[0.05em] cursor-pointer transition-all ${filter === s ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-primary'}`}>{s === 'all' ? t('pj.filterAll') : t(statusLabelKey[s] ?? s)}</button>)}
@@ -293,6 +331,45 @@ export default function AdminProjectsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <ImageUpload bucket="images" currentUrl={form.before_image_url} onUpload={(url) => setForm({ ...form, before_image_url: url })} label={t('pj.beforePhoto')} />
                   <ImageUpload bucket="images" currentUrl={form.after_image_url} onUpload={(url) => setForm({ ...form, after_image_url: url })} label={t('pj.afterPhoto')} />
+                </div>
+              )}
+
+              {form.category !== 'health' && (
+                <div className="border border-dp-outline-variant rounded-lg p-4">
+                  <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface mb-1">{t('pj.galleryTitle')}</p>
+                  {!editing ? (
+                    <p className="font-sans text-[12px] text-dp-on-surface-variant italic">{t('pj.saveFirstHint')}</p>
+                  ) : (
+                    <>
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">{t('pj.galleryHint')}</p>
+                      {galleryPhotos.length > 0 && (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 mb-3">
+                          {galleryPhotos.map((g) => (
+                            <div key={g.id} className="relative group rounded-lg overflow-hidden border border-dp-outline-variant aspect-square">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={g.url} alt="" className="w-full h-full object-cover" />
+                              {g.is_cover && (
+                                <span className="absolute top-1 start-1 bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase flex items-center gap-0.5">
+                                  <Star size={9} fill="currentColor" /> {t('pj.coverBadge')}
+                                </span>
+                              )}
+                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                                <button type="button" title={t('pj.setCoverBtn')} onClick={() => setCoverPhoto(g.is_cover ? null : g.id)}
+                                  className={`p-1.5 rounded-full cursor-pointer ${g.is_cover ? 'bg-amber-500 text-white' : 'bg-white text-dp-on-surface hover:bg-amber-100'}`}>
+                                  <Star size={13} fill={g.is_cover ? 'currentColor' : 'none'} />
+                                </button>
+                                <button type="button" title={t('pj.removePhotoBtn')} onClick={() => removeGalleryPhoto(g.id)}
+                                  className="p-1.5 rounded-full bg-white text-dp-error hover:bg-dp-error/10 cursor-pointer">
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <ImageUpload key={galleryPhotos.length} bucket="images" onUpload={addGalleryPhoto} label={t('pj.addPhotoBtn')} />
+                    </>
+                  )}
                 </div>
               )}
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_featured} onChange={(e) => setForm({ ...form, is_featured: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('z.featuredProject')}</span></label>
