@@ -62,9 +62,14 @@ function fmt(n: number) {
 }
 
 const emptyEnroll = {
-  batch_id: '', student_name: '', student_name_ur: '', guardian_name: '', guardian_whatsapp_number: '',
+  batch_id: '', student_name: '', student_name_ur: '', student_age: '', guardian_name: '', guardian_whatsapp_number: '',
   address: '', sector: '', participant_type: 'villager', fee_type: 'monthly',
   discount_pct: '', discount_reason: '',
+}
+
+function feeFor(b: Batch, participantType: string, feeType: string) {
+  if (feeType === 'monthly') return participantType === 'villager' ? (b.fee_villager_monthly_pkr ?? 0) : (b.fee_outsider_monthly_pkr ?? 0)
+  return participantType === 'villager' ? (b.fee_villager_full_pkr ?? 0) : (b.fee_outsider_full_pkr ?? 0)
 }
 const emptyBatch = {
   label: '', label_ur: '', schedule_note: '',
@@ -179,6 +184,7 @@ function AcademyFeesInner() {
       p_participant_type: form.participant_type, p_fee_type: form.fee_type,
       p_discount_pct: form.discount_pct ? Number(form.discount_pct) : null,
       p_discount_amount_pkr: null, p_discount_reason: form.discount_reason || null,
+      p_student_age: form.student_age ? Number(form.student_age) : null,
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -574,33 +580,73 @@ function AcademyFeesInner() {
               <h3 className="font-heading text-[18px] font-bold text-dp-primary">{t('af.enrollBtn')}</h3>
               <button onClick={() => setShowEnroll(false)} className="cursor-pointer"><X size={20} /></button>
             </div>
-            <div className="space-y-3">
-              <select value={form.batch_id} onChange={(e) => setForm({ ...form, batch_id: e.target.value })} className="input-field">
-                {batches.map((b) => <option key={b.id} value={b.id}>{isUrdu && b.label_ur ? b.label_ur : b.label}</option>)}
-              </select>
-              <input value={form.student_name} onChange={(e) => setForm({ ...form, student_name: e.target.value })} placeholder={t('af.studentName')} className="input-field" />
-              <input value={form.guardian_name} onChange={(e) => setForm({ ...form, guardian_name: e.target.value })} placeholder={t('af.guardianName')} className="input-field" />
-              <input value={form.guardian_whatsapp_number} onChange={(e) => setForm({ ...form, guardian_whatsapp_number: e.target.value })} placeholder={t('af.guardianWhatsapp')} className="input-field" />
-              <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder={t('z.location')} className="input-field" />
-              <input value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} placeholder={t('w.sector')} className="input-field" />
-              <div className="grid grid-cols-2 gap-3">
-                <select value={form.participant_type} onChange={(e) => setForm({ ...form, participant_type: e.target.value })} className="input-field">
-                  <option value="villager">{t('af.villager')}</option>
-                  <option value="outsider">{t('af.outsider')}</option>
-                </select>
-                <select value={form.fee_type} onChange={(e) => setForm({ ...form, fee_type: e.target.value })} className="input-field">
-                  <option value="monthly">{t('af.perMonth')}</option>
-                  <option value="full_course">{t('af.fullCourse')}</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <input type="number" value={form.discount_pct} onChange={(e) => setForm({ ...form, discount_pct: e.target.value })} placeholder={t('af.discountPct')} className="input-field" />
-                <input value={form.discount_reason} onChange={(e) => setForm({ ...form, discount_reason: e.target.value })} placeholder={t('af.discountReason')} className="input-field" />
-              </div>
-              <button onClick={enroll} disabled={saving} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">
-                {saving ? t('af.saving') : t('af.enrollBtn')}
-              </button>
-            </div>
+            {(() => {
+              const b = batches.find((x) => x.id === form.batch_id) ?? null
+              const filled = b ? enrollments.filter((e) => e.batch_id === b.id).length : 0
+              const full = b?.capacity != null && filled >= b.capacity
+              const ageRange = b && (b.age_min != null || b.age_max != null)
+                ? `${b.age_min ?? 0}–${b.age_max ?? '∞'}` : null
+              const baseFee = b ? feeFor(b, form.participant_type, form.fee_type) : 0
+              const discountPct = form.discount_pct ? Number(form.discount_pct) : 0
+              const previewFee = discountPct > 0 ? Math.max(0, baseFee - (baseFee * discountPct) / 100) : baseFee
+              return (
+                <div className="space-y-3">
+                  <select value={form.batch_id} onChange={(e) => setForm({ ...form, batch_id: e.target.value })} className="input-field">
+                    {batches.map((x) => <option key={x.id} value={x.id}>{isUrdu && x.label_ur ? x.label_ur : x.label}</option>)}
+                  </select>
+                  {b && (
+                    <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-2.5 text-[12px] font-sans text-dp-on-surface-variant space-y-1">
+                      <div className="flex flex-wrap gap-x-3">
+                        {b.schedule_note && <span>{b.schedule_note}</span>}
+                        {ageRange && <span>{t('af.agesLabel')} {ageRange}</span>}
+                        {b.capacity != null && (
+                          <span className={full ? 'text-dp-error font-semibold' : ''}>
+                            {full ? t('tp.batchFull') : `${filled}/${b.capacity} ${t('af.enrolledLabel')}`}
+                          </span>
+                        )}
+                      </div>
+                      {full && <p className="text-dp-error text-[11.5px]">{t('af.batchFullOverrideHint')}</p>}
+                    </div>
+                  )}
+                  <input value={form.student_name} onChange={(e) => setForm({ ...form, student_name: e.target.value })} placeholder={t('af.studentName')} className="input-field" />
+                  <input type="number" value={form.student_age} onChange={(e) => setForm({ ...form, student_age: e.target.value })} placeholder={t('tp.studentAge')} className="input-field" />
+                  <input value={form.guardian_name} onChange={(e) => setForm({ ...form, guardian_name: e.target.value })} placeholder={t('af.guardianName')} className="input-field" />
+                  <input value={form.guardian_whatsapp_number} onChange={(e) => setForm({ ...form, guardian_whatsapp_number: e.target.value })} placeholder={t('af.guardianWhatsapp')} className="input-field" />
+                  <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder={t('z.location')} className="input-field" />
+                  <input value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} placeholder={t('w.sector')} className="input-field" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <select value={form.participant_type} onChange={(e) => setForm({ ...form, participant_type: e.target.value })} className="input-field">
+                      <option value="villager">{t('af.villager')}</option>
+                      <option value="outsider">{t('af.outsider')}</option>
+                    </select>
+                    <select value={form.fee_type} onChange={(e) => setForm({ ...form, fee_type: e.target.value })} className="input-field">
+                      <option value="monthly">{t('af.perMonth')}</option>
+                      <option value="full_course">{t('af.fullCourse')}</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input type="number" value={form.discount_pct} onChange={(e) => setForm({ ...form, discount_pct: e.target.value })} placeholder={t('af.discountPct')} className="input-field" />
+                    <input value={form.discount_reason} onChange={(e) => setForm({ ...form, discount_reason: e.target.value })} placeholder={t('af.discountReason')} className="input-field" />
+                  </div>
+                  {!!b?.sibling_discount_pct && (
+                    <button type="button"
+                      onClick={() => setForm({ ...form, discount_pct: String(b.sibling_discount_pct), discount_reason: form.discount_reason || t('af.siblingDiscountDefaultReason') })}
+                      className="text-[12px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer">
+                      {t('af.applySiblingDiscountBtn').replace('{pct}', String(b.sibling_discount_pct))}
+                    </button>
+                  )}
+                  {b && (
+                    <p className="font-sans text-[13px] font-semibold text-dp-primary bg-dp-secondary-container/20 rounded-lg px-3 py-2 ltr-num">
+                      {t('tp.feePreview')}: {discountPct > 0 && <span className="line-through text-dp-on-surface-variant font-normal me-1.5">Rs. {fmt(baseFee)}</span>}
+                      Rs. {fmt(previewFee)} / {t(form.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}
+                    </p>
+                  )}
+                  <button onClick={enroll} disabled={saving} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">
+                    {saving ? t('af.saving') : t('af.enrollBtn')}
+                  </button>
+                </div>
+              )
+            })()}
           </div>
         </div>
       )}
