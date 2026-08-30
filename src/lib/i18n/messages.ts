@@ -823,6 +823,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'x.donateNowBtn': 'Donate Now',
     'x.verifiedRaised': 'Verified Raised',
     'x.monthlySponsorship': 'Monthly Sponsorship (ongoing support)',
+    'x.fullySponsored': 'Fully Sponsored', 'x.needsMoreSponsors': 'Needs More Monthly Sponsors', 'x.committedPerMonth': 'committed per month',
+    'x.monthlySponsorshipHint': 'This ongoing cost (e.g. staff/instructor salary) is separate from the one-time budget above — set up a recurring monthly donation from your portal to sponsor it.',
     'x.volunteerForProject': 'Volunteer for this Project',
     'x.joinAcademyBtn': 'Join this Academy',
     'x.batchesFeesTitle': 'Batches & fees', 'x.batchFullLabel': 'Full', 'x.spotsLeftLabel': 'spots left',
@@ -4826,7 +4828,13 @@ export const messages: Record<Locale, Record<string, string>> = {
     'x.announcePledge': 'عطیے کا اعلان کریں',
     'x.donateNowBtn': 'ابھی عطیہ دیں',
     'x.verifiedRaised': 'تصدیق شدہ وصولی',
-    'x.monthlySponsorship': 'ماہانہ کفالت (مسلسل تعاون)',
+    // "کفالت" is reserved for the Kafalat child-sponsorship program
+    // elsewhere in the app — using it here too (a project's own recurring
+    // running cost, e.g. a trainer's salary) read as if this were that
+    // same program, which it isn't. "معاونت" is the generic word.
+    'x.monthlySponsorship': 'ماہانہ معاونت (مسلسل تعاون)',
+    'x.fullySponsored': 'مکمل فنڈڈ', 'x.needsMoreSponsors': 'مزید ماہانہ معاونین درکار ہیں', 'x.committedPerMonth': 'ماہانہ عہد شدہ',
+    'x.monthlySponsorshipHint': 'یہ مسلسل خرچ (مثلاً عملہ/انسٹرکٹر کی تنخواہ) اوپر دیے گئے یک وقتی بجٹ سے الگ ہے — اسے سپانسر کرنے کے لیے اپنے پورٹل سے ماہانہ عطیہ مقرر کریں۔',
     'x.volunteerForProject': 'اس منصوبے کے لیے رضاکار بنیں',
     'x.joinAcademyBtn': 'اس اکیڈمی میں شامل ہوں',
     'x.batchesFeesTitle': 'بیچز اور فیس', 'x.batchFullLabel': 'بھرا ہوا', 'x.spotsLeftLabel': 'نشستیں باقی',

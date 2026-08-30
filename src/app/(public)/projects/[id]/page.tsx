@@ -342,7 +342,7 @@ export default function ProjectDetailPage() {
           <Image src="/images/health-project-cover.jpg" alt="" fill sizes="1000px" className="object-cover" />
         </div>
       ) : (project.before_image_url || project.after_image_url) && (
-        <div className={`grid gap-3 mb-8 ${project.before_image_url && project.after_image_url ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <div className={`grid gap-3 mb-8 ${project.before_image_url && project.after_image_url ? 'grid-cols-2' : 'grid-cols-1'}`} dir={isUrdu ? 'rtl' : 'ltr'}>
           {project.before_image_url && (
             <div>
               <div className="relative w-full h-56 rounded-lg overflow-hidden bg-dp-surface-container">
@@ -477,7 +477,7 @@ export default function ProjectDetailPage() {
           portal's Academies catalog shows, now visible to anyone deciding
           whether to join without first creating an account. */}
       {academyBatches.length > 0 && (
-        <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-8">
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-8" dir={isUrdu ? 'rtl' : 'ltr'}>
           <p className="font-sans text-[13.5px] font-bold text-dp-primary mb-3">{tr('x.batchesFeesTitle')}</p>
           <div className="space-y-3">
             {academyBatches.map((b) => {
@@ -527,7 +527,7 @@ export default function ProjectDetailPage() {
       )}
 
       {trainer && (
-        <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-8 flex items-center gap-4">
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-8 flex items-center gap-4" dir={isUrdu ? 'rtl' : 'ltr'}>
           {trainer.trainer_photo_url ? (
             <div className="relative w-16 h-16 rounded-full overflow-hidden shrink-0 bg-dp-surface-container">
               <Image src={trainer.trainer_photo_url} alt="" fill sizes="64px" className="object-cover" />
@@ -548,21 +548,21 @@ export default function ProjectDetailPage() {
       )}
 
       {project.funding_model === 'recurring_support' && project.status !== 'announced' && (
-        <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-8">
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-8" dir={isUrdu ? 'rtl' : 'ltr'}>
           <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
             <p className="font-sans text-[13.5px] font-bold text-dp-primary flex items-center gap-2"><Users size={16} className="text-dp-secondary" /> {tr('x.monthlySponsorship')}</p>
             <span className={`text-[10.5px] font-bold px-2.5 py-1 rounded-full uppercase ${project.monthly_operating_cost_pkr && monthlySponsored >= project.monthly_operating_cost_pkr ? 'bg-dp-secondary text-white' : 'bg-amber-100 text-amber-700'}`}>
-              {project.monthly_operating_cost_pkr && monthlySponsored >= project.monthly_operating_cost_pkr ? 'Fully Sponsored' : 'Needs More Monthly Sponsors'}
+              {project.monthly_operating_cost_pkr && monthlySponsored >= project.monthly_operating_cost_pkr ? tr('x.fullySponsored') : tr('x.needsMoreSponsors')}
             </span>
           </div>
-          <p className="font-sans text-[14px] text-dp-on-surface-variant">
-            Rs. {fmt(monthlySponsored)} / Rs. {fmt(project.monthly_operating_cost_pkr ?? 0)} committed per month
+          <p className="font-sans text-[14px] text-dp-on-surface-variant ltr-num">
+            Rs. {fmt(monthlySponsored)} / Rs. {fmt(project.monthly_operating_cost_pkr ?? 0)} {tr('x.committedPerMonth')}
           </p>
           <div className="h-2 w-full bg-dp-surface-container-low rounded-full overflow-hidden mt-2">
             <div className="h-full bg-dp-secondary" style={{ width: `${project.monthly_operating_cost_pkr ? Math.min(100, (monthlySponsored / project.monthly_operating_cost_pkr) * 100) : 0}%` }} />
           </div>
           <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">
-            This ongoing cost (e.g. staff/instructor salary) is separate from the one-time budget above — set up a recurring monthly donation from your portal to sponsor it.
+            {tr('x.monthlySponsorshipHint')}
           </p>
         </div>
       )}
