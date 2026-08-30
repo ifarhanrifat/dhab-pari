@@ -30,6 +30,7 @@ interface Academy {
   id: string; title: string; display_name: string | null; category: string
   after_image_url: string | null; before_image_url: string | null
   hide_fees: boolean; funding_model: string | null; monthly_operating_cost_pkr: number | null
+  cover_photo_url?: string | null
 }
 interface Batch {
   id: string; project_id: string; label: string; label_ur: string | null
@@ -84,6 +85,19 @@ export default function PortalTrainingProgramsPage() {
     setTrainers((trainerRows ?? []) as Trainer[])
     setLoading(false)
 
+    // A designated cover (383) wins over the after/before fallback here
+    // too — the home page and /projects listing already prefer it; this
+    // catalog card was the one place still stuck on after_image_url only.
+    const academyIds = (acads ?? []).map((a) => a.id)
+    if (academyIds.length > 0) {
+      const { data: coverRows } = await supabase.from('project_media').select('project_id, url').eq('is_cover', true).in('project_id', academyIds)
+      if (coverRows && coverRows.length > 0) {
+        const coverByProject: Record<string, string> = {}
+        for (const c of coverRows) coverByProject[c.project_id] = c.url
+        setAcademies((prev) => prev.map((a) => coverByProject[a.id] ? { ...a, cover_photo_url: coverByProject[a.id] } : a))
+      }
+    }
+
     // Real funding position (raised/spent) for recurring_support academies
     // (a trainer's ongoing salary) — same source as the portal dashboard
     // cards: the project's own ledger account, reversal pairs excluded.
@@ -122,7 +136,7 @@ export default function PortalTrainingProgramsPage() {
             const myRowsHere = myFees.filter((f) => f.project_id === a.id)
             const bestSiblingDiscount = Math.max(0, ...academyBatches.map((b) => b.sibling_discount_pct ?? 0))
             const trainer = trainers.find((tr) => tr.project_id === a.id)
-            const cover = a.after_image_url || a.before_image_url
+            const cover = a.cover_photo_url || a.after_image_url || a.before_image_url
             const isSalaryFunded = a.funding_model === 'recurring_support'
             const f = funding[a.id]
             return (

@@ -33,7 +33,7 @@ interface Batch {
 }
 interface Charge { id: string; charge_no: number; due_on: string; amount_pkr: number; paid_pkr: number; status: string }
 interface Enrollment {
-  id: string; student_name: string; guardian_name: string | null; guardian_whatsapp_number: string | null
+  id: string; student_name: string; student_age: number | null; guardian_name: string | null; guardian_whatsapp_number: string | null
   address: string | null; sector: string | null; batch_id: string | null
   participant_type: string; fee_type: string; fee_amount_pkr: number; discount_pct: number | null
   discount_reason: string | null; status: string
@@ -44,6 +44,18 @@ interface PendingRequest {
   address: string | null; sector: string | null; participant_type: string
   fee_type: string; fee_amount_pkr: number; discount_pct: number | null; discount_reason: string | null
   batch_label: string | null; requested_at: string
+}
+// Whatever openEdit is called with — an active roster row or a still-
+// pending request — same fields either way, so the one Edit modal
+// covers both: fixing a sibling-discount claim (or its reason) before
+// confirming it is exactly the point of admin reviewing that claim at
+// all; without this the only way to correct one was rejecting the
+// whole request and asking the parent to resubmit.
+interface EditableEnrollment {
+  id: string; student_name: string; student_age: number | null
+  guardian_name: string | null; guardian_whatsapp_number: string | null
+  address: string | null; sector: string | null; fee_type: string
+  fee_amount_pkr: number; discount_pct: number | null; discount_reason: string | null
 }
 // One row per academy, from academy_summary_report() (380/381) — fill
 // rate, fee-collection rate, and (for a trainer-salary academy) funding
@@ -96,8 +108,8 @@ function AcademyFeesInner() {
   const [payFor, setPayFor] = useState<{ chargeId: string; remaining: number; studentName: string } | null>(null)
   const [payAmount, setPayAmount] = useState(0)
   const [payMethod, setPayMethod] = useState('cash')
-  const [editing, setEditing] = useState<Enrollment | null>(null)
-  const [editForm, setEditForm] = useState({ guardian_name: '', guardian_whatsapp_number: '', address: '', sector: '', fee_amount_pkr: 0, discount_reason: '' })
+  const [editing, setEditing] = useState<EditableEnrollment | null>(null)
+  const [editForm, setEditForm] = useState({ guardian_name: '', guardian_whatsapp_number: '', address: '', sector: '', fee_amount_pkr: 0, discount_pct: '', discount_reason: '', student_age: '' })
   const [showBatchForm, setShowBatchForm] = useState(false)
   const [editingBatch, setEditingBatch] = useState<Batch | null>(null)
   const [batchForm, setBatchForm] = useState(emptyBatch)
@@ -130,7 +142,7 @@ function AcademyFeesInner() {
       supabase.from('training_batches').select('id, label, label_ur, schedule_note, status, fee_villager_monthly_pkr, fee_outsider_monthly_pkr, fee_villager_full_pkr, fee_outsider_full_pkr, capacity, age_min, age_max, session_days, session_time, sibling_discount_pct')
         .eq('project_id', academy.id).eq('status', 'active').order('created_at'),
       supabase.from('training_enrollments')
-        .select('id, student_name, guardian_name, guardian_whatsapp_number, address, sector, batch_id, participant_type, fee_type, fee_amount_pkr, discount_pct, discount_reason, status')
+        .select('id, student_name, student_age, guardian_name, guardian_whatsapp_number, address, sector, batch_id, participant_type, fee_type, fee_amount_pkr, discount_pct, discount_reason, status')
         .eq('project_id', academy.id).eq('status', 'active').order('student_name'),
       supabase.rpc('training_enrollment_requests', { p_project_id: academy.id }),
     ])
@@ -206,11 +218,12 @@ function AcademyFeesInner() {
     if (selected) loadRoster(selected)
   }
 
-  const openEdit = (e: Enrollment) => {
+  const openEdit = (e: EditableEnrollment) => {
     setEditing(e)
     setEditForm({
       guardian_name: e.guardian_name ?? '', guardian_whatsapp_number: e.guardian_whatsapp_number ?? '',
       address: e.address ?? '', sector: e.sector ?? '', fee_amount_pkr: e.fee_amount_pkr, discount_reason: e.discount_reason ?? '',
+      discount_pct: e.discount_pct != null ? String(e.discount_pct) : '', student_age: e.student_age != null ? String(e.student_age) : '',
     })
   }
 
@@ -221,6 +234,8 @@ function AcademyFeesInner() {
       guardian_name: editForm.guardian_name || null, guardian_whatsapp_number: editForm.guardian_whatsapp_number || null,
       address: editForm.address || null, sector: editForm.sector || null,
       fee_amount_pkr: editForm.fee_amount_pkr, discount_reason: editForm.discount_reason || null,
+      discount_pct: editForm.discount_pct ? Number(editForm.discount_pct) : null,
+      student_age: editForm.student_age ? Number(editForm.student_age) : null,
     }).eq('id', editing.id)
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -452,6 +467,7 @@ function AcademyFeesInner() {
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
+                      <button onClick={() => openEdit(r)} title={t('af.editBtn')} className="p-2 rounded-lg text-amber-800 hover:bg-amber-100 cursor-pointer"><Pencil size={15} /></button>
                       <button onClick={() => confirmRequest(r)} disabled={saving} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-emerald-700 disabled:opacity-50">
                         <UserCheck size={13} /> {t('af.confirmBtn')}
                       </button>
@@ -473,6 +489,7 @@ function AcademyFeesInner() {
                   <div>
                     <p className="font-sans text-[15px] font-semibold text-dp-on-surface flex items-center gap-2 flex-wrap">
                       <Users size={15} className="text-dp-on-surface-variant" /> {e.student_name}
+                      {e.student_age != null && <span className="text-[11px] font-normal text-dp-on-surface-variant">({e.student_age})</span>}
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${e.participant_type === 'villager' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                         {t(e.participant_type === 'villager' ? 'af.villager' : 'af.outsider')}
                       </span>
@@ -688,11 +705,18 @@ function AcademyFeesInner() {
               <input value={editForm.guardian_whatsapp_number} onChange={(e) => setEditForm({ ...editForm, guardian_whatsapp_number: e.target.value })} placeholder={t('af.guardianWhatsapp')} className="input-field" />
               <input value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} placeholder={t('z.location')} className="input-field" />
               <input value={editForm.sector} onChange={(e) => setEditForm({ ...editForm, sector: e.target.value })} placeholder={t('w.sector')} className="input-field" />
+              <input type="number" value={editForm.student_age} onChange={(e) => setEditForm({ ...editForm, student_age: e.target.value })} placeholder={t('tp.studentAge')} className="input-field" />
               <div>
                 <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">Rs. {t(editing.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}</label>
                 <input type="number" value={editForm.fee_amount_pkr || ''} onChange={(e) => setEditForm({ ...editForm, fee_amount_pkr: +e.target.value })} className="input-field" />
               </div>
-              <input value={editForm.discount_reason} onChange={(e) => setEditForm({ ...editForm, discount_reason: e.target.value })} placeholder={t('af.discountReason')} className="input-field" />
+              {/* Correcting or clearing this is the whole point of being able to
+                  edit a still-pending request — a sibling claim that doesn't
+                  check out gets fixed here, not by rejecting the whole thing. */}
+              <div className="grid grid-cols-2 gap-3">
+                <input type="number" value={editForm.discount_pct} onChange={(e) => setEditForm({ ...editForm, discount_pct: e.target.value })} placeholder={t('af.discountPct')} className="input-field" />
+                <input value={editForm.discount_reason} onChange={(e) => setEditForm({ ...editForm, discount_reason: e.target.value })} placeholder={t('af.discountReason')} className="input-field" />
+              </div>
               <button onClick={saveEdit} disabled={saving} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">
                 {saving ? t('af.saving') : t('af.saveChangesBtn')}
               </button>
