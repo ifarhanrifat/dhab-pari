@@ -17,14 +17,17 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { Layers, Clock, CheckCircle2, Hourglass, XCircle, ArrowRight, Users, MapPin, Cake, HandHeart } from 'lucide-react'
+import { Layers, Clock, CheckCircle2, Hourglass, XCircle, ArrowRight, Users, MapPin, Cake, HandHeart, Bell, X } from 'lucide-react'
 import { PortalHelp } from '@/components/portal/PortalHelp'
 import Link from 'next/link'
+import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
+import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 
 interface MyFee {
   enrollment_id: string; project_id: string; status: string; program_title: string; batch_label: string | null; student_name: string
   fee_type: string; monthly_amount_pkr: number; total_paid: number; total_overdue: number; rejected_reason: string | null
-  due_soon: { id: string; due_on: string; amount: number; paid: number; status: string }[]
+  due_soon: { id: string; due_on: string; amount: number; paid: number; status: string; announced_amount_pkr: number | null }[]
 }
 interface Academy {
   id: string; title: string; display_name: string | null; category: string
@@ -55,6 +58,14 @@ function fmt(n: number) {
 function FeeStatus({ f, t }: { f: MyFee; t: (k: string) => string }) {
   if (f.status === 'pending') return <p className="font-sans text-[11.5px] text-amber-700 flex items-center gap-1"><Hourglass size={10} /> {t('tp.pendingLabel')}</p>
   if (f.status === 'rejected') return <p className="font-sans text-[11.5px] text-dp-error flex items-center gap-1"><XCircle size={10} /> {t('tp.rejectedLabel')}{f.rejected_reason ? ` — ${f.rejected_reason}` : ''}</p>
+  // A charge sitting at 'announced' has a payment already submitted and
+  // waiting on staff to confirm it against the bank statement — that's
+  // not the same as still owing money, and showing it as "due" (which
+  // is what it looked like before this existed at all) is exactly the
+  // "I paid but it still says I owe" complaint this was built to fix.
+  if ((f.due_soon ?? []).length > 0 && f.due_soon[0].status === 'announced') {
+    return <p className="font-sans text-[11.5px] text-blue-700 flex items-center gap-1"><Bell size={10} /> {t('tp.paymentAwaitingConfirmation')}</p>
+  }
   if ((f.due_soon ?? []).length > 0) return <p className="font-sans text-[11.5px] text-amber-700 flex items-center gap-1"><Clock size={10} /> Rs. {fmt(f.due_soon[0].amount)}</p>
   if (f.monthly_amount_pkr > 0 && f.total_paid === 0) return <p className="font-sans text-[11.5px] text-dp-on-surface-variant flex items-center gap-1"><Hourglass size={10} /> {t('tp.awaitingFirstBill')}</p>
   return <p className="font-sans text-[11.5px] text-emerald-700 flex items-center gap-1"><CheckCircle2 size={10} /> {t('tp.feeUpToDate')}</p>
@@ -69,6 +80,16 @@ export default function PortalTrainingProgramsPage() {
   const [batches, setBatches] = useState<Batch[]>([])
   const [trainers, setTrainers] = useState<Trainer[]>([])
   const [funding, setFunding] = useState<Record<string, FundingRow>>({})
+  // Paying a specific charge announces it against that exact row
+  // (announce_training_fee_payment, 386) instead of a blind donation to
+  // the project — that's the whole fix: staff confirming it is what
+  // actually marks *this* charge paid, not a separate reconciliation
+  // step nobody was doing.
+  const [payFor, setPayFor] = useState<{ chargeId: string; remaining: number; studentName: string } | null>(null)
+  const [payAmount, setPayAmount] = useState(0)
+  const [payMethod, setPayMethod] = useState('bank')
+  const [receiptPath, setReceiptPath] = useState('')
+  const [submittingPayment, setSubmittingPayment] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const load = async () => {
@@ -117,6 +138,28 @@ export default function PortalTrainingProgramsPage() {
   useEffect(() => { if (!userLoading) load() }, [userLoading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const isVillager = user?.donor_type !== 'outsider'
+
+  const openPayModal = (f: MyFee) => {
+    const due = f.due_soon?.[0]
+    if (!due) return
+    setPayFor({ chargeId: due.id, remaining: due.amount - due.paid, studentName: f.student_name })
+    setPayAmount(due.amount - due.paid)
+    setPayMethod('bank')
+    setReceiptPath('')
+  }
+
+  const submitPayment = async () => {
+    if (!payFor || payAmount <= 0 || !receiptPath) { toast.error(t('tp.paymentRequiredFields')); return }
+    setSubmittingPayment(true)
+    const { error } = await supabase.rpc('announce_training_fee_payment', {
+      p_charge_id: payFor.chargeId, p_amount: payAmount, p_method: payMethod, p_proof_url: receiptPath,
+    })
+    setSubmittingPayment(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('tp.paymentAnnouncedToast'))
+    setPayFor(null)
+    load()
+  }
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
@@ -240,10 +283,10 @@ export default function PortalTrainingProgramsPage() {
                           <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface flex items-center gap-1"><Users size={11} className="text-dp-on-surface-variant shrink-0" /> {f.student_name}</p>
                           <FeeStatus f={f} t={t} />
                         </div>
-                        {f.status === 'active' && (f.due_soon ?? []).length > 0 && (
-                          <Link href={`/portal/donate?project=${f.project_id}`} className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[11.5px] font-semibold hover:bg-dp-primary transition-colors shrink-0">
+                        {f.status === 'active' && (f.due_soon ?? []).length > 0 && f.due_soon[0].status !== 'announced' && (
+                          <button onClick={() => openPayModal(f)} className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[11.5px] font-semibold hover:bg-dp-primary transition-colors shrink-0 cursor-pointer">
                             {t('tp.payFeeBtn')}
-                          </Link>
+                          </button>
                         )}
                       </div>
                     ))}
@@ -276,10 +319,10 @@ export default function PortalTrainingProgramsPage() {
                   {f.batch_label && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{f.batch_label}</p>}
                   <FeeStatus f={f} t={t} />
                 </div>
-                {f.status === 'active' && (f.due_soon ?? []).length > 0 && (
-                  <Link href={`/portal/donate?project=${f.project_id}`} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-colors">
+                {f.status === 'active' && (f.due_soon ?? []).length > 0 && f.due_soon[0].status !== 'announced' && (
+                  <button onClick={() => openPayModal(f)} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-colors cursor-pointer">
                     {t('tp.payFeeBtn')}
-                  </Link>
+                  </button>
                 )}
               </div>
             ))}
@@ -289,6 +332,33 @@ export default function PortalTrainingProgramsPage() {
 
       {!loading && academies.length === 0 && myFees.length === 0 && (
         <p className="font-sans text-[13px] text-dp-on-surface-variant mt-4">{t('tp.noneEnrolled')}</p>
+      )}
+
+      {payFor && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPayFor(null)}>
+          <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white rounded-lg max-w-[420px] w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-heading text-[18px] font-bold text-dp-primary">{payFor.studentName}</h3>
+              <button onClick={() => setPayFor(null)} className="cursor-pointer"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('tp.paymentModalHint')}</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
+                <input type="number" min={1} max={payFor.remaining} value={payAmount || ''} onChange={(e) => setPayAmount(+e.target.value)} className="input-field" />
+              </div>
+              <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className="input-field">
+                <option value="bank">{t('w.bankTransfer')}</option>
+                <option value="jazzcash">JazzCash</option>
+                <option value="easypaisa">Easypaisa</option>
+              </select>
+              <DonationReceiptUpload onUpload={setReceiptPath} />
+              <button onClick={submitPayment} disabled={submittingPayment || payAmount <= 0 || !receiptPath} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">
+                {submittingPayment ? t('p.submitting') : t('tp.submitPaymentBtn')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

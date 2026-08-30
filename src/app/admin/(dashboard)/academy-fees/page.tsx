@@ -36,7 +36,10 @@ interface Batch {
   capacity: number | null; age_min: number | null; age_max: number | null
   session_days: number[] | null; session_time: string | null; sibling_discount_pct: number | null
 }
-interface Charge { id: string; charge_no: number; due_on: string; amount_pkr: number; paid_pkr: number; status: string }
+interface Charge {
+  id: string; charge_no: number; due_on: string; amount_pkr: number; paid_pkr: number; status: string
+  announced_amount_pkr: number | null; announced_method: string | null; announced_proof_url: string | null
+}
 interface Enrollment {
   id: string; student_name: string; student_age: number | null; guardian_name: string | null; guardian_whatsapp_number: string | null
   address: string | null; sector: string | null; batch_id: string | null
@@ -179,7 +182,7 @@ function AcademyFeesInner() {
     setRequests((reqRows ?? []) as PendingRequest[])
     if (rows && rows.length > 0) {
       const { data: chargeRows } = await supabase.from('training_fee_charges')
-        .select('id, enrollment_id, charge_no, due_on, amount_pkr, paid_pkr, status')
+        .select('id, enrollment_id, charge_no, due_on, amount_pkr, paid_pkr, status, announced_amount_pkr, announced_method, announced_proof_url')
         .in('enrollment_id', rows.map((r) => r.id)).order('charge_no')
       const grouped: Record<string, Charge[]> = {}
       for (const c of chargeRows ?? []) (grouped[c.enrollment_id] ??= []).push(c)
@@ -272,6 +275,39 @@ function AcademyFeesInner() {
       amount: payAmount, method: payMethod, date: new Date().toLocaleDateString('en-GB'),
     })
     setPayFor(null); setPayAmount(0)
+    if (selected) loadRoster(selected)
+  }
+
+  // The receipt upload is a private bucket (a payment screenshot can show
+  // account numbers) — same pattern the donors page already uses: a
+  // signed URL generated on demand, never stored/rendered as a raw href.
+  const viewAnnouncedSlip = async (path: string) => {
+    const { data, error } = await supabase.storage.from('donation_receipts').createSignedUrl(path, 300)
+    if (error || !data) { toast.error(friendlyError(error)); return }
+    window.open(data.signedUrl, '_blank')
+  }
+
+  const confirmAnnouncedPayment = async (c: Charge, studentName: string, batchLbl: string) => {
+    setSaving(true)
+    const { data, error } = await supabase.rpc('confirm_training_fee_announcement', { p_charge_id: c.id })
+    setSaving(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    const voucherNo = (data as { voucher_no: string })?.voucher_no ?? ''
+    toast.success(`${t('af.paymentRecorded')} — ${voucherNo}`)
+    setLastReceipt({
+      voucherNo, studentName, batchLabel: batchLbl, amount: c.announced_amount_pkr ?? 0,
+      method: c.announced_method ?? 'bank', date: new Date().toLocaleDateString('en-GB'),
+    })
+    if (selected) loadRoster(selected)
+  }
+
+  const rejectAnnouncedPayment = async (c: Charge) => {
+    const reason = window.prompt(t('af.rejectAnnouncedPrompt')) ?? undefined
+    setSaving(true)
+    const { error } = await supabase.rpc('reject_training_fee_announcement', { p_charge_id: c.id, p_reason: reason || null })
+    setSaving(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('af.rejectedToast'))
     if (selected) loadRoster(selected)
   }
 
@@ -604,10 +640,23 @@ function AcademyFeesInner() {
                   <div className="mt-3 pt-3 border-t border-dp-outline-variant flex flex-wrap gap-2">
                     {(charges[e.id] ?? []).map((c) => (
                       <div key={c.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12.5px] font-sans font-semibold ${
-                        c.status === 'paid' ? 'bg-emerald-50 text-emerald-700' : c.status === 'part_paid' ? 'bg-amber-50 text-amber-700' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>
-                        {c.status === 'paid' ? <CheckCircle2 size={13} /> : <Clock size={13} />}
+                        c.status === 'paid' ? 'bg-emerald-50 text-emerald-700' : c.status === 'announced' ? 'bg-blue-50 text-blue-700' : c.status === 'part_paid' ? 'bg-amber-50 text-amber-700' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>
+                        {c.status === 'paid' ? <CheckCircle2 size={13} /> : c.status === 'announced' ? <Bell size={13} /> : <Clock size={13} />}
                         {new Date(c.due_on).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })} — Rs. {fmt(c.amount_pkr)}
-                        {c.status !== 'paid' && (
+                        {c.status === 'announced' ? (
+                          <>
+                            <span className="ltr-num">{t('af.paidViaPortalLabel')} Rs. {fmt(c.announced_amount_pkr ?? 0)}</span>
+                            {c.announced_proof_url && (
+                              <button onClick={() => viewAnnouncedSlip(c.announced_proof_url!)} className="underline cursor-pointer">{t('af.viewSlipLink')}</button>
+                            )}
+                            <button onClick={() => confirmAnnouncedPayment(c, e.student_name, batchLabel(e.batch_id))} className="underline cursor-pointer text-emerald-700">
+                              {t('af.confirmBtn')}
+                            </button>
+                            <button onClick={() => rejectAnnouncedPayment(c)} className="underline cursor-pointer text-dp-error">
+                              {t('af.rejectBtn')}
+                            </button>
+                          </>
+                        ) : c.status !== 'paid' && (
                           <button
                             onClick={() => { setPayFor({ chargeId: c.id, remaining: c.amount_pkr - c.paid_pkr, studentName: e.student_name, batchId: e.batch_id }); setPayAmount(c.amount_pkr - c.paid_pkr) }}
                             className="underline cursor-pointer"
