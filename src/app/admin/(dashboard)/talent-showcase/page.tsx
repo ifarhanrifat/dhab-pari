@@ -242,7 +242,7 @@ export default function TalentShowcaseAdminPage() {
                     <p className="font-sans text-[14px] font-bold text-dp-on-surface">{r.display_name}</p>
                     <p className="font-sans text-[13px] text-dp-on-surface mt-1">{r.talent_description}</p>
                     {r.needs && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1"><strong>{t('ts.needsColon')}</strong> {r.needs}</p>}
-                    {r.needs_amount_pkr && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5"><strong>{t('ts.needsAmountColon')}</strong> Rs. {fmt(r.needs_amount_pkr)}</p>}
+                    {r.needs_amount_pkr && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5"><strong>{t('ts.needsAmountColon')}</strong> {fmt(r.needs_amount_pkr)}</p>}
                     {r.aspiration && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5"><strong>{t('ts.aspirationColon')}</strong> {r.aspiration}</p>}
                     {r.photo_url && <img src={r.photo_url} alt="" className="w-24 h-24 object-cover rounded-lg mt-2" />}
                     {r.video_url && <div className="max-w-xs mt-2"><VideoEmbed url={r.video_url} /></div>}
@@ -282,7 +282,7 @@ export default function TalentShowcaseAdminPage() {
                   {r.moderation_status === 'approved' && (
                     <div className="mt-3 pt-3 border-t border-dp-outline-variant flex items-center gap-3 flex-wrap">
                       {r.needs_amount_pkr ? (
-                        <span className="flex items-center gap-1.5 font-sans text-[12px] text-dp-on-surface"><Wallet size={13} className="text-dp-secondary" /> Rs. {fmt(raised[r.id] ?? 0)} / {fmt(r.needs_amount_pkr)}</span>
+                        <span className="flex items-center gap-1.5 font-sans text-[12px] text-dp-on-surface"><Wallet size={13} className="text-dp-secondary" /> {fmt(raised[r.id] ?? 0)} / {fmt(r.needs_amount_pkr)}</span>
                       ) : null}
                       <select value={r.support_status} onChange={(e) => changeSupportStatus(r.id, e.target.value)} className="text-[11.5px] border border-dp-outline-variant rounded px-2 py-1">
                         {SUPPORT_STATUSES.map((s) => <option key={s} value={s}>{t(`ts.status.${s}`)}</option>)}

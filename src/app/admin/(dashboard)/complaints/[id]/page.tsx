@@ -353,7 +353,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
                 </div>
                 <div className="text-end">
                   <p className="font-sans text-[11px] uppercase tracking-wide text-dp-on-surface-variant">{t('cp.outstanding')}</p>
-                  <p className={`font-sans text-[16px] font-bold ${outstanding > 0 ? 'text-dp-error' : 'text-emerald-700'}`}>Rs. {outstanding.toLocaleString()}</p>
+                  <p className={`font-sans text-[16px] font-bold ${outstanding > 0 ? 'text-dp-error' : 'text-emerald-700'}`}>{outstanding.toLocaleString()}</p>
                 </div>
                 <Link href={`/admin/billing?consumer=${consumerInfo.consumer_id}`} className="text-dp-secondary font-sans text-[12.5px] font-semibold hover:underline">{t('cp.viewBilling')}</Link>
               </div>

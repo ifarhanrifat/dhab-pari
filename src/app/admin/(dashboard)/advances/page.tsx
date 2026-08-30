@@ -205,7 +205,7 @@ export default function AdvancesPage() {
                   {a.voucher_no || t('av.pendingVoucherNo')} · {new Date(a.voucher_date).toLocaleDateString('en-GB')} · {a.particular}
                 </p>
               </div>
-              <p className="font-sans text-[15px] font-bold text-dp-on-surface shrink-0">Rs. {fmt(a.amount_pkr)}</p>
+              <p className="font-sans text-[15px] font-bold text-dp-on-surface shrink-0">{fmt(a.amount_pkr)}</p>
               <div className="flex items-center gap-1 shrink-0">
                 <button onClick={() => openView(a)} title={t('av.viewTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Eye size={15} /></button>
                 {canManage && !a.settled_at && a.status === 'posted' && (
@@ -241,7 +241,7 @@ export default function AdvancesPage() {
                   <p className="font-sans text-[14px] font-bold text-dp-on-surface">{settleTarget.party_name}</p>
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{settleTarget.voucher_no}</p>
                 </div>
-                <p className="font-sans text-[15px] font-bold text-dp-on-surface">Advance: Rs. {fmt(settleTarget.amount_pkr)}</p>
+                <p className="font-sans text-[15px] font-bold text-dp-on-surface">Advance: {fmt(settleTarget.amount_pkr)}</p>
               </div>
 
               <p className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('z.realBillItemized')}</p>
@@ -279,11 +279,11 @@ export default function AdvancesPage() {
               <FileAttachment label={t('av.attachBillLabel')} currentUrl={settleAttachment} onUpload={setSettleAttachment} />
 
               <div className="bg-dp-surface-container-low rounded-lg p-4 space-y-1.5">
-                <div className="flex justify-between font-sans text-[13.5px]"><span className="text-dp-on-surface-variant">{t('z.billTotal')}</span><span className="font-semibold">Rs. {fmt(settleBillTotal)}</span></div>
-                <div className="flex justify-between font-sans text-[13.5px]"><span className="text-dp-on-surface-variant">{t('z.advanceGiven')}</span><span className="font-semibold">Rs. {fmt(settleTarget.amount_pkr)}</span></div>
+                <div className="flex justify-between font-sans text-[13.5px]"><span className="text-dp-on-surface-variant">{t('z.billTotal')}</span><span className="font-semibold">{fmt(settleBillTotal)}</span></div>
+                <div className="flex justify-between font-sans text-[13.5px]"><span className="text-dp-on-surface-variant">{t('z.advanceGiven')}</span><span className="font-semibold">{fmt(settleTarget.amount_pkr)}</span></div>
                 <div className="flex justify-between font-bold text-[14.5px] border-t border-dp-outline-variant pt-1.5 mt-1.5">
                   <span>{settleDiff > 0 ? t('av.refundDueBack') : settleDiff < 0 ? t('av.extraToPay') : t('av.fullySettled')}</span>
-                  <span className={settleDiff > 0 ? 'text-emerald-700' : settleDiff < 0 ? 'text-dp-error' : 'text-dp-on-surface'}>Rs. {fmt(Math.abs(settleDiff))}</span>
+                  <span className={settleDiff > 0 ? 'text-emerald-700' : settleDiff < 0 ? 'text-dp-error' : 'text-dp-on-surface'}>{fmt(Math.abs(settleDiff))}</span>
                 </div>
               </div>
             </div>
@@ -309,14 +309,14 @@ export default function AdvancesPage() {
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('z.paidTo')}</span><span className="font-semibold">{viewTarget.party_name || t('av.unnamed')}</span></div>
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('z.voucherNo')}</span><span className="font-semibold">{viewTarget.voucher_no || t('av.pendingVoucherNo')}</span></div>
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.date')}</span><span className="font-semibold">{new Date(viewTarget.voucher_date).toLocaleDateString('en-GB')}</span></div>
-              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.amount')}</span><span className="font-bold">Rs. {fmt(viewTarget.amount_pkr)}</span></div>
+              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.amount')}</span><span className="font-bold">{fmt(viewTarget.amount_pkr)}</span></div>
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('a.note')}</span><span className="text-end">{viewTarget.particular}</span></div>
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.status')}</span><span className="font-semibold">{viewTarget.settled_at ? t('av.statusSettled') : viewTarget.status === 'pending' ? t('av.statusPendingApproval') : t('av.statusOutstanding')}</span></div>
               {viewSettlement && (
                 <div className="bg-dp-surface-container-low rounded-lg p-3 space-y-2 mt-2">
                   <p className="font-bold text-dp-on-surface-variant uppercase text-[11px] tracking-[0.05em]">{t('z.settlement')}</p>
                   <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.date')}</span><span>{new Date(viewSettlement.voucher_date).toLocaleDateString('en-GB')}</span></div>
-                  <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('z.realBillTotal')}</span><span className="font-semibold">Rs. {fmt(viewSettlement.amount_pkr)}</span></div>
+                  <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('z.realBillTotal')}</span><span className="font-semibold">{fmt(viewSettlement.amount_pkr)}</span></div>
                   {viewSettlement.attachment_url && (
                     <a href={viewSettlement.attachment_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-dp-secondary font-semibold hover:underline">
                       <Paperclip size={13} /> {t('ap.viewAttachedBill')}

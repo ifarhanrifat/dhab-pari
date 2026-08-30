@@ -537,7 +537,7 @@ function HiringRequestGenerator({ employees, employeeRoles, branding }: { employ
             <div className="max-w-[180px]">
               <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('z.salaryRs')}</label>
               <input type="number" min={0} value={salary || ''} onChange={(e) => setSalary(+e.target.value)} className="input-field" />
-              <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('em.defaultsToAverage')} {currentRole?.label_en ?? role}{t('em.defaultsToAverageSuffix')} (Rs. {roleAverage.toLocaleString()})</p>
+              <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('em.defaultsToAverage')} {currentRole?.label_en ?? role}{t('em.defaultsToAverageSuffix')} ({roleAverage.toLocaleString()})</p>
             </div>
             <button disabled={savingTemplates} onClick={saveTemplates} className="px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
               {savingTemplates ? t('em.saving') : t('em.saveAsDefaultBtn')}
@@ -838,7 +838,7 @@ function PayslipButton({
                       {t('em.alreadyRunNote')}
                     </p>
                   )}
-                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('z.salaryAccrued')} <span className="font-semibold text-dp-on-surface">Rs. {salaryAccrued.toLocaleString()}</span></p>
+                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('z.salaryAccrued')} <span className="font-semibold text-dp-on-surface">{salaryAccrued.toLocaleString()}</span></p>
 
                   <div className="grid grid-cols-3 gap-3">
                     <div>
@@ -861,7 +861,7 @@ function PayslipButton({
                       <div className="space-y-1">
                         {jobLines.map((j) => (
                           <div key={j.id} className="flex justify-between font-sans text-[13px] px-3 py-1.5 bg-dp-surface-container-low/50 rounded">
-                            <span>{j.label}</span><span>Rs. {j.amount.toLocaleString()}</span>
+                            <span>{j.label}</span><span>{j.amount.toLocaleString()}</span>
                           </div>
                         ))}
                       </div>

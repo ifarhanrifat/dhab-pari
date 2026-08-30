@@ -280,7 +280,7 @@ export default function RecurringPage() {
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
               <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{dateFilter ? `${t('rc.totalRecurredOn')} ${new Date(dateFilter).toLocaleDateString('en-GB')}` : t('rc.totalRecurred')}</p>
-              <p className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmtAmount(totals.amount)}</p>
+              <p className="font-heading text-[22px] font-bold text-dp-primary">{fmtAmount(totals.amount)}</p>
             </div>
             <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
               <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{dateFilter ? t('rc.transactionsOnDate') : t('rc.totalTransactions')}</p>

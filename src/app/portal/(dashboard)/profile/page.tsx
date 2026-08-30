@@ -122,7 +122,11 @@ export default function PortalProfilePage() {
     <div>
       <div dir={isUrdu ? 'rtl' : 'ltr'} className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><UserCog size={22} className="text-dp-secondary" /> {t('p.myProfile')} <PortalHelp pageKey="profile" /></h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.mobileCannotChange').replace('{mobile}', user.mobile)}</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">
+          {t('p.mobileCannotChange').split('{mobile}').map((part, i, arr) => (
+            <span key={i}>{part}{i < arr.length - 1 && <span className="ltr-num">{user.mobile}</span>}</span>
+          ))}
+        </p>
       </div>
 
       <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white border border-dp-outline-variant rounded-lg p-6 max-w-md space-y-4">

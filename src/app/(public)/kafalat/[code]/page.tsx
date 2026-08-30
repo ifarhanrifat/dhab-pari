@@ -104,15 +104,15 @@ export default async function KafalatChildSharePage({ params }: { params: Promis
             </div>
             <div className="grid grid-cols-3 gap-3 mt-4 text-center">
               <div>
-                <p className="font-heading text-[20px] font-bold text-dp-primary">Rs {fmt(child.this_year_requirement)}</p>
+                <p className="font-heading text-[20px] font-bold text-dp-primary">{fmt(child.this_year_requirement)}</p>
                 <p className="font-sans text-[11px] text-dp-on-surface-variant">سالانہ ضرورت · Annual need</p>
               </div>
               <div>
-                <p className="font-heading text-[20px] font-bold text-dp-secondary">Rs {fmt(child.already_named)}</p>
+                <p className="font-heading text-[20px] font-bold text-dp-secondary">{fmt(child.already_named)}</p>
                 <p className="font-sans text-[11px] text-dp-on-surface-variant">موصول شدہ · Confirmed</p>
               </div>
               <div>
-                <p className="font-heading text-[20px] font-bold text-dp-on-surface">Rs {fmt(remaining)}</p>
+                <p className="font-heading text-[20px] font-bold text-dp-on-surface">{fmt(remaining)}</p>
                 <p className="font-sans text-[11px] text-dp-on-surface-variant">باقی · Remaining</p>
               </div>
             </div>
@@ -129,7 +129,7 @@ export default async function KafalatChildSharePage({ params }: { params: Promis
                 {lines.map((l, i) => (
                   <div key={i} className="flex items-center justify-between font-sans text-[12.5px]">
                     <span className="text-dp-on-surface-variant">{CATEGORY_LABEL_UR[l.category] ?? l.category} · {CATEGORY_LABEL_EN[l.category] ?? l.category}</span>
-                    <span className="font-semibold text-dp-on-surface shrink-0 ms-2">Rs {fmt(l.amount)}</span>
+                    <span className="font-semibold text-dp-on-surface shrink-0 ms-2">{fmt(l.amount)}</span>
                   </div>
                 ))}
               </div>

@@ -347,16 +347,16 @@ export default function PortalEsalESawabPage() {
                     numbers the whole flow exists to keep honest. */}
                 <div className="flex flex-wrap gap-x-6 gap-y-1 font-sans text-[12.5px] mb-2">
                   <span className="text-dp-on-surface-variant">
-                    {t('pes.estimate')} <span className="font-semibold text-dp-on-surface">Rs {fmt(o.estimated_cost)}</span>
+                    {t('pes.estimate')} <span className="font-semibold text-dp-on-surface">{fmt(o.estimated_cost)}</span>
                   </span>
                   {o.received > 0 && (
                     <span className="text-dp-on-surface-variant">
-                      {t('pes.youSent')} <span className="font-semibold text-dp-on-surface">Rs {fmt(o.received)}</span>
+                      {t('pes.youSent')} <span className="font-semibold text-dp-on-surface">{fmt(o.received)}</span>
                     </span>
                   )}
                   {o.actual_cost ? (
                     <span className="text-dp-on-surface-variant">
-                      {t('pes.actualBill')} <span className="font-semibold text-dp-on-surface">Rs {fmt(o.actual_cost)}</span>
+                      {t('pes.actualBill')} <span className="font-semibold text-dp-on-surface">{fmt(o.actual_cost)}</span>
                     </span>
                   ) : null}
                   {o.account_balance !== 0 && (
@@ -417,7 +417,7 @@ export default function PortalEsalESawabPage() {
                   {c.item_name} · {new Date(c.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
                 </span>
                 <span className="flex items-center gap-3">
-                  <span className="font-sans text-[13px] font-semibold">Rs {fmt(c.amount)}</span>
+                  <span className="font-sans text-[13px] font-semibold">{fmt(c.amount)}</span>
                   <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
                     c.status === 'paid' ? 'bg-emerald-100 text-emerald-700'
                       : c.status === 'announced' ? 'bg-amber-100 text-amber-700'
@@ -499,7 +499,7 @@ export default function PortalEsalESawabPage() {
                 <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-dp-outline-variant last:border-0 pb-2 last:pb-0">
                   <div>
                     <p className="font-sans text-[13px] font-bold text-dp-on-surface">
-                      Rs {fmt(c.monthly_amount)}/{t('pkf.month')}
+                      {fmt(c.monthly_amount)}/{t('pkf.month')}
                       <span className="font-normal text-dp-on-surface-variant"> · {c.named_object ? t('pkf.namedFor').replace('{name}', c.named_object) : t('pkf.sharedGiving')}</span>
                     </p>
                     <p className="font-sans text-[11.5px] text-dp-on-surface-variant">
@@ -519,7 +519,7 @@ export default function PortalEsalESawabPage() {
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                     <div>
                       <p className="font-sans text-[13px] font-bold text-dp-on-surface">
-                        Rs {fmt(a.amount)}
+                        {fmt(a.amount)}
                         <span className="font-normal text-dp-on-surface-variant"> · {a.named_object ? t('pkf.namedFor').replace('{name}', a.named_object) : t('pkf.sharedGiving')}</span>
                       </p>
                       <p className="font-sans text-[11px] text-amber-700 font-semibold">{t('pool.status.announced')} — {t('pool.awaitingConfirmation')}</p>
@@ -563,7 +563,7 @@ export default function PortalEsalESawabPage() {
               <div key={o.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
                 <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{o.item_name}</p>
                 <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2">
-                  {o.object_no} · Rs {fmt(o.monthly_cost)}/{t('pkf.month')}
+                  {o.object_no} · {fmt(o.monthly_cost)}/{t('pkf.month')}
                 </p>
                 <button onClick={() => openGive(o)}
                   className="w-full flex items-center justify-center gap-1.5 bg-dp-secondary text-white py-1.5 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
@@ -610,10 +610,10 @@ export default function PortalEsalESawabPage() {
               <p className="font-sans text-[14px] font-bold text-dp-on-surface">{c.name}</p>
               {c.name_ur && <p className="font-sans text-[13px] text-dp-on-surface-variant" style={{ fontFamily: 'var(--font-urdu), serif' }}>{c.name_ur}</p>}
               <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">
-                Rs {fmt(c.capital_cost_pkr)}
+                {fmt(c.capital_cost_pkr)}
                 {c.annual_running_cost_pkr > 0 && (
                   <span className="block text-[11.5px]">
-                    {t('pes.runningCost')} Rs {fmt(c.annual_running_cost_pkr)}/{t('es.year')}
+                    {t('pes.runningCost')} {fmt(c.annual_running_cost_pkr)}/{t('es.year')}
                   </span>
                 )}
               </p>
@@ -776,7 +776,7 @@ export default function PortalEsalESawabPage() {
                   {m.bill && m.bill.status === 'proposed' && (
                     <div className="mt-2.5 pt-2.5 border-t border-dp-outline-variant/40">
                       <p className="font-sans text-[12.5px] font-bold text-dp-on-surface mb-1.5">
-                        {m.bill.vendor_name} · Rs {fmt(m.bill.amount_pkr)}
+                        {m.bill.vendor_name} · {fmt(m.bill.amount_pkr)}
                       </p>
                       {m.bill.invoice_url && (
                         <a href={m.bill.invoice_url} target="_blank" rel="noreferrer"
@@ -833,7 +833,7 @@ export default function PortalEsalESawabPage() {
             {giving.target && (
               <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
                 <p className="font-sans text-[15px] font-bold">{giving.target.item_name}</p>
-                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">Rs {fmt(giving.target.monthly_cost)}/{t('pkf.month')}</p>
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{fmt(giving.target.monthly_cost)}/{t('pkf.month')}</p>
               </div>
             )}
 

@@ -175,7 +175,7 @@ function PortalDonatePageInner() {
     <div>
       <div dir={isUrdu ? 'rtl' : 'ltr'} className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><HeartHandshake size={22} className="text-dp-secondary" /> {t('p.makeDonation')} <PortalHelp pageKey="donate" /></h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.donatingAs')} {user?.full_name} · {user?.mobile}</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('p.donatingAs')} {user?.full_name} · <span className="ltr-num">{user?.mobile}</span></p>
       </div>
 
       {/* ── Also settle these? ───────────────────────────────────────────
@@ -196,7 +196,7 @@ function PortalDonatePageInner() {
                 {selectedPending.has(item.key) ? <CheckSquare size={17} className="text-dp-secondary shrink-0" /> : <Square size={17} className="text-dp-on-surface-variant shrink-0" />}
                 <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[13.5px] text-dp-on-surface truncate">{item.label === 'General giving' ? t('p.generalGiving') : item.label}</p>
               </div>
-              <p className="font-sans text-[13.5px] font-bold shrink-0">Rs. {fmt(item.amount)}</p>
+              <p className="font-sans text-[13.5px] font-bold shrink-0">{fmt(item.amount)}</p>
             </button>
           ))}
         </div>
@@ -240,7 +240,7 @@ function PortalDonatePageInner() {
         {selectedPendingItems.length > 0 && (
           <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 flex items-center justify-between">
             <p className="font-sans text-[13px] font-semibold text-dp-on-surface">{t('p.totalToSend')}</p>
-            <p className="font-heading text-[19px] font-bold text-dp-secondary">Rs. {fmt(grandTotal)}</p>
+            <p className="font-heading text-[19px] font-bold text-dp-secondary">{fmt(grandTotal)}</p>
           </div>
         )}
 

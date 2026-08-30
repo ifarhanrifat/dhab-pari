@@ -166,10 +166,10 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
             ) : (
               <div className="flex flex-wrap gap-x-6 gap-y-1">
                 <p className="font-sans text-[13px] text-dp-on-surface">
-                  {t('zc.goldPerGram')}: <strong>Rs {fmt(goldRate)}</strong>
+                  {t('zc.goldPerGram')}: <strong>{fmt(goldRate)}</strong>
                 </p>
                 <p className="font-sans text-[13px] text-dp-on-surface">
-                  {t('zc.silverPerGram')}: <strong>Rs {silverRate ? silverRate.toFixed(2) : '—'}</strong>
+                  {t('zc.silverPerGram')}: <strong>{silverRate ? silverRate.toFixed(2) : '—'}</strong>
                 </p>
               </div>
             )}
@@ -198,14 +198,14 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
               <label className={label}>{t('zc.f.goldGrams')}</label>
               {num(z.goldGrams, (n) => setZ({ ...z, goldGrams: n }))}
               {goldRate > 0 && z.goldGrams > 0 && (
-                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">= Rs {fmt(zakat.goldValue)}</p>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">= {fmt(zakat.goldValue)}</p>
               )}
             </div>
             <div>
               <label className={label}>{t('zc.f.silverGrams')}</label>
               {num(z.silverGrams, (n) => setZ({ ...z, silverGrams: n }))}
               {silverRate > 0 && z.silverGrams > 0 && (
-                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">= Rs {fmt(zakat.silverValue)}</p>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">= {fmt(zakat.silverValue)}</p>
               )}
             </div>
             <div>
@@ -246,25 +246,25 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
           <div className="bg-dp-surface-container-low rounded-lg p-4">
             <div className="flex items-center justify-between py-1 font-sans text-[13.5px]">
               <span className="text-dp-on-surface-variant">{t('zc.totalAssets')}</span>
-              <span className="font-semibold tabular-nums">Rs {fmt(zakat.assets)}</span>
+              <span className="font-semibold tabular-nums">{fmt(zakat.assets)}</span>
             </div>
             <div className="flex items-center justify-between py-1 font-sans text-[13.5px]">
               <span className="text-dp-on-surface-variant">{t('zc.totalLiabilities')}</span>
-              <span className="font-semibold tabular-nums">− Rs {fmt(zakat.liabilities)}</span>
+              <span className="font-semibold tabular-nums">− {fmt(zakat.liabilities)}</span>
             </div>
             <div className="flex items-center justify-between py-1.5 border-t border-dp-outline-variant mt-1.5 font-sans text-[14px]">
               <span className="font-semibold">{t('zc.netWealth')}</span>
-              <span className="font-bold tabular-nums">Rs {fmt(zakat.net)}</span>
+              <span className="font-bold tabular-nums">{fmt(zakat.net)}</span>
             </div>
 
             <div className="mt-3 pt-3 border-t border-dp-outline-variant">
               <div className="flex items-center justify-between py-0.5 font-sans text-[12.5px] text-dp-on-surface-variant">
                 <span>{t('zc.nisabSilver')}</span>
-                <span className="tabular-nums">Rs {fmt(zakat.nisabSilver)}</span>
+                <span className="tabular-nums">{fmt(zakat.nisabSilver)}</span>
               </div>
               <div className="flex items-center justify-between py-0.5 font-sans text-[12.5px] text-dp-on-surface-variant">
                 <span>{t('zc.nisabGold')}</span>
-                <span className="tabular-nums">Rs {fmt(zakat.nisabGold)}</span>
+                <span className="tabular-nums">{fmt(zakat.nisabGold)}</span>
               </div>
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('zc.nisabNote')}</p>
             </div>
@@ -273,7 +273,7 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
               {zakat.due > 0 ? (
                 <>
                   <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface-variant">{t('zc.youOwe')}</p>
-                  <p className="font-heading text-[30px] font-bold text-dp-primary leading-tight">Rs {fmt(zakat.due)}</p>
+                  <p className="font-heading text-[30px] font-bold text-dp-primary leading-tight">{fmt(zakat.due)}</p>
                   <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('zc.twoPointFive')}</p>
                 </>
               ) : (
@@ -319,7 +319,7 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
           <div className="bg-dp-surface-container-low rounded-lg p-4">
             <div className="flex items-center justify-between py-1 font-sans text-[13.5px]">
               <span className="text-dp-on-surface-variant">{t('zc.produceValue')}</span>
-              <span className="font-semibold tabular-nums">Rs {fmt(ushr.value)}</span>
+              <span className="font-semibold tabular-nums">{fmt(ushr.value)}</span>
             </div>
             <div className="flex items-center justify-between py-1 font-sans text-[13.5px]">
               <span className="text-dp-on-surface-variant">{t('zc.ushrRate')}</span>
@@ -330,7 +330,7 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
               {ushr.due > 0 ? (
                 <>
                   <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface-variant">{t('zc.ushrDue')}</p>
-                  <p className="font-heading text-[30px] font-bold text-dp-primary leading-tight">Rs {fmt(ushr.due)}</p>
+                  <p className="font-heading text-[30px] font-bold text-dp-primary leading-tight">{fmt(ushr.due)}</p>
                 </>
               ) : (
                 <p className="font-sans text-[13.5px] text-dp-on-surface-variant">

@@ -103,7 +103,7 @@ export default function AdminPaymentClaimsPage() {
                       {c.bills ? `${monthName(c.bills.month)} ${c.bills.year}` : t('pc.billFallback')} {c.bills?.bill_number ? `(${c.bills.bill_number})` : ''} · {c.payment_method}
                     </p>
                   </div>
-                  <p className="font-heading text-[20px] font-bold text-dp-secondary shrink-0">Rs. {fmt(c.amount_pkr)}</p>
+                  <p className="font-heading text-[20px] font-bold text-dp-secondary shrink-0">{fmt(c.amount_pkr)}</p>
                 </div>
                 {c.note && <p className="font-sans text-[13px] text-dp-on-surface-variant mt-2">{c.note}</p>}
                 <p className="font-sans text-[11.5px] text-dp-on-surface-variant/70 mt-1">{t('pc.submittedPrefix')} {new Date(c.created_at).toLocaleDateString('en-GB')}</p>

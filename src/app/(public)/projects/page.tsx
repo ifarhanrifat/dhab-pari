@@ -61,7 +61,7 @@ function feeBadgeLabel(p: Project, fee: FeeSummary | undefined, isUrdu: boolean)
   if (!isFeeCategory(p.category) || !fee) return null
   if (fee.free) return isUrdu ? 'مفت' : 'Free'
   if (fee.cheapestVillagerMonthly) {
-    return isUrdu ? `فیس — Rs. ${fee.cheapestVillagerMonthly.toLocaleString()} سے/ماہ` : `Fee — from Rs. ${fee.cheapestVillagerMonthly.toLocaleString()}/mo`
+    return isUrdu ? `فیس — ${fee.cheapestVillagerMonthly.toLocaleString()} سے/ماہ` : `Fee — from ${fee.cheapestVillagerMonthly.toLocaleString()}/mo`
   }
   return isUrdu ? 'فیس لاگو' : 'Fee applies'
 }
@@ -296,7 +296,7 @@ export default function ProjectsPage() {
           <Lock size={17} className="text-dp-on-surface-variant shrink-0 mt-0.5" />
           <div>
             <p className="font-sans text-[15px] font-bold text-dp-on-surface" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
-              {dt('privateTotalLabel')}: Rs. {fmtFull(privateTotal)}
+              {dt('privateTotalLabel')}: {fmtFull(privateTotal)}
             </p>
             <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5 leading-relaxed" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
               {dt('privateTotalNote')}
@@ -659,7 +659,7 @@ function CompletedCard({ project, isHot, dt, isUrdu, received, expense }: { proj
           <div className="mb-6">
             {remaining !== 0 && (
               <p className={`font-sans text-[13px] font-semibold ${remaining > 0 ? 'text-dp-secondary' : 'text-dp-error'}`} style={isUrdu ? urduStyle : undefined}>
-                {remaining > 0 ? dt('balanceRemaining') : dt('balanceDeficit')}: Rs. {fmtFull(Math.abs(remaining))}
+                {remaining > 0 ? dt('balanceRemaining') : dt('balanceDeficit')}: {fmtFull(Math.abs(remaining))}
               </p>
             )}
           </div>
@@ -761,7 +761,7 @@ function UpcomingCard({ project, voteCount, isHot, dt, isUrdu }: { project: Proj
           {/* Budget — compulsory info before voting, not just votes */}
           <div className="flex items-center justify-between mb-4 px-1">
             <span className="font-sans text-[13px] font-semibold text-dp-on-surface-variant uppercase tracking-wide" style={isUrdu ? urduStyle : undefined}>{dt('requestedBudget')}</span>
-            <span className="font-heading text-[20px] font-bold text-blue-900">Rs. {fmtFull(project.budget_pkr)}</span>
+            <span className="font-heading text-[20px] font-bold text-blue-900">{fmtFull(project.budget_pkr)}</span>
           </div>
 
           {/* Vote Box */}
@@ -854,7 +854,7 @@ function AnnouncedCard({ project, dt, isUrdu }: { project: Project; dt: Dt; isUr
           </p>
           <div className="flex items-center justify-between px-1">
             <span className="font-sans text-[13px] font-semibold text-dp-on-surface-variant uppercase tracking-wide" style={isUrdu ? urduStyle : undefined}>{dt('requestedBudget')}</span>
-            <span className="font-heading text-[18px] font-bold text-dp-on-surface-variant">Rs. {fmtFull(project.budget_pkr)}</span>
+            <span className="font-heading text-[18px] font-bold text-dp-on-surface-variant">{fmtFull(project.budget_pkr)}</span>
           </div>
         </div>
         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>

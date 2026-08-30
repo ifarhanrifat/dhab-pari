@@ -219,10 +219,10 @@ export default function SchoolsPage() {
 
                   <p className="font-sans text-[13px] text-dp-on-surface mt-1.5">
                     {Number(s.monthly_fee_pkr) > 0
-                      ? <>Rs {fmt(s.monthly_fee_pkr)}/{t('sc.month')} × {s.months_charged} = <strong>Rs {fmt(annualOf(s))}/{t('es.year')}</strong></>
+                      ? <>{fmt(s.monthly_fee_pkr)}/{t('sc.month')} × {s.months_charged} = <strong>{fmt(annualOf(s))}/{t('es.year')}</strong></>
                       : <span className="text-emerald-700 font-semibold">{t('sc.noMonthlyFee')}</span>}
                     {Number(s.annual_charges_pkr) > 0 && Number(s.monthly_fee_pkr) === 0 && (
-                      <span> · {t('sc.annualCharges')} Rs {fmt(s.annual_charges_pkr)}</span>
+                      <span> · {t('sc.annualCharges')} {fmt(s.annual_charges_pkr)}</span>
                     )}
                   </p>
 
@@ -230,19 +230,19 @@ export default function SchoolsPage() {
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {st.map((x) => (
                         <span key={x.id} className="px-2 py-0.5 rounded bg-dp-surface-container-low text-[11.5px] font-semibold">
-                          {x.label || `${className(x.class_from)}–${className(x.class_to)}`}: Rs {fmt(x.monthly_fee_pkr)}
+                          {x.label || `${className(x.class_from)}–${className(x.class_to)}`}: {fmt(x.monthly_fee_pkr)}
                         </span>
                       ))}
                     </div>
                   )}
 
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1.5">
-                    {Number(s.books_pkr) > 0 && `${t('kf.cat.books')} Rs ${fmt(s.books_pkr)} · `}
-                    {Number(s.uniform_pkr) > 0 && `${t('kf.cat.uniform')} Rs ${fmt(s.uniform_pkr)} · `}
-                    {Number(s.exam_fee_pkr) > 0 && `${t('kf.cat.exam_fee')} Rs ${fmt(s.exam_fee_pkr)}`}
+                    {Number(s.books_pkr) > 0 && `${t('kf.cat.books')} ${fmt(s.books_pkr)} · `}
+                    {Number(s.uniform_pkr) > 0 && `${t('kf.cat.uniform')} ${fmt(s.uniform_pkr)} · `}
+                    {Number(s.exam_fee_pkr) > 0 && `${t('kf.cat.exam_fee')} ${fmt(s.exam_fee_pkr)}`}
                     {s.provides_transport && (
                       <span className="inline-flex items-center gap-1 ms-1">
-                        <Bus size={12} /> Rs {fmt(s.transport_monthly_pkr)}/{t('sc.month')}
+                        <Bus size={12} /> {fmt(s.transport_monthly_pkr)}/{t('sc.month')}
                       </span>
                     )}
                   </p>
@@ -253,7 +253,7 @@ export default function SchoolsPage() {
 
                   {cost && cost.children > 0 && (
                     <p className="font-sans text-[12.5px] font-semibold text-dp-primary mt-2">
-                      {cost.children} {t('sc.childrenHere')} · {t('sc.committeePays')} Rs {fmt(cost.annual_cost)}/{t('es.year')}
+                      {cost.children} {t('sc.childrenHere')} · {t('sc.committeePays')} {fmt(cost.annual_cost)}/{t('es.year')}
                     </p>
                   )}
                 </div>
@@ -347,7 +347,7 @@ export default function SchoolsPage() {
                 </div>
 
                 <p className="font-sans text-[13px] font-semibold text-dp-primary mt-3 bg-dp-surface-container-low rounded-lg px-3 py-2">
-                  {t('sc.f.annualTotal')} Rs {fmt(form.monthly_fee_pkr * form.months_charged + form.annual_charges_pkr)}
+                  {t('sc.f.annualTotal')} {fmt(form.monthly_fee_pkr * form.months_charged + form.annual_charges_pkr)}
                 </p>
               </div>
 

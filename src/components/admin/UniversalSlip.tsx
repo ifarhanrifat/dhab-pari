@@ -190,7 +190,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
   const discount = data.discountAmount ?? 0
   const paid = data.paidAmount ?? 0
 
-  const money = (n: number) => (thermal ? fmt(n) : `Rs. ${fmt(n)}`)
+  const money = (n: number) => (thermal ? fmt(n) : `${fmt(n)}`)
 
   // Summary rows under the hero amount. Donations speak donation vocabulary
   // (lifetime total, announced-but-unpaid); everything else uses the generic
@@ -497,7 +497,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
         <div style={{ textAlign: 'center', marginTop: thermal ? 12 : 26 }}>
           <L data={data} k={isDonation ? 'donationReceived' : 'amount'} style={{ fontSize: f(1.05), color: MUTED, display: 'block' }} />
           <div style={{ fontWeight: 700, fontSize: (thermal ? b(1.9) : b(3)) - 3, marginTop: 4, letterSpacing: '-0.01em' }}>
-            <Ltr>Rs. {fmt(data.amount)}</Ltr>
+            <Ltr>{fmt(data.amount)}</Ltr>
           </div>
           {data.particular && (
             <div style={{ fontSize: f(1.05), color: MUTED, marginTop: 6 }}>

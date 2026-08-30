@@ -66,8 +66,8 @@ export function PortalBadgeCard({ portalUserId, totalDonated }: { portalUserId: 
           {nextTier ? (
             <>
               <div className="flex items-center justify-between text-[12px] font-sans font-semibold mb-1.5 opacity-90">
-                <span>Rs {fmt(totalDonated)}</span>
-                <span>{t('pbc.toReach')} {isUrdu ? DONOR_BADGE_INFO[nextTier].labelUr : DONOR_BADGE_INFO[nextTier].labelEn} · Rs {fmt(nextThreshold ?? 0)}</span>
+                <span>{fmt(totalDonated)}</span>
+                <span>{t('pbc.toReach')} {isUrdu ? DONOR_BADGE_INFO[nextTier].labelUr : DONOR_BADGE_INFO[nextTier].labelEn} · {fmt(nextThreshold ?? 0)}</span>
               </div>
               <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
                 <div className="h-full bg-white rounded-full" style={{ width: `${progressPct}%` }} />

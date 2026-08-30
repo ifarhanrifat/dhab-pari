@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ code: str
 
   const remaining = Math.max(child.this_year_requirement - child.already_named, 0)
   const description = remaining > 0
-    ? `${child.first_name} still needs Rs. ${remaining.toLocaleString()} for this school year. Join their sponsorship on ${SITE.fullName}.`
+    ? `${child.first_name} still needs ${remaining.toLocaleString()} for this school year. Join their sponsorship on ${SITE.fullName}.`
     : `${child.first_name}'s education is fully sponsored, Alhamdulillah — see how ${SITE.fullName}'s Kafalat programme works.`
 
   return {

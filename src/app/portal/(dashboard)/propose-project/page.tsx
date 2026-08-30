@@ -78,15 +78,15 @@ const t: Record<string, { en: string; ur: string }> = {
   thinking: { en: 'Thinking...', ur: 'سوچ رہا ہے...' },
   generateModern: { en: 'Generate Estimate (Modern Equipment)', ur: 'تخمینہ بنائیں (جدید سامان)' },
   calculateCheapest: { en: 'Calculate Cheapest Option', ur: 'سستا ترین آپشن نکالیں' },
-  modernEstimateLabel: { en: 'Modern Equipment Estimate: Rs.', ur: 'جدید سامان کا تخمینہ: روپے' },
-  cheapestEstimateLabel: { en: 'Cheapest Option Estimate: Rs.', ur: 'سستا ترین آپشن کا تخمینہ: روپے' },
+  modernEstimateLabel: { en: 'Modern Equipment Estimate:', ur: 'جدید سامان کا تخمینہ:' },
+  cheapestEstimateLabel: { en: 'Cheapest Option Estimate:', ur: 'سستا ترین آپشن کا تخمینہ:' },
   fillTitleDescBudget: { en: 'Fill in the title, description, and requested budget', ur: 'عنوان، تفصیل اور مطلوبہ بجٹ درج کریں' },
-  commitmentAtLeastOneTime: { en: 'Your self-commitment must be at least Rs.', ur: 'آپ کا ذاتی وعدہ کم از کم روپے ہونا چاہیے:' },
-  commitmentAtLeastMonthly: { en: 'Your monthly self-commitment must be at least Rs. {amount} (6-month equivalent)', ur: 'آپ کا ماہانہ ذاتی وعدہ کم از کم روپے {amount} ہونا چاہیے (6 ماہ کے برابر)' },
+  commitmentAtLeastOneTime: { en: 'Your self-commitment must be at least', ur: 'آپ کا ذاتی وعدہ کم از کم اتنا ہونا چاہیے:' },
+  commitmentAtLeastMonthly: { en: 'Your monthly self-commitment must be at least {amount} (6-month equivalent)', ur: 'آپ کا ماہانہ ذاتی وعدہ کم از کم {amount} ہونا چاہیے (6 ماہ کے برابر)' },
   enterMonthlyOperatingCost: { en: 'Enter the estimated monthly operating cost, or uncheck ongoing monthly support', ur: 'تخمینی ماہانہ آپریٹنگ لاگت درج کریں، یا جاری ماہانہ مدد کا خانہ غیر منتخب کریں' },
   proposalAnnouncedToast: { en: 'Proposal announced — pay your self-commitment from your portal, then it opens for voting once confirmed.', ur: 'تجویز کا اعلان ہو گیا — اپنا ذاتی وعدہ اپنے پورٹل سے ادا کریں، تصدیق کے بعد یہ ووٹنگ کے لیے کھل جائے گی۔' },
-  needsAtLeastOneTime: { en: 'Needs to be at least Rs.', ur: 'کم از کم روپے ہونا چاہیے:' },
-  needsAtLeastMonthly: { en: 'Needs to be at least Rs. {amount}/month', ur: 'کم از کم روپے {amount}/ماہانہ ہونا چاہیے' },
+  needsAtLeastOneTime: { en: 'Needs to be at least', ur: 'کم از کم اتنا ہونا چاہیے:' },
+  needsAtLeastMonthly: { en: 'Needs to be at least {amount}/month', ur: 'کم از کم {amount}/ماہانہ ہونا چاہیے' },
   aiEstimationFailed: { en: 'AI estimation failed', ur: 'اے آئی تخمینہ ناکام ہو گیا' },
   aiNetworkError: { en: 'Network error contacting the AI estimator', ur: 'اے آئی تخمینہ کار سے رابطے میں نیٹ ورک کی خرابی' },
   fillTitleDescFirst: { en: 'Fill in the title and description first', ur: 'پہلے عنوان اور تفصیل درج کریں' },
@@ -381,7 +381,7 @@ export default function ProposeProjectPage() {
         <div className="border border-dp-secondary/40 rounded-lg p-4 bg-dp-secondary/5 space-y-3">
           <p className="font-sans text-[13.5px] font-bold text-dp-primary">{dt('commitmentTitle')}</p>
           <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{dt('commitmentGuide')}</p>
-          <p className="font-sans text-[13px]">{dt('requiredNow')} <strong className="text-dp-secondary">Rs. {required.toLocaleString()}</strong></p>
+          <p className="font-sans text-[13px]">{dt('requiredNow')} <strong className="text-dp-secondary">{required.toLocaleString()}</strong></p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setForm({ ...form, self_commitment_type: 'one_time' })}
               className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer border-2 transition-all ${form.self_commitment_type === 'one_time' ? 'bg-dp-secondary text-white border-dp-secondary' : 'border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-secondary'}`}>
@@ -433,7 +433,7 @@ export default function ProposeProjectPage() {
           <div className="bg-white rounded-lg p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()} dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
             <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-3">{dt('confirmTitle')}</h2>
             <p className="font-sans text-[13.5px] text-dp-on-surface mb-2">
-              {dt('confirmBody')} <strong>Rs. {form.self_commitment_amount_pkr.toLocaleString()}</strong> ({form.self_commitment_type === 'one_time' ? dt('oneTime') : dt('monthly')}).
+              {dt('confirmBody')} <strong>{form.self_commitment_amount_pkr.toLocaleString()}</strong> ({form.self_commitment_type === 'one_time' ? dt('oneTime') : dt('monthly')}).
             </p>
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-5">{dt('confirmBody2')}</p>
             <div className="flex gap-2">

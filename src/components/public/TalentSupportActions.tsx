@@ -120,8 +120,8 @@ export function TalentSupportActions({ talentShowcaseId, needsAmountPkr, support
             <div className="h-full bg-dp-secondary rounded-full transition-all" style={{ width: `${Math.min(100, (raised / needsAmountPkr) * 100)}%` }} />
           </div>
           <div className="flex items-center justify-between mt-1 font-sans text-[11px] text-dp-on-surface-variant">
-            <span>{t('talent.raisedColon')} Rs. {fmt(raised)}</span>
-            <span>{t('talent.targetColon')} Rs. {fmt(needsAmountPkr)}</span>
+            <span>{t('talent.raisedColon')} {fmt(raised)}</span>
+            <span>{t('talent.targetColon')} {fmt(needsAmountPkr)}</span>
           </div>
           {supportStatus === 'partially_supported' && (
             <p className="mt-1 font-sans text-[11px] text-amber-700 font-semibold">{t('talent.partiallySupported')}</p>

@@ -300,7 +300,7 @@ function AdminDonorsPageInner() {
     const projTitle = editForm.project_id ? (projectTitle(editForm.project_id) ?? 'General Fund') : 'General Fund'
     const messageBody = tpl?.body
       ? renderTemplate(tpl.body, { name: data.name, amount: Number(data.amount_pkr).toLocaleString(), account_no: data.account_no, project: projTitle })
-      : `Thank you ${data.name}! Your donation of Rs. ${Number(data.amount_pkr).toLocaleString()} (Account: ${data.account_no}) has been verified.`
+      : `Thank you ${data.name}! Your donation of ${Number(data.amount_pkr).toLocaleString()} (Account: ${data.account_no}) has been verified.`
 
     // Totals are read after confirm_donation() has committed, so this receipt's
     // own amount is already inside totalContributed — which is what the donor
@@ -411,7 +411,7 @@ function AdminDonorsPageInner() {
                 <p className="font-sans text-[14px] font-bold text-dp-on-surface">{b.donor_name ?? '—'}</p>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant">{b.count} items · {new Date(b.earliest).toLocaleDateString('en-GB')} · {b.method}</p>
               </div>
-              <p className="font-heading text-[18px] font-bold text-dp-secondary shrink-0">Rs {b.total.toLocaleString()}</p>
+              <p className="font-heading text-[18px] font-bold text-dp-secondary shrink-0">{b.total.toLocaleString()}</p>
             </button>
           ))}
         </div>
@@ -568,7 +568,7 @@ function AdminDonorsPageInner() {
                   </td>
                   <td className="p-4 border-b border-dp-outline-variant whitespace-nowrap">
                     {donorStatus(d) === 'received' && <span className="inline-flex items-center gap-1 text-dp-secondary text-[12px] font-bold"><CheckCircle size={14} /> {t('dn.received')}</span>}
-                    {donorStatus(d) === 'partial' && <span className="inline-flex items-center gap-1 text-orange-700 text-[12px] font-bold" title={t('dn.partialTooltip').replace('{amt}', `Rs ${(d.announced_amount_pkr - d.amount_pkr).toLocaleString()}`)}><AlertTriangle size={14} /> {t('dn.partial')}</span>}
+                    {donorStatus(d) === 'partial' && <span className="inline-flex items-center gap-1 text-orange-700 text-[12px] font-bold" title={t('dn.partialTooltip').replace('{amt}', `${(d.announced_amount_pkr - d.amount_pkr).toLocaleString()}`)}><AlertTriangle size={14} /> {t('dn.partial')}</span>}
                     {donorStatus(d) === 'announced' && <span className="inline-flex items-center gap-1 text-amber-700 text-[12px] font-bold" title={t('dn.announcedTooltip')}><XCircle size={14} /> {t('dn.announced')}</span>}
                     {donorStatus(d) === 'awaiting' && <span className="inline-flex items-center gap-1 text-dp-on-surface-variant text-[12px] font-bold" title={t('dn.awaitingTooltip')}><Clock size={14} /> {t('dn.awaiting')}</span>}
                   </td>
@@ -738,7 +738,7 @@ function AdminDonorsPageInner() {
 
             <div className="bg-dp-surface-container-low rounded-lg px-4 py-3 mb-4 flex items-center justify-between">
               <p className="font-sans text-[13px] font-semibold text-dp-on-surface">{t('dn.onePaymentTotal')}</p>
-              <p className="font-heading text-[22px] font-bold text-dp-secondary">Rs {reviewBatch.total.toLocaleString()}</p>
+              <p className="font-heading text-[22px] font-bold text-dp-secondary">{reviewBatch.total.toLocaleString()}</p>
             </div>
 
             {reviewBatch.proof_url && (
@@ -760,7 +760,7 @@ function AdminDonorsPageInner() {
                 {batchItems.map((item) => (
                   <div key={`${item.kind}-${item.id}`} className="flex items-center justify-between px-3.5 py-2.5">
                     <p className="font-sans text-[13px] text-dp-on-surface">{item.label}</p>
-                    <p className="font-sans text-[13px] font-bold text-dp-on-surface shrink-0 ms-3">Rs {item.amount.toLocaleString()}</p>
+                    <p className="font-sans text-[13px] font-bold text-dp-on-surface shrink-0 ms-3">{item.amount.toLocaleString()}</p>
                   </div>
                 ))}
               </div>

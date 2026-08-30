@@ -290,18 +290,18 @@ export default function PortalKafalatPage() {
           </div>
           <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3.5">
             <p className="font-sans text-[11px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-1">{t('pkf.stats.required')}</p>
-            <p className="font-heading text-[24px] font-bold text-dp-primary">Rs {fmt(dashboard.required)}</p>
+            <p className="font-heading text-[24px] font-bold text-dp-primary">{fmt(dashboard.required)}</p>
           </div>
           <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3.5">
             <p className="font-sans text-[11px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-1">{t('pkf.stats.confirmed')}</p>
-            <p className="font-heading text-[24px] font-bold text-dp-secondary">Rs {fmt(dashboard.confirmed)}</p>
+            <p className="font-heading text-[24px] font-bold text-dp-secondary">{fmt(dashboard.confirmed)}</p>
             {dashboard.outstanding > 0 && (
               <p className="font-sans text-[11px] text-dp-on-surface-variant mt-0.5">{t('pkf.stats.outstanding').replace('{amt}', fmt(dashboard.outstanding))}</p>
             )}
           </div>
           <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3.5">
             <p className="font-sans text-[11px] font-bold uppercase tracking-wide text-dp-on-surface-variant mb-1">{t('pkf.stats.monthly')}</p>
-            <p className="font-heading text-[24px] font-bold text-dp-primary">Rs {fmt(dashboard.monthly_target)}</p>
+            <p className="font-heading text-[24px] font-bold text-dp-primary">{fmt(dashboard.monthly_target)}</p>
           </div>
         </div>
       )}
@@ -410,7 +410,7 @@ export default function PortalKafalatPage() {
                     {c.current_class && `${t('kf.class')} ${c.current_class}`}
                   </p>
                   <p className="font-sans text-[13px] font-semibold text-dp-on-surface mt-1.5">
-                    Rs {fmt(c.this_year_requirement)}/{t('es.year')}
+                    {fmt(c.this_year_requirement)}/{t('es.year')}
                   </p>
                 </div>
               </div>
@@ -433,7 +433,7 @@ export default function PortalKafalatPage() {
                   )}
                 </div>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant">
-                  {pct}% {t('kf.sponsored')} · <strong>Rs {fmt(remaining)} {t('kf.remaining')}</strong>
+                  {pct}% {t('kf.sponsored')} · <strong>{fmt(remaining)} {t('kf.remaining')}</strong>
                 </p>
               </div>
 
@@ -506,7 +506,7 @@ export default function PortalKafalatPage() {
             <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
               <p className="font-sans text-[15px] font-bold">{giving.first_name}</p>
               <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
-                Rs {fmt(Math.max(giving.this_year_requirement - giving.already_named, 0))} {t('kf.remaining')} {t('es.year').toLowerCase()}
+                {fmt(Math.max(giving.this_year_requirement - giving.already_named, 0))} {t('kf.remaining')} {t('es.year').toLowerCase()}
               </p>
             </div>
 
@@ -660,13 +660,13 @@ export default function PortalKafalatPage() {
                   {breakdown.lines.map((l, i) => (
                     <div key={i} className="flex items-center justify-between px-3.5 py-2.5">
                       <p className="font-sans text-[13px] font-semibold text-dp-on-surface">{t(`kf.cat.${l.category}`)}</p>
-                      <p className="font-sans text-[13px] font-bold text-dp-on-surface shrink-0 ms-3">Rs {fmt(l.amount)}</p>
+                      <p className="font-sans text-[13px] font-bold text-dp-on-surface shrink-0 ms-3">{fmt(l.amount)}</p>
                     </div>
                   ))}
                 </div>
                 <div className="flex items-center justify-between px-1">
                   <p className="font-sans text-[13.5px] font-bold text-dp-primary">{t('pkf.breakdown.total')}</p>
-                  <p className="font-heading text-[18px] font-bold text-dp-primary">Rs {fmt(breakdown.total)}</p>
+                  <p className="font-heading text-[18px] font-bold text-dp-primary">{fmt(breakdown.total)}</p>
                 </div>
               </>
             )}

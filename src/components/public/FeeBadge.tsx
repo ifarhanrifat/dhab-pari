@@ -16,7 +16,7 @@ export function FeeBadge({ free, cheapestVillagerMonthly }: { free: boolean; che
   if (cheapestVillagerMonthly) {
     return (
       <span className="bg-blue-100 text-blue-800 text-[10px] font-extrabold px-2 py-1 rounded uppercase tracking-wider shrink-0">
-        {isUrdu ? `فیس — Rs. ${cheapestVillagerMonthly.toLocaleString()} سے/ماہ` : `Fee — from Rs. ${cheapestVillagerMonthly.toLocaleString()}/mo`}
+        {isUrdu ? `فیس — ${cheapestVillagerMonthly.toLocaleString()} سے/ماہ` : `Fee — from ${cheapestVillagerMonthly.toLocaleString()}/mo`}
       </span>
     )
   }

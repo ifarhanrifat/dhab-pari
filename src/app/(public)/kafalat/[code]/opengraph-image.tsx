@@ -64,7 +64,7 @@ export default async function Image({ params }: { params: Promise<{ code: string
           </div>
           <div style={{ display: 'flex', marginTop: 32, alignItems: 'baseline', gap: 14 }}>
             <div style={{ display: 'flex', fontSize: 20, opacity: 0.75, textTransform: 'uppercase', letterSpacing: 2 }}>Annual Need</div>
-            <div style={{ display: 'flex', fontSize: 38, fontWeight: 800, color: '#7fd99a' }}>Rs. {required.toLocaleString()}</div>
+            <div style={{ display: 'flex', fontSize: 38, fontWeight: 800, color: '#7fd99a' }}>{required.toLocaleString()}</div>
           </div>
         </div>
       </div>

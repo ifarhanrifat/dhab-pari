@@ -66,7 +66,7 @@ function FeeStatus({ f, t }: { f: MyFee; t: (k: string) => string }) {
   if ((f.due_soon ?? []).length > 0 && f.due_soon[0].status === 'announced') {
     return <p className="font-sans text-[11.5px] text-blue-700 flex items-center gap-1"><Bell size={10} /> {t('tp.paymentAwaitingConfirmation')}</p>
   }
-  if ((f.due_soon ?? []).length > 0) return <p className="font-sans text-[11.5px] text-amber-700 flex items-center gap-1"><Clock size={10} /> Rs. {fmt(f.due_soon[0].amount)}</p>
+  if ((f.due_soon ?? []).length > 0) return <p className="font-sans text-[11.5px] text-amber-700 flex items-center gap-1"><Clock size={10} /> <span className="ltr-num">{fmt(f.due_soon[0].amount)}</span></p>
   if (f.monthly_amount_pkr > 0 && f.total_paid === 0) return <p className="font-sans text-[11.5px] text-dp-on-surface-variant flex items-center gap-1"><Hourglass size={10} /> {t('tp.awaitingFirstBill')}</p>
   return <p className="font-sans text-[11.5px] text-emerald-700 flex items-center gap-1"><CheckCircle2 size={10} /> {t('tp.feeUpToDate')}</p>
 }
@@ -229,7 +229,7 @@ export default function PortalTrainingProgramsPage() {
                           <div className="mt-0.5 text-dp-on-surface-variant">
                             {a.hide_fees
                               ? t('tp.feeHiddenLabel')
-                              : isFree ? t('tp.freeLabel') : `Rs. ${fmt(monthly || full || 0)}${monthly ? `/${t('af.perMonth')}` : ` ${t('af.fullCourse')}`}`}
+                              : isFree ? t('tp.freeLabel') : <><span className="ltr-num">{fmt(monthly || full || 0)}</span>{monthly ? `/${t('af.perMonth')}` : ` ${t('af.fullCourse')}`}</>}
                           </div>
                         </div>
                       )
@@ -264,9 +264,9 @@ export default function PortalTrainingProgramsPage() {
 
                 {isSalaryFunded && f && (
                   <div className="mt-3 pt-3 border-t border-dp-outline-variant">
-                    <div className="flex items-center justify-between gap-1 font-sans text-[11px] text-dp-on-surface-variant ltr-num mb-2">
-                      <span>{t('pj.raisedShort')} Rs. {fmt(f.raised)}</span>
-                      <span>{t('pj.spentShort')} Rs. {fmt(f.spent)}</span>
+                    <div className="flex items-center justify-between gap-1 font-sans text-[11px] text-dp-on-surface-variant mb-2">
+                      <span>{t('pj.raisedShort')} <span className="ltr-num">{fmt(f.raised)}</span></span>
+                      <span>{t('pj.spentShort')} <span className="ltr-num">{fmt(f.spent)}</span></span>
                     </div>
                     <Link href={`/portal/donate?project=${a.id}`}
                       className="flex items-center justify-center gap-1 w-full py-2 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-colors">

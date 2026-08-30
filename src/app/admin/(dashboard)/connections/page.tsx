@@ -544,7 +544,7 @@ export default function ConnectionsPage() {
                     {r.description ? ` · ${r.description}` : ''}
                   </p>
                 </div>
-                <p className="font-sans text-[15px] font-bold text-dp-on-surface shrink-0">Rs. {fmtAmount(r.total_amount)}</p>
+                <p className="font-sans text-[15px] font-bold text-dp-on-surface shrink-0">{fmtAmount(r.total_amount)}</p>
                 <div className="flex items-center gap-1 shrink-0">
                   {r.status === 'pending_payment' && (
                     <button onClick={() => setCashReceiveTarget(r)} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
@@ -661,12 +661,12 @@ export default function ConnectionsPage() {
                             <div className="min-w-0 flex-1">
                               <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{l.description}</p>
                               <p className="font-sans text-[12px] text-dp-on-surface-variant">
-                                {l.quantity} unit(s){form.wants_inventory_from_us ? ` × Rs. ${fmtAmount(l.unit_price)}` : ''}
+                                {l.quantity} unit(s){form.wants_inventory_from_us ? ` × ${fmtAmount(l.unit_price)}` : ''}
                               </p>
                             </div>
                             {form.wants_inventory_from_us && (
                               available ? (
-                                <p className="text-end shrink-0 font-sans text-[14.5px] font-bold text-dp-on-surface">Rs. {fmtAmount(l.quantity * l.unit_price)}</p>
+                                <p className="text-end shrink-0 font-sans text-[14.5px] font-bold text-dp-on-surface">{fmtAmount(l.quantity * l.unit_price)}</p>
                               ) : (
                                 <p className="text-end shrink-0 font-sans text-[12px] font-bold text-dp-error">{t('cn.notAvailable')}</p>
                               )
@@ -722,7 +722,7 @@ export default function ConnectionsPage() {
 
               <div className="bg-white border border-dp-outline-variant rounded-xl p-5 flex items-center justify-between">
                 <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.06em]">{t('a.total')}</span>
-                <span className="font-heading text-[24px] font-bold text-dp-primary">Rs. {fmtAmount(total)}</span>
+                <span className="font-heading text-[24px] font-bold text-dp-primary">{fmtAmount(total)}</span>
               </div>
             </div>
 
@@ -757,7 +757,7 @@ export default function ConnectionsPage() {
                 <button key={it.id} onClick={() => selectCatalogItem(it.id)} className="w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-lg hover:bg-dp-surface-container-low transition-all cursor-pointer text-start">
                   <span className="font-sans text-[14.5px] font-semibold text-dp-on-surface truncate">{it.name}</span>
                   {it.quantity_on_hand > 0 ? (
-                    <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface-variant shrink-0">Rs. {fmtAmount(it.unit_price)}</span>
+                    <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface-variant shrink-0">{fmtAmount(it.unit_price)}</span>
                   ) : (
                     <span className="font-sans text-[12px] font-bold text-dp-error shrink-0">{t('cn.notInStock')}</span>
                   )}
@@ -790,7 +790,7 @@ export default function ConnectionsPage() {
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-dp-outline-variant">
                 <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('a.total')}</span>
-                <span className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmtAmount(itemTotal)}</span>
+                <span className="font-heading text-[22px] font-bold text-dp-primary">{fmtAmount(itemTotal)}</span>
               </div>
             </div>
             <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
@@ -880,10 +880,10 @@ export default function ConnectionsPage() {
                 )}
 
                 <div className="space-y-1 text-[13px] font-sans mb-5">
-                  {form.plumber_charge > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('cn.plumberCharge')}</span><span>Rs. {fmtAmount(form.plumber_charge)}</span></div>}
-                  {form.digging_charge > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('cn.diggingCharge')}</span><span>Rs. {fmtAmount(form.digging_charge)}</span></div>}
-                  {form.security_deposit_amount > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('z.securityRefundable')}</span><span>Rs. {fmtAmount(form.security_deposit_amount)}</span></div>}
-                  <div className="flex justify-between font-bold text-[15px] border-t border-dp-outline-variant pt-2 mt-2"><span>{t('a.total')}</span><span>Rs. {fmtAmount(total)}</span></div>
+                  {form.plumber_charge > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('cn.plumberCharge')}</span><span>{fmtAmount(form.plumber_charge)}</span></div>}
+                  {form.digging_charge > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('cn.diggingCharge')}</span><span>{fmtAmount(form.digging_charge)}</span></div>}
+                  {form.security_deposit_amount > 0 && <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('z.securityRefundable')}</span><span>{fmtAmount(form.security_deposit_amount)}</span></div>}
+                  <div className="flex justify-between font-bold text-[15px] border-t border-dp-outline-variant pt-2 mt-2"><span>{t('a.total')}</span><span>{fmtAmount(total)}</span></div>
                 </div>
 
                 <div className="border-t border-dp-outline-variant pt-4 mt-4" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', textAlign: 'right' }}>
@@ -913,7 +913,7 @@ export default function ConnectionsPage() {
           <div dir={isUrdu ? 'rtl' : undefined} className="bg-white rounded-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-1">{t('cn.receiveCash')}</h2>
             <p className="font-sans text-[13.5px] text-dp-on-surface-variant mb-4">
-              {cashReceiveTarget.consumer_name} — Rs. {fmtAmount(cashReceiveTarget.total_amount)}. This will create the consumer (if new), generate a bill, and record the payment as cash.
+              {cashReceiveTarget.consumer_name} — {fmtAmount(cashReceiveTarget.total_amount)}. This will create the consumer (if new), generate a bill, and record the payment as cash.
             </p>
             <div className="flex gap-2">
               <button onClick={() => setCashReceiveTarget(null)} className="flex-1 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low transition-all cursor-pointer">{t('action.cancel')}</button>
@@ -956,7 +956,7 @@ export default function ConnectionsPage() {
               </div>
               {activationForm.discount_amount > 0 && (
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant -mt-2">
-                  {t('z.netMonthly')} <span className="font-bold text-dp-on-surface">Rs. {fmtAmount(Math.max(activationForm.monthly_amount - activationForm.discount_amount, 0))}</span>
+                  {t('z.netMonthly')} <span className="font-bold text-dp-on-surface">{fmtAmount(Math.max(activationForm.monthly_amount - activationForm.discount_amount, 0))}</span>
                 </p>
               )}
               <div>

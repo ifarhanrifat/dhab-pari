@@ -328,7 +328,7 @@ export default function InventoryPage() {
           <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
             <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-2.5">
               <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{tr('iv.totalStockValue')}</p>
-              <p className="font-heading text-[20px] font-bold text-dp-primary">Rs. {fmt(items.reduce((s, i) => s + i.quantity_on_hand * i.unit_cost, 0))}</p>
+              <p className="font-heading text-[20px] font-bold text-dp-primary">{fmt(items.reduce((s, i) => s + i.quantity_on_hand * i.unit_cost, 0))}</p>
               <p className="font-sans text-[11px] text-dp-on-surface-variant">{tr('iv.stockValueNote')}</p>
             </div>
             <button onClick={() => { setItemForm(emptyItemForm); setShowItemForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
@@ -461,7 +461,7 @@ export default function InventoryPage() {
                     <div className="flex items-center gap-2">
                       <span className="font-sans text-[15px] font-bold text-dp-on-surface">{t.name}</span>
                       {t.is_default && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-dp-primary text-white flex items-center gap-1"><Star size={10} /> {tr('iv.default')}</span>}
-                      <span className="font-sans text-[12px] text-dp-on-surface-variant">{lines.length} line{lines.length === 1 ? '' : 's'} · Rs. {fmt(total)} per connection</span>
+                      <span className="font-sans text-[12px] text-dp-on-surface-variant">{lines.length} line{lines.length === 1 ? '' : 's'} · {fmt(total)} per connection</span>
                     </div>
                   </button>
                   {isOpen && (
@@ -634,7 +634,7 @@ export default function InventoryPage() {
                         <td className="px-5 py-3 text-dp-on-surface-variant">{idx + 1}</td>
                         <td className="px-5 py-3 font-semibold">{t.name} <span className="text-dp-on-surface-variant font-normal">({t.itemCode})</span></td>
                         <td className="px-5 py-3 text-end">{fmt(t.quantitySold)}</td>
-                        <td className="px-5 py-3 text-end font-bold text-dp-primary">Rs. {fmt(t.revenue)}</td>
+                        <td className="px-5 py-3 text-end font-bold text-dp-primary">{fmt(t.revenue)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -749,7 +749,7 @@ export default function InventoryPage() {
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{tr('a.noteOptional')}</label>
                 <input value={purchaseForm.note} onChange={(e) => setPurchaseForm({ ...purchaseForm, note: e.target.value })} className="input-field" />
               </div>
-              <p className="font-sans text-[12.5px] text-dp-on-surface-variant">Total: Rs. {fmt(purchaseForm.quantity * purchaseForm.unit_cost_at_time)}</p>
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant">Total: {fmt(purchaseForm.quantity * purchaseForm.unit_cost_at_time)}</p>
               <button onClick={savePurchase} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer">
                 <ShoppingCart size={16} /> {tr('iv.recordPurchase')}
               </button>

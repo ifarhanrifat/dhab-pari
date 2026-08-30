@@ -253,7 +253,7 @@ export default function WaterBillPage() {
                     <p className="text-amber-800 font-sans text-[16px]">
                       Total Outstanding:{' '}
                       <span className="font-bold text-[18px]">
-                        Rs. {totalOutstanding.toLocaleString()}
+                        {totalOutstanding.toLocaleString()}
                       </span>
                       . Please clear your bill through the following methods to
                       avoid reconnection charges.
@@ -333,7 +333,7 @@ export default function WaterBillPage() {
                           {monthNames[bill.month]} {bill.year}
                         </td>
                         <td className="px-6 py-4 font-sans text-[16px]">
-                          Rs. {bill.amount_pkr.toLocaleString()}
+                          {bill.amount_pkr.toLocaleString()}
                         </td>
                         <td className="px-6 py-4">
                           <StatusBadge status={bill.status} />

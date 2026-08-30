@@ -156,10 +156,10 @@ export default function SadqaJariyaPage() {
                 <p className="font-sans text-[14.5px] font-bold text-dp-on-surface">
                   {isUrdu && c.name_ur ? c.name_ur : c.name}
                 </p>
-                <p className="font-heading text-[20px] font-bold text-dp-primary mt-1">Rs {fmt(c.capital_cost_pkr)}</p>
+                <p className="font-heading text-[20px] font-bold text-dp-primary mt-1">{fmt(c.capital_cost_pkr)}</p>
                 {c.annual_running_cost_pkr > 0 && (
                   <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">
-                    {t('pes.runningCost')} Rs {fmt(c.annual_running_cost_pkr)}/{t('es.year')}
+                    {t('pes.runningCost')} {fmt(c.annual_running_cost_pkr)}/{t('es.year')}
                   </p>
                 )}
               </div>

@@ -83,7 +83,7 @@ export default function DonorBadgesPage() {
                 )}
               </div>
               <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">
-                {t('db.totalGiven')}: <strong className="text-dp-on-surface">Rs {fmt(r.total_donated_pkr)}</strong>
+                {t('db.totalGiven')}: <strong className="text-dp-on-surface">{fmt(r.total_donated_pkr)}</strong>
               </p>
             </div>
 

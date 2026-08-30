@@ -29,7 +29,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   // so it gets the same display_name (364) preference as everything else.
   const title = project?.display_name || project?.title || 'Village Project'
   const category = (project?.category ?? 'project').toUpperCase()
-  const budget = project?.budget_pkr ? `Rs. ${Number(project.budget_pkr).toLocaleString()}` : null
+  const budget = project?.budget_pkr ? `${Number(project.budget_pkr).toLocaleString()}` : null
   const statusLabel = STATUS_LABEL[project?.status ?? ''] ?? ''
   // Prefer a real submitted/documented photo over the generated card —
   // proposer's photo first, then staff-documented after/before progress shots.

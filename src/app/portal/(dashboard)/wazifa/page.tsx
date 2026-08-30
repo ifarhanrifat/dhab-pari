@@ -967,7 +967,7 @@ export default function PortalWazifaPage() {
                 <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-dp-outline-variant last:border-0 pb-2 last:pb-0">
                   <div>
                     <p className="font-sans text-[13px] font-bold text-dp-on-surface">
-                      Rs {fmt(c.monthly_amount)}/{t('pkf.month')}
+                      {fmt(c.monthly_amount)}/{t('pkf.month')}
                       <span className="font-normal text-dp-on-surface-variant"> · {c.named_student ? t('pkf.namedFor').replace('{name}', c.named_student) : t('pkf.sharedGiving')}</span>
                     </p>
                     <p className="font-sans text-[11.5px] text-dp-on-surface-variant">
@@ -987,7 +987,7 @@ export default function PortalWazifaPage() {
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                     <div>
                       <p className="font-sans text-[13px] font-bold text-dp-on-surface">
-                        Rs {fmt(a.amount)}
+                        {fmt(a.amount)}
                         <span className="font-normal text-dp-on-surface-variant"> · {a.named_student ? t('pkf.namedFor').replace('{name}', a.named_student) : t('pkf.sharedGiving')}</span>
                       </p>
                       <p className="font-sans text-[11px] text-amber-700 font-semibold">{t('pool.status.announced')} — {t('pool.awaitingConfirmation')}</p>
@@ -1085,7 +1085,7 @@ export default function PortalWazifaPage() {
                     <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3.5 py-3 mb-2">
                       <p className="font-sans text-[12px] font-semibold text-emerald-900">{t('pwz.awardedAmount')}</p>
                       <p className="font-heading text-[26px] font-bold text-emerald-800 leading-tight">
-                        Rs {fmt(d.approved_amount_pkr ?? 0)}
+                        {fmt(d.approved_amount_pkr ?? 0)}
                       </p>
                       {d.as_loan && (
                         <p className="font-sans text-[12px] text-emerald-900 mt-1 font-semibold">{t('pwz.awardIsLoan')}</p>
@@ -1154,15 +1154,15 @@ export default function PortalWazifaPage() {
                 <div className="grid grid-cols-3 gap-3 mb-3">
                   <div>
                     <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('pwz.loanAwarded')}</p>
-                    <p className="font-heading text-[19px] font-bold text-dp-primary">Rs {fmt(l.awarded_amount_pkr)}</p>
+                    <p className="font-heading text-[19px] font-bold text-dp-primary">{fmt(l.awarded_amount_pkr)}</p>
                   </div>
                   <div>
                     <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('pwz.loanRepaid')}</p>
-                    <p className="font-heading text-[19px] font-bold text-emerald-700">Rs {fmt(l.repaid_pkr)}</p>
+                    <p className="font-heading text-[19px] font-bold text-emerald-700">{fmt(l.repaid_pkr)}</p>
                   </div>
                   <div>
                     <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('pwz.loanOutstanding')}</p>
-                    <p className="font-heading text-[19px] font-bold text-dp-primary">Rs {fmt(l.outstanding)}</p>
+                    <p className="font-heading text-[19px] font-bold text-dp-primary">{fmt(l.outstanding)}</p>
                   </div>
                 </div>
                 <div className="h-2 w-full bg-dp-surface-container rounded-full overflow-hidden">
@@ -1202,7 +1202,7 @@ export default function PortalWazifaPage() {
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <div>
                     <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('pwz.ag.monthly')}</p>
-                    <p className="font-heading text-[19px] font-bold text-dp-primary">Rs {fmt(ag.monthly_amount_pkr)}</p>
+                    <p className="font-heading text-[19px] font-bold text-dp-primary">{fmt(ag.monthly_amount_pkr)}</p>
                   </div>
                   <div>
                     <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('pwz.ag.dueDay')}</p>
@@ -1236,7 +1236,7 @@ export default function PortalWazifaPage() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('pwz.stmt.heading')}</h2>
             <p className="font-sans text-[13px] font-semibold text-dp-on-surface-variant">
-              {t('pwz.stmt.balance')}: <span className="text-dp-primary font-bold">Rs {fmt(statement.balance)}</span>
+              {t('pwz.stmt.balance')}: <span className="text-dp-primary font-bold">{fmt(statement.balance)}</span>
             </p>
           </div>
           <div className="bg-white border border-dp-outline-variant rounded-lg overflow-x-auto">
@@ -1565,11 +1565,11 @@ export default function PortalWazifaPage() {
           <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 bg-dp-surface-container-low rounded-lg px-4 py-3">
             <div>
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('pwz.totalMonthlyIncome')}</p>
-              <p className="font-heading text-[19px] font-bold text-dp-primary">Rs {fmt(monthlyIncome)}</p>
+              <p className="font-heading text-[19px] font-bold text-dp-primary">{fmt(monthlyIncome)}</p>
             </div>
             <div>
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('pwz.familyEducationCost')}</p>
-              <p className="font-heading text-[19px] font-bold text-dp-primary">Rs {fmt(familyEducationCost)}</p>
+              <p className="font-heading text-[19px] font-bold text-dp-primary">{fmt(familyEducationCost)}</p>
             </div>
           </div>
         </div>
@@ -1923,10 +1923,10 @@ export default function PortalWazifaPage() {
               return totalMonthly > 0 ? (
                 <div className="mt-3 bg-white rounded-lg px-3.5 py-2.5 space-y-1">
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
-                    {t('pwz.f.realMonthlyCost')} <strong className="text-dp-on-surface">Rs {fmt(totalMonthly)}</strong>
+                    {t('pwz.f.realMonthlyCost')} <strong className="text-dp-on-surface">{fmt(totalMonthly)}</strong>
                   </p>
                   <p className="font-sans text-[13px] text-dp-on-surface">
-                    {t('pwz.f.committeeWouldPay')} <strong>Rs {fmt(totalMonthly)}</strong>/{t('pkf.month')}
+                    {t('pwz.f.committeeWouldPay')} <strong>{fmt(totalMonthly)}</strong>/{t('pkf.month')}
                   </p>
                 </div>
               ) : null
@@ -2296,7 +2296,7 @@ export default function PortalWazifaPage() {
             <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4 grid grid-cols-2 gap-3">
               <div>
                 <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('pwz.ag.monthly')}</p>
-                <p className="font-sans text-[15px] font-bold text-dp-primary">Rs {fmt(signing.monthly_amount_pkr)}</p>
+                <p className="font-sans text-[15px] font-bold text-dp-primary">{fmt(signing.monthly_amount_pkr)}</p>
               </div>
               <div>
                 <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('pwz.ag.dueDay')}</p>

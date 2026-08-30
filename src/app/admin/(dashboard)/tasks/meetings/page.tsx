@@ -386,7 +386,7 @@ export default function MeetingsAgendaPage() {
   // decide anything on its own.
   const importProposal = async (p: ReadyProposal) => {
     if (!importMeetingId) return
-    const text = `${p.title} — ${p.voteCount}/${p.vote_target} votes reached.${p.description ? ` ${p.description}` : ''}${p.minimum_monthly_commitment_pkr ? ` Proposer committed Rs. ${p.minimum_monthly_commitment_pkr}/month.` : ''}`
+    const text = `${p.title} — ${p.voteCount}/${p.vote_target} votes reached.${p.description ? ` ${p.description}` : ''}${p.minimum_monthly_commitment_pkr ? ` Proposer committed ${p.minimum_monthly_commitment_pkr}/month.` : ''}`
     const { error } = await supabase.from('agenda_items').insert({
       meeting_id: importMeetingId, kind: 'task', category: 'donation_projects', text_ur: text, source_project_id: p.id,
     })

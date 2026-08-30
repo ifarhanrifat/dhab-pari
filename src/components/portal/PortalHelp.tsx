@@ -25,7 +25,13 @@ export function PortalHelp({ pageKey }: { pageKey: PortalHelpKey }) {
   useEffect(() => {
     if (!content) return
     const seen = window.localStorage.getItem(STORAGE_PREFIX + pageKey)
-    if (!seen) setOpen(true)
+    // A brand-new account also gets the app-wide WelcomeTour (mounted in
+    // the dashboard layout) on this same first visit — if that hasn't
+    // been dismissed yet, don't stack this one on top of it too. It's
+    // still reachable any time via the (؟) icon; it just won't auto-pop
+    // a second full-screen sheet the moment the first one closes.
+    const welcomeTourPending = !window.localStorage.getItem('dp-portal-welcome-tour-seen')
+    if (!seen && !welcomeTourPending) setOpen(true)
   }, [pageKey, content])
 
   const close = () => {

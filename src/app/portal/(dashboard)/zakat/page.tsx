@@ -121,7 +121,7 @@ export default function PortalZakatPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('zk.collected')}</p>
-              <p className="font-heading text-[22px] font-bold text-dp-primary">Rs {fmt(round.collected_pkr)}</p>
+              <p className="font-heading text-[22px] font-bold text-dp-primary">{fmt(round.collected_pkr)}</p>
             </div>
             <div>
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('zk.card.households')}</p>
@@ -129,7 +129,7 @@ export default function PortalZakatPage() {
             </div>
             <div>
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('pzk.perHousehold')}</p>
-              <p className="font-heading text-[22px] font-bold text-dp-primary">Rs {fmt(perHousehold)}</p>
+              <p className="font-heading text-[22px] font-bold text-dp-primary">{fmt(perHousehold)}</p>
             </div>
           </div>
 

@@ -155,11 +155,11 @@ export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) 
           <div className="flex justify-between">
             <div>
               <p className="font-sans text-[12px] font-bold uppercase tracking-widest text-dp-on-surface-variant">{dt(lang, 'openingBalance')}</p>
-              <p className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmtAmount(openingBalance)}</p>
+              <p className="font-heading text-[22px] font-bold text-dp-primary">{fmtAmount(openingBalance)}</p>
             </div>
             <div className="text-end">
               <p className="font-sans text-[12px] font-bold uppercase tracking-widest text-dp-on-surface-variant">{dt(lang, 'closingBalance')}</p>
-              <p className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmtAmount(closingBalance)}</p>
+              <p className="font-heading text-[22px] font-bold text-dp-primary">{fmtAmount(closingBalance)}</p>
             </div>
           </div>
         </div>

@@ -110,7 +110,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
 
       const result = await shareReceipt({
         blob, filename: filename(), mime, phone, clipboardBlob,
-        message: `Receipt ${data.receiptNo} — Rs. ${data.amount.toLocaleString()}`,
+        message: `Receipt ${data.receiptNo} — ${data.amount.toLocaleString()}`,
       })
       toast.success(
         result === 'shared' ? 'Shared'

@@ -204,15 +204,15 @@ export default function ApprovalsPage() {
                       )}
                       {lines && lines.length > 0 && (
                         <ul className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1 list-disc list-inside">
-                          {lines.map((l, i) => <li key={i}>{l.description} × {l.quantity} @ Rs. {fmt(l.unit_cost)}</li>)}
+                          {lines.map((l, i) => <li key={i}>{l.description} × {l.quantity} @ {fmt(l.unit_cost)}</li>)}
                         </ul>
                       )}
                       {vLines && vLines.length > 0 && (
                         <ul className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1 list-disc list-inside">
-                          {vLines.map((l, i) => <li key={i}>{l.description ?? accountNames[l.account_id] ?? t('ap.lineFallback')}: Rs. {fmt(l.amount)}</li>)}
+                          {vLines.map((l, i) => <li key={i}>{l.description ?? accountNames[l.account_id] ?? t('ap.lineFallback')}: {fmt(l.amount)}</li>)}
                         </ul>
                       )}
-                      <p className="font-sans text-[16px] font-bold text-dp-primary mt-1">Rs. {fmt(r.amount_pkr)}</p>
+                      <p className="font-sans text-[16px] font-bold text-dp-primary mt-1">{fmt(r.amount_pkr)}</p>
                       {attachmentUrl && (
                         <a href={attachmentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[12.5px] font-semibold hover:underline mt-1">
                           <Paperclip size={13} /> {t('ap.viewAttachedBill')}
@@ -282,7 +282,7 @@ export default function ApprovalsPage() {
                               {t(systemLabelKey[r.system])} · {r.kind}{hasDetail ? ` · ${expanded ? t('ap.hideDetail') : t('ap.clickToViewDetail')}` : ''}
                             </p>
                           </td>
-                          <td className="px-5 py-3 text-end font-bold">Rs. {fmt(r.amount_pkr)}</td>
+                          <td className="px-5 py-3 text-end font-bold">{fmt(r.amount_pkr)}</td>
                           <td className="px-5 py-3 text-dp-on-surface-variant">
                             {waiting.length === 0 ? t('ap.allConfirmed') : (
                               <div className="flex flex-col gap-1">
@@ -317,12 +317,12 @@ export default function ApprovalsPage() {
                               )}
                               {lines && lines.length > 0 && (
                                 <ul className="font-sans text-[12.5px] text-dp-on-surface-variant list-disc list-inside">
-                                  {lines.map((l, i) => <li key={i}>{l.description} × {l.quantity} @ Rs. {fmt(l.unit_cost)}</li>)}
+                                  {lines.map((l, i) => <li key={i}>{l.description} × {l.quantity} @ {fmt(l.unit_cost)}</li>)}
                                 </ul>
                               )}
                               {vLines && vLines.length > 0 && (
                                 <ul className="font-sans text-[12.5px] text-dp-on-surface-variant list-disc list-inside">
-                                  {vLines.map((l, i) => <li key={i}>{l.description ?? accountNames[l.account_id] ?? t('ap.lineFallback')}: Rs. {fmt(l.amount)}</li>)}
+                                  {vLines.map((l, i) => <li key={i}>{l.description ?? accountNames[l.account_id] ?? t('ap.lineFallback')}: {fmt(l.amount)}</li>)}
                                 </ul>
                               )}
                             </td>

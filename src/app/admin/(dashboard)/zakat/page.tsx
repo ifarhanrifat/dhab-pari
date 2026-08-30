@@ -152,11 +152,11 @@ export default function ZakatPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3">
           <p className="font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('zk.card.zakatFund')}</p>
-          <p className="font-heading text-[22px] font-bold text-dp-primary">Rs {fmt(balances.zakat)}</p>
+          <p className="font-heading text-[22px] font-bold text-dp-primary">{fmt(balances.zakat)}</p>
         </div>
         <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3">
           <p className="font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('zk.card.ushrFund')}</p>
-          <p className="font-heading text-[22px] font-bold text-dp-primary">Rs {fmt(balances.ushr)}</p>
+          <p className="font-heading text-[22px] font-bold text-dp-primary">{fmt(balances.ushr)}</p>
         </div>
         <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3">
           <p className="font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('zk.card.households')}</p>
@@ -229,15 +229,15 @@ export default function ZakatPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-dp-outline-variant">
             <div className="px-5 py-3">
               <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('zk.collected')}</p>
-              <p className="font-heading text-[20px] font-bold text-dp-primary">Rs {fmt(active.collected_pkr)}</p>
+              <p className="font-heading text-[20px] font-bold text-dp-primary">{fmt(active.collected_pkr)}</p>
             </div>
             <div className="px-5 py-3">
               <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('zk.allocated')}</p>
-              <p className="font-heading text-[20px] font-bold text-dp-primary">Rs {fmt(allocated)}</p>
+              <p className="font-heading text-[20px] font-bold text-dp-primary">{fmt(allocated)}</p>
             </div>
             <div className="px-5 py-3">
               <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('zk.distributed')}</p>
-              <p className="font-heading text-[20px] font-bold text-emerald-700">Rs {fmt(active.distributed_pkr)}</p>
+              <p className="font-heading text-[20px] font-bold text-emerald-700">{fmt(active.distributed_pkr)}</p>
             </div>
           </div>
         </div>
@@ -271,7 +271,7 @@ export default function ZakatPage() {
                     <td className="p-3 border-b border-dp-outline-variant">{t(`nr.asnaf.${b.asnaf_category}`)}</td>
                     <td className="p-3 border-b border-dp-outline-variant text-center tabular-nums">{b.household_size}</td>
                     <td className="p-3 border-b border-dp-outline-variant text-center tabular-nums">{b.dependants}</td>
-                    <td className="p-3 border-b border-dp-outline-variant text-end tabular-nums font-semibold">Rs {fmt(b.amount_pkr)}</td>
+                    <td className="p-3 border-b border-dp-outline-variant text-end tabular-nums font-semibold">{fmt(b.amount_pkr)}</td>
                     <td className="p-3 border-b border-dp-outline-variant">
                       {b.status === 'paid' ? (
                         <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">
@@ -378,7 +378,7 @@ export default function ZakatPage() {
 
             <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
               <p className="font-mono text-[13px] font-bold">{payTarget.code}</p>
-              <p className="font-heading text-[22px] font-bold text-dp-primary mt-0.5">Rs {fmt(payTarget.amount_pkr)}</p>
+              <p className="font-heading text-[22px] font-bold text-dp-primary mt-0.5">{fmt(payTarget.amount_pkr)}</p>
             </div>
 
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('zk.tamleekNotice')}</p>
@@ -430,7 +430,7 @@ export default function ZakatPage() {
                     {t(`zk.status.${r.status}`)} · {r.household_count} {t('zk.households')} · {t('zk.base')} {r.base_per_household} / {t('zk.perDependant')} {r.per_dependant_increment}
                   </p>
                 </div>
-                <p className="font-sans text-[14px] font-bold text-dp-primary">Rs {fmt(r.distributed_pkr)}</p>
+                <p className="font-sans text-[14px] font-bold text-dp-primary">{fmt(r.distributed_pkr)}</p>
               </div>
             ))}
           </div>

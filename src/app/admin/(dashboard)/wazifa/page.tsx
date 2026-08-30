@@ -1161,22 +1161,22 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-5">
             <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3">
               <p className="font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('wz.ins.report.dueThisMonth')}</p>
-              <p className="font-heading text-[22px] font-bold text-dp-primary">Rs {fmt(due)}</p>
+              <p className="font-heading text-[22px] font-bold text-dp-primary">{fmt(due)}</p>
             </div>
             <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3">
               <p className="font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('wz.ins.report.collected')}</p>
-              <p className="font-heading text-[22px] font-bold text-emerald-700">Rs {fmt(collected)}</p>
+              <p className="font-heading text-[22px] font-bold text-emerald-700">{fmt(collected)}</p>
             </div>
             <div className={`bg-white border rounded-lg px-4 py-3 ${overdue.length > 0 ? 'border-dp-error' : 'border-dp-outline-variant'}`}>
               <p className="font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('wz.ins.report.overdue')}</p>
               <p className={`font-heading text-[22px] font-bold ${overdue.length > 0 ? 'text-dp-error' : 'text-dp-primary'}`}>
-                Rs {fmt(overdueAmt)} <span className="text-[13px] font-sans font-semibold text-dp-on-surface-variant">({overdue.length})</span>
+                {fmt(overdueAmt)} <span className="text-[13px] font-sans font-semibold text-dp-on-surface-variant">({overdue.length})</span>
               </p>
             </div>
             <div className={`bg-white border rounded-lg px-4 py-3 ${repayOverdue.length > 0 ? 'border-dp-error' : 'border-dp-outline-variant'}`}>
               <p className="font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('wz.ins.report.repayOverdue')}</p>
               <p className={`font-heading text-[22px] font-bold ${repayOverdue.length > 0 ? 'text-dp-error' : 'text-dp-primary'}`}>
-                Rs {fmt(repayOverdueAmt)} <span className="text-[13px] font-sans font-semibold text-dp-on-surface-variant">({repayOverdue.length})</span>
+                {fmt(repayOverdueAmt)} <span className="text-[13px] font-sans font-semibold text-dp-on-surface-variant">({repayOverdue.length})</span>
               </p>
             </div>
           </div>
@@ -1222,7 +1222,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                   </p>
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">
                     {a.last_exam_name && `${a.last_exam_name}: ${a.last_exam_percent ?? '—'}% · `}
-                    {t('wz.requested')} Rs {fmt(a.requested_amount_pkr)}
+                    {t('wz.requested')} {fmt(a.requested_amount_pkr)}
                   </p>
                   {a.need_statement && <p className="font-sans text-[12.5px] text-dp-on-surface mt-1.5 italic">{a.need_statement}</p>}
 
@@ -1260,7 +1260,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                     {decisionsByApp[a.id] && (
                       <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11.5px] font-bold">
                         {t(`pwz.decision.${decisionsByApp[a.id].decision}`)}
-                        {decisionsByApp[a.id].approved_amount_pkr > 0 && ` — Rs ${fmt(decisionsByApp[a.id].approved_amount_pkr)}`}
+                        {decisionsByApp[a.id].approved_amount_pkr > 0 && ` — ${fmt(decisionsByApp[a.id].approved_amount_pkr)}`}
                       </span>
                     )}
                   </div>
@@ -1373,7 +1373,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                       <span className="px-2 py-0.5 rounded-full bg-dp-surface-container-low text-[11px] font-bold">{t(`wz.funded.${aw.funded_by}`)}</span>
                     </div>
                     <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">
-                      {aw.academic_year} · {t('wz.awarded')} <strong>Rs {fmt(aw.awarded_amount_pkr)}</strong> · {t('wz.paidSoFar')} Rs {fmt(paid)}
+                      {aw.academic_year} · {t('wz.awarded')} <strong>{fmt(aw.awarded_amount_pkr)}</strong> · {t('wz.paidSoFar')} {fmt(paid)}
                     </p>
                     {(() => {
                       const app = applications.find((a) => a.id === aw.application_id)
@@ -1405,8 +1405,8 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                     )}
                     {aw.is_loan && !onPlan && (
                       <p className="font-sans text-[12.5px] text-emerald-700 mt-1 font-semibold">
-                        {t('pwz.qarzBadge')} · {t('pwz.loanRepaid')} Rs {fmt(Number(aw.repaid_pkr ?? 0))}
-                        {' · '}{t('pwz.loanOutstanding')} Rs {fmt(aw.awarded_amount_pkr - Number(aw.repaid_pkr ?? 0))}
+                        {t('pwz.qarzBadge')} · {t('pwz.loanRepaid')} {fmt(Number(aw.repaid_pkr ?? 0))}
+                        {' · '}{t('pwz.loanOutstanding')} {fmt(aw.awarded_amount_pkr - Number(aw.repaid_pkr ?? 0))}
                       </p>
                     )}
                   </div>
@@ -1467,7 +1467,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                           <span className="font-sans text-[12px] text-dp-on-surface-variant ms-2">→ {t(`wz.payTo.${i.pay_to}`)}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="font-sans text-[13.5px] font-semibold tabular-nums">Rs {fmt(i.amount_pkr)}</span>
+                          <span className="font-sans text-[13.5px] font-semibold tabular-nums">{fmt(i.amount_pkr)}</span>
                           {i.status === 'paid' ? (
                             <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">{i.receipt_no}</span>
                           ) : (
@@ -1494,7 +1494,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                       <div className="font-sans text-[12.5px] text-dp-on-surface-variant">
                         {monthly > 0 ? (
                           <>
-                            {t('wz.ins.fixed')} <strong className="text-dp-on-surface">Rs {fmt(monthly)}</strong> · {t('wz.ins.dueDay')} {dueDay ?? '—'}
+                            {t('wz.ins.fixed')} <strong className="text-dp-on-surface">{fmt(monthly)}</strong> · {t('wz.ins.dueDay')} {dueDay ?? '—'}
                             {aw.installment_active ? (
                               <span className="ms-2 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">{t('wz.ins.active')}</span>
                             ) : ag?.status === 'verified' ? (
@@ -1570,8 +1570,8 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                       {isDisburseThenSettle && (
                         <div className="mt-2.5">
                           <p className="font-sans text-[12px] text-dp-on-surface-variant">
-                            {t('wz.plan.supportGiven')} <strong className="text-dp-on-surface">Rs {fmt(aw.disbursed_pkr ?? 0)}</strong>
-                            {aw.disbursement_monthly_pkr ? ` · Rs ${fmt(aw.disbursement_monthly_pkr)}/${t('pkf.month')}` : ''}
+                            {t('wz.plan.supportGiven')} <strong className="text-dp-on-surface">{fmt(aw.disbursed_pkr ?? 0)}</strong>
+                            {aw.disbursement_monthly_pkr ? ` · ${fmt(aw.disbursement_monthly_pkr)}/${t('pkf.month')}` : ''}
                             {aw.settlement_trigger === 'employment' && !aw.installment_active && (
                               <span className="ms-1.5 text-amber-700 font-semibold">· {t('wz.plan.awaitingEmployment')}</span>
                             )}
@@ -1582,7 +1582,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                                 <button key={c.id} onClick={() => setPayDisbursementTarget(c)}
                                   className="flex items-center gap-1.5 px-2.5 py-1 border border-emerald-600 text-emerald-700 rounded-lg font-sans text-[11.5px] font-semibold hover:bg-emerald-600 hover:text-white transition-all cursor-pointer">
                                   <HandCoins size={12} />
-                                  {t('wz.plan.release')} {new Date(c.due_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · Rs {fmt(c.amount_pkr - c.paid_pkr)}
+                                  {t('wz.plan.release')} {new Date(c.due_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {fmt(c.amount_pkr - c.paid_pkr)}
                                 </button>
                               ))}
                             </div>
@@ -1615,7 +1615,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                             <button key={c.id} onClick={() => { setPayChargeTarget(c); setPayChargeForm({ amount: c.amount_pkr - c.paid_pkr, method: 'cash' }) }}
                               className="flex items-center gap-1.5 px-2.5 py-1 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[11.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
                               <HandCoins size={12} />
-                              {new Date(c.due_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · Rs {fmt(c.amount_pkr - c.paid_pkr)}
+                              {new Date(c.due_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {fmt(c.amount_pkr - c.paid_pkr)}
                             </button>
                           ))}
                         </div>
@@ -1668,7 +1668,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                         <div className="font-sans text-[12.5px] text-dp-on-surface-variant">
                           {activeGrant ? (
                             <>
-                              {t('wz.grant.running')} <strong className="text-dp-on-surface">Rs {fmt(activeGrant.monthly_amount_pkr)}/mo</strong>
+                              {t('wz.grant.running')} <strong className="text-dp-on-surface">{fmt(activeGrant.monthly_amount_pkr)}/mo</strong>
                               {' · '}{raisedMonths}/{activeGrant.months_awarded} {t('wz.grant.monthsRaised')}
                               {' · '}{t(`wz.payTo.${activeGrant.pay_to}`)}
                             </>
@@ -1704,7 +1704,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                             </button>
                           ) : (
                             <span className="px-2.5 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 text-[12.5px] font-bold">
-                              {t('wz.employ.badge')} · {t('pwz.loanRepaid')} Rs {fmt(Number(aw.repaid_pkr ?? 0))}
+                              {t('wz.employ.badge')} · {t('pwz.loanRepaid')} {fmt(Number(aw.repaid_pkr ?? 0))}
                             </span>
                           )}
                         </div>
@@ -1768,12 +1768,12 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                       <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{a.donor_name ?? '—'}</p>
                       <p className="font-sans text-[12px] text-dp-on-surface-variant">
                         {a.donor_phone && <a href={`tel:${a.donor_phone}`} className="text-dp-secondary hover:underline">{a.donor_phone}</a>}
-                        {' · '}Rs {fmt(a.amount)} · {a.is_one_time ? t('pool.oneTime') : t('pool.recurringMonthly')}
+                        {' · '}{fmt(a.amount)} · {a.is_one_time ? t('pool.oneTime') : t('pool.recurringMonthly')}
                       </p>
                       {a.payment_batch_id && collBatchSummary[a.payment_batch_id]?.count > 1 && (
                         <span title="Sent as one payment along with other pledges — some may be on other Collections tabs or /admin/donors"
                           className="inline-block mt-1 text-[11px] font-bold px-2 py-0.5 rounded-full font-sans bg-amber-100 text-amber-800">
-                          Part of Rs {collBatchSummary[a.payment_batch_id].total.toLocaleString()} · {collBatchSummary[a.payment_batch_id].count} items
+                          Part of {collBatchSummary[a.payment_batch_id].total.toLocaleString()} · {collBatchSummary[a.payment_batch_id].count} items
                         </span>
                       )}
                     </div>
@@ -1811,7 +1811,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                     <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{l.name}</p>
                     <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
                       {l.phone && <a href={`tel:${l.phone}`} className="text-dp-secondary hover:underline">{l.phone}</a>}
-                      {' · '}Rs {fmt(l.amount)}/{t('pkf.month')}
+                      {' · '}{fmt(l.amount)}/{t('pkf.month')}
                     </p>
                   </div>
                 ))}
@@ -1854,7 +1854,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                 {collCovers.map((c, i) => (
                   <div key={i} className="bg-white border border-dp-outline-variant rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
                     <p className="font-sans text-[12.5px] text-dp-on-surface">{new Date(c.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</p>
-                    <p className="font-sans text-[13px] font-semibold text-dp-on-surface">Rs {fmt(c.amount)}</p>
+                    <p className="font-sans text-[13px] font-semibold text-dp-on-surface">{fmt(c.amount)}</p>
                     <p className="font-mono text-[11.5px] text-dp-secondary">{c.voucher_no ?? '—'}</p>
                   </div>
                 ))}
@@ -2055,7 +2055,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
               <button onClick={() => setPayTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
-              {t(`wz.purpose.${payTarget.purpose}`)} · Rs {fmt(payTarget.amount_pkr)} · → {t(`wz.payTo.${payTarget.pay_to}`)}
+              {t(`wz.purpose.${payTarget.purpose}`)} · {fmt(payTarget.amount_pkr)} · → {t(`wz.payTo.${payTarget.pay_to}`)}
             </p>
 
             {payTarget.pay_to === 'institution' && (
@@ -2356,7 +2356,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                           <span className="font-sans text-[13px] font-semibold text-dp-on-surface">{label}</span>
                         </span>
                         <span className="flex items-center gap-2">
-                          <span className="font-sans text-[12.5px] text-dp-on-surface-variant">Rs {fmt(m.amount)}</span>
+                          <span className="font-sans text-[12.5px] text-dp-on-surface-variant">{fmt(m.amount)}</span>
                           <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
                             isPaid ? 'bg-emerald-100 text-emerald-700'
                             : m.status === 'part_paid' ? 'bg-amber-100 text-amber-700'
@@ -2378,7 +2378,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                     <option value="easypaisa">{t('w.easypaisa')}</option>
                   </select>
                   <p className="font-sans text-[13px] font-bold text-dp-on-surface">
-                    {calendarSelected.size} {t('wz.cal.monthsSelected')} · Rs {fmt(calendarSelectedTotal)}
+                    {calendarSelected.size} {t('wz.cal.monthsSelected')} · {fmt(calendarSelectedTotal)}
                   </p>
                 </div>
                 <button disabled={busy || calendarSelected.size === 0} onClick={submitCalendarPay}
@@ -2437,7 +2437,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                           <span className="font-sans text-[13px] font-semibold text-dp-on-surface">{label}</span>
                         </span>
                         <span className="flex items-center gap-2">
-                          <span className="font-sans text-[12.5px] text-dp-on-surface-variant">Rs {fmt(m.amount)}</span>
+                          <span className="font-sans text-[12.5px] text-dp-on-surface-variant">{fmt(m.amount)}</span>
                           <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
                             isPaid ? 'bg-emerald-100 text-emerald-700'
                             : m.status === 'part_paid' ? 'bg-amber-100 text-amber-700'
@@ -2459,7 +2459,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                     <option value="easypaisa">{t('w.easypaisa')}</option>
                   </select>
                   <p className="font-sans text-[13px] font-bold text-dp-on-surface">
-                    {payoutCalendarSelected.size} {t('wz.cal.monthsSelected')} · Rs {fmt(payoutCalendarSelectedTotal)}
+                    {payoutCalendarSelected.size} {t('wz.cal.monthsSelected')} · {fmt(payoutCalendarSelectedTotal)}
                   </p>
                 </div>
                 <button disabled={busy || payoutCalendarSelected.size === 0} onClick={submitPayoutCalendarPay}
@@ -2560,7 +2560,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
             </div>
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">
               {t('wz.ins.due')} {new Date(payChargeTarget.due_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-              {' · '}{t('wz.ins.remaining')} Rs {fmt(payChargeTarget.amount_pkr - payChargeTarget.paid_pkr)}
+              {' · '}{t('wz.ins.remaining')} {fmt(payChargeTarget.amount_pkr - payChargeTarget.paid_pkr)}
             </p>
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
             <input type="number" min={1} max={payChargeTarget.amount_pkr - payChargeTarget.paid_pkr} value={payChargeForm.amount || ''}
@@ -2589,7 +2589,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
             </div>
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">
               {t('wz.ins.due')} {new Date(payDisbursementTarget.due_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-              {' · '}Rs {fmt(payDisbursementTarget.amount_pkr)}
+              {' · '}{fmt(payDisbursementTarget.amount_pkr)}
             </p>
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
             <select value={payDisbursementForm.method} onChange={(e) => setPayDisbursementForm({ method: e.target.value })} className="input-field mb-4">
@@ -2663,7 +2663,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                             {r.name && ` · ${r.name}`}
                           </span>
                           <span className="font-sans text-[12px] font-semibold text-dp-on-surface-variant">
-                            {r.status}{r.awarded ? ` · Rs ${fmt(r.awarded)}` : ''}
+                            {r.status}{r.awarded ? ` · ${fmt(r.awarded)}` : ''}
                           </span>
                         </div>
                       ))}
@@ -2860,13 +2860,13 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
             <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
               <p className="font-sans text-[14px] font-semibold">{studentOf(decideTarget.student_id)?.full_name}</p>
               <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
-                {decideTarget.programme} · {decideTarget.institution} · {t('wz.requested')} Rs {fmt(decideTarget.requested_amount_pkr)}
+                {decideTarget.programme} · {decideTarget.institution} · {t('wz.requested')} {fmt(decideTarget.requested_amount_pkr)}
               </p>
               {myVerification(decideTarget.id) && (
                 <p className="font-sans text-[12.5px] text-dp-secondary mt-1 font-semibold">
                   {t('wz.verifierRecommends')} {t(`pwz.v.rec.${myVerification(decideTarget.id)!.recommendation ?? 'full'}`)}
                   {myVerification(decideTarget.id)!.recommended_amount_pkr
-                    ? ` — Rs ${fmt(Number(myVerification(decideTarget.id)!.recommended_amount_pkr))}` : ''}
+                    ? ` — ${fmt(Number(myVerification(decideTarget.id)!.recommended_amount_pkr))}` : ''}
                 </p>
               )}
             </div>
@@ -2955,8 +2955,8 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                             <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('wz.plan.disburseHelp')}</p>
                             {(decideTarget.actual_course_cost_pkr || decideTarget.family_monthly_capacity_pkr || decideTarget.offered_monthly_contribution_pkr) ? (
                               <p className="font-sans text-[12px] text-dp-secondary bg-dp-secondary/10 rounded-lg px-3 py-2">
-                                {decideTarget.actual_course_cost_pkr ? `${t('wz.f.actualCourseCost')}: Rs ${fmt(decideTarget.actual_course_cost_pkr)} · ` : ''}
-                                {t('wz.f.familyCapacity')}: Rs {fmt(decideTarget.family_monthly_capacity_pkr || decideTarget.offered_monthly_contribution_pkr)}/{t('pkf.month')}
+                                {decideTarget.actual_course_cost_pkr ? `${t('wz.f.actualCourseCost')}: ${fmt(decideTarget.actual_course_cost_pkr)} · ` : ''}
+                                {t('wz.f.familyCapacity')}: {fmt(decideTarget.family_monthly_capacity_pkr || decideTarget.offered_monthly_contribution_pkr)}/{t('pkf.month')}
                               </p>
                             ) : null}
                             <p className="font-sans text-[12px] font-bold uppercase tracking-wide text-dp-on-surface-variant">{t('wz.plan.whileStudying')}</p>
@@ -3081,7 +3081,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                               const months = Math.max(1, (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1)
                               return (
                                 <p className="font-sans text-[13px] text-dp-on-surface bg-dp-secondary/10 rounded-lg px-3.5 py-2.5">
-                                  {t('wz.ins.preview')} <strong>Rs {fmt(Math.round(total / months))}</strong>/{t('pkf.month')} · {months} {t('wz.ins.monthsLabel')}
+                                  {t('wz.ins.preview')} <strong>{fmt(Math.round(total / months))}</strong>/{t('pkf.month')} · {months} {t('wz.ins.monthsLabel')}
                                 </p>
                               )
                             })()}
@@ -3127,7 +3127,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
               <button onClick={() => setPlanTarget(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
-              {studentOf(planTarget.student_id)?.full_name} · Rs {fmt(planTarget.awarded_amount_pkr)}
+              {studentOf(planTarget.student_id)?.full_name} · {fmt(planTarget.awarded_amount_pkr)}
             </p>
 
             <div className="grid grid-cols-2 gap-3 mb-3">
@@ -3144,7 +3144,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
             </div>
 
             <p className="font-sans text-[13px] text-dp-on-surface bg-dp-surface-container-low rounded-lg px-3.5 py-2.5 mb-3">
-              {t('wz.plan.each')} <strong>Rs {fmt(Math.floor(planTarget.awarded_amount_pkr / Math.max(planForm.instalments, 1)))}</strong>
+              {t('wz.plan.each')} <strong>{fmt(Math.floor(planTarget.awarded_amount_pkr / Math.max(planForm.instalments, 1)))}</strong>
             </p>
             <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-4">{t('wz.plan.startHint')}</p>
 

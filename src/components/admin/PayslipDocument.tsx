@@ -73,13 +73,13 @@ export const PayslipDocument = forwardRef<HTMLDivElement, Props>(function Paysli
 
       <div className="rounded-lg border border-dp-primary/30 bg-dp-primary/5 px-4 py-3 mb-6 space-y-1.5">
         <div className="flex justify-between text-[15px] font-bold text-dp-primary">
-          <span>{t('y.balanceOwed')}</span><span>Rs. {fmt(data.balanceOwed)}</span>
+          <span>{t('y.balanceOwed')}</span><span>{fmt(data.balanceOwed)}</span>
         </div>
         <div className="flex justify-between text-[13px] border-t border-dp-primary/20 pt-1.5">
-          <span>{t('y.paidNow')}</span><span>− Rs. {fmt(data.amountPaidNow)}</span>
+          <span>{t('y.paidNow')}</span><span>− {fmt(data.amountPaidNow)}</span>
         </div>
         <div className="flex justify-between text-[14px] font-bold">
-          <span>{t('y.balanceCarried')}</span><span>Rs. {fmt(data.balanceCarriedForward)}</span>
+          <span>{t('y.balanceCarried')}</span><span>{fmt(data.balanceCarriedForward)}</span>
         </div>
       </div>
 
@@ -97,7 +97,7 @@ function Row({ label, amount }: { label: string; amount: number }) {
   return (
     <tr className="border-b border-dp-outline-variant">
       <td className="py-1.5">{label}</td>
-      <td className="py-1.5 text-end">Rs. {fmt(amount)}</td>
+      <td className="py-1.5 text-end">{fmt(amount)}</td>
     </tr>
   )
 }

@@ -676,8 +676,8 @@ function BillingPageInner() {
     setDisconnecting(false)
     if (error) { toast.error(friendlyError(error)); return }
     const parts: string[] = []
-    if (data.applied > 0) parts.push(`Rs. ${Number(data.applied).toLocaleString()} ${t('billing.appliedToPendingSuffix')}`)
-    if (data.refund > 0) parts.push(`Rs. ${Number(data.refund).toLocaleString()} ${t('billing.refundedSuffix')}`)
+    if (data.applied > 0) parts.push(`${Number(data.applied).toLocaleString()} ${t('billing.appliedToPendingSuffix')}`)
+    if (data.refund > 0) parts.push(`${Number(data.refund).toLocaleString()} ${t('billing.refundedSuffix')}`)
     toast.success(`${t('billing.consumerDisconnected')}${parts.length ? ' — ' + parts.join(', ') : ''}`)
     setDisconnectTarget(null)
     setDisconnectPreview(null)
@@ -770,7 +770,7 @@ function BillingPageInner() {
     setApplyingAdvanceBillId(null)
     if (error) { toast.error(friendlyError(error)); return }
     const applied = (data as { applied?: number } | null)?.applied ?? 0
-    toast.success(`${t('billing.advanceApplied')} Rs. ${applied.toLocaleString()}`)
+    toast.success(`${t('billing.advanceApplied')} ${applied.toLocaleString()}`)
     loadData()
   }
 
@@ -930,7 +930,7 @@ function BillingPageInner() {
                         )}
                         {(advanceBalances[c.consumer_id] ?? 0) > 0 && (
                           <span className="inline-flex items-center gap-1 mb-1 px-1.5 py-0.5 rounded-full text-[9.5px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-700" title={t('billing.advanceOnFile')}>
-                            <Wallet size={9} /> Rs. {(advanceBalances[c.consumer_id] ?? 0).toLocaleString()}
+                            <Wallet size={9} /> {(advanceBalances[c.consumer_id] ?? 0).toLocaleString()}
                           </span>
                         )}
                         <div className="flex flex-wrap items-center gap-2">
@@ -959,7 +959,7 @@ function BillingPageInner() {
                       <div className="flex items-center gap-2 shrink-0">
                         {stats.pendingCount > 0 ? (
                           <div className="text-end">
-                            <p className="font-sans text-[13px] font-bold text-dp-error">Rs. {stats.outstanding.toLocaleString()}</p>
+                            <p className="font-sans text-[13px] font-bold text-dp-error">{stats.outstanding.toLocaleString()}</p>
                             <p className="font-sans text-[10px] text-dp-error/70">{stats.pendingCount} pending</p>
                             <p className="font-sans text-[9.5px] text-dp-error/60 max-w-[110px] truncate" title={stats.pendingMonths.join(', ')}>{stats.pendingMonths.join(', ')}</p>
                           </div>
@@ -1084,7 +1084,7 @@ function BillingPageInner() {
                 ) : <span />}
                 <div dir={isUrdu ? 'rtl' : undefined} className="flex items-baseline gap-1.5">
                   <span className="font-sans text-[11px] text-emerald-800/80 whitespace-nowrap">{t('billing.advanceOnFile')}</span>
-                  <span className="tabular-nums text-[18px] font-bold text-emerald-700 tracking-tight whitespace-nowrap">Rs. {(advanceBalances[selectedConsumer.consumer_id] ?? 0).toLocaleString()}</span>
+                  <span className="tabular-nums text-[18px] font-bold text-emerald-700 tracking-tight whitespace-nowrap">{(advanceBalances[selectedConsumer.consumer_id] ?? 0).toLocaleString()}</span>
                 </div>
               </div>
             )}
@@ -1108,7 +1108,7 @@ function BillingPageInner() {
                     row instead of two, so this pill stays short. */}
                 <div dir={isUrdu ? 'rtl' : undefined} className="flex items-baseline gap-1.5">
                   <span className="font-sans text-[11px] text-dp-error/80 whitespace-nowrap">{t('billing.balanceDue', 'باقی رقم')}</span>
-                  <span className="tabular-nums text-[18px] font-bold text-dp-error tracking-tight whitespace-nowrap">Rs. {selectedOutstanding.toLocaleString()}</span>
+                  <span className="tabular-nums text-[18px] font-bold text-dp-error tracking-tight whitespace-nowrap">{selectedOutstanding.toLocaleString()}</span>
                 </div>
               </div>
             )}
@@ -1331,7 +1331,7 @@ function BillingPageInner() {
                     {(bill.discount_amount ?? 0) > 0 || bill.waiver_voucher_id || (bill.advance_applied_amount ?? 0) > 0 ? (
                       <div className="flex flex-wrap justify-end gap-1.5 mt-2">
                         {(bill.discount_amount ?? 0) > 0 && (
-                          <span className="text-[10.5px] font-semibold text-emerald-700">{t('billing.discountLabel')}: − Rs. {(bill.discount_amount ?? 0).toLocaleString()}</span>
+                          <span className="text-[10.5px] font-semibold text-emerald-700">{t('billing.discountLabel')}: − {(bill.discount_amount ?? 0).toLocaleString()}</span>
                         )}
                         {bill.waiver_voucher_id && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10.5px] font-bold uppercase tracking-wide">
@@ -1342,7 +1342,7 @@ function BillingPageInner() {
                         )}
                         {(bill.advance_applied_amount ?? 0) > 0 && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10.5px] font-bold uppercase tracking-wide">
-                            <Wallet size={9} /> {t('billing.advanceAppliedBadge')}: Rs. {(bill.advance_applied_amount ?? 0).toLocaleString()}
+                            <Wallet size={9} /> {t('billing.advanceAppliedBadge')}: {(bill.advance_applied_amount ?? 0).toLocaleString()}
                           </span>
                         )}
                       </div>
@@ -1402,11 +1402,11 @@ function BillingPageInner() {
                       <div className="flex items-center gap-4">
                         <div className="text-end">
                           <div dir={isUrdu ? 'rtl' : undefined} className="font-sans text-[10px] text-dp-on-surface-variant">{t('billing.paidLabel')}</div>
-                          <div className={`tabular-nums text-[14.5px] font-bold ${(bill.paid_amount ?? 0) > 0 ? 'text-emerald-700' : 'text-dp-on-surface-variant'}`}>Rs. {(bill.paid_amount ?? 0).toLocaleString()}</div>
+                          <div className={`tabular-nums text-[14.5px] font-bold ${(bill.paid_amount ?? 0) > 0 ? 'text-emerald-700' : 'text-dp-on-surface-variant'}`}>{(bill.paid_amount ?? 0).toLocaleString()}</div>
                         </div>
                         <div className="text-end">
                           <div dir={isUrdu ? 'rtl' : undefined} className="font-sans text-[10px] text-dp-on-surface-variant">{t('billing.total')}</div>
-                          <div className="tabular-nums text-[14.5px] font-bold text-dp-on-surface">Rs. {bill.amount_pkr.toLocaleString()}</div>
+                          <div className="tabular-nums text-[14.5px] font-bold text-dp-on-surface">{bill.amount_pkr.toLocaleString()}</div>
                         </div>
                       </div>
                     </div>
@@ -1682,15 +1682,15 @@ function BillingPageInner() {
               <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-4">{t('billing.calculatingSettlement')}</p>
             ) : (
               <div className="space-y-1.5 font-sans text-[13.5px]">
-                <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('billing.securityHeld')}</span><span className="font-semibold">Rs. {disconnectPreview.deposit_on_hand.toLocaleString()}</span></div>
-                <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('billing.pendingBalance')}</span><span className="font-semibold">Rs. {Math.max(disconnectPreview.pending_balance, 0).toLocaleString()}</span></div>
+                <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('billing.securityHeld')}</span><span className="font-semibold">{disconnectPreview.deposit_on_hand.toLocaleString()}</span></div>
+                <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('billing.pendingBalance')}</span><span className="font-semibold">{Math.max(disconnectPreview.pending_balance, 0).toLocaleString()}</span></div>
                 {disconnectPreview.applied > 0 && (
-                  <div className="flex justify-between text-dp-on-surface-variant"><span>{t('billing.appliedToPending')}</span><span>− Rs. {disconnectPreview.applied.toLocaleString()}</span></div>
+                  <div className="flex justify-between text-dp-on-surface-variant"><span>{t('billing.appliedToPending')}</span><span>− {disconnectPreview.applied.toLocaleString()}</span></div>
                 )}
                 <div className="flex justify-between border-t border-dp-outline-variant pt-2 mt-1 font-bold text-[14.5px]">
                   <span>{disconnectPreview.refund > 0 ? t('billing.refundDue') : t('billing.stillOwed')}</span>
                   <span className={disconnectPreview.refund > 0 ? 'text-emerald-700' : 'text-dp-error'}>
-                    Rs. {(disconnectPreview.refund > 0 ? disconnectPreview.refund : Math.max(disconnectPreview.pending_balance - disconnectPreview.applied, 0)).toLocaleString()}
+                    {(disconnectPreview.refund > 0 ? disconnectPreview.refund : Math.max(disconnectPreview.pending_balance - disconnectPreview.applied, 0)).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -1722,7 +1722,7 @@ function BillingPageInner() {
             </Field>
             {billingSetupForm.discount_amount > 0 && (
               <p className="font-sans text-[12.5px] text-dp-on-surface-variant -mt-2">
-                {t('billing.netMonthly')} <span className="font-bold text-dp-on-surface">Rs. {Math.max(billingSetupForm.monthly_amount - billingSetupForm.discount_amount, 0).toLocaleString()}</span>
+                {t('billing.netMonthly')} <span className="font-bold text-dp-on-surface">{Math.max(billingSetupForm.monthly_amount - billingSetupForm.discount_amount, 0).toLocaleString()}</span>
               </p>
             )}
             <Field label={t('billing.descriptionOptional')}>

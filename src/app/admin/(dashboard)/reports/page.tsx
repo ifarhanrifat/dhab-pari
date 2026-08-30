@@ -528,7 +528,7 @@ function ReportsPageInner() {
 
                 <div className="flex justify-between items-center px-4 py-5 border-t-2 border-dp-outline-variant">
                   <span className="font-sans text-[15px] font-bold text-dp-on-surface">{dt(lang, 'netSurplusDeficit')}</span>
-                  <span className={`font-heading text-[24px] font-bold ${netSurplus >= 0 ? 'text-dp-primary' : 'text-dp-error'}`}>Rs. {fmtAmount(netSurplus)}</span>
+                  <span className={`font-heading text-[24px] font-bold ${netSurplus >= 0 ? 'text-dp-primary' : 'text-dp-error'}`}>{fmtAmount(netSurplus)}</span>
                 </div>
               </div>
             </div>

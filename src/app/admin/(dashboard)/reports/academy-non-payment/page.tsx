@@ -127,7 +127,7 @@ export default function AcademyNonPaymentReportPage() {
         </div>
         <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3">
           <p className="font-sans text-[11px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant mb-1">{dt(lang, 'totalPendingFees')}</p>
-          <p className="font-sans text-[20px] font-bold text-dp-error">Rs. {fmtAmount(totalPending)}</p>
+          <p className="font-sans text-[20px] font-bold text-dp-error">{fmtAmount(totalPending)}</p>
         </div>
       </div>
 
@@ -170,17 +170,17 @@ export default function AcademyNonPaymentReportPage() {
                     </td>
                     <td className="px-4 py-3 font-sans text-[13px] text-dp-on-surface-variant">
                       {f.enrollment.guardian_whatsapp_number ? (
-                        <span className="flex items-center gap-1"><Phone size={12} /> {f.enrollment.guardian_whatsapp_number}</span>
+                        <span className="flex items-center gap-1"><Phone size={12} /> <span className="ltr-num">{f.enrollment.guardian_whatsapp_number}</span></span>
                       ) : '—'}
                     </td>
                     <td className="px-4 py-3">
                       {f.charges.map((c) => (
                         <div key={c.id} className="font-sans text-[12.5px] text-dp-on-surface-variant">
-                          {monthName(c.due_on)} — Rs. {fmtAmount(c.outstanding)}{dt(lang, 'dueSuffix')}
+                          {monthName(c.due_on)} — {fmtAmount(c.outstanding)}{dt(lang, 'dueSuffix')}
                         </div>
                       ))}
                     </td>
-                    <td className="px-4 py-3 text-end font-sans text-[14px] font-bold text-dp-error">Rs. {fmtAmount(f.totalOutstanding)}</td>
+                    <td className="px-4 py-3 text-end font-sans text-[14px] font-bold text-dp-error">{fmtAmount(f.totalOutstanding)}</td>
                   </tr>
                 ))}
               </tbody>

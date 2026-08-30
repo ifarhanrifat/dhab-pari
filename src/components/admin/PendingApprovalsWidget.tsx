@@ -75,7 +75,7 @@ export function PendingApprovalsWidget() {
               <div className="min-w-0">
                 <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface truncate">{r.particular}</p>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant">
-                  {systemLabels[r.system]} · Rs. {fmt(r.amount_pkr)} · Waiting on: {waiting.length > 0 ? waiting.join(', ') : 'all confirmed'}
+                  {systemLabels[r.system]} · {fmt(r.amount_pkr)} · Waiting on: {waiting.length > 0 ? waiting.join(', ') : 'all confirmed'}
                 </p>
               </div>
               <button

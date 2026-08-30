@@ -155,7 +155,7 @@ export function DonorLinkVerification({ user, onLinked }: { user: PortalUser; on
       <Card>
         <h2 className="font-sans text-[15px] font-bold text-dp-primary mb-2 flex items-center gap-1.5"><HeartHandshake size={16} /> {t('p.donorLinkTitle')}</h2>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant leading-relaxed">{body}</p>
-        <p className="font-heading text-[26px] font-bold text-dp-primary mt-2">Rs. {fmt(total)}</p>
+        <p className="font-heading text-[26px] font-bold text-dp-primary mt-2">{fmt(total)}</p>
 
         {!showDispute ? (
           <div className="flex flex-col gap-2 mt-4">

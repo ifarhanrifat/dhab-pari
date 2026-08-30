@@ -470,11 +470,11 @@ function AcademyFeesInner() {
                   <p className="font-sans text-[16px] font-semibold text-dp-primary">{a.display_name || a.title}</p>
                   {s && s.fees_overdue_total > 0 && (
                     <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase bg-dp-error/10 text-dp-error shrink-0">
-                      <AlertTriangle size={10} /> Rs. {fmt(s.fees_overdue_total)} {t('af.overdueLabel')}
+                      <AlertTriangle size={10} /> {fmt(s.fees_overdue_total)} {t('af.overdueLabel')}
                     </span>
                   )}
                 </div>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant uppercase mt-1">{a.category}</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant uppercase mt-1">{t(a.category === 'training' ? 'pj.catTraining' : 'pj.catSports')}</p>
 
                 {s && (
                   <div className="mt-3 space-y-2">
@@ -490,15 +490,15 @@ function AcademyFeesInner() {
                       </div>
                     )}
                     {s.fees_charged_total > 0 && (
-                      <div className="flex items-center justify-between text-[11.5px] font-sans text-dp-on-surface-variant ltr-num">
+                      <div className="flex items-center justify-between text-[11.5px] font-sans text-dp-on-surface-variant">
                         <span>{t('af.feesCollectedLabel')}</span>
-                        <span>Rs. {fmt(s.fees_collected_total)} / {fmt(s.fees_charged_total)}</span>
+                        <span className="ltr-num">{fmt(s.fees_collected_total)} / {fmt(s.fees_charged_total)}</span>
                       </div>
                     )}
                     {isSalaryFunded && (
-                      <div className="flex items-center justify-between text-[11.5px] font-sans text-dp-on-surface-variant ltr-num pt-1 border-t border-dp-outline-variant">
+                      <div className="flex items-center justify-between text-[11.5px] font-sans text-dp-on-surface-variant pt-1 border-t border-dp-outline-variant">
                         <span>{t('af.salaryFundingLabel')}</span>
-                        <span>Rs. {fmt(s.raised_total)}{s.monthly_operating_cost_pkr ? ` / ${fmt(s.monthly_operating_cost_pkr)}${t('af.perMonthShort')}` : ''}</span>
+                        <span className="ltr-num">{fmt(s.raised_total)}{s.monthly_operating_cost_pkr ? ` / ${fmt(s.monthly_operating_cost_pkr)} ${t('af.perMonthShort')}` : ''}</span>
                       </div>
                     )}
                   </div>
@@ -537,7 +537,7 @@ function AcademyFeesInner() {
                       <p className="font-sans text-[14px] font-semibold text-dp-on-surface">{isUrdu && b.label_ur ? b.label_ur : b.label}</p>
                       {b.schedule_note && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{b.schedule_note}</p>}
                       <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">
-                        {t('af.villager')}: Rs. {fmt(b.fee_villager_monthly_pkr ?? 0)}/{t('af.perMonth')} · {t('af.outsider')}: Rs. {fmt(b.fee_outsider_monthly_pkr ?? 0)}/{t('af.perMonth')}
+                        {t('af.villager')}: {fmt(b.fee_villager_monthly_pkr ?? 0)}/{t('af.perMonth')} · {t('af.outsider')}: {fmt(b.fee_outsider_monthly_pkr ?? 0)}/{t('af.perMonth')}
                       </p>
                       {(b.age_min != null || b.age_max != null || b.capacity != null || (b.session_days && b.session_days.length > 0) || b.sibling_discount_pct) && (
                         <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1 flex flex-wrap gap-x-2">
@@ -581,7 +581,7 @@ function AcademyFeesInner() {
                         )}
                       </p>
                       <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">
-                        {r.guardian_name} · {r.guardian_whatsapp_number} · Rs. {fmt(r.fee_amount_pkr)}/{t(r.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}
+                        {r.guardian_name} · <span className="ltr-num">{r.guardian_whatsapp_number}</span> · <span className="ltr-num">{fmt(r.fee_amount_pkr)}</span>/{t(r.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}
                         {r.sector ? ` · ${r.sector}` : ''}
                       </p>
                       {/* Sibling discount claimed on the request — auto-detected
@@ -627,7 +627,7 @@ function AcademyFeesInner() {
                       )}
                     </p>
                     <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">
-                      {e.guardian_name} · {e.guardian_whatsapp_number} · Rs. {fmt(e.fee_amount_pkr)}/{t(e.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}
+                      {e.guardian_name} · <span className="ltr-num">{e.guardian_whatsapp_number}</span> · <span className="ltr-num">{fmt(e.fee_amount_pkr)}</span>/{t(e.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}
                       {e.discount_pct ? ` · ${e.discount_pct}% ${t('af.discount')}${e.discount_reason ? ` (${e.discount_reason})` : ''}` : ''}
                     </p>
                   </div>
@@ -642,10 +642,10 @@ function AcademyFeesInner() {
                       <div key={c.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12.5px] font-sans font-semibold ${
                         c.status === 'paid' ? 'bg-emerald-50 text-emerald-700' : c.status === 'announced' ? 'bg-blue-50 text-blue-700' : c.status === 'part_paid' ? 'bg-amber-50 text-amber-700' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>
                         {c.status === 'paid' ? <CheckCircle2 size={13} /> : c.status === 'announced' ? <Bell size={13} /> : <Clock size={13} />}
-                        {new Date(c.due_on).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })} — Rs. {fmt(c.amount_pkr)}
+                        {new Date(c.due_on).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })} — {fmt(c.amount_pkr)}
                         {c.status === 'announced' ? (
                           <>
-                            <span className="ltr-num">{t('af.paidViaPortalLabel')} Rs. {fmt(c.announced_amount_pkr ?? 0)}</span>
+                            <span className="ltr-num">{t('af.paidViaPortalLabel')} {fmt(c.announced_amount_pkr ?? 0)}</span>
                             {c.announced_proof_url && (
                               <button onClick={() => viewAnnouncedSlip(c.announced_proof_url!)} className="underline cursor-pointer">{t('af.viewSlipLink')}</button>
                             )}
@@ -807,8 +807,8 @@ function AcademyFeesInner() {
                   </div>
                   {b && (
                     <p className="font-sans text-[13px] font-semibold text-dp-primary bg-dp-secondary-container/20 rounded-lg px-3 py-2 ltr-num">
-                      {t('tp.feePreview')}: {discountPct > 0 && <span className="line-through text-dp-on-surface-variant font-normal me-1.5">Rs. {fmt(baseFee)}</span>}
-                      Rs. {fmt(previewFee)} / {t(form.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}
+                      {t('tp.feePreview')}: {discountPct > 0 && <span className="line-through text-dp-on-surface-variant font-normal me-1.5">{fmt(baseFee)}</span>}
+                      {fmt(previewFee)} / {t(form.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}
                     </p>
                   )}
                   <button onClick={enroll} disabled={saving} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">
@@ -853,7 +853,7 @@ function AcademyFeesInner() {
           <div className="bg-white rounded-lg max-w-[380px] w-full p-6 text-center" onClick={(e) => e.stopPropagation()}>
             <CheckCircle2 size={36} className="text-emerald-600 mx-auto mb-2" />
             <p className="font-heading text-[17px] font-bold text-dp-primary">{t('af.paymentRecorded')}</p>
-            <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1 ltr-num">{lastReceipt.voucherNo} — Rs. {fmt(lastReceipt.amount)}</p>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1 ltr-num">{lastReceipt.voucherNo} — {fmt(lastReceipt.amount)}</p>
             <div className="flex gap-2 mt-4">
               <button onClick={() => setLastReceipt(null)} className="flex-1 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp-surface-container">
                 {t('af.closeBtn')}
@@ -879,7 +879,7 @@ function AcademyFeesInner() {
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.date')}</span><span className="font-semibold ltr-num">{lastReceipt.date}</span></div>
               <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('af.paymentMethodLabel')}</span><span className="font-semibold">{t(lastReceipt.method === 'cash' ? 'af.cash' : lastReceipt.method === 'bank' ? 'af.bank' : lastReceipt.method)}</span></div>
               <div className="flex justify-between border-t border-dp-outline-variant pt-2 mt-2"><span className="text-dp-on-surface-variant">{t('af.voucherNoLabel')}</span><span className="font-semibold ltr-num">{lastReceipt.voucherNo}</span></div>
-              <div className="flex justify-between text-[18px] font-bold text-dp-primary border-t border-dp-outline-variant pt-2"><span>{t('w.amount')}</span><span className="ltr-num">Rs. {fmt(lastReceipt.amount)}</span></div>
+              <div className="flex justify-between text-[18px] font-bold text-dp-primary border-t border-dp-outline-variant pt-2"><span>{t('w.amount')}</span><span className="ltr-num">{fmt(lastReceipt.amount)}</span></div>
             </div>
           )}
         </div>
@@ -900,7 +900,7 @@ function AcademyFeesInner() {
               <input value={editForm.sector} onChange={(e) => setEditForm({ ...editForm, sector: e.target.value })} placeholder={t('w.sector')} className="input-field" />
               <input type="number" value={editForm.student_age} onChange={(e) => setEditForm({ ...editForm, student_age: e.target.value })} placeholder={t('tp.studentAge')} className="input-field" />
               <div>
-                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">Rs. {t(editing.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}</label>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t(editing.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}</label>
                 <input type="number" value={editForm.fee_amount_pkr || ''} onChange={(e) => setEditForm({ ...editForm, fee_amount_pkr: +e.target.value })} className="input-field" />
               </div>
               {/* Correcting or clearing this is the whole point of being able to

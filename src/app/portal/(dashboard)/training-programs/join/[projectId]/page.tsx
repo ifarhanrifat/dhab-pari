@@ -211,9 +211,9 @@ export default function JoinAcademyPage({ params }: { params: Promise<{ projectI
           {selectedBatch && (
             <p className="font-sans text-[13px] font-semibold text-dp-primary bg-dp-secondary-container/20 rounded-lg px-3 py-2">
               {t('tp.feePreview')}: {applicableDiscount > 0 && (
-                <span className="line-through text-dp-on-surface-variant font-normal me-1.5">Rs. {fmt(baseFee)}</span>
+                <span className="line-through text-dp-on-surface-variant font-normal me-1.5">{fmt(baseFee)}</span>
               )}
-              Rs. {fmt(previewFee)} / {t(form.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}
+              {fmt(previewFee)} / {t(form.fee_type === 'monthly' ? 'af.perMonth' : 'af.fullCourse')}
             </p>
           )}
 

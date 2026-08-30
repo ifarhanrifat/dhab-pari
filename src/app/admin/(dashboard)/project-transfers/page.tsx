@@ -83,7 +83,7 @@ export default function ProjectTransfersPage() {
       <div className="bg-white border border-dp-outline-variant rounded-lg p-6 max-w-lg space-y-4">
         <SearchableField
           label={t('pt.fromProjectLabel')} value={fromId} onChange={setFromId} placeholder={t('pt.selectProjectPlaceholder')}
-          items={projects.map((p) => ({ id: p.id, label: `${p.title}${balances[p.id] != null ? ` — Rs. ${fmt(balances[p.id])}` : ''}` }))}
+          items={projects.map((p) => ({ id: p.id, label: `${p.title}${balances[p.id] != null ? ` — ${fmt(balances[p.id])}` : ''}` }))}
         />
         <SearchableField
           label={t('pt.toProjectLabel')} value={toId} onChange={setToId} placeholder={t('pt.selectProjectPlaceholder')}

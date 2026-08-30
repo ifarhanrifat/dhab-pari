@@ -537,7 +537,7 @@ export default function KafalatPage() {
       <tr>
         <td>${new Date(l.paid_on).toLocaleDateString()}</td>
         <td style="text-transform:capitalize">${l.category.replace(/_/g, ' ')}</td>
-        <td>Rs ${fmt(l.amount)}</td>
+        <td>${fmt(l.amount)}</td>
         <td>${l.method ?? ''}</td>
         <td>${l.paid_to ?? ''}</td>
         <td style="min-width:100px;border-bottom:1px solid #000">${l.signed_by ?? '&nbsp;'}</td>
@@ -561,7 +561,7 @@ export default function KafalatPage() {
         <th>${t('kf.record.date')}</th><th>${t('kf.record.category')}</th><th>${t('kf.record.amount')}</th>
         <th>${t('kf.f.method')}</th><th>${t('kf.record.paidTo')}</th><th>${t('kf.record.signature')}</th>
       </tr></thead><tbody>${rows}</tbody></table>
-      <p class="total">${t('kf.record.total')}: Rs ${fmt(record.total_spent)}</p>
+      <p class="total">${t('kf.record.total')}: ${fmt(record.total_spent)}</p>
       <div class="sign">
         <div>${t('kf.record.preparedBy')}</div>
         <div>${t('kf.record.committeeSignature')}</div>
@@ -643,8 +643,8 @@ export default function KafalatPage() {
         <td>${c.code}</td><td>${c.name}</td><td>${c.roll_no ?? ''}</td><td>${c.section ?? ''}</td>
         <td>${c.current_class ?? ''}</td><td>${c.school_name ?? ''}</td>
         <td>${c.guardian}${c.guardian_phone ? ' · ' + c.guardian_phone : ''}</td>
-        <td>Rs ${fmt(c.fee_annual)}</td>
-        <td>Rs ${fmt(c.transport_annual)}</td>
+        <td>${fmt(c.fee_annual)}</td>
+        <td>${fmt(c.transport_annual)}</td>
         <td style="min-width:120px;border-bottom:1px solid #000">&nbsp;</td>
       </tr>`).join('')
     win.document.write(`<html><head><title>${t('kf.registerTitle')} — ${reg.academic_year}</title>
@@ -1002,7 +1002,7 @@ export default function KafalatPage() {
 
                     <div className="mt-2.5">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-sans text-[13px] font-semibold text-dp-on-surface">Rs {fmt(total)}/{t('es.year')}</span>
+                        <span className="font-sans text-[13px] font-semibold text-dp-on-surface">{fmt(total)}/{t('es.year')}</span>
                         <span className="font-sans text-[12.5px] text-dp-on-surface-variant">
                           · {pct}% {t('kf.sponsored')}{pct < 100 && ` · ${100 - pct}% ${t('kf.remaining')}`}
                         </span>
@@ -1013,7 +1013,7 @@ export default function KafalatPage() {
                       {childSponsors.length > 0 && (
                         <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">
                           {childSponsors.map((s) =>
-                            `${s.is_anonymous ? t('f.anonymousDonor') : s.name} — Rs ${fmt(s.total_given)}${s.recurring ? `/${t('pkf.month')}` : ''}`,
+                            `${s.is_anonymous ? t('f.anonymousDonor') : s.name} — ${fmt(s.total_given)}${s.recurring ? `/${t('pkf.month')}` : ''}`,
                           ).join(' · ')}
                         </p>
                       )}
@@ -1140,7 +1140,7 @@ export default function KafalatPage() {
                         {' · '}{t('kf.uniformIssue')} {u.issue_no}/2
                       </p>
                       <p className="font-sans text-[12px] text-dp-on-surface-variant">
-                        {u.guardian}{u.guardian_phone ? ` · ${u.guardian_phone}` : ''} · Rs {fmt(u.amount)}
+                        {u.guardian}{u.guardian_phone ? ` · ${u.guardian_phone}` : ''} · {fmt(u.amount)}
                         {' · '}{t(`kf.uniform.${u.uniform_mode}`)}
                       </p>
                     </div>
@@ -1174,7 +1174,7 @@ export default function KafalatPage() {
                         {' · '}{t(`kf.cat.${d.category}`)}
                       </p>
                       <p className="font-sans text-[12px] text-dp-on-surface-variant">
-                        {d.guardian}{d.guardian_phone ? ` · ${d.guardian_phone}` : ''} · Rs {fmt(d.amount)}
+                        {d.guardian}{d.guardian_phone ? ` · ${d.guardian_phone}` : ''} · {fmt(d.amount)}
                         {' · '}{new Date(d.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
                       </p>
                     </div>
@@ -1269,12 +1269,12 @@ export default function KafalatPage() {
                       <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{a.donor_name ?? '—'}</p>
                       <p className="font-sans text-[12px] text-dp-on-surface-variant">
                         {a.donor_phone && <a href={`tel:${a.donor_phone}`} className="text-dp-secondary hover:underline">{a.donor_phone}</a>}
-                        {' · '}Rs {fmt(a.amount)} · {a.is_one_time ? t('pool.oneTime') : t('pool.recurringMonthly')}
+                        {' · '}{fmt(a.amount)} · {a.is_one_time ? t('pool.oneTime') : t('pool.recurringMonthly')}
                       </p>
                       {a.payment_batch_id && batchSummary[a.payment_batch_id]?.count > 1 && (
                         <span title={t('kf.batchTooltip')}
                           className="inline-block mt-1 text-[11px] font-bold px-2 py-0.5 rounded-full font-sans bg-amber-100 text-amber-800">
-                          Part of Rs {batchSummary[a.payment_batch_id].total.toLocaleString()} · {batchSummary[a.payment_batch_id].count} items
+                          Part of {batchSummary[a.payment_batch_id].total.toLocaleString()} · {batchSummary[a.payment_batch_id].count} items
                         </span>
                       )}
                     </div>
@@ -1312,7 +1312,7 @@ export default function KafalatPage() {
                     <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{l.name}</p>
                     <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
                       {l.phone && <a href={`tel:${l.phone}`} className="text-dp-secondary hover:underline">{l.phone}</a>}
-                      {' · '}Rs {fmt(l.amount)}/{t('pkf.month')}
+                      {' · '}{fmt(l.amount)}/{t('pkf.month')}
                     </p>
                   </div>
                 ))}
@@ -1355,7 +1355,7 @@ export default function KafalatPage() {
                 {covers.map((c, i) => (
                   <div key={i} className="bg-white border border-dp-outline-variant rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
                     <p className="font-sans text-[12.5px] text-dp-on-surface">{new Date(c.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</p>
-                    <p className="font-sans text-[13px] font-semibold text-dp-on-surface">Rs {fmt(c.amount)}</p>
+                    <p className="font-sans text-[13px] font-semibold text-dp-on-surface">{fmt(c.amount)}</p>
                     <p className="font-mono text-[11.5px] text-dp-secondary">{c.voucher_no ?? '—'}</p>
                   </div>
                 ))}
@@ -1525,7 +1525,7 @@ export default function KafalatPage() {
                   <option value="">{t('kf.f.schoolNotListed')}</option>
                   {schools.map((sc) => (
                     <option key={sc.id} value={sc.id}>
-                      {sc.name} — {t(`sc.kind.${sc.kind}`)}{Number(sc.monthly_fee_pkr) > 0 ? ` · Rs ${fmt(sc.monthly_fee_pkr)}/${t('sc.month')}` : ''}
+                      {sc.name} — {t(`sc.kind.${sc.kind}`)}{Number(sc.monthly_fee_pkr) > 0 ? ` · ${fmt(sc.monthly_fee_pkr)}/${t('sc.month')}` : ''}
                     </option>
                   ))}
                 </select>
@@ -1538,9 +1538,9 @@ export default function KafalatPage() {
                 {feePreview && (
                   <div className="mt-2 bg-dp-surface-container-low rounded-lg px-3.5 py-2.5">
                     <p className="font-sans text-[12.5px] text-dp-on-surface">
-                      {t('kf.f.feeForClass')} <strong>Rs {fmt(Number(feePreview.monthly_fee ?? 0))}</strong>/{t('sc.month')}
+                      {t('kf.f.feeForClass')} <strong>{fmt(Number(feePreview.monthly_fee ?? 0))}</strong>/{t('sc.month')}
                       {' × '}{String(feePreview.months_charged ?? 12)}
-                      {' = '}<strong>Rs {fmt(Number(feePreview.annual_fee ?? 0) + Number(feePreview.annual_charges ?? 0))}</strong>/{t('es.year')}
+                      {' = '}<strong>{fmt(Number(feePreview.annual_fee ?? 0) + Number(feePreview.annual_charges ?? 0))}</strong>/{t('es.year')}
                       {feePreview.tier ? ` · ${String(feePreview.tier)}` : ''}
                     </p>
                     <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">{t('kf.f.feePreviewHint')}</p>
@@ -1613,7 +1613,7 @@ export default function KafalatPage() {
             <div className="flex items-center justify-between border-t border-dp-outline-variant pt-3 mb-4">
               <span className="font-sans text-[13px] font-bold uppercase tracking-[0.05em] text-dp-on-surface-variant">{t('kf.annualTotal')}</span>
               <span className="font-heading text-[22px] font-bold text-dp-primary">
-                Rs {fmt(editLines.reduce((s, l) => s + (l.annual_amount_pkr || 0), 0))}
+                {fmt(editLines.reduce((s, l) => s + (l.annual_amount_pkr || 0), 0))}
               </span>
             </div>
 
@@ -1665,7 +1665,7 @@ export default function KafalatPage() {
               <button onClick={() => setIssuingUniform(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={18} /></button>
             </div>
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
-              {issuingUniform.child_name} · {t('kf.uniformIssue')} {issuingUniform.issue_no}/2 · Rs {fmt(issuingUniform.amount)}
+              {issuingUniform.child_name} · {t('kf.uniformIssue')} {issuingUniform.issue_no}/2 · {fmt(issuingUniform.amount)}
             </p>
 
             <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('kf.receivedBy')}</label>
@@ -1705,7 +1705,7 @@ export default function KafalatPage() {
               <button onClick={() => setPayingDisbursement(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={18} /></button>
             </div>
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
-              {payingDisbursement.child_name} · {t(`kf.cat.${payingDisbursement.category}`)} · Rs {fmt(payingDisbursement.amount)}
+              {payingDisbursement.child_name} · {t(`kf.cat.${payingDisbursement.category}`)} · {fmt(payingDisbursement.amount)}
             </p>
 
             {payingDisbursement.category === 'transport' && (
@@ -2034,7 +2034,7 @@ export default function KafalatPage() {
 
                 <div className="flex items-center justify-between mb-3 px-1">
                   <span className="font-sans text-[13px] font-semibold text-dp-on-surface-variant">{t('kf.monthly.total')}</span>
-                  <span className="font-heading text-[19px] font-bold text-dp-primary">Rs {fmt(monthlyTotal())}</span>
+                  <span className="font-heading text-[19px] font-bold text-dp-primary">{fmt(monthlyTotal())}</span>
                 </div>
                 <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-3">{t('kf.monthly.approvalNote')}</p>
 
@@ -2070,14 +2070,14 @@ export default function KafalatPage() {
                     <p className="font-sans text-[13px] font-semibold text-dp-on-surface capitalize">{l.category.replace(/_/g, ' ')}</p>
                     <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{new Date(l.paid_on).toLocaleDateString()}{l.paid_to ? ` · ${l.paid_to}` : ''}</p>
                   </div>
-                  <p className="font-sans text-[13px] font-bold text-dp-on-surface">Rs {fmt(l.amount)}</p>
+                  <p className="font-sans text-[13px] font-bold text-dp-on-surface">{fmt(l.amount)}</p>
                 </div>
               ))}
             </div>
 
             <div className="flex items-center justify-between border-t border-dp-outline-variant pt-3 mb-4">
               <span className="font-sans text-[13px] font-bold uppercase tracking-[0.05em] text-dp-on-surface-variant">{t('kf.record.total')}</span>
-              <span className="font-heading text-[22px] font-bold text-dp-primary">Rs {fmt(record.total_spent)}</span>
+              <span className="font-heading text-[22px] font-bold text-dp-primary">{fmt(record.total_spent)}</span>
             </div>
 
             <button onClick={printRecordNow}

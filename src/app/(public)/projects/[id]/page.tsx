@@ -47,6 +47,13 @@ const STAFF_ROLE_LABEL: Record<string, string> = {
   water_accountant: 'Water Accountant', donor_accountant: 'Donor Accountant',
   publisher: 'Publisher', viewer: 'Viewer',
 }
+// Same category set /projects already translates (categoryLabel there) —
+// the listing page got it, this detail page never did, so a category
+// badge here showed the raw English enum value even in Urdu mode.
+const CATEGORY_LABEL_UR: Record<string, string> = {
+  infrastructure: 'تعمیرات', water: 'پانی', health: 'صحت', education: 'تعلیم',
+  environment: 'ماحولیات', welfare: 'بہبود', sports: 'کھیل', training: 'تربیت', other: 'دیگر',
+}
 
 
 function fmt(n: number) {
@@ -349,7 +356,7 @@ export default function ProjectDetailPage() {
       <Link href="/projects" className="inline-flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold hover:underline mb-6"><ArrowLeft size={16} /> {tr('x.allProjects')}</Link>
 
       <div className="mb-8">
-        <span className="bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded font-sans text-[12px] font-semibold uppercase tracking-[0.05em]">{project.category}</span>
+        <span className="bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded font-sans text-[12px] font-semibold uppercase tracking-[0.05em]">{isUrdu ? (CATEGORY_LABEL_UR[project.category ?? 'other'] ?? project.category) : project.category}</span>
         <h1 className="font-heading text-[28px] md:text-[32px] font-bold text-dp-primary mt-3">{project.display_name || project.title}</h1>
         {project.location && <p className="flex items-center gap-1 text-dp-on-surface-variant font-sans text-[15px] mt-1"><MapPin size={15} /> {project.location}</p>}
         <p className="font-sans text-[16px] text-dp-on-surface-variant mt-4 leading-[26px]">{project.description}</p>
@@ -415,19 +422,19 @@ export default function ProjectDetailPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
           <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{tr('home.budget')}</p>
-          <p className="font-heading text-[20px] font-bold text-dp-primary">Rs. {fmt(project.budget_pkr ?? 0)}</p>
+          <p className="font-heading text-[20px] font-bold text-dp-primary">{fmt(project.budget_pkr ?? 0)}</p>
         </div>
         <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
           <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{tr('x.verifiedRaised')}</p>
-          <p className="font-heading text-[20px] font-bold text-dp-secondary">Rs. {fmt(totalVerified)}</p>
+          <p className="font-heading text-[20px] font-bold text-dp-secondary">{fmt(totalVerified)}</p>
         </div>
         <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
           <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{tr('x.announced')}</p>
-          <p className="font-heading text-[20px] font-bold text-amber-600">Rs. {fmt(totalAnnounced)}</p>
+          <p className="font-heading text-[20px] font-bold text-amber-600">{fmt(totalAnnounced)}</p>
         </div>
         <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
           <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{tr('home.spent')}</p>
-          <p className="font-heading text-[20px] font-bold text-dp-error">Rs. {fmt(totalExpenses)}</p>
+          <p className="font-heading text-[20px] font-bold text-dp-error">{fmt(totalExpenses)}</p>
         </div>
       </div>
 
@@ -437,7 +444,7 @@ export default function ProjectDetailPage() {
           <div className="flex flex-wrap gap-x-5 gap-y-1">
             {channels.map((c) => (
               <p key={c.payment_method} className="font-sans text-[13.5px] text-dp-on-surface-variant">
-                <span className="capitalize font-semibold text-dp-on-surface">{c.payment_method}</span>: Rs. {fmt(c.total_pkr)}
+                <span className="capitalize font-semibold text-dp-on-surface">{c.payment_method}</span>: {fmt(c.total_pkr)}
               </p>
             ))}
           </div>
@@ -460,7 +467,7 @@ export default function ProjectDetailPage() {
             <div>
               <p className="font-heading text-[24px] font-bold text-blue-900">{votes.length} / {project.vote_target ?? '—'} Votes</p>
               {project.minimum_monthly_commitment_pkr && (
-                <p className="font-sans text-[13px] text-blue-700 mt-1">Proposer committed Rs. {fmt(project.minimum_monthly_commitment_pkr)}/month once launched.</p>
+                <p className="font-sans text-[13px] text-blue-700 mt-1">Proposer committed {fmt(project.minimum_monthly_commitment_pkr)}/month once launched.</p>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -550,10 +557,10 @@ export default function ProjectDetailPage() {
                   ) : (
                     <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[13px] font-sans">
                       {(b.fee_villager_monthly_pkr || b.fee_villager_full_pkr) && (
-                        <span className="text-dp-on-surface">{tr('x.villagerLabelFull')}: Rs. {fmt(b.fee_villager_monthly_pkr || b.fee_villager_full_pkr || 0)}{b.fee_villager_monthly_pkr ? `/${tr('x.perMonthFull')}` : ` ${tr('x.fullCourseFull')}`}</span>
+                        <span className="text-dp-on-surface">{tr('x.villagerLabelFull')}: {fmt(b.fee_villager_monthly_pkr || b.fee_villager_full_pkr || 0)}{b.fee_villager_monthly_pkr ? `/${tr('x.perMonthFull')}` : ` ${tr('x.fullCourseFull')}`}</span>
                       )}
                       {(b.fee_outsider_monthly_pkr || b.fee_outsider_full_pkr) && (
-                        <span className="text-dp-on-surface-variant">{tr('x.outsiderLabelFull')}: Rs. {fmt(b.fee_outsider_monthly_pkr || b.fee_outsider_full_pkr || 0)}{b.fee_outsider_monthly_pkr ? `/${tr('x.perMonthFull')}` : ` ${tr('x.fullCourseFull')}`}</span>
+                        <span className="text-dp-on-surface-variant">{tr('x.outsiderLabelFull')}: {fmt(b.fee_outsider_monthly_pkr || b.fee_outsider_full_pkr || 0)}{b.fee_outsider_monthly_pkr ? `/${tr('x.perMonthFull')}` : ` ${tr('x.fullCourseFull')}`}</span>
                       )}
                       {!b.fee_villager_monthly_pkr && !b.fee_villager_full_pkr && !b.fee_outsider_monthly_pkr && !b.fee_outsider_full_pkr && (
                         <span className="text-emerald-700 font-semibold">{tr('x.freeLabelFull')}</span>
@@ -600,7 +607,7 @@ export default function ProjectDetailPage() {
             </span>
           </div>
           <p className="font-sans text-[14px] text-dp-on-surface-variant ltr-num">
-            Rs. {fmt(monthlySponsored)} / Rs. {fmt(project.monthly_operating_cost_pkr ?? 0)} {tr('x.committedPerMonth')}
+            {fmt(monthlySponsored)} / {fmt(project.monthly_operating_cost_pkr ?? 0)} {tr('x.committedPerMonth')}
           </p>
           <div className="h-2 w-full bg-dp-surface-container-low rounded-full overflow-hidden mt-2">
             <div className="h-full bg-dp-secondary" style={{ width: `${project.monthly_operating_cost_pkr ? Math.min(100, (monthlySponsored / project.monthly_operating_cost_pkr) * 100) : 0}%` }} />
@@ -625,7 +632,7 @@ export default function ProjectDetailPage() {
                   <span className="font-sans text-[14px] font-semibold">{d.name}</span>
                   <span className="ms-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase">{d.payment_status === 'pledged' ? 'Pledged' : 'Awaiting Verification'}</span>
                 </div>
-                <span className="font-sans text-[14px] font-bold text-amber-600">Rs. {fmt(d.amount_pkr)}</span>
+                <span className="font-sans text-[14px] font-bold text-amber-600">{fmt(d.amount_pkr)}</span>
               </div>
             ))}
           </div>
@@ -637,7 +644,7 @@ export default function ProjectDetailPage() {
             {verified.map((d) => (
               <div key={d.id} className="flex items-center justify-between px-5 py-3.5">
                 <span className="font-sans text-[14px] font-semibold flex items-center gap-2"><CheckCircle size={14} className="text-dp-secondary" /> {d.name}</span>
-                <span className="font-sans text-[14px] font-bold text-dp-secondary">Rs. {fmt(d.amount_pkr)}</span>
+                <span className="font-sans text-[14px] font-bold text-dp-secondary">{fmt(d.amount_pkr)}</span>
               </div>
             ))}
           </div>
@@ -652,7 +659,7 @@ export default function ProjectDetailPage() {
             <div key={e.id} className="flex items-center justify-between px-5 py-3.5">
               <span className="font-sans text-[14px] flex items-center gap-2"><Receipt size={14} className="text-dp-error" /> {e.particular}</span>
               <div className="text-end">
-                <p className="font-sans text-[14px] font-bold text-dp-error">Rs. {fmt(e.debit)}</p>
+                <p className="font-sans text-[14px] font-bold text-dp-error">{fmt(e.debit)}</p>
                 <p className="font-sans text-[11px] text-dp-on-surface-variant">{new Date(e.entry_date).toLocaleDateString('en-GB')}</p>
               </div>
             </div>

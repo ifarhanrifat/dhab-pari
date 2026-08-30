@@ -294,7 +294,7 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
             <div key={item.key} className="flex items-center justify-between gap-3 px-4 py-3 border-t border-dp-outline-variant first:border-t-0">
               <div className="min-w-0">
                 <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface truncate">{item.label}</p>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant">Rs. {fmtAmount(item.amount)} · {new Date(item.date).toLocaleDateString('en-GB')}</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant">{fmtAmount(item.amount)} · {new Date(item.date).toLocaleDateString('en-GB')}</p>
               </div>
               {item.type !== 'expense' && (
                 <button onClick={() => openReceiptFor(item)} className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
@@ -388,7 +388,7 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
                       <input type="checkbox" checked={selectedHistoryIds.has(item.id)} onChange={() => toggleHistorySelected(item.id)} className="shrink-0 w-4 h-4 cursor-pointer" />
                       <div className="min-w-0 flex-1">
                         <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface truncate">{item.label}</p>
-                        <p className="font-sans text-[12px] text-dp-on-surface-variant">Rs. {fmtAmount(item.amount)} · {new Date(item.date).toLocaleDateString('en-GB')} · {item.status}</p>
+                        <p className="font-sans text-[12px] text-dp-on-surface-variant">{fmtAmount(item.amount)} · {new Date(item.date).toLocaleDateString('en-GB')} · {item.status}</p>
                       </div>
                     </label>
                   ))}

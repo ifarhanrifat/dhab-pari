@@ -146,7 +146,7 @@ export default function NonPaymentReportPage() {
         </div>
         <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3">
           <p className="font-sans text-[11px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant mb-1">{dt(lang, 'totalPending')}</p>
-          <p className="font-sans text-[20px] font-bold text-dp-error">Rs. {fmtAmount(totalPending)}</p>
+          <p className="font-sans text-[20px] font-bold text-dp-error">{fmtAmount(totalPending)}</p>
         </div>
       </div>
 
@@ -199,11 +199,11 @@ export default function NonPaymentReportPage() {
                     <td className="px-4 py-3">
                       {f.bills.map((b) => (
                         <div key={b.billId} className="font-sans text-[12.5px] text-dp-on-surface-variant">
-                          {monthName(b.month)} {b.year}{b.billNumber ? ` (${b.billNumber})` : ''} — Rs. {fmtAmount(b.outstanding)}{dt(lang, 'dueSuffix')}
+                          {monthName(b.month)} {b.year}{b.billNumber ? ` (${b.billNumber})` : ''} — {fmtAmount(b.outstanding)}{dt(lang, 'dueSuffix')}
                         </div>
                       ))}
                     </td>
-                    <td className="px-4 py-3 text-end font-sans text-[14px] font-bold text-dp-error">Rs. {fmtAmount(f.totalOutstanding)}</td>
+                    <td className="px-4 py-3 text-end font-sans text-[14px] font-bold text-dp-error">{fmtAmount(f.totalOutstanding)}</td>
                   </tr>
                 ))}
               </tbody>

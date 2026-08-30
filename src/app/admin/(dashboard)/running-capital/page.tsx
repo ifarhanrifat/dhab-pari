@@ -42,7 +42,7 @@ function StatCard({ icon, label, value, tone = 'default' }: { icon: React.ReactN
   return (
     <div className="bg-white rounded-lg border border-dp-outline-variant p-4">
       <div className="flex items-center gap-2 text-dp-on-surface-variant mb-2">{icon}<span className="font-sans text-[12px] font-bold uppercase tracking-[0.04em]">{label}</span></div>
-      <p className={`font-heading text-[22px] font-bold ${toneClass}`}>Rs. {value}</p>
+      <p className={`font-heading text-[22px] font-bold ${toneClass}`}>{value}</p>
     </div>
   )
 }
@@ -75,7 +75,7 @@ function ExpenseTable({ lines }: { lines: ExpenseLine[] }) {
                   <span className="text-dp-on-surface-variant">{t('rk.noApproval')}</span>
                 )}
               </td>
-              <td className={`px-4 py-2.5 text-end font-semibold whitespace-nowrap ${e.amount < 0 ? 'text-emerald-600' : ''}`}>Rs. {fmtAmount(e.amount)}</td>
+              <td className={`px-4 py-2.5 text-end font-semibold whitespace-nowrap ${e.amount < 0 ? 'text-emerald-600' : ''}`}>{fmtAmount(e.amount)}</td>
             </tr>
           ))}
         </tbody>
@@ -311,7 +311,7 @@ function OtherOutgoingPayments({ breakdown }: { breakdown: CashCategoryAmount[] 
         {other.map((c, i) => (
           <div key={i} className="p-3.5 flex items-center justify-between gap-3">
             <span className="font-sans text-[13.5px] text-dp-on-surface">{cashCategoryLabel(c.category, isUrdu)}</span>
-            <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">Rs. {fmtAmount(c.amount)}</span>
+            <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{fmtAmount(c.amount)}</span>
           </div>
         ))}
       </div>
@@ -494,7 +494,7 @@ export default function RunningCapitalPage() {
                       {live.discount_by_consumer.map((d, i) => (
                         <tr key={i} className="border-b border-dp-outline-variant last:border-0 font-sans text-[13.5px]">
                           <td className="px-4 py-2">{d.consumer_name}</td>
-                          <td className="px-4 py-2 text-end font-semibold">Rs. {fmtAmount(d.amount)}</td>
+                          <td className="px-4 py-2 text-end font-semibold">{fmtAmount(d.amount)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -528,7 +528,7 @@ export default function RunningCapitalPage() {
               <p className="font-sans text-[12px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant mb-2">{dt(lang, 'pendingBySector')}</p>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(live.pending_by_sector).sort(([, a], [, b]) => b - a).map(([sector, amt]) => (
-                  <span key={sector} className="px-3 py-1.5 bg-dp-surface-container-low rounded-full font-sans text-[12.5px] font-semibold text-dp-on-surface">{sector}: Rs. {fmtAmount(amt)}</span>
+                  <span key={sector} className="px-3 py-1.5 bg-dp-surface-container-low rounded-full font-sans text-[12.5px] font-semibold text-dp-on-surface">{sector}: {fmtAmount(amt)}</span>
                 ))}
               </div>
             </div>
@@ -607,7 +607,7 @@ export default function RunningCapitalPage() {
               <p className="font-sans text-[12px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant mb-2">{t('rk.byProject')}</p>
               <div className="flex flex-wrap gap-2">
                 {live.donor_breakdown.by_project.map((p, i) => (
-                  <span key={i} className="px-3 py-1.5 bg-dp-surface-container-low rounded-full font-sans text-[12.5px] font-semibold text-dp-on-surface">{p.title}: Rs. {fmtAmount(p.total)}</span>
+                  <span key={i} className="px-3 py-1.5 bg-dp-surface-container-low rounded-full font-sans text-[12.5px] font-semibold text-dp-on-surface">{p.title}: {fmtAmount(p.total)}</span>
                 ))}
               </div>
             </div>
@@ -617,7 +617,7 @@ export default function RunningCapitalPage() {
               <p className="font-sans text-[12px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant mb-2">{t('rk.byDonorType')}</p>
               <div className="flex flex-wrap gap-2">
                 {live.donor_breakdown.by_type.map((dtype, i) => (
-                  <span key={i} className="px-3 py-1.5 bg-dp-surface-container-low rounded-full font-sans text-[12.5px] font-semibold text-dp-on-surface capitalize">{t(donorTypeLabelKey[dtype.type] ?? dtype.type, dtype.type)}: Rs. {fmtAmount(dtype.total)}</span>
+                  <span key={i} className="px-3 py-1.5 bg-dp-surface-container-low rounded-full font-sans text-[12.5px] font-semibold text-dp-on-surface capitalize">{t(donorTypeLabelKey[dtype.type] ?? dtype.type, dtype.type)}: {fmtAmount(dtype.total)}</span>
                 ))}
               </div>
             </div>
@@ -644,8 +644,8 @@ export default function RunningCapitalPage() {
                       <td className="px-4 py-2.5 font-semibold">{p.title}</td>
                       <td className="px-4 py-2.5"><span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-dp-surface-container-low">{t(projectStatusLabelKey[p.status] ?? p.status, p.status)}</span></td>
                       <td className="px-4 py-2.5 text-dp-on-surface-variant">{p.progress_percent != null ? `${p.progress_percent}%` : '—'}</td>
-                      <td className="px-4 py-2.5 text-end">{p.budget_pkr != null ? `Rs. ${fmtAmount(p.budget_pkr)}` : '—'}</td>
-                      <td className="px-4 py-2.5 text-end">{p.spent_pkr != null ? `Rs. ${fmtAmount(p.spent_pkr)}` : '—'}</td>
+                      <td className="px-4 py-2.5 text-end">{p.budget_pkr != null ? `${fmtAmount(p.budget_pkr)}` : '—'}</td>
+                      <td className="px-4 py-2.5 text-end">{p.spent_pkr != null ? `${fmtAmount(p.spent_pkr)}` : '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -684,7 +684,7 @@ export default function RunningCapitalPage() {
             <div key={r.id} className="p-4 flex items-center justify-between gap-3">
               <div>
                 <p className="font-sans text-[14px] font-bold text-dp-on-surface">{monthNamesEn[r.report_month - 1]} {r.report_year}</p>
-                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">Rs. {fmtAmount(r.this_month_cash)} cash · Rs. {fmtAmount(r.net_surplus)} net surplus</p>
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{fmtAmount(r.this_month_cash)} cash · {fmtAmount(r.net_surplus)} net surplus</p>
               </div>
               <button onClick={() => openView(r)} className="flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
                 <FileText size={13} /> {dt(lang, 'viewPrint')}
@@ -781,7 +781,7 @@ export default function RunningCapitalPage() {
                       <div key={n.consumer_id} className="border border-dp-outline-variant rounded-lg p-3">
                         <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
                           <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{n.name}{n.sector ? ` — ${n.sector}` : ''}</p>
-                          <span className="font-sans text-[12.5px] font-semibold text-dp-error">Rs. {fmtAmount(n.outstanding)}</span>
+                          <span className="font-sans text-[12.5px] font-semibold text-dp-error">{fmtAmount(n.outstanding)}</span>
                         </div>
                         <p className="font-sans text-[12px] text-dp-on-surface-variant mb-2">
                           {dt(lang, 'complaintSincePrefix')} {new Date(n.complaint_since).toLocaleDateString('en-GB')}

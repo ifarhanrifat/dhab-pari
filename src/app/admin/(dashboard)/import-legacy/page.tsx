@@ -118,9 +118,9 @@ export default function ImportLegacyPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatCard icon={<FolderKanban size={16} />} label={t('il.projects')} value={data.projects.length} />
             <StatCard icon={<Users size={16} />} label={t('il.donors')} value={new Set(data.donations.map((d) => d.donorName)).size} />
-            <StatCard icon={<HeartHandshake size={16} />} label={t('il.donations')} value={data.donations.length} sub={`Rs. ${fmt(data.donations.reduce((s, d) => s + d.amount, 0))}`} />
+            <StatCard icon={<HeartHandshake size={16} />} label={t('il.donations')} value={data.donations.length} sub={`${fmt(data.donations.reduce((s, d) => s + d.amount, 0))}`} />
             <StatCard icon={<Receipt size={16} />} label={t('il.expenses')} value={data.expenses.length + data.expenseSplits.length}
-              sub={`Rs. ${fmt(data.expenses.reduce((s, e) => s + e.amount, 0) + data.expenseSplits.reduce((s, e) => s + e.amount, 0))}`} />
+              sub={`${fmt(data.expenses.reduce((s, e) => s + e.amount, 0) + data.expenseSplits.reduce((s, e) => s + e.amount, 0))}`} />
           </div>
 
           <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
@@ -133,7 +133,7 @@ export default function ImportLegacyPage() {
                 return (
                   <div key={p.aname} className="flex items-center justify-between gap-3 text-[12.5px] font-sans py-1 border-b border-dp-outline-variant/50 last:border-0">
                     <span className="text-dp-on-surface truncate">{p.aname}</span>
-                    <span className="text-dp-on-surface-variant shrink-0">Rs. {fmt(total)} {t('il.donations').toLowerCase()} · Rs. {fmt(spent)} {t('il.expenses').toLowerCase()}</span>
+                    <span className="text-dp-on-surface-variant shrink-0">{fmt(total)} {t('il.donations').toLowerCase()} · {fmt(spent)} {t('il.expenses').toLowerCase()}</span>
                   </div>
                 )
               })}
@@ -148,7 +148,7 @@ export default function ImportLegacyPage() {
                 <p className="font-sans text-[12.5px] text-amber-900/80 mt-1">{t('il.anomaliesBody')}</p>
                 <ul className="mt-2 space-y-1">
                   {data.anomalies.map((a) => (
-                    <li key={a.vchNo} className="font-sans text-[12px] text-amber-900">{a.date} · {a.vchNo} · Rs. {fmt(a.amount)} · {a.credit} → {a.debit}</li>
+                    <li key={a.vchNo} className="font-sans text-[12px] text-amber-900">{a.date} · {a.vchNo} · {fmt(a.amount)} · {a.credit} → {a.debit}</li>
                   ))}
                 </ul>
               </div>

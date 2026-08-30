@@ -559,7 +559,7 @@ export default function AllTransactionsPage() {
                     <div className="text-end shrink-0">
                       <p className="font-sans text-[13px] font-bold text-dp-on-surface whitespace-nowrap">{r.docLabel}</p>
                       <p className="font-sans text-[12px] text-dp-on-surface-variant whitespace-nowrap">{new Date(r.date).toLocaleDateString('en-GB')}</p>
-                      {r.amount > 0 && <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap mt-1">Rs {fmtAmount(r.amount)}</p>}
+                      {r.amount > 0 && <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap mt-1">{fmtAmount(r.amount)}</p>}
                       <div className="flex flex-wrap justify-end gap-1 mt-1">
                         {r.isRecurring && (
                           <span className="inline-block px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700" title={t('tx.recurringTooltip')}>
@@ -609,7 +609,7 @@ export default function AllTransactionsPage() {
                     <div className="flex justify-between items-end gap-3 mt-1.5">
                       <p className="font-sans text-[13px] text-dp-on-surface-variant truncate">{r.description}</p>
                       <div className="text-end shrink-0">
-                        {r.amount > 0 && <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">Rs {fmtAmount(r.amount)}</p>}
+                        {r.amount > 0 && <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">{fmtAmount(r.amount)}</p>}
                         {r.badge && (
                           <span className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide ${billBadgeClass[r.badge.tone]}`}>{r.badge.textKey ? t(r.badge.textKey) : r.badge.text}</span>
                         )}

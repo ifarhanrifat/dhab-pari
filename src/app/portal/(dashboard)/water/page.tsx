@@ -103,7 +103,7 @@ export default function PortalWaterPage() {
 
       <div className="bg-white border border-dp-outline-variant rounded-lg px-5 py-4 mb-6 inline-block">
         <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{t('p.totalOutstanding')}</p>
-        <p className={`font-heading text-[24px] font-bold ${outstanding > 0 ? 'text-dp-error' : 'text-dp-secondary'}`}>Rs. {fmt(outstanding)}</p>
+        <p className={`font-heading text-[24px] font-bold ${outstanding > 0 ? 'text-dp-error' : 'text-dp-secondary'}`}>{fmt(outstanding)}</p>
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mb-6">
@@ -121,8 +121,8 @@ export default function PortalWaterPage() {
                   <tr key={b.id} className="border-b border-dp-outline-variant last:border-b-0">
                     <td className="p-3">{monthName(b.month)} {b.year}</td>
                     <td className="p-3 font-mono text-[13px] text-dp-on-surface-variant">{b.bill_number ?? '—'}</td>
-                    <td className="p-3 text-end">Rs. {fmt(b.amount_pkr)}</td>
-                    <td className="p-3 text-end">Rs. {fmt(b.paid_amount ?? 0)}</td>
+                    <td className="p-3 text-end">{fmt(b.amount_pkr)}</td>
+                    <td className="p-3 text-end">{fmt(b.paid_amount ?? 0)}</td>
                     <td className="p-3"><span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${b.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{BILL_STATUS_KEY[b.status] ? t(BILL_STATUS_KEY[b.status]) : b.status}</span></td>
                     <td className="p-3 text-dp-on-surface-variant">{b.due_date ? new Date(b.due_date).toLocaleDateString('en-GB') : '—'}</td>
                     <td className="p-3 text-end">
@@ -158,7 +158,7 @@ export default function PortalWaterPage() {
                   <td className="p-3">{new Date(p.paid_date).toLocaleDateString('en-GB')}</td>
                   <td className="p-3 font-mono text-[13px] text-dp-on-surface-variant">{p.receipt_no ?? '—'}</td>
                   <td className="p-3 capitalize text-dp-on-surface-variant">{p.method}</td>
-                  <td className="p-3 text-end font-semibold">Rs. {fmt(p.amount_pkr)}</td>
+                  <td className="p-3 text-end font-semibold">{fmt(p.amount_pkr)}</td>
                 </tr>
               ))}
             </tbody>

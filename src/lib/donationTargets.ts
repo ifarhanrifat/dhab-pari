@@ -82,11 +82,11 @@ export async function fetchDonationTargets(
 
   const amountFor = (p: ProjectRow): string | undefined => {
     if (p.funding_model === 'recurring_support' && p.monthly_operating_cost_pkr) {
-      return `Rs. ${fmtPkr(p.monthly_operating_cost_pkr)}${t('dt.perMonthNeeded')}`
+      return `${fmtPkr(p.monthly_operating_cost_pkr)}${t('dt.perMonthNeeded')}`
     }
     if (p.budget_pkr) {
       const remaining = Math.max(0, Number(p.budget_pkr) - (received[p.id] ?? 0))
-      if (remaining > 0) return `Rs. ${fmtPkr(remaining)} ${t('dt.amountNeeded')}`
+      if (remaining > 0) return `${fmtPkr(remaining)} ${t('dt.amountNeeded')}`
     }
     return undefined
   }

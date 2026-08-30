@@ -81,7 +81,7 @@ export default async function AccountsPage() {
               <T k="x.totalIncome" />
             </p>
             <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-secondary">
-              Rs. {totalIncome.toLocaleString()}
+              {totalIncome.toLocaleString()}
             </h2>
             <p className="text-[12px] text-dp-secondary font-semibold font-sans mt-1">
               +12% from last month
@@ -98,7 +98,7 @@ export default async function AccountsPage() {
               <T k="x.totalExpenses" />
             </p>
             <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-error">
-              Rs. {totalExpense.toLocaleString()}
+              {totalExpense.toLocaleString()}
             </h2>
             <p className="text-[12px] text-dp-error font-semibold font-sans mt-1">
               <T k="x.withinBudget" />
@@ -115,7 +115,7 @@ export default async function AccountsPage() {
               <T k="x.netBalance" />
             </p>
             <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-tertiary-container">
-              Rs. {netBalance.toLocaleString()}
+              {netBalance.toLocaleString()}
             </h2>
             <p className="text-[12px] text-dp-tertiary-container font-semibold font-sans mt-1">
               <T k="x.villageFundReserve" />
@@ -170,7 +170,7 @@ export default async function AccountsPage() {
                       <td
                         className={`px-6 py-4 text-end font-bold ${txn.type === 'income' ? 'text-dp-secondary' : 'text-dp-error'}`}
                       >
-                        Rs. {Number(txn.amount_pkr).toLocaleString()}
+                        {Number(txn.amount_pkr).toLocaleString()}
                       </td>
                     </tr>
                   ))}
@@ -216,13 +216,13 @@ export default async function AccountsPage() {
                   <p className="text-[10px] uppercase text-dp-on-surface-variant tracking-wider font-sans">
                     <T k="x.cashInHand" />
                   </p>
-                  <p className="font-bold text-dp-on-surface font-sans">Rs. 12,450</p>
+                  <p className="font-bold text-dp-on-surface font-sans">12,450</p>
                 </div>
                 <div className="p-3 bg-dp-surface-container rounded-lg">
                   <p className="text-[10px] uppercase text-dp-on-surface-variant tracking-wider font-sans">
                     <T k="x.bankBalance" />
                   </p>
-                  <p className="font-bold text-dp-on-surface font-sans">Rs. 123,710</p>
+                  <p className="font-bold text-dp-on-surface font-sans">123,710</p>
                 </div>
               </div>
             </div>

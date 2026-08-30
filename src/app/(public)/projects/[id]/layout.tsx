@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   // exists for: a shared link's tab title / WhatsApp preview reaches
   // people who never touched the site itself.
   const title = project.display_name || project.title
-  const budgetLine = project.budget_pkr ? `Budget: Rs. ${Number(project.budget_pkr).toLocaleString()}. ` : ''
+  const budgetLine = project.budget_pkr ? `Budget: ${Number(project.budget_pkr).toLocaleString()}. ` : ''
   const description = `${budgetLine}${project.description ?? `A community project by ${SITE.fullName}.`}`.slice(0, 200)
 
   return {

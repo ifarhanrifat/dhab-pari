@@ -180,7 +180,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
       const mime = format === 'pdf' ? 'application/pdf' : 'image/png'
       const result = await shareReceipt({
         blob, filename: filename(), mime, phone: whatsappPhone,
-        message: `Water bill ${data.receiptNo} — Rs. ${netAmount.toLocaleString()}`,
+        message: `Water bill ${data.receiptNo} — ${netAmount.toLocaleString()}`,
       })
       toast.success(result === 'shared' ? 'Shared' : whatsappPhone ? 'Downloaded — WhatsApp opened, attach the file to send' : 'Downloaded — no WhatsApp number on file for this consumer')
     } catch {
@@ -196,7 +196,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
       const blob = await buildBlob()
       downloadBlob(blob, filename())
       const subject = encodeURIComponent(`Water Bill ${data.receiptNo}`)
-      const body = encodeURIComponent(`Please find attached water bill ${data.receiptNo} for Rs. ${netAmount.toLocaleString()}.\n\n(The invoice file was just downloaded — please attach it to this email before sending.)`)
+      const body = encodeURIComponent(`Please find attached water bill ${data.receiptNo} for ${netAmount.toLocaleString()}.\n\n(The invoice file was just downloaded — please attach it to this email before sending.)`)
       window.open(`mailto:?subject=${subject}&body=${body}`, '_blank')
       toast.success('Downloaded — attach it to the email that just opened')
     } catch {

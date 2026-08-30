@@ -214,24 +214,24 @@ export default async function AdminDashboardPage() {
             { href: '/admin/register?system=water_supply', icon: <CalendarDays size={16} className="shrink-0" />, labelKey: 'dash.dailyRegister', labelFallback: 'Daily Register' },
           ]} />
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
-            <StatCard href="/admin/accounts/by-type?system=water_supply&type=cash" icon={<Wallet size={19} />} color="teal" label={<T k="dash.cashInHand" fallback="Cash in Hand" />} value={`Rs. ${fmt(waterStats.cash)}`} />
-            <StatCard href="/admin/accounts/by-type?system=water_supply&type=bank" icon={<Landmark size={19} />} color="blue" label={<T k="dash.cashInBank" fallback="Cash in Bank" />} value={`Rs. ${fmt(waterStats.bank)}`} />
-            <StatCard href="/admin/register?system=water_supply" icon={<Banknote size={19} />} color="emerald" label={<T k="dash.billWasooliThisMonth" fallback="Bill Wasooli This Month" />} value={`Rs. ${fmt(billWasooliThisMonth)}`} />
-            <StatCard href="/admin/reports?report=consumer_outstanding&system=water_supply" icon={<HandCoins size={19} />} color="amber" label={<T k="dash.totalReceivable" fallback="Total Receivable" />} value={`Rs. ${fmt(waterStats.receivable)}`} />
-            <StatCard href="/admin/accounts/by-type?system=water_supply&type=liability" icon={<ScrollText size={19} />} color="rose" label={<T k="dash.totalPayable" fallback="Total Payable" />} value={`Rs. ${fmt(waterStats.liability)}`} />
-            <StatCard href="/admin/reports?report=income_expense&system=water_supply" icon={<TrendingUp size={19} />} color="emerald" label={<T k="dash.grossIncome" fallback="Gross Income" />} value={`Rs. ${fmt(waterStats.grossProfit)}`} />
-            <StatCard href="/admin/accounts/by-type?system=water_supply&type=expense" icon={<TrendingDown size={19} />} color="red" label={<T k="dash.totalExpenses" fallback="Total Expenses" />} value={`Rs. ${fmt(waterStats.expense)}`} />
-            <StatCard href="/admin/reports?report=income_expense&system=water_supply" icon={waterStats.netProfit >= 0 ? <TrendingUp size={19} /> : <TrendingDown size={19} />} color={waterStats.netProfit >= 0 ? 'emerald' : 'red'} label={<T k="dash.netProfit" fallback="Net Profit" />} value={`Rs. ${fmt(waterStats.netProfit)}`} />
+            <StatCard href="/admin/accounts/by-type?system=water_supply&type=cash" icon={<Wallet size={19} />} color="teal" label={<T k="dash.cashInHand" fallback="Cash in Hand" />} value={`${fmt(waterStats.cash)}`} />
+            <StatCard href="/admin/accounts/by-type?system=water_supply&type=bank" icon={<Landmark size={19} />} color="blue" label={<T k="dash.cashInBank" fallback="Cash in Bank" />} value={`${fmt(waterStats.bank)}`} />
+            <StatCard href="/admin/register?system=water_supply" icon={<Banknote size={19} />} color="emerald" label={<T k="dash.billWasooliThisMonth" fallback="Bill Wasooli This Month" />} value={`${fmt(billWasooliThisMonth)}`} />
+            <StatCard href="/admin/reports?report=consumer_outstanding&system=water_supply" icon={<HandCoins size={19} />} color="amber" label={<T k="dash.totalReceivable" fallback="Total Receivable" />} value={`${fmt(waterStats.receivable)}`} />
+            <StatCard href="/admin/accounts/by-type?system=water_supply&type=liability" icon={<ScrollText size={19} />} color="rose" label={<T k="dash.totalPayable" fallback="Total Payable" />} value={`${fmt(waterStats.liability)}`} />
+            <StatCard href="/admin/reports?report=income_expense&system=water_supply" icon={<TrendingUp size={19} />} color="emerald" label={<T k="dash.grossIncome" fallback="Gross Income" />} value={`${fmt(waterStats.grossProfit)}`} />
+            <StatCard href="/admin/accounts/by-type?system=water_supply&type=expense" icon={<TrendingDown size={19} />} color="red" label={<T k="dash.totalExpenses" fallback="Total Expenses" />} value={`${fmt(waterStats.expense)}`} />
+            <StatCard href="/admin/reports?report=income_expense&system=water_supply" icon={waterStats.netProfit >= 0 ? <TrendingUp size={19} /> : <TrendingDown size={19} />} color={waterStats.netProfit >= 0 ? 'emerald' : 'red'} label={<T k="dash.netProfit" fallback="Net Profit" />} value={`${fmt(waterStats.netProfit)}`} />
             <StatCard href="/admin/billing" icon={<Users size={19} />} color="violet" label={<T k="dash.totalConsumers" fallback="Total Consumers" />} value={activeConsumers.toLocaleString()} />
             <StatCard href="/admin/inventory?tab=analytics" icon={<AlertTriangle size={19} />} color={lowStockItems.length > 0 ? 'red' : 'teal'} label={<T k="dash.lowStockItems" fallback="Low Stock Items" />} value={lowStockItems.length.toLocaleString()} />
             <StatCard href="/admin/inventory?tab=analytics" icon={<Trophy size={19} />} color="amber" label={<T k="dash.topSellingItem" fallback="Top Selling Item" />} value={topSellingItem ? topSellingItem.name : <T k="dash.noSalesYet" fallback="No sales yet" />} />
-            <StatCard href="/admin/collectors" icon={<Coins size={19} />} color={collectorHoldings > 0 ? 'red' : 'teal'} label={<T k="dash.collectorHoldings" fallback="Collector Holdings" />} value={`Rs. ${fmt(collectorHoldings)}`} />
+            <StatCard href="/admin/collectors" icon={<Coins size={19} />} color={collectorHoldings > 0 ? 'red' : 'teal'} label={<T k="dash.collectorHoldings" fallback="Collector Holdings" />} value={`${fmt(collectorHoldings)}`} />
             {/* Moved from a 6-card row that used to live inline on the
                 Billing page itself — on a phone it stacked into a wall of
                 cards above the actual consumer list. Each links straight
                 to Billing with that filter already applied
                 (?quickFilter=<value>, read on mount there). */}
-            <StatCard href="/admin/billing?quickFilter=billed_this_month" icon={<Receipt size={19} />} color="teal" label={<T k="dash.billedThisMonth" fallback="Billed This Month" />} value={`Rs. ${fmt(billedThisMonthTotal)}`} />
+            <StatCard href="/admin/billing?quickFilter=billed_this_month" icon={<Receipt size={19} />} color="teal" label={<T k="dash.billedThisMonth" fallback="Billed This Month" />} value={`${fmt(billedThisMonthTotal)}`} />
             <StatCard href="/admin/billing?quickFilter=active" icon={<UserCheck size={19} />} color="emerald" label={<T k="dash.activeConnections" fallback="Active Connections" />} value={activeConsumers.toLocaleString()} />
             <StatCard href="/admin/billing?quickFilter=inactive" icon={<UserX size={19} />} color="red" label={<T k="dash.deactivated" fallback="Deactivated" />} value={inactiveConsumers.toLocaleString()} />
             <StatCard href="/admin/billing?quickFilter=with_discount" icon={<Tag size={19} />} color="amber" label={<T k="dash.withDiscount" fallback="With Discount" />} value={withDiscountCount.toLocaleString()} />
@@ -264,14 +264,14 @@ export default async function AdminDashboardPage() {
             { href: '/admin/register?system=donors_projects', icon: <CalendarDays size={16} className="shrink-0" />, labelKey: 'dash.dailyRegister', labelFallback: 'Daily Register' },
           ]} />
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
-            <StatCard href="/admin/accounts/by-type?system=donors_projects&type=cash" icon={<Wallet size={19} />} color="teal" label={<T k="dash.cashInHand" fallback="Cash in Hand" />} value={`Rs. ${fmt(donorStats.cash)}`} />
-            <StatCard href="/admin/accounts/by-type?system=donors_projects&type=bank" icon={<Landmark size={19} />} color="blue" label={<T k="dash.cashInBank" fallback="Cash in Bank" />} value={`Rs. ${fmt(donorStats.bank)}`} />
+            <StatCard href="/admin/accounts/by-type?system=donors_projects&type=cash" icon={<Wallet size={19} />} color="teal" label={<T k="dash.cashInHand" fallback="Cash in Hand" />} value={`${fmt(donorStats.cash)}`} />
+            <StatCard href="/admin/accounts/by-type?system=donors_projects&type=bank" icon={<Landmark size={19} />} color="blue" label={<T k="dash.cashInBank" fallback="Cash in Bank" />} value={`${fmt(donorStats.bank)}`} />
             <StatCard href="/admin/donors" icon={<Heart size={19} />} color="pink" label={<T k="dash.totalDonors" fallback="Total Donors" />} value={donorPartyCount.toLocaleString()} />
-            <StatCard href="/admin/accounts/by-type?system=donors_projects&type=liability" icon={<ScrollText size={19} />} color="rose" label={<T k="dash.totalPayable" fallback="Total Payable" />} value={`Rs. ${fmt(donorStats.liability)}`} />
+            <StatCard href="/admin/accounts/by-type?system=donors_projects&type=liability" icon={<ScrollText size={19} />} color="rose" label={<T k="dash.totalPayable" fallback="Total Payable" />} value={`${fmt(donorStats.liability)}`} />
             <StatCard href="/admin/donors" icon={<Megaphone size={19} />} color="amber" label={<T k="dash.donationsAnnounced" fallback="Donations Announced" />} value={donationsAnnounced.toLocaleString()} />
-            <StatCard href="/admin/donors" icon={<PiggyBank size={19} />} color="emerald" label={<T k="dash.donationsReceived" fallback="Donations Received" />} value={`Rs. ${fmt(donationsReceived)}`} />
-            <StatCard href="/admin/accounts/by-type?system=donors_projects&type=expense" icon={<TrendingDown size={19} />} color="red" label={<T k="dash.totalExpenses" fallback="Total Expenses" />} value={`Rs. ${fmt(donorStats.expense)}`} />
-            <StatCard href="/admin/reports?report=income_expense&system=donors_projects" icon={donorStats.netProfit >= 0 ? <TrendingUp size={19} /> : <TrendingDown size={19} />} color={donorStats.netProfit >= 0 ? 'emerald' : 'red'} label={<T k="dash.netProfit" fallback="Net Profit" />} value={`Rs. ${fmt(donorStats.netProfit)}`} />
+            <StatCard href="/admin/donors" icon={<PiggyBank size={19} />} color="emerald" label={<T k="dash.donationsReceived" fallback="Donations Received" />} value={`${fmt(donationsReceived)}`} />
+            <StatCard href="/admin/accounts/by-type?system=donors_projects&type=expense" icon={<TrendingDown size={19} />} color="red" label={<T k="dash.totalExpenses" fallback="Total Expenses" />} value={`${fmt(donorStats.expense)}`} />
+            <StatCard href="/admin/reports?report=income_expense&system=donors_projects" icon={donorStats.netProfit >= 0 ? <TrendingUp size={19} /> : <TrendingDown size={19} />} color={donorStats.netProfit >= 0 ? 'emerald' : 'red'} label={<T k="dash.netProfit" fallback="Net Profit" />} value={`${fmt(donorStats.netProfit)}`} />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <div className="lg:col-span-2 bg-white rounded-lg border border-dp-outline-variant p-5">

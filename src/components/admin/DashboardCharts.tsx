@@ -16,7 +16,7 @@ export function IncomeExpenseChart({ data, incomeColor = '#059669', expenseColor
         <XAxis dataKey="month" tick={{ fontSize: 12, fontFamily: 'var(--font-sans)' }} />
         <YAxis tick={{ fontSize: 11, fontFamily: 'var(--font-sans)' }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
         <Tooltip
-          formatter={(value) => [`Rs. ${Number(value).toLocaleString()}`, '']}
+          formatter={(value) => [`${Number(value).toLocaleString()}`, '']}
           contentStyle={{ fontFamily: 'var(--font-sans)', fontSize: 13, borderRadius: 8 }}
         />
         <Legend wrapperStyle={{ fontFamily: 'var(--font-sans)', fontSize: 13 }} />
@@ -42,7 +42,7 @@ export function StockValueTrendChart({ data }: { data: StockValuePoint[] }) {
         <XAxis dataKey="month" tick={{ fontSize: 12, fontFamily: 'var(--font-sans)' }} />
         <YAxis tick={{ fontSize: 11, fontFamily: 'var(--font-sans)' }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
         <Tooltip
-          formatter={(value) => [`Rs. ${Number(value).toLocaleString()}`, t('y.stockValue')]}
+          formatter={(value) => [`${Number(value).toLocaleString()}`, t('y.stockValue')]}
           contentStyle={{ fontFamily: 'var(--font-sans)', fontSize: 13, borderRadius: 8 }}
         />
         <Line type="monotone" dataKey="value" name={t('y.stockValue')} stroke="#0d9488" strokeWidth={2.5} dot={{ r: 3 }} />
@@ -71,7 +71,7 @@ export function FundPieChart({ data }: { data: FundSlice[] }) {
         <Pie data={nonZero} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={(e: { name?: string; percent?: number }) => `${e.name ?? ''} ${((e.percent ?? 0) * 100).toFixed(0)}%`}>
           {nonZero.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
         </Pie>
-        <Tooltip formatter={(value) => `Rs. ${Number(value).toLocaleString()}`} contentStyle={{ fontFamily: 'var(--font-sans)', fontSize: 13, borderRadius: 8 }} />
+        <Tooltip formatter={(value) => `${Number(value).toLocaleString()}`} contentStyle={{ fontFamily: 'var(--font-sans)', fontSize: 13, borderRadius: 8 }} />
         <Legend wrapperStyle={{ fontFamily: 'var(--font-sans)', fontSize: 12 }} />
       </PieChart>
     </ResponsiveContainer>

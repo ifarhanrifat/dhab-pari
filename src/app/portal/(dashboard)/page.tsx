@@ -113,8 +113,8 @@ export default function PortalDashboardPage() {
   if (!user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('p.couldNotLoad')}</div>
 
   const cards = [
-    { href: '/portal/statement', icon: HeartHandshake, label: t('p.totalDonated'), value: `Rs. ${fmt(totalDonated)}`, color: 'text-dp-secondary' },
-    ...(user.consumer_id ? [{ href: '/portal/water', icon: Droplets, label: t('p.waterBillsOutstanding'), value: `Rs. ${fmt(waterOutstanding)}`, color: waterOutstanding > 0 ? 'text-dp-error' : 'text-dp-secondary' }] : []),
+    { href: '/portal/statement', icon: HeartHandshake, label: t('p.totalDonated'), value: `${fmt(totalDonated)}`, color: 'text-dp-secondary' },
+    ...(user.consumer_id ? [{ href: '/portal/water', icon: Droplets, label: t('p.waterBillsOutstanding'), value: `${fmt(waterOutstanding)}`, color: waterOutstanding > 0 ? 'text-dp-error' : 'text-dp-secondary' }] : []),
     { href: '/portal/recurring', icon: Repeat, label: t('p.activeRecurringDonations'), value: String(activeRecurring), color: 'text-dp-primary' },
   ]
 
@@ -132,7 +132,7 @@ export default function PortalDashboardPage() {
       <div className="mb-8">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2">{t('p.welcome')}, {user.full_name} <PortalHelp pageKey="dashboard" /></h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">
-          {user.consumer_id ? `${t('p.consumerNo')}${user.consumer_id}` : t('p.noLinkedWaterConnection')} · {t('p.mobileLabel')} {user.mobile}
+          {user.consumer_id ? <>{t('p.consumerNo')}<span className="ltr-num">{user.consumer_id}</span></> : t('p.noLinkedWaterConnection')} · {t('p.mobileLabel')} <span className="ltr-num">{user.mobile}</span>
         </p>
       </div>
 
@@ -185,9 +185,9 @@ export default function PortalDashboardPage() {
                       <div className="h-full bg-dp-secondary rounded-full" style={{ width: `${Math.min(100, p.progress_percent ?? 0)}%` }} />
                     </div>
                     {f && (
-                      <div className="flex items-center justify-between gap-1 mt-1.5 font-sans text-[9px] text-dp-on-surface-variant ltr-num">
-                        <span>{t('pj.raisedShort')} Rs. {fmt(f.raised)}</span>
-                        <span>{t('pj.spentShort')} Rs. {fmt(f.spent)}</span>
+                      <div className="flex items-center justify-between gap-1 mt-1.5 font-sans text-[9px] text-dp-on-surface-variant">
+                        <span>{t('pj.raisedShort')} <span className="ltr-num">{fmt(f.raised)}</span></span>
+                        <span>{t('pj.spentShort')} <span className="ltr-num">{fmt(f.spent)}</span></span>
                       </div>
                     )}
                   </Link>
@@ -221,20 +221,20 @@ export default function PortalDashboardPage() {
                   <Link href="/portal/training-programs">
                     <p className="text-[9.5px] font-bold text-amber-600 uppercase tracking-wide flex items-center gap-1"><HandCoins size={10} /> {t(CATEGORY_LABEL[a.category ?? 'sports'] ?? 'pj.catSports')}</p>
                     <p className={`font-sans text-[12.5px] font-semibold text-dp-on-surface mt-1 line-clamp-2 ${isUrdu ? 'leading-[22px]' : 'leading-[16px]'}`}>{a.display_name || a.title}</p>
-                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">{fee > 0 ? `Rs. ${fmt(fee)}/${t('af.perMonth')}` : t('tp.freeLabel')}</p>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">{fee > 0 ? <><span className="ltr-num">{fmt(fee)}</span>/{t('af.perMonth')}</> : t('tp.freeLabel')}</p>
                     {/* A trainer-salary academy (funding_model=recurring_support)
                         shows what it's raised against the actual monthly need,
                         not a generic Raised/Spent pair — same distinction the
                         Academies catalog and admin summary already make. */}
                     {isSalaryFunded && f ? (
-                      <div className="flex items-center justify-between gap-1 mt-1.5 font-sans text-[9px] text-dp-on-surface-variant ltr-num">
+                      <div className="flex items-center justify-between gap-1 mt-1.5 font-sans text-[9px] text-dp-on-surface-variant">
                         <span>{t('af.salaryFundingLabel')}</span>
-                        <span>Rs. {fmt(f.raised)}{a.monthly_operating_cost_pkr ? ` / ${fmt(a.monthly_operating_cost_pkr)}${t('af.perMonthShort')}` : ''}</span>
+                        <span className="ltr-num">{fmt(f.raised)}{a.monthly_operating_cost_pkr ? ` / ${fmt(a.monthly_operating_cost_pkr)} ${t('af.perMonthShort')}` : ''}</span>
                       </div>
                     ) : f && (
-                      <div className="flex items-center justify-between gap-1 mt-1.5 font-sans text-[9px] text-dp-on-surface-variant ltr-num">
-                        <span>{t('pj.raisedShort')} Rs. {fmt(f.raised)}</span>
-                        <span>{t('pj.spentShort')} Rs. {fmt(f.spent)}</span>
+                      <div className="flex items-center justify-between gap-1 mt-1.5 font-sans text-[9px] text-dp-on-surface-variant">
+                        <span>{t('pj.raisedShort')} <span className="ltr-num">{fmt(f.raised)}</span></span>
+                        <span>{t('pj.spentShort')} <span className="ltr-num">{fmt(f.spent)}</span></span>
                       </div>
                     )}
                   </Link>

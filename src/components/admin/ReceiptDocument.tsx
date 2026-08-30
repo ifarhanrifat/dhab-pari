@@ -259,24 +259,24 @@ function BillSummary({ data }: { data: ReceiptData }) {
     <div className="font-sans text-[13px] space-y-1">
       {discount > 0 && (
         <div className="flex justify-between text-dp-on-surface-variant">
-          <span>{dt(lang, 'subtotal')}</span><span>Rs. {fmt(subtotal)}</span>
+          <span>{dt(lang, 'subtotal')}</span><span>{fmt(subtotal)}</span>
         </div>
       )}
       {discount > 0 && (
         <div className="flex justify-between text-emerald-700">
-          <span>{dt(lang, 'discount')}</span><span>− Rs. {fmt(discount)}</span>
+          <span>{dt(lang, 'discount')}</span><span>− {fmt(discount)}</span>
         </div>
       )}
       <div className="flex justify-between font-bold text-[15px] border-t border-dp-outline-variant pt-1.5 mt-1">
-        <span>{dt(lang, 'totalPayable')}</span><span>Rs. {fmt(data.amount)}</span>
+        <span>{dt(lang, 'totalPayable')}</span><span>{fmt(data.amount)}</span>
       </div>
       {paid > 0 && (
         <>
           <div className="flex justify-between text-emerald-700">
-            <span>{dt(lang, 'paid')}</span><span>Rs. {fmt(paid)}</span>
+            <span>{dt(lang, 'paid')}</span><span>{fmt(paid)}</span>
           </div>
           <div className="flex justify-between font-bold text-dp-error">
-            <span>{dt(lang, 'balanceDue')}</span><span>Rs. {fmt(Math.max(data.amount - paid, 0))}</span>
+            <span>{dt(lang, 'balanceDue')}</span><span>{fmt(Math.max(data.amount - paid, 0))}</span>
           </div>
         </>
       )}
@@ -296,7 +296,7 @@ function DepositBox({ data }: { data: ReceiptData }) {
         {dt(lang, 'securityDepositNote')}
         {data.securityDepositReceiptNo && <span className="block font-semibold">{dt(lang, 'receiptHash')}{data.securityDepositReceiptNo}</span>}
       </span>
-      <span className="font-bold whitespace-nowrap">Rs. {fmt(data.securityDepositAmount)}</span>
+      <span className="font-bold whitespace-nowrap">{fmt(data.securityDepositAmount)}</span>
     </div>
   )
 }
@@ -443,7 +443,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
               {data.lineItems.map((l, i) => (
                 <div key={i} className="flex justify-between text-[13px]">
                   <span>{l.description} {l.quantity > 1 && <span className="text-dp-on-surface-variant">x{l.quantity}</span>}</span>
-                  <span className="font-semibold">Rs. {fmt(l.quantity * l.unitPrice)}</span>
+                  <span className="font-semibold">{fmt(l.quantity * l.unitPrice)}</span>
                 </div>
               ))}
             </div>
@@ -460,19 +460,19 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
             <>
               {hasDiscount && (
                 <div className="flex justify-between text-[13px] text-emerald-700 mb-1">
-                  <span>{dt(lang, 'discount')}</span><span>− Rs. {fmt(data.discountAmount!)}</span>
+                  <span>{dt(lang, 'discount')}</span><span>− {fmt(data.discountAmount!)}</span>
                 </div>
               )}
               {isDonation && <p className="text-[12px] text-dp-on-surface-variant mb-0.5">{totalLabel}</p>}
-              <p className="text-[32px] font-bold text-dp-primary mb-4">Rs. {fmt(data.amount)}</p>
+              <p className="text-[32px] font-bold text-dp-primary mb-4">{fmt(data.amount)}</p>
               <div className="flex justify-between border-t border-dp-outline-variant pt-3 text-[13px]">
                 <span className="font-semibold text-dp-on-surface-variant">{balanceLabel}</span>
-                <span className="font-bold">Rs. {fmt(Math.max(data.balanceAfter, 0))}</span>
+                <span className="font-bold">{fmt(Math.max(data.balanceAfter, 0))}</span>
               </div>
               {showAnnounced && (
                 <div className="flex justify-between text-[13px] mt-1">
                   <span className="font-semibold text-dp-on-surface-variant">{announcedLabel}</span>
-                  <span className="font-bold">Rs. {fmt(announcedRemaining)}</span>
+                  <span className="font-bold">{fmt(announcedRemaining)}</span>
                 </div>
               )}
             </>
@@ -533,9 +533,9 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
           <>
             {hasDiscount && <p className="text-[13px] text-emerald-700 mb-2">{dt(lang, 'discountAppliedColon')}{fmt(data.discountAmount!)}</p>}
             {isDonation && <p className="text-[12.5px] text-dp-on-surface-variant mb-0.5">{totalLabel}</p>}
-            <p className="text-[40px] font-bold mb-6">Rs. {fmt(data.amount)}</p>
-            <p className="text-[13px] text-dp-on-surface-variant">{balanceLabel}: <span className="font-bold text-dp-on-surface">Rs. {fmt(Math.max(data.balanceAfter, 0))}</span></p>
-            {showAnnounced && <p className="text-[13px] text-dp-on-surface-variant mt-1">{announcedLabel}: <span className="font-bold text-dp-on-surface">Rs. {fmt(announcedRemaining)}</span></p>}
+            <p className="text-[40px] font-bold mb-6">{fmt(data.amount)}</p>
+            <p className="text-[13px] text-dp-on-surface-variant">{balanceLabel}: <span className="font-bold text-dp-on-surface">{fmt(Math.max(data.balanceAfter, 0))}</span></p>
+            {showAnnounced && <p className="text-[13px] text-dp-on-surface-variant mt-1">{announcedLabel}: <span className="font-bold text-dp-on-surface">{fmt(announcedRemaining)}</span></p>}
           </>
         )}
         <div className="flex justify-end mt-16">
@@ -618,18 +618,18 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
             <div className="w-1/2 text-[13px] space-y-1">
               {hasDiscount && (
                 <div className="flex justify-between text-emerald-700">
-                  <span>{dt(lang, 'discount')}</span><span>− Rs. {fmt(data.discountAmount!)}</span>
+                  <span>{dt(lang, 'discount')}</span><span>− {fmt(data.discountAmount!)}</span>
                 </div>
               )}
               <div className="flex justify-between font-bold border-t border-dp-outline-variant pt-1">
-                <span>{totalLabel}</span><span>Rs. {fmt(data.amount)}</span>
+                <span>{totalLabel}</span><span>{fmt(data.amount)}</span>
               </div>
               <div className="flex justify-between text-dp-on-surface-variant">
-                <span>{balanceLabel}</span><span>Rs. {fmt(Math.max(data.balanceAfter, 0))}</span>
+                <span>{balanceLabel}</span><span>{fmt(Math.max(data.balanceAfter, 0))}</span>
               </div>
               {showAnnounced && (
                 <div className="flex justify-between text-[13px] text-dp-on-surface-variant mt-1">
-                  <span>{announcedLabel}</span><span>Rs. {fmt(announcedRemaining)}</span>
+                  <span>{announcedLabel}</span><span>{fmt(announcedRemaining)}</span>
                 </div>
               )}
             </div>
@@ -675,7 +675,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
         )}
         <p className="my-1 border-t border-dashed border-dp-outline-variant" />
         <div className="flex justify-between font-bold text-[14px]">
-          <span>{totalLabelCaps}</span><span>Rs.{fmt(data.amount)}</span>
+          <span>{totalLabelCaps}</span><span>{fmt(data.amount)}</span>
         </div>
         {isBill && (data.paidAmount ?? 0) > 0 && (
           <>
@@ -752,13 +752,13 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
               data.lineItems.map((l, i) => (
                 <tr key={i} className="border-b border-dp-outline-variant">
                   <td className="py-2.5">{l.description}{l.quantity > 1 && ` x${l.quantity}`}</td>
-                  <td className="py-2.5 text-end">Rs. {fmt(l.quantity * l.unitPrice)}</td>
+                  <td className="py-2.5 text-end">{fmt(l.quantity * l.unitPrice)}</td>
                 </tr>
               ))
             ) : (
               <tr className="border-b border-dp-outline-variant">
                 <td className="py-2.5">{data.particular}</td>
-                <td className="py-2.5 text-end">Rs. {fmt(data.amount)}</td>
+                <td className="py-2.5 text-end">{fmt(data.amount)}</td>
               </tr>
             )}
           </tbody>
@@ -775,18 +775,18 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
               <>
                 {hasDiscount && (
                   <div className="flex justify-between text-emerald-700 text-[13px] mb-1">
-                    <span>{dt(lang, 'discount')}</span><span>− Rs. {fmt(data.discountAmount!)}</span>
+                    <span>{dt(lang, 'discount')}</span><span>− {fmt(data.discountAmount!)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-bold text-[19px]">
-                  <span>{totalLabel}</span><span>Rs. {fmt(data.amount)}</span>
+                  <span>{totalLabel}</span><span>{fmt(data.amount)}</span>
                 </div>
                 <div className="flex justify-between text-[13px] text-dp-on-surface-variant mt-1">
-                  <span>{balanceLabel}</span><span>Rs. {fmt(Math.max(data.balanceAfter, 0))}</span>
+                  <span>{balanceLabel}</span><span>{fmt(Math.max(data.balanceAfter, 0))}</span>
                 </div>
                 {showAnnounced && (
                   <div className="flex justify-between text-[13px] text-dp-on-surface-variant mt-1">
-                    <span>{announcedLabel}</span><span>Rs. {fmt(announcedRemaining)}</span>
+                    <span>{announcedLabel}</span><span>{fmt(announcedRemaining)}</span>
                   </div>
                 )}
               </>
@@ -840,7 +840,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
             data.lineItems.map((l, i) => (
               <div key={i} className={`flex justify-between py-2 ${i < data.lineItems!.length - 1 ? 'border-b border-dp-outline-variant' : ''}`}>
                 <span>{l.description}{l.quantity > 1 && ` x${l.quantity}`}</span>
-                <span className="font-semibold">Rs. {fmt(l.quantity * l.unitPrice)}</span>
+                <span className="font-semibold">{fmt(l.quantity * l.unitPrice)}</span>
               </div>
             ))
           ) : (
@@ -857,12 +857,12 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
           <div className="rounded-2xl px-5 py-4 text-white" style={{ backgroundColor: accent }}>
             {hasDiscount && (
               <div className="flex justify-between text-[13px] opacity-90 mb-1">
-                <span>{dt(lang, 'discount')}</span><span>− Rs. {fmt(data.discountAmount!)}</span>
+                <span>{dt(lang, 'discount')}</span><span>− {fmt(data.discountAmount!)}</span>
               </div>
             )}
-            <div className="flex justify-between font-bold text-[19px]"><span>{totalLabel}</span><span>Rs. {fmt(data.amount)}</span></div>
-            <div className="flex justify-between text-[13px] opacity-90 mt-1"><span>{balanceLabel}</span><span>Rs. {fmt(Math.max(data.balanceAfter, 0))}</span></div>
-            {showAnnounced && <div className="flex justify-between text-[13px] opacity-90 mt-1"><span>{announcedLabel}</span><span>Rs. {fmt(announcedRemaining)}</span></div>}
+            <div className="flex justify-between font-bold text-[19px]"><span>{totalLabel}</span><span>{fmt(data.amount)}</span></div>
+            <div className="flex justify-between text-[13px] opacity-90 mt-1"><span>{balanceLabel}</span><span>{fmt(Math.max(data.balanceAfter, 0))}</span></div>
+            {showAnnounced && <div className="flex justify-between text-[13px] opacity-90 mt-1"><span>{announcedLabel}</span><span>{fmt(announcedRemaining)}</span></div>}
           </div>
         )}
 
@@ -918,13 +918,13 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
                 data.lineItems.map((l, i) => (
                   <tr key={i} className="border-b border-dp-outline-variant">
                     <td className="py-2.5">{l.description}{l.quantity > 1 && ` x${l.quantity}`}</td>
-                    <td className="py-2.5 text-end">Rs. {fmt(l.quantity * l.unitPrice)}</td>
+                    <td className="py-2.5 text-end">{fmt(l.quantity * l.unitPrice)}</td>
                   </tr>
                 ))
               ) : (
                 <tr className="border-b border-dp-outline-variant">
                   <td className="py-2.5">{data.particular}</td>
-                  <td className="py-2.5 text-end">Rs. {fmt(data.amount)}</td>
+                  <td className="py-2.5 text-end">{fmt(data.amount)}</td>
                 </tr>
               )}
             </tbody>
@@ -941,12 +941,12 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
                 <>
                   {hasDiscount && (
                     <div className="flex justify-between text-emerald-700 text-[13px] mb-1">
-                      <span>{dt(lang, 'discount')}</span><span>− Rs. {fmt(data.discountAmount!)}</span>
+                      <span>{dt(lang, 'discount')}</span><span>− {fmt(data.discountAmount!)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between font-bold text-[19px]"><span>{totalLabel}</span><span>Rs. {fmt(data.amount)}</span></div>
-                  <div className="flex justify-between text-[13px] text-dp-on-surface-variant mt-1"><span>{balanceLabel}</span><span>Rs. {fmt(Math.max(data.balanceAfter, 0))}</span></div>
-                  {showAnnounced && <div className="flex justify-between text-[13px] text-dp-on-surface-variant mt-1"><span>{announcedLabel}</span><span>Rs. {fmt(announcedRemaining)}</span></div>}
+                  <div className="flex justify-between font-bold text-[19px]"><span>{totalLabel}</span><span>{fmt(data.amount)}</span></div>
+                  <div className="flex justify-between text-[13px] text-dp-on-surface-variant mt-1"><span>{balanceLabel}</span><span>{fmt(Math.max(data.balanceAfter, 0))}</span></div>
+                  {showAnnounced && <div className="flex justify-between text-[13px] text-dp-on-surface-variant mt-1"><span>{announcedLabel}</span><span>{fmt(announcedRemaining)}</span></div>}
                 </>
               )}
             </div>
@@ -1008,13 +1008,13 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
                 data.lineItems.map((l, i) => (
                   <tr key={i} className="border-b border-dp-outline-variant">
                     <td className="py-2.5">{l.description}{l.quantity > 1 && ` x${l.quantity}`}</td>
-                    <td className="py-2.5 text-end">Rs. {fmt(l.quantity * l.unitPrice)}</td>
+                    <td className="py-2.5 text-end">{fmt(l.quantity * l.unitPrice)}</td>
                   </tr>
                 ))
               ) : (
                 <tr className="border-b border-dp-outline-variant">
                   <td className="py-2.5">{data.particular}</td>
-                  <td className="py-2.5 text-end">Rs. {fmt(data.amount)}</td>
+                  <td className="py-2.5 text-end">{fmt(data.amount)}</td>
                 </tr>
               )}
             </tbody>
@@ -1030,12 +1030,12 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
               <>
                 {hasDiscount && (
                   <div className="flex justify-between text-emerald-700 text-[13px] mb-1">
-                    <span>{dt(lang, 'discount')}</span><span>− Rs. {fmt(data.discountAmount!)}</span>
+                    <span>{dt(lang, 'discount')}</span><span>− {fmt(data.discountAmount!)}</span>
                   </div>
                 )}
-                <div className="flex justify-between font-bold text-[19px]" style={{ color: accent }}><span>{totalLabel}</span><span>Rs. {fmt(data.amount)}</span></div>
-                <div className="flex justify-between text-[13px] text-dp-on-surface-variant mt-1"><span>{balanceLabel}</span><span>Rs. {fmt(Math.max(data.balanceAfter, 0))}</span></div>
-                {showAnnounced && <div className="flex justify-between text-[13px] text-dp-on-surface-variant mt-1"><span>{announcedLabel}</span><span>Rs. {fmt(announcedRemaining)}</span></div>}
+                <div className="flex justify-between font-bold text-[19px]" style={{ color: accent }}><span>{totalLabel}</span><span>{fmt(data.amount)}</span></div>
+                <div className="flex justify-between text-[13px] text-dp-on-surface-variant mt-1"><span>{balanceLabel}</span><span>{fmt(Math.max(data.balanceAfter, 0))}</span></div>
+                {showAnnounced && <div className="flex justify-between text-[13px] text-dp-on-surface-variant mt-1"><span>{announcedLabel}</span><span>{fmt(announcedRemaining)}</span></div>}
               </>
             )}
           </div>
@@ -1132,7 +1132,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
 
         <div className="flex justify-between items-center mt-4 text-[12px] text-dp-on-surface-variant">
           {!!data.securityDepositAmount && data.securityDepositAmount > 0 && (
-            <span>{dt(lang, 'depositRefundableSeparate')}: Rs. {fmt(data.securityDepositAmount)}</span>
+            <span>{dt(lang, 'depositRefundableSeparate')}: {fmt(data.securityDepositAmount)}</span>
           )}
           {!isBill && data.collectedByName && <span>{dt(lang, 'collectedBy')}{data.collectedByName}</span>}
         </div>
@@ -1223,7 +1223,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
       ) : (
         <>
           {hasDiscount && (
-            <p className="text-[13px] mb-1 text-emerald-700">{dt(lang, 'discount')}: − Rs. {fmt(data.discountAmount!)}</p>
+            <p className="text-[13px] mb-1 text-emerald-700">{dt(lang, 'discount')}: − {fmt(data.discountAmount!)}</p>
           )}
           <p className="text-[14px] font-bold mb-3">
             {dt(lang, 'amountColon')}{fmt(data.amount)}{showUrdu && <span style={{ fontFamily: 'var(--font-urdu), serif' }}> روپے</span>}

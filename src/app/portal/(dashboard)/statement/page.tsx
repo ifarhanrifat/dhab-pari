@@ -182,7 +182,7 @@ function PortalStatementInner() {
               <div className="flex items-center gap-3 min-w-0">
                 {selected.has(item.key) ? <CheckSquare size={18} className="text-dp-secondary shrink-0" /> : <Square size={18} className="text-dp-on-surface-variant shrink-0" />}
                 <div className="min-w-0">
-                  <p className="font-sans text-[15px] font-bold">Rs. {fmt(item.amount)}</p>
+                  <p className="font-sans text-[15px] font-bold">{fmt(item.amount)}</p>
                   <p className="font-sans text-[12px] text-dp-on-surface-variant truncate">{item.label} · {t('p.pledgedOn')} {new Date(item.date).toLocaleDateString('en-GB')}</p>
                 </div>
               </div>
@@ -190,7 +190,7 @@ function PortalStatementInner() {
           ))}
           <div className="px-5 py-3.5 bg-dp-surface-container-low flex items-center justify-between gap-3">
             <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">
-              {selectedItems.length} {t('p.selectedTotalLabel')} <span className="text-dp-secondary">Rs. {fmt(selectedTotal)}</span>
+              {selectedItems.length} {t('p.selectedTotalLabel')} <span className="text-dp-secondary">{fmt(selectedTotal)}</span>
             </p>
             <button disabled={selectedItems.length === 0} onClick={() => { setPayProof(''); setPayMethod('bank'); setShowPay(true) }}
               className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed">
@@ -209,7 +209,7 @@ function PortalStatementInner() {
           {partialDonations.map((d) => (
             <div key={`d-${d.id}`} className="px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0">
               <p className="font-sans text-[13.5px] text-dp-on-surface">
-                <span className="font-bold text-dp-secondary">Rs. {fmt(d.amount_pkr)}</span> {t('p.receivedOf')} <span className="font-bold">Rs. {fmt(d.announced_amount_pkr)}</span> {t('p.pledgedWord')}
+                <span className="font-bold text-dp-secondary">{fmt(d.amount_pkr)}</span> {t('p.receivedOf')} <span className="font-bold">{fmt(d.announced_amount_pkr)}</span> {t('p.pledgedWord')}
               </p>
               <p className="font-sans text-[12px] text-orange-700 mt-0.5">{t('p.stillOwed').replace('{amt}', fmt(d.announced_amount_pkr - d.amount_pkr))}</p>
             </div>
@@ -217,7 +217,7 @@ function PortalStatementInner() {
           {partialPoolReceipts.map((p) => (
             <div key={`p-${p.id}`} className="px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0">
               <p className="font-sans text-[13.5px] text-dp-on-surface">
-                <span className="font-bold text-dp-secondary">Rs. {fmt(p.amount_pkr)}</span> {t('p.receivedOf')} <span className="font-bold">Rs. {fmt(p.announced_amount_pkr)}</span> {t('p.pledgedWord')} — {p.particular}
+                <span className="font-bold text-dp-secondary">{fmt(p.amount_pkr)}</span> {t('p.receivedOf')} <span className="font-bold">{fmt(p.announced_amount_pkr)}</span> {t('p.pledgedWord')} — {p.particular}
               </p>
               <p className="font-sans text-[12px] text-orange-700 mt-0.5">{t('p.stillOwed').replace('{amt}', fmt(p.announced_amount_pkr - p.amount_pkr))}</p>
             </div>
@@ -236,7 +236,7 @@ function PortalStatementInner() {
           {awaiting.map((d) => (
             <div key={d.id} className="flex items-center justify-between px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0">
               <div>
-                <p className="font-sans text-[15px] font-bold">Rs. {fmt(d.amount_pkr)}</p>
+                <p className="font-sans text-[15px] font-bold">{fmt(d.amount_pkr)}</p>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('p.paidOn')} {new Date(d.date).toLocaleDateString('en-GB')}</p>
               </div>
               <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-sans text-[11.5px] font-bold">{t('p.awaitingConfirmation')}</span>
@@ -245,7 +245,7 @@ function PortalStatementInner() {
           {poolAwaiting.map((p) => (
             <div key={p.id} className="flex items-center justify-between px-5 py-3.5 border-b border-dp-outline-variant last:border-b-0">
               <div>
-                <p className="font-sans text-[15px] font-bold">Rs. {fmt(p.amount_pkr)}</p>
+                <p className="font-sans text-[15px] font-bold">{fmt(p.amount_pkr)}</p>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant">{p.particular} · {t('p.paidOn')} {new Date(p.date).toLocaleDateString('en-GB')}</p>
               </div>
               <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-sans text-[11.5px] font-bold">{t('p.awaitingConfirmation')}</span>
@@ -264,7 +264,7 @@ function PortalStatementInner() {
         <>
           <div className="bg-white border border-dp-outline-variant rounded-lg px-5 py-4 mb-6 inline-block">
             <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{t('p.totalContributed')}</p>
-            <p className="font-heading text-[24px] font-bold text-dp-secondary">Rs. {fmt(total)}</p>
+            <p className="font-heading text-[24px] font-bold text-dp-secondary">{fmt(total)}</p>
           </div>
 
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
@@ -281,8 +281,8 @@ function PortalStatementInner() {
                     <tr key={r.id} className="border-b border-dp-outline-variant last:border-b-0">
                       <td className="p-3 whitespace-nowrap">{new Date(r.entry_date).toLocaleDateString('en-GB')}</td>
                       <td className="p-3">{r.particular}</td>
-                      <td className="p-3 text-end font-semibold">{Number(r.credit) > 0 ? `Rs. ${fmt(r.credit)}` : '—'}</td>
-                      <td className="p-3 text-end font-bold text-dp-secondary">Rs. {fmt(r.balance)}</td>
+                      <td className="p-3 text-end font-semibold">{Number(r.credit) > 0 ? `${fmt(r.credit)}` : '—'}</td>
+                      <td className="p-3 text-end font-bold text-dp-secondary">{fmt(r.balance)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -300,12 +300,12 @@ function PortalStatementInner() {
               <button onClick={() => setShowPay(false)} className="cursor-pointer"><X size={20} /></button>
             </div>
             <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-3 mb-4">
-              <p className="font-heading text-[22px] font-bold text-dp-primary">Rs. {fmt(selectedTotal)}</p>
+              <p className="font-heading text-[22px] font-bold text-dp-primary">{fmt(selectedTotal)}</p>
               {selectedItems.length > 1 ? (
                 <div className="mt-1.5 space-y-0.5">
                   {selectedItems.map((i) => (
                     <p key={i.key} className="font-sans text-[11.5px] text-dp-on-surface-variant flex justify-between gap-2">
-                      <span className="truncate">{i.label}</span><span className="shrink-0">Rs. {fmt(i.amount)}</span>
+                      <span className="truncate">{i.label}</span><span className="shrink-0">{fmt(i.amount)}</span>
                     </p>
                   ))}
                 </div>

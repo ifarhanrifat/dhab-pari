@@ -162,7 +162,7 @@ export default function CollectPaymentPage() {
     setLastCollectedAmount(amount)
     setLastOutstanding(newOutstanding)
     setLastConsumerMobile(selectedConsumer.mobile)
-    toast.success(`Collected Rs. ${fmt(amount)} from ${selectedConsumer.name}`)
+    toast.success(`Collected ${fmt(amount)} from ${selectedConsumer.name}`)
 
     const { data: pref } = await supabase.from('notification_preferences').select('whatsapp_enabled').eq('event_type', 'collector_payment_collected').single()
     setWhatsappEnabled(!!pref?.whatsapp_enabled)
@@ -188,7 +188,7 @@ export default function CollectPaymentPage() {
   const notifyViaWhatsApp = (target: NotifyTarget) => {
     if (!target.mobile || !receipt) return
     const msg = encodeURIComponent(
-      `${SITE.name} — Payment Collected\n\nCollected Rs. ${fmt(lastCollectedAmount)} from ${receipt.accountName} by ${me !== 'loading' && me ? me.full_name : ''}.\n\nPlease check /admin/collectors for the current holding balance.`
+      `${SITE.name} — Payment Collected\n\nCollected ${fmt(lastCollectedAmount)} from ${receipt.accountName} by ${me !== 'loading' && me ? me.full_name : ''}.\n\nPlease check /admin/collectors for the current holding balance.`
     )
     window.open(`https://wa.me/${normalizePakPhone(target.mobile)}?text=${msg}`, '_blank')
   }
@@ -198,8 +198,8 @@ export default function CollectPaymentPage() {
     const intl = normalizePakPhone(lastConsumerMobile)
     if (!intl) { toast.error('No usable phone number for this consumer'); return }
     const msg = encodeURIComponent(
-      `${SITE.name} — Payment Received\n\nThank you, ${receipt.accountName}. We received Rs. ${fmt(lastCollectedAmount)} against ${receipt.particular}.`
-      + (lastOutstanding > 0 ? `\n\nRemaining outstanding on this bill: Rs. ${fmt(lastOutstanding)}.` : '\n\nThis bill is now fully paid.')
+      `${SITE.name} — Payment Received\n\nThank you, ${receipt.accountName}. We received ${fmt(lastCollectedAmount)} against ${receipt.particular}.`
+      + (lastOutstanding > 0 ? `\n\nRemaining outstanding on this bill: ${fmt(lastOutstanding)}.` : '\n\nThis bill is now fully paid.')
     )
     window.open(`https://wa.me/${intl}?text=${msg}`, '_blank')
   }
@@ -269,7 +269,7 @@ export default function CollectPaymentPage() {
                           {fullMonths[b.month]} {b.year} {b.bill_number && <span className="text-dp-on-surface-variant">#{b.bill_number}</span>}
                           <span className={`ms-2 inline-block px-1.5 py-0.5 rounded font-sans text-[10px] font-bold ${billBadgeClass[badge.tone]}`}>{badge.text}</span>
                         </span>
-                        <span className="font-sans text-[13px] font-bold text-dp-error">Rs. {fmt(outstanding(b))}</span>
+                        <span className="font-sans text-[13px] font-bold text-dp-error">{fmt(outstanding(b))}</span>
                       </button>
                     )
                   })}

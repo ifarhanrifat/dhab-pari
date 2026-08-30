@@ -104,7 +104,7 @@ export default function RemindersPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-sans text-[14px] font-bold text-dp-on-surface">{r.target_name}</p>
                         {r.target_phone && <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{r.target_phone}</p>}
-                        {r.amount != null && <p className="font-sans text-[13px] font-semibold text-dp-on-surface">Rs. {Number(r.amount).toLocaleString()}</p>}
+                        {r.amount != null && <p className="font-sans text-[13px] font-semibold text-dp-on-surface">{Number(r.amount).toLocaleString()}</p>}
                       </div>
                       <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1 whitespace-pre-line line-clamp-3">{r.message}</p>
                     </div>

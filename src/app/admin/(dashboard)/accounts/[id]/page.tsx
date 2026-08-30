@@ -389,9 +389,9 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
     setPaying(false)
     if (error) { toast.error(friendlyError(error)); return }
     if (amount > payOutstanding) {
-      toast.success(`Payment recorded — Rs. ${fmtAmount(amount - payOutstanding)} credited as advance balance`)
+      toast.success(`Payment recorded — ${fmtAmount(amount - payOutstanding)} credited as advance balance`)
     } else {
-      toast.success(amount >= payOutstanding ? 'Payment recorded — bill paid in full' : `Partial payment of Rs. ${fmtAmount(amount)} recorded`)
+      toast.success(amount >= payOutstanding ? 'Payment recorded — bill paid in full' : `Partial payment of ${fmtAmount(amount)} recorded`)
     }
     setPayBillRow(null)
     load()
@@ -569,7 +569,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
               {dt(lang, account.type === 'donor' ? 'totalContributed' : account.type === 'consumer' && currentBalance < 0 ? 'advanceBalance' : 'currentBalance')}
             </p>
             <p className={`font-heading text-[28px] font-bold ${account.type === 'consumer' && currentBalance > 0 ? 'text-dp-error' : account.type === 'consumer' && currentBalance < 0 ? 'text-emerald-600' : 'text-dp-primary'}`}>
-              Rs. {fmtAmount(account.type === 'consumer' && currentBalance < 0 ? -currentBalance : currentBalance)}
+              {fmtAmount(account.type === 'consumer' && currentBalance < 0 ? -currentBalance : currentBalance)}
             </p>
           </div>
         </div>
@@ -579,7 +579,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
             <div className="flex flex-wrap gap-4">
               {channels.map((c) => (
                 <p key={c.payment_method} className="font-sans text-[13.5px] text-dp-on-surface">
-                  <span className="capitalize font-semibold">{c.payment_method}</span>: Rs. {fmtAmount(c.total_pkr)}
+                  <span className="capitalize font-semibold">{c.payment_method}</span>: {fmtAmount(c.total_pkr)}
                 </p>
               ))}
             </div>
@@ -650,7 +650,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                             <>
                               {billStatusMap[row.reference_id]?.status === 'partial' && (
                                 <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-amber-100 text-amber-800 whitespace-nowrap">
-                                  Partial: Rs {fmtAmount(billStatusMap[row.reference_id].amount_pkr - billStatusMap[row.reference_id].discount_amount - billStatusMap[row.reference_id].paid_amount)}
+                                  Partial: {fmtAmount(billStatusMap[row.reference_id].amount_pkr - billStatusMap[row.reference_id].discount_amount - billStatusMap[row.reference_id].paid_amount)}
                                 </span>
                               )}
                               <button onClick={() => openReceivePayment(row)} title="Receive Now" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Banknote size={15} /></button>
@@ -707,14 +707,14 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
               <h2 className="font-heading text-[20px] font-bold text-dp-primary">{t('f.receivePayment')}</h2>
               <button onClick={() => setPayBillRow(null)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
-            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{payBillRow.particular} · Outstanding: Rs. {fmtAmount(payOutstanding)}</p>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{payBillRow.particular} · Outstanding: {fmtAmount(payOutstanding)}</p>
             <div className="space-y-4">
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.amountPkr')}</label>
                 <input type="number" value={payForm.amount || ''} onChange={(e) => setPayForm({ ...payForm, amount: +e.target.value })} className="input-field" />
                 {payForm.amount > payOutstanding && (
                   <p className="text-[12px] font-sans text-dp-secondary mt-1.5">
-                    Rs. {fmtAmount(payForm.amount - payOutstanding)} above the bill will be recorded as an advance credit on this consumer&apos;s account.
+                    {fmtAmount(payForm.amount - payOutstanding)} above the bill will be recorded as an advance credit on this consumer&apos;s account.
                   </p>
                 )}
               </div>

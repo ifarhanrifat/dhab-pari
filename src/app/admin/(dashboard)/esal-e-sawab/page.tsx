@@ -461,23 +461,23 @@ export default function EsalESawabPage() {
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             <div>
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('es.liab.committee')}</p>
-              <p className="font-heading text-[20px] font-bold text-dp-error">Rs {fmt(liability.committee_annual)}</p>
+              <p className="font-heading text-[20px] font-bold text-dp-error">{fmt(liability.committee_annual)}</p>
             </div>
             <div>
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('es.liab.donor')}</p>
-              <p className="font-heading text-[20px] font-bold text-dp-primary">Rs {fmt(liability.donor_annual)}</p>
+              <p className="font-heading text-[20px] font-bold text-dp-primary">{fmt(liability.donor_annual)}</p>
             </div>
             <div>
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('es.liab.endowed')}</p>
-              <p className="font-heading text-[20px] font-bold text-dp-primary">Rs {fmt(liability.endowed_annual)}</p>
+              <p className="font-heading text-[20px] font-bold text-dp-primary">{fmt(liability.endowed_annual)}</p>
             </div>
             <div>
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('es.liab.endowmentHeld')}</p>
-              <p className="font-heading text-[20px] font-bold text-emerald-700">Rs {fmt(liability.endowment_held)}</p>
+              <p className="font-heading text-[20px] font-bold text-emerald-700">{fmt(liability.endowment_held)}</p>
             </div>
             <div>
               <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('es.liab.spent12m')}</p>
-              <p className="font-heading text-[20px] font-bold text-dp-primary">Rs {fmt(liability.spent_last_12m)}</p>
+              <p className="font-heading text-[20px] font-bold text-dp-primary">{fmt(liability.spent_last_12m)}</p>
             </div>
           </div>
         </div>
@@ -526,8 +526,8 @@ export default function EsalESawabPage() {
                       {c.name_ur && <span className="block text-[13px] text-dp-on-surface-variant" style={{ fontFamily: 'var(--font-urdu), serif' }}>{c.name_ur}</span>}
                       {!c.is_active && <span className="ms-2 px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10.5px] font-bold">{t('es.retired')}</span>}
                     </td>
-                    <td className="p-3 border-b border-dp-outline-variant text-end tabular-nums">Rs {fmt(c.capital_cost_pkr)}</td>
-                    <td className="p-3 border-b border-dp-outline-variant text-end tabular-nums">Rs {fmt(c.annual_running_cost_pkr)}</td>
+                    <td className="p-3 border-b border-dp-outline-variant text-end tabular-nums">{fmt(c.capital_cost_pkr)}</td>
+                    <td className="p-3 border-b border-dp-outline-variant text-end tabular-nums">{fmt(c.annual_running_cost_pkr)}</td>
                     <td className="p-3 border-b border-dp-outline-variant text-center">{c.expected_life_years ?? '—'}</td>
                     <td className="p-3 border-b border-dp-outline-variant text-end whitespace-nowrap">
                       <button onClick={() => openEditItem(c)} className="text-dp-on-surface-variant hover:text-dp-primary cursor-pointer me-2"><Pencil size={14} /></button>
@@ -583,10 +583,10 @@ export default function EsalESawabPage() {
                     )}
                   </p>
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">
-                    {t('es.capital')}: <strong>Rs {fmt(o.capital_cost_pkr)}</strong> ·
-                    {' '}{t('es.running')}: <strong>Rs {fmt(o.annual_running_cost_pkr)}/{t('es.year')}</strong> ·
+                    {t('es.capital')}: <strong>{fmt(o.capital_cost_pkr)}</strong> ·
+                    {' '}{t('es.running')}: <strong>{fmt(o.annual_running_cost_pkr)}/{t('es.year')}</strong> ·
                     {' '}{t(`es.mode.${o.maintenance_mode}`)}
-                    {o.endowment_pkr > 0 && ` · ${t('es.endowment')} Rs ${fmt(o.endowment_pkr)}`}
+                    {o.endowment_pkr > 0 && ` · ${t('es.endowment')} ${fmt(o.endowment_pkr)}`}
                   </p>
                 </div>
 
@@ -696,12 +696,12 @@ export default function EsalESawabPage() {
                       <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{a.donor_name ?? '—'}</p>
                       <p className="font-sans text-[12px] text-dp-on-surface-variant">
                         {a.donor_phone && <a href={`tel:${a.donor_phone}`} className="text-dp-secondary hover:underline">{a.donor_phone}</a>}
-                        {' · '}Rs {fmt(a.amount)} · {a.is_one_time ? t('pool.oneTime') : t('pool.recurringMonthly')}
+                        {' · '}{fmt(a.amount)} · {a.is_one_time ? t('pool.oneTime') : t('pool.recurringMonthly')}
                       </p>
                       {a.payment_batch_id && batchSummary[a.payment_batch_id]?.count > 1 && (
                         <span title="Sent as one payment along with other pledges — some may be on other Collections tabs or /admin/donors"
                           className="inline-block mt-1 text-[11px] font-bold px-2 py-0.5 rounded-full font-sans bg-amber-100 text-amber-800">
-                          Part of Rs {batchSummary[a.payment_batch_id].total.toLocaleString()} · {batchSummary[a.payment_batch_id].count} items
+                          Part of {batchSummary[a.payment_batch_id].total.toLocaleString()} · {batchSummary[a.payment_batch_id].count} items
                         </span>
                       )}
                     </div>
@@ -739,7 +739,7 @@ export default function EsalESawabPage() {
                     <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{l.name}</p>
                     <p className="font-sans text-[12.5px] text-dp-on-surface-variant">
                       {l.phone && <a href={`tel:${l.phone}`} className="text-dp-secondary hover:underline">{l.phone}</a>}
-                      {' · '}Rs {fmt(l.amount)}/{t('pkf.month')}
+                      {' · '}{fmt(l.amount)}/{t('pkf.month')}
                     </p>
                   </div>
                 ))}
@@ -782,7 +782,7 @@ export default function EsalESawabPage() {
                 {covers.map((c, i) => (
                   <div key={i} className="bg-white border border-dp-outline-variant rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
                     <p className="font-sans text-[12.5px] text-dp-on-surface">{new Date(c.month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</p>
-                    <p className="font-sans text-[13px] font-semibold text-dp-on-surface">Rs {fmt(c.amount)}</p>
+                    <p className="font-sans text-[13px] font-semibold text-dp-on-surface">{fmt(c.amount)}</p>
                     <p className="font-mono text-[11.5px] text-dp-secondary">{c.voucher_no ?? '—'}</p>
                   </div>
                 ))}
@@ -889,7 +889,7 @@ export default function EsalESawabPage() {
 
             {approveTarget.maintenance_mode === 'committee' && liability && (
               <p className="font-sans text-[12.5px] text-dp-error bg-red-50 border border-red-200 rounded-lg px-3 py-2.5 mb-4">
-                {t('es.f.newLiability')} <strong>Rs {fmt(liability.committee_annual + approveForm.running)}</strong>/{t('es.year')}
+                {t('es.f.newLiability')} <strong>{fmt(liability.committee_annual + approveForm.running)}</strong>/{t('es.year')}
               </p>
             )}
 

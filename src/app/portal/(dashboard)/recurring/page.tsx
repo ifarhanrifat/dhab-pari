@@ -162,7 +162,7 @@ export default function PortalRecurringPage() {
             {schedules.map((s) => (
               <div key={s.id} className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant last:border-b-0">
                 <div>
-                  <p className="font-sans text-[15px] font-bold text-dp-on-surface">Rs. {fmt(s.amount_pkr)} · <span className="capitalize">{s.frequency}</span></p>
+                  <p className="font-sans text-[15px] font-bold text-dp-on-surface">{fmt(s.amount_pkr)} · <span className="capitalize">{s.frequency}</span></p>
                   <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">
                     {projects.find((p) => p.id === s.project_id)?.title ?? t('w.generalFund')} · {isUrdu ? 'اگلی' : 'Next:'} {new Date(s.next_run_date).toLocaleDateString('en-GB')}
                   </p>
@@ -184,7 +184,7 @@ export default function PortalRecurringPage() {
             {poolLines.map((p) => (
               <div key={p.id} className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant last:border-b-0">
                 <div>
-                  <p className="font-sans text-[15px] font-bold text-dp-on-surface">Rs. {fmt(p.amount_pkr)} · {isUrdu ? 'ماہانہ' : 'monthly'}</p>
+                  <p className="font-sans text-[15px] font-bold text-dp-on-surface">{fmt(p.amount_pkr)} · {isUrdu ? 'ماہانہ' : 'monthly'}</p>
                   <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">{p.particular}</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -204,14 +204,14 @@ export default function PortalRecurringPage() {
               <div key={w.award_id} className="flex items-center justify-between px-5 py-4 border-b border-dp-outline-variant last:border-b-0">
                 <div>
                   <p className="font-sans text-[15px] font-bold text-dp-on-surface">
-                    Rs. {fmt(w.monthly_amount_pkr)} · {isUrdu ? 'ماہانہ' : 'monthly'}
+                    {fmt(w.monthly_amount_pkr)} · {isUrdu ? 'ماہانہ' : 'monthly'}
                   </p>
                   <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">
                     {isUrdu ? 'تعلیمی وظیفہ' : 'Taleemi Wazifa'} {w.academic_year}
                     {' · '}{isUrdu ? `ہر ماہ کی ${w.due_day} تاریخ تک` : `due by the ${w.due_day}${w.due_day === 1 ? 'st' : w.due_day === 2 ? 'nd' : w.due_day === 3 ? 'rd' : 'th'} of each month`}
                     {w.total_overdue > 0 && (
                       <span className="text-dp-error font-semibold">
-                        {' · '}{isUrdu ? `Rs ${fmt(w.total_overdue)} واجب الادا` : `Rs. ${fmt(w.total_overdue)} overdue`}
+                        {' · '}{isUrdu ? `${fmt(w.total_overdue)} واجب الادا` : `${fmt(w.total_overdue)} overdue`}
                       </span>
                     )}
                   </p>

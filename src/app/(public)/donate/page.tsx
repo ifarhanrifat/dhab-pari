@@ -175,7 +175,7 @@ export default async function DonatePage() {
             </p>
           </div>
           <span className="px-4 py-1 bg-dp-secondary-container text-dp-on-secondary-container rounded-full text-[14px] font-sans font-bold tracking-[0.05em] shrink-0">
-            Total Raised: Rs. 1.2M
+            Total Raised: 1.2M
           </span>
         </div>
 
@@ -210,7 +210,7 @@ export default async function DonatePage() {
                       {donor.is_anonymous ? 'Anonymous Donor' : donor.name}
                     </td>
                     <td className="px-6 py-4 font-bold font-sans">
-                      Rs. {Number(donor.amount_pkr).toLocaleString()}
+                      {Number(donor.amount_pkr).toLocaleString()}
                     </td>
                     <td className="px-6 py-4 text-dp-on-surface-variant font-sans">
                       {formatDate(donor.date)}
@@ -264,7 +264,7 @@ export default async function DonatePage() {
                 {announcedDonors.map((donor) => (
                   <tr key={donor.id}>
                     <td className="px-6 py-4 font-bold text-dp-primary font-sans">{donor.is_anonymous ? 'Anonymous Donor' : donor.name}</td>
-                    <td className="px-6 py-4 font-bold font-sans">Rs. {Number(donor.amount_pkr).toLocaleString()}</td>
+                    <td className="px-6 py-4 font-bold font-sans">{Number(donor.amount_pkr).toLocaleString()}</td>
                     <td className="px-6 py-4 font-sans text-dp-on-surface-variant">{donor.project_id ? (projectTitleById.get(donor.project_id) ?? 'Project') : 'General Fund'}</td>
                     <td className="px-6 py-4">
                       <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded text-[12px] font-sans font-bold tracking-[0.05em]"><T k="x.announced" /></span>

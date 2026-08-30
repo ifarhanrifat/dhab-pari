@@ -102,7 +102,7 @@ export default function DonorCollectorsPage() {
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(`Rs. ${fmt(settleAmount)} ${t('cl.receivedFrom')} ${settleFor.name}`)
+    toast.success(`${fmt(settleAmount)} ${t('cl.receivedFrom')} ${settleFor.name}`)
     setSettleFor(null)
     load()
   }
@@ -127,7 +127,7 @@ export default function DonorCollectorsPage() {
 
       <div className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3 mb-5 inline-block">
         <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{t('g.totalHeld')}</p>
-        <p className="font-heading text-[20px] font-bold text-dp-primary">Rs. {fmt(totalHeld)}</p>
+        <p className="font-heading text-[20px] font-bold text-dp-primary">{fmt(totalHeld)}</p>
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mb-6">
@@ -155,7 +155,7 @@ export default function DonorCollectorsPage() {
                   <tr key={r.collector.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
                     <td className="px-5 py-3 font-semibold">{r.collector.full_name}</td>
                     <td className="px-5 py-3 text-dp-on-surface-variant">{(r.collector.assigned_sectors ?? []).join(', ') || '—'}</td>
-                    <td className={`px-5 py-3 text-end font-bold ${r.balance > 0 ? 'text-dp-error' : 'text-dp-on-surface-variant'}`}>Rs. {fmt(r.balance)}</td>
+                    <td className={`px-5 py-3 text-end font-bold ${r.balance > 0 ? 'text-dp-error' : 'text-dp-on-surface-variant'}`}>{fmt(r.balance)}</td>
                     <td className="px-5 py-3 text-end">
                       {canSettle && r.balance > 0 && (
                         <button onClick={() => openSettle(r)} className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
@@ -196,7 +196,7 @@ export default function DonorCollectorsPage() {
                     <td className="px-5 py-3 whitespace-nowrap">{new Date(s.settled_date).toLocaleDateString('en-GB')}</td>
                     <td className="px-5 py-3 font-semibold">{collectors.find((c) => c.id === s.collector_id)?.full_name ?? '—'}</td>
                     <td className="px-5 py-3 capitalize text-dp-on-surface-variant">{s.method}</td>
-                    <td className="px-5 py-3 text-end font-bold">Rs. {fmt(s.amount_pkr)}</td>
+                    <td className="px-5 py-3 text-end font-bold">{fmt(s.amount_pkr)}</td>
                     <td className="px-5 py-3 text-dp-on-surface-variant">{s.note ?? '—'}</td>
                   </tr>
                 ))}
