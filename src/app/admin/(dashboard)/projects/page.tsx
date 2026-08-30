@@ -75,6 +75,7 @@ export default function AdminProjectsPage() {
   const [trainerCandidates, setTrainerCandidates] = useState<TrainerCandidate[]>([])
   const [videoOptions, setVideoOptions] = useState<VideoOption[]>([])
   const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>([])
+  const [coverByProject, setCoverByProject] = useState<Record<string, string>>({})
   const supabase = createClient()
 
   const load = async () => {
@@ -87,6 +88,17 @@ export default function AdminProjectsPage() {
     setTrainerCandidates((candidates ?? []) as TrainerCandidate[])
     setVideoOptions(videos ?? [])
     setLoading(false)
+
+    // A thumbnail per row — a designated cover first, then whichever of
+    // before/after exists, so a glance down this list actually shows
+    // something instead of every row reading identically.
+    const ids = (data ?? []).map((p) => p.id)
+    if (ids.length > 0) {
+      const { data: coverRows } = await supabase.from('project_media').select('project_id, url').eq('is_cover', true).in('project_id', ids)
+      const byId: Record<string, string> = {}
+      for (const c of coverRows ?? []) byId[c.project_id] = c.url
+      setCoverByProject(byId)
+    }
   }
   useEffect(() => { load() }, [])
 
@@ -199,7 +211,17 @@ export default function AdminProjectsPage() {
         {loading && <div className="text-center py-12 text-dp-on-surface-variant">{t('action.loading')}</div>}
         {!loading && filtered.map((p) => (
           <div key={p.id} className="bg-white border border-dp-outline-variant rounded-lg p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-dp-secondary transition-all">
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 flex items-start gap-3">
+              {(() => {
+                const thumb = coverByProject[p.id] || p.after_image_url || p.before_image_url
+                return thumb ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={thumb} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0 border border-dp-outline-variant" />
+                ) : (
+                  <div className="w-14 h-14 rounded-lg bg-dp-surface-container shrink-0 border border-dp-outline-variant" />
+                )
+              })()}
+              <div className="min-w-0 flex-1">
               <div className="flex items-center gap-3 mb-1 flex-wrap">
                 <StatusPill status={p.status} />
                 {p.is_featured && <span className="text-[10px] font-bold text-amber-600 font-sans">{t('pj.featuredBadge')}</span>}
@@ -223,6 +245,7 @@ export default function AdminProjectsPage() {
               </div>
               <h3 className="font-sans text-[18px] font-bold text-dp-on-surface truncate">{p.title}</h3>
               <p className="font-sans text-[14px] text-dp-on-surface-variant">{t(categoryLabelKey[p.category ?? ''] ?? p.category ?? '', p.category ?? '')} · {p.location} · {p.progress_percent}%</p>
+              </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <div className="w-32 bg-dp-surface-container-high h-2 rounded-full overflow-hidden"><div className="h-full bg-dp-secondary" style={{ width: `${p.progress_percent}%` }} /></div>

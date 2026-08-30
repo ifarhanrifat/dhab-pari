@@ -142,12 +142,20 @@ export default function PortalTrainingProgramsPage() {
             return (
               <div key={a.id} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
                 {cover && (
-                  <div className="relative w-full h-32">
+                  <Link href={`/projects/${a.id}`} className="relative w-full h-32 block">
                     <Image src={cover} alt="" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
-                  </div>
+                  </Link>
                 )}
                 <div className="p-4">
-                <p className="font-sans text-[15px] font-bold text-dp-primary">{a.display_name || a.title}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-sans text-[15px] font-bold text-dp-primary">{a.display_name || a.title}</p>
+                  {/* Full gallery + intro video (if this academy has one) live
+                      on the public detail page rather than duplicated into
+                      this compact card — same content, no second copy. */}
+                  <Link href={`/projects/${a.id}`} className="text-[11px] font-sans font-semibold text-dp-secondary hover:underline shrink-0">
+                    {t('tp.viewPhotosVideoLink')}
+                  </Link>
+                </div>
 
                 {academyBatches.length > 0 && (
                   <div className="mt-2 space-y-2">

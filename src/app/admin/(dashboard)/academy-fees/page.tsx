@@ -15,13 +15,18 @@
 // — sees only their own academy's roster via training_enrollments_trainer,
 // migration 367). The query is identical either way; RLS does the narrowing.
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Users, PlusCircle, X, HandCoins, CheckCircle2, Clock, Pencil, UserMinus, Layers, UserCheck, UserX, Bell, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { SearchableField } from '@/components/admin/SearchablePicker'
+import { ImageUpload } from '@/components/admin/ImageUpload'
+import { UserCircle2, Printer } from 'lucide-react'
+import { printNodeInPopup } from '@/lib/receiptExport'
+import { DocumentHeader } from '@/components/admin/DocumentHeader'
 
 interface Academy { id: string; title: string; display_name: string | null; category: string }
 interface Batch {
@@ -76,7 +81,7 @@ function fmt(n: number) {
 const emptyEnroll = {
   batch_id: '', student_name: '', student_name_ur: '', student_age: '', guardian_name: '', guardian_whatsapp_number: '',
   address: '', sector: '', participant_type: 'villager', fee_type: 'monthly',
-  discount_pct: '', discount_reason: '',
+  discount_pct: '', discount_reason: '', sibling_of: '',
 }
 
 function feeFor(b: Batch, participantType: string, feeType: string) {
@@ -96,6 +101,14 @@ function AcademyFeesInner() {
   const [academies, setAcademies] = useState<Academy[]>([])
   const [summary, setSummary] = useState<Record<string, Summary>>({})
   const [villageSectors, setVillageSectors] = useState<string[]>([])
+  // Self-service trainer profile — the only screen we know a scoped
+  // trainer (role='viewer') can actually reach is this one, so "edit my
+  // own bio/photo" lives here rather than a Members page they may not
+  // have permission to open at all. Only shown once we know the signed-
+  // in admin is actually assigned somewhere (assigned_training_program_ids).
+  const [myTrainerProfile, setMyTrainerProfile] = useState<{ id: string; is_trainer: boolean; trainer_bio: string; trainer_bio_ur: string; trainer_photo_url: string } | null>(null)
+  const [showMyProfile, setShowMyProfile] = useState(false)
+  const [savingProfile, setSavingProfile] = useState(false)
   const [selected, setSelected] = useState<Academy | null>(null)
   const [batches, setBatches] = useState<Batch[]>([])
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
@@ -105,7 +118,9 @@ function AcademyFeesInner() {
   const [showEnroll, setShowEnroll] = useState(false)
   const [form, setForm] = useState(emptyEnroll)
   const [saving, setSaving] = useState(false)
-  const [payFor, setPayFor] = useState<{ chargeId: string; remaining: number; studentName: string } | null>(null)
+  const [payFor, setPayFor] = useState<{ chargeId: string; remaining: number; studentName: string; batchId: string | null } | null>(null)
+  const [lastReceipt, setLastReceipt] = useState<{ voucherNo: string; studentName: string; batchLabel: string; amount: number; method: string; date: string } | null>(null)
+  const receiptRef = useRef<HTMLDivElement>(null)
   const [payAmount, setPayAmount] = useState(0)
   const [payMethod, setPayMethod] = useState('cash')
   const [editing, setEditing] = useState<EditableEnrollment | null>(null)
@@ -128,6 +143,19 @@ function AcademyFeesInner() {
     for (const s of (summaryRows ?? []) as Summary[]) byId[s.project_id] = s
     setSummary(byId)
     setLoading(false)
+
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    if (authUser) {
+      const { data: me } = await supabase.from('admin_users')
+        .select('id, assigned_training_program_ids, trainer_bio, trainer_bio_ur, trainer_photo_url')
+        .eq('auth_user_id', authUser.id).maybeSingle()
+      if (me && (me.assigned_training_program_ids ?? []).length > 0) {
+        setMyTrainerProfile({
+          id: me.id, is_trainer: true,
+          trainer_bio: me.trainer_bio ?? '', trainer_bio_ur: me.trainer_bio_ur ?? '', trainer_photo_url: me.trainer_photo_url ?? '',
+        })
+      }
+    }
     const preselect = searchParams.get('project')
     if (preselect) {
       const match = (data ?? []).find((a) => a.id === preselect)
@@ -177,10 +205,34 @@ function AcademyFeesInner() {
     participantType === 'villager' && villageSectors.length > 0
     && !(sector && villageSectors.some((s) => s.trim().toLowerCase() === sector.trim().toLowerCase()))
 
+  const saveMyProfile = async () => {
+    if (!myTrainerProfile) return
+    setSavingProfile(true)
+    const { error } = await supabase.from('admin_users').update({
+      trainer_bio: myTrainerProfile.trainer_bio.trim() || null,
+      trainer_bio_ur: myTrainerProfile.trainer_bio_ur.trim() || null,
+      trainer_photo_url: myTrainerProfile.trainer_photo_url.trim() || null,
+    }).eq('id', myTrainerProfile.id)
+    setSavingProfile(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('af.profileSavedToast'))
+    setShowMyProfile(false)
+  }
+
   const openEnroll = () => {
     setForm({ ...emptyEnroll, batch_id: batches[0]?.id ?? '' })
     setShowEnroll(true)
   }
+
+  // Every currently active or pending student at this academy — the
+  // sibling picker for a walk-in the trainer/admin is entering directly,
+  // rather than typing a name freehand the way the portal's version
+  // has to (it can't search the roster the same way staff, standing in
+  // front of the roster, can).
+  const siblingCandidates = [
+    ...enrollments.map((e) => ({ id: e.id, label: `${e.student_name}${e.guardian_name ? ` — ${e.guardian_name}` : ''}` })),
+    ...requests.map((r) => ({ id: r.id, label: `${r.student_name}${r.guardian_name ? ` — ${r.guardian_name}` : ''} (${t('af.pendingRequestsHeading')})` })),
+  ]
 
   const enroll = async () => {
     if (!selected) return
@@ -213,9 +265,19 @@ function AcademyFeesInner() {
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(`${t('af.paymentRecorded')} — ${(data as { voucher_no: string })?.voucher_no ?? ''}`)
+    const voucherNo = (data as { voucher_no: string })?.voucher_no ?? ''
+    toast.success(`${t('af.paymentRecorded')} — ${voucherNo}`)
+    setLastReceipt({
+      voucherNo, studentName: payFor.studentName, batchLabel: batchLabel(payFor.batchId),
+      amount: payAmount, method: payMethod, date: new Date().toLocaleDateString('en-GB'),
+    })
     setPayFor(null); setPayAmount(0)
     if (selected) loadRoster(selected)
+  }
+
+  const printReceipt = () => {
+    if (!receiptRef.current) return
+    printNodeInPopup(receiptRef.current, t('af.receiptTitle'))
   }
 
   const openEdit = (e: EditableEnrollment) => {
@@ -319,10 +381,41 @@ function AcademyFeesInner() {
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
-      <div className="flex items-center gap-2 mb-6">
-        <HandCoins size={24} className="text-dp-secondary" />
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('af.pageTitle')}</h1>
+      <div className="flex items-center justify-between gap-2 mb-6 flex-wrap">
+        <div className="flex items-center gap-2">
+          <HandCoins size={24} className="text-dp-secondary" />
+          <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('af.pageTitle')}</h1>
+        </div>
+        {myTrainerProfile && (
+          <button onClick={() => setShowMyProfile(true)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold text-dp-on-surface-variant hover:border-dp-secondary cursor-pointer">
+            <UserCircle2 size={15} /> {t('af.editMyProfileBtn')}
+          </button>
+        )}
       </div>
+
+      {showMyProfile && myTrainerProfile && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowMyProfile(false)}>
+          <div className="bg-white rounded-lg max-w-[420px] w-full p-6 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="font-heading text-[18px] font-bold text-dp-primary">{t('af.myTrainerProfileTitle')}</h3>
+              <button onClick={() => setShowMyProfile(false)} className="cursor-pointer"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('us.trainerProfileHint')}</p>
+            <ImageUpload bucket="images" currentUrl={myTrainerProfile.trainer_photo_url} onUpload={(url) => setMyTrainerProfile({ ...myTrainerProfile, trainer_photo_url: url })} label={t('us.trainerPhoto')} />
+            <div>
+              <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('us.trainerBioEn')}</label>
+              <textarea value={myTrainerProfile.trainer_bio} onChange={(e) => setMyTrainerProfile({ ...myTrainerProfile, trainer_bio: e.target.value })} rows={3} className="input-field" />
+            </div>
+            <div>
+              <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('us.trainerBioUr')}</label>
+              <textarea value={myTrainerProfile.trainer_bio_ur} onChange={(e) => setMyTrainerProfile({ ...myTrainerProfile, trainer_bio_ur: e.target.value })} rows={3} dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }} className="input-field" />
+            </div>
+            <button onClick={saveMyProfile} disabled={savingProfile} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">
+              {savingProfile ? t('af.saving') : t('af.saveChangesBtn')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {!selected ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -516,7 +609,7 @@ function AcademyFeesInner() {
                         {new Date(c.due_on).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })} — Rs. {fmt(c.amount_pkr)}
                         {c.status !== 'paid' && (
                           <button
-                            onClick={() => { setPayFor({ chargeId: c.id, remaining: c.amount_pkr - c.paid_pkr, studentName: e.student_name }); setPayAmount(c.amount_pkr - c.paid_pkr) }}
+                            onClick={() => { setPayFor({ chargeId: c.id, remaining: c.amount_pkr - c.paid_pkr, studentName: e.student_name, batchId: e.batch_id }); setPayAmount(c.amount_pkr - c.paid_pkr) }}
                             className="underline cursor-pointer"
                           >
                             {t('af.collectBtn')}
@@ -641,17 +734,28 @@ function AcademyFeesInner() {
                       <option value="full_course">{t('af.fullCourse')}</option>
                     </select>
                   </div>
+                  {!!b?.sibling_discount_pct && (
+                    <div>
+                      <SearchableField
+                        label={t('af.siblingOfLabel')} value={form.sibling_of}
+                        onChange={(id) => {
+                          const picked = siblingCandidates.find((c) => c.id === id)
+                          setForm({
+                            ...form, sibling_of: id,
+                            discount_pct: id ? String(b.sibling_discount_pct) : '',
+                            discount_reason: id && picked ? t('af.siblingOfReasonPrefix').replace('{name}', picked.label) : '',
+                          })
+                        }}
+                        items={siblingCandidates} placeholder={t('af.siblingOfPlaceholder')} pickerTitle={t('af.siblingOfLabel')}
+                        compact
+                      />
+                      <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('af.applySiblingDiscountBtn').replace('{pct}', String(b.sibling_discount_pct))}</p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
                     <input type="number" value={form.discount_pct} onChange={(e) => setForm({ ...form, discount_pct: e.target.value })} placeholder={t('af.discountPct')} className="input-field" />
                     <input value={form.discount_reason} onChange={(e) => setForm({ ...form, discount_reason: e.target.value })} placeholder={t('af.discountReason')} className="input-field" />
                   </div>
-                  {!!b?.sibling_discount_pct && (
-                    <button type="button"
-                      onClick={() => setForm({ ...form, discount_pct: String(b.sibling_discount_pct), discount_reason: form.discount_reason || t('af.siblingDiscountDefaultReason') })}
-                      className="text-[12px] font-sans font-semibold text-dp-secondary hover:underline cursor-pointer">
-                      {t('af.applySiblingDiscountBtn').replace('{pct}', String(b.sibling_discount_pct))}
-                    </button>
-                  )}
                   {b && (
                     <p className="font-sans text-[13px] font-semibold text-dp-primary bg-dp-secondary-container/20 rounded-lg px-3 py-2 ltr-num">
                       {t('tp.feePreview')}: {discountPct > 0 && <span className="line-through text-dp-on-surface-variant font-normal me-1.5">Rs. {fmt(baseFee)}</span>}
@@ -691,6 +795,46 @@ function AcademyFeesInner() {
           </div>
         </div>
       )}
+
+      {/* Print receipt — offered right after collecting, instead of the
+          only way to get a slip being a trip through All Transactions
+          afterward to find the voucher. */}
+      {lastReceipt && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setLastReceipt(null)}>
+          <div className="bg-white rounded-lg max-w-[380px] w-full p-6 text-center" onClick={(e) => e.stopPropagation()}>
+            <CheckCircle2 size={36} className="text-emerald-600 mx-auto mb-2" />
+            <p className="font-heading text-[17px] font-bold text-dp-primary">{t('af.paymentRecorded')}</p>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1 ltr-num">{lastReceipt.voucherNo} — Rs. {fmt(lastReceipt.amount)}</p>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setLastReceipt(null)} className="flex-1 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+                {t('af.closeBtn')}
+              </button>
+              <button onClick={printReceipt} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp-primary">
+                <Printer size={14} /> {t('af.printReceiptBtn')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden — only ever rendered into the print popup, never shown on
+          screen. Kept simple on purpose: this is a payment slip, not a
+          full statement. */}
+      <div className="hidden">
+        <div ref={receiptRef} className="p-8 max-w-[420px] mx-auto" dir={isUrdu ? 'rtl' : 'ltr'}>
+          <DocumentHeader title={t('af.receiptTitle')} />
+          {lastReceipt && (
+            <div className="font-sans text-[14px] text-dp-on-surface space-y-2 mt-4">
+              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('af.studentName')}</span><span className="font-semibold">{lastReceipt.studentName}</span></div>
+              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('af.batchLabel')}</span><span className="font-semibold">{lastReceipt.batchLabel}</span></div>
+              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('w.date')}</span><span className="font-semibold ltr-num">{lastReceipt.date}</span></div>
+              <div className="flex justify-between"><span className="text-dp-on-surface-variant">{t('af.paymentMethodLabel')}</span><span className="font-semibold">{t(lastReceipt.method === 'cash' ? 'af.cash' : lastReceipt.method === 'bank' ? 'af.bank' : lastReceipt.method)}</span></div>
+              <div className="flex justify-between border-t border-dp-outline-variant pt-2 mt-2"><span className="text-dp-on-surface-variant">{t('af.voucherNoLabel')}</span><span className="font-semibold ltr-num">{lastReceipt.voucherNo}</span></div>
+              <div className="flex justify-between text-[18px] font-bold text-dp-primary border-t border-dp-outline-variant pt-2"><span>{t('w.amount')}</span><span className="ltr-num">Rs. {fmt(lastReceipt.amount)}</span></div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Edit enrollment modal */}
       {editing && (
