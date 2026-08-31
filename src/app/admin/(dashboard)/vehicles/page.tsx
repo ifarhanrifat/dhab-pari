@@ -15,12 +15,15 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { Bus, PlusCircle, X, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Clock, Percent } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
+
+const LeafletPinPicker = dynamic(() => import('@/components/shared/LeafletPinPicker'), { ssr: false })
 
 interface Vehicle {
   id: string; owner_name: string; owner_mobile: string | null; owner_whatsapp: string | null
@@ -30,6 +33,7 @@ interface Vehicle {
 interface Route {
   id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   classification: string; fare_per_seat_pkr: number; departure_time: string | null; days_of_week: number[]; is_active: boolean
+  origin_lat: number | null; origin_lng: number | null; destination_lat: number | null; destination_lng: number | null
 }
 interface Booking {
   id: string; status: string; total_amount_pkr: number; seats: number; travel_date: string; rejected_reason: string | null
@@ -46,6 +50,7 @@ const emptyVehicle = {
 const emptyRoute = {
   origin: '', origin_ur: '', destination: '', destination_ur: '', classification: 'intercity',
   fare_per_seat_pkr: 0, departure_time: '', days_of_week: [0, 1, 2, 3, 4, 5, 6] as number[], is_active: true,
+  origin_lat: null as number | null, origin_lng: null as number | null, destination_lat: null as number | null, destination_lng: null as number | null,
 }
 
 const DAY_KEYS = ['af.daySun', 'af.dayMon', 'af.dayTue', 'af.dayWed', 'af.dayThu', 'af.dayFri', 'af.daySat']
@@ -265,6 +270,7 @@ function AdminVehiclesInner() {
       origin: r.origin, origin_ur: r.origin_ur ?? '', destination: r.destination, destination_ur: r.destination_ur ?? '',
       classification: r.classification, fare_per_seat_pkr: r.fare_per_seat_pkr, departure_time: r.departure_time ?? '',
       days_of_week: r.days_of_week, is_active: r.is_active,
+      origin_lat: r.origin_lat, origin_lng: r.origin_lng, destination_lat: r.destination_lat, destination_lng: r.destination_lng,
     })
     setShowRouteForm(true)
   }
@@ -282,6 +288,7 @@ function AdminVehiclesInner() {
       destination: routeForm.destination, destination_ur: routeForm.destination_ur || null,
       classification: routeForm.classification, fare_per_seat_pkr: routeForm.fare_per_seat_pkr,
       departure_time: routeForm.departure_time || null, days_of_week: routeForm.days_of_week, is_active: routeForm.is_active,
+      origin_lat: routeForm.origin_lat, origin_lng: routeForm.origin_lng, destination_lat: routeForm.destination_lat, destination_lng: routeForm.destination_lng,
     }
     const { error } = editingRoute
       ? await supabase.from('vehicle_routes').update(payload).eq('id', editingRoute.id)
@@ -580,6 +587,17 @@ function AdminVehiclesInner() {
                 </div>
               </div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={routeForm.is_active} onChange={(e) => setRouteForm({ ...routeForm, is_active: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('mk.routeActiveLabel')}</span></label>
+
+              <div className="pt-2 border-t border-dp-outline-variant/60">
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.mapPinsLabel')}</label>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2">{t('cm.mapPinsHint')}</p>
+                <LeafletPinPicker
+                  originLat={routeForm.origin_lat} originLng={routeForm.origin_lng}
+                  destinationLat={routeForm.destination_lat} destinationLng={routeForm.destination_lng}
+                  onChange={(pins) => setRouteForm({ ...routeForm, origin_lat: pins.originLat, origin_lng: pins.originLng, destination_lat: pins.destinationLat, destination_lng: pins.destinationLng })}
+                />
+              </div>
+
               <button onClick={saveRoute} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{saving ? t('action.saving') : t('g.saveChanges')}</button>
             </div>
           </div>
