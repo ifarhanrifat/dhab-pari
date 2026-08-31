@@ -12,13 +12,14 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Store, PlusCircle, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, BarChart3 } from 'lucide-react'
+import { Store, PlusCircle, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, BarChart3, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { WalletTopupModal } from '@/components/portal/WalletTopupModal'
 
-interface Shop { id: string; name: string; name_ur: string | null; delivery_enabled: boolean }
+interface Shop { id: string; name: string; name_ur: string | null; delivery_enabled: boolean; commission_mode: string }
 interface Product {
   id: string; name: string; name_ur: string | null; description: string | null
   company: string | null; category: string | null; flavor: string | null; flavor_ur: string | null
@@ -63,6 +64,7 @@ export default function MyShopPage() {
   const [scanning, setScanning] = useState(false)
   const scanInputRef = useRef<HTMLInputElement>(null)
 
+  const [showTopup, setShowTopup] = useState(false)
   const [showAiSettings, setShowAiSettings] = useState(false)
   const [geminiKey, setGeminiKey] = useState('')
   const [keySaved, setKeySaved] = useState(false)
@@ -70,7 +72,7 @@ export default function MyShopPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('shops').select('id, name, name_ur, delivery_enabled').eq('portal_user_id', user.id).maybeSingle()
+    supabase.from('shops').select('id, name, name_ur, delivery_enabled, commission_mode').eq('portal_user_id', user.id).maybeSingle()
       .then(({ data }) => { setShop(data); setShopLoading(false) })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -200,6 +202,11 @@ export default function MyShopPage() {
       <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
         <h1 className="font-heading text-[26px] font-bold leading-[34px] text-dp-primary flex items-center gap-2"><Store size={22} /> {isUrdu && shop.name_ur ? shop.name_ur : shop.name}</h1>
         <div className="flex items-center gap-2">
+          {shop.commission_mode === 'per_order' && (
+            <button onClick={() => setShowTopup(true)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+              <Wallet size={14} /> {t('cm.topupWalletBtn')}
+            </button>
+          )}
           <button onClick={() => setShowAiSettings(true)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
             <KeyRound size={14} /> {keySaved ? t('sk.aiSettingsBtn') : t('sk.setUpAiBtn')}
           </button>
@@ -294,6 +301,10 @@ export default function MyShopPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showTopup && (
+        <WalletTopupModal kind="shop" sellerId={shop.id} onClose={() => setShowTopup(false)} onSubmitted={() => setShowTopup(false)} />
       )}
 
       {showAiSettings && (

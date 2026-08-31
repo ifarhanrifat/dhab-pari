@@ -26,6 +26,7 @@ interface Shop {
   commission_mode: string; lumpsum_fee_pkr: number | null
 }
 interface LumpsumCharge { id: string; period: string; amount_pkr: number; created_at: string }
+interface WalletTopup { id: string; amount_pkr: number; status: string; announced_method: string; announced_at: string; rejected_reason: string | null }
 interface Product {
   id: string; shop_id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
   company: string | null; category: string | null; flavor: string | null; flavor_ur: string | null; cost_price_pkr: number
@@ -88,6 +89,8 @@ function AdminShopsInner() {
   const [orders, setOrders] = useState<Order[]>([])
   const [orderActionId, setOrderActionId] = useState<string | null>(null)
   const [charges, setCharges] = useState<LumpsumCharge[]>([])
+  const [topups, setTopups] = useState<WalletTopup[]>([])
+  const [topupActionId, setTopupActionId] = useState<string | null>(null)
 
   const [showShopForm, setShowShopForm] = useState(false)
   const [editingShop, setEditingShop] = useState<Shop | null>(null)
@@ -154,8 +157,30 @@ function AdminShopsInner() {
     const { data } = await supabase.from('shop_lumpsum_charges').select('id, period, amount_pkr, created_at').eq('shop_id', shopId).order('period', { ascending: false })
     setCharges(data ?? [])
   }
+  const loadTopups = async (shopId: string) => {
+    const { data } = await supabase.from('shop_wallet_topups').select('id, amount_pkr, status, announced_method, announced_at, rejected_reason').eq('shop_id', shopId).order('announced_at', { ascending: false })
+    setTopups(data ?? [])
+  }
 
-  const openShop = (s: Shop) => { setSelected(s); loadProducts(s.id); loadOrders(s.id); loadCharges(s.id) }
+  const openShop = (s: Shop) => { setSelected(s); loadProducts(s.id); loadOrders(s.id); loadCharges(s.id); loadTopups(s.id) }
+
+  const confirmTopup = async (id: string) => {
+    setTopupActionId(id)
+    const { error } = await supabase.rpc('confirm_shop_wallet_topup', { p_topup_id: id })
+    setTopupActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('cm.topupConfirmedToast'))
+    if (selected) loadTopups(selected.id)
+  }
+  const rejectTopup = async (id: string) => {
+    const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
+    setTopupActionId(id)
+    const { error } = await supabase.rpc('reject_shop_wallet_topup', { p_topup_id: id, p_reason: reason || null })
+    setTopupActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('cm.topupRejectedToast'))
+    if (selected) loadTopups(selected.id)
+  }
 
   const confirmOrder = async (o: Order) => {
     setOrderActionId(o.id)
@@ -425,6 +450,23 @@ function AdminShopsInner() {
                           <button onClick={() => confirmOrder(o)} disabled={orderActionId === o.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50">{t('mp.confirmBtn')}</button>
                         </div>
                       )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {topups.filter((tp) => tp.status === 'announced').length > 0 && (
+            <div className="mt-8">
+              <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('cm.topupsHeading')}</p>
+              <div className="space-y-2">
+                {topups.filter((tp) => tp.status === 'announced').map((tp) => (
+                  <div key={tp.id} className="flex items-center justify-between gap-3 bg-white border border-dp-outline-variant rounded-lg p-3.5">
+                    <p className="font-sans text-[14px] font-bold text-dp-secondary">{fmt(tp.amount_pkr)}</p>
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => rejectTopup(tp.id)} disabled={topupActionId === tp.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container disabled:opacity-50">{t('mp.rejectBtn')}</button>
+                      <button onClick={() => confirmTopup(tp.id)} disabled={topupActionId === tp.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50">{t('mp.confirmBtn')}</button>
                     </div>
                   </div>
                 ))}

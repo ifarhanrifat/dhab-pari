@@ -16,7 +16,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Bus, PlusCircle, X, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { Bus, PlusCircle, X, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Clock, Percent } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -25,6 +25,7 @@ import { useSystemAccess } from '@/hooks/useSystemAccess'
 interface Vehicle {
   id: string; owner_name: string; owner_mobile: string | null; owner_whatsapp: string | null
   vehicle_type: string; vehicle_number: string | null; total_seats: number; is_active: boolean
+  portal_user_id: string | null; commission_mode: string; lumpsum_fee_pkr: number | null
 }
 interface Route {
   id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
@@ -34,8 +35,14 @@ interface Booking {
   id: string; status: string; total_amount_pkr: number; seats: number; travel_date: string; rejected_reason: string | null
   vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null
 }
+interface LumpsumCharge { id: string; period: string; amount_pkr: number }
+interface WalletTopup { id: string; amount_pkr: number; status: string; announced_method: string; announced_at: string; rejected_reason: string | null }
+interface TypeRate { id: string; vehicle_type: string; classification: string; commission_pct: number }
 
-const emptyVehicle = { owner_name: '', owner_mobile: '', owner_whatsapp: '', vehicle_type: '', vehicle_number: '', total_seats: 4, is_active: true }
+const emptyVehicle = {
+  owner_name: '', owner_mobile: '', owner_whatsapp: '', vehicle_type: '', vehicle_number: '', total_seats: 4, is_active: true,
+  portal_user_id: null as string | null, commission_mode: 'per_order' as string, lumpsum_fee_pkr: 0,
+}
 const emptyRoute = {
   origin: '', origin_ur: '', destination: '', destination_ur: '', classification: 'intercity',
   fare_per_seat_pkr: 0, departure_time: '', days_of_week: [0, 1, 2, 3, 4, 5, 6] as number[], is_active: true,
@@ -69,10 +76,21 @@ function AdminVehiclesInner() {
   const [routes, setRoutes] = useState<Route[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
   const [bookingActionId, setBookingActionId] = useState<string | null>(null)
+  const [charges, setCharges] = useState<LumpsumCharge[]>([])
+  const [topups, setTopups] = useState<WalletTopup[]>([])
+  const [topupActionId, setTopupActionId] = useState<string | null>(null)
+  const [keeperMobile, setKeeperMobile] = useState('')
+  const [keeperName, setKeeperName] = useState<string | null>(null)
+  const [linkingKeeper, setLinkingKeeper] = useState(false)
 
   const [showVehicleForm, setShowVehicleForm] = useState(false)
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null)
   const [vehicleForm, setVehicleForm] = useState(emptyVehicle)
+
+  const [rates, setRates] = useState<TypeRate[]>([])
+  const [showRates, setShowRates] = useState(false)
+  const [newRate, setNewRate] = useState({ vehicle_type: '', classification: 'intercity', commission_pct: 0 })
+  const [savingRate, setSavingRate] = useState(false)
 
   const [showRouteForm, setShowRouteForm] = useState(false)
   const [editingRoute, setEditingRoute] = useState<Route | null>(null)
@@ -94,6 +112,28 @@ function AdminVehiclesInner() {
   }
   useEffect(() => { load() }, [])
 
+  const loadRates = async () => {
+    const { data } = await supabase.from('vehicle_type_commission_rates').select('*').order('vehicle_type')
+    setRates(data ?? [])
+  }
+  useEffect(() => { loadRates() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveRate = async () => {
+    if (!newRate.vehicle_type.trim()) return
+    setSavingRate(true)
+    const { error } = await supabase.from('vehicle_type_commission_rates')
+      .upsert({ vehicle_type: newRate.vehicle_type.trim(), classification: newRate.classification, commission_pct: newRate.commission_pct }, { onConflict: 'vehicle_type,classification' })
+    setSavingRate(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('cm.rateSaved'))
+    setNewRate({ vehicle_type: '', classification: 'intercity', commission_pct: 0 })
+    loadRates()
+  }
+  const deleteRate = async (id: string) => {
+    await supabase.from('vehicle_type_commission_rates').delete().eq('id', id)
+    loadRates()
+  }
+
   useEffect(() => {
     const vehicleParam = searchParams.get('vehicle')
     if (!vehicleParam || vehicles.length === 0) return
@@ -114,7 +154,47 @@ function AdminVehiclesInner() {
     setBookings((data ?? []) as unknown as Booking[])
   }
 
-  const openVehicle = (v: Vehicle) => { setSelected(v); loadRoutes(v.id); loadBookings(v.id) }
+  const loadCharges = async (vehicleId: string) => {
+    const { data } = await supabase.from('vehicle_lumpsum_charges').select('id, period, amount_pkr').eq('vehicle_id', vehicleId).order('period', { ascending: false })
+    setCharges(data ?? [])
+  }
+  const loadTopups = async (vehicleId: string) => {
+    const { data } = await supabase.from('vehicle_wallet_topups').select('id, amount_pkr, status, announced_method, announced_at, rejected_reason').eq('vehicle_id', vehicleId).order('announced_at', { ascending: false })
+    setTopups(data ?? [])
+  }
+
+  const openVehicle = (v: Vehicle) => { setSelected(v); loadRoutes(v.id); loadBookings(v.id); loadCharges(v.id); loadTopups(v.id) }
+
+  const confirmTopup = async (id: string) => {
+    setTopupActionId(id)
+    const { error } = await supabase.rpc('confirm_vehicle_wallet_topup', { p_topup_id: id })
+    setTopupActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('cm.topupConfirmedToast'))
+    if (selected) loadTopups(selected.id)
+  }
+  const rejectTopup = async (id: string) => {
+    const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
+    setTopupActionId(id)
+    const { error } = await supabase.rpc('reject_vehicle_wallet_topup', { p_topup_id: id, p_reason: reason || null })
+    setTopupActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('cm.topupRejectedToast'))
+    if (selected) loadTopups(selected.id)
+  }
+
+  const findKeeper = async () => {
+    const mobile = keeperMobile.trim()
+    if (!mobile) return
+    setLinkingKeeper(true)
+    const { data } = await supabase.from('portal_users').select('id, full_name, mobile').eq('mobile', mobile).eq('is_active', true).maybeSingle()
+    setLinkingKeeper(false)
+    if (!data) { toast.error(t('sk.keeperNotFound')); return }
+    setVehicleForm({ ...vehicleForm, portal_user_id: data.id })
+    setKeeperName(`${data.full_name} (${data.mobile})`)
+    setKeeperMobile('')
+  }
+  const unlinkKeeper = () => { setVehicleForm({ ...vehicleForm, portal_user_id: null }); setKeeperName(null) }
 
   const confirmBooking = async (b: Booking) => {
     setBookingActionId(b.id)
@@ -141,14 +221,23 @@ function AdminVehiclesInner() {
     setVehicleForm({
       owner_name: v.owner_name, owner_mobile: v.owner_mobile ?? '', owner_whatsapp: v.owner_whatsapp ?? '',
       vehicle_type: v.vehicle_type, vehicle_number: v.vehicle_number ?? '', total_seats: v.total_seats, is_active: v.is_active,
+      portal_user_id: v.portal_user_id, commission_mode: v.commission_mode, lumpsum_fee_pkr: v.lumpsum_fee_pkr ?? 0,
     })
+    setKeeperMobile('')
+    if (v.portal_user_id) {
+      supabase.from('portal_users').select('full_name, mobile').eq('id', v.portal_user_id).maybeSingle()
+        .then(({ data }) => setKeeperName(data ? `${data.full_name} (${data.mobile})` : null))
+    } else setKeeperName(null)
     setShowVehicleForm(true)
   }
 
   const saveVehicle = async () => {
     if (!vehicleForm.owner_name.trim() || !vehicleForm.vehicle_type.trim()) { toast.error(t('mk.nameRequired')); return }
     setSaving(true)
-    const payload = { ...vehicleForm, owner_mobile: vehicleForm.owner_mobile || null, owner_whatsapp: vehicleForm.owner_whatsapp || null, vehicle_number: vehicleForm.vehicle_number || null }
+    const payload = {
+      ...vehicleForm, owner_mobile: vehicleForm.owner_mobile || null, owner_whatsapp: vehicleForm.owner_whatsapp || null, vehicle_number: vehicleForm.vehicle_number || null,
+      lumpsum_fee_pkr: vehicleForm.commission_mode === 'monthly_lumpsum' ? vehicleForm.lumpsum_fee_pkr : null,
+    }
     const { error } = editingVehicle
       ? await supabase.from('vehicles').update(payload).eq('id', editingVehicle.id)
       : await supabase.from('vehicles').insert(payload)
@@ -229,8 +318,39 @@ function AdminVehiclesInner() {
         <>
           <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
             <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2"><Bus size={24} /> {t('mk.vehiclesTitle')}</h1>
-            <button onClick={openNewVehicle} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('mk.newVehicleBtn')}</button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setShowRates((s) => !s)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Percent size={14} /> {t('cm.ratesBtn')}</button>
+              <button onClick={openNewVehicle} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('mk.newVehicleBtn')}</button>
+            </div>
           </div>
+
+          {showRates && (
+            <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-6">
+              <p className="font-sans text-[13px] font-bold text-dp-on-surface mb-1">{t('cm.ratesHeading')}</p>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-3">{t('cm.ratesHint')}</p>
+              <div className="space-y-1.5 mb-3">
+                {rates.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between gap-3 bg-dp-surface-container rounded-lg px-3 py-2">
+                    <span className="font-sans text-[13px] text-dp-on-surface">{r.vehicle_type} — {r.classification === 'intercity' ? t('mk.intercity') : t('mk.outOfCity')}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-sans text-[13px] font-bold text-dp-secondary ltr-num">{r.commission_pct}%</span>
+                      <button onClick={() => deleteRate(r.id)} className="p-1 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                ))}
+                {rates.length === 0 && <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('cm.noRatesYet')}</p>}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <input value={newRate.vehicle_type} onChange={(e) => setNewRate({ ...newRate, vehicle_type: e.target.value })} placeholder={t('mk.vehicleTypePlaceholder')} className="input-field flex-1 min-w-[140px]" />
+                <select value={newRate.classification} onChange={(e) => setNewRate({ ...newRate, classification: e.target.value })} className="input-field w-auto">
+                  <option value="intercity">{t('mk.intercity')}</option>
+                  <option value="out_of_city">{t('mk.outOfCity')}</option>
+                </select>
+                <input type="number" value={newRate.commission_pct || ''} onChange={(e) => setNewRate({ ...newRate, commission_pct: +e.target.value })} placeholder="%" className="input-field w-20" />
+                <button onClick={saveRate} disabled={savingRate} className="px-3 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">{t('g.saveChanges')}</button>
+              </div>
+            </div>
+          )}
 
           {loading && <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('action.loading')}</p>}
           {!loading && vehicles.length === 0 && <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('mk.noVehiclesYet')}</p>}
@@ -250,6 +370,7 @@ function AdminVehiclesInner() {
                 <div className="flex flex-wrap items-center gap-1.5 mt-3">
                   <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-surface-container-high text-dp-on-surface-variant">{v.total_seats} {t('mk.seatsLabel')}</span>
                   <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-surface-container-high text-dp-on-surface-variant">{routeCountByVehicle[v.id] ?? 0} {t('mk.routesCount')}</span>
+                  {v.commission_mode === 'monthly_lumpsum' && <span className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">{t('cm.lumpsumBadge')}</span>}
                 </div>
               </button>
             ))}
@@ -328,6 +449,38 @@ function AdminVehiclesInner() {
               </div>
             </div>
           )}
+
+          {topups.filter((tp) => tp.status === 'announced').length > 0 && (
+            <div className="mt-8">
+              <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('cm.topupsHeading')}</p>
+              <div className="space-y-2">
+                {topups.filter((tp) => tp.status === 'announced').map((tp) => (
+                  <div key={tp.id} className="flex items-center justify-between gap-3 bg-white border border-dp-outline-variant rounded-lg p-3.5">
+                    <p className="font-sans text-[14px] font-bold text-dp-secondary">{fmt(tp.amount_pkr)}</p>
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => rejectTopup(tp.id)} disabled={topupActionId === tp.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container disabled:opacity-50">{t('mp.rejectBtn')}</button>
+                      <button onClick={() => confirmTopup(tp.id)} disabled={topupActionId === tp.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50">{t('mp.confirmBtn')}</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {selected.commission_mode === 'monthly_lumpsum' && (
+            <div className="mt-8">
+              <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('cm.chargeHistoryHeading')}</p>
+              {charges.length === 0 && <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('cm.noChargesYet')}</p>}
+              <div className="space-y-1.5">
+                {charges.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between gap-3 bg-white border border-dp-outline-variant rounded-lg px-3.5 py-2.5">
+                    <p className="font-sans text-[13px] text-dp-on-surface">{c.period}</p>
+                    <p className="font-sans text-[13.5px] font-bold text-dp-secondary">{fmt(c.amount_pkr)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -350,6 +503,42 @@ function AdminVehiclesInner() {
               </div>
               <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.totalSeatsLabel')}</label><input type="number" value={vehicleForm.total_seats || ''} onChange={(e) => setVehicleForm({ ...vehicleForm, total_seats: +e.target.value })} className="input-field" placeholder="0" /></div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={vehicleForm.is_active} onChange={(e) => setVehicleForm({ ...vehicleForm, is_active: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('mk.vehicleActiveLabel')}</span></label>
+
+              <div className="pt-2 border-t border-dp-outline-variant/60">
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.modeLabel')}</label>
+                <select value={vehicleForm.commission_mode} onChange={(e) => setVehicleForm({ ...vehicleForm, commission_mode: e.target.value })} className="input-field">
+                  <option value="per_order">{t('cm.perOrderOption')}</option>
+                  <option value="monthly_lumpsum">{t('cm.lumpsumOption')}</option>
+                </select>
+                {vehicleForm.commission_mode === 'per_order' ? (
+                  <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('cm.vehiclePerOrderHint')}</p>
+                ) : (
+                  <>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('cm.lumpsumHint')}</p>
+                    <div className="mt-2">
+                      <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.lumpsumFeeLabel')}</label>
+                      <input type="number" value={vehicleForm.lumpsum_fee_pkr || ''} onChange={(e) => setVehicleForm({ ...vehicleForm, lumpsum_fee_pkr: +e.target.value })} className="input-field" placeholder="0" />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="pt-2 border-t border-dp-outline-variant/60">
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.driverLinkLabel')}</label>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2">{t('cm.driverLinkHint')}</p>
+                {keeperName ? (
+                  <div className="flex items-center justify-between gap-2 bg-dp-secondary-container/40 rounded-lg px-3 py-2">
+                    <span className="font-sans text-[13px] text-dp-on-surface truncate">{keeperName}</span>
+                    <button onClick={unlinkKeeper} className="font-sans text-[12px] font-semibold text-dp-error cursor-pointer shrink-0">{t('g.remove')}</button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input value={keeperMobile} onChange={(e) => setKeeperMobile(e.target.value)} placeholder={t('sk.keeperMobilePlaceholder')} className="input-field" dir="ltr" />
+                    <button onClick={findKeeper} disabled={linkingKeeper} className="shrink-0 px-3 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container disabled:opacity-50">{t('sk.linkBtn')}</button>
+                  </div>
+                )}
+              </div>
+
               <button onClick={saveVehicle} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{saving ? t('action.saving') : t('g.saveChanges')}</button>
             </div>
           </div>

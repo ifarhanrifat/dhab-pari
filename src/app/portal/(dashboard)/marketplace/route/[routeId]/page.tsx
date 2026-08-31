@@ -20,7 +20,7 @@ interface Route {
   id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   classification: string; fare_per_seat_pkr: number; departure_time: string | null; days_of_week: number[]
 }
-interface Vehicle { owner_name: string; owner_mobile: string | null; vehicle_type: string; total_seats: number }
+interface Vehicle { id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; total_seats: number; commission_mode: string }
 
 const DAY_KEYS = ['af.daySun', 'af.dayMon', 'af.dayTue', 'af.dayWed', 'af.dayThu', 'af.dayFri', 'af.daySat']
 
@@ -48,13 +48,18 @@ export default function RouteDetailPage() {
   const [method, setMethod] = useState('cash')
   const [proofPath, setProofPath] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [bookable, setBookable] = useState(true)
 
   useEffect(() => {
     supabase.from('vehicle_routes').select('*').eq('id', params.routeId).single().then(async ({ data: r }) => {
       setRoute(r)
       if (r) {
-        const { data: v } = await supabase.from('vehicles').select('owner_name, owner_mobile, vehicle_type, total_seats').eq('id', r.vehicle_id).single()
+        const [{ data: v }, { data: bk }] = await Promise.all([
+          supabase.from('vehicles').select('id, owner_name, owner_mobile, vehicle_type, total_seats, commission_mode').eq('id', r.vehicle_id).single(),
+          supabase.rpc('vehicle_bookable', { p_vehicle_id: r.vehicle_id }),
+        ])
         setVehicle(v)
+        setBookable(bk !== false)
       }
       setLoading(false)
     })
@@ -75,18 +80,19 @@ export default function RouteDetailPage() {
   }, [travelDate, route?.id, wrongDay])
 
   const total = route ? seats * route.fare_per_seat_pkr : 0
+  const isPerOrder = vehicle?.commission_mode === 'per_order'
 
   const submit = async () => {
     if (!route) return
     if (!travelDate) { toast.error(t('mp.pickDateFirst')); return }
-    if (!proofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
+    if (!isPerOrder && !proofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
     setSubmitting(true)
     const { error } = await supabase.rpc('place_ride_booking', {
-      p_route_id: route.id, p_travel_date: travelDate, p_seats: seats, p_method: method, p_proof_url: proofPath,
+      p_route_id: route.id, p_travel_date: travelDate, p_seats: seats, p_method: isPerOrder ? 'direct' : method, p_proof_url: isPerOrder ? null : proofPath,
     })
     setSubmitting(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('mp.bookingPlacedToast'))
+    toast.success(isPerOrder ? t('cm.orderPlacedDirectToast') : t('mp.bookingPlacedToast'))
     router.push('/portal/marketplace')
   }
 
@@ -111,6 +117,14 @@ export default function RouteDetailPage() {
       </p>
       <p className="font-heading text-[22px] font-bold text-dp-secondary mt-2">{fmt(route.fare_per_seat_pkr)} <span className="font-sans font-normal text-dp-on-surface-variant text-[13px]">{t('mk.perSeat')}</span></p>
 
+      {!bookable && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3.5 mt-4">
+          <p className="font-sans text-[13px] text-amber-900">{t('cm.notBookableExplain')}</p>
+          {vehicle?.owner_mobile && <p className="font-sans text-[13px] font-semibold text-amber-900 mt-1 ltr-num">{vehicle.owner_mobile}</p>}
+        </div>
+      )}
+
+      {bookable && (
       <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mt-5">
         <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('mp.travelDateLabel')}</label>
         <input type="date" min={todayStr()} value={travelDate} onChange={(e) => setTravelDate(e.target.value)} className="input-field" />
@@ -135,18 +149,24 @@ export default function RouteDetailPage() {
               <p className="font-heading text-[19px] font-bold text-dp-secondary">{fmt(total)}</p>
             </div>
 
-            <div className="mt-4">
-              <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
-              <select value={method} onChange={(e) => setMethod(e.target.value)} className="input-field">
-                <option value="cash">{t('w.cash')}</option>
-                <option value="jazzcash">{t('w.jazzcash')}</option>
-                <option value="easypaisa">{t('w.easypaisa')}</option>
-                <option value="bank">{t('a.bank')}</option>
-              </select>
-            </div>
-            <div className="mt-3">
-              <DonationReceiptUpload onUpload={setProofPath} />
-            </div>
+            {isPerOrder ? (
+              <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5 mt-4">{t('cm.payDirectlyNote')}</p>
+            ) : (
+              <>
+                <div className="mt-4">
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
+                  <select value={method} onChange={(e) => setMethod(e.target.value)} className="input-field">
+                    <option value="cash">{t('w.cash')}</option>
+                    <option value="jazzcash">{t('w.jazzcash')}</option>
+                    <option value="easypaisa">{t('w.easypaisa')}</option>
+                    <option value="bank">{t('a.bank')}</option>
+                  </select>
+                </div>
+                <div className="mt-3">
+                  <DonationReceiptUpload onUpload={setProofPath} />
+                </div>
+              </>
+            )}
             <button onClick={submit} disabled={submitting} className="w-full mt-4 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
               {submitting ? t('mp.placingBooking') : t('mp.bookSeatsBtn')}
             </button>
@@ -156,6 +176,7 @@ export default function RouteDetailPage() {
           <p className="font-sans text-[13px] text-dp-error mt-3">{t('mp.fullyBookedError')}</p>
         )}
       </div>
+      )}
     </div>
   )
 }

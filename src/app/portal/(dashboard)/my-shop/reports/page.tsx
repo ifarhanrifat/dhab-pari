@@ -12,6 +12,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Clock, PackageX, CheckCircle2, XCircle, Search } from 'lucide-react'
+import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
@@ -48,6 +50,17 @@ export default function ShopReportsPage() {
   const [orders, setOrders] = useState<ShopOrder[]>([])
   const [sales, setSales] = useState<WalkinSale[]>([])
   const [demand, setDemand] = useState<{ matched: DemandRow[]; unmatched: DemandRow[] } | null>(null)
+  const [orderActionId, setOrderActionId] = useState<string | null>(null)
+
+  const reloadOrders = async (shopId: string) => {
+    const [{ data: s }, { data: o }] = await Promise.all([
+      supabase.rpc('shop_dashboard_summary', { p_shop_id: shopId }),
+      supabase.from('shop_orders').select('id, status, total_amount_pkr, created_at, rejected_reason, shop_order_items(quantity, shop_products(name, name_ur))')
+        .eq('shop_id', shopId).order('created_at', { ascending: false }).limit(20),
+    ])
+    setSummary(s as unknown as Summary)
+    setOrders((o ?? []) as unknown as ShopOrder[])
+  }
 
   useEffect(() => {
     if (!user) return
@@ -77,6 +90,27 @@ export default function ShopReportsPage() {
       setLoading(false)
     })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Only meaningful for per_order orders — the shop's own keeper marks
+  // them fulfilled themselves (no payment to verify, the customer already
+  // paid them directly); a monthly_lumpsum order still needs staff.
+  const fulfillOrder = async (orderId: string) => {
+    setOrderActionId(orderId)
+    const { error } = await supabase.rpc('confirm_shop_order', { p_order_id: orderId })
+    setOrderActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mp.orderConfirmedToast'))
+    if (shop) reloadOrders(shop.id)
+  }
+  const cancelOrder = async (orderId: string) => {
+    const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
+    setOrderActionId(orderId)
+    const { error } = await supabase.rpc('reject_shop_order', { p_order_id: orderId, p_reason: reason || null })
+    setOrderActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mp.orderRejectedToast'))
+    if (shop) reloadOrders(shop.id)
+  }
 
   if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
   if (!shop) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('sk.noShopLinked')}</div>
@@ -216,9 +250,18 @@ export default function ShopReportsPage() {
                   <p className="font-sans text-[14px] font-bold text-dp-secondary">{fmt(o.total_amount_pkr)}</p>
                   {o.status === 'confirmed' && <span className="inline-flex items-center gap-1 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={11} /> {t('mp.confirmedStatus')}</span>}
                   {o.status === 'rejected' && <span className="inline-flex items-center gap-1 text-dp-error text-[11px] font-bold" title={o.rejected_reason ?? undefined}><XCircle size={11} /> {t('mp.rejectedStatus')}</span>}
-                  {o.status === 'announced' && <span className="inline-flex items-center gap-1 text-amber-700 text-[11px] font-bold"><Clock size={11} /> {t('mp.awaitingStatus')}</span>}
+                  {o.status === 'announced' && summary?.commission_mode !== 'per_order' && <span className="inline-flex items-center gap-1 text-amber-700 text-[11px] font-bold"><Clock size={11} /> {t('mp.awaitingStatus')}</span>}
                 </div>
               </div>
+              {o.status === 'announced' && summary?.commission_mode === 'per_order' && (
+                <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-dp-outline-variant/60">
+                  <span className="font-sans text-[11px] text-dp-on-surface-variant">{t('cm.markFulfilledHint')}</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button onClick={() => cancelOrder(o.id)} disabled={orderActionId === o.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container disabled:opacity-50">{t('mp.rejectBtn')}</button>
+                    <button onClick={() => fulfillOrder(o.id)} disabled={orderActionId === o.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50">{t('cm.markFulfilledBtn')}</button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
