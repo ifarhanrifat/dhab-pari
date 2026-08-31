@@ -12,13 +12,14 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Store, PlusCircle, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, BarChart3, Wallet } from 'lucide-react'
+import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, BarChart3, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { WalletTopupModal } from '@/components/portal/WalletTopupModal'
-import { getShopTypeTree } from '@/lib/shopTypes'
+import { getCategoryLabel } from '@/lib/shopTypes'
+import { CategoryBrowser, CategoryPicker } from '@/components/shared/CategoryBrowser'
 
 interface Shop { id: string; name: string; name_ur: string | null; delivery_enabled: boolean; commission_mode: string; primary_type: string }
 interface Product {
@@ -65,6 +66,7 @@ export default function MyShopPage() {
 
   const [showTopup, setShowTopup] = useState(false)
   const [showAiSettings, setShowAiSettings] = useState(false)
+  const [changingCategory, setChangingCategory] = useState(false)
   const [geminiKey, setGeminiKey] = useState('')
   const [keySaved, setKeySaved] = useState(false)
   const [savingKey, setSavingKey] = useState(false)
@@ -91,7 +93,7 @@ export default function MyShopPage() {
       .then(({ data }) => { setKeySaved(!!data?.gemini_api_key); setGeminiKey(data?.gemini_api_key ?? '') })
   }, [shop]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const openNew = () => { setEditing(null); setForm(emptyProduct); setCoverUrl(''); setShowForm(true) }
+  const openNew = (categorySlug: string) => { setEditing(null); setForm({ ...emptyProduct, category: categorySlug }); setCoverUrl(''); setChangingCategory(false); setShowForm(true) }
   const openEdit = (p: Product) => {
     setEditing(p)
     setForm({
@@ -101,6 +103,7 @@ export default function MyShopPage() {
       quantity_on_hand: p.quantity_on_hand, expiry_date: p.expiry_date ?? '', is_active: p.is_active,
     })
     setCoverUrl(coverByProduct[p.id] ?? '')
+    setChangingCategory(false)
     setShowForm(true)
   }
 
@@ -130,6 +133,7 @@ export default function MyShopPage() {
         description: json.description || '',
       })
       setCoverUrl(publicUrl)
+      setChangingCategory(false)
       setShowForm(true)
       toast.success(t('sk.scanDraftedToast'))
     } catch {
@@ -226,15 +230,14 @@ export default function MyShopPage() {
           className="flex items-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-60">
           {scanning ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />} {scanning ? t('sk.scanningLabel') : t('sk.scanProductBtn')}
         </button>
-        <button onClick={openNew} className="flex items-center gap-2 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
-          <PlusCircle size={15} /> {t('sk.addManuallyBtn')}
-        </button>
+        <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('sk.orBrowseCategoryHint')}</p>
       </div>
 
-      {products.length === 0 && <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('mk.noProductsYet')}</p>}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {products.map((p) => (
+      <CategoryBrowser
+        primaryType={shop.primary_type}
+        products={products}
+        onAddItem={openNew}
+        renderProduct={(p) => (
           <div key={p.id} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
             <div className="h-28 bg-dp-surface-container relative">
               {coverByProduct[p.id] ? (
@@ -262,8 +265,8 @@ export default function MyShopPage() {
               </div>
             </div>
           </div>
-        ))}
-      </div>
+        )}
+      />
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
@@ -285,14 +288,18 @@ export default function MyShopPage() {
                 <input value={form.flavor} onChange={(e) => setForm({ ...form, flavor: e.target.value })} placeholder={t('sk.flavorPlaceholder')} className="input-field" />
                 <input value={form.flavor_ur} onChange={(e) => setForm({ ...form, flavor_ur: e.target.value })} placeholder={t('sk.flavorUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
               </div>
-              <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.categoryLabel')}</label>
-              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">
-                {getShopTypeTree(shop?.primary_type).map((d) => (
-                  <optgroup key={d.key} label={isUrdu ? d.label_ur : d.label}>
-                    {d.categories.map((c) => <option key={c.slug} value={c.slug}>{isUrdu ? c.label_ur : c.label}</option>)}
-                  </optgroup>
-                ))}
-              </select>
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.categoryLabel')}</label>
+                {!changingCategory ? (
+                  <div className="flex items-center justify-between gap-2 bg-dp-secondary-container/40 rounded-lg px-3 py-2.5">
+                    <span className="font-sans text-[13.5px] font-semibold text-dp-secondary">{getCategoryLabel(form.category, isUrdu)}</span>
+                    <button type="button" onClick={() => setChangingCategory(true)} className="font-sans text-[12px] font-semibold text-dp-secondary hover:underline cursor-pointer shrink-0">{t('sk.changeCategoryBtn')}</button>
+                  </div>
+                ) : (
+                  <CategoryPicker primaryType={shop?.primary_type ?? 'general_store'} value={form.category}
+                    onPick={(slug) => { setForm({ ...form, category: slug }); setChangingCategory(false) }} />
+                )}
+              </div>
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} placeholder={t('a.notesOptional')} className="input-field resize-none" />
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('sk.costPriceLabel')}</label><input type="number" value={form.cost_price_pkr || ''} onChange={(e) => setForm({ ...form, cost_price_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>

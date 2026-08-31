@@ -25,6 +25,7 @@ interface SearchResult {
 }
 interface ShopOrder {
   id: string; status: string; total_amount_pkr: number; rejected_reason: string | null; created_at: string
+  fulfillment_status: string
   shops: { name: string; name_ur: string | null } | null
 }
 interface RideBooking {
@@ -65,7 +66,7 @@ export default function PortalMarketplacePage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('shop_orders').select('id, status, total_amount_pkr, rejected_reason, created_at, shops(name, name_ur)')
+    supabase.from('shop_orders').select('id, status, total_amount_pkr, rejected_reason, created_at, fulfillment_status, shops(name, name_ur)')
       .eq('portal_user_id', user.id).order('created_at', { ascending: false }).limit(10)
       .then(({ data }) => setOrders((data ?? []) as unknown as ShopOrder[]))
     supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, created_at, vehicle_routes(origin, origin_ur, destination, destination_ur)')
@@ -138,6 +139,9 @@ export default function PortalMarketplacePage() {
                 <div className="text-end shrink-0">
                   <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{fmt(o.total_amount_pkr)}</p>
                   <StatusPill status={o.status} reason={o.rejected_reason} />
+                  {o.fulfillment_status !== 'pending' && o.fulfillment_status !== 'cancelled' && (
+                    <p className="font-sans text-[10.5px] font-semibold text-dp-on-surface-variant mt-0.5">{t(`of.status.${o.fulfillment_status}`)}</p>
+                  )}
                 </div>
               </div>
             ))}

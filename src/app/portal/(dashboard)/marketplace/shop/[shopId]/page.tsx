@@ -46,6 +46,7 @@ export default function ShopDetailPage() {
   const [cart, setCart] = useState<Record<string, number>>({})
   const [method, setMethod] = useState('cash')
   const [proofPath, setProofPath] = useState('')
+  const [deliveryAddress, setDeliveryAddress] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [bookable, setBookable] = useState(true)
@@ -98,11 +99,13 @@ export default function ShopDetailPage() {
 
   const submit = async () => {
     if (cartItems.length === 0) { toast.error(t('mp.cartEmpty')); return }
+    if (!deliveryAddress.trim()) { toast.error(t('mp.deliveryAddressRequired')); return }
     if (!isPerOrder && !proofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
     setSubmitting(true)
     const items = cartItems.map((p) => ({ product_id: p.id, quantity: cart[p.id] }))
     const { error } = await supabase.rpc('place_shop_order', {
       p_shop_id: shop!.id, p_items: items, p_method: isPerOrder ? 'direct' : method, p_proof_url: isPerOrder ? null : proofPath,
+      p_delivery_address: deliveryAddress.trim(),
     })
     setSubmitting(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -236,6 +239,13 @@ export default function ShopDetailPage() {
           <div className="flex items-center justify-between pt-2 mt-2 border-t border-dp-outline-variant">
             <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('mp.cartTotal')}</p>
             <p className="font-heading text-[19px] font-bold text-dp-secondary">{fmt(cartTotal)}</p>
+          </div>
+
+          <div className="mt-4">
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('mp.deliveryAddressLabel')}</label>
+            <textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={2}
+              placeholder={t('mp.deliveryAddressPlaceholder')} className="input-field resize-none" />
+            {user?.mobile && <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('mp.deliveryContactNote')} <span className="font-semibold ltr-num">{user.mobile}</span></p>}
           </div>
 
           {isPerOrder ? (
