@@ -285,6 +285,7 @@ export default function MyShopPage() {
                 <input value={form.flavor} onChange={(e) => setForm({ ...form, flavor: e.target.value })} placeholder={t('sk.flavorPlaceholder')} className="input-field" />
                 <input value={form.flavor_ur} onChange={(e) => setForm({ ...form, flavor_ur: e.target.value })} placeholder={t('sk.flavorUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
               </div>
+              <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.categoryLabel')}</label>
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">
                 {CATEGORY_DEPARTMENTS.map((d) => (
                   <optgroup key={d.key} label={t(d.tKey)}>

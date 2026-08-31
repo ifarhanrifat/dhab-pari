@@ -578,6 +578,9 @@ function AdminShopsInner() {
                   <input value={productForm.flavor} onChange={(e) => setProductForm({ ...productForm, flavor: e.target.value })} placeholder={t('sk.flavorPlaceholder')} className="input-field" />
                   <input value={productForm.flavor_ur} onChange={(e) => setProductForm({ ...productForm, flavor_ur: e.target.value })} placeholder={t('sk.flavorUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
                 </div>
+              </div>
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.categoryLabel')}</label>
                 <select value={productForm.category} onChange={(e) => setProductForm({ ...productForm, category: e.target.value })} className="input-field">
                   {CATEGORY_DEPARTMENTS.map((d) => (
                     <optgroup key={d.key} label={t(d.tKey)}>

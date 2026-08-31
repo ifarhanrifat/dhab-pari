@@ -2029,6 +2029,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'cm.orderPlacedDirectToast': 'Placed — pay the seller directly when you receive it.',
     'cm.browseByDept': 'Browse by department', 'cm.deptFood': 'Food & Groceries', 'cm.deptHousehold': 'Household & Personal', 'cm.deptOther': 'Other',
     'cm.deptBabyKids': 'Baby & Kids', 'cm.deptHealth': 'Health & Pharmacy', 'cm.deptElectronics': 'Electronics & Hardware',
+    'cm.categoryLabel': 'Category',
 
     // Marketplace — static route maps + one-off return-trip ride-share
     'cm.clearOriginPin': 'Clear origin pin', 'cm.clearDestinationPin': 'Clear destination pin',
@@ -6217,6 +6218,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'cm.orderPlacedDirectToast': 'درج ہو گیا — ملنے پر فروخت کنندہ کو براہ راست ادائیگی کریں۔',
     'cm.browseByDept': 'شعبہ کے مطابق دیکھیں', 'cm.deptFood': 'کھانے پینے کی اشیاء', 'cm.deptHousehold': 'گھریلو اور ذاتی اشیاء', 'cm.deptOther': 'دیگر',
     'cm.deptBabyKids': 'بچوں کی اشیاء', 'cm.deptHealth': 'صحت و ادویات', 'cm.deptElectronics': 'برقی اور ہارڈویئر اشیاء',
+    'cm.categoryLabel': 'قسم',
 
     // Marketplace — static route maps + one-off return-trip ride-share
     'cm.clearOriginPin': 'ابتدائی پن ہٹائیں', 'cm.clearDestinationPin': 'منزل کا پن ہٹائیں',
