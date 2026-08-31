@@ -16,7 +16,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Bus, PlusCircle, X, Pencil, Trash2, MapPin } from 'lucide-react'
+import { Bus, PlusCircle, X, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -29,6 +29,10 @@ interface Vehicle {
 interface Route {
   id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   classification: string; fare_per_seat_pkr: number; departure_time: string | null; days_of_week: number[]; is_active: boolean
+}
+interface Booking {
+  id: string; status: string; total_amount_pkr: number; seats: number; travel_date: string; rejected_reason: string | null
+  vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null
 }
 
 const emptyVehicle = { owner_name: '', owner_mobile: '', owner_whatsapp: '', vehicle_type: '', vehicle_number: '', total_seats: 4, is_active: true }
@@ -63,6 +67,8 @@ function AdminVehiclesInner() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Vehicle | null>(null)
   const [routes, setRoutes] = useState<Route[]>([])
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [bookingActionId, setBookingActionId] = useState<string | null>(null)
 
   const [showVehicleForm, setShowVehicleForm] = useState(false)
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null)
@@ -101,7 +107,33 @@ function AdminVehiclesInner() {
     setRoutes(data ?? [])
   }
 
-  const openVehicle = (v: Vehicle) => { setSelected(v); loadRoutes(v.id) }
+  const loadBookings = async (vehicleId: string) => {
+    const { data } = await supabase.from('ride_bookings')
+      .select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, vehicle_routes!inner(vehicle_id, origin, origin_ur, destination, destination_ur)')
+      .eq('vehicle_routes.vehicle_id', vehicleId).order('created_at', { ascending: false })
+    setBookings((data ?? []) as unknown as Booking[])
+  }
+
+  const openVehicle = (v: Vehicle) => { setSelected(v); loadRoutes(v.id); loadBookings(v.id) }
+
+  const confirmBooking = async (b: Booking) => {
+    setBookingActionId(b.id)
+    const { error } = await supabase.rpc('confirm_ride_booking', { p_booking_id: b.id })
+    setBookingActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mp.bookingConfirmedToast'))
+    if (selected) loadBookings(selected.id)
+  }
+
+  const rejectBooking = async (b: Booking) => {
+    const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
+    setBookingActionId(b.id)
+    const { error } = await supabase.rpc('reject_ride_booking', { p_booking_id: b.id, p_reason: reason || null })
+    setBookingActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mp.bookingRejectedToast'))
+    if (selected) loadBookings(selected.id)
+  }
 
   const openNewVehicle = () => { setEditingVehicle(null); setVehicleForm(emptyVehicle); setShowVehicleForm(true) }
   const openEditVehicle = (v: Vehicle) => {
@@ -264,6 +296,38 @@ function AdminVehiclesInner() {
               </div>
             ))}
           </div>
+
+          {bookings.length > 0 && (
+            <div className="mt-8">
+              <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('mp.bookingsHeading')}</p>
+              <div className="space-y-2">
+                {bookings.map((b) => (
+                  <div key={b.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-sans text-[13px] font-semibold text-dp-on-surface truncate">
+                          {b.vehicle_routes ? `${isUrdu && b.vehicle_routes.origin_ur ? b.vehicle_routes.origin_ur : b.vehicle_routes.origin} → ${isUrdu && b.vehicle_routes.destination_ur ? b.vehicle_routes.destination_ur : b.vehicle_routes.destination}` : '—'}
+                        </p>
+                        <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{new Date(b.travel_date).toLocaleDateString('en-GB')} · {b.seats} {t('mk.seatsLabel')}</p>
+                      </div>
+                      <p className="font-sans text-[14px] font-bold text-dp-secondary shrink-0">{fmt(b.total_amount_pkr)}</p>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-dp-outline-variant/60">
+                      {b.status === 'confirmed' && <span className="inline-flex items-center gap-1 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={12} /> {t('mp.confirmedStatus')}</span>}
+                      {b.status === 'rejected' && <span className="inline-flex items-center gap-1 text-dp-error text-[11px] font-bold" title={b.rejected_reason ?? undefined}><XCircle size={12} /> {t('mp.rejectedStatus')}</span>}
+                      {b.status === 'announced' && <span className="inline-flex items-center gap-1 text-amber-700 text-[11px] font-bold"><Clock size={12} /> {t('mp.awaitingStatus')}</span>}
+                      {b.status === 'announced' && (
+                        <div className="flex items-center gap-1.5">
+                          <button onClick={() => rejectBooking(b)} disabled={bookingActionId === b.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container disabled:opacity-50">{t('mp.rejectBtn')}</button>
+                          <button onClick={() => confirmBooking(b)} disabled={bookingActionId === b.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50">{t('mp.confirmBtn')}</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
 

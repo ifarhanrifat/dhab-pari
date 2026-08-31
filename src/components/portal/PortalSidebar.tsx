@@ -20,6 +20,7 @@ import {
   School,
   CalendarClock,
   Sparkles,
+  ShoppingBag,
 } from 'lucide-react'
 
 // Mirrors AdminSidebar.tsx's exact pattern (fixed desktop sidebar + mobile
@@ -41,6 +42,7 @@ const menuItems = [
   { href: '/portal/mentors', label: 'Mentors & Career Help', tKey: 'portal.mentors', icon: Users },
   { href: '/portal/institutes', label: 'Institutes', tKey: 'portal.institutes', icon: School },
   { href: '/portal/training-programs', label: 'Academies', tKey: 'portal.trainingPrograms', icon: CalendarClock },
+  { href: '/portal/marketplace', label: 'Marketplace', tKey: 'portal.marketplace', icon: ShoppingBag },
   { href: '/portal/talent-showcase', label: 'Talent Showcase', tKey: 'portal.talentShowcase', icon: Sparkles },
   { href: '/portal/suggestions', label: 'Suggestions', tKey: 'portal.suggestions', icon: MessageSquare },
   { href: '/portal/complaints', label: 'Complaints', tKey: 'portal.complaints', icon: MessageSquareWarning },

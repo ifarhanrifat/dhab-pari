@@ -12,7 +12,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Store, PlusCircle, X, Pencil, Trash2, Truck, PackageX } from 'lucide-react'
+import { Store, PlusCircle, X, Pencil, Trash2, Truck, PackageX, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -27,6 +27,10 @@ interface Shop {
 interface Product {
   id: string; shop_id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
   unit_price_pkr: number; quantity_on_hand: number; expiry_date: string | null; is_active: boolean
+}
+interface Order {
+  id: string; status: string; total_amount_pkr: number; announced_method: string | null; announced_at: string | null; rejected_reason: string | null
+  shop_order_items: { quantity: number; shop_products: { name: string; name_ur: string | null } | null }[]
 }
 
 const emptyShop = {
@@ -74,6 +78,8 @@ function AdminShopsInner() {
   const [selected, setSelected] = useState<Shop | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [coverByProduct, setCoverByProduct] = useState<Record<string, string>>({})
+  const [orders, setOrders] = useState<Order[]>([])
+  const [orderActionId, setOrderActionId] = useState<string | null>(null)
 
   const [showShopForm, setShowShopForm] = useState(false)
   const [editingShop, setEditingShop] = useState<Shop | null>(null)
@@ -126,7 +132,33 @@ function AdminShopsInner() {
     }
   }
 
-  const openShop = (s: Shop) => { setSelected(s); loadProducts(s.id) }
+  const loadOrders = async (shopId: string) => {
+    const { data } = await supabase.from('shop_orders')
+      .select('id, status, total_amount_pkr, announced_method, announced_at, rejected_reason, shop_order_items(quantity, shop_products(name, name_ur))')
+      .eq('shop_id', shopId).order('created_at', { ascending: false })
+    setOrders((data ?? []) as unknown as Order[])
+  }
+
+  const openShop = (s: Shop) => { setSelected(s); loadProducts(s.id); loadOrders(s.id) }
+
+  const confirmOrder = async (o: Order) => {
+    setOrderActionId(o.id)
+    const { error } = await supabase.rpc('confirm_shop_order', { p_order_id: o.id })
+    setOrderActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mp.orderConfirmedToast'))
+    if (selected) { loadOrders(selected.id); loadProducts(selected.id) }
+  }
+
+  const rejectOrder = async (o: Order) => {
+    const reason = window.prompt(t('mp.rejectReasonPrompt')) ?? ''
+    setOrderActionId(o.id)
+    const { error } = await supabase.rpc('reject_shop_order', { p_order_id: o.id, p_reason: reason || null })
+    setOrderActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mp.orderRejectedToast'))
+    if (selected) { loadOrders(selected.id); loadProducts(selected.id) }
+  }
 
   const openNewShop = () => { setEditingShop(null); setShopForm(emptyShop); setShowShopForm(true) }
   const openEditShop = (s: Shop) => {
@@ -312,6 +344,39 @@ function AdminShopsInner() {
               )
             })}
           </div>
+
+          {orders.length > 0 && (
+            <div className="mt-8">
+              <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('mp.ordersHeading')}</p>
+              <div className="space-y-2">
+                {orders.map((o) => (
+                  <div key={o.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        {o.shop_order_items.map((it, i) => (
+                          <p key={i} className="font-sans text-[13px] text-dp-on-surface truncate">
+                            {isUrdu && it.shop_products?.name_ur ? it.shop_products.name_ur : it.shop_products?.name ?? '—'} × <span className="ltr-num">{it.quantity}</span>
+                          </p>
+                        ))}
+                      </div>
+                      <p className="font-sans text-[14px] font-bold text-dp-secondary shrink-0">{fmt(o.total_amount_pkr)}</p>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-dp-outline-variant/60">
+                      {o.status === 'confirmed' && <span className="inline-flex items-center gap-1 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={12} /> {t('mp.confirmedStatus')}</span>}
+                      {o.status === 'rejected' && <span className="inline-flex items-center gap-1 text-dp-error text-[11px] font-bold" title={o.rejected_reason ?? undefined}><XCircle size={12} /> {t('mp.rejectedStatus')}</span>}
+                      {o.status === 'announced' && <span className="inline-flex items-center gap-1 text-amber-700 text-[11px] font-bold"><Clock size={12} /> {t('mp.awaitingStatus')}</span>}
+                      {o.status === 'announced' && (
+                        <div className="flex items-center gap-1.5">
+                          <button onClick={() => rejectOrder(o)} disabled={orderActionId === o.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container disabled:opacity-50">{t('mp.rejectBtn')}</button>
+                          <button onClick={() => confirmOrder(o)} disabled={orderActionId === o.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50">{t('mp.confirmBtn')}</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
 
