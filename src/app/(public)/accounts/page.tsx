@@ -1,279 +1,173 @@
-import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
+'use client'
 
-export const metadata: Metadata = {
-  title: 'Accounts & Transparency',
-  description: `Full financial transparency for ${SITE.name} village — income, expenses, and community fund status.`,
+// Marketplace phase 5 — this route used to be a leftover early scaffold
+// (a disconnected legacy transactions table next to a hardcoded fake
+// "Cash Position" sidebar — neither wired to anything real). Replaced
+// entirely: public search + browse for the community marketplace (shops,
+// vehicle routes). Checkout itself needs a portal account (the RPCs are
+// portal-authenticated, same as every other payment in this app), so a
+// card here links to sign-in rather than a cart — browsing/comparison
+// works for everyone, ordering is for signed-in villagers.
+//
+// Same site-wide "Accounts Display Language" convention /projects already
+// uses (site_settings.display_language), not the portal's own per-user
+// toggle — this page has no signed-in user to read a preference from.
+
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
+import { Search, Store, Bus, MapPin, LogIn } from 'lucide-react'
+
+type Lang = 'en' | 'ur'
+
+const t = {
+  heading: { en: 'Marketplace', ur: 'مارکیٹ پلیس' },
+  subheading: { en: 'Order from local shops, or book a seat on a local ride.', ur: 'گاؤں کی دکانوں سے چیزیں منگوائیں، یا کسی گاڑی میں نشست بک کروائیں۔' },
+  searchPlaceholder: { en: 'Search for a product...', ur: 'کوئی چیز تلاش کریں...' },
+  searchResultsHeading: { en: 'Search results', ur: 'تلاش کے نتائج' },
+  noResults: { en: 'Nothing matched that search.', ur: 'اس تلاش سے کچھ نہیں ملا۔' },
+  visitStoreNote: { en: 'visit this store to buy', ur: 'خریدنے کے لیے دکان پر جائیں' },
+  shopsHeading: { en: 'Shops', ur: 'دکانیں' },
+  noShopsListed: { en: 'No shops listed yet.', ur: 'ابھی تک کوئی دکان شامل نہیں کی گئی۔' },
+  routesHeading: { en: 'Vehicle Routes', ur: 'گاڑیوں کے روٹس' },
+  noRoutesListed: { en: 'No routes listed yet.', ur: 'ابھی تک کوئی روٹ شامل نہیں کیا گیا۔' },
+  deliveryEnabled: { en: 'Delivery', ur: 'ڈیلیوری' },
+  pickupOnly: { en: 'Pickup only', ur: 'صرف دکان سے خریداری' },
+  perSeat: { en: '/ seat', ur: '/ نشست' },
+  signInToOrder: { en: 'Sign in to order or book', ur: 'آرڈر یا بکنگ کے لیے سائن ان کریں' },
+  signInCta: { en: 'Sign In', ur: 'سائن ان کریں' },
+  signInHint: {
+    en: 'Buying and booking happen through your portal account — the same one you already use to pay a water bill or make a donation.',
+    ur: 'خریداری اور بکنگ آپ کے پورٹل اکاؤنٹ سے ہوتی ہے — بالکل اسی طرح جیسے آپ پانی کا بل ادا کرتے ہیں یا عطیہ دیتے ہیں۔',
+  },
 }
 
-// Not per-visitor, but a trust-critical financial-transparency page — kept
-// fresher than the mostly-static pages (1 minute) rather than the longer
-// windows used elsewhere.
-export const revalidate = 60
-import {
-  TrendingUp,
-  TrendingDown,
-  Wallet,
-  Info,
-  Building2,
-} from 'lucide-react'
-import { SITE } from '@/lib/constants'
-import { T } from '@/components/i18n/T'
+interface Shop { id: string; name: string; name_ur: string | null; location: string | null; location_ur: string | null; delivery_enabled: boolean }
+interface Route {
+  id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
+  fare_per_seat_pkr: number
+}
+interface SearchResult {
+  product_id: string; product_name: string; product_name_ur: string | null; unit_price_pkr: number
+  shop_id: string; shop_name: string; shop_name_ur: string | null; delivery_enabled: boolean
+}
 
-export default async function AccountsPage() {
-  const supabase = await createClient()
+function fmt(n: number) {
+  return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
+}
 
-  const { data: transactions } = await supabase
-    .from('transactions')
-    .select('*')
-    .order('date', { ascending: false })
-    .limit(10)
+export default function MarketplaceLandingPage() {
+  const [lang, setLang] = useState<Lang>('en')
+  const isUrdu = lang === 'ur'
+  const dt = (key: keyof typeof t) => t[key][lang]
 
-  const allTxns = transactions ?? []
+  const [shops, setShops] = useState<Shop[]>([])
+  const [routes, setRoutes] = useState<Route[]>([])
+  const [routeVehicleNames, setRouteVehicleNames] = useState<Record<string, string>>({})
+  const [query, setQuery] = useState('')
+  const [searching, setSearching] = useState(false)
+  const [results, setResults] = useState<SearchResult[] | null>(null)
 
-  const totalIncome = allTxns
-    .filter((t) => t.type === 'income')
-    .reduce((s, t) => s + Number(t.amount_pkr), 0)
-  const totalExpense = allTxns
-    .filter((t) => t.type === 'expense')
-    .reduce((s, t) => s + Number(t.amount_pkr), 0)
-  const netBalance = totalIncome - totalExpense
-
-  function formatDate(d: string) {
-    return new Date(d).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.from('site_settings').select('value').eq('key', 'display_language').maybeSingle().then(({ data }) => {
+      if (data?.value === 'ur') setLang('ur')
     })
+    supabase.from('shops').select('id, name, name_ur, location, location_ur, delivery_enabled').eq('status', 'active').order('name')
+      .then(({ data }) => setShops(data ?? []))
+    supabase.from('vehicle_routes').select('id, vehicle_id, origin, origin_ur, destination, destination_ur, fare_per_seat_pkr').eq('is_active', true).order('origin')
+      .then(async ({ data }) => {
+        setRoutes(data ?? [])
+        if (data && data.length > 0) {
+          const { data: vehicles } = await supabase.from('vehicles').select('id, owner_name').in('id', data.map((r) => r.vehicle_id))
+          setRouteVehicleNames(Object.fromEntries((vehicles ?? []).map((v) => [v.id, v.owner_name])))
+        }
+      })
+  }, [])
+
+  const runSearch = async (q: string) => {
+    setQuery(q)
+    if (!q.trim()) { setResults(null); return }
+    setSearching(true)
+    const supabase = createClient()
+    const { data } = await supabase.rpc('search_marketplace_products', { p_query: q.trim() })
+    setResults((data ?? []) as SearchResult[])
+    setSearching(false)
   }
 
-  const categoryBadge = (cat: string) => (
-    <span className="bg-dp-surface-container-high px-2 py-1 rounded text-[12px] font-sans">
-      {cat}
-    </span>
-  )
-
   return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-        <div>
-          <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title">
-            <T k="x.accountsTransparency" />
-          </h1>
-          <p
-            className="text-dp-on-surface-variant text-[20px] mt-1"
-            style={{ fontFamily: 'var(--font-urdu), serif', lineHeight: '2.5' }}
-          >
-            حسابات اور شفافیت
-          </p>
-        </div>
+    <div className="max-w-[1000px] mx-auto px-4 md:px-6 py-8" dir={isUrdu ? 'rtl' : 'ltr'}>
+      <div className="mb-6">
+        <h1 className="font-heading text-[30px] md:text-[34px] font-bold text-dp-primary section-title flex items-center gap-2.5">
+          <Store size={26} className="text-dp-secondary" /> {dt('heading')}
+        </h1>
+        <p className="text-dp-on-surface-variant font-sans text-[15px] mt-1.5">{dt('subheading')}</p>
       </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg border border-dp-outline-variant flex items-center gap-5">
-          <div className="w-14 h-14 rounded-full bg-dp-secondary-container text-dp-on-secondary-container flex items-center justify-center shrink-0">
-            <TrendingUp size={24} />
-          </div>
-          <div>
-            <p className="font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant uppercase">
-              <T k="x.totalIncome" />
-            </p>
-            <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-secondary">
-              {totalIncome.toLocaleString()}
-            </h2>
-            <p className="text-[12px] text-dp-secondary font-semibold font-sans mt-1">
-              +12% from last month
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg border border-dp-outline-variant flex items-center gap-5">
-          <div className="w-14 h-14 rounded-full bg-dp-error-container text-dp-on-error-container flex items-center justify-center shrink-0">
-            <TrendingDown size={24} />
-          </div>
-          <div>
-            <p className="font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant uppercase">
-              <T k="x.totalExpenses" />
-            </p>
-            <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-error">
-              {totalExpense.toLocaleString()}
-            </h2>
-            <p className="text-[12px] text-dp-error font-semibold font-sans mt-1">
-              <T k="x.withinBudget" />
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg border border-dp-outline-variant flex items-center gap-5">
-          <div className="w-14 h-14 rounded-full bg-dp-tertiary-fixed text-dp-on-tertiary-fixed flex items-center justify-center shrink-0">
-            <Wallet size={24} />
-          </div>
-          <div>
-            <p className="font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant uppercase">
-              <T k="x.netBalance" />
-            </p>
-            <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-tertiary-container">
-              {netBalance.toLocaleString()}
-            </h2>
-            <p className="text-[12px] text-dp-tertiary-container font-semibold font-sans mt-1">
-              <T k="x.villageFundReserve" />
-            </p>
-          </div>
-        </div>
+      <div className="relative mb-6">
+        <Search size={17} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+        <input
+          value={query} onChange={(e) => runSearch(e.target.value)} placeholder={dt('searchPlaceholder')}
+          className="w-full ps-11 pe-4 py-3 rounded-lg border border-dp-outline-variant font-sans text-[15px] focus:outline-none focus:border-dp-secondary"
+        />
       </div>
 
-      {/* Two column: table + sidebar */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Main Table */}
-        <div className="lg:col-span-8">
-          <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-            <div className="px-6 py-5 border-b border-dp-outline-variant">
-              <h3 className="font-sans text-[20px] font-semibold leading-[28px]">
-                <T k="x.recentTransactions" />
-              </h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-start">
-                <thead className="bg-dp-surface-container text-dp-on-surface-variant font-sans text-[14px] font-semibold tracking-[0.05em]">
-                  <tr>
-                    <th className="px-6 py-4"><T k="w.date" /></th>
-                    <th className="px-6 py-4"><T k="x.description" /></th>
-                    <th className="px-6 py-4"><T k="w.category" /></th>
-                    <th className="px-6 py-4"><T k="x.type" /></th>
-                    <th className="px-6 py-4 text-end"><T k="w.amount" /></th>
-                  </tr>
-                </thead>
-                <tbody className="font-sans text-[16px]">
-                  {allTxns.map((txn, i) => (
-                    <tr
-                      key={txn.id}
-                      className={`border-s-4 ${txn.type === 'income' ? 'border-s-dp-secondary' : 'border-s-dp-error'} ${i % 2 === 1 ? 'bg-dp-surface-container' : ''} hover:bg-dp-surface-container-low transition-colors`}
-                    >
-                      <td className="px-6 py-4 text-dp-on-surface-variant text-[14px]">
-                        {formatDate(txn.date)}
-                      </td>
-                      <td className="px-6 py-4 font-semibold">{txn.description}</td>
-                      <td className="px-6 py-4">{categoryBadge(txn.category)}</td>
-                      <td className="px-6 py-4">
-                        {txn.type === 'income' ? (
-                          <span className="bg-dp-secondary text-white px-3 py-1 rounded-full text-[12px] font-bold uppercase tracking-wider font-sans">
-                            <T k="x.income" />
-                          </span>
-                        ) : (
-                          <span className="bg-dp-error text-white px-3 py-1 rounded-full text-[12px] font-bold uppercase tracking-wider font-sans">
-                            <T k="x.expense" />
-                          </span>
-                        )}
-                      </td>
-                      <td
-                        className={`px-6 py-4 text-end font-bold ${txn.type === 'income' ? 'text-dp-secondary' : 'text-dp-error'}`}
-                      >
-                        {Number(txn.amount_pkr).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="px-6 py-4 border-t border-dp-outline-variant flex justify-between items-center">
-              <span className="text-[14px] text-dp-on-surface-variant font-sans">
-                Showing {allTxns.length} transactions
+      <div className="bg-dp-secondary-container/40 border border-dp-secondary/20 rounded-lg p-4 flex items-center gap-3 mb-8">
+        <div className="w-10 h-10 rounded-full bg-dp-secondary text-white flex items-center justify-center shrink-0"><LogIn size={18} /></div>
+        <div className="min-w-0 flex-1">
+          <p className="font-sans text-[14px] font-bold text-dp-on-surface">{dt('signInToOrder')}</p>
+          <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">{dt('signInHint')}</p>
+        </div>
+        <Link href="/portal/login" className="shrink-0 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all">{dt('signInCta')}</Link>
+      </div>
+
+      {results !== null && (
+        <div className="mb-8">
+          <p className="font-sans text-[12.5px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{dt('searchResultsHeading')}</p>
+          {searching && <p className="font-sans text-[14px] text-dp-on-surface-variant">…</p>}
+          {!searching && results.length === 0 && <p className="font-sans text-[14px] text-dp-on-surface-variant">{dt('noResults')}</p>}
+          <div className="space-y-2">
+            {results.map((r) => (
+              <div key={`${r.shop_id}-${r.product_id}`} className="flex items-center justify-between gap-3 bg-white border border-dp-outline-variant rounded-lg p-3.5">
+                <div className="min-w-0">
+                  <p className="font-sans text-[14px] font-semibold text-dp-on-surface truncate">{isUrdu && r.product_name_ur ? r.product_name_ur : r.product_name}</p>
+                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5 truncate">{isUrdu && r.shop_name_ur ? r.shop_name_ur : r.shop_name}{!r.delivery_enabled && ` · ${dt('visitStoreNote')}`}</p>
+                </div>
+                <p className="font-sans text-[15px] font-bold text-dp-secondary shrink-0">{fmt(r.unit_price_pkr)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mb-8">
+        <p className="font-sans text-[12.5px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{dt('shopsHeading')}</p>
+        {shops.length === 0 && <p className="font-sans text-[14px] text-dp-on-surface-variant">{dt('noShopsListed')}</p>}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {shops.map((s) => (
+            <div key={s.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
+              <p className="font-sans text-[15px] font-semibold text-dp-on-surface truncate">{isUrdu && s.name_ur ? s.name_ur : s.name}</p>
+              {s.location && <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5 flex items-center gap-1"><MapPin size={12} /> {isUrdu ? (s.location_ur || s.location) : s.location}</p>}
+              <span className={`inline-block mt-2 text-[11px] font-bold px-2 py-0.5 rounded-full ${s.delivery_enabled ? 'bg-sky-100 text-sky-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>
+                {s.delivery_enabled ? dt('deliveryEnabled') : dt('pickupOnly')}
               </span>
-              <div className="flex gap-2">
-                <button className="px-3 py-1 border border-dp-outline-variant rounded hover:bg-dp-surface-container transition-colors font-sans text-[14px] disabled:opacity-30 cursor-pointer">
-                  <T k="x.prev" />
-                </button>
-                <button className="px-3 py-1 bg-dp-primary text-white rounded hover:opacity-90 transition-opacity font-sans text-[14px] cursor-pointer">
-                  <T k="x.next" />
-                </button>
-              </div>
             </div>
-          </div>
+          ))}
         </div>
+      </div>
 
-        {/* Sidebar */}
-        <aside className="lg:col-span-4 space-y-6">
-          {/* Cash Position */}
-          <div className="bg-white p-6 rounded-lg border border-dp-outline-variant">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-sans text-[20px] font-semibold leading-[28px]"><T k="g.cashPosition" /></h3>
-              <Building2 size={20} className="text-dp-primary" />
+      <div>
+        <p className="font-sans text-[12.5px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><Bus size={14} /> {dt('routesHeading')}</p>
+        {routes.length === 0 && <p className="font-sans text-[14px] text-dp-on-surface-variant">{dt('noRoutesListed')}</p>}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {routes.map((r) => (
+            <div key={r.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
+              <p className="font-sans text-[15px] font-semibold text-dp-on-surface flex items-center gap-1.5"><MapPin size={14} className="text-dp-secondary shrink-0" /> {isUrdu && r.origin_ur ? r.origin_ur : r.origin} → {isUrdu && r.destination_ur ? r.destination_ur : r.destination}</p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">{routeVehicleNames[r.vehicle_id] ?? ''}</p>
+              <p className="font-sans text-[15px] font-bold text-dp-secondary mt-1.5">{fmt(r.fare_per_seat_pkr)} <span className="font-normal text-dp-on-surface-variant text-[12.5px]">{dt('perSeat')}</span></p>
             </div>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-[14px] mb-1 font-sans">
-                  <span className="text-dp-on-surface-variant"><T k="x.reserveGoal" /></span>
-                  <span className="font-semibold text-dp-secondary">85%</span>
-                </div>
-                <div className="w-full h-3 bg-dp-surface-container-high rounded-full overflow-hidden">
-                  <div className="h-full bg-dp-secondary" style={{ width: '85%' }} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div className="p-3 bg-dp-surface-container rounded-lg">
-                  <p className="text-[10px] uppercase text-dp-on-surface-variant tracking-wider font-sans">
-                    <T k="x.cashInHand" />
-                  </p>
-                  <p className="font-bold text-dp-on-surface font-sans">12,450</p>
-                </div>
-                <div className="p-3 bg-dp-surface-container rounded-lg">
-                  <p className="text-[10px] uppercase text-dp-on-surface-variant tracking-wider font-sans">
-                    <T k="x.bankBalance" />
-                  </p>
-                  <p className="font-bold text-dp-on-surface font-sans">123,710</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Monthly Growth */}
-          <div className="bg-dp-primary p-6 rounded-lg text-white relative overflow-hidden h-64">
-            <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-2 relative z-10">
-              <T k="x.monthlyGrowth" />
-            </h3>
-            <p className="text-[14px] opacity-70 mb-6 relative z-10 font-sans">
-              <T k="x.contributionTrends" />
-            </p>
-            <div className="flex items-end justify-between h-24 gap-2 relative z-10">
-              {[40, 60, 45, 80, 65, 95].map((h, i) => (
-                <div
-                  key={i}
-                  className={`flex-1 bg-dp-secondary-fixed rounded-t-sm ${i === 5 ? 'animate-pulse' : ''}`}
-                  style={{ height: `${h}%`, opacity: 0.3 + i * 0.12 }}
-                />
-              ))}
-            </div>
-            <div className="flex justify-between mt-2 text-[10px] opacity-60 relative z-10 font-sans">
-              {['MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT'].map((m) => (
-                <span key={m}>{m}</span>
-              ))}
-            </div>
-            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-dp-secondary opacity-20 rounded-full blur-3xl" />
-          </div>
-
-          {/* Audit Certificate */}
-          <div className="bg-dp-surface-container-high p-6 rounded-lg border-s-4 border-dp-primary">
-            <div className="flex gap-4">
-              <Info size={20} className="text-dp-primary shrink-0 mt-0.5" />
-              <div>
-                <h4 className="font-bold text-[14px] font-sans"><T k="x.auditCertificate" /></h4>
-                <p className="text-[12px] text-dp-on-surface-variant mt-1 leading-relaxed font-sans">
-                  All accounts are audited monthly by the Village Finance
-                  Sub-Committee. For detailed ledgers from previous years,
-                  please visit the main office.
-                </p>
-                <a
-                  href="#"
-                  className="inline-block mt-3 text-dp-primary font-bold text-[12px] hover:underline transition-all font-sans"
-                >
-                  View 2023 Annual Report →
-                </a>
-              </div>
-            </div>
-          </div>
-        </aside>
+          ))}
+        </div>
       </div>
     </div>
   )

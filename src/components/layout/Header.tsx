@@ -19,7 +19,7 @@ const navLinks: { href: string; label: string; tKey: string }[] = [
   { href: '/blood', label: 'Blood', tKey: 'site.blood' },
   { href: '/projects', label: 'Projects', tKey: 'site.projects' },
   { href: '/jobs', label: 'Jobs', tKey: 'site.jobs' },
-  { href: '/accounts', label: 'Accounts', tKey: 'site.accounts' },
+  { href: '/accounts', label: 'Marketplace', tKey: 'site.accounts' },
   { href: '/donate', label: 'Donate', tKey: 'site.donate' },
   { href: '/welfare', label: 'Welfare', tKey: 'site.welfare' },
   { href: '/news', label: 'News', tKey: 'site.news' },
