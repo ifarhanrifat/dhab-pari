@@ -18,9 +18,10 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { ImageUpload } from '@/components/admin/ImageUpload'
-import { SHOP_TYPES, getShopTypeTree, getCategoryLabel } from '@/lib/shopTypes'
+import { SHOP_TYPES, getCategoryLabel } from '@/lib/shopTypes'
 import { DynamicIcon } from '@/components/shared/DynamicIcon'
 import { OrderFulfillmentPanel } from '@/components/shared/OrderFulfillmentPanel'
+import { CategoryBrowser, CategoryPicker } from '@/components/shared/CategoryBrowser'
 
 interface Shop {
   id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
@@ -105,6 +106,7 @@ function AdminShopsInner() {
   const [productCoverUrl, setProductCoverUrl] = useState('')
 
   const [saving, setSaving] = useState(false)
+  const [changingCategory, setChangingCategory] = useState(false)
   const [keeperMobile, setKeeperMobile] = useState('')
   const [keeperName, setKeeperName] = useState<string | null>(null)
   const [linkingKeeper, setLinkingKeeper] = useState(false)
@@ -293,7 +295,7 @@ function AdminShopsInner() {
     load()
   }
 
-  const openNewProduct = () => { setEditingProduct(null); setProductForm(emptyProduct); setProductCoverUrl(''); setShowProductForm(true) }
+  const openNewProduct = (categorySlug: string) => { setEditingProduct(null); setProductForm({ ...emptyProduct, category: categorySlug }); setProductCoverUrl(''); setChangingCategory(false); setShowProductForm(true) }
   const openEditProduct = (p: Product) => {
     setEditingProduct(p)
     setProductForm({
@@ -303,6 +305,7 @@ function AdminShopsInner() {
       unit_price_pkr: p.unit_price_pkr, quantity_on_hand: p.quantity_on_hand, expiry_date: p.expiry_date ?? '', is_active: p.is_active,
     })
     setProductCoverUrl(coverByProduct[p.id] ?? '')
+    setChangingCategory(false)
     setShowProductForm(true)
   }
 
@@ -420,14 +423,14 @@ function AdminShopsInner() {
                 {selected.status === 'active' ? t('cm.pauseShopBtn') : t('cm.reactivateShopBtn')}
               </button>
               <button onClick={() => deleteShop(selected)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-error cursor-pointer hover:bg-red-50"><Trash2 size={14} /> {t('cm.deleteShopBtn')}</button>
-              <button onClick={openNewProduct} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('mk.newProductBtn')}</button>
             </div>
           </div>
 
-          {products.length === 0 && <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('mk.noProductsYet')}</p>}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {products.map((p) => {
+          <CategoryBrowser
+            primaryType={selected.primary_type}
+            products={products}
+            onAddItem={openNewProduct}
+            renderProduct={(p) => {
               const tone = expiryTone(p.expiry_date)
               return (
                 <div key={p.id} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
@@ -446,11 +449,6 @@ function AdminShopsInner() {
                     </p>
                     <p className="font-sans text-[15px] font-bold text-dp-secondary mt-0.5">{fmt(p.unit_price_pkr)}</p>
                     <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{t('mk.stockLabel')} {fmt(p.quantity_on_hand)}</p>
-                    {p.category && (
-                      <span className="inline-block mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-dp-secondary-container/50 text-dp-secondary">
-                        {getCategoryLabel(p.category, isUrdu)}
-                      </span>
-                    )}
                     {tone && (
                       <span className={`inline-block mt-1.5 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${tone === 'expired' ? 'bg-red-100 text-red-700' : tone === 'soon' ? 'bg-amber-100 text-amber-800' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>
                         {tone === 'expired' ? t('mk.expiredBadge') : tone === 'soon' ? t('mk.expiringSoonBadge') : t('mk.expiryLabel')} {new Date(p.expiry_date!).toLocaleDateString('en-GB')}
@@ -464,8 +462,8 @@ function AdminShopsInner() {
                   </div>
                 </div>
               )
-            })}
-          </div>
+            }}
+          />
 
           {orders.length > 0 && (
             <div className="mt-8">
@@ -642,13 +640,15 @@ function AdminShopsInner() {
               </div>
               <div>
                 <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.categoryLabel')}</label>
-                <select value={productForm.category} onChange={(e) => setProductForm({ ...productForm, category: e.target.value })} className="input-field">
-                  {getShopTypeTree(selected?.primary_type).map((d) => (
-                    <optgroup key={d.key} label={isUrdu ? d.label_ur : d.label}>
-                      {d.categories.map((c) => <option key={c.slug} value={c.slug}>{isUrdu ? c.label_ur : c.label}</option>)}
-                    </optgroup>
-                  ))}
-                </select>
+                {!changingCategory ? (
+                  <div className="flex items-center justify-between gap-2 bg-dp-secondary-container/40 rounded-lg px-3 py-2.5">
+                    <span className="font-sans text-[13.5px] font-semibold text-dp-secondary">{getCategoryLabel(productForm.category, isUrdu)}</span>
+                    <button type="button" onClick={() => setChangingCategory(true)} className="font-sans text-[12px] font-semibold text-dp-secondary hover:underline cursor-pointer shrink-0">{t('sk.changeCategoryBtn')}</button>
+                  </div>
+                ) : (
+                  <CategoryPicker primaryType={selected?.primary_type ?? 'general_store'} value={productForm.category}
+                    onPick={(slug) => { setProductForm({ ...productForm, category: slug }); setChangingCategory(false) }} />
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('sk.costPriceLabel')}</label><input type="number" value={productForm.cost_price_pkr || ''} onChange={(e) => setProductForm({ ...productForm, cost_price_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
