@@ -17,9 +17,17 @@ import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface FieldCollector { id: string; full_name: string; mobile: string | null; assigned_sectors: string[] | null }
-interface Account { id: string; name: string; type: string; collector_id: string | null; opening_balance: number }
+interface Account { id: string; name: string; type: string; collector_id: string | null; shop_id: string | null; vehicle_id: string | null; opening_balance: number }
 interface LedgerAgg { account_id: string; debit: number; credit: number }
-interface Settlement { id: string; collector_id: string; amount_pkr: number; method: string; settled_date: string; note: string | null; to_account_id: string }
+interface Settlement {
+  id: string; collector_id: string | null; shop_id: string | null; vehicle_id: string | null
+  amount_pkr: number; method: string; settled_date: string; note: string | null; to_account_id: string
+}
+interface Shop { id: string; name: string; name_ur: string | null }
+interface Vehicle { id: string; owner_name: string }
+// Generalizes the settle modal across the three kinds of holding — same
+// modal, same saveSettlement(), just a different id column on insert.
+interface SettleTarget { kind: 'collector' | 'shop' | 'vehicle'; id: string; name: string; balance: number }
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -30,6 +38,8 @@ export default function DonorCollectorsPage() {
   const access = useSystemAccess()
   const supabase = createClient()
   const [collectors, setCollectors] = useState<FieldCollector[]>([])
+  const [shops, setShops] = useState<Shop[]>([])
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [ledger, setLedger] = useState<LedgerAgg[]>([])
   const [cashBankAccounts, setCashBankAccounts] = useState<{ id: string; name: string }[]>([])
@@ -37,7 +47,7 @@ export default function DonorCollectorsPage() {
   const [loading, setLoading] = useState(true)
   const [canSettle, setCanSettle] = useState(false)
 
-  const [settleFor, setSettleFor] = useState<{ collectorId: string; name: string; balance: number } | null>(null)
+  const [settleFor, setSettleFor] = useState<SettleTarget | null>(null)
   const [settleAmount, setSettleAmount] = useState(0)
   const [settleToAccount, setSettleToAccount] = useState('')
   const [settleMethod, setSettleMethod] = useState('cash')
@@ -51,9 +61,11 @@ export default function DonorCollectorsPage() {
       const { data: me } = await supabase.from('admin_users').select('role, can_post_transactions').eq('auth_user_id', user.id).single()
       setCanSettle(!!me && me.role !== 'viewer' && (me.role === 'super_admin' || me.can_post_transactions))
     }
-    const [{ data: collectorsData }, { data: accountsData }, { data: ledgerData }, { data: settlementsData }] = await Promise.all([
+    const [{ data: collectorsData }, { data: shopsData }, { data: vehiclesData }, { data: accountsData }, { data: ledgerData }, { data: settlementsData }] = await Promise.all([
       supabase.rpc('get_field_collectors_by_system', { p_system: 'donors_projects' }),
-      supabase.from('accounts').select('id, name, type, collector_id, opening_balance').eq('system', 'donors_projects').in('type', ['collector', 'cash', 'bank']),
+      supabase.from('shops').select('id, name, name_ur'),
+      supabase.from('vehicles').select('id, owner_name'),
+      supabase.from('accounts').select('id, name, type, collector_id, shop_id, vehicle_id, opening_balance').eq('system', 'donors_projects').in('type', ['collector', 'shop', 'vehicle_owner', 'cash', 'bank']),
       // Aggregated in Postgres (migration 351), not fetched raw — an
       // unbounded select on ledger_entries silently truncates at
       // PostgREST's 1000-row default once the ledger grows past that.
@@ -61,7 +73,9 @@ export default function DonorCollectorsPage() {
       supabase.from('collector_settlements').select('*').eq('system', 'donors_projects').order('settled_date', { ascending: false }).limit(50),
     ])
     setCollectors(collectorsData ?? [])
-    setAccounts((accountsData ?? []).filter((a) => a.type === 'collector'))
+    setShops(shopsData ?? [])
+    setVehicles(vehiclesData ?? [])
+    setAccounts((accountsData ?? []).filter((a) => a.type === 'collector' || a.type === 'shop' || a.type === 'vehicle_owner'))
     setCashBankAccounts((accountsData ?? []).filter((a) => a.type === 'cash' || a.type === 'bank').map((a) => ({ id: a.id, name: a.name })))
     setLedger((ledgerData ?? []).map((l) => ({ account_id: l.account_id, debit: Number(l.total_debit), credit: Number(l.total_credit) })))
     setSettlements(settlementsData ?? [])
@@ -83,11 +97,39 @@ export default function DonorCollectorsPage() {
     }).sort((a, b) => b.balance - a.balance)
   }, [collectors, accounts, balanceByAccount])
 
-  const totalHeld = rows.reduce((s, r) => s + Math.max(r.balance, 0), 0)
+  // Shop/vehicle "holding" reads the same way as a collector's — the only
+  // difference is what it means to settle it (paying the owner out, not
+  // receiving cash from them — saveSettlement below handles both).
+  // Credit-normal, unlike a collector's account: a shop/vehicle clearing
+  // account is credited on a confirmed sale (gross) and debited by the
+  // commission cut — its net balance is money the committee owes the
+  // owner, not money the committee is owed (see migration 389's
+  // confirm_shop_order()/confirm_ride_booking()). balanceByAccount holds
+  // debit-credit, so this negates it rather than reusing the collector
+  // row's debit-normal formula above.
+  const shopRows = useMemo(() => {
+    return shops.map((s) => {
+      const acct = accounts.find((a) => a.shop_id === s.id)
+      const balance = acct ? Number(acct.opening_balance) - (balanceByAccount[acct.id] ?? 0) : 0
+      return { shop: s, balance }
+    }).sort((a, b) => b.balance - a.balance)
+  }, [shops, accounts, balanceByAccount])
 
-  const openSettle = (r: { collector: FieldCollector; balance: number }) => {
-    setSettleFor({ collectorId: r.collector.id, name: r.collector.full_name, balance: r.balance })
-    setSettleAmount(Math.max(r.balance, 0))
+  const vehicleRows = useMemo(() => {
+    return vehicles.map((v) => {
+      const acct = accounts.find((a) => a.vehicle_id === v.id)
+      const balance = acct ? Number(acct.opening_balance) - (balanceByAccount[acct.id] ?? 0) : 0
+      return { vehicle: v, balance }
+    }).sort((a, b) => b.balance - a.balance)
+  }, [vehicles, accounts, balanceByAccount])
+
+  const totalHeld = rows.reduce((s, r) => s + Math.max(r.balance, 0), 0)
+    + shopRows.reduce((s, r) => s + Math.max(r.balance, 0), 0)
+    + vehicleRows.reduce((s, r) => s + Math.max(r.balance, 0), 0)
+
+  const openSettle = (target: SettleTarget) => {
+    setSettleFor(target)
+    setSettleAmount(Math.max(target.balance, 0))
     setSettleToAccount('')
     setSettleMethod('cash')
     setSettleNote('')
@@ -97,12 +139,15 @@ export default function DonorCollectorsPage() {
     if (!settleFor || settleAmount <= 0 || !settleToAccount) { toast.error(t('cl.enterAmountAndAccount')); return }
     setSaving(true)
     const { error } = await supabase.from('collector_settlements').insert({
-      collector_id: settleFor.collectorId, amount_pkr: settleAmount, system: 'donors_projects',
+      collector_id: settleFor.kind === 'collector' ? settleFor.id : null,
+      shop_id: settleFor.kind === 'shop' ? settleFor.id : null,
+      vehicle_id: settleFor.kind === 'vehicle' ? settleFor.id : null,
+      amount_pkr: settleAmount, system: 'donors_projects',
       to_account_id: settleToAccount, method: settleMethod, note: settleNote || null,
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(`${fmt(settleAmount)} ${t('cl.receivedFrom')} ${settleFor.name}`)
+    toast.success(`${fmt(settleAmount)} ${settleFor.kind === 'collector' ? t('cl.receivedFrom') : t('mp.paidOutTo')} ${settleFor.name}`)
     setSettleFor(null)
     load()
   }
@@ -158,7 +203,84 @@ export default function DonorCollectorsPage() {
                     <td className={`px-5 py-3 text-end font-bold ${r.balance > 0 ? 'text-dp-error' : 'text-dp-on-surface-variant'}`}>{fmt(r.balance)}</td>
                     <td className="px-5 py-3 text-end">
                       {canSettle && r.balance > 0 && (
-                        <button onClick={() => openSettle(r)} className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                        <button onClick={() => openSettle({ kind: 'collector', id: r.collector.id, name: r.collector.full_name, balance: r.balance })} className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                          {t('a.settle')}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Shop/vehicle holdings — same "money we owe, not money owed to us"
+          shape as a field collector, just settled by paying the owner out
+          instead of receiving cash from them. */}
+      <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mb-6">
+        <div className="px-5 py-3.5 border-b border-dp-outline-variant bg-dp-surface-container-low/60 flex items-center gap-2">
+          <HandCoins size={16} className="text-dp-secondary" />
+          <span className="font-sans text-[14px] font-bold text-dp-on-surface">{t('mp.shopHoldingsHeading')}</span>
+        </div>
+        {shopRows.length === 0 ? (
+          <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('mp.noShopsListed')}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-start min-w-[450px]">
+              <thead>
+                <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
+                  <th className="px-5 py-2.5">{t('mk.shopsTitle')}</th>
+                  <th className="px-5 py-2.5 text-end">{t('g.holding')}</th>
+                  <th className="px-5 py-2.5 text-end">{t('w.action')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shopRows.map((r) => (
+                  <tr key={r.shop.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
+                    <td className="px-5 py-3 font-semibold">{isUrdu && r.shop.name_ur ? r.shop.name_ur : r.shop.name}</td>
+                    <td className={`px-5 py-3 text-end font-bold ${r.balance > 0 ? 'text-dp-error' : 'text-dp-on-surface-variant'}`}>{fmt(r.balance)}</td>
+                    <td className="px-5 py-3 text-end">
+                      {canSettle && r.balance > 0 && (
+                        <button onClick={() => openSettle({ kind: 'shop', id: r.shop.id, name: r.shop.name, balance: r.balance })} className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
+                          {t('a.settle')}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mb-6">
+        <div className="px-5 py-3.5 border-b border-dp-outline-variant bg-dp-surface-container-low/60 flex items-center gap-2">
+          <HandCoins size={16} className="text-dp-secondary" />
+          <span className="font-sans text-[14px] font-bold text-dp-on-surface">{t('mp.vehicleHoldingsHeading')}</span>
+        </div>
+        {vehicleRows.length === 0 ? (
+          <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('mp.noRoutesListed')}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-start min-w-[450px]">
+              <thead>
+                <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
+                  <th className="px-5 py-2.5">{t('mk.vehiclesTitle')}</th>
+                  <th className="px-5 py-2.5 text-end">{t('g.holding')}</th>
+                  <th className="px-5 py-2.5 text-end">{t('w.action')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vehicleRows.map((r) => (
+                  <tr key={r.vehicle.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
+                    <td className="px-5 py-3 font-semibold">{r.vehicle.owner_name}</td>
+                    <td className={`px-5 py-3 text-end font-bold ${r.balance > 0 ? 'text-dp-error' : 'text-dp-on-surface-variant'}`}>{fmt(r.balance)}</td>
+                    <td className="px-5 py-3 text-end">
+                      {canSettle && r.balance > 0 && (
+                        <button onClick={() => openSettle({ kind: 'vehicle', id: r.vehicle.id, name: r.vehicle.owner_name, balance: r.balance })} className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
                           {t('a.settle')}
                         </button>
                       )}
@@ -194,7 +316,11 @@ export default function DonorCollectorsPage() {
                 {settlements.map((s) => (
                   <tr key={s.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
                     <td className="px-5 py-3 whitespace-nowrap">{new Date(s.settled_date).toLocaleDateString('en-GB')}</td>
-                    <td className="px-5 py-3 font-semibold">{collectors.find((c) => c.id === s.collector_id)?.full_name ?? '—'}</td>
+                    <td className="px-5 py-3 font-semibold">
+                      {s.collector_id ? collectors.find((c) => c.id === s.collector_id)?.full_name
+                        : s.shop_id ? shops.find((sh) => sh.id === s.shop_id)?.name
+                        : vehicles.find((v) => v.id === s.vehicle_id)?.owner_name ?? '—'}
+                    </td>
                     <td className="px-5 py-3 capitalize text-dp-on-surface-variant">{s.method}</td>
                     <td className="px-5 py-3 text-end font-bold">{fmt(s.amount_pkr)}</td>
                     <td className="px-5 py-3 text-dp-on-surface-variant">{s.note ?? '—'}</td>
