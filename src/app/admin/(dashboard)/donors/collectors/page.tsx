@@ -339,11 +339,11 @@ export default function DonorCollectorsPage() {
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{t('cl.currentlyHolding')} {fmt(settleFor.balance)}</p>
             <div className="space-y-4">
               <div>
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.amountReceived')}</label>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{settleFor.kind === 'collector' ? t('g.amountReceived') : t('mp.amountToPay')}</label>
                 <input type="number" min={1} value={settleAmount || ''} onChange={(e) => setSettleAmount(+e.target.value)} className="input-field" />
               </div>
               <SearchableField
-                label={t('cl.depositInto')}
+                label={settleFor.kind === 'collector' ? t('cl.depositInto') : t('mp.payFromAccount')}
                 value={settleToAccount}
                 onChange={setSettleToAccount}
                 placeholder={t('cl.selectCashBank')}
@@ -361,7 +361,7 @@ export default function DonorCollectorsPage() {
                 <input value={settleNote} onChange={(e) => setSettleNote(e.target.value)} className="input-field" />
               </div>
               <button disabled={saving} onClick={saveSettlement} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                {saving ? t('cl.saving') : t('cl.confirmReceived')}
+                {saving ? t('cl.saving') : settleFor.kind === 'collector' ? t('cl.confirmReceived') : t('mp.confirmPaidBtn')}
               </button>
             </div>
           </div>
