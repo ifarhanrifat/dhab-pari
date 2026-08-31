@@ -12,7 +12,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Store, PlusCircle, X, Pencil, Trash2, Truck, PackageX, CheckCircle2, XCircle, Clock, PauseCircle, PlayCircle } from 'lucide-react'
+import { Store, PlusCircle, X, Pencil, Trash2, Truck, PackageX, CheckCircle2, XCircle, Clock, PauseCircle, PlayCircle, ListPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -22,6 +22,8 @@ import { SHOP_TYPES, getCategoryLabel } from '@/lib/shopTypes'
 import { DynamicIcon } from '@/components/shared/DynamicIcon'
 import { OrderFulfillmentPanel } from '@/components/shared/OrderFulfillmentPanel'
 import { CategoryBrowser, CategoryPicker } from '@/components/shared/CategoryBrowser'
+import { ProductCatalogPicker } from '@/components/shared/ProductCatalogPicker'
+import type { CatalogItem } from '@/lib/productCatalog'
 
 interface Shop {
   id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
@@ -107,6 +109,7 @@ function AdminShopsInner() {
 
   const [saving, setSaving] = useState(false)
   const [changingCategory, setChangingCategory] = useState(false)
+  const [showCatalogPicker, setShowCatalogPicker] = useState(false)
   const [keeperMobile, setKeeperMobile] = useState('')
   const [keeperName, setKeeperName] = useState<string | null>(null)
   const [linkingKeeper, setLinkingKeeper] = useState(false)
@@ -336,6 +339,18 @@ function AdminShopsInner() {
     setShowProductForm(true)
   }
 
+  // Third add path, same as portal/my-shop: pick a real brand + item from
+  // the catalog instead of typing it in — pre-fills name/company/flavor/
+  // category, price/stock/photo still left to whoever's entering it.
+  const openProductFromCatalog = (brandName: string, item: CatalogItem) => {
+    setEditingProduct(null)
+    setProductForm({ ...emptyProduct, name: item.name, company: brandName, flavor: item.flavor ?? '', category: item.category })
+    setProductCoverUrl('')
+    setChangingCategory(false)
+    setShowCatalogPicker(false)
+    setShowProductForm(true)
+  }
+
   const saveProduct = async () => {
     if (!selected || !productForm.name.trim()) { toast.error(t('mk.nameRequired')); return }
     setSaving(true)
@@ -450,6 +465,7 @@ function AdminShopsInner() {
                 {selected.status === 'active' ? t('cm.pauseShopBtn') : t('cm.reactivateShopBtn')}
               </button>
               <button onClick={() => deleteShop(selected)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-error cursor-pointer hover:bg-red-50"><Trash2 size={14} /> {t('cm.deleteShopBtn')}</button>
+              <button onClick={() => setShowCatalogPicker(true)} className="flex items-center gap-1.5 px-3 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><ListPlus size={14} /> {t('pc.pickFromCatalogBtn')}</button>
             </div>
           </div>
 
@@ -686,6 +702,19 @@ function AdminShopsInner() {
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={productForm.is_active} onChange={(e) => setProductForm({ ...productForm, is_active: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('mk.productActiveLabel')}</span></label>
               <button onClick={saveProduct} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{saving ? t('action.saving') : t('g.saveChanges')}</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showCatalogPicker && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowCatalogPicker(false)}>
+          <div className="bg-white rounded-lg p-5 w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-heading text-[19px] font-bold text-dp-primary flex items-center gap-2"><ListPlus size={18} /> {t('pc.pickFromCatalogBtn')}</h2>
+              <button onClick={() => setShowCatalogPicker(false)} className="cursor-pointer"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('pc.pickerHint')}</p>
+            <ProductCatalogPicker onPick={openProductFromCatalog} />
           </div>
         </div>
       )}

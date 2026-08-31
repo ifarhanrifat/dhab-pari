@@ -20,7 +20,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { getShopTypeTree, type CategoryDepartment } from '@/lib/shopTypes'
 import { DynamicIcon } from './DynamicIcon'
 
-const TILE_COLORS = [
+export const TILE_COLORS = [
   { bg: 'bg-sky-100', text: 'text-sky-700' },
   { bg: 'bg-emerald-100', text: 'text-emerald-700' },
   { bg: 'bg-amber-100', text: 'text-amber-800' },
