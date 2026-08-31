@@ -12,7 +12,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Store, PlusCircle, X, Pencil, Trash2, Truck, PackageX, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { Store, PlusCircle, X, Pencil, Trash2, Truck, PackageX, CheckCircle2, XCircle, Clock, PauseCircle, PlayCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -258,11 +258,36 @@ function AdminShopsInner() {
   }
 
   const deleteShop = async (s: Shop) => {
+    // The shop's clearing account (accounts.shop_id) cascades ON DELETE to
+    // ledger_entries (migrations 007/388) — hard-deleting a shop that has
+    // ever posted real ledger legs would blow a hole in the double-entry
+    // ledger (the matching leg on cash/bank etc. would be left dangling,
+    // out of balance). Any shop with ledger history can only be paused;
+    // only a shop that never posted anything can actually be deleted.
+    const { data: acct } = await supabase.from('accounts').select('id').eq('shop_id', s.id).maybeSingle()
+    if (acct) {
+      const { count } = await supabase.from('ledger_entries').select('id', { count: 'exact', head: true }).eq('account_id', acct.id)
+      if ((count ?? 0) > 0) { toast.error(t('cm.cannotDeleteShopHasHistory')); return }
+    }
     if (!confirm(t('mk.confirmDeleteShop'))) return
     const { error } = await supabase.from('shops').delete().eq('id', s.id)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('mk.shopDeleted'))
     if (selected?.id === s.id) setSelected(null)
+    load()
+  }
+
+  // One-tap pause/reactivate — same status field the edit form already
+  // has, just without needing to open the whole form for it. A paused
+  // shop stops showing up in customer search/browse (public read policy
+  // is unaffected either way — status='active' is what every browse
+  // query already filters on) but its history/products stay intact.
+  const toggleShopStatus = async (s: Shop) => {
+    const newStatus = s.status === 'active' ? 'inactive' : 'active'
+    const { error } = await supabase.from('shops').update({ status: newStatus }).eq('id', s.id)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(newStatus === 'active' ? t('cm.shopReactivatedToast') : t('cm.shopPausedToast'))
+    if (selected?.id === s.id) setSelected({ ...selected, status: newStatus })
     load()
   }
 
@@ -385,6 +410,14 @@ function AdminShopsInner() {
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => openEditShop(selected)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Pencil size={14} /> {t('mk.editShopBtn')}</button>
+              <button
+                onClick={() => toggleShopStatus(selected)}
+                className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"
+              >
+                {selected.status === 'active' ? <PauseCircle size={14} /> : <PlayCircle size={14} />}
+                {selected.status === 'active' ? t('cm.pauseShopBtn') : t('cm.reactivateShopBtn')}
+              </button>
+              <button onClick={() => deleteShop(selected)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-error cursor-pointer hover:bg-red-50"><Trash2 size={14} /> {t('cm.deleteShopBtn')}</button>
               <button onClick={openNewProduct} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('mk.newProductBtn')}</button>
             </div>
           </div>
@@ -411,6 +444,11 @@ function AdminShopsInner() {
                     </p>
                     <p className="font-sans text-[15px] font-bold text-dp-secondary mt-0.5">{fmt(p.unit_price_pkr)}</p>
                     <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{t('mk.stockLabel')} {fmt(p.quantity_on_hand)}</p>
+                    {p.category && (
+                      <span className="inline-block mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-dp-secondary-container/50 text-dp-secondary">
+                        {getCategoryLabel(p.category, isUrdu)}
+                      </span>
+                    )}
                     {tone && (
                       <span className={`inline-block mt-1.5 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${tone === 'expired' ? 'bg-red-100 text-red-700' : tone === 'soon' ? 'bg-amber-100 text-amber-800' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>
                         {tone === 'expired' ? t('mk.expiredBadge') : tone === 'soon' ? t('mk.expiringSoonBadge') : t('mk.expiryLabel')} {new Date(p.expiry_date!).toLocaleDateString('en-GB')}

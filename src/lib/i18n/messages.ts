@@ -2031,6 +2031,9 @@ export const messages: Record<Locale, Record<string, string>> = {
     'cm.deptBabyKids': 'Baby & Kids', 'cm.deptHealth': 'Health & Pharmacy', 'cm.deptElectronics': 'Electronics & Hardware',
     'cm.categoryLabel': 'Category',
     'cm.shopTypeLabel': 'Shop Type', 'cm.shopTypeHint': "Sets the category list this shop's products are filed under.",
+    'cm.pauseShopBtn': 'Pause', 'cm.reactivateShopBtn': 'Reactivate', 'cm.deleteShopBtn': 'Delete',
+    'cm.shopPausedToast': 'Shop paused — hidden from customers until reactivated.', 'cm.shopReactivatedToast': 'Shop reactivated.',
+    'cm.cannotDeleteShopHasHistory': "This shop has real order/payment history and can't be deleted — pause it instead to hide it from customers.",
 
     // Marketplace — static route maps + one-off return-trip ride-share
     'cm.clearOriginPin': 'Clear origin pin', 'cm.clearDestinationPin': 'Clear destination pin',
@@ -6221,6 +6224,9 @@ export const messages: Record<Locale, Record<string, string>> = {
     'cm.deptBabyKids': 'بچوں کی اشیاء', 'cm.deptHealth': 'صحت و ادویات', 'cm.deptElectronics': 'برقی اور ہارڈویئر اشیاء',
     'cm.categoryLabel': 'قسم',
     'cm.shopTypeLabel': 'دکان کی قسم', 'cm.shopTypeHint': 'اس دکان کی اشیاء کس فہرست کے تحت درج ہوں گی، یہ اسی سے طے ہوتا ہے۔',
+    'cm.pauseShopBtn': 'روکیں', 'cm.reactivateShopBtn': 'دوبارہ فعال کریں', 'cm.deleteShopBtn': 'حذف کریں',
+    'cm.shopPausedToast': 'دکان روک دی گئی — دوبارہ فعال ہونے تک گاہکوں سے پوشیدہ رہے گی۔', 'cm.shopReactivatedToast': 'دکان دوبارہ فعال کر دی گئی۔',
+    'cm.cannotDeleteShopHasHistory': 'اس دکان کا حقیقی آرڈر/ادائیگی کا ریکارڈ موجود ہے، اسے حذف نہیں کیا جا سکتا — گاہکوں سے چھپانے کے لیے اسے روک دیں۔',
 
     // Marketplace — static route maps + one-off return-trip ride-share
     'cm.clearOriginPin': 'ابتدائی پن ہٹائیں', 'cm.clearDestinationPin': 'منزل کا پن ہٹائیں',
