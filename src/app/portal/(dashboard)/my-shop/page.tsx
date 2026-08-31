@@ -18,6 +18,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { WalletTopupModal } from '@/components/portal/WalletTopupModal'
+import { CATEGORY_DEPARTMENTS } from '@/lib/marketplaceCategories'
 
 interface Shop { id: string; name: string; name_ur: string | null; delivery_enabled: boolean; commission_mode: string }
 interface Product {
@@ -25,8 +26,6 @@ interface Product {
   company: string | null; category: string | null; flavor: string | null; flavor_ur: string | null
   unit_price_pkr: number; cost_price_pkr: number; quantity_on_hand: number; expiry_date: string | null; is_active: boolean
 }
-
-const CATEGORIES = ['biscuits_snacks', 'beverages', 'grocery_pantry', 'dairy', 'frozen', 'personal_care', 'household', 'stationery', 'cigarettes_paan', 'other'] as const
 
 const emptyProduct = {
   name: '', name_ur: '', description: '', company: '', category: 'other' as string, flavor: '', flavor_ur: '',
@@ -287,7 +286,11 @@ export default function MyShopPage() {
                 <input value={form.flavor_ur} onChange={(e) => setForm({ ...form, flavor_ur: e.target.value })} placeholder={t('sk.flavorUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
               </div>
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">
-                {CATEGORIES.map((c) => <option key={c} value={c}>{t(`sk.category.${c}`)}</option>)}
+                {CATEGORY_DEPARTMENTS.map((d) => (
+                  <optgroup key={d.key} label={t(d.tKey)}>
+                    {d.categories.map((c) => <option key={c} value={c}>{t(`sk.category.${c}`)}</option>)}
+                  </optgroup>
+                ))}
               </select>
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} placeholder={t('a.notesOptional')} className="input-field resize-none" />
               <div className="grid grid-cols-2 gap-3">

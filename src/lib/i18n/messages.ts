@@ -1979,6 +1979,13 @@ export const messages: Record<Locale, Record<string, string>> = {
     'sk.category.grocery_pantry': 'Grocery & Pantry', 'sk.category.dairy': 'Dairy', 'sk.category.frozen': 'Frozen',
     'sk.category.personal_care': 'Personal Care', 'sk.category.household': 'Household', 'sk.category.stationery': 'Stationery',
     'sk.category.cigarettes_paan': 'Cigarettes & Paan', 'sk.category.other': 'Other',
+    'sk.category.grains_pulses': 'Atta, Rice & Pulses', 'sk.category.cooking_oil_ghee': 'Cooking Oil & Ghee',
+    'sk.category.spices_masala': 'Spices & Masala', 'sk.category.sugar_salt': 'Sugar, Salt & Sweeteners', 'sk.category.tea_coffee': 'Tea & Coffee',
+    'sk.category.confectionery': 'Confectionery & Sweets', 'sk.category.dairy_eggs': 'Dairy & Eggs', 'sk.category.bakery': 'Bakery Items',
+    'sk.category.fruits_vegetables': 'Fruits & Vegetables', 'sk.category.meat_poultry': 'Meat, Poultry & Fish',
+    'sk.category.cosmetics_beauty': 'Cosmetics & Beauty', 'sk.category.kitchenware': 'Kitchenware & Crockery',
+    'sk.category.baby_care': 'Baby Care', 'sk.category.toys': 'Toys & Gifts',
+    'sk.category.health_medicine': 'Health & Medicine', 'sk.category.electric_hardware': 'Electric & Hardware',
     'sk.keeperLinkLabel': 'Shop Keeper Portal Account', 'sk.keeperLinkHint': "Link this shop to its keeper's own portal account so they can manage their catalog and take walk-in sales themselves.",
     'sk.keeperMobilePlaceholder': "Keeper's mobile number", 'sk.linkBtn': 'Link', 'sk.keeperNotFound': 'No portal account found with that mobile number — they need to sign up first.',
     'sk.sellBtn': 'Sell', 'sk.sellSubtitle': 'Scan each item as you ring it up, or search your catalog by hand.',
@@ -2021,6 +2028,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'cm.payDirectlyNote': "You'll pay the seller directly when you receive your order/ride — this isn't paid through the portal.",
     'cm.orderPlacedDirectToast': 'Placed — pay the seller directly when you receive it.',
     'cm.browseByDept': 'Browse by department', 'cm.deptFood': 'Food & Groceries', 'cm.deptHousehold': 'Household & Personal', 'cm.deptOther': 'Other',
+    'cm.deptBabyKids': 'Baby & Kids', 'cm.deptHealth': 'Health & Pharmacy', 'cm.deptElectronics': 'Electronics & Hardware',
 
     // Marketplace — vehicles/routes (phase 2 admin catalog)
     'mk.vehiclesTitle': 'Vehicles', 'mk.newVehicleBtn': 'New Vehicle', 'mk.noVehiclesYet': 'No vehicles added yet.',
@@ -6132,6 +6140,13 @@ export const messages: Record<Locale, Record<string, string>> = {
     'sk.category.grocery_pantry': 'گروسری', 'sk.category.dairy': 'دودھ کی مصنوعات', 'sk.category.frozen': 'فروزن اشیاء',
     'sk.category.personal_care': 'ذاتی نگہداشت', 'sk.category.household': 'گھریلو اشیاء', 'sk.category.stationery': 'اسٹیشنری',
     'sk.category.cigarettes_paan': 'سگریٹ اور پان', 'sk.category.other': 'دیگر',
+    'sk.category.grains_pulses': 'آٹا، چاول اور دالیں', 'sk.category.cooking_oil_ghee': 'تیل و گھی',
+    'sk.category.spices_masala': 'مصالحہ جات', 'sk.category.sugar_salt': 'چینی، نمک اور میٹھا', 'sk.category.tea_coffee': 'چائے اور کافی',
+    'sk.category.confectionery': 'ٹافی، چاکلیٹ اور مٹھائیاں', 'sk.category.dairy_eggs': 'دودھ، دہی اور انڈے', 'sk.category.bakery': 'بیکری کی اشیاء',
+    'sk.category.fruits_vegetables': 'پھل اور سبزیاں', 'sk.category.meat_poultry': 'گوشت، مرغی اور مچھلی',
+    'sk.category.cosmetics_beauty': 'میک اپ اور خوبصورتی', 'sk.category.kitchenware': 'برتن اور کچن کی اشیاء',
+    'sk.category.baby_care': 'بچوں کی نگہداشت', 'sk.category.toys': 'کھلونے اور تحائف',
+    'sk.category.health_medicine': 'ادویات اور صحت', 'sk.category.electric_hardware': 'برقی اور ہارڈویئر کی اشیاء',
     'sk.keeperLinkLabel': 'دکاندار کا پورٹل اکاؤنٹ', 'sk.keeperLinkHint': 'اس دکان کو دکاندار کے اپنے پورٹل اکاؤنٹ سے جوڑیں تاکہ وہ خود اپنی اشیاء اور بل بنا سکیں۔',
     'sk.keeperMobilePlaceholder': 'دکاندار کا موبائل نمبر', 'sk.linkBtn': 'جوڑیں', 'sk.keeperNotFound': 'اس موبائل نمبر سے کوئی پورٹل اکاؤنٹ نہیں ملا — پہلے انہیں پورٹل پر رجسٹر ہونا ہوگا۔',
     'sk.sellBtn': 'فروخت', 'sk.sellSubtitle': 'بل بناتے ہوئے ہر چیز اسکین کریں، یا اپنی فہرست میں خود تلاش کریں۔',
@@ -6174,6 +6189,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'cm.payDirectlyNote': 'آپ اپنا آرڈر/سفر ملنے پر فروخت کنندہ کو براہ راست ادائیگی کریں گے — یہ پورٹل کے ذریعے ادا نہیں ہوتی۔',
     'cm.orderPlacedDirectToast': 'درج ہو گیا — ملنے پر فروخت کنندہ کو براہ راست ادائیگی کریں۔',
     'cm.browseByDept': 'شعبہ کے مطابق دیکھیں', 'cm.deptFood': 'کھانے پینے کی اشیاء', 'cm.deptHousehold': 'گھریلو اور ذاتی اشیاء', 'cm.deptOther': 'دیگر',
+    'cm.deptBabyKids': 'بچوں کی اشیاء', 'cm.deptHealth': 'صحت و ادویات', 'cm.deptElectronics': 'برقی اور ہارڈویئر اشیاء',
 
     // Marketplace — vehicles/routes (phase 2 admin catalog)
     'mk.vehiclesTitle': 'گاڑیاں', 'mk.newVehicleBtn': 'نئی گاڑی', 'mk.noVehiclesYet': 'ابھی تک کوئی گاڑی شامل نہیں کی گئی۔',

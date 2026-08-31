@@ -16,6 +16,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
+import { CATEGORY_DEPARTMENTS } from '@/lib/marketplaceCategories'
 
 interface Shop {
   id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
@@ -26,17 +27,6 @@ interface Product {
   id: string; name: string; name_ur: string | null; flavor: string | null; flavor_ur: string | null
   category: string | null; unit_price_pkr: number; quantity_on_hand: number; is_active: boolean
 }
-
-// A department is just a grouping of the fixed category codes (sk.category.*
-// in messages.ts) — no schema of its own, since the codes themselves never
-// change. "Uncategorised" catches any product saved before categories
-// existed, or explicitly left as "other", so nothing a shop stocks is ever
-// invisible in the browse flow.
-const DEPARTMENTS: { key: string; tKey: string; categories: string[] }[] = [
-  { key: 'food', tKey: 'cm.deptFood', categories: ['biscuits_snacks', 'beverages', 'grocery_pantry', 'dairy', 'frozen'] },
-  { key: 'household', tKey: 'cm.deptHousehold', categories: ['personal_care', 'household', 'cigarettes_paan', 'stationery'] },
-  { key: 'other', tKey: 'cm.deptOther', categories: ['other'] },
-]
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -100,8 +90,8 @@ export default function ShopDetailPage() {
     for (const p of products) counts[categoryOf(p)] = (counts[categoryOf(p)] ?? 0) + 1
     return counts
   }, [products]) // eslint-disable-line react-hooks/exhaustive-deps
-  const departmentsPresent = DEPARTMENTS.filter((d) => d.categories.some((c) => (countByCategory[c] ?? 0) > 0))
-  const categoriesPresent = (deptKey: string) => (DEPARTMENTS.find((d) => d.key === deptKey)?.categories ?? []).filter((c) => (countByCategory[c] ?? 0) > 0)
+  const departmentsPresent = CATEGORY_DEPARTMENTS.filter((d) => d.categories.some((c) => (countByCategory[c] ?? 0) > 0))
+  const categoriesPresent = (deptKey: string) => (CATEGORY_DEPARTMENTS.find((d) => d.key === deptKey)?.categories ?? []).filter((c) => (countByCategory[c] ?? 0) > 0)
   const visibleProducts = activeCategory ? products.filter((p) => categoryOf(p) === activeCategory) : []
 
   const submit = async () => {
@@ -175,7 +165,7 @@ export default function ShopDetailPage() {
           <button onClick={() => setActiveDept(null)} className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[13px] font-semibold hover:underline cursor-pointer mb-3">
             <ArrowLeft size={13} className={isUrdu ? 'rotate-180' : ''} /> {t('cm.browseByDept')}
           </button>
-          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t(DEPARTMENTS.find((d) => d.key === activeDept)!.tKey)}</p>
+          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t(CATEGORY_DEPARTMENTS.find((d) => d.key === activeDept)!.tKey)}</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {categoriesPresent(activeDept).map((c) => (
               <button key={c} onClick={() => setActiveCategory(c)} className="text-start bg-white border border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-colors cursor-pointer flex items-center justify-between gap-2">
@@ -193,7 +183,7 @@ export default function ShopDetailPage() {
       {activeCategory && (
         <div className="mt-5">
           <button onClick={() => setActiveCategory(null)} className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[13px] font-semibold hover:underline cursor-pointer mb-3">
-            <ArrowLeft size={13} className={isUrdu ? 'rotate-180' : ''} /> {t(DEPARTMENTS.find((d) => d.key === activeDept)!.tKey)}
+            <ArrowLeft size={13} className={isUrdu ? 'rotate-180' : ''} /> {t(CATEGORY_DEPARTMENTS.find((d) => d.key === activeDept)!.tKey)}
           </button>
           <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t(`sk.category.${activeCategory}`)}</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

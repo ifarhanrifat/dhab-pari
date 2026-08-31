@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { GoogleGenAI } from '@google/genai'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { PRODUCT_CATEGORIES } from '@/lib/marketplaceCategories'
 
 // Camera-to-catalog: a shop keeper photographs a physical product, Gemini
 // reads the packaging and drafts name/company/category/description — the
@@ -16,14 +17,11 @@ import { createAdminClient } from '@/lib/supabase/admin'
 const ALLOWED_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 type AllowedMediaType = (typeof ALLOWED_MEDIA_TYPES)[number]
 
-const CATEGORIES = ['biscuits_snacks', 'beverages', 'grocery_pantry', 'dairy', 'frozen',
-  'personal_care', 'household', 'stationery', 'cigarettes_paan', 'other'] as const
-
 const SYSTEM_PROMPT = `You are helping a small Pakistani corner-store keeper add a product to their shop's catalog from a photo of the item (its packaging/label).
 
 Read whatever is printed on the packaging (brand, product name, variant/size, language may be English or Urdu) and draft catalog fields for it. Never invent details that aren't legible in the photo — leave a field empty rather than guess.
 
-Pick the single best-fitting category from EXACTLY this list: ${CATEGORIES.join(', ')}. Use "other" if none fit.
+Pick the single best-fitting category from EXACTLY this list: ${PRODUCT_CATEGORIES.join(', ')}. Use "other" if none fit.
 
 Most packaged products (biscuits, chips, drinks, etc.) come in a specific flavor or variant — read it off the packaging if printed (e.g. "Salted", "BBQ", "Chocolate", "Orange", "Masala"). Leave it empty if the product has no flavor/variant (e.g. plain rice, a bar of soap) or none is legible.
 
@@ -100,7 +98,7 @@ export async function POST(req: NextRequest) {
     const text = result.text ?? result.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
     if (!text) throw new Error('No text in model response')
     const fields = extractJsonObject(text)
-    const category = CATEGORIES.includes(fields.category as (typeof CATEGORIES)[number]) ? fields.category : 'other'
+    const category = PRODUCT_CATEGORIES.includes(fields.category) ? fields.category : 'other'
     return NextResponse.json({
       name: fields.name ?? '', name_ur: fields.name_ur ?? '', company: fields.company ?? '',
       category, flavor: fields.flavor ?? '', flavor_ur: fields.flavor_ur ?? '', description: fields.description ?? '',
