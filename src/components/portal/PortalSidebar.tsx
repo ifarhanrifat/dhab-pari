@@ -75,14 +75,20 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   // A shop/vehicle only exists for a portal user once staff links one to
   // them (shops.portal_user_id / vehicles.portal_user_id) — public-read
   // RLS on both makes this a plain client query, no RPC needed just to
-  // know whether to show the tab.
+  // know whether to show the tab. Re-checked on every navigation (not
+  // just once on mount) — this sidebar lives in the dashboard layout, so
+  // it never remounts across page-to-page navigation within the portal;
+  // without the pathname dependency, a keeper linked to a shop *after*
+  // they'd already opened the portal in that tab would never see "My
+  // Shop" appear without a full reload, however long they kept clicking
+  // around.
   useEffect(() => {
     if (!user) return
     supabase.from('shops').select('id').eq('portal_user_id', user.id).limit(1)
       .then(({ data }) => setHasShop((data?.length ?? 0) > 0))
     supabase.from('vehicles').select('id').eq('portal_user_id', user.id).limit(1)
       .then(({ data }) => setHasVehicle((data?.length ?? 0) > 0))
-  }, [supabase, user])
+  }, [supabase, user, pathname])
 
   // Keyed by the last segment of each href, because the server buckets unread
   // notifications by the page their link points at — so a tab gets a badge by
