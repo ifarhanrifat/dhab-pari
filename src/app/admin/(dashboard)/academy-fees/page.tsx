@@ -30,7 +30,7 @@ import { DocumentHeader } from '@/components/admin/DocumentHeader'
 
 interface Academy { id: string; title: string; display_name: string | null; category: string }
 interface Batch {
-  id: string; label: string; label_ur: string | null; schedule_note: string | null; status: string
+  id: string; label: string; label_ur: string | null; schedule_note: string | null; schedule_note_ur: string | null; status: string
   fee_villager_monthly_pkr: number | null; fee_outsider_monthly_pkr: number | null
   fee_villager_full_pkr: number | null; fee_outsider_full_pkr: number | null
   capacity: number | null; age_min: number | null; age_max: number | null
@@ -92,7 +92,7 @@ function feeFor(b: Batch, participantType: string, feeType: string) {
   return participantType === 'villager' ? (b.fee_villager_full_pkr ?? 0) : (b.fee_outsider_full_pkr ?? 0)
 }
 const emptyBatch = {
-  label: '', label_ur: '', schedule_note: '',
+  label: '', label_ur: '', schedule_note: '', schedule_note_ur: '',
   fee_villager_monthly_pkr: 0, fee_outsider_monthly_pkr: 0, fee_villager_full_pkr: 0, fee_outsider_full_pkr: 0,
   capacity: '', age_min: '', age_max: '', session_days: [] as number[], session_time: '', sibling_discount_pct: '',
 }
@@ -170,7 +170,7 @@ function AcademyFeesInner() {
   const loadRoster = async (academy: Academy) => {
     setSelected(academy)
     const [{ data: batchRows }, { data: rows }, { data: reqRows }] = await Promise.all([
-      supabase.from('training_batches').select('id, label, label_ur, schedule_note, status, fee_villager_monthly_pkr, fee_outsider_monthly_pkr, fee_villager_full_pkr, fee_outsider_full_pkr, capacity, age_min, age_max, session_days, session_time, sibling_discount_pct')
+      supabase.from('training_batches').select('id, label, label_ur, schedule_note, schedule_note_ur, status, fee_villager_monthly_pkr, fee_outsider_monthly_pkr, fee_villager_full_pkr, fee_outsider_full_pkr, capacity, age_min, age_max, session_days, session_time, sibling_discount_pct')
         .eq('project_id', academy.id).eq('status', 'active').order('created_at'),
       supabase.from('training_enrollments')
         .select('id, student_name, student_age, guardian_name, guardian_whatsapp_number, address, sector, batch_id, participant_type, fee_type, fee_amount_pkr, discount_pct, discount_reason, status')
@@ -378,7 +378,7 @@ function AcademyFeesInner() {
   const openEditBatch = (b: Batch) => {
     setEditingBatch(b)
     setBatchForm({
-      label: b.label, label_ur: b.label_ur ?? '', schedule_note: b.schedule_note ?? '',
+      label: b.label, label_ur: b.label_ur ?? '', schedule_note: b.schedule_note ?? '', schedule_note_ur: b.schedule_note_ur ?? '',
       fee_villager_monthly_pkr: b.fee_villager_monthly_pkr ?? 0, fee_outsider_monthly_pkr: b.fee_outsider_monthly_pkr ?? 0,
       fee_villager_full_pkr: b.fee_villager_full_pkr ?? 0, fee_outsider_full_pkr: b.fee_outsider_full_pkr ?? 0,
       capacity: b.capacity != null ? String(b.capacity) : '', age_min: b.age_min != null ? String(b.age_min) : '',
@@ -396,7 +396,7 @@ function AcademyFeesInner() {
     if (!selected || !batchForm.label.trim()) { toast.error(t('af.requiredFields')); return }
     setSaving(true)
     const payload = {
-      label: batchForm.label, label_ur: batchForm.label_ur || null, schedule_note: batchForm.schedule_note || null,
+      label: batchForm.label, label_ur: batchForm.label_ur || null, schedule_note: batchForm.schedule_note || null, schedule_note_ur: batchForm.schedule_note_ur || null,
       fee_villager_monthly_pkr: batchForm.fee_villager_monthly_pkr || null, fee_outsider_monthly_pkr: batchForm.fee_outsider_monthly_pkr || null,
       fee_villager_full_pkr: batchForm.fee_villager_full_pkr || null, fee_outsider_full_pkr: batchForm.fee_outsider_full_pkr || null,
       capacity: batchForm.capacity ? Number(batchForm.capacity) : null,
@@ -535,7 +535,7 @@ function AcademyFeesInner() {
                   <div key={b.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex items-start justify-between gap-2">
                     <div>
                       <p className="font-sans text-[14px] font-semibold text-dp-on-surface">{isUrdu && b.label_ur ? b.label_ur : b.label}</p>
-                      {b.schedule_note && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{b.schedule_note}</p>}
+                      {b.schedule_note && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{isUrdu ? (b.schedule_note_ur || b.schedule_note) : b.schedule_note}</p>}
                       <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">
                         {t('af.villager')}: {fmt(b.fee_villager_monthly_pkr ?? 0)}/{t('af.perMonth')} · {t('af.outsider')}: {fmt(b.fee_outsider_monthly_pkr ?? 0)}/{t('af.perMonth')}
                       </p>
@@ -686,6 +686,11 @@ function AcademyFeesInner() {
               <input value={batchForm.label} onChange={(e) => setBatchForm({ ...batchForm, label: e.target.value })} placeholder={t('af.batchLabelPlaceholder')} className="input-field" />
               <input value={batchForm.label_ur} onChange={(e) => setBatchForm({ ...batchForm, label_ur: e.target.value })} placeholder={t('af.batchLabelUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
               <input value={batchForm.schedule_note} onChange={(e) => setBatchForm({ ...batchForm, schedule_note: e.target.value })} placeholder={t('af.scheduleNotePlaceholder')} className="input-field" />
+              {/* Optional — same fallback as label/label_ur above: a note
+                  left English-only still shows fine in Urdu mode, this is
+                  only for when the venue/time itself needs to read in
+                  Urdu, e.g. "Village Community Hall" → "گاؤں کا کمیونٹی ہال". */}
+              <input value={batchForm.schedule_note_ur} onChange={(e) => setBatchForm({ ...batchForm, schedule_note_ur: e.target.value })} placeholder={t('af.scheduleNoteUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
               <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('pj.batchesHint')}</p>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('pj.feeVillagerMonthly')}</label><input type="number" value={batchForm.fee_villager_monthly_pkr || ''} onChange={(e) => setBatchForm({ ...batchForm, fee_villager_monthly_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
@@ -756,7 +761,7 @@ function AcademyFeesInner() {
                   {b && (
                     <div className="bg-dp-surface-container-low rounded-lg px-3.5 py-2.5 text-[12px] font-sans text-dp-on-surface-variant space-y-1">
                       <div className="flex flex-wrap gap-x-3">
-                        {b.schedule_note && <span>{b.schedule_note}</span>}
+                        {b.schedule_note && <span>{isUrdu ? (b.schedule_note_ur || b.schedule_note) : b.schedule_note}</span>}
                         {ageRange && <span>{t('af.agesLabel')} {ageRange}</span>}
                         {b.capacity != null && (
                           <span className={full ? 'text-dp-error font-semibold' : ''}>

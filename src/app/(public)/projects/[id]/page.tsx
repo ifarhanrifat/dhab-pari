@@ -16,14 +16,14 @@ import { Lightbox } from '@/components/public/Lightbox'
 
 interface Project {
   id: string; title: string; display_name: string | null; description: string | null; status: string
-  budget_pkr: number | null; category: string | null; location: string | null
+  budget_pkr: number | null; category: string | null; location: string | null; location_ur: string | null
   vote_target: number | null; minimum_monthly_commitment_pkr: number | null
   funding_model: string | null; monthly_operating_cost_pkr: number | null
   hide_fees: boolean; intro_video_id: string | null
   before_image_url: string | null; after_image_url: string | null
 }
 interface AcademyBatch {
-  id: string; project_id: string; label: string; label_ur: string | null; schedule_note: string | null
+  id: string; project_id: string; label: string; label_ur: string | null; schedule_note: string | null; schedule_note_ur: string | null
   age_min: number | null; age_max: number | null
   fee_villager_monthly_pkr: number | null; fee_outsider_monthly_pkr: number | null
   fee_villager_full_pkr: number | null; fee_outsider_full_pkr: number | null
@@ -130,7 +130,7 @@ export default function ProjectDetailPage() {
   const load = useCallback(async () => {
     const supabase = createClient()
     const [{ data: p }, { data: v }, { data: a }, { data: expenseAcct }, { data: voteRows }, { data: commentRows }] = await Promise.all([
-      supabase.from('projects').select('id, title, display_name, description, status, budget_pkr, category, location, vote_target, minimum_monthly_commitment_pkr, funding_model, monthly_operating_cost_pkr, hide_fees, intro_video_id, before_image_url, after_image_url').eq('id', id).single(),
+      supabase.from('projects').select('id, title, display_name, description, status, budget_pkr, category, location, location_ur, vote_target, minimum_monthly_commitment_pkr, funding_model, monthly_operating_cost_pkr, hide_fees, intro_video_id, before_image_url, after_image_url').eq('id', id).single(),
       supabase.from('donors_public').select('id, name, amount_pkr, date, is_verified, payment_status').eq('project_id', id).eq('is_verified', true).order('amount_pkr', { ascending: false }),
       supabase.from('donors_public').select('id, name, amount_pkr, date, is_verified, payment_status').eq('project_id', id).eq('is_verified', false).order('date', { ascending: false }),
       supabase.from('project_accounts_public').select('id').eq('project_id', id).maybeSingle(),
@@ -358,7 +358,7 @@ export default function ProjectDetailPage() {
       <div className="mb-8">
         <span className="bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded font-sans text-[12px] font-semibold uppercase tracking-[0.05em]">{isUrdu ? (CATEGORY_LABEL_UR[project.category ?? 'other'] ?? project.category) : project.category}</span>
         <h1 className="font-heading text-[28px] md:text-[32px] font-bold text-dp-primary mt-3">{project.display_name || project.title}</h1>
-        {project.location && <p className="flex items-center gap-1 text-dp-on-surface-variant font-sans text-[15px] mt-1"><MapPin size={15} /> {project.location}</p>}
+        {project.location && <p className="flex items-center gap-1 text-dp-on-surface-variant font-sans text-[15px] mt-1"><MapPin size={15} /> {isUrdu ? (project.location_ur || project.location) : project.location}</p>}
         <p className="font-sans text-[16px] text-dp-on-surface-variant mt-4 leading-[26px]">{project.description}</p>
       </div>
 
@@ -548,7 +548,7 @@ export default function ProjectDetailPage() {
                   </div>
                   {(b.schedule_note || ageRange) && (
                     <div className="flex items-center gap-3 mt-1 text-[12.5px] text-dp-on-surface-variant">
-                      {b.schedule_note && <span className="flex items-center gap-1"><MapPin size={11} className="shrink-0" /> {b.schedule_note}</span>}
+                      {b.schedule_note && <span className="flex items-center gap-1"><MapPin size={11} className="shrink-0" /> {isUrdu ? (b.schedule_note_ur || b.schedule_note) : b.schedule_note}</span>}
                       {ageRange && <span className="flex items-center gap-1"><Cake size={11} className="shrink-0" /> {tr('x.agesLabelFull')} {ageRange}</span>}
                     </div>
                   )}

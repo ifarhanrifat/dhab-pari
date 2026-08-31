@@ -55,6 +55,14 @@ interface PendingBatch {
 interface BatchItem { kind: 'donor' | 'pool'; id: string; amount: number; label: string }
 type SortKey = 'name' | 'account' | 'amount' | 'date' | 'status'
 
+// The full donor list still loads in one query (accurate search/sort needs
+// the whole dataset, not just one page of it) — but with a live donor count
+// in the thousands, mounting every row as a DOM card/row at once is what
+// actually made this page unusable on a phone (measured: page height past
+// 140,000px). Pagination here only caps what gets rendered, never what gets
+// searched — search and sort still run over every donor, same as before.
+const PAGE_SIZE = 50
+
 const empty = {
   name: '', name_ur: '', phone: '', father_husband_name: '', whatsapp_number: '', donor_type: 'villager', donor_location: '',
   amount_pkr: 0, date: new Date().toISOString().split('T')[0], is_anonymous: false, payment_method: 'cash',
@@ -87,6 +95,7 @@ function AdminDonorsPageInner() {
   const [proofLoadingId, setProofLoadingId] = useState<string | null>(null)
   const [sortKey, setSortKey] = useState<SortKey>('date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [page, setPage] = useState(1)
   const [donors, setDonors] = useState<Donor[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [accountNoByKey, setAccountNoByKey] = useState<Map<string, string>>(new Map())
@@ -181,9 +190,13 @@ function AdminDonorsPageInner() {
     })
   }
 
+  // Selects/clears every donor the search box currently matches — not the
+  // full unfiltered table, which is what this compared against before and
+  // meant "select all" while searching silently grabbed rows you couldn't
+  // even see.
   const toggleSelectAll = () => {
-    if (selected.size === donors.length) setSelected(new Set())
-    else setSelected(new Set(donors.map((d) => d.id)))
+    if (selected.size === visibleDonors.length) setSelected(new Set())
+    else setSelected(new Set(visibleDonors.map((d) => d.id)))
   }
 
   const bulkVerify = async () => {
@@ -361,6 +374,13 @@ function AdminDonorsPageInner() {
     })
   }, [donors, donorSearch, sortKey, sortDir, accountNoByKey])
 
+  const totalPages = Math.max(1, Math.ceil(visibleDonors.length / PAGE_SIZE))
+  // A stale page (e.g. page 5 of a 50-row search that just narrowed to 2
+  // rows) would otherwise render nothing and look like the list broke.
+  useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages, page])
+  useEffect(() => { setPage(1) }, [donorSearch, sortKey, sortDir])
+  const pagedDonors = useMemo(() => visibleDonors.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [visibleDonors, page])
+
   const toggleSort = (k: SortKey) => {
     if (sortKey === k) setSortDir((v) => (v === 'asc' ? 'desc' : 'asc'))
     else { setSortKey(k); setSortDir(k === 'date' || k === 'amount' ? 'desc' : 'asc') }
@@ -446,7 +466,7 @@ function AdminDonorsPageInner() {
         {!loading && visibleDonors.length === 0 && (
           <div className="p-8 text-center text-dp-on-surface-variant font-sans text-[14px]">{donorSearch ? t('dn.noSearchMatch') : t('dn.noDonationsYet')}</div>
         )}
-        {!loading && visibleDonors.map((d) => (
+        {!loading && pagedDonors.map((d) => (
           <div key={d.id} className={`p-4 ${selected.has(d.id) ? 'bg-dp-secondary-container/20' : !d.is_verified ? 'bg-amber-50/40' : ''}`}>
             <div className="flex items-start gap-3">
               <input type="checkbox" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} className="accent-dp-secondary cursor-pointer mt-1 shrink-0" />
@@ -519,13 +539,13 @@ function AdminDonorsPageInner() {
       <div className="hidden md:block bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
-            <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]"><th className="p-4 w-10"><input type="checkbox" checked={donors.length > 0 && selected.size === donors.length} onChange={toggleSelectAll} className="accent-dp-secondary cursor-pointer" /></th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('name')}>{t('a.name')}{sortArrow('name')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary whitespace-nowrap" onClick={() => toggleSort('account')}>{t('dn.accountNo', 'Account #')}{sortArrow('account')}</th><th className="p-4 whitespace-nowrap">{t('a.phone')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary whitespace-nowrap" onClick={() => toggleSort('amount')}>{t('w.amount')}{sortArrow('amount')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary whitespace-nowrap" onClick={() => toggleSort('date')}>{t('w.date')}{sortArrow('date')}</th><th className="p-4 whitespace-nowrap">{t('dn.source')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary whitespace-nowrap" onClick={() => toggleSort('status')}>{t('w.status')}{sortArrow('status')}</th><th className="p-4 text-end">{t('a.actions')}</th></tr></thead>
+            <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]"><th className="p-4 w-10"><input type="checkbox" checked={visibleDonors.length > 0 && selected.size === visibleDonors.length} onChange={toggleSelectAll} className="accent-dp-secondary cursor-pointer" /></th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('name')}>{t('a.name')}{sortArrow('name')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary whitespace-nowrap" onClick={() => toggleSort('account')}>{t('dn.accountNo', 'Account #')}{sortArrow('account')}</th><th className="p-4 whitespace-nowrap">{t('a.phone')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary whitespace-nowrap" onClick={() => toggleSort('amount')}>{t('w.amount')}{sortArrow('amount')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary whitespace-nowrap" onClick={() => toggleSort('date')}>{t('w.date')}{sortArrow('date')}</th><th className="p-4 whitespace-nowrap">{t('dn.source')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary whitespace-nowrap" onClick={() => toggleSort('status')}>{t('w.status')}{sortArrow('status')}</th><th className="p-4 text-end">{t('a.actions')}</th></tr></thead>
             <tbody className="font-sans text-[16px]">
               {loading && <tr><td colSpan={9} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}
               {!loading && visibleDonors.length === 0 && (
                 <tr><td colSpan={9} className="p-8 text-center text-dp-on-surface-variant">{donorSearch ? t('dn.noSearchMatch') : t('dn.noDonationsYet')}</td></tr>
               )}
-              {!loading && visibleDonors.map((d, i) => (
+              {!loading && pagedDonors.map((d, i) => (
                 <tr key={d.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''} ${selected.has(d.id) ? 'bg-dp-secondary-container/20' : ''} ${!d.is_verified ? 'bg-amber-50/40' : ''}`}>
                   <td className="p-4 border-b border-dp-outline-variant"><input type="checkbox" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} className="accent-dp-secondary cursor-pointer" /></td>
                   <td className="p-4 border-b border-dp-outline-variant font-semibold">
@@ -596,6 +616,27 @@ function AdminDonorsPageInner() {
           </table>
         </div>
       </div>
+
+      {!loading && visibleDonors.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 px-1">
+          <p className="font-sans text-[12.5px] text-dp-on-surface-variant order-2 sm:order-1">
+            {t('dn.showingRange').replace('{from}', String((page - 1) * PAGE_SIZE + 1)).replace('{to}', String(Math.min(page * PAGE_SIZE, visibleDonors.length))).replace('{total}', visibleDonors.length.toLocaleString())}
+          </p>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2 order-1 sm:order-2">
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+                className="px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container disabled:opacity-40 disabled:cursor-not-allowed">
+                {t('dn.prevPage')}
+              </button>
+              <span className="font-sans text-[13px] text-dp-on-surface-variant px-1">{page} / {totalPages}</span>
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                className="px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container disabled:opacity-40 disabled:cursor-not-allowed">
+                {t('dn.nextPage')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <ConfirmDialog
         open={confirmDelete}

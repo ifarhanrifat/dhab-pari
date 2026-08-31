@@ -19,7 +19,7 @@ import { friendlyError } from '@/lib/errors'
 import Link from 'next/link'
 
 interface Batch {
-  id: string; label: string; label_ur: string | null; schedule_note: string | null
+  id: string; label: string; label_ur: string | null; schedule_note: string | null; schedule_note_ur: string | null
   age_min: number | null; age_max: number | null; session_days: number[] | null; session_time: string | null
   fee_villager_monthly_pkr: number | null; fee_outsider_monthly_pkr: number | null
   fee_villager_full_pkr: number | null; fee_outsider_full_pkr: number | null
@@ -157,7 +157,7 @@ export default function JoinAcademyPage({ params }: { params: Promise<{ projectI
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0">{b.spots_left} {t('tp.spotsLeft')}</span>
                       ) : null}
                     </div>
-                    {b.schedule_note && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{b.schedule_note}</p>}
+                    {b.schedule_note && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{isUrdu ? (b.schedule_note_ur || b.schedule_note) : b.schedule_note}</p>}
                     <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1 flex flex-wrap gap-x-2">
                       {(b.age_min != null || b.age_max != null) && <span>{t('af.agesLabel')} {b.age_min ?? 0}–{b.age_max ?? '∞'}</span>}
                       {b.session_days && b.session_days.length > 0 && (

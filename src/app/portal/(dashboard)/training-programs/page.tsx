@@ -37,7 +37,7 @@ interface Academy {
 }
 interface Batch {
   id: string; project_id: string; label: string; label_ur: string | null
-  schedule_note: string | null; age_min: number | null; age_max: number | null
+  schedule_note: string | null; schedule_note_ur: string | null; age_min: number | null; age_max: number | null
   fee_villager_monthly_pkr: number | null; fee_outsider_monthly_pkr: number | null
   fee_villager_full_pkr: number | null; fee_outsider_full_pkr: number | null
   sibling_discount_pct: number | null; capacity: number | null; spots_left: number | null
@@ -222,7 +222,7 @@ export default function PortalTrainingProgramsPage() {
                           </div>
                           {(b.schedule_note || ageRange) && (
                             <div className="flex items-center gap-2.5 mt-0.5 text-[11px] text-dp-on-surface-variant">
-                              {b.schedule_note && <span className="flex items-center gap-1"><MapPin size={10} className="shrink-0" /> {b.schedule_note}</span>}
+                              {b.schedule_note && <span className="flex items-center gap-1"><MapPin size={10} className="shrink-0" /> {isUrdu ? (b.schedule_note_ur || b.schedule_note) : b.schedule_note}</span>}
                               {ageRange && <span className="flex items-center gap-1"><Cake size={10} className="shrink-0" /> {t('tp.agesLabel')} {ageRange}</span>}
                             </div>
                           )}

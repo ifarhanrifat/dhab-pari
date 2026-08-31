@@ -35,6 +35,7 @@ interface Project {
   spent_pkr: number | null
   category: string | null
   location: string | null
+  location_ur: string | null
   sector: string | null
   beneficiaries_count: number | null
   vote_target: number | null
@@ -500,7 +501,7 @@ function OngoingCard({ project, isHot, commentCount, expense, fee, dt, isUrdu }:
           </h3>
           <div className="flex items-center text-dp-on-surface-variant mb-6 gap-1">
             <MapPin size={16} />
-            <span className="font-sans text-[16px]">{project.location}</span>
+            <span className="font-sans text-[16px]">{isUrdu ? (project.location_ur || project.location) : project.location}</span>
           </div>
 
           {/* Progress */}
@@ -614,7 +615,7 @@ function CompletedCard({ project, isHot, dt, isUrdu, received, expense }: { proj
           </h3>
           <div className="flex items-center text-dp-on-surface-variant mb-6 gap-1">
             <MapPin size={16} />
-            <span className="font-sans text-[16px]">{project.location}</span>
+            <span className="font-sans text-[16px]">{isUrdu ? (project.location_ur || project.location) : project.location}</span>
           </div>
 
           {/* Progress */}
@@ -752,7 +753,7 @@ function UpcomingCard({ project, voteCount, isHot, dt, isUrdu }: { project: Proj
           </h3>
           <div className="flex items-center text-dp-on-surface-variant mb-6 gap-1">
             <MapPin size={16} />
-            <span className="font-sans text-[16px]">{project.location}</span>
+            <span className="font-sans text-[16px]">{isUrdu ? (project.location_ur || project.location) : project.location}</span>
           </div>
           <p className="text-dp-on-surface-variant mb-4 line-clamp-3 font-sans text-[16px] leading-[24px]">
             {project.description}
@@ -847,7 +848,7 @@ function AnnouncedCard({ project, dt, isUrdu }: { project: Project; dt: Dt; isUr
           </h3>
           <div className="flex items-center text-dp-on-surface-variant mb-6 gap-1">
             <MapPin size={16} />
-            <span className="font-sans text-[16px]">{project.location}</span>
+            <span className="font-sans text-[16px]">{isUrdu ? (project.location_ur || project.location) : project.location}</span>
           </div>
           <p className="text-dp-on-surface-variant line-clamp-3 font-sans text-[16px] leading-[24px] mb-4">
             {project.description}
