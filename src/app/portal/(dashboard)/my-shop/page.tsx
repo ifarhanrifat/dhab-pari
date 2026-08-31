@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Store, PlusCircle, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX } from 'lucide-react'
+import { Store, PlusCircle, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, BarChart3 } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -203,6 +203,9 @@ export default function MyShopPage() {
           <button onClick={() => setShowAiSettings(true)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
             <KeyRound size={14} /> {keySaved ? t('sk.aiSettingsBtn') : t('sk.setUpAiBtn')}
           </button>
+          <Link href="/portal/my-shop/reports" className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+            <BarChart3 size={14} /> {t('cm.reportsBtn')}
+          </Link>
           <Link href="/portal/my-shop/sell" className="flex items-center gap-1.5 px-3 py-2 bg-dp-primary text-white rounded-lg font-sans text-[13px] font-semibold hover:opacity-90">
             <ShoppingCart size={14} /> {t('sk.sellBtn')}
           </Link>

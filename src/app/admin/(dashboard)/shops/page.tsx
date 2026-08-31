@@ -23,7 +23,9 @@ interface Shop {
   id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
   owner_name: string | null; owner_mobile: string | null; owner_whatsapp: string | null
   location: string | null; location_ur: string | null; delivery_enabled: boolean; status: string; portal_user_id: string | null
+  commission_mode: string; lumpsum_fee_pkr: number | null
 }
+interface LumpsumCharge { id: string; period: string; amount_pkr: number; created_at: string }
 interface Product {
   id: string; shop_id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
   company: string | null; category: string | null; flavor: string | null; flavor_ur: string | null; cost_price_pkr: number
@@ -39,6 +41,7 @@ interface Order {
 const emptyShop = {
   name: '', name_ur: '', description: '', description_ur: '', owner_name: '', owner_mobile: '', owner_whatsapp: '',
   location: '', location_ur: '', delivery_enabled: false, status: 'active', portal_user_id: null as string | null,
+  commission_mode: 'per_order' as string, lumpsum_fee_pkr: 0,
 }
 const emptyProduct = {
   name: '', name_ur: '', description: '', description_ur: '', company: '', category: 'other' as string, flavor: '', flavor_ur: '',
@@ -84,6 +87,7 @@ function AdminShopsInner() {
   const [coverByProduct, setCoverByProduct] = useState<Record<string, string>>({})
   const [orders, setOrders] = useState<Order[]>([])
   const [orderActionId, setOrderActionId] = useState<string | null>(null)
+  const [charges, setCharges] = useState<LumpsumCharge[]>([])
 
   const [showShopForm, setShowShopForm] = useState(false)
   const [editingShop, setEditingShop] = useState<Shop | null>(null)
@@ -146,7 +150,12 @@ function AdminShopsInner() {
     setOrders((data ?? []) as unknown as Order[])
   }
 
-  const openShop = (s: Shop) => { setSelected(s); loadProducts(s.id); loadOrders(s.id) }
+  const loadCharges = async (shopId: string) => {
+    const { data } = await supabase.from('shop_lumpsum_charges').select('id, period, amount_pkr, created_at').eq('shop_id', shopId).order('period', { ascending: false })
+    setCharges(data ?? [])
+  }
+
+  const openShop = (s: Shop) => { setSelected(s); loadProducts(s.id); loadOrders(s.id); loadCharges(s.id) }
 
   const confirmOrder = async (o: Order) => {
     setOrderActionId(o.id)
@@ -174,7 +183,7 @@ function AdminShopsInner() {
       name: s.name, name_ur: s.name_ur ?? '', description: s.description ?? '', description_ur: s.description_ur ?? '',
       owner_name: s.owner_name ?? '', owner_mobile: s.owner_mobile ?? '', owner_whatsapp: s.owner_whatsapp ?? '',
       location: s.location ?? '', location_ur: s.location_ur ?? '', delivery_enabled: s.delivery_enabled, status: s.status,
-      portal_user_id: s.portal_user_id,
+      portal_user_id: s.portal_user_id, commission_mode: s.commission_mode, lumpsum_fee_pkr: s.lumpsum_fee_pkr ?? 0,
     })
     setKeeperMobile('')
     if (s.portal_user_id) {
@@ -208,6 +217,7 @@ function AdminShopsInner() {
       ...shopForm, name_ur: shopForm.name_ur || null, description: shopForm.description || null, description_ur: shopForm.description_ur || null,
       owner_name: shopForm.owner_name || null, owner_mobile: shopForm.owner_mobile || null, owner_whatsapp: shopForm.owner_whatsapp || null,
       location: shopForm.location || null, location_ur: shopForm.location_ur || null,
+      lumpsum_fee_pkr: shopForm.commission_mode === 'monthly_lumpsum' ? shopForm.lumpsum_fee_pkr : null,
     }
     const { error } = editingShop
       ? await supabase.from('shops').update(payload).eq('id', editingShop.id)
@@ -323,6 +333,9 @@ function AdminShopsInner() {
                     <span className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-surface-container-high text-dp-on-surface-variant">{t('mk.pickupOnly')}</span>
                   )}
                   <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-surface-container-high text-dp-on-surface-variant">{productCountByShop[s.id] ?? 0} {t('mk.productsCount')}</span>
+                  {s.commission_mode === 'monthly_lumpsum' && (
+                    <span className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">{t('cm.lumpsumBadge')}</span>
+                  )}
                   {(expiringCountByShop[s.id] ?? 0) > 0 && (
                     <span className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800"><PackageX size={11} /> {expiringCountByShop[s.id]} {t('mk.expiringSoon')}</span>
                   )}
@@ -418,6 +431,21 @@ function AdminShopsInner() {
               </div>
             </div>
           )}
+
+          {selected.commission_mode === 'monthly_lumpsum' && (
+            <div className="mt-8">
+              <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('cm.chargeHistoryHeading')}</p>
+              {charges.length === 0 && <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('cm.noChargesYet')}</p>}
+              <div className="space-y-1.5">
+                {charges.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between gap-3 bg-white border border-dp-outline-variant rounded-lg px-3.5 py-2.5">
+                    <p className="font-sans text-[13px] text-dp-on-surface">{c.period}</p>
+                    <p className="font-sans text-[13.5px] font-bold text-dp-secondary">{fmt(c.amount_pkr)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -448,6 +476,25 @@ function AdminShopsInner() {
               </select>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={shopForm.delivery_enabled} onChange={(e) => setShopForm({ ...shopForm, delivery_enabled: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('mk.deliveryEnabledLabel')}</span></label>
               <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('mk.deliveryHint')}</p>
+
+              <div className="pt-2 border-t border-dp-outline-variant/60">
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.modeLabel')}</label>
+                <select value={shopForm.commission_mode} onChange={(e) => setShopForm({ ...shopForm, commission_mode: e.target.value })} className="input-field">
+                  <option value="per_order">{t('cm.perOrderOption')}</option>
+                  <option value="monthly_lumpsum">{t('cm.lumpsumOption')}</option>
+                </select>
+                {shopForm.commission_mode === 'per_order' ? (
+                  <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('cm.perOrderHint')}</p>
+                ) : (
+                  <>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('cm.lumpsumHint')}</p>
+                    <div className="mt-2">
+                      <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.lumpsumFeeLabel')}</label>
+                      <input type="number" value={shopForm.lumpsum_fee_pkr || ''} onChange={(e) => setShopForm({ ...shopForm, lumpsum_fee_pkr: +e.target.value })} className="input-field" placeholder="0" />
+                    </div>
+                  </>
+                )}
+              </div>
 
               <div className="pt-2 border-t border-dp-outline-variant/60">
                 <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('sk.keeperLinkLabel')}</label>
