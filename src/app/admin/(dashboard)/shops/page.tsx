@@ -18,13 +18,14 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { ImageUpload } from '@/components/admin/ImageUpload'
-import { CATEGORY_DEPARTMENTS } from '@/lib/marketplaceCategories'
+import { SHOP_TYPES, getShopTypeTree, getCategoryLabel } from '@/lib/shopTypes'
+import { DynamicIcon } from '@/components/shared/DynamicIcon'
 
 interface Shop {
   id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
   owner_name: string | null; owner_mobile: string | null; owner_whatsapp: string | null
   location: string | null; location_ur: string | null; delivery_enabled: boolean; status: string; portal_user_id: string | null
-  commission_mode: string; lumpsum_fee_pkr: number | null
+  commission_mode: string; lumpsum_fee_pkr: number | null; primary_type: string
 }
 interface LumpsumCharge { id: string; period: string; amount_pkr: number; created_at: string }
 interface WalletTopup { id: string; amount_pkr: number; status: string; announced_method: string; announced_at: string; rejected_reason: string | null }
@@ -42,7 +43,7 @@ interface Order {
 const emptyShop = {
   name: '', name_ur: '', description: '', description_ur: '', owner_name: '', owner_mobile: '', owner_whatsapp: '',
   location: '', location_ur: '', delivery_enabled: false, status: 'active', portal_user_id: null as string | null,
-  commission_mode: 'per_order' as string, lumpsum_fee_pkr: 0,
+  commission_mode: 'per_order' as string, lumpsum_fee_pkr: 0, primary_type: 'general_store' as string,
 }
 const emptyProduct = {
   name: '', name_ur: '', description: '', description_ur: '', company: '', category: 'other' as string, flavor: '', flavor_ur: '',
@@ -209,6 +210,7 @@ function AdminShopsInner() {
       owner_name: s.owner_name ?? '', owner_mobile: s.owner_mobile ?? '', owner_whatsapp: s.owner_whatsapp ?? '',
       location: s.location ?? '', location_ur: s.location_ur ?? '', delivery_enabled: s.delivery_enabled, status: s.status,
       portal_user_id: s.portal_user_id, commission_mode: s.commission_mode, lumpsum_fee_pkr: s.lumpsum_fee_pkr ?? 0,
+      primary_type: s.primary_type ?? 'general_store',
     })
     setKeeperMobile('')
     if (s.portal_user_id) {
@@ -343,9 +345,14 @@ function AdminShopsInner() {
             {shops.map((s) => (
               <button key={s.id} onClick={() => openShop(s)} className="text-start bg-white border border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-colors cursor-pointer">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-sans text-[15px] font-bold text-dp-on-surface truncate">{isUrdu && s.name_ur ? s.name_ur : s.name}</p>
-                    {s.location && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{isUrdu ? (s.location_ur || s.location) : s.location}</p>}
+                  <div className="min-w-0 flex items-start gap-2">
+                    <div className="shrink-0 w-8 h-8 rounded-lg bg-dp-secondary-container/50 text-dp-secondary flex items-center justify-center mt-0.5">
+                      <DynamicIcon name={SHOP_TYPES.find((st) => st.slug === s.primary_type)?.icon ?? 'Store'} size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-sans text-[15px] font-bold text-dp-on-surface truncate">{isUrdu && s.name_ur ? s.name_ur : s.name}</p>
+                      {s.location && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{isUrdu ? (s.location_ur || s.location) : s.location}</p>}
+                    </div>
                   </div>
                   <span className={`shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${s.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>
                     {s.status === 'active' ? t('mk.active') : t('mk.inactive')}
@@ -499,6 +506,19 @@ function AdminShopsInner() {
               <button onClick={() => setShowShopForm(false)} className="cursor-pointer"><X size={20} /></button>
             </div>
             <div className="space-y-3">
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cm.shopTypeLabel')}</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {SHOP_TYPES.map((st) => (
+                    <button key={st.slug} type="button" onClick={() => setShopForm({ ...shopForm, primary_type: st.slug })}
+                      className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg text-[11px] font-sans font-semibold cursor-pointer transition-all text-center ${shopForm.primary_type === st.slug ? 'bg-dp-secondary text-white' : 'bg-dp-surface-container text-dp-on-surface-variant hover:bg-dp-surface-container-high'}`}>
+                      <DynamicIcon name={st.icon} size={18} />
+                      <span className="leading-tight">{isUrdu ? st.label_ur : st.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('cm.shopTypeHint')}</p>
+              </div>
               <input value={shopForm.name} onChange={(e) => setShopForm({ ...shopForm, name: e.target.value })} placeholder={t('mk.shopNamePlaceholder')} className="input-field" />
               <input value={shopForm.name_ur} onChange={(e) => setShopForm({ ...shopForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
               <textarea value={shopForm.description} onChange={(e) => setShopForm({ ...shopForm, description: e.target.value })} rows={2} placeholder={t('a.notesOptional')} className="input-field resize-none" />
@@ -582,9 +602,9 @@ function AdminShopsInner() {
               <div>
                 <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.categoryLabel')}</label>
                 <select value={productForm.category} onChange={(e) => setProductForm({ ...productForm, category: e.target.value })} className="input-field">
-                  {CATEGORY_DEPARTMENTS.map((d) => (
-                    <optgroup key={d.key} label={t(d.tKey)}>
-                      {d.categories.map((c) => <option key={c} value={c}>{t(`sk.category.${c}`)}</option>)}
+                  {getShopTypeTree(selected?.primary_type).map((d) => (
+                    <optgroup key={d.key} label={isUrdu ? d.label_ur : d.label}>
+                      {d.categories.map((c) => <option key={c.slug} value={c.slug}>{isUrdu ? c.label_ur : c.label}</option>)}
                     </optgroup>
                   ))}
                 </select>

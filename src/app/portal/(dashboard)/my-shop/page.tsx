@@ -18,9 +18,9 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { WalletTopupModal } from '@/components/portal/WalletTopupModal'
-import { CATEGORY_DEPARTMENTS } from '@/lib/marketplaceCategories'
+import { getShopTypeTree } from '@/lib/shopTypes'
 
-interface Shop { id: string; name: string; name_ur: string | null; delivery_enabled: boolean; commission_mode: string }
+interface Shop { id: string; name: string; name_ur: string | null; delivery_enabled: boolean; commission_mode: string; primary_type: string }
 interface Product {
   id: string; name: string; name_ur: string | null; description: string | null
   company: string | null; category: string | null; flavor: string | null; flavor_ur: string | null
@@ -71,7 +71,7 @@ export default function MyShopPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('shops').select('id, name, name_ur, delivery_enabled, commission_mode').eq('portal_user_id', user.id).maybeSingle()
+    supabase.from('shops').select('id, name, name_ur, delivery_enabled, commission_mode, primary_type').eq('portal_user_id', user.id).maybeSingle()
       .then(({ data }) => { setShop(data); setShopLoading(false) })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -287,9 +287,9 @@ export default function MyShopPage() {
               </div>
               <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.categoryLabel')}</label>
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">
-                {CATEGORY_DEPARTMENTS.map((d) => (
-                  <optgroup key={d.key} label={t(d.tKey)}>
-                    {d.categories.map((c) => <option key={c} value={c}>{t(`sk.category.${c}`)}</option>)}
+                {getShopTypeTree(shop?.primary_type).map((d) => (
+                  <optgroup key={d.key} label={isUrdu ? d.label_ur : d.label}>
+                    {d.categories.map((c) => <option key={c.slug} value={c.slug}>{isUrdu ? c.label_ur : c.label}</option>)}
                   </optgroup>
                 ))}
               </select>

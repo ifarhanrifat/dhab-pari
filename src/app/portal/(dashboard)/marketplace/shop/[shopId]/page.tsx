@@ -16,12 +16,13 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
-import { CATEGORY_DEPARTMENTS } from '@/lib/marketplaceCategories'
+import { getShopTypeTree } from '@/lib/shopTypes'
+import { DynamicIcon } from '@/components/shared/DynamicIcon'
 
 interface Shop {
   id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
   owner_mobile: string | null; owner_whatsapp: string | null; location: string | null; location_ur: string | null
-  delivery_enabled: boolean; commission_mode: string
+  delivery_enabled: boolean; commission_mode: string; primary_type: string
 }
 interface Product {
   id: string; name: string; name_ur: string | null; flavor: string | null; flavor_ur: string | null
@@ -90,8 +91,9 @@ export default function ShopDetailPage() {
     for (const p of products) counts[categoryOf(p)] = (counts[categoryOf(p)] ?? 0) + 1
     return counts
   }, [products]) // eslint-disable-line react-hooks/exhaustive-deps
-  const departmentsPresent = CATEGORY_DEPARTMENTS.filter((d) => d.categories.some((c) => (countByCategory[c] ?? 0) > 0))
-  const categoriesPresent = (deptKey: string) => (CATEGORY_DEPARTMENTS.find((d) => d.key === deptKey)?.categories ?? []).filter((c) => (countByCategory[c] ?? 0) > 0)
+  const shopTree = useMemo(() => getShopTypeTree(shop?.primary_type), [shop?.primary_type])
+  const departmentsPresent = shopTree.filter((d) => d.categories.some((c) => (countByCategory[c.slug] ?? 0) > 0))
+  const categoriesPresent = (deptKey: string) => (shopTree.find((d) => d.key === deptKey)?.categories ?? []).filter((c) => (countByCategory[c.slug] ?? 0) > 0)
   const visibleProducts = activeCategory ? products.filter((p) => categoryOf(p) === activeCategory) : []
 
   const submit = async () => {
@@ -145,11 +147,14 @@ export default function ShopDetailPage() {
           <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><LayoutGrid size={13} /> {t('cm.browseByDept')}</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {departmentsPresent.map((d) => {
-              const count = d.categories.reduce((s, c) => s + (countByCategory[c] ?? 0), 0)
+              const count = d.categories.reduce((s, c) => s + (countByCategory[c.slug] ?? 0), 0)
               return (
-                <button key={d.key} onClick={() => setActiveDept(d.key)} className="text-start bg-white border border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-colors cursor-pointer flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t(d.tKey)}</p>
+                <button key={d.key} onClick={() => setActiveDept(d.key)} className="text-start bg-white border border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-colors cursor-pointer flex items-center gap-3">
+                  <div className="shrink-0 w-9 h-9 rounded-lg bg-dp-secondary-container/50 text-dp-secondary flex items-center justify-center">
+                    <DynamicIcon name={d.icon} size={18} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-sans text-[14px] font-bold text-dp-on-surface">{isUrdu ? d.label_ur : d.label}</p>
                     <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{count} {t('mk.productsCount')}</p>
                   </div>
                   <ChevronRight size={16} className={`shrink-0 text-dp-on-surface-variant ${isUrdu ? 'rotate-180' : ''}`} />
@@ -165,13 +170,13 @@ export default function ShopDetailPage() {
           <button onClick={() => setActiveDept(null)} className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[13px] font-semibold hover:underline cursor-pointer mb-3">
             <ArrowLeft size={13} className={isUrdu ? 'rotate-180' : ''} /> {t('cm.browseByDept')}
           </button>
-          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t(CATEGORY_DEPARTMENTS.find((d) => d.key === activeDept)!.tKey)}</p>
+          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{(() => { const d = shopTree.find((d) => d.key === activeDept); return d ? (isUrdu ? d.label_ur : d.label) : '' })()}</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {categoriesPresent(activeDept).map((c) => (
-              <button key={c} onClick={() => setActiveCategory(c)} className="text-start bg-white border border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-colors cursor-pointer flex items-center justify-between gap-2">
+              <button key={c.slug} onClick={() => setActiveCategory(c.slug)} className="text-start bg-white border border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-colors cursor-pointer flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t(`sk.category.${c}`)}</p>
-                  <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{countByCategory[c] ?? 0} {t('mk.productsCount')}</p>
+                  <p className="font-sans text-[14px] font-bold text-dp-on-surface">{isUrdu ? c.label_ur : c.label}</p>
+                  <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{countByCategory[c.slug] ?? 0} {t('mk.productsCount')}</p>
                 </div>
                 <ChevronRight size={16} className={`shrink-0 text-dp-on-surface-variant ${isUrdu ? 'rotate-180' : ''}`} />
               </button>
@@ -183,9 +188,9 @@ export default function ShopDetailPage() {
       {activeCategory && (
         <div className="mt-5">
           <button onClick={() => setActiveCategory(null)} className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[13px] font-semibold hover:underline cursor-pointer mb-3">
-            <ArrowLeft size={13} className={isUrdu ? 'rotate-180' : ''} /> {t(CATEGORY_DEPARTMENTS.find((d) => d.key === activeDept)!.tKey)}
+            <ArrowLeft size={13} className={isUrdu ? 'rotate-180' : ''} /> {(() => { const d = shopTree.find((d) => d.key === activeDept); return d ? (isUrdu ? d.label_ur : d.label) : '' })()}
           </button>
-          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t(`sk.category.${activeCategory}`)}</p>
+          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{(() => { const c = shopTree.flatMap((d) => d.categories).find((c) => c.slug === activeCategory); return c ? (isUrdu ? c.label_ur : c.label) : '' })()}</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {visibleProducts.map((p) => (
               <div key={p.id} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">

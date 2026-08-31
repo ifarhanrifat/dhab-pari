@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { GoogleGenAI } from '@google/genai'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { PRODUCT_CATEGORIES } from '@/lib/marketplaceCategories'
+import { getShopTypeTree } from '@/lib/shopTypes'
 
 // Camera-to-catalog: a shop keeper photographs a physical product, Gemini
 // reads the packaging and drafts name/company/category/description — the
@@ -14,19 +14,30 @@ import { PRODUCT_CATEGORIES } from '@/lib/marketplaceCategories'
 // shared GEMINI_API_KEY — each shop pays for its own usage, free-tier or
 // not, and the key never leaves the server (fetched here via the admin
 // client only after confirming the caller actually owns this shop).
+//
+// The category list passed to the model is THIS SHOP'S OWN tree (its
+// shop type), not the full ~170-slug list across every shop type —
+// keeps the model's choice constrained to what's actually plausible for
+// this business and improves match accuracy on a shorter, more relevant
+// list (a butcher's photo should never be offered "Tandoori Roti").
 const ALLOWED_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 type AllowedMediaType = (typeof ALLOWED_MEDIA_TYPES)[number]
 
-const SYSTEM_PROMPT = `You are helping a small Pakistani corner-store keeper add a product to their shop's catalog from a photo of the item (its packaging/label).
+function buildSystemPrompt(categorySlugs: string[], categoryListing: string): string {
+  return `You are helping a small Pakistani shop keeper add a product to their shop's catalog from a photo of the item (its packaging/label, or the item itself for unpackaged goods/services).
 
 Read whatever is printed on the packaging (brand, product name, variant/size, language may be English or Urdu) and draft catalog fields for it. Never invent details that aren't legible in the photo — leave a field empty rather than guess.
 
-Pick the single best-fitting category from EXACTLY this list: ${PRODUCT_CATEGORIES.join(', ')}. Use "other" if none fit.
+Pick the single best-fitting category from EXACTLY this list (code — English label / Urdu label):
+${categoryListing}
+
+Respond with the category CODE only (e.g. "${categorySlugs[0]}"), not the label. Use "other" if none fit and it's in the list, otherwise pick the closest one.
 
 Most packaged products (biscuits, chips, drinks, etc.) come in a specific flavor or variant — read it off the packaging if printed (e.g. "Salted", "BBQ", "Chocolate", "Orange", "Masala"). Leave it empty if the product has no flavor/variant (e.g. plain rice, a bar of soap) or none is legible.
 
 Respond with ONLY a JSON object, no markdown fences, no other text, in this exact shape:
 {"name": "product name in English/Roman, as printed", "name_ur": "product name in Urdu script if determinable, else empty string", "company": "brand/manufacturer name, else empty string", "category": "one of the allowed category codes", "flavor": "flavor/variant in English/Roman if printed, else empty string", "flavor_ur": "flavor/variant in Urdu script if determinable, else empty string", "description": "one short phrase, e.g. size/variant, else empty string"}`
+}
 
 function extractJsonObject(text: string): Record<string, string> {
   const match = text.match(/\{[\s\S]*\}/)
@@ -78,8 +89,15 @@ export async function POST(req: NextRequest) {
 
   // Ownership check happens against the caller's own session (RLS-backed,
   // not the admin client) so this can't be used to probe another shop.
-  const { data: shop } = await supabase.from('shops').select('id').eq('id', shopId).eq('portal_user_id', portalUser.id).maybeSingle()
+  const { data: shop } = await supabase.from('shops').select('id, primary_type').eq('id', shopId).eq('portal_user_id', portalUser.id).maybeSingle()
   if (!shop) return NextResponse.json({ error: 'You do not manage this shop.' }, { status: 403 })
+
+  const tree = getShopTypeTree(shop.primary_type)
+  const categorySlugs = tree.flatMap((d) => d.categories.map((c) => c.slug))
+  // Urdu label included per category — packaging text is often Urdu, and
+  // the model matches it more reliably against an Urdu label than an
+  // English one alone.
+  const categoryListing = tree.flatMap((d) => d.categories.map((c) => `${c.slug} — ${c.label} / ${c.label_ur}`)).join('\n')
 
   const admin = createAdminClient()
   const { data: aiSettings } = await admin.from('shop_ai_settings').select('gemini_api_key').eq('shop_id', shopId).maybeSingle()
@@ -93,12 +111,12 @@ export async function POST(req: NextRequest) {
     const result = await genAI.models.generateContent({
       model: 'gemini-flash-latest',
       contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: imageBase64 } }, { text: 'Draft catalog fields for this product.' }] }],
-      config: { systemInstruction: SYSTEM_PROMPT },
+      config: { systemInstruction: buildSystemPrompt(categorySlugs, categoryListing) },
     })
     const text = result.text ?? result.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
     if (!text) throw new Error('No text in model response')
     const fields = extractJsonObject(text)
-    const category = PRODUCT_CATEGORIES.includes(fields.category) ? fields.category : 'other'
+    const category = categorySlugs.includes(fields.category) ? fields.category : 'other'
     return NextResponse.json({
       name: fields.name ?? '', name_ur: fields.name_ur ?? '', company: fields.company ?? '',
       category, flavor: fields.flavor ?? '', flavor_ur: fields.flavor_ur ?? '', description: fields.description ?? '',

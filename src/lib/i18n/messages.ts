@@ -2030,6 +2030,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'cm.browseByDept': 'Browse by department', 'cm.deptFood': 'Food & Groceries', 'cm.deptHousehold': 'Household & Personal', 'cm.deptOther': 'Other',
     'cm.deptBabyKids': 'Baby & Kids', 'cm.deptHealth': 'Health & Pharmacy', 'cm.deptElectronics': 'Electronics & Hardware',
     'cm.categoryLabel': 'Category',
+    'cm.shopTypeLabel': 'Shop Type', 'cm.shopTypeHint': "Sets the category list this shop's products are filed under.",
 
     // Marketplace — static route maps + one-off return-trip ride-share
     'cm.clearOriginPin': 'Clear origin pin', 'cm.clearDestinationPin': 'Clear destination pin',
@@ -6219,6 +6220,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'cm.browseByDept': 'شعبہ کے مطابق دیکھیں', 'cm.deptFood': 'کھانے پینے کی اشیاء', 'cm.deptHousehold': 'گھریلو اور ذاتی اشیاء', 'cm.deptOther': 'دیگر',
     'cm.deptBabyKids': 'بچوں کی اشیاء', 'cm.deptHealth': 'صحت و ادویات', 'cm.deptElectronics': 'برقی اور ہارڈویئر اشیاء',
     'cm.categoryLabel': 'قسم',
+    'cm.shopTypeLabel': 'دکان کی قسم', 'cm.shopTypeHint': 'اس دکان کی اشیاء کس فہرست کے تحت درج ہوں گی، یہ اسی سے طے ہوتا ہے۔',
 
     // Marketplace — static route maps + one-off return-trip ride-share
     'cm.clearOriginPin': 'ابتدائی پن ہٹائیں', 'cm.clearDestinationPin': 'منزل کا پن ہٹائیں',
