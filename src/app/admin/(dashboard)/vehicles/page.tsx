@@ -188,18 +188,45 @@ function AdminVehiclesInner() {
     if (selected) loadTopups(selected.id)
   }
 
+  // See admin/shops' identical findKeeper for why this persists
+  // immediately rather than waiting for a later form save, and why a
+  // portal account already linked to another vehicle is blocked here
+  // with a named error instead of a raw constraint failure (migration 406).
   const findKeeper = async () => {
     const mobile = keeperMobile.trim()
     if (!mobile) return
     setLinkingKeeper(true)
     const { data } = await supabase.from('portal_users').select('id, full_name, mobile').eq('mobile', mobile).eq('is_active', true).maybeSingle()
-    setLinkingKeeper(false)
-    if (!data) { toast.error(t('sk.keeperNotFound')); return }
+    if (!data) { setLinkingKeeper(false); toast.error(t('sk.keeperNotFound')); return }
+
+    const { data: existingLink } = await supabase.from('vehicles').select('id, owner_name').eq('portal_user_id', data.id).maybeSingle()
+    if (existingLink && existingLink.id !== editingVehicle?.id) {
+      setLinkingKeeper(false)
+      toast.error(t('sk.keeperAlreadyLinkedElsewhereVehicle').replace('{vehicle}', existingLink.owner_name))
+      return
+    }
+
+    if (editingVehicle) {
+      const { error } = await supabase.from('vehicles').update({ portal_user_id: data.id }).eq('id', editingVehicle.id)
+      setLinkingKeeper(false)
+      if (error) { toast.error(friendlyError(error)); return }
+      toast.success(t('sk.keeperLinkedToast'))
+      load()
+    } else {
+      setLinkingKeeper(false)
+    }
     setVehicleForm({ ...vehicleForm, portal_user_id: data.id })
     setKeeperName(`${data.full_name} (${data.mobile})`)
     setKeeperMobile('')
   }
-  const unlinkKeeper = () => { setVehicleForm({ ...vehicleForm, portal_user_id: null }); setKeeperName(null) }
+  const unlinkKeeper = async () => {
+    setVehicleForm({ ...vehicleForm, portal_user_id: null }); setKeeperName(null)
+    if (!editingVehicle) return
+    const { error } = await supabase.from('vehicles').update({ portal_user_id: null }).eq('id', editingVehicle.id)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('sk.keeperUnlinkedToast'))
+    load()
+  }
 
   const confirmBooking = async (b: Booking) => {
     setBookingActionId(b.id)

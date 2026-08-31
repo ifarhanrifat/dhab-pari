@@ -225,21 +225,48 @@ function AdminShopsInner() {
   }
 
   // Finds a portal account by mobile and links it as this shop's
-  // self-service keeper (shops.portal_user_id, migration 391) — the
-  // keeper still needs a portal account already (created via normal
-  // signup); this only designates which one manages this shop's catalog.
+  // self-service keeper (shops.portal_user_id, migration 391). Persists
+  // immediately for a shop that already exists — this used to only touch
+  // local form state, so a "found" keeper looked linked in the UI but
+  // silently never made it to the database unless the whole shop form
+  // was separately saved afterward. A portal account can only manage one
+  // shop at a time (unique index, migration 406) — checked here first so
+  // the error names the other shop instead of a raw constraint failure.
   const findKeeper = async () => {
     const mobile = keeperMobile.trim()
     if (!mobile) return
     setLinkingKeeper(true)
     const { data } = await supabase.from('portal_users').select('id, full_name, mobile').eq('mobile', mobile).eq('is_active', true).maybeSingle()
-    setLinkingKeeper(false)
-    if (!data) { toast.error(t('sk.keeperNotFound')); return }
+    if (!data) { setLinkingKeeper(false); toast.error(t('sk.keeperNotFound')); return }
+
+    const { data: existingLink } = await supabase.from('shops').select('id, name').eq('portal_user_id', data.id).maybeSingle()
+    if (existingLink && existingLink.id !== editingShop?.id) {
+      setLinkingKeeper(false)
+      toast.error(t('sk.keeperAlreadyLinkedElsewhere').replace('{shop}', existingLink.name))
+      return
+    }
+
+    if (editingShop) {
+      const { error } = await supabase.from('shops').update({ portal_user_id: data.id }).eq('id', editingShop.id)
+      setLinkingKeeper(false)
+      if (error) { toast.error(friendlyError(error)); return }
+      toast.success(t('sk.keeperLinkedToast'))
+      load()
+    } else {
+      setLinkingKeeper(false)
+    }
     setShopForm({ ...shopForm, portal_user_id: data.id })
     setKeeperName(`${data.full_name} (${data.mobile})`)
     setKeeperMobile('')
   }
-  const unlinkKeeper = () => { setShopForm({ ...shopForm, portal_user_id: null }); setKeeperName(null) }
+  const unlinkKeeper = async () => {
+    setShopForm({ ...shopForm, portal_user_id: null }); setKeeperName(null)
+    if (!editingShop) return
+    const { error } = await supabase.from('shops').update({ portal_user_id: null }).eq('id', editingShop.id)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('sk.keeperUnlinkedToast'))
+    load()
+  }
 
   const saveShop = async () => {
     if (!shopForm.name.trim()) { toast.error(t('mk.nameRequired')); return }

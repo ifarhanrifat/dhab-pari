@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { SITE } from '@/lib/constants'
 
 interface TripOffer {
   id: string; trip_type: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
@@ -53,7 +54,17 @@ export default function TripsPage() {
       supabase.from('vehicle_trip_bookings').select('id, seats, total_amount_pkr, status, vehicle_trip_offers(origin, origin_ur, destination, destination_ur, travel_date)')
         .order('created_at', { ascending: false }).limit(20),
     ])
-    setOffers(((o ?? []) as unknown as TripOffer[]).filter((x) => new Date(x.travel_date) >= new Date(new Date().toDateString())))
+    // The whole point of this feature is a driver heading BACK to the
+    // village from somewhere else — an offer whose origin already IS the
+    // village isn't a "return trip" at all (that's what vehicle_routes'
+    // regular scheduled listings are for), so it's filtered out here
+    // rather than shown as noise. No geo-boundary/lat-lng exists for
+    // these offers (unlike vehicle_routes' pinned origin/destination) —
+    // this is a same-name text match, not a radius; a nearby town whose
+    // name doesn't literally mention the village slips through.
+    const startsHere = (s: string | null) => !!s && (s.includes(SITE.name) || s.includes(SITE.nameUrdu))
+    setOffers(((o ?? []) as unknown as TripOffer[]).filter((x) =>
+      new Date(x.travel_date) >= new Date(new Date().toDateString()) && !startsHere(x.origin) && !startsHere(x.origin_ur)))
     setMyOffers((mo ?? []) as unknown as MyFareOffer[])
     setMyBookings((mb ?? []) as unknown as MyTripBooking[])
     setLoading(false)
