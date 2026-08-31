@@ -21,7 +21,7 @@ interface Shop {
   id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
   owner_mobile: string | null; owner_whatsapp: string | null; location: string | null; location_ur: string | null; delivery_enabled: boolean
 }
-interface Product { id: string; name: string; name_ur: string | null; unit_price_pkr: number; quantity_on_hand: number; is_active: boolean }
+interface Product { id: string; name: string; name_ur: string | null; flavor: string | null; flavor_ur: string | null; unit_price_pkr: number; quantity_on_hand: number; is_active: boolean }
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -115,7 +115,10 @@ export default function ShopDetailPage() {
               )}
             </div>
             <div className="p-2.5">
-              <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface truncate">{isUrdu && p.name_ur ? p.name_ur : p.name}</p>
+              <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface truncate">
+                {isUrdu && p.name_ur ? p.name_ur : p.name}
+                {(isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) && <span className="font-normal text-dp-on-surface-variant"> ({isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})</span>}
+              </p>
               <p className="font-sans text-[13.5px] font-bold text-dp-secondary mt-0.5">{fmt(p.unit_price_pkr)}</p>
               {shop.delivery_enabled && (
                 p.quantity_on_hand <= 0 ? (
@@ -138,7 +141,7 @@ export default function ShopDetailPage() {
           <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2 flex items-center gap-1.5"><ShoppingCart size={13} /> {t('mp.cartHeading')}</p>
           {cartItems.map((p) => (
             <div key={p.id} className="flex items-center justify-between gap-2 py-1">
-              <p className="font-sans text-[13px] text-dp-on-surface truncate">{isUrdu && p.name_ur ? p.name_ur : p.name} × <span className="ltr-num">{cart[p.id]}</span></p>
+              <p className="font-sans text-[13px] text-dp-on-surface truncate">{isUrdu && p.name_ur ? p.name_ur : p.name}{(isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) && ` (${isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})`} × <span className="ltr-num">{cart[p.id]}</span></p>
               <p className="font-sans text-[13px] font-semibold text-dp-on-surface shrink-0">{fmt(p.unit_price_pkr * cart[p.id])}</p>
             </div>
           ))}

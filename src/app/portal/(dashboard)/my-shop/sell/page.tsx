@@ -19,7 +19,13 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Shop { id: string; name: string; name_ur: string | null }
-interface Product { id: string; name: string; name_ur: string | null; company: string | null; unit_price_pkr: number; quantity_on_hand: number }
+interface Product { id: string; name: string; name_ur: string | null; company: string | null; flavor: string | null; flavor_ur: string | null; unit_price_pkr: number; quantity_on_hand: number }
+
+function displayName(p: { name: string; name_ur: string | null; flavor: string | null; flavor_ur: string | null }, isUrdu: boolean) {
+  const name = isUrdu && p.name_ur ? p.name_ur : p.name
+  const flavor = isUrdu ? (p.flavor_ur || p.flavor) : p.flavor
+  return flavor ? `${name} (${flavor})` : name
+}
 interface BillRow { product_id: string; name: string; unit_price_pkr: number; quantity: number; max: number }
 
 function fmt(n: number) {
@@ -56,7 +62,7 @@ export default function SellPage() {
     supabase.from('shops').select('id, name, name_ur').eq('portal_user_id', user.id).maybeSingle().then(({ data }) => {
       setShop(data)
       if (data) {
-        supabase.from('shop_products').select('id, name, name_ur, company, unit_price_pkr, quantity_on_hand')
+        supabase.from('shop_products').select('id, name, name_ur, company, flavor, flavor_ur, unit_price_pkr, quantity_on_hand')
           .eq('shop_id', data.id).eq('is_active', true).order('name')
           .then(({ data: p }) => { setProducts(p ?? []); setLoading(false) })
       } else setLoading(false)
@@ -71,7 +77,7 @@ export default function SellPage() {
         if (existing.quantity >= existing.max) { toast.error(t('sk.noMoreStock')); return rows }
         return rows.map((r) => r.product_id === p.id ? { ...r, quantity: r.quantity + 1 } : r)
       }
-      return [...rows, { product_id: p.id, name: isUrdu && p.name_ur ? p.name_ur : p.name, unit_price_pkr: p.unit_price_pkr, quantity: 1, max: p.quantity_on_hand }]
+      return [...rows, { product_id: p.id, name: displayName(p, isUrdu), unit_price_pkr: p.unit_price_pkr, quantity: 1, max: p.quantity_on_hand }]
     })
     setShowSearch(false)
     setSearch('')
@@ -116,12 +122,13 @@ export default function SellPage() {
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('sk.saleCompletedToast'))
     setBill([])
-    supabase.from('shop_products').select('id, name, name_ur, company, unit_price_pkr, quantity_on_hand')
+    supabase.from('shop_products').select('id, name, name_ur, company, flavor, flavor_ur, unit_price_pkr, quantity_on_hand')
       .eq('shop_id', shop!.id).eq('is_active', true).order('name').then(({ data }) => setProducts(data ?? []))
   }
 
   const filtered = search.trim()
-    ? products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()) || (p.name_ur ?? '').includes(search) || (p.company ?? '').toLowerCase().includes(search.toLowerCase()))
+    ? products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()) || (p.name_ur ?? '').includes(search)
+        || (p.company ?? '').toLowerCase().includes(search.toLowerCase()) || (p.flavor ?? '').toLowerCase().includes(search.toLowerCase()) || (p.flavor_ur ?? '').includes(search))
     : products
 
   if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
@@ -187,7 +194,7 @@ export default function SellPage() {
             <div className="space-y-1">
               {filtered.map((p) => (
                 <button key={p.id} onClick={() => addToBill(p)} className="w-full text-start flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-dp-surface-container cursor-pointer">
-                  <span className="min-w-0 truncate font-sans text-[13.5px] text-dp-on-surface">{isUrdu && p.name_ur ? p.name_ur : p.name}</span>
+                  <span className="min-w-0 truncate font-sans text-[13.5px] text-dp-on-surface">{displayName(p, isUrdu)}</span>
                   <span className="shrink-0 font-sans text-[12.5px] font-bold text-dp-secondary">{fmt(p.unit_price_pkr)}</span>
                 </button>
               ))}

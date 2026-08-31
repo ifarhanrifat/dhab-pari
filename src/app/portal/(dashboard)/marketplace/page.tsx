@@ -20,7 +20,7 @@ interface Route {
   classification: string; fare_per_seat_pkr: number
 }
 interface SearchResult {
-  product_id: string; product_name: string; product_name_ur: string | null; unit_price_pkr: number
+  product_id: string; product_name: string; product_name_ur: string | null; flavor: string | null; flavor_ur: string | null; unit_price_pkr: number
   shop_id: string; shop_name: string; shop_name_ur: string | null; shop_location: string | null; shop_location_ur: string | null; delivery_enabled: boolean
 }
 interface ShopOrder {
@@ -112,7 +112,10 @@ export default function PortalMarketplacePage() {
             {results.map((r) => (
               <Link key={`${r.shop_id}-${r.product_id}`} href={`/portal/marketplace/shop/${r.shop_id}`} className="flex items-center justify-between gap-3 bg-white border border-dp-outline-variant rounded-lg p-3 hover:border-dp-secondary transition-colors">
                 <div className="min-w-0">
-                  <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface truncate">{isUrdu && r.product_name_ur ? r.product_name_ur : r.product_name}</p>
+                  <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface truncate">
+                    {isUrdu && r.product_name_ur ? r.product_name_ur : r.product_name}
+                    {(isUrdu ? (r.flavor_ur || r.flavor) : r.flavor) && <span className="font-normal text-dp-on-surface-variant"> ({isUrdu ? (r.flavor_ur || r.flavor) : r.flavor})</span>}
+                  </p>
                   <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5 truncate">{isUrdu && r.shop_name_ur ? r.shop_name_ur : r.shop_name}{!r.delivery_enabled && ` · ${t('mp.visitStoreNote')}`}</p>
                 </div>
                 <p className="font-sans text-[14px] font-bold text-dp-secondary shrink-0">{fmt(r.unit_price_pkr)}</p>

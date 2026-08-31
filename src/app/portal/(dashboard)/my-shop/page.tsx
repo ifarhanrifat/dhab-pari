@@ -21,14 +21,14 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 interface Shop { id: string; name: string; name_ur: string | null; delivery_enabled: boolean }
 interface Product {
   id: string; name: string; name_ur: string | null; description: string | null
-  company: string | null; category: string | null
+  company: string | null; category: string | null; flavor: string | null; flavor_ur: string | null
   unit_price_pkr: number; cost_price_pkr: number; quantity_on_hand: number; expiry_date: string | null; is_active: boolean
 }
 
 const CATEGORIES = ['biscuits_snacks', 'beverages', 'grocery_pantry', 'dairy', 'frozen', 'personal_care', 'household', 'stationery', 'cigarettes_paan', 'other'] as const
 
 const emptyProduct = {
-  name: '', name_ur: '', description: '', company: '', category: 'other' as string,
+  name: '', name_ur: '', description: '', company: '', category: 'other' as string, flavor: '', flavor_ur: '',
   unit_price_pkr: 0, cost_price_pkr: 0, quantity_on_hand: 0, expiry_date: '', is_active: true,
 }
 
@@ -95,7 +95,8 @@ export default function MyShopPage() {
     setEditing(p)
     setForm({
       name: p.name, name_ur: p.name_ur ?? '', description: p.description ?? '', company: p.company ?? '',
-      category: p.category ?? 'other', unit_price_pkr: p.unit_price_pkr, cost_price_pkr: p.cost_price_pkr,
+      category: p.category ?? 'other', flavor: p.flavor ?? '', flavor_ur: p.flavor_ur ?? '',
+      unit_price_pkr: p.unit_price_pkr, cost_price_pkr: p.cost_price_pkr,
       quantity_on_hand: p.quantity_on_hand, expiry_date: p.expiry_date ?? '', is_active: p.is_active,
     })
     setCoverUrl(coverByProduct[p.id] ?? '')
@@ -124,7 +125,8 @@ export default function MyShopPage() {
       setEditing(null)
       setForm({
         ...emptyProduct, name: json.name || '', name_ur: json.name_ur || '', company: json.company || '',
-        category: json.category || 'other', description: json.description || '',
+        category: json.category || 'other', flavor: json.flavor || '', flavor_ur: json.flavor_ur || '',
+        description: json.description || '',
       })
       setCoverUrl(publicUrl)
       setShowForm(true)
@@ -142,7 +144,7 @@ export default function MyShopPage() {
     setSaving(true)
     const payload = {
       shop_id: shop.id, name: form.name, name_ur: form.name_ur || null, description: form.description || null,
-      company: form.company || null, category: form.category || null,
+      company: form.company || null, category: form.category || null, flavor: form.flavor || null, flavor_ur: form.flavor_ur || null,
       unit_price_pkr: form.unit_price_pkr, cost_price_pkr: form.cost_price_pkr, quantity_on_hand: form.quantity_on_hand,
       expiry_date: form.expiry_date || null, is_active: form.is_active,
     }
@@ -235,7 +237,10 @@ export default function MyShopPage() {
               {p.quantity_on_hand <= 0 && <span className="absolute top-1.5 end-1.5 inline-flex items-center gap-1 text-[9.5px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-100 text-red-700"><PackageX size={10} /> {t('sk.outOfStock')}</span>}
             </div>
             <div className="p-3">
-              <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface truncate">{isUrdu && p.name_ur ? p.name_ur : p.name}</p>
+              <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface truncate">
+                {isUrdu && p.name_ur ? p.name_ur : p.name}
+                {(isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) && <span className="font-normal text-dp-on-surface-variant"> ({isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})</span>}
+              </p>
               {p.company && <p className="font-sans text-[11px] text-dp-on-surface-variant truncate">{p.company}</p>}
               <div className="flex items-baseline gap-2 mt-1">
                 <p className="font-sans text-[14px] font-bold text-dp-secondary">{fmt(p.unit_price_pkr)}</p>
@@ -267,6 +272,10 @@ export default function MyShopPage() {
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('mk.productNamePlaceholder')} className="input-field" />
               <input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
               <input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder={t('sk.companyPlaceholder')} className="input-field" />
+              <div className="grid grid-cols-2 gap-3">
+                <input value={form.flavor} onChange={(e) => setForm({ ...form, flavor: e.target.value })} placeholder={t('sk.flavorPlaceholder')} className="input-field" />
+                <input value={form.flavor_ur} onChange={(e) => setForm({ ...form, flavor_ur: e.target.value })} placeholder={t('sk.flavorUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+              </div>
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">
                 {CATEGORIES.map((c) => <option key={c} value={c}>{t(`sk.category.${c}`)}</option>)}
               </select>

@@ -25,8 +25,10 @@ Read whatever is printed on the packaging (brand, product name, variant/size, la
 
 Pick the single best-fitting category from EXACTLY this list: ${CATEGORIES.join(', ')}. Use "other" if none fit.
 
+Most packaged products (biscuits, chips, drinks, etc.) come in a specific flavor or variant — read it off the packaging if printed (e.g. "Salted", "BBQ", "Chocolate", "Orange", "Masala"). Leave it empty if the product has no flavor/variant (e.g. plain rice, a bar of soap) or none is legible.
+
 Respond with ONLY a JSON object, no markdown fences, no other text, in this exact shape:
-{"name": "product name in English/Roman, as printed", "name_ur": "product name in Urdu script if determinable, else empty string", "company": "brand/manufacturer name, else empty string", "category": "one of the allowed category codes", "description": "one short phrase, e.g. size/variant, else empty string"}`
+{"name": "product name in English/Roman, as printed", "name_ur": "product name in Urdu script if determinable, else empty string", "company": "brand/manufacturer name, else empty string", "category": "one of the allowed category codes", "flavor": "flavor/variant in English/Roman if printed, else empty string", "flavor_ur": "flavor/variant in Urdu script if determinable, else empty string", "description": "one short phrase, e.g. size/variant, else empty string"}`
 
 function extractJsonObject(text: string): Record<string, string> {
   const match = text.match(/\{[\s\S]*\}/)
@@ -101,7 +103,7 @@ export async function POST(req: NextRequest) {
     const category = CATEGORIES.includes(fields.category as (typeof CATEGORIES)[number]) ? fields.category : 'other'
     return NextResponse.json({
       name: fields.name ?? '', name_ur: fields.name_ur ?? '', company: fields.company ?? '',
-      category, description: fields.description ?? '',
+      category, flavor: fields.flavor ?? '', flavor_ur: fields.flavor_ur ?? '', description: fields.description ?? '',
     })
   } catch (err) {
     return NextResponse.json({ error: friendlyGeminiError(err) }, { status: 500 })

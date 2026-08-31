@@ -26,14 +26,14 @@ interface Shop {
 }
 interface Product {
   id: string; shop_id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
-  company: string | null; category: string | null; cost_price_pkr: number
+  company: string | null; category: string | null; flavor: string | null; flavor_ur: string | null; cost_price_pkr: number
   unit_price_pkr: number; quantity_on_hand: number; expiry_date: string | null; is_active: boolean
 }
 
 const PRODUCT_CATEGORIES = ['biscuits_snacks', 'beverages', 'grocery_pantry', 'dairy', 'frozen', 'personal_care', 'household', 'stationery', 'cigarettes_paan', 'other'] as const
 interface Order {
   id: string; status: string; total_amount_pkr: number; announced_method: string | null; announced_at: string | null; rejected_reason: string | null
-  shop_order_items: { quantity: number; shop_products: { name: string; name_ur: string | null } | null }[]
+  shop_order_items: { quantity: number; shop_products: { name: string; name_ur: string | null; flavor: string | null; flavor_ur: string | null } | null }[]
 }
 
 const emptyShop = {
@@ -41,7 +41,7 @@ const emptyShop = {
   location: '', location_ur: '', delivery_enabled: false, status: 'active', portal_user_id: null as string | null,
 }
 const emptyProduct = {
-  name: '', name_ur: '', description: '', description_ur: '', company: '', category: 'other' as string,
+  name: '', name_ur: '', description: '', description_ur: '', company: '', category: 'other' as string, flavor: '', flavor_ur: '',
   cost_price_pkr: 0, unit_price_pkr: 0, quantity_on_hand: 0, expiry_date: '', is_active: true,
 }
 
@@ -141,7 +141,7 @@ function AdminShopsInner() {
 
   const loadOrders = async (shopId: string) => {
     const { data } = await supabase.from('shop_orders')
-      .select('id, status, total_amount_pkr, announced_method, announced_at, rejected_reason, shop_order_items(quantity, shop_products(name, name_ur))')
+      .select('id, status, total_amount_pkr, announced_method, announced_at, rejected_reason, shop_order_items(quantity, shop_products(name, name_ur, flavor, flavor_ur))')
       .eq('shop_id', shopId).order('created_at', { ascending: false })
     setOrders((data ?? []) as unknown as Order[])
   }
@@ -234,7 +234,8 @@ function AdminShopsInner() {
     setEditingProduct(p)
     setProductForm({
       name: p.name, name_ur: p.name_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '',
-      company: p.company ?? '', category: p.category ?? 'other', cost_price_pkr: p.cost_price_pkr,
+      company: p.company ?? '', category: p.category ?? 'other', flavor: p.flavor ?? '', flavor_ur: p.flavor_ur ?? '',
+      cost_price_pkr: p.cost_price_pkr,
       unit_price_pkr: p.unit_price_pkr, quantity_on_hand: p.quantity_on_hand, expiry_date: p.expiry_date ?? '', is_active: p.is_active,
     })
     setProductCoverUrl(coverByProduct[p.id] ?? '')
@@ -248,6 +249,7 @@ function AdminShopsInner() {
       shop_id: selected.id, name: productForm.name, name_ur: productForm.name_ur || null,
       description: productForm.description || null, description_ur: productForm.description_ur || null,
       company: productForm.company || null, category: productForm.category || null,
+      flavor: productForm.flavor || null, flavor_ur: productForm.flavor_ur || null,
       cost_price_pkr: productForm.cost_price_pkr, unit_price_pkr: productForm.unit_price_pkr, quantity_on_hand: productForm.quantity_on_hand,
       expiry_date: productForm.expiry_date || null, is_active: productForm.is_active,
     }
@@ -358,7 +360,10 @@ function AdminShopsInner() {
                     )}
                   </div>
                   <div className="p-3">
-                    <p className="font-sans text-[14px] font-semibold text-dp-on-surface truncate">{isUrdu && p.name_ur ? p.name_ur : p.name}</p>
+                    <p className="font-sans text-[14px] font-semibold text-dp-on-surface truncate">
+                      {isUrdu && p.name_ur ? p.name_ur : p.name}
+                      {(isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) && <span className="font-normal text-dp-on-surface-variant"> ({isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})</span>}
+                    </p>
                     <p className="font-sans text-[15px] font-bold text-dp-secondary mt-0.5">{fmt(p.unit_price_pkr)}</p>
                     <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{t('mk.stockLabel')} {fmt(p.quantity_on_hand)}</p>
                     {tone && (
@@ -385,11 +390,15 @@ function AdminShopsInner() {
                   <div key={o.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        {o.shop_order_items.map((it, i) => (
-                          <p key={i} className="font-sans text-[13px] text-dp-on-surface truncate">
-                            {isUrdu && it.shop_products?.name_ur ? it.shop_products.name_ur : it.shop_products?.name ?? '—'} × <span className="ltr-num">{it.quantity}</span>
-                          </p>
-                        ))}
+                        {o.shop_order_items.map((it, i) => {
+                          const pName = isUrdu && it.shop_products?.name_ur ? it.shop_products.name_ur : it.shop_products?.name ?? '—'
+                          const pFlavor = isUrdu ? (it.shop_products?.flavor_ur || it.shop_products?.flavor) : it.shop_products?.flavor
+                          return (
+                            <p key={i} className="font-sans text-[13px] text-dp-on-surface truncate">
+                              {pName}{pFlavor && ` (${pFlavor})`} × <span className="ltr-num">{it.quantity}</span>
+                            </p>
+                          )
+                        })}
                       </div>
                       <p className="font-sans text-[14px] font-bold text-dp-secondary shrink-0">{fmt(o.total_amount_pkr)}</p>
                     </div>
@@ -476,6 +485,10 @@ function AdminShopsInner() {
               <textarea value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} rows={2} placeholder={t('a.notesOptional')} className="input-field resize-none" />
               <div className="grid grid-cols-2 gap-3">
                 <input value={productForm.company} onChange={(e) => setProductForm({ ...productForm, company: e.target.value })} placeholder={t('sk.companyPlaceholder')} className="input-field" />
+                <div className="grid grid-cols-2 gap-3">
+                  <input value={productForm.flavor} onChange={(e) => setProductForm({ ...productForm, flavor: e.target.value })} placeholder={t('sk.flavorPlaceholder')} className="input-field" />
+                  <input value={productForm.flavor_ur} onChange={(e) => setProductForm({ ...productForm, flavor_ur: e.target.value })} placeholder={t('sk.flavorUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+                </div>
                 <select value={productForm.category} onChange={(e) => setProductForm({ ...productForm, category: e.target.value })} className="input-field">
                   {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{t(`sk.category.${c}`)}</option>)}
                 </select>
