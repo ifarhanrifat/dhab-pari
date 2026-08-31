@@ -43,6 +43,8 @@ import {
   CalendarClock,
   Droplet,
   UploadCloud,
+  Store,
+  Bus,
   ArrowRightLeft,
   Briefcase,
   Scale,
@@ -133,6 +135,8 @@ const menuItems: {
   // they actually see once they're on the page to just their own academy.
   { href: '/admin/academy-fees', label: 'Academy Fees', tKey: 'nav.academyFees', icon: HandCoins, system: 'donors_projects' },
   { href: '/admin/reports/academy-non-payment', label: 'Academy Non-Payment', tKey: 'nav.academyNonPayment', icon: AlertTriangle, system: 'donors_projects' },
+  { href: '/admin/shops', label: 'Shops', tKey: 'nav.shops', icon: Store, system: 'donors_projects' },
+  { href: '/admin/vehicles', label: 'Vehicles', tKey: 'nav.vehicles', icon: Bus, system: 'donors_projects' },
   { href: '/admin/talent-showcase', label: 'Talent Showcase', tKey: 'nav.talentShowcase', icon: Sparkles, adminAndAbove: true },
   { href: '/admin/achievements', label: 'Achievements', tKey: 'nav.achievements', icon: Trophy, adminAndAbove: true },
   { href: '/admin/audit-log', label: 'Audit Log', tKey: 'nav.auditLog', icon: History, adminAndAbove: true },
