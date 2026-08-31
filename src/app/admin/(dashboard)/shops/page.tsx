@@ -22,12 +22,15 @@ import { ImageUpload } from '@/components/admin/ImageUpload'
 interface Shop {
   id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
   owner_name: string | null; owner_mobile: string | null; owner_whatsapp: string | null
-  location: string | null; location_ur: string | null; delivery_enabled: boolean; status: string
+  location: string | null; location_ur: string | null; delivery_enabled: boolean; status: string; portal_user_id: string | null
 }
 interface Product {
   id: string; shop_id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
+  company: string | null; category: string | null; cost_price_pkr: number
   unit_price_pkr: number; quantity_on_hand: number; expiry_date: string | null; is_active: boolean
 }
+
+const PRODUCT_CATEGORIES = ['biscuits_snacks', 'beverages', 'grocery_pantry', 'dairy', 'frozen', 'personal_care', 'household', 'stationery', 'cigarettes_paan', 'other'] as const
 interface Order {
   id: string; status: string; total_amount_pkr: number; announced_method: string | null; announced_at: string | null; rejected_reason: string | null
   shop_order_items: { quantity: number; shop_products: { name: string; name_ur: string | null } | null }[]
@@ -35,10 +38,11 @@ interface Order {
 
 const emptyShop = {
   name: '', name_ur: '', description: '', description_ur: '', owner_name: '', owner_mobile: '', owner_whatsapp: '',
-  location: '', location_ur: '', delivery_enabled: false, status: 'active',
+  location: '', location_ur: '', delivery_enabled: false, status: 'active', portal_user_id: null as string | null,
 }
 const emptyProduct = {
-  name: '', name_ur: '', description: '', description_ur: '', unit_price_pkr: 0, quantity_on_hand: 0, expiry_date: '', is_active: true,
+  name: '', name_ur: '', description: '', description_ur: '', company: '', category: 'other' as string,
+  cost_price_pkr: 0, unit_price_pkr: 0, quantity_on_hand: 0, expiry_date: '', is_active: true,
 }
 
 function fmt(n: number) {
@@ -91,6 +95,9 @@ function AdminShopsInner() {
   const [productCoverUrl, setProductCoverUrl] = useState('')
 
   const [saving, setSaving] = useState(false)
+  const [keeperMobile, setKeeperMobile] = useState('')
+  const [keeperName, setKeeperName] = useState<string | null>(null)
+  const [linkingKeeper, setLinkingKeeper] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -160,16 +167,39 @@ function AdminShopsInner() {
     if (selected) { loadOrders(selected.id); loadProducts(selected.id) }
   }
 
-  const openNewShop = () => { setEditingShop(null); setShopForm(emptyShop); setShowShopForm(true) }
+  const openNewShop = () => { setEditingShop(null); setShopForm(emptyShop); setKeeperMobile(''); setKeeperName(null); setShowShopForm(true) }
   const openEditShop = (s: Shop) => {
     setEditingShop(s)
     setShopForm({
       name: s.name, name_ur: s.name_ur ?? '', description: s.description ?? '', description_ur: s.description_ur ?? '',
       owner_name: s.owner_name ?? '', owner_mobile: s.owner_mobile ?? '', owner_whatsapp: s.owner_whatsapp ?? '',
       location: s.location ?? '', location_ur: s.location_ur ?? '', delivery_enabled: s.delivery_enabled, status: s.status,
+      portal_user_id: s.portal_user_id,
     })
+    setKeeperMobile('')
+    if (s.portal_user_id) {
+      supabase.from('portal_users').select('full_name, mobile').eq('id', s.portal_user_id).maybeSingle()
+        .then(({ data }) => setKeeperName(data ? `${data.full_name} (${data.mobile})` : null))
+    } else setKeeperName(null)
     setShowShopForm(true)
   }
+
+  // Finds a portal account by mobile and links it as this shop's
+  // self-service keeper (shops.portal_user_id, migration 391) — the
+  // keeper still needs a portal account already (created via normal
+  // signup); this only designates which one manages this shop's catalog.
+  const findKeeper = async () => {
+    const mobile = keeperMobile.trim()
+    if (!mobile) return
+    setLinkingKeeper(true)
+    const { data } = await supabase.from('portal_users').select('id, full_name, mobile').eq('mobile', mobile).eq('is_active', true).maybeSingle()
+    setLinkingKeeper(false)
+    if (!data) { toast.error(t('sk.keeperNotFound')); return }
+    setShopForm({ ...shopForm, portal_user_id: data.id })
+    setKeeperName(`${data.full_name} (${data.mobile})`)
+    setKeeperMobile('')
+  }
+  const unlinkKeeper = () => { setShopForm({ ...shopForm, portal_user_id: null }); setKeeperName(null) }
 
   const saveShop = async () => {
     if (!shopForm.name.trim()) { toast.error(t('mk.nameRequired')); return }
@@ -204,6 +234,7 @@ function AdminShopsInner() {
     setEditingProduct(p)
     setProductForm({
       name: p.name, name_ur: p.name_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '',
+      company: p.company ?? '', category: p.category ?? 'other', cost_price_pkr: p.cost_price_pkr,
       unit_price_pkr: p.unit_price_pkr, quantity_on_hand: p.quantity_on_hand, expiry_date: p.expiry_date ?? '', is_active: p.is_active,
     })
     setProductCoverUrl(coverByProduct[p.id] ?? '')
@@ -216,7 +247,8 @@ function AdminShopsInner() {
     const payload = {
       shop_id: selected.id, name: productForm.name, name_ur: productForm.name_ur || null,
       description: productForm.description || null, description_ur: productForm.description_ur || null,
-      unit_price_pkr: productForm.unit_price_pkr, quantity_on_hand: productForm.quantity_on_hand,
+      company: productForm.company || null, category: productForm.category || null,
+      cost_price_pkr: productForm.cost_price_pkr, unit_price_pkr: productForm.unit_price_pkr, quantity_on_hand: productForm.quantity_on_hand,
       expiry_date: productForm.expiry_date || null, is_active: productForm.is_active,
     }
     let productId = editingProduct?.id
@@ -407,6 +439,23 @@ function AdminShopsInner() {
               </select>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={shopForm.delivery_enabled} onChange={(e) => setShopForm({ ...shopForm, delivery_enabled: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('mk.deliveryEnabledLabel')}</span></label>
               <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('mk.deliveryHint')}</p>
+
+              <div className="pt-2 border-t border-dp-outline-variant/60">
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('sk.keeperLinkLabel')}</label>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2">{t('sk.keeperLinkHint')}</p>
+                {keeperName ? (
+                  <div className="flex items-center justify-between gap-2 bg-dp-secondary-container/40 rounded-lg px-3 py-2">
+                    <span className="font-sans text-[13px] text-dp-on-surface truncate">{keeperName}</span>
+                    <button onClick={unlinkKeeper} className="font-sans text-[12px] font-semibold text-dp-error cursor-pointer shrink-0">{t('g.remove')}</button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input value={keeperMobile} onChange={(e) => setKeeperMobile(e.target.value)} placeholder={t('sk.keeperMobilePlaceholder')} className="input-field" dir="ltr" />
+                    <button onClick={findKeeper} disabled={linkingKeeper} className="shrink-0 px-3 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container disabled:opacity-50">{t('sk.linkBtn')}</button>
+                  </div>
+                )}
+              </div>
+
               <button onClick={saveShop} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{saving ? t('action.saving') : t('g.saveChanges')}</button>
             </div>
           </div>
@@ -426,9 +475,16 @@ function AdminShopsInner() {
               <input value={productForm.name_ur} onChange={(e) => setProductForm({ ...productForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
               <textarea value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} rows={2} placeholder={t('a.notesOptional')} className="input-field resize-none" />
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.unitPriceLabel')}</label><input type="number" value={productForm.unit_price_pkr || ''} onChange={(e) => setProductForm({ ...productForm, unit_price_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
-                <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.stockLabel')}</label><input type="number" value={productForm.quantity_on_hand || ''} onChange={(e) => setProductForm({ ...productForm, quantity_on_hand: +e.target.value })} className="input-field" placeholder="0" /></div>
+                <input value={productForm.company} onChange={(e) => setProductForm({ ...productForm, company: e.target.value })} placeholder={t('sk.companyPlaceholder')} className="input-field" />
+                <select value={productForm.category} onChange={(e) => setProductForm({ ...productForm, category: e.target.value })} className="input-field">
+                  {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{t(`sk.category.${c}`)}</option>)}
+                </select>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('sk.costPriceLabel')}</label><input type="number" value={productForm.cost_price_pkr || ''} onChange={(e) => setProductForm({ ...productForm, cost_price_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
+                <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.unitPriceLabel')}</label><input type="number" value={productForm.unit_price_pkr || ''} onChange={(e) => setProductForm({ ...productForm, unit_price_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
+              </div>
+              <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.stockLabel')}</label><input type="number" value={productForm.quantity_on_hand || ''} onChange={(e) => setProductForm({ ...productForm, quantity_on_hand: +e.target.value })} className="input-field" placeholder="0" /></div>
               <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.expiryDateLabel')}</label><input type="date" value={productForm.expiry_date} onChange={(e) => setProductForm({ ...productForm, expiry_date: e.target.value })} className="input-field" /></div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={productForm.is_active} onChange={(e) => setProductForm({ ...productForm, is_active: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('mk.productActiveLabel')}</span></label>
               <button onClick={saveProduct} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{saving ? t('action.saving') : t('g.saveChanges')}</button>

@@ -21,6 +21,7 @@ import {
   CalendarClock,
   Sparkles,
   ShoppingBag,
+  Store,
 } from 'lucide-react'
 
 // Mirrors AdminSidebar.tsx's exact pattern (fixed desktop sidebar + mobile
@@ -43,6 +44,7 @@ const menuItems = [
   { href: '/portal/institutes', label: 'Institutes', tKey: 'portal.institutes', icon: School },
   { href: '/portal/training-programs', label: 'Academies', tKey: 'portal.trainingPrograms', icon: CalendarClock },
   { href: '/portal/marketplace', label: 'Marketplace', tKey: 'portal.marketplace', icon: ShoppingBag },
+  { href: '/portal/my-shop', label: 'My Shop', tKey: 'portal.myShop', icon: Store, requiresShopKeeper: true },
   { href: '/portal/talent-showcase', label: 'Talent Showcase', tKey: 'portal.talentShowcase', icon: Sparkles },
   { href: '/portal/suggestions', label: 'Suggestions', tKey: 'portal.suggestions', icon: MessageSquare },
   { href: '/portal/complaints', label: 'Complaints', tKey: 'portal.complaints', icon: MessageSquareWarning },
@@ -65,6 +67,16 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   const supabase = createClient()
   const { t, isUrdu } = useLocale()
   const [badges, setBadges] = useState<Record<string, number>>({})
+  const [hasShop, setHasShop] = useState(false)
+
+  // A shop only exists for a portal user once staff links one to them
+  // (shops.portal_user_id) — public-read RLS on shops makes this a plain
+  // client query, no RPC needed just to know whether to show the tab.
+  useEffect(() => {
+    if (!user) return
+    supabase.from('shops').select('id').eq('portal_user_id', user.id).limit(1)
+      .then(({ data }) => setHasShop((data?.length ?? 0) > 0))
+  }, [supabase, user])
 
   // Keyed by the last segment of each href, because the server buckets unread
   // notifications by the page their link points at — so a tab gets a badge by
@@ -87,7 +99,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
     router.refresh()
   }
 
-  const visibleMenuItems = menuItems.filter((item) => !item.requiresConsumer || user?.consumer_id)
+  const visibleMenuItems = menuItems.filter((item) => (!item.requiresConsumer || user?.consumer_id) && (!item.requiresShopKeeper || hasShop))
 
   // Longest-match so exactly one item highlights — same fix as AdminSidebar,
   // where plain startsWith() lit a parent and its child simultaneously. No
