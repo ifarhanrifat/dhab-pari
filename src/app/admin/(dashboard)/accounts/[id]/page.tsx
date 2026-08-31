@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useRef, use as usePromise } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Eye, FileText, Printer, PlusCircle, X, Save, Banknote, Link2, Search, Unlink } from 'lucide-react'
+import { ArrowLeft, Eye, FileText, Printer, PlusCircle, X, Save, Banknote, Link2, Search, Unlink, RotateCcw } from 'lucide-react'
+import { ReverseVoucherDialog } from '@/components/admin/ReverseVoucherDialog'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
@@ -28,6 +29,7 @@ interface LedgerRow {
   debit: number; credit: number; reference_type: string | null
   reference_id: string | null; bill_number: string | null; receipt_no: string | null
   voucher_type?: string | null; voucher_no?: string | null
+  reversed_by_voucher_id?: string | null; reverses_voucher_id?: string | null
 }
 interface BillStatus { status: string; paid_amount: number; amount_pkr: number; discount_amount: number }
 interface PortalUserMatch { id: string; full_name: string; mobile: string; whatsapp_number: string | null; consumer_id: string | null }
@@ -52,6 +54,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true)
   const [receipt, setReceipt] = useState<ReceiptData | null>(null)
   const [payBillRow, setPayBillRow] = useState<LedgerRow | null>(null)
+  const [reversing, setReversing] = useState<{ id: string; label: string } | null>(null)
   const [payForm, setPayForm] = useState({ amount: 0, method: 'cash', note: '' })
   const [payOutstanding, setPayOutstanding] = useState(0)
   const [paying, setPaying] = useState(false)
@@ -111,10 +114,10 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
     const voucherIds = Array.from(new Set((entries ?? [])
       .filter((e) => e.reference_type === 'voucher' && e.reference_id)
       .map((e) => e.reference_id as string)))
-    let voucherById: Record<string, { voucher_type: string; voucher_no: string | null }> = {}
+    let voucherById: Record<string, { voucher_type: string; voucher_no: string | null; reversed_by_voucher_id: string | null; reverses_voucher_id: string | null }> = {}
     if (voucherIds.length > 0) {
-      const { data: vouchersData } = await supabase.from('vouchers').select('id, voucher_type, voucher_no').in('id', voucherIds)
-      voucherById = Object.fromEntries((vouchersData ?? []).map((v) => [v.id, { voucher_type: v.voucher_type, voucher_no: v.voucher_no }]))
+      const { data: vouchersData } = await supabase.from('vouchers').select('id, voucher_type, voucher_no, reversed_by_voucher_id, reverses_voucher_id').in('id', voucherIds)
+      voucherById = Object.fromEntries((vouchersData ?? []).map((v) => [v.id, { voucher_type: v.voucher_type, voucher_no: v.voucher_no, reversed_by_voucher_id: v.reversed_by_voucher_id, reverses_voucher_id: v.reverses_voucher_id }]))
     }
 
     // A donation ledger row stores reference_type='donation' with
@@ -142,7 +145,10 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
       running += creditNormal ? Number(e.credit) - Number(e.debit) : Number(e.debit) - Number(e.credit)
       const v = e.reference_id ? voucherById[e.reference_id] : undefined
       const d = e.reference_id ? donationById[e.reference_id] : undefined
-      return { ...e, voucher_type: v?.voucher_type ?? null, voucher_no: v?.voucher_no ?? d?.voucher_no ?? null, balance: running }
+      return {
+        ...e, voucher_type: v?.voucher_type ?? null, voucher_no: v?.voucher_no ?? d?.voucher_no ?? null, balance: running,
+        reversed_by_voucher_id: v?.reversed_by_voucher_id ?? null, reverses_voucher_id: v?.reverses_voucher_id ?? null,
+      }
     })
     setRows(withBalance)
 
@@ -587,7 +593,75 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
         )}
       </div>
 
-      <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
+      {/* Mobile card list — the desktop table below is min-w-[720px] and
+          forces horizontal scroll on a phone, which is what actually
+          mangled a long account name and squeezed the narration column on
+          small screens. Same fields, particular/narration gets the full
+          width of its own line instead of fighting eight other columns for
+          space, matching the card pattern /admin/donors already uses. */}
+      <div className="md:hidden bg-white rounded-lg border border-dp-outline-variant overflow-hidden divide-y divide-dp-outline-variant">
+        {rows.length === 0 && (
+          <div className="p-8 text-center text-dp-on-surface-variant font-sans text-[14px]">{dt(lang, 'noTransactionsYet')}</div>
+        )}
+        {rows.map((row) => (
+          <div key={row.id} className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <span className="inline-block px-2 py-0.5 rounded font-sans text-[10.5px] font-bold bg-dp-surface-container-low text-dp-on-surface-variant">
+                  {entryTypeLabel(row.reference_type, row.voucher_type, lang)}
+                </span>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{fmtDate(row.entry_date)}</p>
+              </div>
+              <div className="text-end shrink-0">
+                {account.type === 'donor' ? (
+                  <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">{fmtAmount(row.credit)}</p>
+                ) : (
+                  <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">
+                    {row.debit > 0 ? fmtAmount(row.debit) : row.credit > 0 ? fmtAmount(row.credit) : '—'}
+                  </p>
+                )}
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant whitespace-nowrap mt-0.5">{dt(lang, account.type === 'donor' ? 'total' : 'balance')}: {fmtAmount(row.balance)}</p>
+              </div>
+            </div>
+            <p className="font-sans text-[13.5px] text-dp-on-surface mt-2">{translateParticular(row.particular, t, isUrdu)}</p>
+            <p className="font-mono text-[11.5px] text-dp-on-surface-variant mt-1">
+              {row.bill_number ?? row.voucher_no ?? '—'}
+              {row.receipt_no && <span className="ms-1">· {dt(lang, 'receiptHash')}{row.receipt_no}</span>}
+            </p>
+            <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pt-2.5 border-t border-dp-outline-variant/60">
+              <button onClick={() => openView(row)} title="View" className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Eye size={15} /></button>
+              {row.reference_type === 'bill' && row.reference_id && (
+                <>
+                  {billStatusMap[row.reference_id]?.status === 'paid' ? (
+                    <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 whitespace-nowrap">{t('w.paid')}</span>
+                  ) : (
+                    <>
+                      {billStatusMap[row.reference_id]?.status === 'partial' && (
+                        <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-amber-100 text-amber-800 whitespace-nowrap">
+                          Partial: {fmtAmount(billStatusMap[row.reference_id].amount_pkr - billStatusMap[row.reference_id].discount_amount - billStatusMap[row.reference_id].paid_amount)}
+                        </span>
+                      )}
+                      <button onClick={() => openReceivePayment(row)} title="Receive Now" className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Banknote size={15} /></button>
+                    </>
+                  )}
+                  <Link href={`/admin/invoice/bill/${row.reference_id}`} title={t('f.viewBillLedger')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><FileText size={15} /></Link>
+                </>
+              )}
+              {row.reference_type === 'voucher' && row.reference_id && !row.reversed_by_voucher_id && !row.reverses_voucher_id && (
+                <button onClick={() => setReversing({ id: row.reference_id!, label: row.voucher_no ?? row.particular })} title={t('tx.reverseTooltip')} className="p-1.5 text-dp-on-surface-variant hover:text-sky-600 cursor-pointer"><RotateCcw size={15} /></button>
+              )}
+              {row.reversed_by_voucher_id && (
+                <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-red-100 text-red-700 whitespace-nowrap">{t('tx.reversedBadge')}</span>
+              )}
+              {row.reverses_voucher_id && (
+                <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-sky-100 text-sky-700 whitespace-nowrap">{t('tx.reversalBadge')}</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden md:block bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-start min-w-[720px]">
             <thead>
@@ -659,6 +733,15 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                           <Link href={`/admin/invoice/bill/${row.reference_id}`} title={t('f.viewBillLedger')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><FileText size={15} /></Link>
                         </>
                       )}
+                      {row.reference_type === 'voucher' && row.reference_id && !row.reversed_by_voucher_id && !row.reverses_voucher_id && (
+                        <button onClick={() => setReversing({ id: row.reference_id!, label: row.voucher_no ?? row.particular })} title={t('tx.reverseTooltip')} className="p-1.5 text-dp-on-surface-variant hover:text-sky-600 cursor-pointer"><RotateCcw size={15} /></button>
+                      )}
+                      {row.reversed_by_voucher_id && (
+                        <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-red-100 text-red-700 whitespace-nowrap">{t('tx.reversedBadge')}</span>
+                      )}
+                      {row.reverses_voucher_id && (
+                        <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-sky-100 text-sky-700 whitespace-nowrap">{t('tx.reversalBadge')}</span>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -699,6 +782,12 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {receipt && <ReceiptModal data={receipt} phone={consumerInfo?.mobile} system={account?.system === 'donors_projects' ? 'donors_projects' : 'water_supply'} onClose={() => setReceipt(null)} />}
+      <ReverseVoucherDialog
+        voucherId={reversing?.id ?? null}
+        voucherLabel={reversing?.label ?? ''}
+        onClose={() => setReversing(null)}
+        onReversed={() => { setReversing(null); load() }}
+      />
 
       {payBillRow && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setPayBillRow(null)}>

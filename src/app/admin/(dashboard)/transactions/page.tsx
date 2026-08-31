@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Search, FileText, Eye, Pencil, Trash2, SlidersHorizontal } from 'lucide-react'
+import { Search, FileText, Eye, Pencil, Trash2, SlidersHorizontal, RotateCcw } from 'lucide-react'
+import { ReverseVoucherDialog } from '@/components/admin/ReverseVoucherDialog'
 import { billBadge, billBadgeClass, type BillBadgeTone } from '@/lib/billStatus'
 import { donationBadge } from '@/lib/donationStatus'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
@@ -56,6 +57,12 @@ interface TxnRow {
   voucherToName?: string
   voucherFromName?: string
   voucherNo?: string | null
+  // Set when this voucher has already been reversed (points at the
+  // reversal), or is itself a reversal of another voucher — either one
+  // draws a badge, and having reversed a voucher or reversed one already
+  // hides the Reverse action (reverse_voucher() would just reject it).
+  reversedByVoucherId?: string | null
+  reversesVoucherId?: string | null
   // kind: 'payment' only — the linked bill's current outstanding balance and
   // the consumer it belongs to, for the receipt's outstanding-amount row and
   // advance-balance lookup respectively.
@@ -92,6 +99,7 @@ export default function AllTransactionsPage() {
   const [search, setSearch] = useState('')
   const [rows, setRows] = useState<TxnRow[]>([])
   const [viewReceipt, setViewReceipt] = useState<ReceiptData | null>(null)
+  const [reversing, setReversing] = useState<{ id: string; label: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [showFilterSheet, setShowFilterSheet] = useState(false)
   const supabase = createClient()
@@ -132,7 +140,7 @@ export default function AllTransactionsPage() {
       system === 'water_supply'
         ? supabase.from('payments').select('id, bill_id, consumer_id, amount_pkr, method, paid_date, receipt_no, note, created_at').gte('paid_date', from).lte('paid_date', to)
         : Promise.resolve({ data: [] as { id: string; bill_id: string; consumer_id: string; amount_pkr: number; method: string | null; paid_date: string; receipt_no: string | null; note: string | null; created_at: string }[] }),
-      supabase.from('vouchers').select('id, voucher_type, voucher_no, receipt_no, voucher_date, particular, amount_pkr, party_name, from_account_id, to_account_id, bill_id, created_at, recurring_schedule_id')
+      supabase.from('vouchers').select('id, voucher_type, voucher_no, receipt_no, voucher_date, particular, amount_pkr, party_name, from_account_id, to_account_id, bill_id, created_at, recurring_schedule_id, reversed_by_voucher_id, reverses_voucher_id')
         .eq('system', system).in('status', ['posted', 'approved']).gte('voucher_date', from).lte('voucher_date', to),
       system === 'donors_projects'
         ? supabase.from('donors').select('id, name, amount_pkr, date, payment_method, notes, is_anonymous, created_at, voucher_no, is_verified, payment_status, recurring_schedule_id').gte('date', from).lte('date', to)
@@ -258,6 +266,7 @@ export default function AllTransactionsPage() {
         date: v.voucher_date, description: v.particular, amount: v.amount_pkr,
         badge: null, note: null, voucherId: v.id, receiptNo: v.receipt_no, autoPosted: autoPostedIds.has(v.id), fullyApproved: fullyApprovedIds.has(v.id), createdAt: v.created_at,
         hasLineItems: hasLines, voucherToName, voucherFromName, voucherNo: v.voucher_no,
+        reversedByVoucherId: v.reversed_by_voucher_id, reversesVoucherId: v.reverses_voucher_id,
         searchBlob: `${v.party_name ?? ''} ${label} ${fromName ?? ''} ${firstToName ?? ''} ${toAccountName ?? ''} ${v.voucher_no ?? ''} ${v.receipt_no ?? ''} ${v.particular ?? ''}`.toLowerCase(),
       })
     }
@@ -550,9 +559,9 @@ export default function AllTransactionsPage() {
                   // never crowd the status pills or vice versa.
                   <div className="flex justify-between items-start gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{r.voucherToName}</p>
+                      <p className="font-sans text-[14px] font-bold text-dp-on-surface">{r.voucherToName}</p>
                       {r.voucherFromName && (
-                        <p className="font-sans text-[12px] text-dp-on-surface-variant truncate">{r.voucherFromName}</p>
+                        <p className="font-sans text-[12px] text-dp-on-surface-variant">{r.voucherFromName}</p>
                       )}
                       <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">{r.description}</p>
                     </div>
@@ -576,15 +585,33 @@ export default function AllTransactionsPage() {
                             {t('f.approved')}
                           </span>
                         )}
+                        {r.reversedByVoucherId && (
+                          <span className="inline-block px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-700">
+                            {t('tx.reversedBadge')}
+                          </span>
+                        )}
+                        {r.reversesVoucherId && (
+                          <span className="inline-block px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-sky-100 text-sky-700">
+                            {t('tx.reversalBadge')}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
                 ) : (
                   <>
+                    {/* Name gets full room to wrap onto 2 lines instead of a
+                        hard single-line ellipsis (a long party/account name
+                        used to get chopped or crowd the doc-info column on a
+                        narrow phone) — the doc-info + amount + badges block
+                        that used to be split across two rows now lives
+                        together on the right, matching how voucher rows
+                        already lay it out above, which frees the row below
+                        for narration alone at full width. */}
                     <div className="flex justify-between items-start gap-3">
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         {r.typeLabel && <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-tight">{r.typeLabel}</p>}
-                        <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{r.partyName}</p>
+                        <p className="font-sans text-[14px] font-bold text-dp-on-surface">{r.partyName}</p>
                         {r.isRecurring && (
                           <span className="inline-block mt-0.5 me-1 px-1.5 py-0.5 rounded font-sans text-[10px] font-bold uppercase tracking-wide bg-indigo-100 text-indigo-700" title={t('tx.recurringTooltip')}>
                             {t('a.recurring')}
@@ -604,17 +631,15 @@ export default function AllTransactionsPage() {
                       <div className="text-end shrink-0">
                         <p className="font-sans text-[13px] font-bold text-dp-on-surface whitespace-nowrap">{r.docLabel}</p>
                         <p className="font-sans text-[12px] text-dp-on-surface-variant whitespace-nowrap">{new Date(r.date).toLocaleDateString('en-GB')}</p>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-end gap-3 mt-1.5">
-                      <p className="font-sans text-[13px] text-dp-on-surface-variant truncate">{r.description}</p>
-                      <div className="text-end shrink-0">
-                        {r.amount > 0 && <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">{fmtAmount(r.amount)}</p>}
+                        {r.amount > 0 && <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap mt-1">{fmtAmount(r.amount)}</p>}
                         {r.badge && (
                           <span className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide ${billBadgeClass[r.badge.tone]}`}>{r.badge.textKey ? t(r.badge.textKey) : r.badge.text}</span>
                         )}
                       </div>
                     </div>
+                    {r.description && (
+                      <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1.5">{r.description}</p>
+                    )}
                   </>
                 )}
                 {/* Edit/Delete hand the record back to the screen that owns
@@ -651,6 +676,12 @@ export default function AllTransactionsPage() {
                           <Link href={`/admin/finance/${system}?edit_voucher=${r.voucherId}`} title={t('tx.editVoucherTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
                         )}
                         <Link href={`/admin/finance/${system}?delete_voucher=${r.voucherId}`} title={t('tx.deleteVoucherTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></Link>
+                        {/* Offered only where reverse_voucher() would actually
+                            accept it — already reversed or already itself a
+                            reversal both get skipped, matching its own guards. */}
+                        {!r.reversedByVoucherId && !r.reversesVoucherId && (
+                          <button onClick={() => setReversing({ id: r.voucherId!, label: r.docLabel })} title={t('tx.reverseTooltip')} className="p-1.5 text-dp-on-surface-variant hover:text-sky-600 cursor-pointer"><RotateCcw size={15} /></button>
+                        )}
                       </>
                     )}
                     {r.kind === 'donation' && r.donationId && (
@@ -664,6 +695,12 @@ export default function AllTransactionsPage() {
         </div>
       </div>
       {viewReceipt && <ReceiptModal data={viewReceipt} system={system} onClose={() => setViewReceipt(null)} />}
+      <ReverseVoucherDialog
+        voucherId={reversing?.id ?? null}
+        voucherLabel={reversing?.label ?? ''}
+        onClose={() => setReversing(null)}
+        onReversed={() => { setReversing(null); load() }}
+      />
 
     </div>
   )

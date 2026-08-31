@@ -9,7 +9,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 type TableName = 'bills' | 'payments' | 'donors' | 'vouchers' | 'accounts' | 'consumers'
-type Action = 'insert' | 'update' | 'delete'
+type Action = 'insert' | 'update' | 'delete' | 'reverse'
 
 interface AuditRow {
   id: string
@@ -34,9 +34,10 @@ const tableColors: Record<TableName, string> = {
   donors: 'bg-violet-100 text-violet-800', vouchers: 'bg-amber-100 text-amber-800',
   accounts: 'bg-cyan-100 text-cyan-800', consumers: 'bg-pink-100 text-pink-800',
 }
-const actionLabelKeys: Record<Action, string> = { insert: 'z.created', update: 'z.updated', delete: 'z.deleted' }
+const actionLabelKeys: Record<Action, string> = { insert: 'z.created', update: 'z.updated', delete: 'z.deleted', reverse: 'z.reversed' }
 const actionColors: Record<Action, string> = {
   insert: 'bg-emerald-100 text-emerald-700', update: 'bg-amber-100 text-amber-800', delete: 'bg-red-100 text-red-700',
+  reverse: 'bg-sky-100 text-sky-700',
 }
 
 function fmtDateTime(d: string) {
@@ -181,6 +182,7 @@ export default function AuditLogPage() {
             <option value="insert">{t('z.created')}</option>
             <option value="update">{t('z.updated')}</option>
             <option value="delete">{t('z.deleted')}</option>
+            <option value="reverse">{t('z.reversed')}</option>
           </select>
         </div>
         <button onClick={() => setSortAsc((s) => !s)} className="flex items-center gap-2 px-4 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer">
