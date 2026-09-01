@@ -102,7 +102,7 @@ export default function MyShopPage() {
     setChangingCategory(false)
     setShowForm(true)
   }
-  const openNewBrandProduct = (brandName: string) => openNew('other', brandName)
+  const openNewBrandProduct = (brandName: string, categorySlug?: string) => openNew(categorySlug ?? 'other', brandName)
   const openEdit = (p: Product) => {
     setEditing(p)
     setForm({

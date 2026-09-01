@@ -78,6 +78,7 @@ const GENERAL_STORE: CategoryDepartment[] = [
       { slug: 'sugar_salt', label: 'Sugar, Salt & Sweeteners', label_ur: 'چینی، نمک اور میٹھا' },
       { slug: 'tea_coffee', label: 'Tea & Coffee', label_ur: 'چائے اور کافی' },
       { slug: 'biscuits_snacks', label: 'Biscuits & Snacks', label_ur: 'بسکٹ اور اسنیکس' },
+      { slug: 'chips_nimko', label: 'Chips & Nimko', label_ur: 'چپس اور نمکو' },
       { slug: 'confectionery', label: 'Confectionery & Sweets', label_ur: 'ٹافی، چاکلیٹ اور مٹھائیاں' },
       COLD_DRINKS,
       { slug: 'dairy_eggs', label: 'Dairy & Eggs', label_ur: 'دودھ، دہی اور انڈے' },

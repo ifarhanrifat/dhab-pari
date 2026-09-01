@@ -331,9 +331,9 @@ function AdminShopsInner() {
     setShowProductForm(true)
   }
   // Brand-wise browse's "Add New Brand" tile — no brands table, so this
-  // just opens the normal add form with the typed name sitting in the
-  // company field already; picking a category happens the normal way.
-  const openNewBrandProduct = (brandName: string) => openNewProduct('other', brandName)
+  // just opens the normal add form with the typed name and the category
+  // being browsed already filled in.
+  const openNewBrandProduct = (brandName: string, categorySlug?: string) => openNewProduct(categorySlug ?? 'other', brandName)
   const openEditProduct = (p: Product) => {
     setEditingProduct(p)
     setProductForm({

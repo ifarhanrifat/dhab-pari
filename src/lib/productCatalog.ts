@@ -367,6 +367,44 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
       { name: 'Desi Kulfi', name_ur: 'دیسی کلفی', category: 'ice_cream' },
       { name: 'Desi Kulfi', name_ur: 'دیسی کلفی', flavor: 'Shahi', flavor_ur: 'شاہی', category: 'ice_cream' },
       { name: 'Falooda Kulfi', name_ur: 'فالودہ کلفی', category: 'ice_cream' },
+      // Loose namkeen mix a local vendor makes/packs, not a national
+      // brand — same honest-unbranded treatment as the kulfi above.
+      { name: 'Nimko Mix', name_ur: 'نمکو مکس', category: 'chips_nimko' },
+      { name: 'Dal Moong Nimko', name_ur: 'دال مونگ نمکو', category: 'chips_nimko' },
+      { name: 'Chana Chor Garam', name_ur: 'چنا چور گرم', category: 'chips_nimko' },
+    ],
+  },
+  // Real packaged chips/nimko brands actually sold in Pakistan, per
+  // Wikipedia's Kurkure/Lay's entries, laysaroundtheworld.com's Pakistan
+  // flavor writeup and Kolson Slanty retail listings (yumtreats.pk,
+  // gandhifood.com) — checked before adding, same discipline as the rest
+  // of this file. All under the new chips_nimko category (migration 408),
+  // split out of biscuits_snacks.
+  {
+    slug: 'lays', name: "Lay's", name_ur: 'لेز', icon: 'Popcorn',
+    items: [
+      { name: "Lay's", name_ur: 'لیز', flavor: 'Classic Salted', flavor_ur: 'کلاسک نمکین', category: 'chips_nimko' },
+      { name: "Lay's", name_ur: 'لیز', flavor: 'Masala', flavor_ur: 'مصالحہ', category: 'chips_nimko' },
+      { name: "Lay's", name_ur: 'لیز', flavor: 'Flamin\' Hot', flavor_ur: 'فلیمن ہاٹ', category: 'chips_nimko' },
+      { name: "Lay's", name_ur: 'لیز', flavor: 'Yogurt & Herb', flavor_ur: 'دہی اور جڑی بوٹی', category: 'chips_nimko' },
+    ],
+  },
+  {
+    slug: 'kurkure', name: 'Kurkure', name_ur: 'کرکرے', icon: 'Popcorn',
+    items: [
+      { name: 'Kurkure', name_ur: 'کرکرے', flavor: 'Chutney Chaska', flavor_ur: 'چٹنی چسکا', category: 'chips_nimko' },
+      { name: 'Kurkure', name_ur: 'کرکرے', flavor: 'Nimko (Chatpata Mix)', flavor_ur: 'نمکو (چٹپٹا مکس)', category: 'chips_nimko' },
+      { name: 'Kurkure', name_ur: 'کرکرے', flavor: 'Red Chilli', flavor_ur: 'لال مرچ', category: 'chips_nimko' },
+      { name: 'Kurkure', name_ur: 'کرکرے', flavor: 'Toofani Mirch', flavor_ur: 'طوفانی مرچ', category: 'chips_nimko' },
+    ],
+  },
+  {
+    slug: 'kolson_slanty', name: 'Kolson Slanty', name_ur: 'کولسن سلینٹی', icon: 'Popcorn',
+    items: [
+      { name: 'Slanty', name_ur: 'سلینٹی', flavor: 'Salted', flavor_ur: 'نمکین', category: 'chips_nimko' },
+      { name: 'Slanty', name_ur: 'سلینٹی', flavor: 'Vegetable', flavor_ur: 'ویجیٹیبل', category: 'chips_nimko' },
+      { name: 'Slanty', name_ur: 'سلینٹی', flavor: 'Jalapeno', flavor_ur: 'جالاپینو', category: 'chips_nimko' },
+      { name: 'Slanty', name_ur: 'سلینٹی', flavor: 'Cheese', flavor_ur: 'چیز', category: 'chips_nimko' },
     ],
   },
   // Gas cylinder agencies — the three real LPG marketing companies with
