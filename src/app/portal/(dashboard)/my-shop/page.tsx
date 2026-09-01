@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, BarChart3, Wallet, ListPlus } from 'lucide-react'
+import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, BarChart3, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -21,7 +21,6 @@ import { WalletTopupModal } from '@/components/portal/WalletTopupModal'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { getCategoryLabel } from '@/lib/shopTypes'
 import { CategoryBrowser, CategoryPicker } from '@/components/shared/CategoryBrowser'
-import { ProductCatalogPicker } from '@/components/shared/ProductCatalogPicker'
 import type { CatalogItem } from '@/lib/productCatalog'
 
 interface Shop { id: string; name: string; name_ur: string | null; delivery_enabled: boolean; commission_mode: string; primary_type: string }
@@ -70,7 +69,6 @@ export default function MyShopPage() {
   const [showTopup, setShowTopup] = useState(false)
   const [showAiSettings, setShowAiSettings] = useState(false)
   const [changingCategory, setChangingCategory] = useState(false)
-  const [showCatalogPicker, setShowCatalogPicker] = useState(false)
   const [geminiKey, setGeminiKey] = useState('')
   const [keySaved, setKeySaved] = useState(false)
   const [savingKey, setSavingKey] = useState(false)
@@ -123,7 +121,6 @@ export default function MyShopPage() {
     })
     setCoverUrl('')
     setChangingCategory(false)
-    setShowCatalogPicker(false)
     setShowForm(true)
   }
 
@@ -250,9 +247,6 @@ export default function MyShopPage() {
           className="flex items-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-60">
           {scanning ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />} {scanning ? t('sk.scanningLabel') : t('sk.scanProductBtn')}
         </button>
-        <button onClick={() => setShowCatalogPicker(true)} className="flex items-center gap-2 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp-surface-container">
-          <ListPlus size={16} /> {t('pc.pickFromCatalogBtn')}
-        </button>
         <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('sk.orBrowseCategoryHint')}</p>
       </div>
 
@@ -260,6 +254,7 @@ export default function MyShopPage() {
         primaryType={shop.primary_type}
         products={products}
         onAddItem={openNew}
+        onPickCatalogItem={openFromCatalog}
         renderProduct={(p) => (
           <div key={p.id} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
             <div className="h-28 bg-dp-surface-container relative">
@@ -352,18 +347,6 @@ export default function MyShopPage() {
         </div>
       )}
 
-      {showCatalogPicker && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowCatalogPicker(false)}>
-          <div className="bg-white rounded-lg p-5 w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="font-heading text-[19px] font-bold text-dp-primary flex items-center gap-2"><ListPlus size={18} /> {t('pc.pickFromCatalogBtn')}</h2>
-              <button onClick={() => setShowCatalogPicker(false)} className="cursor-pointer"><X size={20} /></button>
-            </div>
-            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('pc.pickerHint')}</p>
-            <ProductCatalogPicker onPick={openFromCatalog} />
-          </div>
-        </div>
-      )}
     </div>
   )
 }
