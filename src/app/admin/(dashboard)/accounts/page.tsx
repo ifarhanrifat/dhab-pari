@@ -95,6 +95,7 @@ export default function AccountsPage() {
   const [headerForm, setHeaderForm] = useState(emptyHeaderForm)
   const [search, setSearch] = useState('')
   const [sortByBalance, setSortByBalance] = useState(false)
+  const [showZeroBalance, setShowZeroBalance] = useState(false)
   // Donors/Consumers default closed (that list is long and would otherwise
   // dominate the page) — every other header defaults open, matching how
   // the rest of the Chart of Accounts already behaved.
@@ -149,6 +150,7 @@ export default function AccountsPage() {
     const q = search.trim().toLowerCase()
     return accounts.filter((a) => {
       if (a.system !== tab) return false
+      if (!showZeroBalance && balanceOf(a) === 0) return false
       if (!q) return true
       const receipts = a.consumer_id ? receiptsByConsumer[a.consumer_id] ?? [] : []
       return a.name.toLowerCase().includes(q)
@@ -156,7 +158,8 @@ export default function AccountsPage() {
         || a.code.toLowerCase().includes(q)
         || receipts.some((r) => r.toLowerCase().includes(q))
     })
-  }, [accounts, tab, search, receiptsByConsumer])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accounts, tab, search, receiptsByConsumer, showZeroBalance, balances])
 
   const partyType = tab === 'water_supply' ? 'consumer' : 'donor'
   const partyLabel = tab === 'water_supply' ? t('ac.consumersLabel') : t('ac.donorsLabel')
@@ -443,6 +446,10 @@ export default function AccountsPage() {
         >
           <SlidersHorizontal size={16} />
         </button>
+        <label className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dp-outline-variant cursor-pointer select-none font-sans text-[12.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low">
+          <input type="checkbox" checked={showZeroBalance} onChange={(e) => setShowZeroBalance(e.target.checked)} className="accent-dp-secondary" />
+          {t('ac.showZeroBalance')}
+        </label>
       </div>
 
       {loading ? (
