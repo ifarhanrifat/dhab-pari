@@ -12,7 +12,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Store, PlusCircle, X, Pencil, Trash2, Truck, PackageX, CheckCircle2, XCircle, Clock, PauseCircle, PlayCircle } from 'lucide-react'
+import { Store, PlusCircle, PackagePlus, X, Pencil, Trash2, Truck, PackageX, CheckCircle2, XCircle, Clock, PauseCircle, PlayCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -22,7 +22,7 @@ import { SHOP_TYPES, getCategoryLabel } from '@/lib/shopTypes'
 import { DynamicIcon } from '@/components/shared/DynamicIcon'
 import { OrderFulfillmentPanel } from '@/components/shared/OrderFulfillmentPanel'
 import { CategoryBrowser, CategoryPicker } from '@/components/shared/CategoryBrowser'
-import type { CatalogItem } from '@/lib/productCatalog'
+import { AddStockWizard } from '@/components/shared/AddStockWizard'
 
 interface Shop {
   id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
@@ -105,6 +105,7 @@ function AdminShopsInner() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [productForm, setProductForm] = useState(emptyProduct)
   const [productCoverUrl, setProductCoverUrl] = useState('')
+  const [showStockWizard, setShowStockWizard] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [changingCategory, setChangingCategory] = useState(false)
@@ -330,10 +331,6 @@ function AdminShopsInner() {
     setChangingCategory(false)
     setShowProductForm(true)
   }
-  // Brand-wise browse's "Add New Brand" tile — no brands table, so this
-  // just opens the normal add form with the typed name and the category
-  // being browsed already filled in.
-  const openNewBrandProduct = (brandName: string, categorySlug?: string) => openNewProduct(categorySlug ?? 'other', brandName)
   const openEditProduct = (p: Product) => {
     setEditingProduct(p)
     setProductForm({
@@ -343,21 +340,6 @@ function AdminShopsInner() {
       unit_price_pkr: p.unit_price_pkr, quantity_on_hand: p.quantity_on_hand, expiry_date: p.expiry_date ?? '', is_active: p.is_active,
     })
     setProductCoverUrl(coverByProduct[p.id] ?? '')
-    setChangingCategory(false)
-    setShowProductForm(true)
-  }
-
-  // Third add path, same as portal/my-shop: pick a real brand + item from
-  // the catalog instead of typing it in — pre-fills name/company/flavor/
-  // category, price/stock/photo still left to whoever's entering it.
-  const openProductFromCatalog = (brandName: string, item: CatalogItem) => {
-    setEditingProduct(null)
-    setProductForm({
-      ...emptyProduct, name: item.name, name_ur: item.name_ur ?? '', company: brandName,
-      flavor: item.flavor ?? '', flavor_ur: item.flavor_ur ?? '', category: item.category,
-      unit_price_pkr: item.price ?? 0,
-    })
-    setProductCoverUrl('')
     setChangingCategory(false)
     setShowProductForm(true)
   }
@@ -467,6 +449,7 @@ function AdminShopsInner() {
               <h1 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary">{isUrdu && selected.name_ur ? selected.name_ur : selected.name}</h1>
             </div>
             <div className="flex items-center gap-2">
+              <button onClick={() => setShowStockWizard(true)} className="flex items-center gap-1.5 px-3 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary"><PackagePlus size={14} /> {t('bs.addStockBtn')}</button>
               <button onClick={() => openEditShop(selected)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Pencil size={14} /> {t('mk.editShopBtn')}</button>
               <button
                 onClick={() => toggleShopStatus(selected)}
@@ -483,9 +466,6 @@ function AdminShopsInner() {
             primaryType={selected.primary_type}
             products={products}
             onAddItem={openNewProduct}
-            onPickCatalogItem={openProductFromCatalog}
-            onAddItemForBrand={(categorySlug, brandName) => openNewProduct(categorySlug, brandName)}
-            onAddNewBrand={openNewBrandProduct}
             renderProduct={(p) => {
               const tone = expiryTone(p.expiry_date)
               return (
@@ -717,6 +697,16 @@ function AdminShopsInner() {
             </div>
           </div>
         </div>
+      )}
+
+      {showStockWizard && selected && (
+        <AddStockWizard
+          shopId={selected.id}
+          primaryType={selected.primary_type}
+          existingProducts={products}
+          onCommitted={() => loadProducts(selected.id)}
+          onClose={() => setShowStockWizard(false)}
+        />
       )}
 
     </div>
