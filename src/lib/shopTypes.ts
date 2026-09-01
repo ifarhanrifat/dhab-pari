@@ -85,6 +85,13 @@ const GENERAL_STORE: CategoryDepartment[] = [
       { slug: 'frozen', label: 'Frozen Foods', label_ur: 'فروزن اشیاء' },
       { slug: 'fruits_vegetables', label: 'Fruits & Vegetables', label_ur: 'پھل اور سبزیاں' },
       { slug: 'meat_poultry', label: 'Meat, Poultry & Fish', label_ur: 'گوشت، مرغی اور مچھلی' },
+      // Split out from the original 24, matching how a real supermarket
+      // (Al-Fatah/Imtiaz category structure) breaks these down further —
+      // added, not replacing anything, so no existing product's category
+      // ever goes stale.
+      { slug: 'noodles_pasta', label: 'Noodles & Pasta', label_ur: 'نوڈلز اور پاستا' },
+      { slug: 'honey_jam_spreads', label: 'Honey, Jam & Spreads', label_ur: 'شہد، جیم اور اسپریڈ' },
+      { slug: 'pickles_sauces', label: 'Pickles, Ketchup & Sauces', label_ur: 'اچار، کیچپ اور ساس' },
     ],
   },
   {
@@ -96,11 +103,24 @@ const GENERAL_STORE: CategoryDepartment[] = [
       { slug: 'kitchenware', label: 'Kitchenware & Crockery', label_ur: 'برتن اور کچن کی اشیاء' },
       TOBACCO_PAAN,
       { slug: 'stationery', label: 'Stationery', label_ur: 'اسٹیشنری' },
+      // Same real-supermarket-structure split as food above — Personal
+      // Care and Household & Cleaning stay as their original broad
+      // options (still valid, still used by existing products), these
+      // are the finer picks alongside them.
+      { slug: 'hair_care', label: 'Hair Care', label_ur: 'بالوں کی دیکھ بھال' },
+      { slug: 'oral_care', label: 'Oral Care', label_ur: 'منہ کی دیکھ بھال' },
+      { slug: 'skin_bath_care', label: 'Skin & Bath Care', label_ur: 'جلد اور نہانے کی اشیاء' },
+      { slug: 'laundry_detergent', label: 'Laundry & Detergents', label_ur: 'کپڑے دھونے کا سامان' },
+      { slug: 'dishwashing', label: 'Dishwashing', label_ur: 'برتن دھونے کا سامان' },
+      { slug: 'air_insect_care', label: 'Air Freshener & Insect Repellent', label_ur: 'خوشبو اور کیڑے مار ادویات' },
+      { slug: 'tissue_paper', label: 'Tissue & Paper Products', label_ur: 'ٹشو اور کاغذی اشیاء' },
     ],
   },
   { key: 'baby_kids', label: 'Baby & Kids', label_ur: 'بچوں کی اشیاء', icon: 'Baby', categories: [
     { slug: 'baby_care', label: 'Baby Care', label_ur: 'بچوں کی نگہداشت' },
     { slug: 'toys', label: 'Toys & Gifts', label_ur: 'کھلونے اور تحائف' },
+    { slug: 'diapers_wipes', label: 'Diapers & Wipes', label_ur: 'ڈائپرز اور وائپس' },
+    { slug: 'baby_food_feeding', label: 'Baby Food & Feeding', label_ur: 'بچوں کی خوراک' },
   ] },
   { key: 'health', label: 'Health & Pharmacy', label_ur: 'صحت و ادویات', icon: 'Pill', categories: [
     { slug: 'health_medicine', label: 'Health & Medicine', label_ur: 'ادویات اور صحت' },

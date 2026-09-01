@@ -8,10 +8,16 @@
 // way (ImageUpload, same control a manually-typed product uses).
 //
 // Sourced from each brand's own product pages (mayfairfood.com/pk,
-// candyland.com.pk, ismailindustries.com.pk) plus real Pakistani
-// grocery-retailer listings (naheed.pk, pakistandeals.pk) for pack
-// sizes and the handful of `price` values below — checked live, not
-// invented. Three honest limits, on purpose:
+// candyland.com.pk, ismailindustries.com.pk, sufioilandghee.com,
+// rosepetal.com.pk) plus real Pakistani grocery-retailer listings
+// (naheed.pk, pakistandeals.pk, alfatah.pk) for pack sizes, category
+// structure, and the handful of `price` values below — checked live,
+// not invented. Al-Fatah's own live category taxonomy (alfatah.pk) is
+// also what the 12 finer categories in shopTypes.ts's general_store
+// tree (hair_care/oral_care/skin_bath_care/laundry_detergent/
+// dishwashing/tissue_paper/diapers_wipes/etc — migration 407) are
+// modelled on, since that's how an actual Pakistani supermarket
+// organizes these same items. Three honest limits, on purpose:
 // - A `price` is only ever set where an actual retail listing was
 //   checked tonight; everything else is left unset (the form starts at
 //   0, same as a manually-typed product) rather than guess a number for
@@ -195,14 +201,14 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
   {
     slug: 'unilever_personal', name: 'Unilever — Personal Care', name_ur: 'یونی لیور — ذاتی نگہداشت', icon: 'Sparkles',
     items: [
-      { name: 'Lifebuoy Total 10', name_ur: 'لائف بوائے ٹوٹل 10', flavor: 'Soap', flavor_ur: 'صابن', category: 'personal_care' },
-      { name: 'Lux', name_ur: 'لکس', flavor: 'Rose Soap', flavor_ur: 'گلاب صابن', category: 'personal_care' },
-      { name: 'Lux', name_ur: 'لکس', flavor: 'Peach Soap', flavor_ur: 'آڑو صابن', category: 'personal_care' },
-      { name: 'Sunsilk Shampoo', name_ur: 'سن سلک شیمپو', flavor: 'Black Shine', flavor_ur: 'بلیک شائن', category: 'personal_care' },
-      { name: 'Sunsilk Shampoo', name_ur: 'سن سلک شیمپو', flavor: 'Lively Clean', flavor_ur: 'لائیولی کلین', category: 'personal_care' },
-      { name: 'Clear Shampoo', name_ur: 'کلیئر شیمپو', flavor: 'Men', flavor_ur: 'مردوں کے لیے', category: 'personal_care' },
-      { name: 'Closeup Toothpaste', name_ur: 'کلوز اپ ٹوتھ پیسٹ', flavor: 'Red Hot', flavor_ur: 'ریڈ ہاٹ', category: 'personal_care' },
-      { name: 'Closeup Toothpaste', name_ur: 'کلوز اپ ٹوتھ پیسٹ', flavor: 'Ever Fresh', flavor_ur: 'ایور فریش', category: 'personal_care' },
+      { name: 'Lifebuoy Total 10', name_ur: 'لائف بوائے ٹوٹل 10', flavor: 'Soap', flavor_ur: 'صابن', category: 'skin_bath_care' },
+      { name: 'Lux', name_ur: 'لکس', flavor: 'Rose Soap', flavor_ur: 'گلاب صابن', category: 'skin_bath_care' },
+      { name: 'Lux', name_ur: 'لکس', flavor: 'Peach Soap', flavor_ur: 'آڑو صابن', category: 'skin_bath_care' },
+      { name: 'Sunsilk Shampoo', name_ur: 'سن سلک شیمپو', flavor: 'Black Shine', flavor_ur: 'بلیک شائن', category: 'hair_care' },
+      { name: 'Sunsilk Shampoo', name_ur: 'سن سلک شیمپو', flavor: 'Lively Clean', flavor_ur: 'لائیولی کلین', category: 'hair_care' },
+      { name: 'Clear Shampoo', name_ur: 'کلیئر شیمپو', flavor: 'Men', flavor_ur: 'مردوں کے لیے', category: 'hair_care' },
+      { name: 'Closeup Toothpaste', name_ur: 'کلوز اپ ٹوتھ پیسٹ', flavor: 'Red Hot', flavor_ur: 'ریڈ ہاٹ', category: 'oral_care' },
+      { name: 'Closeup Toothpaste', name_ur: 'کلوز اپ ٹوتھ پیسٹ', flavor: 'Ever Fresh', flavor_ur: 'ایور فریش', category: 'oral_care' },
       { name: 'Glow & Lovely Cream', name_ur: 'گلو اینڈ لولی کریم', category: 'cosmetics_beauty' },
       { name: 'Ponds Cream', name_ur: 'پونڈز کریم', category: 'cosmetics_beauty' },
       { name: 'Vaseline Lotion', name_ur: 'ویزلین لوشن', category: 'cosmetics_beauty' },
@@ -211,42 +217,46 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
   {
     slug: 'unilever_home', name: 'Unilever — Home Care', name_ur: 'یونی لیور — گھریلو صفائی', icon: 'SprayCan',
     items: [
-      { name: 'Surf Excel', name_ur: 'سرف ایکسل', flavor: 'Bar', flavor_ur: 'بار', category: 'household' },
-      { name: 'Surf Excel', name_ur: 'سرف ایکسل', flavor: 'Powder', flavor_ur: 'پاؤڈر', category: 'household' },
-      { name: 'Wheel Detergent Powder', name_ur: 'ویل واشنگ پاؤڈر', category: 'household' },
-      { name: 'Vim Dishwash Bar', name_ur: 'وِم برتن دھونے کی بار', category: 'household' },
-      { name: 'Vim Dishwash Liquid', name_ur: 'وِم برتن دھونے کا مائع', category: 'household' },
+      { name: 'Surf Excel', name_ur: 'سرف ایکسل', flavor: 'Bar', flavor_ur: 'بار', category: 'laundry_detergent' },
+      { name: 'Surf Excel', name_ur: 'سرف ایکسل', flavor: 'Powder', flavor_ur: 'پاؤڈر', category: 'laundry_detergent' },
+      { name: 'Wheel Detergent Powder', name_ur: 'ویل واشنگ پاؤڈر', category: 'laundry_detergent' },
+      { name: 'Vim Dishwash Bar', name_ur: 'وِم برتن دھونے کی بار', category: 'dishwashing' },
+      { name: 'Vim Dishwash Liquid', name_ur: 'وِم برتن دھونے کا مائع', category: 'dishwashing' },
     ],
   },
   {
     slug: 'pg', name: 'P&G', name_ur: 'پی اینڈ جی', icon: 'SprayCan',
     items: [
-      { name: 'Ariel Powder', name_ur: 'ایریل واشنگ پاؤڈر', category: 'household' },
-      { name: 'Bonus Detergent', name_ur: 'بونس واشنگ پاؤڈر', category: 'household' },
-      { name: 'Head & Shoulders Shampoo', name_ur: 'ہیڈ اینڈ شولڈرز شیمپو', category: 'personal_care' },
-      { name: 'Pantene Shampoo', name_ur: 'پینٹین شیمپو', category: 'personal_care' },
-      { name: 'Safeguard Soap', name_ur: 'سیف گارڈ صابن', category: 'personal_care' },
+      { name: 'Ariel Powder', name_ur: 'ایریل واشنگ پاؤڈر', category: 'laundry_detergent' },
+      { name: 'Bonus Detergent', name_ur: 'بونس واشنگ پاؤڈر', category: 'laundry_detergent' },
+      { name: 'Head & Shoulders Shampoo', name_ur: 'ہیڈ اینڈ شولڈرز شیمپو', category: 'hair_care' },
+      { name: 'Pantene Shampoo', name_ur: 'پینٹین شیمپو', category: 'hair_care' },
+      { name: 'Safeguard Soap', name_ur: 'سیف گارڈ صابن', category: 'skin_bath_care' },
+      { name: 'Pampers', name_ur: 'پیمپرز', flavor: 'Small', flavor_ur: 'سمال', category: 'diapers_wipes' },
+      { name: 'Pampers', name_ur: 'پیمپرز', flavor: 'Medium', flavor_ur: 'میڈیم', category: 'diapers_wipes' },
+      { name: 'Pampers', name_ur: 'پیمپرز', flavor: 'Large', flavor_ur: 'لارج', category: 'diapers_wipes' },
+      { name: 'Pampers Baby Wipes', name_ur: 'پیمپرز بے بی وائپس', category: 'diapers_wipes' },
     ],
   },
   {
     slug: 'reckitt', name: 'Reckitt Benckiser', name_ur: 'ریکٹ بینکائزر', icon: 'SprayCan',
     items: [
-      { name: 'Dettol', name_ur: 'ڈیٹول', flavor: 'Antiseptic Liquid', flavor_ur: 'اینٹی سیپٹک مائع', category: 'personal_care' },
-      { name: 'Dettol Soap', name_ur: 'ڈیٹول صابن', category: 'personal_care' },
-      { name: 'Dettol Handwash', name_ur: 'ڈیٹول ہینڈ واش', category: 'personal_care' },
+      { name: 'Dettol', name_ur: 'ڈیٹول', flavor: 'Antiseptic Liquid', flavor_ur: 'اینٹی سیپٹک مائع', category: 'skin_bath_care' },
+      { name: 'Dettol Soap', name_ur: 'ڈیٹول صابن', category: 'skin_bath_care' },
+      { name: 'Dettol Handwash', name_ur: 'ڈیٹول ہینڈ واش', category: 'skin_bath_care' },
       { name: 'Harpic Toilet Cleaner', name_ur: 'ہارپک ٹائلٹ کلینر', category: 'household' },
-      { name: 'Vanish Fabric Stain Remover', name_ur: 'وینش داغ صاف کرنے والا', category: 'household' },
-      { name: 'Mortein Insect Spray', name_ur: 'مارٹین کیڑے مار اسپرے', category: 'household' },
-      { name: 'Genie Fabric Softener', name_ur: 'جینی کپڑے نرم کرنے والا', category: 'household' },
+      { name: 'Vanish Fabric Stain Remover', name_ur: 'وینش داغ صاف کرنے والا', category: 'laundry_detergent' },
+      { name: 'Mortein Insect Spray', name_ur: 'مارٹین کیڑے مار اسپرے', category: 'air_insect_care' },
+      { name: 'Genie Fabric Softener', name_ur: 'جینی کپڑے نرم کرنے والا', category: 'laundry_detergent' },
     ],
   },
   {
     slug: 'colgate', name: 'Colgate-Palmolive', name_ur: 'کولگیٹ پامولیو', icon: 'Sparkles',
     items: [
-      { name: 'Colgate Toothpaste', name_ur: 'کولگیٹ ٹوتھ پیسٹ', flavor: 'Total', flavor_ur: 'ٹوٹل', category: 'personal_care' },
-      { name: 'Colgate Toothpaste', name_ur: 'کولگیٹ ٹوتھ پیسٹ', flavor: 'MaxFresh', flavor_ur: 'میکس فریش', category: 'personal_care' },
-      { name: 'Colgate Toothbrush', name_ur: 'کولگیٹ ٹوتھ برش', category: 'personal_care' },
-      { name: 'Palmolive Soap', name_ur: 'پامولیو صابن', category: 'personal_care' },
+      { name: 'Colgate Toothpaste', name_ur: 'کولگیٹ ٹوتھ پیسٹ', flavor: 'Total', flavor_ur: 'ٹوٹل', category: 'oral_care' },
+      { name: 'Colgate Toothpaste', name_ur: 'کولگیٹ ٹوتھ پیسٹ', flavor: 'MaxFresh', flavor_ur: 'میکس فریش', category: 'oral_care' },
+      { name: 'Colgate Toothbrush', name_ur: 'کولگیٹ ٹوتھ برش', category: 'oral_care' },
+      { name: 'Palmolive Soap', name_ur: 'پامولیو صابن', category: 'skin_bath_care' },
     ],
   },
   {
@@ -266,7 +276,9 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
       { name: 'Nestlé Nesvita', name_ur: 'نیسلے نیسویٹا', category: 'dairy_eggs' },
       { name: 'Nestlé Fruita Vitals Juice', name_ur: 'نیسلے فروٹا وائٹلز جوس', category: 'beverages' },
       { name: 'Nescafé Classic', name_ur: 'نیسکیفے کلاسک', category: 'tea_coffee' },
-      { name: 'Maggi Noodles', name_ur: 'میگی نوڈلز', category: 'other' },
+      { name: 'Maggi Noodles', name_ur: 'میگی نوڈلز', category: 'noodles_pasta' },
+      { name: 'Cerelac', name_ur: 'سیریلیک', flavor: 'Wheat', flavor_ur: 'گندم', category: 'baby_food_feeding' },
+      { name: 'Lactogen', name_ur: 'لیکٹوجن', category: 'baby_food_feeding' },
     ],
   },
   {
@@ -315,6 +327,70 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
     slug: 'hamdard', name: 'Hamdard', name_ur: 'ہمدرد', icon: 'FlaskConical',
     items: [
       { name: 'Rooh Afza Syrup', name_ur: 'روح افزا شربت', category: 'beverages' },
+    ],
+  },
+  // Cooking oil & ghee — the four names Al-Fatah's own oil/ghee category
+  // page and search listings kept naming as the household staples,
+  // checked before adding (Dalda, Sufi Foods, Meezan, Kashmir).
+  {
+    slug: 'dalda', name: 'Dalda', name_ur: 'ڈالڈا', icon: 'Droplet',
+    items: [
+      { name: 'Dalda Cooking Oil', name_ur: 'ڈالڈا کوکنگ آئل', category: 'cooking_oil_ghee' },
+      { name: 'Dalda Banaspati Ghee', name_ur: 'ڈالڈا بناسپتی گھی', category: 'cooking_oil_ghee' },
+    ],
+  },
+  {
+    slug: 'sufi', name: 'Sufi', name_ur: 'صوفی', icon: 'Droplet',
+    items: [
+      { name: 'Sufi Cooking Oil', name_ur: 'صوفی کوکنگ آئل', category: 'cooking_oil_ghee' },
+      { name: 'Sufi Banaspati Ghee', name_ur: 'صوفی بناسپتی گھی', category: 'cooking_oil_ghee' },
+    ],
+  },
+  {
+    slug: 'meezan', name: 'Meezan', name_ur: 'میزان', icon: 'Droplet',
+    items: [
+      { name: 'Meezan Cooking Oil', name_ur: 'میزان کوکنگ آئل', category: 'cooking_oil_ghee' },
+      { name: 'Meezan Banaspati Ghee', name_ur: 'میزان بناسپتی گھی', category: 'cooking_oil_ghee' },
+    ],
+  },
+  {
+    slug: 'kashmir', name: 'Kashmir', name_ur: 'کشمیر', icon: 'Droplet',
+    items: [
+      { name: 'Kashmir Cooking Oil', name_ur: 'کشمیر کوکنگ آئل', category: 'cooking_oil_ghee' },
+      { name: 'Kashmir Banaspati Ghee', name_ur: 'کشمیر بناسپتی گھی', category: 'cooking_oil_ghee' },
+    ],
+  },
+  // Basmati rice — Guard (the original packaged-basmati pioneer in
+  // Pakistan) and Falak (Matco Foods' flagship, "King of Basmati" in
+  // export markets) — both confirmed real before adding.
+  {
+    slug: 'guard', name: 'Guard', name_ur: 'گارڈ', icon: 'Wheat',
+    items: [
+      { name: 'Guard Basmati Rice', name_ur: 'گارڈ باسمتی چاول', category: 'grains_pulses' },
+      { name: 'Guard Supreme Basmati Rice', name_ur: 'گارڈ سپریم باسمتی چاول', category: 'grains_pulses' },
+      { name: 'Guard Brown Basmati Rice', name_ur: 'گارڈ براؤن باسمتی چاول', category: 'grains_pulses' },
+    ],
+  },
+  {
+    slug: 'falak', name: 'Falak', name_ur: 'فلک', icon: 'Wheat',
+    items: [
+      { name: 'Falak Basmati Rice', name_ur: 'فلک باسمتی چاول', category: 'grains_pulses' },
+      { name: 'Falak Extreme Basmati Rice', name_ur: 'فلک ایکسٹریم باسمتی چاول', category: 'grains_pulses' },
+    ],
+  },
+  // Tissue & paper — Rose Petal (real facial tissue/toilet-roll/kitchen-
+  // towel maker, checked at rosepetal.com.pk; the brand's own sub-names
+  // for toilet roll ("Maxob") and kitchen towel ("Zzoop") kept as-is
+  // rather than generalized, since that's what's actually printed on
+  // the pack).
+  {
+    slug: 'rose_petal', name: 'Rose Petal', name_ur: 'روز پیٹل', icon: 'Layers',
+    items: [
+      { name: 'Rose Petal Facial Tissue', name_ur: 'روز پیٹل فیشل ٹشو', category: 'tissue_paper' },
+      { name: 'Rose Petal', name_ur: 'روز پیٹل', flavor: 'Maxob Toilet Roll', flavor_ur: 'میکسوب ٹائلٹ رول', category: 'tissue_paper' },
+      { name: 'Rose Petal', name_ur: 'روز پیٹل', flavor: 'Zzoop Kitchen Towel', flavor_ur: 'زوپ کچن تولیہ', category: 'tissue_paper' },
+      { name: 'Rose Petal Napkins', name_ur: 'روز پیٹل نیپکن', category: 'tissue_paper' },
+      { name: 'Rose Petal Pocket Tissue', name_ur: 'روز پیٹل پاکٹ ٹشو', category: 'tissue_paper' },
     ],
   },
 ]
