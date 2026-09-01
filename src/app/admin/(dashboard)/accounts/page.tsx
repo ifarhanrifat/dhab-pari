@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { PlusCircle, X, Pencil, Save, Droplets, Heart, Search, MoreVertical, ChevronDown, ChevronUp, SlidersHorizontal, Eye, Power } from 'lucide-react'
@@ -101,6 +102,18 @@ export default function AccountsPage() {
   // the rest of the Chart of Accounts already behaved.
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ consumer: true, donor: true })
   const [menuId, setMenuId] = useState<string | null>(null)
+  // Fixed-position coords for the row menu, computed from the trigger
+  // button's own bounding rect at open time — see the portal render near
+  // the bottom of this component for why: a plain `absolute` dropdown
+  // scoped to its row got trapped behind a later sibling section card in
+  // paint order the moment it needed to extend past its own card's
+  // bottom edge (the last row of Cash-in-Hand opening "under" Expenses
+  // below it), which no amount of z-index or overflow-hidden removal on
+  // the row's own ancestors could fix — those are two different section
+  // cards, not a parent/child relationship, so nothing here could ever
+  // out-stack the next card short of leaving normal document flow
+  // entirely via a portal.
+  const [menuPos, setMenuPos] = useState<{ top: number; left?: number; right?: number } | null>(null)
   const supabase = createClient()
 
   const load = async () => {
@@ -134,6 +147,17 @@ export default function AccountsPage() {
     setLoading(false)
   }
   useEffect(() => { load() }, [])
+
+  // The menu's position is captured once, at open time — close it on
+  // scroll rather than trying to keep a fixed-position portal glued to a
+  // row that just moved out from under it.
+  useEffect(() => {
+    if (!menuId) return
+    const close = () => { setMenuId(null); setMenuPos(null) }
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => { window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close) }
+  }, [menuId])
 
   const displayName = (name: string, name_ur: string | null) => (lang === 'ur' && name_ur) ? name_ur : name
 
@@ -238,7 +262,7 @@ export default function AccountsPage() {
   }
 
   const openEdit = (a: Account) => {
-    setMenuId(null)
+    setMenuId(null); setMenuPos(null)
     // Consumer accounts are edited from the Billing page now (Edit / Activate /
     // Deactivate / Permanent Disconnection) — this dialog only handles the
     // general chart-of-accounts case.
@@ -249,7 +273,7 @@ export default function AccountsPage() {
   }
 
   const viewAccount = (a: Account) => {
-    setMenuId(null)
+    setMenuId(null); setMenuPos(null)
     router.push(`/admin/accounts/${a.id}`)
   }
 
@@ -302,7 +326,7 @@ export default function AccountsPage() {
   // page now — this toggle only ever runs for non-consumer accounts (the menu
   // item is hidden for type='consumer' rows).
   const toggleActive = async (a: Account) => {
-    setMenuId(null)
+    setMenuId(null); setMenuPos(null)
     await supabase.from('accounts').update({ is_active: !a.is_active }).eq('id', a.id)
     toast.success(a.is_active ? t('ac.accountDisabled') : t('ac.accountEnabled'))
     load()
@@ -364,33 +388,17 @@ export default function AccountsPage() {
           )}
           <div className="relative w-6 flex justify-center">
             <button
-              onClick={(e) => { e.stopPropagation(); setMenuId(menuId === a.id ? null : a.id) }}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (menuId === a.id) { setMenuId(null); setMenuPos(null); return }
+                const rect = e.currentTarget.getBoundingClientRect()
+                setMenuPos(isUrdu ? { top: rect.bottom + 4, left: rect.left } : { top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                setMenuId(a.id)
+              }}
               className="p-1 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"
             >
               <MoreVertical size={18} />
             </button>
-            {menuId === a.id && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="absolute end-0 top-7 z-20 w-44 bg-white rounded-lg shadow-lg border border-dp-outline-variant py-1"
-              >
-                <button onClick={() => viewAccount(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
-                  <Eye size={14} /> {t('ac.viewAccount')}
-                </button>
-                {a.type === 'consumer' ? (
-                  <p className="px-3 py-2 text-[12px] font-sans text-dp-on-surface-variant">{t('ac.editFromBilling')}</p>
-                ) : (
-                  <>
-                    <button onClick={() => openEdit(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
-                      <Pencil size={14} /> {t('ac.editAccount')}
-                    </button>
-                    <button onClick={() => toggleActive(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
-                      <Power size={14} /> {a.is_active ? t('ac.disableAccount') : t('ac.enableAccount')}
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -525,7 +533,39 @@ export default function AccountsPage() {
         </div>
       )}
 
-      {menuId && <div className="fixed inset-0 z-10" onClick={() => setMenuId(null)} />}
+      {menuId && menuPos && typeof document !== 'undefined' && createPortal(
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => { setMenuId(null); setMenuPos(null) }} />
+          {(() => {
+            const a = accounts.find((x) => x.id === menuId)
+            if (!a) return null
+            return (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{ top: menuPos.top, left: menuPos.left, right: menuPos.right }}
+                className="fixed z-50 w-44 bg-white rounded-lg shadow-lg border border-dp-outline-variant py-1"
+              >
+                <button onClick={() => viewAccount(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
+                  <Eye size={14} /> {t('ac.viewAccount')}
+                </button>
+                {a.type === 'consumer' ? (
+                  <p className="px-3 py-2 text-[12px] font-sans text-dp-on-surface-variant">{t('ac.editFromBilling')}</p>
+                ) : (
+                  <>
+                    <button onClick={() => openEdit(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
+                      <Pencil size={14} /> {t('ac.editAccount')}
+                    </button>
+                    <button onClick={() => toggleActive(a)} className="w-full flex items-center gap-2 px-3 py-2 text-[13.5px] font-sans text-dp-on-surface hover:bg-dp-surface-container-low cursor-pointer">
+                      <Power size={14} /> {a.is_active ? t('ac.disableAccount') : t('ac.enableAccount')}
+                    </button>
+                  </>
+                )}
+              </div>
+            )
+          })()}
+        </>,
+        document.body
+      )}
 
       <button
         onClick={openAdd}
