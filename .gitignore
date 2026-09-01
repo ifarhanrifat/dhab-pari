@@ -13,6 +13,11 @@
 # testing
 /coverage
 
+# Built native-app artifacts (APK) — these are binary build output, not
+# source; upload the real one to wherever the site serves static
+# downloads from, not to this git repo.
+/dist
+
 # next.js
 # Not just /.next/ — Finder's "Duplicate" leaves ".next 2", which slipped past
 # the old rule and pushed a 245 MB Turbopack cache file at GitHub.
