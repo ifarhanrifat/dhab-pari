@@ -5,7 +5,7 @@
 // category (and a selling-price suggestion where one is actually
 // sourced — see `price` below); the keeper still confirms/adjusts the
 // price and sets stock, and can still attach their own photo the normal
-// way.
+// way (ImageUpload, same control a manually-typed product uses).
 //
 // Sourced from each brand's own product pages (mayfairfood.com/pk,
 // candyland.com.pk, ismailindustries.com.pk) plus real Pakistani
@@ -16,7 +16,11 @@
 //   checked tonight; everything else is left unset (the form starts at
 //   0, same as a manually-typed product) rather than guess a number for
 //   a real financial system. Every price shown is a starting suggestion
-//   only — the keeper's own cost/selling price always wins.
+//   only — the keeper's own cost/selling price always wins. Most
+//   Pakistani grocery-retail sites render prices client-side in a way
+//   this app's fetch tool can't read (naheed.pk, Carrefour, foodpanda
+//   all confirmed unreadable this way) — that's the ceiling on how many
+//   of these could realistically be verified tonight, not a shortcut.
 // - This is a strong starting set of the major, real, genuinely
 //   well-known brands a Pakistani general/kiryana store actually stocks
 //   — not a claim of exhaustive coverage of every company or every pack
@@ -25,14 +29,14 @@
 //   in this app to source and license real branded photography at this
 //   scale. Every catalog item renders with its category's icon
 //   (matching CategoryBrowser) until the keeper attaches their own real
-//   photo, exactly like a manually-typed product does today.
+//   photo.
 //
-// Urdu: brand/product proper nouns stay in Roman script (name_ur/
-// flavor_ur omitted) — that's how they're printed on the real packaging
-// and how Pakistani shop-keeper apps already show them. Generic,
-// non-brand descriptive terms (a recipe masala's own name, a cleaning
-// product's plain description) get a real Urdu label wherever one
-// naturally exists.
+// Urdu: every item now carries a name_ur (a plain phonetic Urdu
+// rendering of the same name, the way it'd actually be said/written
+// locally — "Pepsi" as "پیپسی", not translated) alongside the English
+// name printed on the real packaging, so nothing falls back to English
+// on the product card in Urdu mode. flavor_ur is filled in the same way
+// wherever the flavor/size is a real describable word.
 
 export interface CatalogItem {
   name: string
@@ -55,89 +59,96 @@ export interface CatalogBrand {
 // 2.25L. Reused for every carbonated-drink line below so each flavor ×
 // size combination becomes its own selectable SKU, matching how they
 // actually sit on a shop's shelf.
-const COLA_SIZES = ['250ml Glass Bottle', '345ml Can', '500ml PET Bottle', '1 Litre PET Bottle', '1.5 Litre PET Bottle', '2.25 Litre PET Bottle']
+const COLA_SIZES: { en: string; ur: string }[] = [
+  { en: '250ml Glass Bottle', ur: '250 ملی لیٹر شیشے کی بوتل' },
+  { en: '345ml Can', ur: '345 ملی لیٹر کین' },
+  { en: '500ml PET Bottle', ur: '500 ملی لیٹر پلاسٹک بوتل' },
+  { en: '1 Litre PET Bottle', ur: '1 لیٹر پلاسٹک بوتل' },
+  { en: '1.5 Litre PET Bottle', ur: '1.5 لیٹر پلاسٹک بوتل' },
+  { en: '2.25 Litre PET Bottle', ur: '2.25 لیٹر پلاسٹک بوتل' },
+]
 
-function sizedDrink(name: string, category = 'beverages'): CatalogItem[] {
-  return COLA_SIZES.map((size) => ({ name, flavor: size, category }))
+function sizedDrink(name: string, name_ur: string, category = 'beverages'): CatalogItem[] {
+  return COLA_SIZES.map((size) => ({ name, name_ur, flavor: size.en, flavor_ur: size.ur, category }))
 }
 
 export const PRODUCT_CATALOG: CatalogBrand[] = [
   {
     slug: 'lu', name: 'LU / Continental Biscuits', name_ur: 'ایل یو بسکٹ', icon: 'Cookie',
     items: [
-      { name: 'Prince', flavor: 'Chocolate', category: 'biscuits_snacks' },
-      { name: 'Prince', flavor: 'Original', category: 'biscuits_snacks' },
-      { name: 'Sooper', flavor: 'Original', category: 'biscuits_snacks' },
-      { name: 'Bisconni Chocolatto', category: 'biscuits_snacks' },
-      { name: 'Peek Freans Gluco', category: 'biscuits_snacks' },
-      { name: 'Peek Freans Nice', category: 'biscuits_snacks' },
-      { name: 'Rio', flavor: 'Chocolate', category: 'biscuits_snacks' },
-      { name: 'Rio', flavor: 'Strawberry', category: 'biscuits_snacks' },
-      { name: 'Candi', category: 'biscuits_snacks' },
-      { name: 'Oreo', flavor: 'Original', category: 'biscuits_snacks' },
+      { name: 'Prince', name_ur: 'پرنس', flavor: 'Chocolate', flavor_ur: 'چاکلیٹ', category: 'biscuits_snacks' },
+      { name: 'Prince', name_ur: 'پرنس', flavor: 'Original', flavor_ur: 'اورجنل', category: 'biscuits_snacks' },
+      { name: 'Sooper', name_ur: 'سوپر', flavor: 'Original', flavor_ur: 'اورجنل', category: 'biscuits_snacks' },
+      { name: 'Bisconni Chocolatto', name_ur: 'بسکونی چاکلیٹو', category: 'biscuits_snacks' },
+      { name: 'Peek Freans Gluco', name_ur: 'پیک فرینز گلوکو', category: 'biscuits_snacks' },
+      { name: 'Peek Freans Nice', name_ur: 'پیک فرینز نائس', category: 'biscuits_snacks' },
+      { name: 'Rio', name_ur: 'ریو', flavor: 'Chocolate', flavor_ur: 'چاکلیٹ', category: 'biscuits_snacks' },
+      { name: 'Rio', name_ur: 'ریو', flavor: 'Strawberry', flavor_ur: 'اسٹرابیری', category: 'biscuits_snacks' },
+      { name: 'Candi', name_ur: 'کینڈی', category: 'biscuits_snacks' },
+      { name: 'Oreo', name_ur: 'اوریو', flavor: 'Original', flavor_ur: 'اورجنل', category: 'biscuits_snacks' },
     ],
   },
   {
     slug: 'mayfair', name: 'Mayfair Foods', name_ur: 'میفیئر فوڈز', icon: 'Candy',
     items: [
       // Confectionery — mayfairfood.com/pk/brand/confectionery
-      { name: 'Frooto', flavor: 'Mango', category: 'confectionery' },
-      { name: 'Frooto', flavor: 'Amrood', category: 'confectionery' },
-      { name: 'Frooto', flavor: 'Peach', category: 'confectionery' },
-      { name: 'Frooto', flavor: 'Coconut', category: 'confectionery' },
-      { name: 'Frooto', flavor: 'Lemon', category: 'confectionery' },
-      { name: 'Chaska', flavor: 'Green Mango', category: 'confectionery' },
-      { name: 'Chaska', flavor: 'Amrood', category: 'confectionery' },
-      { name: 'Chaska', flavor: 'Orange', category: 'confectionery' },
-      { name: 'Milko Toffee', category: 'confectionery' },
-      { name: 'Fruit Gala', flavor: 'Blackcurrant', category: 'confectionery' },
-      { name: 'Fruit Gala', flavor: 'Strawberry', category: 'confectionery' },
-      { name: 'Fruit Gala', flavor: 'Green Apple', category: 'confectionery' },
-      { name: 'Fruit Gala', flavor: 'Orange', category: 'confectionery' },
-      { name: 'Mayfair Eclairs', category: 'confectionery' },
-      { name: 'Raging Sours', category: 'confectionery' },
-      { name: 'Creamers', flavor: 'Banana & Crème', category: 'confectionery' },
-      { name: 'Creamers', flavor: 'Strawberry & Crème', category: 'confectionery' },
-      { name: 'Wobbly Jellies', flavor: 'Strawberry', category: 'confectionery' },
-      { name: 'Mayfair Bubble', category: 'confectionery' },
+      { name: 'Frooto', name_ur: 'فروٹو', flavor: 'Mango', flavor_ur: 'آم', category: 'confectionery' },
+      { name: 'Frooto', name_ur: 'فروٹو', flavor: 'Amrood', flavor_ur: 'امرود', category: 'confectionery' },
+      { name: 'Frooto', name_ur: 'فروٹو', flavor: 'Peach', flavor_ur: 'آڑو', category: 'confectionery' },
+      { name: 'Frooto', name_ur: 'فروٹو', flavor: 'Coconut', flavor_ur: 'ناریل', category: 'confectionery' },
+      { name: 'Frooto', name_ur: 'فروٹو', flavor: 'Lemon', flavor_ur: 'لیموں', category: 'confectionery' },
+      { name: 'Chaska', name_ur: 'چسکا', flavor: 'Green Mango', flavor_ur: 'کچا آم', category: 'confectionery' },
+      { name: 'Chaska', name_ur: 'چسکا', flavor: 'Amrood', flavor_ur: 'امرود', category: 'confectionery' },
+      { name: 'Chaska', name_ur: 'چسکا', flavor: 'Orange', flavor_ur: 'مالٹا', category: 'confectionery' },
+      { name: 'Milko Toffee', name_ur: 'ملکو ٹافی', category: 'confectionery' },
+      { name: 'Fruit Gala', name_ur: 'فروٹ گالا', flavor: 'Blackcurrant', flavor_ur: 'بلیک کرنٹ', category: 'confectionery' },
+      { name: 'Fruit Gala', name_ur: 'فروٹ گالا', flavor: 'Strawberry', flavor_ur: 'اسٹرابیری', category: 'confectionery' },
+      { name: 'Fruit Gala', name_ur: 'فروٹ گالا', flavor: 'Green Apple', flavor_ur: 'سبز سیب', category: 'confectionery' },
+      { name: 'Fruit Gala', name_ur: 'فروٹ گالا', flavor: 'Orange', flavor_ur: 'مالٹا', category: 'confectionery' },
+      { name: 'Mayfair Eclairs', name_ur: 'میفیئر ایکلیئرز', category: 'confectionery' },
+      { name: 'Raging Sours', name_ur: 'ریجنگ ساورز', category: 'confectionery' },
+      { name: 'Creamers', name_ur: 'کریمرز', flavor: 'Banana & Crème', flavor_ur: 'کیلا کریم', category: 'confectionery' },
+      { name: 'Creamers', name_ur: 'کریمرز', flavor: 'Strawberry & Crème', flavor_ur: 'اسٹرابیری کریم', category: 'confectionery' },
+      { name: 'Wobbly Jellies', name_ur: 'وابلی جیلیز', flavor: 'Strawberry', flavor_ur: 'اسٹرابیری', category: 'confectionery' },
+      { name: 'Mayfair Bubble', name_ur: 'میفیئر بلبل گم', category: 'confectionery' },
       // Biscuits — mayfairfood.com/pk/brand/biscuits
-      { name: 'Cremo', flavor: 'Chocolate', category: 'biscuits_snacks' },
-      { name: 'Cremo', flavor: 'Strawberry', category: 'biscuits_snacks' },
-      { name: 'Mayfair Special', flavor: 'Classic', category: 'biscuits_snacks' },
-      { name: 'Mayfair Special', flavor: 'Chocolate', category: 'biscuits_snacks' },
-      { name: 'Café', category: 'biscuits_snacks' },
-      { name: 'Besto', category: 'biscuits_snacks' },
-      { name: 'Energi', category: 'biscuits_snacks' },
-      { name: 'Wow', category: 'biscuits_snacks' },
-      { name: 'A1', category: 'biscuits_snacks' },
-      { name: 'Chocday', category: 'biscuits_snacks' },
+      { name: 'Cremo', name_ur: 'کریمو', flavor: 'Chocolate', flavor_ur: 'چاکلیٹ', category: 'biscuits_snacks' },
+      { name: 'Cremo', name_ur: 'کریمو', flavor: 'Strawberry', flavor_ur: 'اسٹرابیری', category: 'biscuits_snacks' },
+      { name: 'Mayfair Special', name_ur: 'میفیئر اسپیشل', flavor: 'Classic', flavor_ur: 'کلاسک', category: 'biscuits_snacks' },
+      { name: 'Mayfair Special', name_ur: 'میفیئر اسپیشل', flavor: 'Chocolate', flavor_ur: 'چاکلیٹ', category: 'biscuits_snacks' },
+      { name: 'Café', name_ur: 'کیفے', category: 'biscuits_snacks' },
+      { name: 'Besto', name_ur: 'بیسٹو', category: 'biscuits_snacks' },
+      { name: 'Energi', name_ur: 'انرجی', category: 'biscuits_snacks' },
+      { name: 'Wow', name_ur: 'واؤ', category: 'biscuits_snacks' },
+      { name: 'A1', name_ur: 'اے ون', category: 'biscuits_snacks' },
+      { name: 'Chocday', name_ur: 'چاک ڈے', category: 'biscuits_snacks' },
       // Baked — mayfairfood.com/pk/brand/baked
-      { name: 'Mayfair Hearts', category: 'bakery' },
-      { name: 'Mayfair Croissant', flavor: 'Chocolate Filled', category: 'bakery' },
+      { name: 'Mayfair Hearts', name_ur: 'میفیئر ہارٹس', category: 'bakery' },
+      { name: 'Mayfair Croissant', name_ur: 'میفیئر کروسان', flavor: 'Chocolate Filled', flavor_ur: 'چاکلیٹ فلڈ', category: 'bakery' },
     ],
   },
   {
     slug: 'candyland', name: 'Candyland', name_ur: 'کینڈی لینڈ', icon: 'Candy',
     items: [
-      { name: 'Chili Mili', category: 'confectionery' },
-      { name: 'ABC Jelly', category: 'confectionery' },
-      { name: 'Cola Premium Jelly', category: 'confectionery' },
-      { name: 'Bottle Jelly', category: 'confectionery' },
-      { name: 'Fizzy-O Jelly', category: 'confectionery' },
-      { name: 'Fanty', category: 'confectionery' },
-      { name: 'Corona Mango', category: 'confectionery' },
-      { name: 'Funny Bunny', flavor: 'Lollipop', category: 'confectionery' },
-      { name: 'Puffs Marshmallow', category: 'confectionery' },
-      { name: 'Super Twister', category: 'confectionery' },
-      { name: 'Mello Marshmallow', flavor: 'Chocolate', category: 'confectionery' },
-      { name: 'Yums', category: 'confectionery' },
-      { name: 'Bisca Chocolate', category: 'confectionery' },
-      { name: 'Rush Chocolate', category: 'confectionery' },
-      { name: 'Cosmo Chocolate', category: 'confectionery' },
-      { name: 'Novella Chocolate', category: 'confectionery' },
-      { name: 'Bubble Pop Gum', category: 'confectionery' },
-      { name: 'Butter Scotch Candy', category: 'confectionery' },
-      { name: 'Pebbles', category: 'confectionery' },
+      { name: 'Chili Mili', name_ur: 'چلی ملی', category: 'confectionery' },
+      { name: 'ABC Jelly', name_ur: 'اے بی سی جیلی', category: 'confectionery' },
+      { name: 'Cola Premium Jelly', name_ur: 'کولا پریمیم جیلی', category: 'confectionery' },
+      { name: 'Bottle Jelly', name_ur: 'بوتل جیلی', category: 'confectionery' },
+      { name: 'Fizzy-O Jelly', name_ur: 'فِزی او جیلی', category: 'confectionery' },
+      { name: 'Fanty', name_ur: 'فینٹی', category: 'confectionery' },
+      { name: 'Corona Mango', name_ur: 'کرونا مینگو', category: 'confectionery' },
+      { name: 'Funny Bunny', name_ur: 'فنی بنی', flavor: 'Lollipop', flavor_ur: 'لالی پاپ', category: 'confectionery' },
+      { name: 'Puffs Marshmallow', name_ur: 'پفس مارشمیلو', category: 'confectionery' },
+      { name: 'Super Twister', name_ur: 'سپر ٹوئسٹر', category: 'confectionery' },
+      { name: 'Mello Marshmallow', name_ur: 'میلو مارشمیلو', flavor: 'Chocolate', flavor_ur: 'چاکلیٹ', category: 'confectionery' },
+      { name: 'Yums', name_ur: 'یمز', category: 'confectionery' },
+      { name: 'Bisca Chocolate', name_ur: 'بسکا چاکلیٹ', category: 'confectionery' },
+      { name: 'Rush Chocolate', name_ur: 'رش چاکلیٹ', category: 'confectionery' },
+      { name: 'Cosmo Chocolate', name_ur: 'کاسمو چاکلیٹ', category: 'confectionery' },
+      { name: 'Novella Chocolate', name_ur: 'نویلا چاکلیٹ', category: 'confectionery' },
+      { name: 'Bubble Pop Gum', name_ur: 'بلبل پاپ گم', category: 'confectionery' },
+      { name: 'Butter Scotch Candy', name_ur: 'بٹر اسکاچ کینڈی', category: 'confectionery' },
+      { name: 'Pebbles', name_ur: 'پیبلز', category: 'confectionery' },
     ],
   },
   {
@@ -169,39 +180,39 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
   {
     slug: 'tapal', name: 'Tapal', name_ur: 'ٹیپال', icon: 'Coffee',
     items: [
-      { name: 'Tapal Danedar', category: 'tea_coffee' },
-      { name: 'Tapal Family Mixture', category: 'tea_coffee' },
-      { name: 'Tapal Mezban', category: 'tea_coffee' },
-      { name: 'Tapal Green Tea', category: 'tea_coffee' },
+      { name: 'Tapal Danedar', name_ur: 'ٹیپال دانیدار', category: 'tea_coffee' },
+      { name: 'Tapal Family Mixture', name_ur: 'ٹیپال فیملی مکسچر', category: 'tea_coffee' },
+      { name: 'Tapal Mezban', name_ur: 'ٹیپال میزبان', category: 'tea_coffee' },
+      { name: 'Tapal Green Tea', name_ur: 'ٹیپال گرین ٹی', category: 'tea_coffee' },
     ],
   },
   {
     slug: 'lipton', name: 'Lipton', name_ur: 'لپٹن', icon: 'Coffee',
     items: [
-      { name: 'Lipton Yellow Label', category: 'tea_coffee' },
+      { name: 'Lipton Yellow Label', name_ur: 'لپٹن ییلو لیبل', category: 'tea_coffee' },
     ],
   },
   {
     slug: 'unilever_personal', name: 'Unilever — Personal Care', name_ur: 'یونی لیور — ذاتی نگہداشت', icon: 'Sparkles',
     items: [
-      { name: 'Lifebuoy Total 10', flavor: 'Soap', category: 'personal_care' },
-      { name: 'Lux', flavor: 'Rose Soap', category: 'personal_care' },
-      { name: 'Lux', flavor: 'Peach Soap', category: 'personal_care' },
-      { name: 'Sunsilk Shampoo', flavor: 'Black Shine', category: 'personal_care' },
-      { name: 'Sunsilk Shampoo', flavor: 'Lively Clean', category: 'personal_care' },
-      { name: 'Clear Shampoo', flavor: 'Men', category: 'personal_care' },
-      { name: 'Closeup Toothpaste', flavor: 'Red Hot', category: 'personal_care' },
-      { name: 'Closeup Toothpaste', flavor: 'Ever Fresh', category: 'personal_care' },
-      { name: 'Glow & Lovely Cream', category: 'cosmetics_beauty' },
-      { name: 'Ponds Cream', category: 'cosmetics_beauty' },
-      { name: 'Vaseline Lotion', category: 'cosmetics_beauty' },
+      { name: 'Lifebuoy Total 10', name_ur: 'لائف بوائے ٹوٹل 10', flavor: 'Soap', flavor_ur: 'صابن', category: 'personal_care' },
+      { name: 'Lux', name_ur: 'لکس', flavor: 'Rose Soap', flavor_ur: 'گلاب صابن', category: 'personal_care' },
+      { name: 'Lux', name_ur: 'لکس', flavor: 'Peach Soap', flavor_ur: 'آڑو صابن', category: 'personal_care' },
+      { name: 'Sunsilk Shampoo', name_ur: 'سن سلک شیمپو', flavor: 'Black Shine', flavor_ur: 'بلیک شائن', category: 'personal_care' },
+      { name: 'Sunsilk Shampoo', name_ur: 'سن سلک شیمپو', flavor: 'Lively Clean', flavor_ur: 'لائیولی کلین', category: 'personal_care' },
+      { name: 'Clear Shampoo', name_ur: 'کلیئر شیمپو', flavor: 'Men', flavor_ur: 'مردوں کے لیے', category: 'personal_care' },
+      { name: 'Closeup Toothpaste', name_ur: 'کلوز اپ ٹوتھ پیسٹ', flavor: 'Red Hot', flavor_ur: 'ریڈ ہاٹ', category: 'personal_care' },
+      { name: 'Closeup Toothpaste', name_ur: 'کلوز اپ ٹوتھ پیسٹ', flavor: 'Ever Fresh', flavor_ur: 'ایور فریش', category: 'personal_care' },
+      { name: 'Glow & Lovely Cream', name_ur: 'گلو اینڈ لولی کریم', category: 'cosmetics_beauty' },
+      { name: 'Ponds Cream', name_ur: 'پونڈز کریم', category: 'cosmetics_beauty' },
+      { name: 'Vaseline Lotion', name_ur: 'ویزلین لوشن', category: 'cosmetics_beauty' },
     ],
   },
   {
     slug: 'unilever_home', name: 'Unilever — Home Care', name_ur: 'یونی لیور — گھریلو صفائی', icon: 'SprayCan',
     items: [
-      { name: 'Surf Excel', name_ur: 'سرف ایکسل', flavor: 'Bar', category: 'household' },
-      { name: 'Surf Excel', name_ur: 'سرف ایکسل', flavor: 'Powder', category: 'household' },
+      { name: 'Surf Excel', name_ur: 'سرف ایکسل', flavor: 'Bar', flavor_ur: 'بار', category: 'household' },
+      { name: 'Surf Excel', name_ur: 'سرف ایکسل', flavor: 'Powder', flavor_ur: 'پاؤڈر', category: 'household' },
       { name: 'Wheel Detergent Powder', name_ur: 'ویل واشنگ پاؤڈر', category: 'household' },
       { name: 'Vim Dishwash Bar', name_ur: 'وِم برتن دھونے کی بار', category: 'household' },
       { name: 'Vim Dishwash Liquid', name_ur: 'وِم برتن دھونے کا مائع', category: 'household' },
@@ -212,9 +223,9 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
     items: [
       { name: 'Ariel Powder', name_ur: 'ایریل واشنگ پاؤڈر', category: 'household' },
       { name: 'Bonus Detergent', name_ur: 'بونس واشنگ پاؤڈر', category: 'household' },
-      { name: 'Head & Shoulders Shampoo', category: 'personal_care' },
-      { name: 'Pantene Shampoo', category: 'personal_care' },
-      { name: 'Safeguard Soap', category: 'personal_care' },
+      { name: 'Head & Shoulders Shampoo', name_ur: 'ہیڈ اینڈ شولڈرز شیمپو', category: 'personal_care' },
+      { name: 'Pantene Shampoo', name_ur: 'پینٹین شیمپو', category: 'personal_care' },
+      { name: 'Safeguard Soap', name_ur: 'سیف گارڈ صابن', category: 'personal_care' },
     ],
   },
   {
@@ -232,10 +243,10 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
   {
     slug: 'colgate', name: 'Colgate-Palmolive', name_ur: 'کولگیٹ پامولیو', icon: 'Sparkles',
     items: [
-      { name: 'Colgate Toothpaste', flavor: 'Total', category: 'personal_care' },
-      { name: 'Colgate Toothpaste', flavor: 'MaxFresh', category: 'personal_care' },
-      { name: 'Colgate Toothbrush', category: 'personal_care' },
-      { name: 'Palmolive Soap', category: 'personal_care' },
+      { name: 'Colgate Toothpaste', name_ur: 'کولگیٹ ٹوتھ پیسٹ', flavor: 'Total', flavor_ur: 'ٹوٹل', category: 'personal_care' },
+      { name: 'Colgate Toothpaste', name_ur: 'کولگیٹ ٹوتھ پیسٹ', flavor: 'MaxFresh', flavor_ur: 'میکس فریش', category: 'personal_care' },
+      { name: 'Colgate Toothbrush', name_ur: 'کولگیٹ ٹوتھ برش', category: 'personal_care' },
+      { name: 'Palmolive Soap', name_ur: 'پامولیو صابن', category: 'personal_care' },
     ],
   },
   {
@@ -243,7 +254,7 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
     items: [
       { name: 'Olpers Milk', name_ur: 'اولپرز دودھ', category: 'dairy_eggs' },
       { name: 'Olwell Milk', name_ur: 'اولویل دودھ', category: 'dairy_eggs' },
-      { name: 'Tarang', flavor: 'Tea Whitener', flavor_ur: 'چائے وائٹنر', category: 'dairy_eggs' },
+      { name: 'Tarang', name_ur: 'ترنگ', flavor: 'Tea Whitener', flavor_ur: 'چائے وائٹنر', category: 'dairy_eggs' },
       { name: 'Omore Ice Cream', name_ur: 'اومور آئس کریم', category: 'frozen' },
     ],
   },
@@ -251,10 +262,10 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
     slug: 'nestle', name: 'Nestlé Pakistan', name_ur: 'نیسلے پاکستان', icon: 'Milk',
     items: [
       { name: 'Nestlé Milkpak', name_ur: 'نیسلے ملک پیک', category: 'dairy_eggs' },
-      { name: 'Nestlé Everyday', flavor: 'Tea Whitener', flavor_ur: 'چائے وائٹنر', category: 'dairy_eggs' },
-      { name: 'Nestlé Nesvita', category: 'dairy_eggs' },
-      { name: 'Nestlé Fruita Vitals Juice', category: 'beverages' },
-      { name: 'Nescafé Classic', category: 'tea_coffee' },
+      { name: 'Nestlé Everyday', name_ur: 'نیسلے ایوری ڈے', flavor: 'Tea Whitener', flavor_ur: 'چائے وائٹنر', category: 'dairy_eggs' },
+      { name: 'Nestlé Nesvita', name_ur: 'نیسلے نیسویٹا', category: 'dairy_eggs' },
+      { name: 'Nestlé Fruita Vitals Juice', name_ur: 'نیسلے فروٹا وائٹلز جوس', category: 'beverages' },
+      { name: 'Nescafé Classic', name_ur: 'نیسکیفے کلاسک', category: 'tea_coffee' },
       { name: 'Maggi Noodles', name_ur: 'میگی نوڈلز', category: 'other' },
     ],
   },
@@ -268,9 +279,9 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
   {
     slug: 'cocacola', name: 'Coca-Cola', name_ur: 'کوکا کولا', icon: 'CupSoda',
     items: [
-      ...sizedDrink('Coca-Cola'),
-      ...sizedDrink('Sprite'),
-      ...sizedDrink('Fanta'),
+      ...sizedDrink('Coca-Cola', 'کوکا کولا'),
+      ...sizedDrink('Sprite', 'سپرائٹ'),
+      ...sizedDrink('Fanta', 'فانٹا'),
     ],
   },
   {
@@ -280,24 +291,24 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
       // every other size here is a real, sold SKU but without a
       // separately-verified price, so it starts blank like the rest of
       // the catalog rather than guess one.
-      { name: 'Pepsi', flavor: '250ml Glass Bottle', category: 'beverages' },
-      { name: 'Pepsi', flavor: '345ml Can', category: 'beverages' },
-      { name: 'Pepsi', flavor: '500ml PET Bottle', category: 'beverages', price: 99 },
-      { name: 'Pepsi', flavor: '1 Litre PET Bottle', category: 'beverages' },
-      { name: 'Pepsi', flavor: '1.5 Litre PET Bottle', category: 'beverages', price: 150 },
-      { name: 'Pepsi', flavor: '2.25 Litre PET Bottle', category: 'beverages' },
-      { name: 'Pepsi Diet', flavor: '1.5 Litre PET Bottle', category: 'beverages' },
-      ...sizedDrink('7Up'),
-      ...sizedDrink('Mirinda'),
-      { name: 'Sting Energy Drink', category: 'beverages' },
-      { name: "Lay's", name_ur: 'لیز', flavor: 'Classic Salted, 20g', category: 'biscuits_snacks' },
-      { name: "Lay's", name_ur: 'لیز', flavor: 'Classic Salted, 80g', category: 'biscuits_snacks' },
-      { name: "Lay's", name_ur: 'لیز', flavor: 'Masala, 21g', category: 'biscuits_snacks' },
-      { name: "Lay's", name_ur: 'لیز', flavor: 'Masala, 30g', category: 'biscuits_snacks' },
-      { name: "Lay's", name_ur: 'لیز', flavor: 'Chilli, 14g', category: 'biscuits_snacks' },
-      { name: "Lay's", name_ur: 'لیز', flavor: 'Paprika, 24g', category: 'biscuits_snacks' },
-      { name: 'Kurkure', flavor: 'Masala Munch', category: 'biscuits_snacks' },
-      { name: 'Kurkure', flavor: 'Chutney Chaska', category: 'biscuits_snacks' },
+      { name: 'Pepsi', name_ur: 'پیپسی', flavor: '250ml Glass Bottle', flavor_ur: '250 ملی لیٹر شیشے کی بوتل', category: 'beverages' },
+      { name: 'Pepsi', name_ur: 'پیپسی', flavor: '345ml Can', flavor_ur: '345 ملی لیٹر کین', category: 'beverages' },
+      { name: 'Pepsi', name_ur: 'پیپسی', flavor: '500ml PET Bottle', flavor_ur: '500 ملی لیٹر پلاسٹک بوتل', category: 'beverages', price: 99 },
+      { name: 'Pepsi', name_ur: 'پیپسی', flavor: '1 Litre PET Bottle', flavor_ur: '1 لیٹر پلاسٹک بوتل', category: 'beverages' },
+      { name: 'Pepsi', name_ur: 'پیپسی', flavor: '1.5 Litre PET Bottle', flavor_ur: '1.5 لیٹر پلاسٹک بوتل', category: 'beverages', price: 150 },
+      { name: 'Pepsi', name_ur: 'پیپسی', flavor: '2.25 Litre PET Bottle', flavor_ur: '2.25 لیٹر پلاسٹک بوتل', category: 'beverages' },
+      { name: 'Pepsi Diet', name_ur: 'پیپسی ڈائیٹ', flavor: '1.5 Litre PET Bottle', flavor_ur: '1.5 لیٹر پلاسٹک بوتل', category: 'beverages' },
+      ...sizedDrink('7Up', 'سیون اپ'),
+      ...sizedDrink('Mirinda', 'مرینڈا'),
+      { name: 'Sting Energy Drink', name_ur: 'اسٹنگ انرجی ڈرنک', category: 'beverages' },
+      { name: "Lay's", name_ur: 'لیز', flavor: 'Classic Salted, 20g', flavor_ur: 'کلاسک نمکین، 20 گرام', category: 'biscuits_snacks' },
+      { name: "Lay's", name_ur: 'لیز', flavor: 'Classic Salted, 80g', flavor_ur: 'کلاسک نمکین، 80 گرام', category: 'biscuits_snacks' },
+      { name: "Lay's", name_ur: 'لیز', flavor: 'Masala, 21g', flavor_ur: 'مصالحہ، 21 گرام', category: 'biscuits_snacks' },
+      { name: "Lay's", name_ur: 'لیز', flavor: 'Masala, 30g', flavor_ur: 'مصالحہ، 30 گرام', category: 'biscuits_snacks' },
+      { name: "Lay's", name_ur: 'لیز', flavor: 'Chilli, 14g', flavor_ur: 'چٹ پٹی، 14 گرام', category: 'biscuits_snacks' },
+      { name: "Lay's", name_ur: 'لیز', flavor: 'Paprika, 24g', flavor_ur: 'پیپریکا، 24 گرام', category: 'biscuits_snacks' },
+      { name: 'Kurkure', name_ur: 'کرکرے', flavor: 'Masala Munch', flavor_ur: 'مصالحہ منچ', category: 'biscuits_snacks' },
+      { name: 'Kurkure', name_ur: 'کرکرے', flavor: 'Chutney Chaska', flavor_ur: 'چٹنی چسکا', category: 'biscuits_snacks' },
     ],
   },
   {

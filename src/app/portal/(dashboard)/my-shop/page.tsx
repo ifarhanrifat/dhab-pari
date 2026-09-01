@@ -18,6 +18,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { WalletTopupModal } from '@/components/portal/WalletTopupModal'
+import { ImageUpload } from '@/components/admin/ImageUpload'
 import { getCategoryLabel } from '@/lib/shopTypes'
 import { CategoryBrowser, CategoryPicker } from '@/components/shared/CategoryBrowser'
 import { ProductCatalogPicker } from '@/components/shared/ProductCatalogPicker'
@@ -299,10 +300,7 @@ export default function MyShopPage() {
             </div>
             {!editing && form.name && <p className="font-sans text-[12px] text-dp-secondary bg-dp-secondary-container/40 rounded-lg px-3 py-2 mb-3">{t('sk.reviewDraftHint')}</p>}
             <div className="space-y-3">
-              {coverUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={coverUrl} alt="" className="w-full h-32 object-cover rounded-lg" />
-              )}
+              <ImageUpload bucket="images" label={t('mk.productPhoto')} currentUrl={coverUrl} onUpload={setCoverUrl} />
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('mk.productNamePlaceholder')} className="input-field" />
               <input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
               <input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder={t('sk.companyPlaceholder')} className="input-field" />

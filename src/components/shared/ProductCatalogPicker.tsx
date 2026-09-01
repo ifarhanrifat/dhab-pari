@@ -23,8 +23,24 @@ interface Props {
 export function ProductCatalogPicker({ onPick }: Props) {
   const { t, isUrdu } = useLocale()
   const [brandSlug, setBrandSlug] = useState<string | null>(null)
+  const [activeSubCategory, setActiveSubCategory] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const brand = PRODUCT_CATALOG.find((b) => b.slug === brandSlug)
+
+  const openBrand = (slug: string) => { setBrandSlug(slug); setActiveSubCategory(null) }
+
+  // A brand whose real product line already spans more than one of our
+  // categories (Mayfair: confectionery/biscuits/bakery) gets its own
+  // sub-category tab row instead of one long mixed grid — mirrors the
+  // department → category shape CategoryBrowser already uses everywhere
+  // else, just one level deeper (brand → category → item).
+  const subCategories = useMemo(() => {
+    if (!brand) return []
+    const seen: string[] = []
+    for (const it of brand.items) if (!seen.includes(it.category)) seen.push(it.category)
+    return seen
+  }, [brand])
+  const visibleItems = brand ? brand.items.filter((it) => !activeSubCategory || it.category === activeSubCategory) : []
 
   const searchResults = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -69,7 +85,7 @@ export function ProductCatalogPicker({ onPick }: Props) {
           {PRODUCT_CATALOG.map((b, i) => {
             const color = TILE_COLORS[i % TILE_COLORS.length]
             return (
-              <button key={b.slug} type="button" onClick={() => setBrandSlug(b.slug)}
+              <button key={b.slug} type="button" onClick={() => openBrand(b.slug)}
                 className="flex flex-col items-center gap-1.5 bg-white border border-dp-outline-variant rounded-lg p-2.5 text-center hover:border-dp-secondary cursor-pointer">
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center ${color.bg} ${color.text}`}><DynamicIcon name={b.icon} size={17} /></div>
                 <span className="font-sans text-[11.5px] font-semibold text-dp-on-surface leading-tight">{isUrdu ? b.name_ur : b.name}</span>
@@ -79,12 +95,28 @@ export function ProductCatalogPicker({ onPick }: Props) {
         </div>
       ) : (
         <div>
-          <button type="button" onClick={() => setBrandSlug(null)} className="inline-flex items-center gap-1 font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline cursor-pointer mb-2">
+          <button type="button" onClick={() => { setBrandSlug(null); setActiveSubCategory(null) }} className="inline-flex items-center gap-1 font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline cursor-pointer mb-2">
             <ChevronRight size={13} className="rtl:rotate-180" /> {t('pc.allBrandsBtn')}
           </button>
           <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.04em] mb-2">{isUrdu ? brand.name_ur : brand.name}</p>
+
+          {subCategories.length > 1 && (
+            <div className="flex items-center gap-1.5 mb-2.5 overflow-x-auto pb-1">
+              <button type="button" onClick={() => setActiveSubCategory(null)}
+                className={`shrink-0 px-2.5 py-1 rounded-full text-[11.5px] font-sans font-semibold cursor-pointer border ${!activeSubCategory ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>
+                {t('pc.allTab')}
+              </button>
+              {subCategories.map((c) => (
+                <button key={c} type="button" onClick={() => setActiveSubCategory(c)}
+                  className={`shrink-0 px-2.5 py-1 rounded-full text-[11.5px] font-sans font-semibold cursor-pointer border ${activeSubCategory === c ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>
+                  {getCategoryLabel(c, isUrdu)}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
-            {brand.items.map((it, i) => (
+            {visibleItems.map((it, i) => (
               <button key={i} type="button" onClick={() => onPick(brand.name, it)}
                 className="flex flex-col items-start gap-1 bg-white border border-dp-outline-variant rounded-lg p-2.5 text-start hover:border-dp-secondary cursor-pointer">
                 <span className="font-sans text-[12.5px] font-semibold text-dp-on-surface leading-tight">{it.name}{it.flavor && ` — ${it.flavor}`}</span>
