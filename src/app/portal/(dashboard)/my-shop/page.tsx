@@ -115,7 +115,11 @@ export default function MyShopPage() {
   // like a scan draft does, price/stock/photo still left to the keeper.
   const openFromCatalog = (brandName: string, item: CatalogItem) => {
     setEditing(null)
-    setForm({ ...emptyProduct, name: item.name, company: brandName, flavor: item.flavor ?? '', category: item.category })
+    setForm({
+      ...emptyProduct, name: item.name, name_ur: item.name_ur ?? '', company: brandName,
+      flavor: item.flavor ?? '', flavor_ur: item.flavor_ur ?? '', category: item.category,
+      unit_price_pkr: item.price ?? 0,
+    })
     setCoverUrl('')
     setChangingCategory(false)
     setShowCatalogPicker(false)

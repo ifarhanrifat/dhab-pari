@@ -344,7 +344,11 @@ function AdminShopsInner() {
   // category, price/stock/photo still left to whoever's entering it.
   const openProductFromCatalog = (brandName: string, item: CatalogItem) => {
     setEditingProduct(null)
-    setProductForm({ ...emptyProduct, name: item.name, company: brandName, flavor: item.flavor ?? '', category: item.category })
+    setProductForm({
+      ...emptyProduct, name: item.name, name_ur: item.name_ur ?? '', company: brandName,
+      flavor: item.flavor ?? '', flavor_ur: item.flavor_ur ?? '', category: item.category,
+      unit_price_pkr: item.price ?? 0,
+    })
     setProductCoverUrl('')
     setChangingCategory(false)
     setShowCatalogPicker(false)
