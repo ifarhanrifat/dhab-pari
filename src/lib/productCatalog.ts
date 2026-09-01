@@ -80,18 +80,56 @@ function sizedDrink(name: string, name_ur: string, category = 'beverages'): Cata
 
 export const PRODUCT_CATALOG: CatalogBrand[] = [
   {
+    // Continental Biscuits Ltd (a Mondelez joint venture) — real lineup
+    // per continentalbiscuits.com.pk/our-brands. Earlier this catalog had
+    // wrongly folded in Bisconni and Peek Freans items here — those are
+    // two entirely separate competing companies (Ismail Industries and
+    // English Biscuit Manufacturers), now split into their own brand
+    // entries below, not merged into this one.
     slug: 'lu', name: 'LU / Continental Biscuits', name_ur: 'ایل یو بسکٹ', icon: 'Cookie',
     items: [
       { name: 'Prince', name_ur: 'پرنس', flavor: 'Chocolate', flavor_ur: 'چاکلیٹ', category: 'biscuits_snacks' },
       { name: 'Prince', name_ur: 'پرنس', flavor: 'Original', flavor_ur: 'اورجنل', category: 'biscuits_snacks' },
-      { name: 'Sooper', name_ur: 'سوپر', flavor: 'Original', flavor_ur: 'اورجنل', category: 'biscuits_snacks' },
-      { name: 'Bisconni Chocolatto', name_ur: 'بسکونی چاکلیٹو', category: 'biscuits_snacks' },
-      { name: 'Peek Freans Gluco', name_ur: 'پیک فرینز گلوکو', category: 'biscuits_snacks' },
-      { name: 'Peek Freans Nice', name_ur: 'پیک فرینز نائس', category: 'biscuits_snacks' },
-      { name: 'Rio', name_ur: 'ریو', flavor: 'Chocolate', flavor_ur: 'چاکلیٹ', category: 'biscuits_snacks' },
-      { name: 'Rio', name_ur: 'ریو', flavor: 'Strawberry', flavor_ur: 'اسٹرابیری', category: 'biscuits_snacks' },
-      { name: 'Candi', name_ur: 'کینڈی', category: 'biscuits_snacks' },
       { name: 'Oreo', name_ur: 'اوریو', flavor: 'Original', flavor_ur: 'اورجنل', category: 'biscuits_snacks' },
+      { name: 'TUC', name_ur: 'ٹک', category: 'biscuits_snacks' },
+      { name: 'Candi', name_ur: 'کینڈی', category: 'biscuits_snacks' },
+      { name: 'Tiger', name_ur: 'ٹائیگر', category: 'biscuits_snacks' },
+      { name: 'Gala', name_ur: 'گالا', flavor: 'Egg Biscuit', flavor_ur: 'انڈے والا بسکٹ', category: 'biscuits_snacks' },
+      { name: 'Cadbury Biscuits', name_ur: 'کیڈبری بسکٹ', category: 'biscuits_snacks' },
+      { name: 'Zeera Plus', name_ur: 'زیرہ پلس', category: 'biscuits_snacks' },
+      { name: 'Bakeri', name_ur: 'بیکری', flavor: 'Coconut', flavor_ur: 'ناریل', category: 'biscuits_snacks' },
+      { name: 'Bakeri', name_ur: 'بیکری', flavor: 'Butter', flavor_ur: 'بٹر', category: 'biscuits_snacks' },
+      { name: 'Wheatable', name_ur: 'ویٹیبل', flavor: 'High Fiber', flavor_ur: 'ہائی فائبر', category: 'biscuits_snacks' },
+      { name: 'Milcolu', name_ur: 'ملکو ایل یو', flavor: 'Vanilla Cream', flavor_ur: 'ونیلا کریم', category: 'biscuits_snacks' },
+    ],
+  },
+  {
+    slug: 'ebm', name: 'EBM / Peek Freans', name_ur: 'ای بی ایم / پیک فرینز', icon: 'Cookie',
+    items: [
+      { name: 'Sooper', name_ur: 'سوپر', category: 'biscuits_snacks' },
+      { name: 'Gluco', name_ur: 'گلوکو', category: 'biscuits_snacks' },
+      { name: 'Marie', name_ur: 'میری', category: 'biscuits_snacks' },
+      { name: 'Rio', name_ur: 'ریو', flavor: 'Chocolate', flavor_ur: 'چاکلیٹ', category: 'biscuits_snacks' },
+      { name: 'Rio', name_ur: 'ریو', flavor: 'Strawberry Vanilla', flavor_ur: 'اسٹرابیری ونیلا', category: 'biscuits_snacks' },
+      { name: 'Click', name_ur: 'کلک', category: 'biscuits_snacks' },
+      { name: 'Party', name_ur: 'پارٹی', category: 'biscuits_snacks' },
+      { name: 'Peanut Pik', name_ur: 'پی نٹ پک', category: 'biscuits_snacks' },
+      { name: 'Lemon Sandwich', name_ur: 'لیموں سینڈوچ', category: 'biscuits_snacks' },
+      { name: 'Chocolate Sandwich', name_ur: 'چاکلیٹ سینڈوچ', category: 'biscuits_snacks' },
+      { name: 'Saltish', name_ur: 'سالٹش', category: 'biscuits_snacks' },
+      { name: 'Nice', name_ur: 'نائس', category: 'biscuits_snacks' },
+      { name: 'Cake Up', name_ur: 'کیک اپ', category: 'bakery' },
+      { name: 'Choco Bites', name_ur: 'چاکو بائٹس', category: 'bakery' },
+    ],
+  },
+  {
+    slug: 'bisconni', name: 'Bisconni', name_ur: 'بسکونی', icon: 'Cookie',
+    items: [
+      { name: 'Bisconni Chocolatto', name_ur: 'بسکونی چاکلیٹو', category: 'biscuits_snacks' },
+      { name: 'Cocomo', name_ur: 'کوکومو', category: 'biscuits_snacks' },
+      { name: 'Novita', name_ur: 'نوویٹا', category: 'biscuits_snacks' },
+      { name: 'Rite', name_ur: 'رائٹ', category: 'biscuits_snacks' },
+      { name: 'Flo', name_ur: 'فلو', category: 'biscuits_snacks' },
     ],
   },
   {
@@ -167,8 +205,17 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
       { name: 'National', name_ur: 'نیشنل', flavor: 'Tikka Masala', flavor_ur: 'تکہ مصالحہ', category: 'spices_masala' },
       { name: 'National Red Chilli Powder', name_ur: 'نیشنل لال مرچ پاؤڈر', category: 'spices_masala' },
       { name: 'National Turmeric Powder', name_ur: 'نیشنل ہلدی پاؤڈر', category: 'spices_masala' },
-      { name: 'National Tomato Ketchup', name_ur: 'نیشنل ٹماٹر کیچپ', category: 'other' },
-      { name: 'National Vinegar', name_ur: 'نیشنل سرکہ', category: 'other' },
+      { name: 'National', name_ur: 'نیشنل', flavor: 'Chaat Masala', flavor_ur: 'چاٹ مصالحہ', category: 'spices_masala' },
+      { name: 'National Tomato Ketchup', name_ur: 'نیشنل ٹماٹر کیچپ', category: 'pickles_sauces' },
+      { name: 'National Vinegar', name_ur: 'نیشنل سرکہ', category: 'pickles_sauces' },
+      { name: 'National', name_ur: 'نیشنل', flavor: 'Mango Pickle', flavor_ur: 'آم کا اچار', category: 'pickles_sauces' },
+      { name: 'National', name_ur: 'نیشنل', flavor: 'Mixed Pickle', flavor_ur: 'مکس اچار', category: 'pickles_sauces' },
+      { name: 'National', name_ur: 'نیشنل', flavor: 'Mixed Fruit Chutney', flavor_ur: 'مکس فروٹ چٹنی', category: 'pickles_sauces' },
+      { name: 'National Mayonnaise', name_ur: 'نیشنل میئونیز', category: 'pickles_sauces' },
+      { name: 'National Soy Sauce', name_ur: 'نیشنل سویا ساس', category: 'pickles_sauces' },
+      { name: 'National Chilli Garlic Sauce', name_ur: 'نیشنل چلی گارلک ساس', category: 'pickles_sauces' },
+      { name: 'National Ginger Garlic Paste', name_ur: 'نیشنل ادرک لہسن پیسٹ', category: 'spices_masala' },
+      { name: 'National Jam', name_ur: 'نیشنل جیم', flavor: 'Mixed Fruit', flavor_ur: 'مکس فروٹ', category: 'honey_jam_spreads' },
     ],
   },
   {
@@ -181,6 +228,12 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
       { name: 'Shan', name_ur: 'شان', flavor: 'Kabab Masala', flavor_ur: 'کباب مصالحہ', category: 'spices_masala' },
       { name: 'Shan', name_ur: 'شان', flavor: 'Chana Masala', flavor_ur: 'چنے کا مصالحہ', category: 'spices_masala' },
       { name: 'Shan', name_ur: 'شان', flavor: 'Haleem Mix', flavor_ur: 'حلیم مکس', category: 'spices_masala' },
+      { name: 'Shan', name_ur: 'شان', flavor: 'Mango Pickle', flavor_ur: 'آم کا اچار', category: 'pickles_sauces' },
+      { name: 'Shan', name_ur: 'شان', flavor: 'Mixed Pickle', flavor_ur: 'مکس اچار', category: 'pickles_sauces' },
+      { name: 'Shan', name_ur: 'شان', flavor: 'Mango Chutney', flavor_ur: 'آم کی چٹنی', category: 'pickles_sauces' },
+      { name: 'Shan Chatni', name_ur: 'شان چٹنی', flavor: 'Green Chutney', flavor_ur: 'ہری چٹنی', category: 'pickles_sauces' },
+      { name: 'Shan Tamarind Sauce', name_ur: 'شان املی ساس', category: 'pickles_sauces' },
+      { name: 'Shoop Noodles', name_ur: 'شوپ نوڈلز', category: 'noodles_pasta' },
     ],
   },
   {
