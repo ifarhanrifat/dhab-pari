@@ -457,8 +457,8 @@ export default function AccountsPage() {
       ) : (
         <div className="space-y-4 pb-24">
           {partyAccounts.length > 0 && (
-            <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 bg-dp-surface-container-low/60">
+            <div className="bg-white rounded-lg border border-dp-outline-variant">
+              <div className="flex items-center justify-between px-4 py-3 bg-dp-surface-container-low/60 rounded-t-lg">
                 <button
                   onClick={() => toggleGroup(partyType)}
                   className="flex-1 flex items-center gap-2 cursor-pointer"
@@ -485,10 +485,10 @@ export default function AccountsPage() {
             if (typeAccounts.length === 0) return null
             const isCollapsed = !!collapsed[h.code]
             return (
-              <div key={h.code} className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
+              <div key={h.code} className="bg-white rounded-lg border border-dp-outline-variant">
                 <button
                   onClick={() => toggleGroup(h.code)}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-dp-surface-container-low/60 hover:bg-dp-surface-container-low cursor-pointer transition-colors"
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-dp-surface-container-low/60 hover:bg-dp-surface-container-low cursor-pointer transition-colors rounded-t-lg"
                 >
                   <span className="font-sans text-[13.5px] font-bold text-dp-on-surface" style={lang === 'ur' && h.label_ur ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{displayName(h.label, h.label_ur)}</span>
                   <span className="flex items-center gap-1 shrink-0">
