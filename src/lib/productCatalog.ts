@@ -342,6 +342,95 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
     ],
   },
   {
+    // Real lineup per unilever.pk/brands and search results — Wall's own
+    // kulfi products (Jashan Kulfi, King's Kulfi) are genuine branded
+    // items, kept separate from the unbranded "Desi Kulfi" entry below.
+    slug: 'walls', name: "Wall's", name_ur: 'والز', icon: 'IceCreamCone',
+    items: [
+      { name: 'Cornetto', name_ur: 'کورنیٹو', category: 'ice_cream' },
+      { name: 'Magnum', name_ur: 'میگنم', category: 'ice_cream' },
+      { name: 'Paddle Pop', name_ur: 'پیڈل پوپ', category: 'ice_cream' },
+      { name: 'Feast', name_ur: 'فیسٹ', category: 'ice_cream' },
+      { name: "Wall's", name_ur: 'والز', flavor: 'Chocbar', flavor_ur: 'چاک بار', category: 'ice_cream' },
+      { name: 'Jashan Kulfi', name_ur: 'جشن کلفی', category: 'ice_cream' },
+      { name: "King's Kulfi", name_ur: 'کنگز کلفی', flavor: 'Pista', flavor_ur: 'پستہ', category: 'ice_cream' },
+      { name: "King's Kulfi", name_ur: 'کنگز کلفی', flavor: 'Mango', flavor_ur: 'آم', category: 'ice_cream' },
+    ],
+  },
+  {
+    // Not a company — the traditional stick/cup kulfi a small local dairy
+    // or vendor supplies to general stores, unbranded (unlike Wall's
+    // packaged kulfi above). Kept as its own honest "Local & Traditional"
+    // entry rather than invented as a fake company name.
+    slug: 'local_desi', name: 'Local & Traditional', name_ur: 'دیسی اور روایتی', icon: 'IceCreamCone',
+    items: [
+      { name: 'Desi Kulfi', name_ur: 'دیسی کلفی', category: 'ice_cream' },
+      { name: 'Desi Kulfi', name_ur: 'دیسی کلفی', flavor: 'Shahi', flavor_ur: 'شاہی', category: 'ice_cream' },
+      { name: 'Falooda Kulfi', name_ur: 'فالودہ کلفی', category: 'ice_cream' },
+    ],
+  },
+  // Gas cylinder agencies — the three real LPG marketing companies with
+  // an actual cylinder/retail network in Pakistan, per ppgl.com.pk,
+  // psopk.com and the Burshane (formerly Shell Gas) LPG listing. These
+  // only ever appear when browsing a "Gas Cylinder Agency" shop
+  // (gas_agency shop type) — the categories here don't exist on a
+  // general_store's own tree.
+  {
+    slug: 'parco_pearl', name: 'PARCO Pearl Gas', name_ur: 'پارکو پرل گیس', icon: 'Flame',
+    items: [
+      { name: 'Pearl Gas', name_ur: 'پرل گیس', flavor: 'Domestic Cylinder 11.8kg', flavor_ur: 'گھریلو سلنڈر 11.8 کلو', category: 'domestic_cylinder' },
+      { name: 'Pearl Gas', name_ur: 'پرل گیس', flavor: 'Portable Cylinder', flavor_ur: 'چھوٹا سلنڈر', category: 'portable_cylinder' },
+      { name: 'Pearl Gas', name_ur: 'پرل گیس', flavor: 'Domestic Refill', flavor_ur: 'گھریلو ری فل', category: 'domestic_refill' },
+      { name: 'Pearl Gas Regulator', name_ur: 'پرل گیس ریگولیٹر', category: 'regulator' },
+    ],
+  },
+  {
+    slug: 'pso_pakgas', name: 'PSO Pak Gas', name_ur: 'پی ایس او پاک گیس', icon: 'Flame',
+    items: [
+      { name: 'Pak Gas', name_ur: 'پاک گیس', flavor: 'Domestic Cylinder', flavor_ur: 'گھریلو سلنڈر', category: 'domestic_cylinder' },
+      { name: 'Pak Gas', name_ur: 'پاک گیس', flavor: 'Domestic Refill', flavor_ur: 'گھریلو ری فل', category: 'domestic_refill' },
+      { name: 'Pak Gas', name_ur: 'پاک گیس', flavor: 'Commercial Refill', flavor_ur: 'کمرشل ری فل', category: 'commercial_refill' },
+    ],
+  },
+  {
+    slug: 'burshane', name: 'Burshane (Shell Gas)', name_ur: 'برشین (شیل گیس)', icon: 'Flame',
+    items: [
+      { name: 'Burshane LPG', name_ur: 'برشین ایل پی جی', flavor: 'Domestic Cylinder', flavor_ur: 'گھریلو سلنڈر', category: 'domestic_cylinder' },
+      { name: 'Burshane LPG', name_ur: 'برشین ایل پی جی', flavor: 'Domestic Refill', flavor_ur: 'گھریلو ری فل', category: 'domestic_refill' },
+    ],
+  },
+  // Fresh produce — not a branded company (kiryana stores buy this loose
+  // from the mandi, not from a manufacturer), so these sit under a
+  // plain "Fresh Produce" heading instead of a fabricated brand name —
+  // the everyday vegetables/fruits/cooking basics every general store
+  // keeps, so there's always something to pick even for the one
+  // department here that's never going to have a real company behind it.
+  {
+    slug: 'fresh_produce', name: 'Fresh Produce', name_ur: 'تازہ سبزیاں اور پھل', icon: 'Carrot',
+    items: [
+      { name: 'Potato', name_ur: 'آلو', category: 'fruits_vegetables' },
+      { name: 'Onion', name_ur: 'پیاز', category: 'fruits_vegetables' },
+      { name: 'Tomato', name_ur: 'ٹماٹر', category: 'fruits_vegetables' },
+      { name: 'Garlic', name_ur: 'لہسن', category: 'fruits_vegetables' },
+      { name: 'Ginger', name_ur: 'ادرک', category: 'fruits_vegetables' },
+      { name: 'Green Chilli', name_ur: 'ہری مرچ', category: 'fruits_vegetables' },
+      { name: 'Coriander', name_ur: 'دھنیا', category: 'fruits_vegetables' },
+      { name: 'Mint', name_ur: 'پودینہ', category: 'fruits_vegetables' },
+      { name: 'Cucumber', name_ur: 'کھیرا', category: 'fruits_vegetables' },
+      { name: 'Lemon', name_ur: 'لیموں', category: 'fruits_vegetables' },
+      { name: 'Spinach', name_ur: 'پالک', category: 'fruits_vegetables' },
+      { name: 'Cauliflower', name_ur: 'گوبھی', category: 'fruits_vegetables' },
+      { name: 'Capsicum', name_ur: 'شملہ مرچ', category: 'fruits_vegetables' },
+      { name: 'Carrot', name_ur: 'گاجر', category: 'fruits_vegetables' },
+      { name: 'Banana', name_ur: 'کیلا', category: 'fruits_vegetables' },
+      { name: 'Apple', name_ur: 'سیب', category: 'fruits_vegetables' },
+      { name: 'Orange', name_ur: 'مالٹا', category: 'fruits_vegetables' },
+      { name: 'Mango', name_ur: 'آم', category: 'fruits_vegetables' },
+      { name: 'Watermelon', name_ur: 'تربوز', category: 'fruits_vegetables' },
+      { name: 'Guava', name_ur: 'امرود', category: 'fruits_vegetables' },
+    ],
+  },
+  {
     slug: 'cocacola', name: 'Coca-Cola', name_ur: 'کوکا کولا', icon: 'CupSoda',
     items: [
       ...sizedDrink('Coca-Cola', 'کوکا کولا'),

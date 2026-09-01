@@ -83,6 +83,7 @@ const GENERAL_STORE: CategoryDepartment[] = [
       { slug: 'dairy_eggs', label: 'Dairy & Eggs', label_ur: 'دودھ، دہی اور انڈے' },
       { slug: 'bakery', label: 'Bakery Items', label_ur: 'بیکری کی اشیاء' },
       { slug: 'frozen', label: 'Frozen Foods', label_ur: 'فروزن اشیاء' },
+      { slug: 'ice_cream', label: 'Ice Cream & Kulfi', label_ur: 'آئس کریم اور کلفی' },
       { slug: 'fruits_vegetables', label: 'Fruits & Vegetables', label_ur: 'پھل اور سبزیاں' },
       { slug: 'meat_poultry', label: 'Meat, Poultry & Fish', label_ur: 'گوشت، مرغی اور مچھلی' },
       // Split out from the original 24, matching how a real supermarket

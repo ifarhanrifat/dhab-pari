@@ -95,7 +95,14 @@ export default function MyShopPage() {
       .then(({ data }) => { setKeySaved(!!data?.gemini_api_key); setGeminiKey(data?.gemini_api_key ?? '') })
   }, [shop]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const openNew = (categorySlug: string) => { setEditing(null); setForm({ ...emptyProduct, category: categorySlug }); setCoverUrl(''); setChangingCategory(false); setShowForm(true) }
+  const openNew = (categorySlug: string, presetCompany?: string) => {
+    setEditing(null)
+    setForm({ ...emptyProduct, category: categorySlug, company: presetCompany ?? '' })
+    setCoverUrl('')
+    setChangingCategory(false)
+    setShowForm(true)
+  }
+  const openNewBrandProduct = (brandName: string) => openNew('other', brandName)
   const openEdit = (p: Product) => {
     setEditing(p)
     setForm({
@@ -254,6 +261,8 @@ export default function MyShopPage() {
         primaryType={shop.primary_type}
         products={products}
         onAddItem={openNew}
+        onAddItemForBrand={(categorySlug, brandName) => openNew(categorySlug, brandName)}
+        onAddNewBrand={openNewBrandProduct}
         onPickCatalogItem={openFromCatalog}
         renderProduct={(p) => (
           <div key={p.id} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">

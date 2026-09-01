@@ -323,7 +323,17 @@ function AdminShopsInner() {
     load()
   }
 
-  const openNewProduct = (categorySlug: string) => { setEditingProduct(null); setProductForm({ ...emptyProduct, category: categorySlug }); setProductCoverUrl(''); setChangingCategory(false); setShowProductForm(true) }
+  const openNewProduct = (categorySlug: string, presetCompany?: string) => {
+    setEditingProduct(null)
+    setProductForm({ ...emptyProduct, category: categorySlug, company: presetCompany ?? '' })
+    setProductCoverUrl('')
+    setChangingCategory(false)
+    setShowProductForm(true)
+  }
+  // Brand-wise browse's "Add New Brand" tile — no brands table, so this
+  // just opens the normal add form with the typed name sitting in the
+  // company field already; picking a category happens the normal way.
+  const openNewBrandProduct = (brandName: string) => openNewProduct('other', brandName)
   const openEditProduct = (p: Product) => {
     setEditingProduct(p)
     setProductForm({
@@ -474,6 +484,8 @@ function AdminShopsInner() {
             products={products}
             onAddItem={openNewProduct}
             onPickCatalogItem={openProductFromCatalog}
+            onAddItemForBrand={(categorySlug, brandName) => openNewProduct(categorySlug, brandName)}
+            onAddNewBrand={openNewBrandProduct}
             renderProduct={(p) => {
               const tone = expiryTone(p.expiry_date)
               return (
