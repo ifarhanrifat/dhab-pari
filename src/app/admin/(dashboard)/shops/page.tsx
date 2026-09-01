@@ -12,7 +12,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Store, PlusCircle, PackagePlus, X, Pencil, Trash2, Truck, PackageX, CheckCircle2, XCircle, Clock, PauseCircle, PlayCircle } from 'lucide-react'
+import { Store, PlusCircle, X, Pencil, Trash2, Truck, PackageX, CheckCircle2, XCircle, Clock, PauseCircle, PlayCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -21,8 +21,8 @@ import { ImageUpload } from '@/components/admin/ImageUpload'
 import { SHOP_TYPES, getCategoryLabel } from '@/lib/shopTypes'
 import { DynamicIcon } from '@/components/shared/DynamicIcon'
 import { OrderFulfillmentPanel } from '@/components/shared/OrderFulfillmentPanel'
-import { CategoryBrowser, CategoryPicker } from '@/components/shared/CategoryBrowser'
-import { AddStockWizard } from '@/components/shared/AddStockWizard'
+import { CategoryPicker } from '@/components/shared/CategoryBrowser'
+import { ShopCatalogSection } from '@/components/shared/ShopCatalogSection'
 
 interface Shop {
   id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
@@ -105,7 +105,6 @@ function AdminShopsInner() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [productForm, setProductForm] = useState(emptyProduct)
   const [productCoverUrl, setProductCoverUrl] = useState('')
-  const [showStockWizard, setShowStockWizard] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [changingCategory, setChangingCategory] = useState(false)
@@ -449,7 +448,6 @@ function AdminShopsInner() {
               <h1 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary">{isUrdu && selected.name_ur ? selected.name_ur : selected.name}</h1>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => setShowStockWizard(true)} className="flex items-center gap-1.5 px-3 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary"><PackagePlus size={14} /> {t('bs.addStockBtn')}</button>
               <button onClick={() => openEditShop(selected)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Pencil size={14} /> {t('mk.editShopBtn')}</button>
               <button
                 onClick={() => toggleShopStatus(selected)}
@@ -462,10 +460,12 @@ function AdminShopsInner() {
             </div>
           </div>
 
-          <CategoryBrowser
+          <ShopCatalogSection
+            shopId={selected.id}
             primaryType={selected.primary_type}
             products={products}
             onAddItem={openNewProduct}
+            onCommitted={() => loadProducts(selected.id)}
             renderProduct={(p) => {
               const tone = expiryTone(p.expiry_date)
               return (
@@ -697,16 +697,6 @@ function AdminShopsInner() {
             </div>
           </div>
         </div>
-      )}
-
-      {showStockWizard && selected && (
-        <AddStockWizard
-          shopId={selected.id}
-          primaryType={selected.primary_type}
-          existingProducts={products}
-          onCommitted={() => loadProducts(selected.id)}
-          onClose={() => setShowStockWizard(false)}
-        />
       )}
 
     </div>

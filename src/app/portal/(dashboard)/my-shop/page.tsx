@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, PackagePlus, BarChart3, Wallet } from 'lucide-react'
+import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, BarChart3, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -20,8 +20,8 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { WalletTopupModal } from '@/components/portal/WalletTopupModal'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { getCategoryLabel } from '@/lib/shopTypes'
-import { CategoryBrowser, CategoryPicker } from '@/components/shared/CategoryBrowser'
-import { AddStockWizard } from '@/components/shared/AddStockWizard'
+import { CategoryPicker } from '@/components/shared/CategoryBrowser'
+import { ShopCatalogSection } from '@/components/shared/ShopCatalogSection'
 
 interface Shop { id: string; name: string; name_ur: string | null; delivery_enabled: boolean; commission_mode: string; primary_type: string }
 interface Product {
@@ -72,7 +72,6 @@ export default function MyShopPage() {
   const [geminiKey, setGeminiKey] = useState('')
   const [keySaved, setKeySaved] = useState(false)
   const [savingKey, setSavingKey] = useState(false)
-  const [showStockWizard, setShowStockWizard] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -239,17 +238,14 @@ export default function MyShopPage() {
           className="flex items-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-60">
           {scanning ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />} {scanning ? t('sk.scanningLabel') : t('sk.scanProductBtn')}
         </button>
-        <button onClick={() => setShowStockWizard(true)}
-          className="flex items-center gap-2 px-4 py-2.5 border-2 border-dp-secondary text-dp-secondary rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-secondary-container/30 transition-all">
-          <PackagePlus size={16} /> {t('bs.addStockBtn')}
-        </button>
-        <p className="font-sans text-[12px] text-dp-on-surface-variant w-full sm:w-auto">{t('sk.orBrowseCategoryHint')}</p>
       </div>
 
-      <CategoryBrowser
+      <ShopCatalogSection
+        shopId={shop.id}
         primaryType={shop.primary_type}
         products={products}
         onAddItem={openNew}
+        onCommitted={() => loadProducts(shop.id)}
         renderProduct={(p) => (
           <div key={p.id} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
             <div className="h-28 bg-dp-surface-container relative">
@@ -340,16 +336,6 @@ export default function MyShopPage() {
             <button onClick={saveKey} disabled={savingKey} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{savingKey ? t('action.saving') : t('g.saveChanges')}</button>
           </div>
         </div>
-      )}
-
-      {showStockWizard && (
-        <AddStockWizard
-          shopId={shop.id}
-          primaryType={shop.primary_type}
-          existingProducts={products}
-          onCommitted={() => loadProducts(shop.id)}
-          onClose={() => setShowStockWizard(false)}
-        />
       )}
 
     </div>

@@ -1,6 +1,7 @@
-// Pure logic for the "Add Stock" bulk-catalog wizard (StockPicker +
-// BulkPriceReview + AddStockWizard) — no React here, so it's cheap to
-// reason about and cheap to re-run on every keystroke of a search box.
+// Pure logic for the shop catalog's "Add Stock" flow (BrandItemPicker +
+// BulkPriceReview, both mounted by ShopCatalogSection) — no React here,
+// so it's cheap to reason about and cheap to re-run on every keystroke of
+// a search box.
 //
 // Built once at module load from PRODUCT_CATALOG (src/lib/productCatalog.ts)
 // into a flat, indexed list — CategoryBrowser.tsx's old brand-drill walked
@@ -71,6 +72,29 @@ export function groupByBrand(entries: CatalogEntry[]): { brandSlug: string; bran
     const first = byBrand[slug][0]
     return { brandSlug: slug, brandName: first.brandName, brandName_ur: first.brandName_ur, brandIcon: first.brandIcon, entries: byBrand[slug] }
   })
+}
+
+// Brand-first entry point (see BrandItemPicker.tsx): every brand that has
+// at least one item valid for this shop type, in the same order
+// groupByBrand already produces — a barber shop or pharmacy with zero
+// catalog coverage gets an empty array back, which the picker uses to
+// hide the Brands tab outright rather than show an empty accordion.
+export function brandsForShopType(primaryType: string): { brandSlug: string; brandName: string; brandName_ur: string; brandIcon: string; entries: CatalogEntry[] }[] {
+  return groupByBrand(getCatalogForShopType(primaryType))
+}
+
+// One pass over the ticked rows -> how many are ticked per brand, so a
+// brand accordion header's count doesn't re-scan the whole catalog once
+// per brand on every render (that's O(brands × catalog) instead of
+// O(selected)).
+export function selectedCountByBrand(rows: { key: string }[]): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const r of rows) {
+    const entry = CATALOG_BY_KEY.get(r.key)
+    if (!entry) continue // a hand-added "custom" row has no brand slug
+    out[entry.brandSlug] = (out[entry.brandSlug] ?? 0) + 1
+  }
+  return out
 }
 
 export function countByDept(tree: CategoryDepartment[], entries: CatalogEntry[]): Record<string, number> {
