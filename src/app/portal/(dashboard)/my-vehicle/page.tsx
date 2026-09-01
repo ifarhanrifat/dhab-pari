@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Bus, Wallet, TrendingUp, Clock, CheckCircle2, XCircle, MapPin, PlusCircle, X, Navigation } from 'lucide-react'
+import { Bus, Wallet, TrendingUp, Clock, CheckCircle2, XCircle, MapPin, PlusCircle, X, Navigation, Signpost, LogOut, SkipForward, Timer, Trophy } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -44,6 +44,14 @@ interface Booking {
   id: string; status: string; total_amount_pkr: number; seats: number; travel_date: string; rejected_reason: string | null
   vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null
 }
+interface Adda { id: string; name: string; name_ur: string | null; pair_adda_id: string | null }
+interface AddaBoardEntry {
+  entry_id: string; status: string; position: number
+  turn_started_at: string | null; turn_expires_at: string | null
+  seats_total: number; seats_available: number; fare_mode: string; fixed_fare_per_seat_pkr: number | null
+  vehicle_id: string; owner_name: string
+}
+interface AddaBoard { adda: Adda; pair_adda: Adda | null; entries: AddaBoardEntry[] }
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -103,6 +111,97 @@ export default function MyVehiclePage() {
       setLoading(false)
     })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ═══ Adda queue — "at the adda" self-service. A driver either has no
+  // live entry today (show the check-in card) or has exactly one (the
+  // adda_queue_one_live_per_vehicle index guarantees that), shown as a
+  // status card with whichever actions its status allows.
+  const [addas, setAddas] = useState<Adda[]>([])
+  const [myEntry, setMyEntry] = useState<AddaBoardEntry & { adda_id: string; adda_name: string; adda_name_ur: string | null } | null>(null)
+  const [myBoard, setMyBoard] = useState<AddaBoard | null>(null)
+  const [addaActionLoading, setAddaActionLoading] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
+  const [checkInAddaId, setCheckInAddaId] = useState('')
+  const [checkInFareMode, setCheckInFareMode] = useState('fixed')
+  const [checkInFare, setCheckInFare] = useState(0)
+  const [checkInShareLocation, setCheckInShareLocation] = useState(true)
+
+  const reloadAdda = async (vehicleId: string) => {
+    const { data: addaList } = await supabase.from('addas').select('id, name, name_ur, pair_adda_id').eq('is_active', true).order('name')
+    setAddas(addaList ?? [])
+    const today = new Date().toLocaleDateString('en-CA')
+    const { data: entry } = await supabase.from('adda_queue_entries').select('*, addas(name, name_ur)')
+      .eq('vehicle_id', vehicleId).eq('queue_date', today).in('status', ['waiting', 'current']).maybeSingle()
+    if (entry) {
+      setMyEntry({ ...entry, entry_id: entry.id, adda_id: entry.adda_id, adda_name: entry.addas?.name ?? '', adda_name_ur: entry.addas?.name_ur ?? null })
+      const { data: board } = await supabase.rpc('adda_board', { p_adda_id: entry.adda_id })
+      if (board) setMyBoard(board)
+    } else { setMyEntry(null); setMyBoard(null) }
+  }
+  useEffect(() => { if (vehicle) reloadAdda(vehicle.id) }, [vehicle]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!vehicle) return
+    const iv = setInterval(() => reloadAdda(vehicle.id), 15000)
+    return () => clearInterval(iv)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicle])
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(iv)
+  }, [])
+
+  const secondsLeft = (expiresAt: string | null) => expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - now) / 1000)) : null
+  const fmtCountdown = (secs: number) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
+
+  const doAddaCheckIn = async () => {
+    if (!vehicle || !checkInAddaId) { toast.error(t('af.pickAddaFirst')); return }
+    setAddaActionLoading(true)
+    const { error } = await supabase.rpc('adda_check_in', {
+      p_adda_id: checkInAddaId, p_vehicle_id: vehicle.id, p_fare_mode: checkInFareMode,
+      p_fixed_fare_per_seat_pkr: checkInFareMode === 'fixed' ? (checkInFare || null) : null,
+      p_share_location_on_depart: checkInShareLocation,
+    })
+    setAddaActionLoading(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('af.checkedInToast'))
+    reloadAdda(vehicle.id)
+  }
+  const doAddaDeparted = async () => {
+    if (!vehicle || !myEntry) return
+    setAddaActionLoading(true)
+    const { error } = await supabase.rpc('adda_mark_departed', { p_entry_id: myEntry.entry_id })
+    setAddaActionLoading(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('af.departedToast'))
+    reloadAdda(vehicle.id)
+  }
+  const doAddaPass = async () => {
+    if (!vehicle || !myEntry) return
+    setAddaActionLoading(true)
+    const { error } = await supabase.rpc('adda_pass_turn', { p_entry_id: myEntry.entry_id })
+    setAddaActionLoading(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('af.passedToast'))
+    reloadAdda(vehicle.id)
+  }
+  const doAddaClaim = async () => {
+    if (!vehicle || !myEntry) return
+    setAddaActionLoading(true)
+    const { error } = await supabase.rpc('adda_claim_front', { p_entry_id: myEntry.entry_id })
+    setAddaActionLoading(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('af.claimedToast'))
+    reloadAdda(vehicle.id)
+  }
+  const doAddaLeave = async () => {
+    if (!vehicle || !myEntry) return
+    setAddaActionLoading(true)
+    const { error } = await supabase.rpc('adda_leave_queue', { p_entry_id: myEntry.entry_id })
+    setAddaActionLoading(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('af.leftQueueToast'))
+    reloadAdda(vehicle.id)
+  }
 
   const postTripOffer = async () => {
     if (!vehicle || !tripForm.origin.trim() || !tripForm.destination.trim() || !tripForm.travel_date) { toast.error(t('mk.nameRequired')); return }
@@ -210,6 +309,69 @@ export default function MyVehiclePage() {
       {summary?.last_settlement_date && (
         <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-6">{t('cm.lastSettlementLabel')} <span className="font-semibold text-dp-on-surface">{fmt(summary.last_settlement_amount ?? 0)}</span> — {new Date(summary.last_settlement_date).toLocaleDateString('en-GB')}</p>
       )}
+
+      <div className="mb-8">
+        <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><Signpost size={13} /> {t('af.atTheAddaHeading')}</p>
+        {!myEntry ? (
+          <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-2.5">{t('af.checkInHint')}</p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <select value={checkInAddaId} onChange={(e) => setCheckInAddaId(e.target.value)} className="input-field !w-auto flex-1 min-w-[140px]">
+                <option value="">{t('af.pickAddaOption')}</option>
+                {addas.map((a) => <option key={a.id} value={a.id}>{isUrdu && a.name_ur ? a.name_ur : a.name}</option>)}
+              </select>
+              <select value={checkInFareMode} onChange={(e) => setCheckInFareMode(e.target.value)} className="input-field !w-auto">
+                <option value="fixed">{t('af.fixedFareOption')}</option>
+                <option value="request">{t('af.rideRequestOption')}</option>
+              </select>
+              {checkInFareMode === 'fixed' && (
+                <input type="number" value={checkInFare || ''} onChange={(e) => setCheckInFare(+e.target.value)} placeholder={t('mk.farePerSeatLabel')} className="input-field !w-28" />
+              )}
+              <button onClick={doAddaCheckIn} disabled={addaActionLoading} className="px-3 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">{t('af.checkInBtn')}</button>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer mt-2.5">
+              <input type="checkbox" checked={checkInShareLocation} onChange={(e) => setCheckInShareLocation(e.target.checked)} className="accent-dp-secondary" />
+              <span className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('af.shareLocationOnDepartLabel')}</span>
+            </label>
+          </div>
+        ) : (
+          <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+            <p className="font-sans text-[13.5px] font-bold text-dp-on-surface flex items-center gap-1.5"><MapPin size={13} className="text-dp-secondary" /> {isUrdu && myEntry.adda_name_ur ? myEntry.adda_name_ur : myEntry.adda_name}</p>
+            {myEntry.status === 'current' ? (
+              <div className="bg-dp-secondary-container/30 rounded-lg p-2.5 mt-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1 font-sans text-[13px] font-bold text-dp-secondary"><Trophy size={13} /> {t('af.yourTurnLabel')}</span>
+                  {secondsLeft(myEntry.turn_expires_at) != null && <span className="inline-flex items-center gap-1 font-sans text-[13px] font-bold text-dp-secondary ltr-num"><Timer size={13} /> {fmtCountdown(secondsLeft(myEntry.turn_expires_at)!)}</span>}
+                </div>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{myEntry.seats_available}/{myEntry.seats_total} {t('mk.seatsLabel')} {t('af.stillFree')}</p>
+                <div className="flex items-center gap-1.5 mt-2.5">
+                  <button onClick={doAddaDeparted} disabled={addaActionLoading} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12.5px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50"><LogOut size={12} /> {t('af.departedBtn')}</button>
+                  <button onClick={doAddaPass} disabled={addaActionLoading} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12.5px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container disabled:opacity-50"><SkipForward size={12} /> {t('af.passBtn')}</button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-2">
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('af.waitingAtPositionLabel').replace('{n}', String(myEntry.position))}</p>
+                {myBoard && (() => {
+                  const current = myBoard.entries.find((e) => e.status === 'current')
+                  const waiting = myBoard.entries.filter((e) => e.status === 'waiting').sort((a, b) => a.position - b.position)
+                  const secs = current ? secondsLeft(current.turn_expires_at) : null
+                  const canClaim = waiting[0]?.entry_id === myEntry.entry_id && (!current || secs === 0)
+                  return (
+                    <>
+                      {current && secs != null && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('af.currentVehicleTimeLeft').replace('{name}', current.owner_name).replace('{time}', fmtCountdown(secs))}</p>}
+                      {canClaim && (
+                        <button onClick={doAddaClaim} disabled={addaActionLoading} className="mt-2 px-3 py-1.5 rounded-lg text-[12.5px] font-sans font-semibold cursor-pointer bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50">{t('af.claimBtn')}</button>
+                      )}
+                    </>
+                  )
+                })()}
+                <button onClick={doAddaLeave} disabled={addaActionLoading} className="mt-2 ms-2 font-sans text-[12px] text-dp-on-surface-variant hover:text-dp-error cursor-pointer">{t('af.leaveQueueBtn')}</button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div>
         <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('mp.bookingsHeading')}</p>

@@ -17,13 +17,14 @@ import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
-import { Bus, PlusCircle, X, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Clock, Percent } from 'lucide-react'
+import { Bus, PlusCircle, X, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Clock, Percent, Signpost, ChevronRight, LogOut, SkipForward, Timer } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 
 const LeafletPinPicker = dynamic(() => import('@/components/shared/LeafletPinPicker'), { ssr: false })
+const LeafletSinglePinPicker = dynamic(() => import('@/components/shared/LeafletSinglePinPicker'), { ssr: false })
 
 interface Vehicle {
   id: string; owner_name: string; owner_mobile: string | null; owner_whatsapp: string | null
@@ -42,6 +43,14 @@ interface Booking {
 interface LumpsumCharge { id: string; period: string; amount_pkr: number }
 interface WalletTopup { id: string; amount_pkr: number; status: string; announced_method: string; announced_at: string; rejected_reason: string | null }
 interface TypeRate { id: string; vehicle_type: string; classification: string; commission_pct: number }
+interface Adda { id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null; pair_adda_id: string | null; classification: string; turn_minutes: number; is_active: boolean }
+interface AddaBoardEntry {
+  entry_id: string; status: string; position: number; lap: number
+  turn_started_at: string | null; turn_expires_at: string | null
+  seats_total: number; seats_available: number; fare_mode: string; fixed_fare_per_seat_pkr: number | null; trip_offer_id: string | null
+  vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; vehicle_number: string | null
+}
+interface AddaBoard { adda: Adda; pair_adda: Adda | null; entries: AddaBoardEntry[] }
 
 const emptyVehicle = {
   owner_name: '', owner_mobile: '', owner_whatsapp: '', vehicle_type: '', vehicle_number: '', total_seats: 4, is_active: true,
@@ -138,6 +147,119 @@ function AdminVehiclesInner() {
     await supabase.from('vehicle_type_commission_rates').delete().eq('id', id)
     loadRates()
   }
+
+  // ═══ Adda queue ═══ two fixed stands (409's seed), a real table so a
+  // third stand later is just a new row — CRUD on the table directly
+  // (manage_parties has a write policy on it), but every queue state
+  // change goes through the RPCs, same discipline as everywhere else.
+  const [addas, setAddas] = useState<Adda[]>([])
+  const [showAddaPanel, setShowAddaPanel] = useState(false)
+  const [addaBoards, setAddaBoards] = useState<Record<string, AddaBoard>>({})
+  const [addaActionId, setAddaActionId] = useState<string | null>(null)
+  const [showAddaForm, setShowAddaForm] = useState(false)
+  const [editingAdda, setEditingAdda] = useState<Adda | null>(null)
+  const [addaForm, setAddaForm] = useState({ name: '', name_ur: '', classification: 'intercity', turn_minutes: 30, pair_adda_id: null as string | null, lat: null as number | null, lng: null as number | null })
+  const [checkInVehicleId, setCheckInVehicleId] = useState<Record<string, string>>({})
+  const [checkInFareMode, setCheckInFareMode] = useState<Record<string, string>>({})
+  const [checkInFare, setCheckInFare] = useState<Record<string, number>>({})
+  const [now, setNow] = useState(() => Date.now())
+
+  const loadAddas = async () => {
+    const { data } = await supabase.from('addas').select('*').order('name')
+    setAddas(data ?? [])
+  }
+  const loadAddaBoard = async (addaId: string) => {
+    const { data } = await supabase.rpc('adda_board', { p_adda_id: addaId })
+    if (data) setAddaBoards((b) => ({ ...b, [addaId]: data }))
+  }
+  useEffect(() => { loadAddas() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!showAddaPanel) return
+    addas.forEach((a) => loadAddaBoard(a.id))
+    const iv = setInterval(() => addas.forEach((a) => loadAddaBoard(a.id)), 15000)
+    return () => clearInterval(iv)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAddaPanel, addas.length])
+  useEffect(() => {
+    if (!showAddaPanel) return
+    const iv = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(iv)
+  }, [showAddaPanel])
+
+  const openNewAdda = () => { setEditingAdda(null); setAddaForm({ name: '', name_ur: '', classification: 'intercity', turn_minutes: 30, pair_adda_id: null, lat: null, lng: null }); setShowAddaForm(true) }
+  const openEditAdda = (a: Adda) => {
+    setEditingAdda(a)
+    setAddaForm({ name: a.name, name_ur: a.name_ur ?? '', classification: a.classification, turn_minutes: a.turn_minutes, pair_adda_id: a.pair_adda_id, lat: a.lat, lng: a.lng })
+    setShowAddaForm(true)
+  }
+  const saveAdda = async () => {
+    if (!addaForm.name.trim()) { toast.error(t('mk.nameRequired')); return }
+    setSaving(true)
+    const payload = { name: addaForm.name, name_ur: addaForm.name_ur || null, classification: addaForm.classification, turn_minutes: addaForm.turn_minutes, pair_adda_id: addaForm.pair_adda_id, lat: addaForm.lat, lng: addaForm.lng }
+    const { error } = editingAdda
+      ? await supabase.from('addas').update(payload).eq('id', editingAdda.id)
+      : await supabase.from('addas').insert(payload)
+    setSaving(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mk.vehicleSaved'))
+    setShowAddaForm(false)
+    loadAddas()
+  }
+
+  const doCheckIn = async (addaId: string) => {
+    const vehicleId = checkInVehicleId[addaId]
+    if (!vehicleId) { toast.error(t('af.pickVehicleFirst')); return }
+    const fareMode = checkInFareMode[addaId] ?? 'fixed'
+    setAddaActionId(addaId)
+    const { error } = await supabase.rpc('adda_check_in', {
+      p_adda_id: addaId, p_vehicle_id: vehicleId, p_fare_mode: fareMode,
+      p_fixed_fare_per_seat_pkr: fareMode === 'fixed' ? (checkInFare[addaId] || null) : null,
+      p_share_location_on_depart: false,
+    })
+    setAddaActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('af.checkedInToast'))
+    setCheckInVehicleId((s) => ({ ...s, [addaId]: '' }))
+    loadAddaBoard(addaId)
+  }
+  const doDeparted = async (addaId: string, entryId: string) => {
+    setAddaActionId(entryId)
+    const { error } = await supabase.rpc('adda_mark_departed', { p_entry_id: entryId })
+    setAddaActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('af.departedToast'))
+    loadAddaBoard(addaId)
+  }
+  const doPass = async (addaId: string, entryId: string) => {
+    setAddaActionId(entryId)
+    const { error } = await supabase.rpc('adda_pass_turn', { p_entry_id: entryId })
+    setAddaActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('af.passedToast'))
+    loadAddaBoard(addaId)
+  }
+  const doClaim = async (addaId: string, entryId: string) => {
+    setAddaActionId(entryId)
+    const { error } = await supabase.rpc('adda_claim_front', { p_entry_id: entryId })
+    setAddaActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('af.claimedToast'))
+    loadAddaBoard(addaId)
+  }
+  const doLeave = async (addaId: string, entryId: string) => {
+    setAddaActionId(entryId)
+    const { error } = await supabase.rpc('adda_leave_queue', { p_entry_id: entryId })
+    setAddaActionId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('af.leftQueueToast'))
+    loadAddaBoard(addaId)
+  }
+
+  const secondsLeft = (expiresAt: string | null) => {
+    if (!expiresAt) return null
+    return Math.max(0, Math.floor((new Date(expiresAt).getTime() - now) / 1000))
+  }
+  const fmtCountdown = (secs: number) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
 
   useEffect(() => {
     const vehicleParam = searchParams.get('vehicle')
@@ -353,10 +475,88 @@ function AdminVehiclesInner() {
           <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
             <h1 className="font-heading text-[28px] font-bold leading-[36px] text-dp-primary flex items-center gap-2"><Bus size={24} /> {t('mk.vehiclesTitle')}</h1>
             <div className="flex items-center gap-2">
+              <button onClick={() => setShowAddaPanel((s) => !s)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Signpost size={14} /> {t('af.addaQueueBtn')}</button>
               <button onClick={() => setShowRates((s) => !s)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Percent size={14} /> {t('cm.ratesBtn')}</button>
               <button onClick={openNewVehicle} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('mk.newVehicleBtn')}</button>
             </div>
           </div>
+
+          {showAddaPanel && (
+            <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-6">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <p className="font-sans text-[13px] font-bold text-dp-on-surface">{t('af.addaQueueHeading')}</p>
+                <button onClick={openNewAdda} className="flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline cursor-pointer"><PlusCircle size={13} /> {t('af.newAddaBtn')}</button>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {addas.map((a) => {
+                  const board = addaBoards[a.id]
+                  const current = board?.entries.find((e) => e.status === 'current')
+                  const waiting = board?.entries.filter((e) => e.status === 'waiting') ?? []
+                  const secs = current ? secondsLeft(current.turn_expires_at) : null
+                  return (
+                    <div key={a.id} className="border border-dp-outline-variant rounded-lg p-3.5">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="min-w-0">
+                          <p className="font-sans text-[13.5px] font-bold text-dp-on-surface flex items-center gap-1.5 truncate">
+                            <MapPin size={13} className="text-dp-secondary shrink-0" /> {isUrdu && a.name_ur ? a.name_ur : a.name}
+                            {board?.pair_adda && <><ChevronRight size={12} className="text-dp-on-surface-variant shrink-0 rtl:rotate-180" /><span className="text-dp-on-surface-variant truncate">{isUrdu && board.pair_adda.name_ur ? board.pair_adda.name_ur : board.pair_adda.name}</span></>}
+                          </p>
+                          {a.lat == null && <p className="font-sans text-[11px] text-amber-700 mt-0.5">{t('af.noPinSetHint')}</p>}
+                        </div>
+                        <button onClick={() => openEditAdda(a)} className="shrink-0 p-1 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={13} /></button>
+                      </div>
+
+                      {current ? (
+                        <div className="bg-dp-secondary-container/30 rounded-lg p-2.5 mb-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-sans text-[13px] font-bold text-dp-on-surface truncate">{current.owner_name}</p>
+                            {secs != null && <span className="shrink-0 inline-flex items-center gap-1 font-sans text-[12.5px] font-bold text-dp-secondary ltr-num"><Timer size={12} /> {fmtCountdown(secs)}</span>}
+                          </div>
+                          <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{current.vehicle_type}{current.vehicle_number ? ` · ${current.vehicle_number}` : ''} · {current.seats_available}/{current.seats_total} {t('mk.seatsLabel')} · {current.fare_mode === 'fixed' ? fmt(current.fixed_fare_per_seat_pkr ?? 0) : t('af.rideRequestMode')}</p>
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <button onClick={() => doDeparted(a.id, current.entry_id)} disabled={addaActionId === current.entry_id} className="flex items-center gap-1 px-2.5 py-1 rounded text-[11.5px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50"><LogOut size={11} /> {t('af.departedBtn')}</button>
+                            <button onClick={() => doPass(a.id, current.entry_id)} disabled={addaActionId === current.entry_id} className="flex items-center gap-1 px-2.5 py-1 rounded text-[11.5px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container disabled:opacity-50"><SkipForward size={11} /> {t('af.passBtn')}</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-2">{t('af.noCurrentVehicle')}</p>
+                      )}
+
+                      {waiting.length > 0 && (
+                        <div className="space-y-1.5 mb-2">
+                          {waiting.map((e) => (
+                            <div key={e.entry_id} className="flex items-center justify-between gap-2 bg-dp-surface-container rounded-lg px-2.5 py-1.5">
+                              <span className="font-sans text-[12px] text-dp-on-surface truncate">#{e.position} {e.owner_name} · {e.vehicle_type}</span>
+                              {secs === 0 && waiting[0]?.entry_id === e.entry_id && (
+                                <button onClick={() => doClaim(a.id, e.entry_id)} disabled={addaActionId === e.entry_id} className="shrink-0 px-2 py-0.5 rounded text-[11px] font-sans font-semibold cursor-pointer bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50">{t('af.claimBtn')}</button>
+                              )}
+                              <button onClick={() => doLeave(a.id, e.entry_id)} disabled={addaActionId === e.entry_id} className="shrink-0 font-sans text-[11px] text-dp-on-surface-variant hover:text-dp-error cursor-pointer">{t('g.remove')}</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-dp-outline-variant/60">
+                        <select value={checkInVehicleId[a.id] ?? ''} onChange={(e) => setCheckInVehicleId((s) => ({ ...s, [a.id]: e.target.value }))} className="input-field !w-auto text-[12px] py-1.5 flex-1 min-w-[140px]">
+                          <option value="">{t('af.pickVehicleOption')}</option>
+                          {vehicles.filter((v) => v.is_active).map((v) => <option key={v.id} value={v.id}>{v.owner_name} — {v.vehicle_type}</option>)}
+                        </select>
+                        <select value={checkInFareMode[a.id] ?? 'fixed'} onChange={(e) => setCheckInFareMode((s) => ({ ...s, [a.id]: e.target.value }))} className="input-field !w-auto text-[12px] py-1.5">
+                          <option value="fixed">{t('af.fixedFareOption')}</option>
+                          <option value="request">{t('af.rideRequestOption')}</option>
+                        </select>
+                        {(checkInFareMode[a.id] ?? 'fixed') === 'fixed' && (
+                          <input type="number" value={checkInFare[a.id] || ''} onChange={(e) => setCheckInFare((s) => ({ ...s, [a.id]: +e.target.value }))} placeholder={t('mk.farePerSeatLabel')} className="input-field !w-24 text-[12px] py-1.5" />
+                        )}
+                        <button onClick={() => doCheckIn(a.id)} disabled={addaActionId === a.id} className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">{t('af.checkInBtn')}</button>
+                      </div>
+                    </div>
+                  )
+                })}
+                {addas.length === 0 && <p className="font-sans text-[13px] text-dp-on-surface-variant col-span-full">{t('af.noAddasYet')}</p>}
+              </div>
+            </div>
+          )}
 
           {showRates && (
             <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-6">
@@ -626,6 +826,39 @@ function AdminVehiclesInner() {
               </div>
 
               <button onClick={saveRoute} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{saving ? t('action.saving') : t('g.saveChanges')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddaForm && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowAddaForm(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading text-[22px] font-bold text-dp-primary">{editingAdda ? t('af.editAddaBtn') : t('af.newAddaBtn')}</h2>
+              <button onClick={() => setShowAddaForm(false)} className="cursor-pointer"><X size={20} /></button>
+            </div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <input value={addaForm.name} onChange={(e) => setAddaForm({ ...addaForm, name: e.target.value })} placeholder={t('af.addaNamePlaceholder')} className="input-field" />
+                <input value={addaForm.name_ur} onChange={(e) => setAddaForm({ ...addaForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+              </div>
+              <select value={addaForm.pair_adda_id ?? ''} onChange={(e) => setAddaForm({ ...addaForm, pair_adda_id: e.target.value || null })} className="input-field">
+                <option value="">{t('af.noPairOption')}</option>
+                {addas.filter((a) => a.id !== editingAdda?.id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+              <div className="grid grid-cols-2 gap-3">
+                <select value={addaForm.classification} onChange={(e) => setAddaForm({ ...addaForm, classification: e.target.value })} className="input-field">
+                  <option value="intercity">{t('mk.intercity')}</option>
+                  <option value="out_of_city">{t('mk.outOfCity')}</option>
+                </select>
+                <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('af.turnMinutesLabel')}</label><input type="number" value={addaForm.turn_minutes || ''} onChange={(e) => setAddaForm({ ...addaForm, turn_minutes: +e.target.value })} className="input-field" placeholder="30" /></div>
+              </div>
+              <div className="pt-2 border-t border-dp-outline-variant/60">
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.mapPinsLabel')}</label>
+                <LeafletSinglePinPicker lat={addaForm.lat} lng={addaForm.lng} onChange={(pin) => setAddaForm({ ...addaForm, lat: pin?.lat ?? null, lng: pin?.lng ?? null })} />
+              </div>
+              <button onClick={saveAdda} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{saving ? t('action.saving') : t('g.saveChanges')}</button>
             </div>
           </div>
         </div>
