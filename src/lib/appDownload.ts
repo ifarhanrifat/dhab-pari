@@ -16,5 +16,5 @@
 // re-fetching (this actually happened once: a "reinstall" ran on a
 // pre-native-settings build and hit "plugin not implemented"). Bump
 // this any time the APK is rebuilt, even if the filename doesn't change.
-const APK_VERSION = 2
+const APK_VERSION = 3
 export const APK_DOWNLOAD_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/attachments/app/dhab-pari.apk?v=${APK_VERSION}`

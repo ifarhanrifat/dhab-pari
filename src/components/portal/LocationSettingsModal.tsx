@@ -1,22 +1,32 @@
 'use client'
 
-// Android (and iOS) deliberately don't let any app flip the phone's
-// Location toggle or its own permission switch from inside a custom
-// screen — that's an OS security rule, not something we can build around.
-// The closest legitimate equivalent, and what this modal actually does,
-// is a one-tap shortcut straight to the *system's own* settings screen
-// (capacitor-native-settings — a thin wrapper around the Android
-// ACTION_LOCATION_SOURCE_SETTINGS / ACTION_APPLICATION_DETAILS_SETTINGS
-// intents), not an in-app toggle switch. On the web this plugin no-ops
-// (there's no OS settings screen a browser tab can jump to), so the modal
-// only renders its action button on the native APK — a web driver just
-// gets the explanation.
+// Android deliberately doesn't let any app flip the phone's Location
+// toggle or its own permission switch from inside a custom screen —
+// that's an OS security rule. The closest legitimate equivalent, and
+// what this modal actually does, is a one-tap shortcut straight to the
+// *system's own* settings screen — AppSettings, a small in-app native
+// plugin (android/app/.../AppSettingsPlugin.java), registered explicitly
+// in MainActivity rather than through a third-party package's
+// auto-discovery. (The original build used capacitor-native-settings for
+// this; its registration looked entirely correct on paper — present in
+// capacitor.plugins.json, its class compiled into the release dex,
+// correctly signed — and still surfaced "plugin is not implemented on
+// android" at runtime for reasons static inspection couldn't pin down.
+// An in-app plugin, explicitly registered, has no dependency on any
+// third-party package's own build/packaging to get that wrong.) No iOS
+// build of this app exists, so the modal only renders its action button
+// on native Android — anyone else (web) just gets the explanation.
 
 import { useEffect, useState } from 'react'
 import { MapPinOff, ShieldAlert, ExternalLink, X, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import type { LocationErrorReason } from '@/hooks/useLiveLocation'
+
+interface AppSettingsPlugin {
+  openLocationSettings(): Promise<{ status: boolean }>
+  openAppDetailsSettings(): Promise<{ status: boolean }>
+}
 
 interface Props {
   reason: Extract<LocationErrorReason, 'services_disabled' | 'permission_denied'>
@@ -35,16 +45,14 @@ export function LocationSettingsModal({ reason, onClose }: Props) {
   const openSettings = async () => {
     setOpening(true)
     try {
-      const { NativeSettings, AndroidSettings, IOSSettings } = await import('capacitor-native-settings')
-      await NativeSettings.open({
-        optionAndroid: reason === 'services_disabled' ? AndroidSettings.Location : AndroidSettings.ApplicationDetails,
-        optionIOS: reason === 'services_disabled' ? IOSSettings.LocationServices : IOSSettings.App,
-      })
+      const { registerPlugin } = await import('@capacitor/core')
+      const AppSettings = registerPlugin<AppSettingsPlugin>('AppSettings')
+      await (reason === 'services_disabled' ? AppSettings.openLocationSettings() : AppSettings.openAppDetailsSettings())
       onClose()
     } catch (err) {
       // Surfaced rather than swallowed on purpose — a silent failure here
-      // gave no way to tell "the tap didn't register" (the z-index bug
-      // this modal shipped with) apart from "the native call itself
+      // gave no way to tell "the tap didn't register" (an earlier z-index
+      // bug this modal shipped with) apart from "the native call itself
       // genuinely failed." Keep the modal open so the message is visible
       // instead of also closing on failure.
       toast.error(err instanceof Error ? err.message : String(err))
