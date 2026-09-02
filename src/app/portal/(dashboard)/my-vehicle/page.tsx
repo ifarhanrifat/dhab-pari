@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Bus, Wallet, TrendingUp, Clock, CheckCircle2, XCircle, MapPin, PlusCircle, X, Navigation, Signpost, LogOut, SkipForward, Timer, Trophy } from 'lucide-react'
+import { Bus, Wallet, TrendingUp, Clock, CheckCircle2, XCircle, MapPin, PlusCircle, X, Navigation, Signpost, LogOut, SkipForward, Timer, Trophy, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -129,6 +129,8 @@ export default function MyVehiclePage() {
   const [checkInSeats, setCheckInSeats] = useState(0)
   const [checkInShareLocation, setCheckInShareLocation] = useState(true)
   const [checkingLocation, setCheckingLocation] = useState(false)
+  const [editingSeats, setEditingSeats] = useState(false)
+  const [seatsEditValue, setSeatsEditValue] = useState(0)
 
   const reloadAdda = async (vehicleId: string) => {
     const { data: addaList } = await supabase.from('addas').select('id, name, name_ur, pair_adda_id, fixed_fare_per_seat_pkr').eq('is_active', true).order('name')
@@ -180,7 +182,7 @@ export default function MyVehiclePage() {
       p_seats_available: checkInSeats || null,
     })
     setAddaActionLoading(false)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('af.checkedInToast'))
     reloadAdda(vehicle.id)
   }
@@ -189,7 +191,7 @@ export default function MyVehiclePage() {
     setAddaActionLoading(true)
     const { error } = await supabase.rpc('adda_mark_departed', { p_entry_id: myEntry.entry_id })
     setAddaActionLoading(false)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('af.departedToast'))
     reloadAdda(vehicle.id)
   }
@@ -198,7 +200,7 @@ export default function MyVehiclePage() {
     setAddaActionLoading(true)
     const { error } = await supabase.rpc('adda_pass_turn', { p_entry_id: myEntry.entry_id })
     setAddaActionLoading(false)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('af.passedToast'))
     reloadAdda(vehicle.id)
   }
@@ -207,7 +209,7 @@ export default function MyVehiclePage() {
     setAddaActionLoading(true)
     const { error } = await supabase.rpc('adda_claim_front', { p_entry_id: myEntry.entry_id })
     setAddaActionLoading(false)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('af.claimedToast'))
     reloadAdda(vehicle.id)
   }
@@ -216,8 +218,23 @@ export default function MyVehiclePage() {
     setAddaActionLoading(true)
     const { error } = await supabase.rpc('adda_leave_queue', { p_entry_id: myEntry.entry_id })
     setAddaActionLoading(false)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('af.leftQueueToast'))
+    reloadAdda(vehicle.id)
+  }
+  const openEditSeats = () => {
+    if (!myEntry) return
+    setSeatsEditValue(myEntry.seats_total)
+    setEditingSeats(true)
+  }
+  const doUpdateSeats = async () => {
+    if (!vehicle || !myEntry) return
+    setAddaActionLoading(true)
+    const { error } = await supabase.rpc('adda_update_seats', { p_entry_id: myEntry.entry_id, p_seats_total: seatsEditValue })
+    setAddaActionLoading(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(t('af.seatsUpdatedToast'))
+    setEditingSeats(false)
     reloadAdda(vehicle.id)
   }
 
@@ -232,7 +249,7 @@ export default function MyVehiclePage() {
       p_seats_available: tripForm.seats_available, p_listed_fare_per_seat_pkr: tripForm.listed_fare_per_seat_pkr,
     })
     setPosting(false)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('cm.tripPostedToast'))
     setShowPostTrip(false)
     setTripForm(emptyTripOffer)
@@ -246,7 +263,7 @@ export default function MyVehiclePage() {
       p_fare_offer_id: fareOfferId, p_action: action, p_counter_fare_per_seat_pkr: action === 'counter' ? counterAmount[fareOfferId] ?? null : null,
     })
     setActionId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(action === 'accept' ? t('cm.fareAcceptedToast') : action === 'counter' ? t('cm.fareCounteredToast') : t('cm.fareRejectedToast'))
     reload(vehicle.id)
   }
@@ -256,7 +273,7 @@ export default function MyVehiclePage() {
     setActionId(id)
     const { error } = await supabase.rpc('complete_trip_booking', { p_trip_booking_id: id })
     setActionId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('cm.tripCompletedToast'))
     reload(vehicle.id)
   }
@@ -265,7 +282,7 @@ export default function MyVehiclePage() {
     setActionId(id)
     const { error } = await supabase.rpc('confirm_ride_booking', { p_booking_id: id })
     setActionId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mp.bookingConfirmedToast'))
     if (vehicle) reload(vehicle.id)
   }
@@ -274,7 +291,7 @@ export default function MyVehiclePage() {
     setActionId(id)
     const { error } = await supabase.rpc('reject_ride_booking', { p_booking_id: id, p_reason: reason || null })
     setActionId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mp.bookingRejectedToast'))
     if (vehicle) reload(vehicle.id)
   }
@@ -361,13 +378,24 @@ export default function MyVehiclePage() {
         ) : (
           <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
             <p className="font-sans text-[13.5px] font-bold text-dp-on-surface flex items-center gap-1.5"><MapPin size={13} className="text-dp-secondary" /> {isUrdu && myEntry.adda_name_ur ? myEntry.adda_name_ur : myEntry.adda_name}</p>
+            {!editingSeats ? (
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1 flex items-center gap-1.5">
+                <span className="ltr-num">{myEntry.seats_available}/{myEntry.seats_total}</span> {t('af.seatsFreeLabel')}
+                <button onClick={openEditSeats} disabled={addaActionLoading} className="inline-flex items-center gap-0.5 text-dp-secondary font-semibold hover:underline cursor-pointer disabled:opacity-50"><Pencil size={11} /> {t('af.editSeatsBtn')}</button>
+              </p>
+            ) : (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <input type="number" min={1} value={seatsEditValue || ''} onChange={(e) => setSeatsEditValue(+e.target.value)} className="input-field !w-20 !py-1" />
+                <button onClick={doUpdateSeats} disabled={addaActionLoading} className="px-2.5 py-1 bg-dp-secondary text-white rounded-md text-[12px] font-sans font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">{t('af.saveSeatsBtn')}</button>
+                <button onClick={() => setEditingSeats(false)} disabled={addaActionLoading} className="px-2.5 py-1 border border-dp-outline-variant rounded-md text-[12px] font-sans font-semibold cursor-pointer hover:bg-dp-surface-container disabled:opacity-50">{t('action.cancel')}</button>
+              </div>
+            )}
             {myEntry.status === 'current' ? (
               <div className="bg-dp-secondary-container/30 rounded-lg p-2.5 mt-2">
                 <div className="flex items-center justify-between gap-2">
                   <span className="inline-flex items-center gap-1 font-sans text-[13px] font-bold text-dp-secondary"><Trophy size={13} /> {t('af.yourTurnLabel')}</span>
                   {secondsLeft(myEntry.turn_expires_at) != null && <span className="inline-flex items-center gap-1 font-sans text-[13px] font-bold text-dp-secondary ltr-num"><Timer size={13} /> {fmtCountdown(secondsLeft(myEntry.turn_expires_at)!)}</span>}
                 </div>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{myEntry.seats_available}/{myEntry.seats_total} {t('mk.seatsLabel')} {t('af.stillFree')}</p>
                 <div className="flex items-center gap-1.5 mt-2.5">
                   <button onClick={doAddaDeparted} disabled={addaActionLoading} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12.5px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50"><LogOut size={12} /> {t('af.departedBtn')}</button>
                   <button onClick={doAddaPass} disabled={addaActionLoading} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12.5px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container disabled:opacity-50"><SkipForward size={12} /> {t('af.passBtn')}</button>

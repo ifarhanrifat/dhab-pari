@@ -142,7 +142,7 @@ function AdminVehiclesInner() {
     const { error } = await supabase.from('vehicle_type_commission_rates')
       .upsert({ vehicle_type: newRate.vehicle_type.trim(), classification: newRate.classification, commission_pct: newRate.commission_pct }, { onConflict: 'vehicle_type,classification' })
     setSavingRate(false)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('cm.rateSaved'))
     setNewRate({ vehicle_type: '', classification: 'intercity', commission_pct: 0 })
     loadRates()
@@ -218,7 +218,7 @@ function AdminVehiclesInner() {
       ? await supabase.from('addas').update(payload).eq('id', editingAdda.id)
       : await supabase.from('addas').insert(payload)
     setSaving(false)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mk.vehicleSaved'))
     setShowAddaForm(false)
     loadAddas()
@@ -237,7 +237,7 @@ function AdminVehiclesInner() {
       p_share_location_on_depart: false, p_seats_available: checkInSeats[addaId] || null,
     })
     setAddaActionId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('af.checkedInToast'))
     setCheckInVehicleId((s) => ({ ...s, [addaId]: '' }))
     setCheckInSeats((s) => ({ ...s, [addaId]: 0 }))
@@ -247,7 +247,7 @@ function AdminVehiclesInner() {
     setAddaActionId(entryId)
     const { error } = await supabase.rpc('adda_mark_departed', { p_entry_id: entryId })
     setAddaActionId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('af.departedToast'))
     loadAddaBoard(addaId)
   }
@@ -255,7 +255,7 @@ function AdminVehiclesInner() {
     setAddaActionId(entryId)
     const { error } = await supabase.rpc('adda_pass_turn', { p_entry_id: entryId })
     setAddaActionId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('af.passedToast'))
     loadAddaBoard(addaId)
   }
@@ -263,7 +263,7 @@ function AdminVehiclesInner() {
     setAddaActionId(entryId)
     const { error } = await supabase.rpc('adda_claim_front', { p_entry_id: entryId })
     setAddaActionId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('af.claimedToast'))
     loadAddaBoard(addaId)
   }
@@ -271,7 +271,7 @@ function AdminVehiclesInner() {
     setAddaActionId(entryId)
     const { error } = await supabase.rpc('adda_leave_queue', { p_entry_id: entryId })
     setAddaActionId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('af.leftQueueToast'))
     loadAddaBoard(addaId)
   }
@@ -317,7 +317,7 @@ function AdminVehiclesInner() {
     setTopupActionId(id)
     const { error } = await supabase.rpc('confirm_vehicle_wallet_topup', { p_topup_id: id })
     setTopupActionId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('cm.topupConfirmedToast'))
     if (selected) loadTopups(selected.id)
   }
@@ -326,7 +326,7 @@ function AdminVehiclesInner() {
     setTopupActionId(id)
     const { error } = await supabase.rpc('reject_vehicle_wallet_topup', { p_topup_id: id, p_reason: reason || null })
     setTopupActionId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('cm.topupRejectedToast'))
     if (selected) loadTopups(selected.id)
   }
@@ -352,7 +352,7 @@ function AdminVehiclesInner() {
     if (editingVehicle) {
       const { error } = await supabase.from('vehicles').update({ portal_user_id: data.id }).eq('id', editingVehicle.id)
       setLinkingKeeper(false)
-      if (error) { toast.error(friendlyError(error)); return }
+      if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
       toast.success(t('sk.keeperLinkedToast'))
       load()
     } else {
@@ -366,7 +366,7 @@ function AdminVehiclesInner() {
     setVehicleForm({ ...vehicleForm, portal_user_id: null }); setKeeperName(null)
     if (!editingVehicle) return
     const { error } = await supabase.from('vehicles').update({ portal_user_id: null }).eq('id', editingVehicle.id)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('sk.keeperUnlinkedToast'))
     load()
   }
@@ -375,7 +375,7 @@ function AdminVehiclesInner() {
     setBookingActionId(b.id)
     const { error } = await supabase.rpc('confirm_ride_booking', { p_booking_id: b.id })
     setBookingActionId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mp.bookingConfirmedToast'))
     if (selected) loadBookings(selected.id)
   }
@@ -385,7 +385,7 @@ function AdminVehiclesInner() {
     setBookingActionId(b.id)
     const { error } = await supabase.rpc('reject_ride_booking', { p_booking_id: b.id, p_reason: reason || null })
     setBookingActionId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mp.bookingRejectedToast'))
     if (selected) loadBookings(selected.id)
   }
@@ -418,7 +418,7 @@ function AdminVehiclesInner() {
       ? await supabase.from('vehicles').update(payload).eq('id', editingVehicle.id)
       : await supabase.from('vehicles').insert(payload)
     setSaving(false)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mk.vehicleSaved'))
     setShowVehicleForm(false)
     load()
@@ -428,7 +428,7 @@ function AdminVehiclesInner() {
   const deleteVehicle = async (v: Vehicle) => {
     if (!confirm(t('mk.confirmDeleteVehicle'))) return
     const { error } = await supabase.from('vehicles').delete().eq('id', v.id)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mk.vehicleDeleted'))
     if (selected?.id === v.id) setSelected(null)
     load()
@@ -465,7 +465,7 @@ function AdminVehiclesInner() {
       ? await supabase.from('vehicle_routes').update(payload).eq('id', editingRoute.id)
       : await supabase.from('vehicle_routes').insert(payload)
     setSaving(false)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mk.routeSaved'))
     setShowRouteForm(false)
     loadRoutes(selected.id)
@@ -475,7 +475,7 @@ function AdminVehiclesInner() {
   const deleteRoute = async (r: Route) => {
     if (!confirm(t('mk.confirmDeleteRoute'))) return
     const { error } = await supabase.from('vehicle_routes').delete().eq('id', r.id)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mk.routeDeleted'))
     if (selected) loadRoutes(selected.id)
     load()

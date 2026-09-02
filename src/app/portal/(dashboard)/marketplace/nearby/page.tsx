@@ -97,7 +97,7 @@ export default function NearbyOpenTripsPage() {
     setActionId(trip.trip_offer_id)
     const { error } = await supabase.rpc('propose_trip_fare', { p_trip_offer_id: trip.trip_offer_id, p_seats_requested: s, p_proposed_fare_per_seat_pkr: f })
     setActionId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('af.fareProposedToast'))
   }
 

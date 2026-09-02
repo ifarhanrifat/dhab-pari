@@ -81,7 +81,7 @@ export default function AddaBoardPage() {
     setActionId(entry.entry_id)
     const { error } = await supabase.rpc('book_adda_seat', { p_entry_id: entry.entry_id, p_seats: seats, p_method: 'direct', p_proof_url: null })
     setActionId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('af.seatBookedToast'))
     if (activeAddaId) loadBoard(activeAddaId)
   }
@@ -93,7 +93,7 @@ export default function AddaBoardPage() {
     setActionId(entry.entry_id)
     const { error } = await supabase.rpc('propose_trip_fare', { p_trip_offer_id: entry.trip_offer_id, p_seats_requested: seats, p_proposed_fare_per_seat_pkr: fare })
     setActionId(null)
-    if (error) { toast.error(friendlyError(error)); return }
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('af.fareProposedToast'))
   }
 
