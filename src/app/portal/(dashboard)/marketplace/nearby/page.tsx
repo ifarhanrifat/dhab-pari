@@ -24,6 +24,7 @@
 // be prompted for GPS access just for landing on the same page.
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
@@ -98,6 +99,11 @@ export default function NearbyOpenTripsPage() {
   const { user, loading: userLoading } = usePortalUser()
   const supabase = createClient()
   const mapRef = useRef<LeafletMapHandle>(null)
+  // A React portal needs `document` to exist, so the drawer render only
+  // happens after mount (see the createPortal call below for why this
+  // has to be a portal at all, not just a higher z-index).
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
 
   const [myPos, setMyPos] = useState<LiveLocationPosition | null>(null)
   const [locating, setLocating] = useState(false)
@@ -367,33 +373,53 @@ export default function NearbyOpenTripsPage() {
     </>
   )
 
+  const panelInner = (
+    <>
+      <div className="p-5 pb-4 border-b border-dp-outline-variant/60 shrink-0">
+        <div className="flex items-center justify-between mb-3">
+          <Link href="/portal/marketplace" className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline"><ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('mp.backToMarketplace')}</Link>
+          <button onClick={() => setPanelOpen(false)} className="lg:hidden shrink-0 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer p-1"><X size={18} /></button>
+        </div>
+        <h1 className="font-heading text-[22px] font-bold leading-[28px] text-dp-primary mb-1">{t('af.nearbyPageTitle')}</h1>
+        <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('af.nearbyPageHint')}</p>
+        {locationControls}
+      </div>
+      <div className="flex-1 overflow-y-auto p-5">
+        {loading ? <p className="text-center py-8"><LoadingDots /></p> : resultsList}
+      </div>
+    </>
+  )
+
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="-m-6 md:-m-10">
       <div className="relative lg:flex h-[calc(100dvh-160px)] min-h-[420px] lg:h-[calc(100dvh-100px)] lg:min-h-0">
 
-        {/* Backdrop — mobile only, dims the map while the drawer is open */}
-        {panelOpen && <div onClick={() => setPanelOpen(false)} className="lg:hidden fixed inset-0 z-[450] bg-black/40" />}
-
-        {/* Results panel — a slide-in drawer on a phone (open by default,
-            close via the X or the backdrop), a fixed sidebar on a wide
-            screen (always visible, no backdrop, no close button). RTL
-            mirrors correctly: slides in from the visual "start" edge,
-            which is the right in Urdu — same edge the desktop panel
-            already sits on there. */}
-        <div className={`fixed lg:static inset-y-0 start-0 z-[500] w-[86%] max-w-[380px] lg:w-[400px] lg:max-w-none lg:shrink-0 h-full bg-white lg:border-e lg:border-dp-outline-variant shadow-2xl lg:shadow-none transition-transform duration-300 ease-out flex flex-col ${panelOpen ? 'translate-x-0' : isUrdu ? 'translate-x-full' : '-translate-x-full'} lg:translate-x-0`}>
-          <div className="p-5 pb-4 border-b border-dp-outline-variant/60 shrink-0">
-            <div className="flex items-center justify-between mb-3">
-              <Link href="/portal/marketplace" className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline"><ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('mp.backToMarketplace')}</Link>
-              <button onClick={() => setPanelOpen(false)} className="lg:hidden shrink-0 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer p-1"><X size={18} /></button>
-            </div>
-            <h1 className="font-heading text-[22px] font-bold leading-[28px] text-dp-primary mb-1">{t('af.nearbyPageTitle')}</h1>
-            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('af.nearbyPageHint')}</p>
-            {locationControls}
-          </div>
-          <div className="flex-1 overflow-y-auto p-5">
-            {loading ? <p className="text-center py-8"><LoadingDots /></p> : resultsList}
-          </div>
+        {/* Desktop: a static sidebar in normal flex flow, right next to the
+            map — no z-index/stacking concerns since nothing overlaps it. */}
+        <div className="hidden lg:flex lg:flex-col lg:w-[400px] lg:shrink-0 lg:h-full lg:bg-white lg:border-e lg:border-dp-outline-variant">
+          {panelInner}
         </div>
+
+        {/* Mobile: a slide-in drawer, rendered via a portal straight into
+            <body> rather than in its normal spot in this page's own DOM
+            tree. A high z-index alone was not enough — the map (Leaflet
+            manages a lot of internal layered DOM of its own) kept
+            rendering on top of the panel regardless of the z-index given
+            to it here. Escaping to a portal removes any ambiguity about
+            which stacking context either one belongs to; it's the
+            standard, reliable fix for exactly this class of bug, the
+            same reason most drawer/modal libraries default to portals.
+            `dir` has to be set explicitly here — a portaled node is a
+            child of <body>, not of this page's own dir="rtl" wrapper. */}
+        {mounted && createPortal(
+          <div dir={isUrdu ? 'rtl' : 'ltr'}>
+            {panelOpen && <div onClick={() => setPanelOpen(false)} className="lg:hidden fixed inset-0 z-[9998] bg-black/40" />}
+            <div className={`lg:hidden fixed inset-y-0 start-0 z-[9999] w-[86%] max-w-[380px] h-full bg-white shadow-2xl transition-transform duration-300 ease-out flex flex-col ${panelOpen ? 'translate-x-0' : isUrdu ? 'translate-x-full' : '-translate-x-full'}`}>
+              {panelInner}
+            </div>
+          </div>,
+          document.body
+        )}
 
         {/* ─── Map fills everything else ─── */}
         <div className="relative w-full h-full lg:flex-1">
