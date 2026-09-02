@@ -147,7 +147,7 @@ function AddaBoardPageInner() {
         </div>
       )}
 
-      {pins.length > 0 && <LeafletMap pins={pins} height={220} className="mb-4" />}
+      {pins.length > 0 && <LeafletMap pins={pins} height={220} className="mb-4 rounded-lg" />}
 
       <div className="mb-2">
         {current ? (

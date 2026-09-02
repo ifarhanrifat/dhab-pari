@@ -121,7 +121,7 @@ export default function TripTrackingPage() {
               <p className="font-sans text-[13px] text-amber-900">{geoError}</p>
             </div>
           )}
-          <LeafletMap pins={pins} height={340} />
+          <LeafletMap pins={pins} height={340} className="rounded-lg" />
           <p className="font-sans text-[12px] text-dp-on-surface-variant mt-3">{t('cm.locationSharingHint')}</p>
           {!otherPos && (
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-2">{role === 'driver' ? t('cm.waitingForRiderLocation') : t('cm.waitingForDriverLocation')}</p>

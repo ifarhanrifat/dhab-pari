@@ -125,6 +125,7 @@ export default function RouteDetailPage() {
       {route.origin_lat != null && route.origin_lng != null && route.destination_lat != null && route.destination_lng != null && (
         <div className="mt-4">
           <LeafletMap
+            className="rounded-lg"
             pins={[
               { lat: route.origin_lat, lng: route.origin_lng, label: isUrdu && route.origin_ur ? route.origin_ur : route.origin, color: '#16a34a' },
               { lat: route.destination_lat, lng: route.destination_lng, label: isUrdu && route.destination_ur ? route.destination_ur : route.destination, color: '#dc2626' },
