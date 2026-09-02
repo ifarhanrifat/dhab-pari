@@ -29,7 +29,7 @@ const LeafletSinglePinPicker = dynamic(() => import('@/components/shared/Leaflet
 interface Vehicle {
   id: string; owner_name: string; owner_mobile: string | null; owner_whatsapp: string | null
   vehicle_type: string; vehicle_number: string | null; total_seats: number; is_active: boolean
-  portal_user_id: string | null; commission_mode: string; lumpsum_fee_pkr: number | null
+  portal_user_id: string | null; commission_mode: string; lumpsum_fee_pkr: number | null; night_booking_enabled: boolean
 }
 interface Route {
   id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
@@ -43,7 +43,11 @@ interface Booking {
 interface LumpsumCharge { id: string; period: string; amount_pkr: number }
 interface WalletTopup { id: string; amount_pkr: number; status: string; announced_method: string; announced_at: string; rejected_reason: string | null }
 interface TypeRate { id: string; vehicle_type: string; classification: string; commission_pct: number }
-interface Adda { id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null; pair_adda_id: string | null; classification: string; turn_minutes: number; is_active: boolean }
+interface Adda {
+  id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null; pair_adda_id: string | null
+  classification: string; turn_minutes: number; is_active: boolean; fixed_fare_per_seat_pkr: number | null
+  operating_start_time: string | null; operating_end_time: string | null
+}
 interface AddaBoardEntry {
   entry_id: string; status: string; position: number; lap: number
   turn_started_at: string | null; turn_expires_at: string | null
@@ -54,7 +58,7 @@ interface AddaBoard { adda: Adda; pair_adda: Adda | null; entries: AddaBoardEntr
 
 const emptyVehicle = {
   owner_name: '', owner_mobile: '', owner_whatsapp: '', vehicle_type: '', vehicle_number: '', total_seats: 4, is_active: true,
-  portal_user_id: null as string | null, commission_mode: 'per_order' as string, lumpsum_fee_pkr: 0,
+  portal_user_id: null as string | null, commission_mode: 'per_order' as string, lumpsum_fee_pkr: 0, night_booking_enabled: false,
 }
 const emptyRoute = {
   origin: '', origin_ur: '', destination: '', destination_ur: '', classification: 'intercity',
@@ -158,10 +162,15 @@ function AdminVehiclesInner() {
   const [addaActionId, setAddaActionId] = useState<string | null>(null)
   const [showAddaForm, setShowAddaForm] = useState(false)
   const [editingAdda, setEditingAdda] = useState<Adda | null>(null)
-  const [addaForm, setAddaForm] = useState({ name: '', name_ur: '', classification: 'intercity', turn_minutes: 30, pair_adda_id: null as string | null, lat: null as number | null, lng: null as number | null })
+  const emptyAddaForm = {
+    name: '', name_ur: '', classification: 'intercity', turn_minutes: 30, pair_adda_id: null as string | null,
+    lat: null as number | null, lng: null as number | null, fixed_fare_per_seat_pkr: 0,
+    operating_start_time: '', operating_end_time: '',
+  }
+  const [addaForm, setAddaForm] = useState(emptyAddaForm)
   const [checkInVehicleId, setCheckInVehicleId] = useState<Record<string, string>>({})
   const [checkInFareMode, setCheckInFareMode] = useState<Record<string, string>>({})
-  const [checkInFare, setCheckInFare] = useState<Record<string, number>>({})
+  const [checkInSeats, setCheckInSeats] = useState<Record<string, number>>({})
   const [now, setNow] = useState(() => Date.now())
 
   const loadAddas = async () => {
@@ -186,16 +195,25 @@ function AdminVehiclesInner() {
     return () => clearInterval(iv)
   }, [showAddaPanel])
 
-  const openNewAdda = () => { setEditingAdda(null); setAddaForm({ name: '', name_ur: '', classification: 'intercity', turn_minutes: 30, pair_adda_id: null, lat: null, lng: null }); setShowAddaForm(true) }
+  const openNewAdda = () => { setEditingAdda(null); setAddaForm(emptyAddaForm); setShowAddaForm(true) }
   const openEditAdda = (a: Adda) => {
     setEditingAdda(a)
-    setAddaForm({ name: a.name, name_ur: a.name_ur ?? '', classification: a.classification, turn_minutes: a.turn_minutes, pair_adda_id: a.pair_adda_id, lat: a.lat, lng: a.lng })
+    setAddaForm({
+      name: a.name, name_ur: a.name_ur ?? '', classification: a.classification, turn_minutes: a.turn_minutes, pair_adda_id: a.pair_adda_id,
+      lat: a.lat, lng: a.lng, fixed_fare_per_seat_pkr: a.fixed_fare_per_seat_pkr ?? 0,
+      operating_start_time: a.operating_start_time?.slice(0, 5) ?? '', operating_end_time: a.operating_end_time?.slice(0, 5) ?? '',
+    })
     setShowAddaForm(true)
   }
   const saveAdda = async () => {
     if (!addaForm.name.trim()) { toast.error(t('mk.nameRequired')); return }
     setSaving(true)
-    const payload = { name: addaForm.name, name_ur: addaForm.name_ur || null, classification: addaForm.classification, turn_minutes: addaForm.turn_minutes, pair_adda_id: addaForm.pair_adda_id, lat: addaForm.lat, lng: addaForm.lng }
+    const payload = {
+      name: addaForm.name, name_ur: addaForm.name_ur || null, classification: addaForm.classification, turn_minutes: addaForm.turn_minutes,
+      pair_adda_id: addaForm.pair_adda_id, lat: addaForm.lat, lng: addaForm.lng,
+      fixed_fare_per_seat_pkr: addaForm.fixed_fare_per_seat_pkr || null,
+      operating_start_time: addaForm.operating_start_time || null, operating_end_time: addaForm.operating_end_time || null,
+    }
     const { error } = editingAdda
       ? await supabase.from('addas').update(payload).eq('id', editingAdda.id)
       : await supabase.from('addas').insert(payload)
@@ -211,15 +229,18 @@ function AdminVehiclesInner() {
     if (!vehicleId) { toast.error(t('af.pickVehicleFirst')); return }
     const fareMode = checkInFareMode[addaId] ?? 'fixed'
     setAddaActionId(addaId)
+    // No lat/lng here — an admin checking a vehicle in on someone's
+    // behalf is exempt from the location/hours checks (409/415/416),
+    // same as the rest of this panel's staff-coordinated flow.
     const { error } = await supabase.rpc('adda_check_in', {
       p_adda_id: addaId, p_vehicle_id: vehicleId, p_fare_mode: fareMode,
-      p_fixed_fare_per_seat_pkr: fareMode === 'fixed' ? (checkInFare[addaId] || null) : null,
-      p_share_location_on_depart: false,
+      p_share_location_on_depart: false, p_seats_available: checkInSeats[addaId] || null,
     })
     setAddaActionId(null)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('af.checkedInToast'))
     setCheckInVehicleId((s) => ({ ...s, [addaId]: '' }))
+    setCheckInSeats((s) => ({ ...s, [addaId]: 0 }))
     loadAddaBoard(addaId)
   }
   const doDeparted = async (addaId: string, entryId: string) => {
@@ -376,6 +397,7 @@ function AdminVehiclesInner() {
       owner_name: v.owner_name, owner_mobile: v.owner_mobile ?? '', owner_whatsapp: v.owner_whatsapp ?? '',
       vehicle_type: v.vehicle_type, vehicle_number: v.vehicle_number ?? '', total_seats: v.total_seats, is_active: v.is_active,
       portal_user_id: v.portal_user_id, commission_mode: v.commission_mode, lumpsum_fee_pkr: v.lumpsum_fee_pkr ?? 0,
+      night_booking_enabled: v.night_booking_enabled,
     })
     setKeeperMobile('')
     if (v.portal_user_id) {
@@ -542,12 +564,10 @@ function AdminVehiclesInner() {
                           {vehicles.filter((v) => v.is_active).map((v) => <option key={v.id} value={v.id}>{v.owner_name} — {v.vehicle_type}</option>)}
                         </select>
                         <select value={checkInFareMode[a.id] ?? 'fixed'} onChange={(e) => setCheckInFareMode((s) => ({ ...s, [a.id]: e.target.value }))} className="input-field !w-auto text-[12px] py-1.5">
-                          <option value="fixed">{t('af.fixedFareOption')}</option>
+                          <option value="fixed">{t('af.fixedFareOption')} {a.fixed_fare_per_seat_pkr != null ? `(${fmt(a.fixed_fare_per_seat_pkr)})` : ''}</option>
                           <option value="request">{t('af.rideRequestOption')}</option>
                         </select>
-                        {(checkInFareMode[a.id] ?? 'fixed') === 'fixed' && (
-                          <input type="number" value={checkInFare[a.id] || ''} onChange={(e) => setCheckInFare((s) => ({ ...s, [a.id]: +e.target.value }))} placeholder={t('mk.farePerSeatLabel')} className="input-field !w-24 text-[12px] py-1.5" />
-                        )}
+                        <input type="number" value={checkInSeats[a.id] || ''} onChange={(e) => setCheckInSeats((s) => ({ ...s, [a.id]: +e.target.value }))} placeholder={t('af.seatsAvailablePlaceholder')} className="input-field !w-24 text-[12px] py-1.5" />
                         <button onClick={() => doCheckIn(a.id)} disabled={addaActionId === a.id} className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">{t('af.checkInBtn')}</button>
                       </div>
                     </div>
@@ -737,6 +757,7 @@ function AdminVehiclesInner() {
               </div>
               <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.totalSeatsLabel')}</label><input type="number" value={vehicleForm.total_seats || ''} onChange={(e) => setVehicleForm({ ...vehicleForm, total_seats: +e.target.value })} className="input-field" placeholder="0" /></div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={vehicleForm.is_active} onChange={(e) => setVehicleForm({ ...vehicleForm, is_active: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('mk.vehicleActiveLabel')}</span></label>
+              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={vehicleForm.night_booking_enabled} onChange={(e) => setVehicleForm({ ...vehicleForm, night_booking_enabled: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('af.nightBookingLabel')}</span></label>
 
               <div className="pt-2 border-t border-dp-outline-variant/60">
                 <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.modeLabel')}</label>
@@ -853,6 +874,18 @@ function AdminVehiclesInner() {
                   <option value="out_of_city">{t('mk.outOfCity')}</option>
                 </select>
                 <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('af.turnMinutesLabel')}</label><input type="number" value={addaForm.turn_minutes || ''} onChange={(e) => setAddaForm({ ...addaForm, turn_minutes: +e.target.value })} className="input-field" placeholder="30" /></div>
+              </div>
+              <div className="pt-2 border-t border-dp-outline-variant/60">
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('af.systemFareLabel')}</label>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-1.5">{t('af.systemFareHint')}</p>
+                <input type="number" value={addaForm.fixed_fare_per_seat_pkr || ''} onChange={(e) => setAddaForm({ ...addaForm, fixed_fare_per_seat_pkr: +e.target.value })} className="input-field" placeholder="0" />
+              </div>
+              <div className="pt-2 border-t border-dp-outline-variant/60">
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('af.operatingHoursLabel')}</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <input type="time" value={addaForm.operating_start_time} onChange={(e) => setAddaForm({ ...addaForm, operating_start_time: e.target.value })} className="input-field" />
+                  <input type="time" value={addaForm.operating_end_time} onChange={(e) => setAddaForm({ ...addaForm, operating_end_time: e.target.value })} className="input-field" />
+                </div>
               </div>
               <div className="pt-2 border-t border-dp-outline-variant/60">
                 <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.mapPinsLabel')}</label>

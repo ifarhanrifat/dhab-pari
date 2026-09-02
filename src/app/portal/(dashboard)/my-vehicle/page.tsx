@@ -18,6 +18,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { WalletTopupModal } from '@/components/portal/WalletTopupModal'
 import { TripLiveShareToggle } from '@/components/portal/TripLiveShareToggle'
+import { getCurrentPositionOnce } from '@/hooks/useLiveLocation'
 
 interface Vehicle { id: string; owner_name: string; vehicle_type: string; commission_mode: string }
 interface TripOffer {
@@ -46,7 +47,7 @@ interface Booking {
   id: string; status: string; total_amount_pkr: number; seats: number; travel_date: string; rejected_reason: string | null
   vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null
 }
-interface Adda { id: string; name: string; name_ur: string | null; pair_adda_id: string | null }
+interface Adda { id: string; name: string; name_ur: string | null; pair_adda_id: string | null; fixed_fare_per_seat_pkr: number | null }
 interface AddaBoardEntry {
   entry_id: string; status: string; position: number
   turn_started_at: string | null; turn_expires_at: string | null
@@ -125,11 +126,12 @@ export default function MyVehiclePage() {
   const [now, setNow] = useState(() => Date.now())
   const [checkInAddaId, setCheckInAddaId] = useState('')
   const [checkInFareMode, setCheckInFareMode] = useState('fixed')
-  const [checkInFare, setCheckInFare] = useState(0)
+  const [checkInSeats, setCheckInSeats] = useState(0)
   const [checkInShareLocation, setCheckInShareLocation] = useState(true)
+  const [checkingLocation, setCheckingLocation] = useState(false)
 
   const reloadAdda = async (vehicleId: string) => {
-    const { data: addaList } = await supabase.from('addas').select('id, name, name_ur, pair_adda_id').eq('is_active', true).order('name')
+    const { data: addaList } = await supabase.from('addas').select('id, name, name_ur, pair_adda_id, fixed_fare_per_seat_pkr').eq('is_active', true).order('name')
     setAddas(addaList ?? [])
     const today = new Date().toLocaleDateString('en-CA')
     const { data: entry } = await supabase.from('adda_queue_entries').select('*, addas(name, name_ur)')
@@ -158,10 +160,24 @@ export default function MyVehiclePage() {
   const doAddaCheckIn = async () => {
     if (!vehicle || !checkInAddaId) { toast.error(t('af.pickAddaFirst')); return }
     setAddaActionLoading(true)
+    // A driver checking himself in needs to actually be at the stand —
+    // the RPC enforces this (409/415/416's geofence), this just supplies
+    // the position it checks against. Missing/denied location still
+    // reaches the RPC (as null lat/lng) rather than blocking the attempt
+    // client-side, so the server's own error message is what the driver
+    // actually sees.
+    setCheckingLocation(true)
+    let lat: number | null = null; let lng: number | null = null
+    try {
+      const pos = await getCurrentPositionOnce()
+      lat = pos.lat; lng = pos.lng
+    } catch { /* fall through with null — server decides whether this adda even needs a pin check */ }
+    setCheckingLocation(false)
+
     const { error } = await supabase.rpc('adda_check_in', {
       p_adda_id: checkInAddaId, p_vehicle_id: vehicle.id, p_fare_mode: checkInFareMode,
-      p_fixed_fare_per_seat_pkr: checkInFareMode === 'fixed' ? (checkInFare || null) : null,
-      p_share_location_on_depart: checkInShareLocation,
+      p_share_location_on_depart: checkInShareLocation, p_lat: lat, p_lng: lng,
+      p_seats_available: checkInSeats || null,
     })
     setAddaActionLoading(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -326,11 +342,17 @@ export default function MyVehiclePage() {
                 <option value="fixed">{t('af.fixedFareOption')}</option>
                 <option value="request">{t('af.rideRequestOption')}</option>
               </select>
-              {checkInFareMode === 'fixed' && (
-                <input type="number" value={checkInFare || ''} onChange={(e) => setCheckInFare(+e.target.value)} placeholder={t('mk.farePerSeatLabel')} className="input-field !w-28" />
-              )}
-              <button onClick={doAddaCheckIn} disabled={addaActionLoading} className="px-3 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">{t('af.checkInBtn')}</button>
+              <input type="number" value={checkInSeats || ''} onChange={(e) => setCheckInSeats(+e.target.value)} placeholder={t('af.seatsAvailablePlaceholder')} className="input-field !w-28" />
+              <button onClick={doAddaCheckIn} disabled={addaActionLoading || checkingLocation} className="px-3 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">
+                {checkingLocation ? t('af.confirmingLocationBtn') : t('af.checkInBtn')}
+              </button>
             </div>
+            {checkInFareMode === 'fixed' && checkInAddaId && (() => {
+              const picked = addas.find((a) => a.id === checkInAddaId)
+              return picked?.fixed_fare_per_seat_pkr != null
+                ? <p className="font-sans text-[12px] text-dp-secondary font-semibold mt-2">{t('af.systemFareShownHint').replace('{amount}', fmt(picked.fixed_fare_per_seat_pkr))}</p>
+                : <p className="font-sans text-[12px] text-amber-700 mt-2">{t('af.noSystemFareYet')}</p>
+            })()}
             <label className="flex items-center gap-2 cursor-pointer mt-2.5">
               <input type="checkbox" checked={checkInShareLocation} onChange={(e) => setCheckInShareLocation(e.target.checked)} className="accent-dp-secondary" />
               <span className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('af.shareLocationOnDepartLabel')}</span>

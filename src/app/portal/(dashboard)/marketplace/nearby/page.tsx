@@ -144,11 +144,20 @@ export default function NearbyOpenTripsPage() {
               </div>
               <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('af.updatedMinutesAgo').replace('{n}', String(minutesAgo(tr.updated_at)))} · {tr.seats_available} {t('mk.seatsLabel')} {t('af.stillFree')}</p>
               {tr.owner_mobile && <a href={`tel:${tr.owner_mobile}`} className="inline-flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-secondary hover:underline mt-1 ltr-num" dir="ltr"><Phone size={11} /> {tr.owner_mobile}</a>}
-              <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pt-2.5 border-t border-dp-outline-variant/60">
-                <input type="number" min={1} max={tr.seats_available} value={seats[tr.trip_offer_id] ?? 1} onChange={(e) => setSeats((s) => ({ ...s, [tr.trip_offer_id]: +e.target.value }))} className="input-field !w-16 !py-1.5" />
-                <input type="number" value={fare[tr.trip_offer_id] ?? ''} onChange={(e) => setFare((s) => ({ ...s, [tr.trip_offer_id]: +e.target.value }))} placeholder={tr.listed_fare_per_seat_pkr ? String(tr.listed_fare_per_seat_pkr) : t('cm.counterPlaceholder')} className="input-field !w-24 !py-1.5" />
-                <button onClick={() => proposeFare(tr)} disabled={actionId === tr.trip_offer_id} className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">{t('af.proposeFareBtn')}</button>
-              </div>
+              {tr.listed_fare_per_seat_pkr > 0 ? (
+                // A fixed, system-set fare (an adda departure, most
+                // likely already en route) is informational here — the
+                // real seat booking happened at the adda board before it
+                // left; this is "here's where he is / call to check",
+                // not a live negotiation.
+                <p className="font-sans text-[12.5px] font-semibold text-dp-secondary mt-2 pt-2 border-t border-dp-outline-variant/60">{t('af.fixedFareInfoLabel').replace('{amount}', fmt(tr.listed_fare_per_seat_pkr))}</p>
+              ) : (
+                <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pt-2.5 border-t border-dp-outline-variant/60">
+                  <input type="number" min={1} max={tr.seats_available} value={seats[tr.trip_offer_id] ?? 1} onChange={(e) => setSeats((s) => ({ ...s, [tr.trip_offer_id]: +e.target.value }))} className="input-field !w-16 !py-1.5" />
+                  <input type="number" value={fare[tr.trip_offer_id] ?? ''} onChange={(e) => setFare((s) => ({ ...s, [tr.trip_offer_id]: +e.target.value }))} placeholder={t('cm.counterPlaceholder')} className="input-field !w-24 !py-1.5" />
+                  <button onClick={() => proposeFare(tr)} disabled={actionId === tr.trip_offer_id} className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">{t('af.proposeFareBtn')}</button>
+                </div>
+              )}
             </div>
           ))}
         </div>
