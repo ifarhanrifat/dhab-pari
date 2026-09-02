@@ -157,8 +157,15 @@ export default function NearbyOpenTripsPage() {
     toast.success(t('af.fareProposedToast'))
   }
 
+  // "You" pin last, not first — Leaflet stacks later-added markers on top,
+  // and a rider testing from (or near) the village can genuinely be close
+  // enough on screen to an adda pin for one to sit right on top of the
+  // other. Also upgraded from a small 18px dot to the same emoji-marker
+  // size as everything else — the small dot could get fully hidden behind
+  // a bigger adda/vehicle pin even before the ordering fix, since a
+  // same-size overlap still lets edges peek through but a big-over-small
+  // one doesn't.
   const pins: MapPin[] = [
-    ...(myPos ? [{ lat: myPos.lat, lng: myPos.lng, label: t('af.youPinLabel'), color: '#2563eb' }] : []),
     ...addas.filter((a) => a.lat != null && a.lng != null).map((a) => ({
       lat: a.lat!, lng: a.lng!, color: '#7c3aed', emoji: '🚏', label: isUrdu && a.name_ur ? a.name_ur : a.name,
     })),
@@ -166,6 +173,7 @@ export default function NearbyOpenTripsPage() {
       lat: tr.lat, lng: tr.lng, color: '#16a34a', emoji: vehicleEmoji(tr.vehicle_type),
       label: `${tr.owner_name} — ${isUrdu && tr.destination_ur ? tr.destination_ur : tr.destination}`,
     })),
+    ...(myPos ? [{ lat: myPos.lat, lng: myPos.lng, label: t('af.youPinLabel'), color: '#2563eb', emoji: '📍' }] : []),
   ]
 
   if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
