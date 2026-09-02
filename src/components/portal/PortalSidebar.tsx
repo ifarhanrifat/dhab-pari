@@ -207,7 +207,13 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
         {sidebarContent}
       </aside>
 
-      {mobileOpen && <div className="bg-black/50 z-[90] md:hidden" style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0 }} onClick={onMobileClose} />}
+      {/* z-[10000]/[10001] — the app's own nav has to beat anything any
+          individual page does with z-index (a full-bleed map page's own
+          drawer went up to z-[9999] fighting Leaflet's internal layers;
+          the primary navigation should always win over page content when
+          it's open, not need to be re-tuned every time some page pushes
+          its own stacking higher). */}
+      {mobileOpen && <div className="bg-black/50 z-[10000] md:hidden" style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0 }} onClick={onMobileClose} />}
 
       <aside
         style={{
@@ -217,7 +223,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
           right: 'auto',
           transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
         }}
-        className="h-screen w-[260px] bg-dp-primary z-[100] md:hidden flex flex-col py-6 transition-transform duration-300 ease-in-out"
+        className="h-screen w-[260px] bg-dp-primary z-[10001] md:hidden flex flex-col py-6 transition-transform duration-300 ease-in-out"
       >
         <div className="px-4 mb-6 flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">{profileBlock}</div>
