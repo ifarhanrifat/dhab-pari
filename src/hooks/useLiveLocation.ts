@@ -58,6 +58,7 @@ interface BackgroundGeoPlugin {
 export function useLiveLocation({ enabled, onFix, minIntervalMs = 12000, backgroundTitle, backgroundMessage }: UseLiveLocationOptions) {
   const [error, setError] = useState<string | null>(null)
   const [wakeLockHeld, setWakeLockHeld] = useState(false)
+  const [isNative, setIsNative] = useState(false)
   const lastFixRef = useRef(0)
   const watchIdRef = useRef<string | null>(null)
   const isNativeRef = useRef(false)
@@ -94,6 +95,7 @@ export function useLiveLocation({ enabled, onFix, minIntervalMs = 12000, backgro
     const start = async () => {
       const { Capacitor, registerPlugin } = await import('@capacitor/core')
       isNativeRef.current = Capacitor.isNativePlatform()
+      if (!cancelled) setIsNative(isNativeRef.current)
 
       if (isNativeRef.current) {
         const BackgroundGeolocation = registerPlugin<BackgroundGeoPlugin>('BackgroundGeolocation')
@@ -142,7 +144,7 @@ export function useLiveLocation({ enabled, onFix, minIntervalMs = 12000, backgro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, backgroundTitle, backgroundMessage, throttledFix, acquireWakeLock])
 
-  return { error, wakeLockHeld }
+  return { error, wakeLockHeld, isNative }
 }
 
 // One-shot "where am I right now" — used by a rider tapping "use my

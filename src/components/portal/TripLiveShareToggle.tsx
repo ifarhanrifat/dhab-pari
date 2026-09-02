@@ -28,7 +28,7 @@ export function TripLiveShareToggle({ tripOfferId, sharing, onSharingChange }: P
   const supabase = createClient()
   const [busy, setBusy] = useState(false)
 
-  const { error } = useLiveLocation({
+  const { error, isNative } = useLiveLocation({
     enabled: sharing,
     minIntervalMs: 12000,
     backgroundTitle: t('cm.liveShareNotifTitle'),
@@ -60,7 +60,11 @@ export function TripLiveShareToggle({ tripOfferId, sharing, onSharingChange }: P
       {sharing && error && (
         <p className="flex items-center gap-1 font-sans text-[11px] text-amber-700 mt-1.5"><AlertCircle size={11} /> {error}</p>
       )}
-      {sharing && !error && <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1.5">{t('cm.liveShareActiveHint')}</p>}
+      {sharing && !error && (
+        <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1.5">
+          {isNative ? t('cm.liveShareActiveHintNative') : t('cm.liveShareActiveHint')}
+        </p>
+      )}
     </div>
   )
 }
