@@ -26,6 +26,7 @@
     "@tiptap/react": "^3.27.1",
     "@tiptap/starter-kit": "^3.27.1",
     "@types/leaflet": "^1.9.22",
+    "capacitor-native-settings": "^8.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "html2canvas-pro": "^2.3.2",

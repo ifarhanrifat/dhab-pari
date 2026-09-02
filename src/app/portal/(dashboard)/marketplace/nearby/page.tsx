@@ -25,7 +25,8 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { getCurrentPositionOnce, classifyLocationError, type LiveLocationPosition } from '@/hooks/useLiveLocation'
+import { getCurrentPositionOnce, classifyLocationError, type LiveLocationPosition, type LocationErrorReason } from '@/hooks/useLiveLocation'
+import { LocationSettingsModal } from '@/components/portal/LocationSettingsModal'
 import type { MapPin } from '@/components/shared/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
@@ -77,6 +78,7 @@ export default function NearbyOpenTripsPage() {
   const [locating, setLocating] = useState(false)
   const [pickingOnMap, setPickingOnMap] = useState(false)
   const [pickedPin, setPickedPin] = useState<{ lat: number; lng: number } | null>(null)
+  const [locationModalReason, setLocationModalReason] = useState<Extract<LocationErrorReason, 'services_disabled' | 'permission_denied'> | null>(null)
 
   const [trips, setTrips] = useState<NearbyTrip[]>([])
   const [addas, setAddas] = useState<NearbyAdda[]>([])
@@ -124,12 +126,8 @@ export default function NearbyOpenTripsPage() {
       setMyPos(pos)
     } catch (err) {
       const reason = classifyLocationError(err)
-      toast.error(
-        reason === 'services_disabled' ? t('af.gpsOffHint') :
-        reason === 'permission_denied' ? t('af.locationPermissionDeniedHint') :
-        reason === 'timeout' ? t('af.locationTimeoutHint') :
-        t('af.nearbyLocationFailed')
-      )
+      if (reason === 'services_disabled' || reason === 'permission_denied') setLocationModalReason(reason)
+      else toast.error(reason === 'timeout' ? t('af.locationTimeoutHint') : t('af.nearbyLocationFailed'))
     } finally {
       setLocating(false)
     }
@@ -292,6 +290,8 @@ export default function NearbyOpenTripsPage() {
           </div>
         </>
       )}
+
+      {locationModalReason && <LocationSettingsModal reason={locationModalReason} onClose={() => setLocationModalReason(null)} />}
     </div>
   )
 }

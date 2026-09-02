@@ -18,7 +18,8 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { WalletTopupModal } from '@/components/portal/WalletTopupModal'
 import { TripLiveShareToggle } from '@/components/portal/TripLiveShareToggle'
-import { getCurrentPositionOnce, classifyLocationError } from '@/hooks/useLiveLocation'
+import { getCurrentPositionOnce, classifyLocationError, type LocationErrorReason } from '@/hooks/useLiveLocation'
+import { LocationSettingsModal } from '@/components/portal/LocationSettingsModal'
 
 interface Vehicle { id: string; owner_name: string; vehicle_type: string; commission_mode: string }
 interface TripOffer {
@@ -129,6 +130,7 @@ export default function MyVehiclePage() {
   const [checkInSeats, setCheckInSeats] = useState(0)
   const [checkInShareLocation, setCheckInShareLocation] = useState(true)
   const [checkingLocation, setCheckingLocation] = useState(false)
+  const [locationModalReason, setLocationModalReason] = useState<Extract<LocationErrorReason, 'services_disabled' | 'permission_denied'> | null>(null)
   const [editingSeats, setEditingSeats] = useState(false)
   const [seatsEditValue, setSeatsEditValue] = useState(0)
 
@@ -177,12 +179,8 @@ export default function MyVehiclePage() {
       lat = pos.lat; lng = pos.lng
     } catch (err) {
       const reason = classifyLocationError(err)
-      toast.error(
-        reason === 'services_disabled' ? t('af.gpsOffHint') :
-        reason === 'permission_denied' ? t('af.locationPermissionDeniedHint') :
-        reason === 'timeout' ? t('af.locationTimeoutHint') :
-        t('af.nearbyLocationFailed')
-      )
+      if (reason === 'services_disabled' || reason === 'permission_denied') setLocationModalReason(reason)
+      else toast.error(reason === 'timeout' ? t('af.locationTimeoutHint') : t('af.nearbyLocationFailed'))
     }
     setCheckingLocation(false)
 
@@ -592,6 +590,8 @@ export default function MyVehiclePage() {
       {showTopup && (
         <WalletTopupModal kind="vehicle" sellerId={vehicle.id} onClose={() => setShowTopup(false)} onSubmitted={() => { setShowTopup(false); reload(vehicle.id) }} />
       )}
+
+      {locationModalReason && <LocationSettingsModal reason={locationModalReason} onClose={() => setLocationModalReason(null)} />}
     </div>
   )
 }
