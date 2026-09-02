@@ -56,6 +56,7 @@ import { WelfareCards } from '@/components/home/WelfareCards'
 import { CareerCards } from '@/components/home/CareerCards'
 import { CommitteeNoteCard } from '@/components/home/CommitteeNoteCard'
 import { welfareCardContentKeys } from '@/lib/welfareCardContent'
+import { DownloadAppBanner } from '@/components/portal/DownloadAppBanner'
 
 function fmtPKR(n: number) {
   return Math.round(n).toLocaleString()
@@ -319,6 +320,11 @@ export default async function HomePage() {
             <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]"><T k="home.registeredHouseholds" /></div>
           </div>
         </div>
+      </div>
+
+      {/* ========== App download prompt ========== */}
+      <div className="max-w-[1200px] mx-auto px-6 mt-6">
+        <DownloadAppBanner />
       </div>
 
       {/* ========== MOBILE: Quick Actions ========== */}
