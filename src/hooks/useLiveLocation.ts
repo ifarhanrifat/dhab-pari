@@ -171,9 +171,17 @@ export function classifyLocationError(err: unknown): LocationErrorReason {
   const msg = (e?.message ?? '').toLowerCase()
 
   if (typeof code === 'string') {
-    // Native Android plugin: "OS-PLUG-GLOC-000N" string codes.
-    if (code.endsWith('0007') || code.endsWith('0017')) return 'services_disabled'
-    if (code.endsWith('0003') || code.endsWith('0009')) return 'permission_denied'
+    // Native Android plugin ("OS-PLUG-GLOC-000N" string codes) — every
+    // code that means "the location subsystem/settings themselves need
+    // fixing" is treated as services_disabled, not just the one obvious
+    // "LOCATION_DISABLED" case: 0009 (the user tapped "No" on the
+    // system's own "turn on location?" prompt), 0014/0016 (Play
+    // Services couldn't resolve a location-settings request) all point
+    // at the same fix — the Location settings screen — not an app
+    // permission problem, even though the first pass here only mapped
+    // the single most obvious code and missed these siblings.
+    if (['0007', '0009', '0014', '0016', '0017'].some((n) => code.endsWith(n))) return 'services_disabled'
+    if (code.endsWith('0003')) return 'permission_denied'
     if (code.endsWith('0010')) return 'timeout'
   } else if (typeof code === 'number') {
     // Browser navigator.geolocation: numeric PositionError codes.
@@ -182,9 +190,13 @@ export function classifyLocationError(err: unknown): LocationErrorReason {
     // code === 2 (POSITION_UNAVAILABLE) — the web can't tell "GPS is off"
     // from "no fix yet" any further than this, falls through below.
   }
+  // Message-based fallback — checked in this order on purpose: "enable
+  // location"/"location was denied" (declining the system's own turn-on
+  // prompt) must be caught before the generic "denied" check below, or
+  // it would misfire as a permission problem instead of a GPS-off one.
+  if (msg.includes('location') && (msg.includes('disabled') || msg.includes('not enabled') || msg.includes('enable') || msg.includes('settings'))) return 'services_disabled'
   if (msg.includes('denied')) return 'permission_denied'
   if (msg.includes('timeout') || msg.includes('timed out')) return 'timeout'
-  if (msg.includes('disabled') || msg.includes('not enabled')) return 'services_disabled'
   return 'unavailable'
 }
 

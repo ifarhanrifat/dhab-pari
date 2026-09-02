@@ -126,8 +126,14 @@ export default function NearbyOpenTripsPage() {
       setMyPos(pos)
     } catch (err) {
       const reason = classifyLocationError(err)
-      if (reason === 'services_disabled' || reason === 'permission_denied') setLocationModalReason(reason)
-      else toast.error(reason === 'timeout' ? t('af.locationTimeoutHint') : t('af.nearbyLocationFailed'))
+      // 'unavailable' is the classifier's honest "couldn't tell" bucket,
+      // but in practice on Android that's very often GPS being off
+      // reported through a generic code some OEMs use instead of the
+      // specific one — so it gets the same settings shortcut rather than
+      // a dead-end toast. Only a genuine timeout has no settings screen
+      // that would fix it.
+      if (reason === 'timeout') toast.error(t('af.locationTimeoutHint'))
+      else setLocationModalReason(reason === 'permission_denied' ? 'permission_denied' : 'services_disabled')
     } finally {
       setLocating(false)
     }

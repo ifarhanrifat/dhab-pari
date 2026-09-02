@@ -179,8 +179,10 @@ export default function MyVehiclePage() {
       lat = pos.lat; lng = pos.lng
     } catch (err) {
       const reason = classifyLocationError(err)
-      if (reason === 'services_disabled' || reason === 'permission_denied') setLocationModalReason(reason)
-      else toast.error(reason === 'timeout' ? t('af.locationTimeoutHint') : t('af.nearbyLocationFailed'))
+      // See useMyLocation on the Going Home page for why 'unavailable'
+      // also gets the settings shortcut rather than a dead-end toast.
+      if (reason === 'timeout') toast.error(t('af.locationTimeoutHint'))
+      else setLocationModalReason(reason === 'permission_denied' ? 'permission_denied' : 'services_disabled')
     }
     setCheckingLocation(false)
 
