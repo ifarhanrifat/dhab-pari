@@ -454,6 +454,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     // ── Portal screens ───────────────────────────────────────────────────
     'p.couldNotLoad': 'Could not load your account.',
     'p.welcome': 'Welcome',
+    'p.downloadAppTitle': 'Get the Dhab Pari app', 'p.downloadAppHint': 'Faster, works better for live location and notifications.', 'p.downloadAppBtn': 'Download',
     'p.consumerNo': 'Consumer #',
     'p.noLinkedWaterConnection': 'No linked water connection',
     'p.mobileLabel': 'Mobile',
@@ -4748,6 +4749,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     // ── Portal screens ───────────────────────────────────────────────────
     'p.couldNotLoad': 'آپ کا اکاؤنٹ لوڈ نہیں ہو سکا۔',
     'p.welcome': 'خوش آمدید',
+    'p.downloadAppTitle': 'ڈھب پڑی ایپ حاصل کریں', 'p.downloadAppHint': 'تیز، لائیو لوکیشن اور نوٹیفیکیشنز کے لیے بہتر کام کرتی ہے۔', 'p.downloadAppBtn': 'ڈاؤن لوڈ کریں',
     'p.consumerNo': 'صارف نمبر',
     'p.noLinkedWaterConnection': 'کوئی پانی کا کنکشن منسلک نہیں',
     'p.mobileLabel': 'موبائل',

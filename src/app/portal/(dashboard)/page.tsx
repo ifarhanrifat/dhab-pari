@@ -8,6 +8,7 @@ import { HeartHandshake, Droplets, Repeat, ArrowRight, Layers, HandCoins, HandHe
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalBadgeCard } from '@/components/portal/PortalBadgeCard'
 import { PortalHelp } from '@/components/portal/PortalHelp'
+import { DownloadAppBanner } from '@/components/portal/DownloadAppBanner'
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -135,6 +136,8 @@ export default function PortalDashboardPage() {
           {user.consumer_id ? <>{t('p.consumerNo')}<span className="ltr-num">{user.consumer_id}</span></> : t('p.noLinkedWaterConnection')} · {t('p.mobileLabel')} <span className="ltr-num">{user.mobile}</span>
         </p>
       </div>
+
+      <DownloadAppBanner />
 
       {user.donor_account_id && <PortalBadgeCard portalUserId={user.id} totalDonated={totalDonated} />}
 
