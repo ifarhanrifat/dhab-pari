@@ -11,12 +11,12 @@
 // the return-trip flow already uses; adda seats are booked on the full
 // board page this links out to, not duplicated here.
 //
-// Map-first layout, same shape as a ride-hailing app: the map fills
-// the screen, controls and the results list float over it (a bottom
-// sheet on a phone, a fixed left panel on a wide screen) — rather than
-// the map being one more block in a normal scrolling page. Breaks out
-// of the portal shell's own padding (-m-6/-m-10, canceling <main>'s
-// p-6/p-10) since a "full page map" can't sit inside a padded card.
+// Map-first layout, same shape as a ride-hailing app: the map fills the
+// screen, the results panel is a real sidebar — fixed on a wide screen,
+// a slide-in drawer (open by default) on a phone, not a bottom sheet.
+// Breaks out of the portal shell's own padding (-m-6/-m-10, canceling
+// <main>'s p-6/p-10) since a "full page map" can't sit inside a padded
+// card.
 //
 // Kept as its own page rather than a tab on /portal/marketplace/trips —
 // this screen asks for a location permission and runs a live poll loop
@@ -27,7 +27,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, LocateFixed, MapPinned, Phone, Loader2, Radio, Signpost, ChevronRight, ChevronUp, X } from 'lucide-react'
+import { ArrowLeft, LocateFixed, MapPinned, Phone, Loader2, Radio, Signpost, ChevronRight, List, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -65,6 +65,16 @@ function vehicleEmoji(vehicleType: string) {
   if (t.includes('bike') || t.includes('motor')) return '🏍️'
   return '🚐' // Suzuki-style van/wagon — the overwhelming majority of this marketplace's vehicles
 }
+// A distinct color family per vehicle type, not just a distinct emoji —
+// used on every vehicle card's icon badge (both the adda queue cards and
+// the freeform ones) so the type reads at a glance before you even see
+// the label text.
+function vehicleColors(vehicleType: string) {
+  const t = vehicleType.toLowerCase()
+  if (t.includes('rickshaw') || t.includes('riksha')) return { bg: 'bg-amber-50', border: 'border-amber-200' }
+  if (t.includes('bike') || t.includes('motor')) return { bg: 'bg-purple-50', border: 'border-purple-200' }
+  return { bg: 'bg-emerald-50', border: 'border-emerald-200' }
+}
 function minutesAgo(iso: string) {
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000))
 }
@@ -94,7 +104,8 @@ export default function NearbyOpenTripsPage() {
   const [pickingOnMap, setPickingOnMap] = useState(false)
   const [pickedPin, setPickedPin] = useState<{ lat: number; lng: number } | null>(null)
   const [locationModalReason, setLocationModalReason] = useState<Extract<LocationErrorReason, 'services_disabled' | 'permission_denied'> | null>(null)
-  const [sheetExpanded, setSheetExpanded] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(true)
+  const [activeAddaId, setActiveAddaId] = useState<string | null>(null)
 
   const [trips, setTrips] = useState<NearbyTrip[]>([])
   const [addas, setAddas] = useState<NearbyAdda[]>([])
@@ -112,6 +123,10 @@ export default function NearbyOpenTripsPage() {
     ])
     if (!tripErr) setTrips(tripData ?? [])
     setAddas(addaData ?? [])
+    // Default the selected tab to the nearest adda (nearby_addas already
+    // sorts by distance) the first time addas load — never overrides a
+    // choice the rider already made by tapping a different tab.
+    setActiveAddaId((prev) => prev ?? (addaData && addaData.length > 0 ? addaData[0].id : null))
     if (addaData && addaData.length > 0) {
       const entries = await Promise.all(
         (addaData as NearbyAdda[]).map((a) => supabase.rpc('adda_board', { p_adda_id: a.id }).then(({ data }) => [a.id, data] as const))
@@ -173,6 +188,7 @@ export default function NearbyOpenTripsPage() {
   }
 
   const visibleAddas = addas.filter((a) => a.lat != null && a.lng != null)
+  const activeAdda = visibleAddas.find((a) => a.id === activeAddaId) ?? visibleAddas[0] ?? null
 
   // "You" pin last, not first — Leaflet stacks later-added markers on
   // top, and a rider testing from (or near) the village can genuinely be
@@ -218,13 +234,7 @@ export default function NearbyOpenTripsPage() {
   if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('p.couldNotLoad')}</div>
 
-  // `compact` is the floating mobile version (narrow — width is whatever's
-  // left after the back button) vs the desktop left panel, which has a
-  // full 400px to work with. The full "showing what's near your marked
-  // location" sentence plus a Change button simply doesn't fit compact's
-  // available width, so it gets a short "Position set" instead — better
-  // fit, and arguably better UX for a floating bar regardless.
-  const locationControls = (compact: boolean) => (
+  const locationControls = (
     <>
       {!myPos && !pickingOnMap && (
         <div className="flex flex-wrap items-center gap-2">
@@ -237,56 +247,75 @@ export default function NearbyOpenTripsPage() {
         </div>
       )}
       {myPos && !pickingOnMap && (
-        <div className="flex items-center justify-between gap-2 bg-white border border-dp-outline-variant rounded-lg px-3.5 py-2.5 shadow-sm">
-          <span className="font-sans text-[12.5px] font-semibold text-dp-on-surface flex items-center gap-1.5 min-w-0"><LocateFixed size={13} className="text-dp-secondary shrink-0" /> <span className="truncate">{compact ? t('af.positionSetShortHint') : t('af.positionSetHint')}</span></span>
+        <div className="flex items-center justify-between gap-2 bg-dp-secondary-container/30 border border-dp-secondary/20 rounded-lg px-3.5 py-2.5">
+          <span className="font-sans text-[12.5px] font-semibold text-dp-on-surface flex items-center gap-1.5 min-w-0"><LocateFixed size={13} className="text-dp-secondary shrink-0" /> <span className="truncate">{t('af.positionSetHint')}</span></span>
           <button onClick={() => { setMyPos(null); setPickedPin(null) }} className="shrink-0 font-sans text-[12px] font-semibold text-dp-secondary hover:underline cursor-pointer flex items-center gap-1"><X size={12} /> {t('af.changePositionBtn')}</button>
         </div>
       )}
     </>
   )
 
+  const addaCard = (e: AddaBoardEntry) => {
+    const c = vehicleColors(e.vehicle_type)
+    return (
+      <div key={e.entry_id} className={`flex items-center gap-3 bg-white border border-dp-outline-variant rounded-xl p-3 shadow-sm hover:border-dp-secondary transition-colors`}>
+        <div className={`shrink-0 w-11 h-11 rounded-full ${c.bg} border ${c.border} flex items-center justify-center text-[19px]`}>{vehicleEmoji(e.vehicle_type)}</div>
+        <div className="min-w-0 flex-1">
+          <p className="font-sans text-[13.5px] font-bold text-dp-on-surface truncate">{e.owner_name}</p>
+          <p className="font-sans text-[11.5px] text-dp-on-surface-variant truncate">{e.vehicle_type} · {e.seats_available} {t('af.seatsFreeLabel')}</p>
+        </div>
+        <span className="shrink-0 font-sans text-[13px] font-bold text-dp-secondary ltr-num">{e.fare_mode === 'fixed' ? fmt(e.fixed_fare_per_seat_pkr ?? 0) : t('af.rideRequestMode')}</span>
+      </div>
+    )
+  }
+
   const resultsList = (
     <>
-      {/* ─── Public transport (adda stands) ─────────────────────── */}
+      {/* ─── Public transport (adda stands) — a tab per nearby adda, ─────
+          full card list for whichever one's selected ────────────────── */}
       <div className="mb-6">
         <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><Signpost size={13} /> {t('af.publicTransportHeading')}</p>
-        {addas.length === 0 ? (
+        {visibleAddas.length === 0 ? (
           <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('af.noNearbyAddas')}</p>
         ) : (
-          <div className="space-y-2.5">
-            {addas.map((a) => {
+          <>
+            {visibleAddas.length > 1 && (
+              <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1">
+                {visibleAddas.map((a) => {
+                  const active = a.id === activeAdda?.id
+                  return (
+                    <button key={a.id} onClick={() => { setActiveAddaId(a.id); const idx = addaPinIndex(a); if (idx >= 0) mapRef.current?.focusPin(idx) }}
+                      className={`shrink-0 px-3.5 py-2 rounded-full font-sans text-[12.5px] font-bold cursor-pointer transition-colors ${active ? 'bg-dp-secondary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface hover:bg-dp-surface-container'}`}>
+                      🚏 {isUrdu && a.name_ur ? a.name_ur : a.name}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+            {activeAdda && (() => {
+              const a = activeAdda
               const available = addaBoards[a.id] ?? []
-              const idx = addaPinIndex(a)
               return (
-                <div key={a.id} onClick={() => idx >= 0 && mapRef.current?.focusPin(idx)} className="bg-white border border-dp-outline-variant rounded-xl p-3.5 shadow-sm cursor-pointer hover:border-dp-secondary transition-colors">
+                <div className="bg-white border border-dp-outline-variant rounded-xl p-3.5 shadow-sm">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-1.5 min-w-0 truncate">
-                      <span className="shrink-0 w-8 h-8 rounded-full bg-violet-50 border border-violet-200 flex items-center justify-center text-[15px]">🚏</span>
-                      <span className="truncate">{isUrdu && a.name_ur ? a.name_ur : a.name}</span>
-                    </p>
+                    <p className="font-sans text-[14.5px] font-bold text-dp-on-surface truncate">{isUrdu && a.name_ur ? a.name_ur : a.name}</p>
                     {a.distance_km != null && <span className="shrink-0 font-sans text-[11px] font-bold text-dp-secondary ltr-num bg-dp-secondary-container/40 px-2 py-0.5 rounded-full">{a.distance_km} {t('af.kmAway')}</span>}
                   </div>
                   {a.operating_start_time && a.operating_end_time && (
-                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5 ms-10 ltr-num">{formatTime(a.operating_start_time)} – {formatTime(a.operating_end_time)}</p>
+                    <p dir="ltr" className={`font-sans text-[11.5px] text-dp-on-surface-variant mt-1 ${isUrdu ? 'text-right' : 'text-left'}`}>{formatTime(a.operating_start_time)} – {formatTime(a.operating_end_time)}</p>
                   )}
-                  <div className="ms-10 mt-2 space-y-1">
+                  <div className="mt-3 space-y-2">
                     {available.length === 0 ? (
-                      <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('af.noVehiclesRightNow')}</p>
-                    ) : available.slice(0, 3).map((e) => (
-                      <div key={e.entry_id} className="flex items-center justify-between gap-2 font-sans text-[12.5px]">
-                        <span className="text-dp-on-surface truncate flex items-center gap-1"><span>{vehicleEmoji(e.vehicle_type)}</span> {e.owner_name} · {e.seats_available} {t('af.seatsFreeLabel')}</span>
-                        <span className="shrink-0 font-bold text-dp-secondary ltr-num">{e.fare_mode === 'fixed' ? fmt(e.fixed_fare_per_seat_pkr ?? 0) : t('af.rideRequestMode')}</span>
-                      </div>
-                    ))}
-                    {available.length > 3 && <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('af.moreAtAdda').replace('{n}', String(available.length - 3))}</p>}
+                      <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('af.noVehiclesRightNow')}</p>
+                    ) : available.map(addaCard)}
                   </div>
-                  <Link href={`/portal/marketplace/adda?adda=${a.id}`} onClick={(e) => e.stopPropagation()} className="mt-2.5 ms-10 inline-flex items-center gap-0.5 font-sans text-[12.5px] font-bold text-dp-secondary hover:underline">
+                  <Link href={`/portal/marketplace/adda?adda=${a.id}`} className="mt-3 inline-flex items-center gap-0.5 font-sans text-[12.5px] font-bold text-dp-secondary hover:underline">
                     {t('af.viewFullBoardBtn')} <ChevronRight size={13} className={isUrdu ? 'rotate-180' : ''} />
                   </Link>
                 </div>
               )
-            })}
-          </div>
+            })()}
+          </>
         )}
       </div>
 
@@ -299,10 +328,11 @@ export default function NearbyOpenTripsPage() {
           <div className="space-y-2.5">
             {trips.map((tr) => {
               const idx = tripPinIndex(tr)
+              const c = vehicleColors(tr.vehicle_type)
               return (
-                <div key={tr.trip_offer_id} onClick={() => idx >= 0 && mapRef.current?.focusPin(idx)} className="bg-white border border-dp-outline-variant rounded-xl p-3.5 shadow-sm cursor-pointer hover:border-emerald-400 transition-colors">
+                <div key={tr.trip_offer_id} onClick={() => idx >= 0 && mapRef.current?.focusPin(idx)} className="bg-white border border-dp-outline-variant rounded-xl p-3.5 shadow-sm cursor-pointer hover:border-dp-secondary transition-colors">
                   <div className="flex items-center gap-3">
-                    <div className="shrink-0 w-11 h-11 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-[19px]">{vehicleEmoji(tr.vehicle_type)}</div>
+                    <div className={`shrink-0 w-11 h-11 rounded-full ${c.bg} border ${c.border} flex items-center justify-center text-[19px]`}>{vehicleEmoji(tr.vehicle_type)}</div>
                     <div className="min-w-0 flex-1">
                       <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{tr.owner_name}</p>
                       <p className="font-sans text-[11.5px] text-dp-on-surface-variant truncate">{tr.vehicle_type}{tr.vehicle_number ? ` · ${tr.vehicle_number}` : ''}</p>
@@ -339,15 +369,26 @@ export default function NearbyOpenTripsPage() {
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="-m-6 md:-m-10">
-      <div className="lg:flex lg:h-[calc(100dvh-100px)]">
+      <div className="relative lg:flex h-[calc(100dvh-160px)] min-h-[420px] lg:h-[calc(100dvh-100px)] lg:min-h-0">
 
-        {/* ─── Desktop: fixed left panel — location controls + results, always visible ─── */}
-        <div className="hidden lg:flex lg:flex-col lg:w-[400px] lg:shrink-0 lg:h-full lg:bg-white lg:border-e lg:border-dp-outline-variant">
-          <div className="p-5 pb-4 border-b border-dp-outline-variant/60">
-            <Link href="/portal/marketplace" className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline mb-3"><ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('mp.backToMarketplace')}</Link>
+        {/* Backdrop — mobile only, dims the map while the drawer is open */}
+        {panelOpen && <div onClick={() => setPanelOpen(false)} className="lg:hidden fixed inset-0 z-[450] bg-black/40" />}
+
+        {/* Results panel — a slide-in drawer on a phone (open by default,
+            close via the X or the backdrop), a fixed sidebar on a wide
+            screen (always visible, no backdrop, no close button). RTL
+            mirrors correctly: slides in from the visual "start" edge,
+            which is the right in Urdu — same edge the desktop panel
+            already sits on there. */}
+        <div className={`fixed lg:static inset-y-0 start-0 z-[500] w-[86%] max-w-[380px] lg:w-[400px] lg:max-w-none lg:shrink-0 h-full bg-white lg:border-e lg:border-dp-outline-variant shadow-2xl lg:shadow-none transition-transform duration-300 ease-out flex flex-col ${panelOpen ? 'translate-x-0' : isUrdu ? 'translate-x-full' : '-translate-x-full'} lg:translate-x-0`}>
+          <div className="p-5 pb-4 border-b border-dp-outline-variant/60 shrink-0">
+            <div className="flex items-center justify-between mb-3">
+              <Link href="/portal/marketplace" className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline"><ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('mp.backToMarketplace')}</Link>
+              <button onClick={() => setPanelOpen(false)} className="lg:hidden shrink-0 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer p-1"><X size={18} /></button>
+            </div>
             <h1 className="font-heading text-[22px] font-bold leading-[28px] text-dp-primary mb-1">{t('af.nearbyPageTitle')}</h1>
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('af.nearbyPageHint')}</p>
-            {locationControls(false)}
+            {locationControls}
           </div>
           <div className="flex-1 overflow-y-auto p-5">
             {loading ? <p className="text-center py-8"><LoadingDots /></p> : resultsList}
@@ -355,7 +396,7 @@ export default function NearbyOpenTripsPage() {
         </div>
 
         {/* ─── Map fills everything else ─── */}
-        <div className="relative w-full h-[calc(100dvh-160px)] min-h-[420px] lg:h-full lg:flex-1">
+        <div className="relative w-full h-full lg:flex-1">
           {pickingOnMap ? (
             <div className="h-full flex flex-col p-4 bg-dp-surface-container-low overflow-y-auto">
               <Link href="/portal/marketplace" className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline mb-3 lg:hidden"><ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('mp.backToMarketplace')}</Link>
@@ -368,31 +409,16 @@ export default function NearbyOpenTripsPage() {
             </div>
           ) : (
             <>
-              <LeafletMap ref={mapRef} pins={pins} height="100%" className="w-full h-full" extraPadding={{ top: 70, bottom: 190 }} />
+              <LeafletMap ref={mapRef} pins={pins} height="100%" className="w-full h-full" extraPadding={{ top: 70 }} />
 
-              {/* Floating back button — mobile only; desktop's back link lives in the left panel */}
-              <Link href="/portal/marketplace" className="lg:hidden absolute top-3 z-[400] w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center text-dp-on-surface hover:bg-dp-surface-container-low" style={isUrdu ? { right: 12 } : { left: 12 }}>
-                <ArrowLeft size={18} className={isUrdu ? 'rotate-180' : ''} />
-              </Link>
-
-              {/* Floating location controls — mobile only */}
-              <div className="lg:hidden absolute top-3 z-[400]" style={isUrdu ? { left: 12, right: 60 } : { right: 12, left: 60 }}>
-                {locationControls(true)}
-              </div>
-
-              {/* Bottom sheet — mobile only; desktop shows the same list in the left panel instead */}
-              <div className={`lg:hidden absolute inset-x-0 bottom-0 z-[400] bg-white rounded-t-2xl shadow-[0_-6px_24px_rgba(0,0,0,0.18)] transition-[height] duration-300 ease-out overflow-hidden flex flex-col`}
-                style={{ height: sheetExpanded ? '78%' : 168 }}>
-                <button onClick={() => setSheetExpanded((v) => !v)} className="shrink-0 w-full flex flex-col items-center pt-2.5 pb-2 cursor-pointer">
-                  <span className="w-10 h-1.5 rounded-full bg-dp-outline-variant" />
-                  <span className="mt-1.5 flex items-center gap-1 font-sans text-[11px] font-semibold text-dp-on-surface-variant">
-                    <ChevronUp size={12} className={`transition-transform ${sheetExpanded ? 'rotate-180' : ''}`} /> {sheetExpanded ? t('af.sheetCollapseHint') : t('af.sheetExpandHint')}
-                  </span>
+              {/* Floating "show list" button — mobile only, shown once the
+                  drawer's been closed (it's the only way back to it besides
+                  a full page reload). */}
+              {!panelOpen && (
+                <button onClick={() => setPanelOpen(true)} className="lg:hidden absolute top-3 z-[400] flex items-center gap-1.5 px-3.5 py-2.5 rounded-full bg-white shadow-lg font-sans text-[13px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low" style={isUrdu ? { right: 12 } : { left: 12 }}>
+                  <List size={16} /> {t('af.showListBtn')}
                 </button>
-                <div className="flex-1 overflow-y-auto px-4 pb-4">
-                  {loading ? <p className="text-center py-8"><LoadingDots /></p> : resultsList}
-                </div>
-              </div>
+              )}
             </>
           )}
         </div>
