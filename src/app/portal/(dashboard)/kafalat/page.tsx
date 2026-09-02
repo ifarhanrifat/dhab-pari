@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   GraduationCap, Heart, Users, X, Send, HelpCircle, ChevronDown,
   HandCoins, TrendingUp, Calendar, ShieldCheck, AlertTriangle, CheckCircle2,
@@ -369,7 +370,7 @@ export default function PortalKafalatPage() {
         </button>
       </div>
 
-      {loading && <p className="font-sans text-dp-on-surface-variant">{t('action.loading')}</p>}
+      {loading && <p className="font-sans text-dp-on-surface-variant"><LoadingDots /></p>}
 
       {!loading && children.length === 0 && (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">
@@ -651,7 +652,7 @@ export default function PortalKafalatPage() {
             </div>
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{breakdownChild.first_name}</p>
             {!breakdown ? (
-              <p className="font-sans text-[13px] text-dp-on-surface-variant text-center py-6">{t('action.loading')}</p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant text-center py-6"><LoadingDots /></p>
             ) : breakdown.lines.length === 0 ? (
               <p className="font-sans text-[13px] text-dp-on-surface-variant text-center py-6">{t('pkf.breakdown.none')}</p>
             ) : (

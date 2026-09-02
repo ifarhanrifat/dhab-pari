@@ -8,6 +8,7 @@ import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import { ArrowRightLeft } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Project { id: string; title: string; status: string }
 interface AccountBalance { project_id: string; balance: number }
@@ -64,7 +65,7 @@ export default function ProjectTransfersPage() {
     load()
   }
 
-  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!access.canDonorsProjects) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">

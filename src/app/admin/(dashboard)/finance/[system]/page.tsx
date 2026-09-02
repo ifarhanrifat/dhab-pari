@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useCallback, use as usePromise, Suspense 
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   Save, Wallet, ArrowDownCircle, ArrowLeftRight, ArrowUpFromLine,
   ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck, ChevronDown, Search, PlusCircle, ChevronLeft, HandCoins, SlidersHorizontal,
@@ -163,7 +164,7 @@ function fmtAmount(n: number) {
 export default function TransactionsWorkspace({ params }: { params: Promise<{ system: string }> }) {
   const { t } = useLocale()
   return (
-    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>}>
       <TransactionsWorkspaceInner params={params} />
     </Suspense>
   )
@@ -2591,7 +2592,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 </div>
               </div>
             </FilterSheet>
-            {loading && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">{t('action.loading')}</p>}
+            {loading && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]"><LoadingDots /></p>}
             {!loading && visibleTxnCards.length === 0 && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">{filterLogByType ? `No ${activeTypeLabel.toLowerCase()} transactions yet.` : 'No transactions yet.'}</p>}
             <div className="divide-y divide-dp-outline-variant">
               {!loading && visibleTxnCards.map((c) => (

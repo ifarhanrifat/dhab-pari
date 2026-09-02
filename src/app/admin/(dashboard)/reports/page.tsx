@@ -11,6 +11,7 @@ import { dt, type Lang, type DocStringKey } from '@/lib/docTranslations'
 import { translateParticular } from '@/lib/ledgerParticular'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 type ReportType = 'trial_balance' | 'balance_sheet' | 'income_expense' | 'consumer_outstanding' | 'donor_report' | 'account_statement'
@@ -69,7 +70,7 @@ const SUBSIDIARY_LEDGER_TYPES = ['project', 'restricted_fund', 'student', 'insti
 export default function ReportsPage() {
   const { t } = useLocale()
   return (
-    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>}>
       <ReportsPageInner />
     </Suspense>
   )
@@ -414,7 +415,7 @@ function ReportsPageInner() {
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+        <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans"><LoadingDots /></div>
       ) : (
         <div ref={printRef} dir={lang === 'ur' ? 'rtl' : 'ltr'} style={lang === 'ur' ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
           <DocumentHeader title={`${dt(lang, reportTypeDocKeys[reportType])} — ${dt(lang, systemLabelKeys[system])}`} className="hidden print:block" />

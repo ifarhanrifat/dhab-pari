@@ -13,6 +13,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
 import { SearchableField, type PickerItem } from '@/components/admin/SearchablePicker'
 import { fetchDonationTargets, parseDonationTargetId, encodeProjectTarget } from '@/lib/donationTargets'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface DonationRow { id: string; amount_pkr: number; payment_status: string; is_verified: boolean }
 interface PoolPending { id: string; source: 'pool'; amount_pkr: number; has_proof: boolean; particular: string }
@@ -25,7 +26,7 @@ function fmt(n: number) {
 export default function PortalDonatePage() {
   const { t } = useLocale()
   return (
-    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>}>
       <PortalDonatePageInner />
     </Suspense>
   )
@@ -153,7 +154,7 @@ function PortalDonatePageInner() {
     setSubmitted(true)
   }
 
-  if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
 
   if (submitted) {
     return (

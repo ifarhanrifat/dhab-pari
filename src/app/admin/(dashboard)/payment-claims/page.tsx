@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { CheckCircle, XCircle, Image as ImageIcon } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Claim {
   id: string; bill_id: string; amount_pkr: number; payment_method: string; payment_proof_url: string
@@ -64,7 +65,7 @@ export default function AdminPaymentClaimsPage() {
     load()
   }
 
-  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!access.canWaterSupply) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
@@ -81,7 +82,7 @@ export default function AdminPaymentClaimsPage() {
       </div>
 
       {loading ? (
-        <p className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</p>
+        <p className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></p>
       ) : claims.length === 0 ? (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('y.noPendingClaims')}</p>

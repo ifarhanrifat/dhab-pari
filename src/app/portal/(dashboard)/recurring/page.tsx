@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import Link from 'next/link'
 import { PortalHelp } from '@/components/portal/PortalHelp'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Schedule {
   id: string; amount_pkr: number; frequency: string; next_run_date: string; is_active: boolean
@@ -140,7 +141,7 @@ export default function PortalRecurringPage() {
     load()
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>

@@ -11,6 +11,7 @@ import { MessageCircle, ShieldCheck, Send } from 'lucide-react'
 import { DonorBadge } from '@/components/public/DonorBadge'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import type { DonorBadgeTier } from '@/lib/donorBadges'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 const STAFF_ROLE_LABEL: Record<string, string> = {
   super_admin: 'Super Admin', admin: 'Admin', accountant: 'Accountant',
@@ -83,7 +84,7 @@ export function NewsComments({ newsPostId }: { newsPostId: string }) {
       </div>
 
       {loading ? (
-        <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('action.loading')}</p>
+        <p className="font-sans text-[13px] text-dp-on-surface-variant"><LoadingDots /></p>
       ) : comments.length === 0 ? (
         <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('nc.noComments')}</p>
       ) : (

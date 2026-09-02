@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Trophy, Lock, CheckCircle } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Achievement { id: string; done_at: string; is_private: boolean; text_ur: string | null; done_by_name: string | null }
 
@@ -31,7 +32,7 @@ export default function AchievementsPage() {
       </div>
 
       {loading ? (
-        <p className="font-sans text-[14px] text-dp-on-surface-variant text-center py-16">{t('action.loading')}</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant text-center py-16"><LoadingDots /></p>
       ) : items.length === 0 ? (
         <div className="text-center py-16 text-dp-on-surface-variant font-sans text-[16px]">{t('x.nothingCompletedYet')}</div>
       ) : (

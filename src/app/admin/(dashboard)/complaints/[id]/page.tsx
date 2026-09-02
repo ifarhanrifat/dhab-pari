@@ -3,6 +3,7 @@
 import { useEffect, useState, use as usePromise } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   ArrowLeft, Clock, MapPin, Phone, User, CheckCircle2, RotateCcw, CalendarPlus,
   MessageCircle, Send, Image as ImageIcon, Mic as MicIcon, UserPlus, Link2, Receipt,
@@ -240,7 +241,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
     window.open(`https://wa.me/${intl}?text=${msg}`, '_blank')
   }
 
-  if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!complaint) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('cp.notFound')}</div>
 
   const canVerify = me && (me.role === 'super_admin' || me.can_verify_complaints)

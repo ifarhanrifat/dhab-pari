@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useMemo, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   Search, PlusCircle, Plus, X, ArrowLeft, ChevronRight, ChevronDown, SlidersHorizontal, Phone, Calendar,
   Home, MapPin, MessageCircle, AlertCircle, CheckCircle2,
@@ -118,7 +119,7 @@ function StatusBadge({ bill }: { bill: Bill }) {
 export default function BillingPage() {
   const { t } = useLocale()
   return (
-    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>}>
       <BillingPageInner />
     </Suspense>
   )
@@ -893,7 +894,7 @@ function BillingPageInner() {
         <div className={`${selectedConsumer ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[340px] md:flex-shrink-0 min-h-0`}>
           <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden flex flex-col flex-1 min-h-0">
             {loading ? (
-              <div className="p-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+              <div className="p-8 text-center text-dp-on-surface-variant font-sans"><LoadingDots /></div>
             ) : filteredConsumers.length === 0 ? (
               <div className="p-8 text-center text-dp-on-surface-variant font-sans">{t('billing.noConsumers')}</div>
             ) : (

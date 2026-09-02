@@ -12,6 +12,7 @@ import { billBadge, billBadgeClass } from '@/lib/billStatus'
 import { normalizePakPhone } from '@/lib/receiptExport'
 import { SITE } from '@/lib/constants'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Me { id: string; full_name: string; can_collect_payments: boolean; assigned_sectors: string[] | null }
 interface Consumer { consumer_id: string; name: string; mobile: string | null; sector: string | null; status: string }
@@ -204,7 +205,7 @@ export default function CollectPaymentPage() {
     window.open(`https://wa.me/${intl}?text=${msg}`, '_blank')
   }
 
-  if (me === 'loading') return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (me === 'loading') return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!me || !me.can_collect_payments) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">

@@ -20,6 +20,7 @@ import { WalletTopupModal } from '@/components/portal/WalletTopupModal'
 import { TripLiveShareToggle } from '@/components/portal/TripLiveShareToggle'
 import { getCurrentPositionOnce, classifyLocationError, type LocationErrorReason } from '@/hooks/useLiveLocation'
 import { LocationSettingsModal } from '@/components/portal/LocationSettingsModal'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Vehicle { id: string; owner_name: string; vehicle_type: string; commission_mode: string }
 interface TripOffer {
@@ -306,7 +307,7 @@ export default function MyVehiclePage() {
     if (vehicle) reload(vehicle.id)
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!vehicle) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('cm.noVehicleLinked')}</div>
 
   return (

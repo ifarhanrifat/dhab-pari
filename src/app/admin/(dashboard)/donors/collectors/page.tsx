@@ -15,6 +15,7 @@ import { friendlyError } from '@/lib/errors'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface FieldCollector { id: string; full_name: string; mobile: string | null; assigned_sectors: string[] | null }
 interface Account { id: string; name: string; type: string; collector_id: string | null; shop_id: string | null; vehicle_id: string | null; opening_balance: number }
@@ -152,7 +153,7 @@ export default function DonorCollectorsPage() {
     load()
   }
 
-  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!access.canDonorsProjects) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
@@ -181,7 +182,7 @@ export default function DonorCollectorsPage() {
           <span className="font-sans text-[14px] font-bold text-dp-on-surface">{t('g.currentHoldings')}</span>
         </div>
         {loading ? (
-          <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('action.loading')}</p>
+          <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant"><LoadingDots /></p>
         ) : rows.length === 0 ? (
           <p className="px-5 py-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('dcl.noCollectorsYet')}</p>
         ) : (

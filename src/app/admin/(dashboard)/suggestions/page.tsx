@@ -5,6 +5,7 @@ import { MessageSquare, X, Send, CheckCircle, Clock, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { renderTemplate } from '@/lib/messageTemplates'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Suggestion {
   id: string
@@ -164,7 +165,7 @@ export default function AdminSuggestionsPage() {
       <div className="flex gap-6">
         {/* List */}
         <div className="flex-1 space-y-3">
-          {loading && <div className="text-center py-12 text-dp-on-surface-variant">{t('action.loading')}</div>}
+          {loading && <div className="text-center py-12 text-dp-on-surface-variant"><LoadingDots /></div>}
           {!loading && filtered.map((s) => (
             <div
               key={s.id}

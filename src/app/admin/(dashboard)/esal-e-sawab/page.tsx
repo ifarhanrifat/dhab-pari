@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   Gift, X, Check, Wrench, AlertTriangle, MapPin, Plus, Pencil, HelpCircle, ChevronDown,
   HandCoins, Phone, RotateCcw, Info, Wallet,
@@ -497,7 +498,7 @@ export default function EsalESawabPage() {
         ))}
       </div>
 
-      {loading && <p className="font-sans text-dp-on-surface-variant">{t('action.loading')}</p>}
+      {loading && <p className="font-sans text-dp-on-surface-variant"><LoadingDots /></p>}
 
       {!loading && tab === 'catalogue' && (
         <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">

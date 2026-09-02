@@ -15,6 +15,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { VideoUpload } from '@/components/admin/VideoUpload'
 import { VideoEmbed } from '@/components/public/VideoEmbed'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Entry {
   id: string; display_name: string; talent_description: string; needs: string | null; aspiration: string | null
@@ -229,7 +230,7 @@ export default function TalentShowcaseAdminPage() {
         </button>
       </div>
 
-      {loading && <div className="text-center py-12 text-dp-on-surface-variant">{t('action.loading')}</div>}
+      {loading && <div className="text-center py-12 text-dp-on-surface-variant"><LoadingDots /></div>}
 
       {!loading && pending.length > 0 && (
         <div className="mb-6">

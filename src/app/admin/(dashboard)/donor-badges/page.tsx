@@ -14,6 +14,7 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { DonorBadge } from '@/components/public/DonorBadge'
 import { DONOR_BADGE_TIERS, DONOR_BADGE_INFO, type DonorBadgeTier } from '@/lib/donorBadges'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Row {
   portal_user_id: string; full_name: string; name_ur: string | null; username: string | null; mobile: string
@@ -67,7 +68,7 @@ export default function DonorBadgesPage() {
           className="input-field ps-9" />
       </div>
 
-      {loading && <div className="text-center py-12 text-dp-on-surface-variant">{t('action.loading')}</div>}
+      {loading && <div className="text-center py-12 text-dp-on-surface-variant"><LoadingDots /></div>}
       {!loading && filtered.length === 0 && <div className="text-center py-12 text-dp-on-surface-variant">{t('db.noDonors')}</div>}
 
       <div className="space-y-2.5">

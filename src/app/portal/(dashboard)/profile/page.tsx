@@ -12,6 +12,7 @@ import { SITE } from '@/lib/constants'
 import { MentorshipProfileFields, type MentorshipFieldsValue } from '@/components/portal/MentorshipProfileFields'
 import { SectorSelect } from '@/components/portal/SectorSelect'
 import { PortalHelp } from '@/components/portal/PortalHelp'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 function syntheticEmail(mobile: string) {
   return `${mobile.replace(/[^0-9]/g, '')}@portal.dhabpari.local`
@@ -116,7 +117,7 @@ export default function PortalProfilePage() {
     setNewPassword('')
   }
 
-  if (userLoading || !user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading || !user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
 
   return (
     <div>

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { School, MapPin, Phone, Globe } from 'lucide-react'
 import { PortalHelp } from '@/components/portal/PortalHelp'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Institute {
   id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
@@ -32,7 +33,7 @@ export default function PortalInstitutesPage() {
       </div>
 
       {loading ? (
-        <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('action.loading')}</p>
+        <p className="font-sans text-[13px] text-dp-on-surface-variant"><LoadingDots /></p>
       ) : rows.length === 0 ? (
         <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('in.none')}</p>
       ) : (

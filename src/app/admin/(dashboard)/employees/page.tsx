@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   HardHat, PlusCircle, X, Pencil, Power, PauseCircle, Banknote,
   FileText, Printer, Download, HandCoins, Settings2, Receipt,
@@ -265,7 +266,7 @@ export default function EmployeesPage() {
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden mb-8">
         {loading ? (
-          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('action.loading')}</p>
+          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant"><LoadingDots /></p>
         ) : employees.length === 0 ? (
           <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('em.noEmployees')}</p>
         ) : (
@@ -518,7 +519,7 @@ function HiringRequestGenerator({ employees, employeeRoles, branding }: { employ
       </div>
 
       {loadingTemplates ? (
-        <p className="font-sans text-[13.5px] text-dp-on-surface-variant py-4">{t('action.loading')}</p>
+        <p className="font-sans text-[13.5px] text-dp-on-surface-variant py-4"><LoadingDots /></p>
       ) : (
         <div className="space-y-4">
           <div>
@@ -830,7 +831,7 @@ function PayslipButton({
               </div>
 
               {loadingPeriod ? (
-                <p className="font-sans text-[13.5px] text-dp-on-surface-variant py-4">{t('action.loading')}</p>
+                <p className="font-sans text-[13.5px] text-dp-on-surface-variant py-4"><LoadingDots /></p>
               ) : (
                 <>
                   {existing?.recognition_voucher_id && (

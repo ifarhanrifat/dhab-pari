@@ -9,6 +9,7 @@ import { normalizePakPhone } from '@/lib/receiptExport'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Volunteer {
   id: string
@@ -168,7 +169,7 @@ export default function AdminVolunteersPage() {
 
   const tasksFor = (v: Volunteer) => tasks.filter((t) => t.portal_user_id === v.portal_user_id && t.project_id === v.project_id && t.status !== 'cancelled')
 
-  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!access.canDonorsProjects) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
@@ -218,7 +219,7 @@ export default function AdminVolunteersPage() {
         ))}
       </div>
 
-      {loading && <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}
+      {loading && <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>}
       {!loading && visible.length === 0 && (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">{search || statusFilter !== 'all' ? t('vo.noMatchFilter') : t('vo.nobodySignedUp')}</p>

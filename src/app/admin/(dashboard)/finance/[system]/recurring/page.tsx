@@ -11,6 +11,7 @@ import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import { donorReceiptTotals } from '@/lib/donorReceiptTotals'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 type ScheduleType = 'bill' | 'donation' | 'expense'
@@ -321,7 +322,7 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</td></tr>}
+              {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans"><LoadingDots /></td></tr>}
               {!loading && schedules.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('z.noSchedules')}</td></tr>}
               {!loading && schedules.map((s) => (
                 <tr key={s.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${!s.is_active ? 'opacity-50' : ''}`}>
@@ -376,7 +377,7 @@ export default function RecurringSchedulesPage({ params }: { params: Promise<{ s
               {scheduleTypeLabels[historySchedule.schedule_type]} · {scheduleLabel(historySchedule)} · {frequencyLabels[historySchedule.frequency]}
             </p>
 
-            {loadingHistory && <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-8">{t('action.loading')}</p>}
+            {loadingHistory && <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-8"><LoadingDots /></p>}
             {!loadingHistory && historyItems.length === 0 && (
               <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-8">{t('z.nothingGenerated')}</p>
             )}

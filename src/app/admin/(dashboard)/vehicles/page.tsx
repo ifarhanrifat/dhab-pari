@@ -22,6 +22,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 const LeafletPinPicker = dynamic(() => import('@/components/shared/LeafletPinPicker'), { ssr: false })
 const LeafletSinglePinPicker = dynamic(() => import('@/components/shared/LeafletSinglePinPicker'), { ssr: false })
@@ -75,7 +76,7 @@ function fmt(n: number) {
 export default function AdminVehiclesPage() {
   const { t } = useLocale()
   return (
-    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>}>
       <AdminVehiclesInner />
     </Suspense>
   )
@@ -481,7 +482,7 @@ function AdminVehiclesInner() {
     load()
   }
 
-  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!access.canDonorsProjects) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
@@ -606,7 +607,7 @@ function AdminVehiclesInner() {
             </div>
           )}
 
-          {loading && <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('action.loading')}</p>}
+          {loading && <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]"><LoadingDots /></p>}
           {!loading && vehicles.length === 0 && <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('mk.noVehiclesYet')}</p>}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { School, Plus, X, Save, Trash2, Layers, Bus } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 /**
  * The schools the committee actually pays fees to.
@@ -185,7 +186,7 @@ export default function SchoolsPage() {
         </button>
       </div>
 
-      {loading && <p className="font-sans text-dp-on-surface-variant">{t('action.loading')}</p>}
+      {loading && <p className="font-sans text-dp-on-surface-variant"><LoadingDots /></p>}
 
       {!loading && schools.length === 0 && (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">

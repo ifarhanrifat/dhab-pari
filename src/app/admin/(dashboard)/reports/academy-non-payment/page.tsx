@@ -16,6 +16,7 @@ import { printNodeInPopup } from '@/lib/receiptExport'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import { dt, type Lang } from '@/lib/docTranslations'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface ChargeRow { id: string; enrollment_id: string; charge_no: number; due_on: string; amount_pkr: number; paid_pkr: number; status: string }
 interface EnrollmentRow { id: string; student_name: string; guardian_name: string | null; guardian_whatsapp_number: string | null; project_id: string }
@@ -138,7 +139,7 @@ export default function AcademyNonPaymentReportPage() {
         </select>
       </div>
 
-      {loading && <p className="text-center py-12 text-dp-on-surface-variant font-sans text-[13.5px]">{t('action.loading')}</p>}
+      {loading && <p className="text-center py-12 text-dp-on-surface-variant font-sans text-[13.5px]"><LoadingDots /></p>}
       {!loading && filtered.length === 0 && (
         <p className="text-center py-12 text-dp-on-surface-variant font-sans text-[13.5px]">{dt(lang, 'noStudentsFailedToPay')}</p>
       )}

@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Project { id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null; status: string; progress_percent: number; budget_pkr: number | null; spent_pkr: number | null; category: string | null; location: string | null; location_ur: string | null; sector: string | null; is_featured: boolean; before_image_url: string | null; after_image_url: string | null; start_date: string | null; end_date: string | null; beneficiaries_count: number | null; funding_model: string | null; monthly_operating_cost_pkr: number | null
   // Migration 311 — a donor-proposed project, its badge-tier fast-track
@@ -208,7 +209,7 @@ export default function AdminProjectsPage() {
         {['all', ...statuses].map((s) => <button key={s} onClick={() => setFilter(s)} className={`px-4 py-1.5 rounded-full font-sans text-[14px] font-semibold tracking-[0.05em] cursor-pointer transition-all ${filter === s ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-primary'}`}>{s === 'all' ? t('pj.filterAll') : t(statusLabelKey[s] ?? s)}</button>)}
       </div>
       <div className="space-y-4">
-        {loading && <div className="text-center py-12 text-dp-on-surface-variant">{t('action.loading')}</div>}
+        {loading && <div className="text-center py-12 text-dp-on-surface-variant"><LoadingDots /></div>}
         {!loading && filtered.map((p) => (
           <div key={p.id} className="bg-white border border-dp-outline-variant rounded-lg p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-dp-secondary transition-all">
             <div className="flex-1 min-w-0 flex items-start gap-3">

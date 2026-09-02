@@ -7,6 +7,7 @@ import { friendlyError } from '@/lib/errors'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { MessageSquare, EyeOff, Eye } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Comment {
   id: string; content: string; is_hidden: boolean; created_at: string
@@ -53,7 +54,7 @@ export default function AdminCommentsPage() {
     load()
   }
 
-  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!access.canDonorsProjects) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
@@ -76,7 +77,7 @@ export default function AdminCommentsPage() {
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         {loading ? (
-          <p className="p-8 text-center font-sans text-[14px] text-dp-on-surface-variant">{t('action.loading')}</p>
+          <p className="p-8 text-center font-sans text-[14px] text-dp-on-surface-variant"><LoadingDots /></p>
         ) : visible.length === 0 ? (
           <p className="p-8 text-center font-sans text-[14px] text-dp-on-surface-variant">{t('mt.noComments')}</p>
         ) : (

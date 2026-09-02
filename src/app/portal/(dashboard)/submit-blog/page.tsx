@@ -16,6 +16,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
 import { DonorBadge } from '@/components/public/DonorBadge'
 import { canFastTrack, type DonorBadgeTier } from '@/lib/donorBadges'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Submission {
   id: string; title: string; title_ur: string | null; is_published: boolean
@@ -60,7 +61,7 @@ export default function SubmitBlogPage() {
     load()
   }
 
-  if (userLoading || tier === undefined) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading || tier === undefined) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
 
   // Two independent doors to the same form (migration 325): a high-tier
   // donor, or an admin-approved mentor — a volunteering doctor/freelancer

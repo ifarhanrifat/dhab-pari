@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { HeartHandshake, HandHeart, X } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface VolunteerRow {
   id: string; project_id: string | null; message: string | null; status: string; created_at: string
@@ -76,7 +77,7 @@ export default function VolunteerPage() {
       </div>
 
       {loading ? (
-        <p className="font-sans text-[14px] text-dp-on-surface-variant text-center py-16">{t('action.loading')}</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant text-center py-16"><LoadingDots /></p>
       ) : volunteers.length === 0 ? (
         <div className="text-center py-16 text-dp-on-surface-variant font-sans text-[16px]">{t('x.noVolunteersYet')}</div>
       ) : (

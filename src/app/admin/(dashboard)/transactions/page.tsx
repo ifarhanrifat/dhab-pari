@@ -16,6 +16,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { FilterSheet, FilterSheetSection, DateRangePillGroup } from '@/components/admin/FilterSheet'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import { presetRange, detectPreset, formatRangeLabel, presetLabelKey, PRESET_ORDER, today, monthStart, type DateRangePreset } from '@/lib/dateRangePresets'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 
@@ -545,7 +546,7 @@ export default function AllTransactionsPage() {
       </FilterSheet>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-        {loading && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">{t('action.loading')}</p>}
+        {loading && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]"><LoadingDots /></p>}
         {!loading && filteredRows.length === 0 && <p className="px-4 py-8 text-center text-dp-on-surface-variant font-sans text-[13.5px]">{t('tx.noMatch')}</p>}
         <div className="divide-y divide-dp-outline-variant">
           {!loading && filteredRows.map((r) => (

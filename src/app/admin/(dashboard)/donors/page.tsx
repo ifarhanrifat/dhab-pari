@@ -14,6 +14,7 @@ import { renderTemplate } from '@/lib/messageTemplates'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { donorReceiptTotals } from '@/lib/donorReceiptTotals'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Donor {
   id: string; name: string; name_ur: string | null; phone: string | null; father_husband_name: string | null
@@ -81,7 +82,7 @@ function donorKeyFor(name: string, phone: string | null) {
 export default function AdminDonorsPage() {
   const { t } = useLocale()
   return (
-    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>}>
       <AdminDonorsPageInner />
     </Suspense>
   )
@@ -387,7 +388,7 @@ function AdminDonorsPageInner() {
   }
   const sortArrow = (k: SortKey) => (sortKey === k ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '')
 
-  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!access.canDonorsProjects) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
@@ -462,7 +463,7 @@ function AdminDonorsPageInner() {
           glance. Same fields, laid out the way the billing consumer list
           already does it. */}
       <div className="md:hidden bg-white rounded-lg border border-dp-outline-variant overflow-hidden divide-y divide-dp-outline-variant">
-        {loading && <div className="p-8 text-center text-dp-on-surface-variant font-sans text-[14px]">{t('action.loading')}</div>}
+        {loading && <div className="p-8 text-center text-dp-on-surface-variant font-sans text-[14px]"><LoadingDots /></div>}
         {!loading && visibleDonors.length === 0 && (
           <div className="p-8 text-center text-dp-on-surface-variant font-sans text-[14px]">{donorSearch ? t('dn.noSearchMatch') : t('dn.noDonationsYet')}</div>
         )}
@@ -541,7 +542,7 @@ function AdminDonorsPageInner() {
           <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]"><th className="p-4 w-10"><input type="checkbox" checked={visibleDonors.length > 0 && selected.size === visibleDonors.length} onChange={toggleSelectAll} className="accent-dp-secondary cursor-pointer" /></th><th className="p-4 cursor-pointer select-none hover:text-dp-primary" onClick={() => toggleSort('name')}>{t('a.name')}{sortArrow('name')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary whitespace-nowrap" onClick={() => toggleSort('account')}>{t('dn.accountNo', 'Account #')}{sortArrow('account')}</th><th className="p-4 whitespace-nowrap">{t('a.phone')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary whitespace-nowrap" onClick={() => toggleSort('amount')}>{t('w.amount')}{sortArrow('amount')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary whitespace-nowrap" onClick={() => toggleSort('date')}>{t('w.date')}{sortArrow('date')}</th><th className="p-4 whitespace-nowrap">{t('dn.source')}</th><th className="p-4 cursor-pointer select-none hover:text-dp-primary whitespace-nowrap" onClick={() => toggleSort('status')}>{t('w.status')}{sortArrow('status')}</th><th className="p-4 text-end">{t('a.actions')}</th></tr></thead>
             <tbody className="font-sans text-[16px]">
-              {loading && <tr><td colSpan={9} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}
+              {loading && <tr><td colSpan={9} className="p-8 text-center text-dp-on-surface-variant"><LoadingDots /></td></tr>}
               {!loading && visibleDonors.length === 0 && (
                 <tr><td colSpan={9} className="p-8 text-center text-dp-on-surface-variant">{donorSearch ? t('dn.noSearchMatch') : t('dn.noDonationsYet')}</td></tr>
               )}

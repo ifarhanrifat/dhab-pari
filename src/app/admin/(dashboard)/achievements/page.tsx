@@ -13,6 +13,7 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { Trophy, Plus, Trash2, Lock, CheckCircle } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Achievement { id: string; done_at: string; is_private: boolean; text_ur: string | null; done_by_name: string | null; source: string }
 
@@ -73,7 +74,7 @@ export default function AdminAchievementsPage() {
       </div>
 
       {loading ? (
-        <p className="text-center py-12 text-dp-on-surface-variant font-sans text-[13px]">{t('action.loading')}</p>
+        <p className="text-center py-12 text-dp-on-surface-variant font-sans text-[13px]"><LoadingDots /></p>
       ) : items.length === 0 ? (
         <p className="text-center py-12 text-dp-on-surface-variant font-sans text-[13px]">{t('x.nothingCompletedYet')}</p>
       ) : (

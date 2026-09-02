@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { normalizePakPhone } from '@/lib/receiptExport'
 import { SITE } from '@/lib/constants'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 const GROUPS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']
 
@@ -253,7 +254,7 @@ export default function AdminBloodRequestsPage() {
         ))}
       </div>
 
-      {loading && <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}
+      {loading && <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>}
       {!loading && visible.length === 0 && (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('br.noRequests')}</p>

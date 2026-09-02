@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { HandHeart, Sparkles, Send } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Item { id: string; message: string; type: string; status: string; admin_notes: string | null; created_at: string }
 
@@ -70,7 +71,7 @@ export default function PortalGetInvolvedPage() {
     load()
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>

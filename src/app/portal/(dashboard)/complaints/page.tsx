@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { Send } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Complaint {
   id: string; complaint_number: string | null; system: string; complaint_text: string
@@ -61,7 +62,7 @@ export default function PortalComplaintsPage() {
     load()
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>

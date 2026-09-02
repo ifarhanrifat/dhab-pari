@@ -15,6 +15,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { DonorBadge } from '@/components/public/DonorBadge'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import type { DonorBadgeTier } from '@/lib/donorBadges'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface PortalUser {
   id: string; full_name: string; name_ur: string | null; mobile: string; username: string | null
@@ -181,7 +182,7 @@ export default function PortalAccountsPage() {
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('pa.searchPlaceholder')} className="input-field ps-9" />
       </div>
 
-      {loading && <div className="text-center py-12 text-dp-on-surface-variant">{t('action.loading')}</div>}
+      {loading && <div className="text-center py-12 text-dp-on-surface-variant"><LoadingDots /></div>}
       {!loading && filtered.length === 0 && <div className="text-center py-12 text-dp-on-surface-variant">{t('pa.noAccounts')}</div>}
 
       <div className="space-y-2.5">

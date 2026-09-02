@@ -22,6 +22,7 @@ import { ImageUpload } from '@/components/admin/ImageUpload'
 import { getCategoryLabel } from '@/lib/shopTypes'
 import { CategoryPicker } from '@/components/shared/CategoryBrowser'
 import { ShopCatalogSection } from '@/components/shared/ShopCatalogSection'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Shop { id: string; name: string; name_ur: string | null; delivery_enabled: boolean; commission_mode: string; primary_type: string }
 interface Product {
@@ -198,7 +199,7 @@ export default function MyShopPage() {
     setShowAiSettings(false)
   }
 
-  if (userLoading || shopLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading || shopLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!shop) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">

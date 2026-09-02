@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { FileAttachment } from '@/components/admin/FileAttachment'
 import { QuickAddAccountModal, type NewAccount } from '@/components/admin/QuickAddAccountModal'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface AdvanceVoucher {
   id: string; voucher_no: string | null; voucher_date: string; particular: string
@@ -184,7 +185,7 @@ export default function AdvancesPage() {
       </p>
 
       {loading ? (
-        <p className="font-sans text-dp-on-surface-variant py-8 text-center">{t('action.loading')}</p>
+        <p className="font-sans text-dp-on-surface-variant py-8 text-center"><LoadingDots /></p>
       ) : advances.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('z.noAdvances')}</p>

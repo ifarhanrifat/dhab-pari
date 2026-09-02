@@ -11,6 +11,7 @@ import { PaymentAccountDetails } from '@/components/public/PaymentAccountDetails
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import Link from 'next/link'
 import { PortalHelp } from '@/components/portal/PortalHelp'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Bill {
   id: string; month: number; year: number; amount_pkr: number; paid_amount: number
@@ -79,7 +80,7 @@ export default function PortalWaterPage() {
 
   const claimStatusFor = (billId: string) => claims.find((c) => c.bill_id === billId && c.status !== 'rejected')
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
 
   if (!user?.consumer_id) {
     return (

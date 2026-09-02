@@ -9,6 +9,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalBadgeCard } from '@/components/portal/PortalBadgeCard'
 import { PortalHelp } from '@/components/portal/PortalHelp'
 import { DownloadAppBanner } from '@/components/portal/DownloadAppBanner'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -110,7 +111,7 @@ export default function PortalDashboardPage() {
       })
   }, [user])
 
-  if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('p.couldNotLoad')}</div>
 
   const cards = [

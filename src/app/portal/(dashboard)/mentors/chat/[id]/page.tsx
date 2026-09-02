@@ -17,6 +17,7 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { ArrowLeft, ShieldAlert, Send, Ban } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 const CONTACT_INFO_PATTERN = /(\+?92|0)[\s-]?3\d{2}[\s-]?\d{7}|(\d[\s-]?){10,}|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}|wa\.me\/|whatsapp\.com/i
 
@@ -108,7 +109,7 @@ export default function MentorChatThreadPage() {
     router.push('/portal/mentors')
   }
 
-  if (userLoading || loading || !user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading || loading || !user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!conversation) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('mn.notFound')}</div>
 
   const isClosed = conversation.status === 'closed'

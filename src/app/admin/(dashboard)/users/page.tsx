@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { ImageUpload } from '@/components/admin/ImageUpload'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface AdminUser {
   id: string
@@ -492,7 +493,7 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className="font-sans text-[14px]">
-              {loading && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}
+              {loading && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant"><LoadingDots /></td></tr>}
               {!loading && visibleUsers.length === 0 && (
                 <tr><td colSpan={6} className="p-8 text-center">
                   <UserCircle2 size={40} className="text-dp-on-surface-variant mx-auto mb-3 opacity-40" />
@@ -755,7 +756,7 @@ export default function AdminUsersPage() {
             </div>
             <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{passwordTarget.full_name} · {passwordTarget.email}</p>
             {loadingPassword ? (
-              <p className="font-sans text-[13px] text-dp-on-surface-variant text-center py-4">{t('action.loading')}</p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant text-center py-4"><LoadingDots /></p>
             ) : (
               <>
                 {!passwordValue && (

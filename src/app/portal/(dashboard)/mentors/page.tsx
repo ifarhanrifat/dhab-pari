@@ -12,6 +12,7 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { Users, MessageCircle, GraduationCap, Briefcase, Clock, CheckCircle2, XCircle, ChevronRight, School, CalendarClock, Sparkles } from 'lucide-react'
 import { PortalHelp } from '@/components/portal/PortalHelp'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface MentorRow {
   id: string; full_name: string; avatar_url: string | null; mentor_type: string
@@ -77,7 +78,7 @@ export default function MentorsHubPage() {
     if (error) { toast.error(friendlyError(error)); setAvailable(!next); return }
   }
 
-  if (userLoading || !user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading || !user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
@@ -157,7 +158,7 @@ export default function MentorsHubPage() {
       <div className="bg-white border border-dp-outline-variant rounded-lg p-6">
         <h2 className="font-heading text-[16px] font-bold text-dp-primary mb-3 flex items-center gap-2"><Briefcase size={17} className="text-dp-secondary" /> {t('mn.directory')}</h2>
         {loading ? (
-          <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('action.loading')}</p>
+          <p className="font-sans text-[13px] text-dp-on-surface-variant"><LoadingDots /></p>
         ) : mentors.filter((m) => m.id !== user.id).length === 0 ? (
           <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('mn.noMentorsYet')}</p>
         ) : (

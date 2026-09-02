@@ -28,6 +28,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { getCurrentPositionOnce, classifyLocationError, type LiveLocationPosition, type LocationErrorReason } from '@/hooks/useLiveLocation'
 import { LocationSettingsModal } from '@/components/portal/LocationSettingsModal'
 import type { MapPin } from '@/components/shared/LeafletMap'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 const LeafletSinglePinPicker = dynamic(() => import('@/components/shared/LeafletSinglePinPicker'), { ssr: false })
@@ -167,7 +168,7 @@ export default function NearbyOpenTripsPage() {
     })),
   ]
 
-  if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('p.couldNotLoad')}</div>
 
   return (
@@ -208,7 +209,7 @@ export default function NearbyOpenTripsPage() {
       {!pickingOnMap && <LeafletMap pins={pins} height={260} className="mb-5" />}
 
       {loading ? (
-        <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('action.loading')}</p>
+        <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]"><LoadingDots /></p>
       ) : (
         <>
           {/* ─── Public transport (adda stands) ─────────────────────── */}

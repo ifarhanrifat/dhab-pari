@@ -23,6 +23,7 @@ import { DynamicIcon } from '@/components/shared/DynamicIcon'
 import { OrderFulfillmentPanel } from '@/components/shared/OrderFulfillmentPanel'
 import { CategoryPicker } from '@/components/shared/CategoryBrowser'
 import { ShopCatalogSection } from '@/components/shared/ShopCatalogSection'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Shop {
   id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
@@ -72,7 +73,7 @@ function expiryTone(dateStr: string | null): 'ok' | 'soon' | 'expired' | null {
 export default function AdminShopsPage() {
   const { t } = useLocale()
   return (
-    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>}>
       <AdminShopsInner />
     </Suspense>
   )
@@ -384,7 +385,7 @@ function AdminShopsInner() {
     load()
   }
 
-  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (access.loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!access.canDonorsProjects) {
     return (
       <div className="bg-white rounded-lg border border-dp-outline-variant p-8 text-center">
@@ -402,7 +403,7 @@ function AdminShopsInner() {
             <button onClick={openNewShop} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('mk.newShopBtn')}</button>
           </div>
 
-          {loading && <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('action.loading')}</p>}
+          {loading && <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]"><LoadingDots /></p>}
           {!loading && shops.length === 0 && <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('mk.noShopsYet')}</p>}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

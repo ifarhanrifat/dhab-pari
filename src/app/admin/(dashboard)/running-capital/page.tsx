@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   Wallet, Landmark, TrendingUp, TrendingDown, Printer, X, ChevronDown, ChevronUp,
   FileText, UserCheck, UserPlus, MessageSquareWarning, ClipboardList, Heart, FolderKanban, ArrowDownToLine, ArrowUpFromLine, AlertTriangle, RefreshCw,
@@ -461,7 +462,7 @@ export default function RunningCapitalPage() {
       )}
 
       {loadingLive ? (
-        <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+        <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans"><LoadingDots /></div>
       ) : !live ? (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">{t('rk.couldNotLoad')}</div>
       ) : system === 'water_supply' ? (
@@ -673,7 +674,7 @@ export default function RunningCapitalPage() {
       {/* Monthly Closing Reports archive */}
       <SectionHeading>{dt(lang, 'monthlyClosingReports')}</SectionHeading>
       {loadingReports ? (
-        <p className="font-sans text-dp-on-surface-variant text-[13.5px]">{t('action.loading')}</p>
+        <p className="font-sans text-dp-on-surface-variant text-[13.5px]"><LoadingDots /></p>
       ) : reports.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">
           <p className="font-sans text-[13.5px] text-dp-on-surface-variant">{dt(lang, 'noReportsYet')}</p>

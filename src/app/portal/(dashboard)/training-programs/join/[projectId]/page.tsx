@@ -17,6 +17,7 @@ import { ArrowLeft, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import Link from 'next/link'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Batch {
   id: string; label: string; label_ur: string | null; schedule_note: string | null; schedule_note_ur: string | null
@@ -134,7 +135,7 @@ export default function JoinAcademyPage({ params }: { params: Promise<{ projectI
       <p className="font-sans text-[13.5px] text-dp-on-surface-variant mb-6">{t('tp.joinFormHint')}</p>
 
       {loading ? (
-        <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('action.loading')}</p>
+        <p className="font-sans text-[13px] text-dp-on-surface-variant"><LoadingDots /></p>
       ) : batches.length === 0 ? (
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant">{t('af.noBatches')}</p>
       ) : (

@@ -17,6 +17,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { OrderFulfillmentPanel } from '@/components/shared/OrderFulfillmentPanel'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Shop { id: string; name: string; name_ur: string | null; commission_mode: string }
 interface Summary {
@@ -114,7 +115,7 @@ export default function ShopReportsPage() {
     if (shop) reloadOrders(shop.id)
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!shop) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('sk.noShopLinked')}</div>
 
   const maxDaily = Math.max(1, ...daily.map((d) => d.walkin_pkr + d.marketplace_pkr))

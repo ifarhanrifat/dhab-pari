@@ -13,6 +13,7 @@ import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { SITE_FEATURE_LINKS } from '@/lib/siteFeatureLinks'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Note {
   id: string; body_en: string; body_ur: string; release_date: string; is_published: boolean; created_at: string
@@ -135,7 +136,7 @@ export default function CommitteeNotesPage() {
       </div>
 
       <div className="space-y-4">
-        {loading && <div className="text-center py-12 text-dp-on-surface-variant">{t('action.loading')}</div>}
+        {loading && <div className="text-center py-12 text-dp-on-surface-variant"><LoadingDots /></div>}
         {!loading && notes.length === 0 && <div className="text-center py-12 text-dp-on-surface-variant">{t('cmn.noNotes')}</div>}
         {!loading && notes.map((n) => (
           <div key={n.id} className="bg-white border border-dp-outline-variant rounded-lg p-5 flex flex-col md:flex-row md:items-start justify-between gap-4 hover:border-dp-secondary transition-all">

@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 // This used to be a two-card picker ("Water Supply" / "Donors & Projects")
 // that every visitor saw regardless of which books their account actually
@@ -22,5 +23,5 @@ export default function FinanceIndexRedirect() {
     router.replace(`/admin/finance/${access.defaultSystem}`)
   }, [access.loading, access.defaultSystem, router])
 
-  return <div className="text-center py-16 font-sans text-[14px] text-dp-on-surface-variant">{t('action.loading')}</div>
+  return <div className="text-center py-16 font-sans text-[14px] text-dp-on-surface-variant"><LoadingDots /></div>
 }

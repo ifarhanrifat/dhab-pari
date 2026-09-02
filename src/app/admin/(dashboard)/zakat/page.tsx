@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { Scale, Plus, X, Lock, Calculator, HandCoins, FileText, AlertTriangle } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 /**
  * Zakat rounds.
@@ -168,7 +169,7 @@ export default function ZakatPage() {
         </div>
       </div>
 
-      {loading && <p className="font-sans text-dp-on-surface-variant">{t('action.loading')}</p>}
+      {loading && <p className="font-sans text-dp-on-surface-variant"><LoadingDots /></p>}
 
       {!loading && !active && (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">

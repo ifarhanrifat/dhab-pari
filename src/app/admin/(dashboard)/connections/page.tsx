@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   PlusCircle, Search, X, ChevronLeft, Plus, Pencil, Trash2, Eye, Banknote,
   UserPlus, Printer, CheckCircle2, Clock, Wrench, RefreshCw, Lock, Unlock,
@@ -516,7 +517,7 @@ export default function ConnectionsPage() {
       </div>
 
       {loading ? (
-        <p className="font-sans text-dp-on-surface-variant py-8 text-center">{t('action.loading')}</p>
+        <p className="font-sans text-dp-on-surface-variant py-8 text-center"><LoadingDots /></p>
       ) : requests.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('cn.noRequests')}</p>

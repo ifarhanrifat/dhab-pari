@@ -27,6 +27,7 @@ import { ImageUpload } from '@/components/admin/ImageUpload'
 import { UserCircle2, Printer } from 'lucide-react'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Academy { id: string; title: string; display_name: string | null; category: string }
 interface Batch {
@@ -929,7 +930,7 @@ function AcademyFeesInner() {
 export default function AcademyFeesPage() {
   const { t } = useLocale()
   return (
-    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>}>
       <AcademyFeesInner />
     </Suspense>
   )

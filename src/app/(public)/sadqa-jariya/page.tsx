@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Gift, MapPin, CheckCircle2, Wrench } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 /**
  * The Sadqa-e-Jariya board.
@@ -77,7 +78,7 @@ export default function SadqaJariyaPage() {
         </div>
       )}
 
-      {loading && <p className="font-sans text-dp-on-surface-variant">{t('action.loading')}</p>}
+      {loading && <p className="font-sans text-dp-on-surface-variant"><LoadingDots /></p>}
 
       {!loading && items.length === 0 && (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center mb-10">

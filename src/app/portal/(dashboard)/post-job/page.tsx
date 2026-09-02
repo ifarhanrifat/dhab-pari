@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { Briefcase, PlusCircle, X, Pencil, Pause, Play, Megaphone } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 const CATEGORIES = ['plumber', 'electrician', 'mason', 'carpenter', 'painter', 'laborer', 'driver', 'tailor', 'cook', 'tutor', 'mechanic', 'other']
 const CATEGORY_KEY: Record<string, string> = {
@@ -89,7 +90,7 @@ export default function PostJobPage() {
     load()
   }
 
-  if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
 
   return (
     <div>
@@ -111,7 +112,7 @@ export default function PostJobPage() {
       </div>
 
       {loading ? (
-        <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('action.loading')}</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant"><LoadingDots /></p>
       ) : listings.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center max-w-xl">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('p.noListings')}</p>

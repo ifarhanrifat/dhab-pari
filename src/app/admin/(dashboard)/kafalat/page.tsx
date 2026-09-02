@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   GraduationCap, X, Plus, Save, ShieldAlert, UserPlus, Bus, Printer,
   Phone, AlertTriangle, Check, Wallet, HandCoins, RotateCcw, Info, HelpCircle, ChevronDown, Receipt,
@@ -959,7 +960,7 @@ export default function KafalatPage() {
         ))}
       </div>
 
-      {loading && <p className="font-sans text-dp-on-surface-variant">{t('action.loading')}</p>}
+      {loading && <p className="font-sans text-dp-on-surface-variant"><LoadingDots /></p>}
 
       {!loading && tab === 'children' && (
         <div className="space-y-3">
@@ -1937,7 +1938,7 @@ export default function KafalatPage() {
             </p>
 
             {!monthlyData ? (
-              <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[13px]">{t('action.loading')}</p>
+              <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[13px]"><LoadingDots /></p>
             ) : monthlyItems.length === 0 && monthlyOthers.length === 0 ? (
               <p className="text-center py-6 text-dp-on-surface-variant font-sans text-[13px]">{t('kf.monthly.nothingDue')}</p>
             ) : null}

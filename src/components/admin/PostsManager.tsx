@@ -17,6 +17,7 @@ import { ImageUpload } from '@/components/admin/ImageUpload'
 import { BulkActionsBar } from '@/components/admin/BulkActionsBar'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Post { id: string; title: string; title_ur: string | null; content: string; content_ur: string | null; category: string | null; cover_image_url: string | null; author: string; is_published: boolean; is_featured: boolean; views: number; published_at: string | null }
 interface PostCategory { key: string; label_en: string; label_ur: string; icon: string | null }
@@ -154,7 +155,7 @@ export function PostsManager({ titleKey, newPostKey, fixedCategory, excludeCateg
       )}
 
       <div className="space-y-4">
-        {loading && <div className="text-center py-12 text-dp-on-surface-variant">{t('action.loading')}</div>}
+        {loading && <div className="text-center py-12 text-dp-on-surface-variant"><LoadingDots /></div>}
         {!loading && posts.map((p) => (
           <div key={p.id} className={`bg-white border rounded-lg p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-dp-secondary transition-all ${selected.has(p.id) ? 'border-dp-secondary bg-dp-secondary-container/10' : 'border-dp-outline-variant'}`}>
             <div className="flex items-start gap-3 flex-1 min-w-0">

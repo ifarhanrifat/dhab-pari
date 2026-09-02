@@ -23,6 +23,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface MyFee {
   enrollment_id: string; project_id: string; status: string; program_title: string; batch_label: string | null; student_name: string
@@ -169,7 +170,7 @@ export default function PortalTrainingProgramsPage() {
       </div>
 
       {loading ? (
-        <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('action.loading')}</p>
+        <p className="font-sans text-[13px] text-dp-on-surface-variant"><LoadingDots /></p>
       ) : academies.length === 0 ? (
         <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('tp.noAcademiesOpen')}</p>
       ) : (

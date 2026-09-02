@@ -7,6 +7,7 @@ import { friendlyError } from '@/lib/errors'
 import { BellRing, MessageCircle, SkipForward, Clock, AlertTriangle, Heart, CalendarClock, Copy, Megaphone, GraduationCap } from 'lucide-react'
 import { normalizePakPhone } from '@/lib/receiptExport'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Reminder {
   id: string; reminder_type: 'bill_weekly' | 'bill_defaulter' | 'donor_recurring' | 'meeting_due' | 'donor_pledge_unpaid' | 'wazifa_repayment_due'
@@ -75,7 +76,7 @@ export default function RemindersPage() {
       </p>
 
       {loading ? (
-        <p className="font-sans text-dp-on-surface-variant py-8 text-center">{t('action.loading')}</p>
+        <p className="font-sans text-dp-on-surface-variant py-8 text-center"><LoadingDots /></p>
       ) : reminders.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('y.nothingPending')}</p>

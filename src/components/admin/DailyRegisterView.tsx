@@ -10,6 +10,7 @@ import { entryTypeLabel } from '@/lib/ledgerLabels'
 import { dt, type Lang } from '@/lib/docTranslations'
 import { translateParticular } from '@/lib/ledgerParticular'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 const systemLabelKeys: Record<SystemTab, 'waterSupplySystem' | 'donorsProjects'> = { water_supply: 'waterSupplySystem', donors_projects: 'donorsProjects' }
@@ -180,7 +181,7 @@ export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) 
                 </tr>
               </thead>
               <tbody>
-                {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</td></tr>}
+                {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans"><LoadingDots /></td></tr>}
                 {!loading && rows.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{dt(lang, 'noCashBankTransactions')}</td></tr>}
                 {!loading && rows.map((r) => (
                   <tr key={r.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">

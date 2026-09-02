@@ -9,6 +9,7 @@ import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 type Frequency = 'every_minute' | 'daily' | 'weekly' | 'monthly' | 'semi_annual' | 'yearly'
@@ -201,7 +202,7 @@ export default function RecurringPage() {
                 </tr>
               </thead>
               <tbody>
-                {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</td></tr>}
+                {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans"><LoadingDots /></td></tr>}
                 {!loading && schedules.length === 0 && poolLines.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('rc.noSchedules')}</td></tr>}
                 {!loading && schedules.map((s) => (
                   <tr key={s.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${!s.is_active ? 'opacity-50' : ''}`}>
@@ -299,7 +300,7 @@ export default function RecurringPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {txnLoading && <tr><td colSpan={3} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</td></tr>}
+                  {txnLoading && <tr><td colSpan={3} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans"><LoadingDots /></td></tr>}
                   {!txnLoading && txnRows.length === 0 && <tr><td colSpan={3} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('rc.noneOfType')}</td></tr>}
                   {!txnLoading && txnRows.map((r) => (
                     <tr key={r.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">

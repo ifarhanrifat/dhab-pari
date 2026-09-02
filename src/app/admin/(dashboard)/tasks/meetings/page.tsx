@@ -11,6 +11,7 @@ import { MultiImageUpload } from '@/components/admin/MultiImageUpload'
 import { AgendaMinutesDocument, type AgendaMinutesData } from '@/components/admin/AgendaMinutesDocument'
 import { formatUrduDate, formatUrduTime } from '@/lib/urduFormat'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   CalendarClock, PlusCircle, X, ChevronDown, ChevronUp, CheckCircle2, MessageCircle,
   Printer, Download, Lightbulb, ListChecks, AlertTriangle, User, FileText, Sparkles, Loader2, Globe2, Reply,
@@ -818,7 +819,7 @@ export default function MeetingsAgendaPage() {
       )}
 
       {loading ? (
-        <p className="font-sans text-dp-on-surface-variant py-8 text-center">{t('action.loading')}</p>
+        <p className="font-sans text-dp-on-surface-variant py-8 text-center"><LoadingDots /></p>
       ) : meetings.length === 0 ? (
         <div className="bg-white border border-dp-outline-variant rounded-lg p-10 text-center">
           <p className="font-sans text-[14px] text-dp-on-surface-variant">No meetings logged yet. Start with "New Meeting" after your next committee sitting.</p>
@@ -1393,7 +1394,7 @@ export default function MeetingsAgendaPage() {
             )}
             <div className="p-5 space-y-2.5">
               {loadingSuggestions ? (
-                <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-6">{t('action.loading')}</p>
+                <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-6"><LoadingDots /></p>
               ) : websiteSuggestions.length === 0 ? (
                 <p className="font-sans text-[13.5px] text-dp-on-surface-variant text-center py-6">{t('z.noNewSuggestions')}</p>
               ) : (

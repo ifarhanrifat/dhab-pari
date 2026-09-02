@@ -18,6 +18,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { getShopTypeTree } from '@/lib/shopTypes'
 import { DynamicIcon } from '@/components/shared/DynamicIcon'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Shop {
   id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
@@ -113,7 +114,7 @@ export default function ShopDetailPage() {
     router.push('/portal/marketplace')
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('p.couldNotLoad')}</div>
   if (!shop) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('mp.shopNotFound')}</div>
 

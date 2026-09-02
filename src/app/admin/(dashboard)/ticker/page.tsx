@@ -5,6 +5,7 @@ import { PlusCircle, X, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Ticker { id: string; message: string; message_ur: string | null; is_active: boolean; display_order: number }
 
@@ -51,7 +52,7 @@ export default function AdminTickerPage() {
         <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('y.addMessage')}</button>
       </div>
       <div className="space-y-3">
-        {loading && <div className="text-center py-12 text-dp-on-surface-variant">{t('action.loading')}</div>}
+        {loading && <div className="text-center py-12 text-dp-on-surface-variant"><LoadingDots /></div>}
         {!loading && tickers.map((t) => (
           <div key={t.id} className={`bg-white border rounded-lg p-4 flex items-start gap-4 transition-all ${t.is_active ? 'border-dp-outline-variant' : 'border-dp-outline-variant/50 opacity-50'}`}>
             <button onClick={() => toggleActive(t.id, t.is_active)} className="shrink-0 mt-1 cursor-pointer">

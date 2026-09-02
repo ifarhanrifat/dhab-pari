@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   BookOpen, X, Award, Calculator, HandCoins, Plus, Save, ClipboardCheck, Gavel, CalendarClock, Users, FileText, Printer, Ban, RotateCcw,
   HelpCircle, ChevronDown, Phone, AlertTriangle, Wallet, Info, Pencil, Send, UserCheck, ShieldCheck, PhoneCall, Briefcase, StopCircle,
@@ -1196,7 +1197,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
         ))}
       </div>
 
-      {loading && <p className="font-sans text-dp-on-surface-variant">{t('action.loading')}</p>}
+      {loading && <p className="font-sans text-dp-on-surface-variant"><LoadingDots /></p>}
 
       {!loading && tab === 'applications' && (
         <div className="space-y-3">
@@ -2165,7 +2166,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('wz.screen.help')}</p>
 
             {screenLoading ? (
-              <p className="font-sans text-dp-on-surface-variant text-[13px]">{t('action.loading')}</p>
+              <p className="font-sans text-dp-on-surface-variant text-[13px]"><LoadingDots /></p>
             ) : screenCandidates.length === 0 ? (
               <div className="bg-dp-surface-container-low rounded-lg px-4 py-3.5 mb-3">
                 <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('wz.screen.noMatch')}</p>
@@ -2323,7 +2324,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{studentOf(calendarTarget.student_id)?.full_name}</p>
 
             {calendarLoading ? (
-              <p className="font-sans text-[13px] text-dp-on-surface-variant py-8 text-center">{t('action.loading')}</p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant py-8 text-center"><LoadingDots /></p>
             ) : (
               <>
                 <div className="flex gap-2 mb-3">
@@ -2404,7 +2405,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{studentOf(payoutCalendarTarget.student_id)?.full_name}</p>
 
             {payoutCalendarLoading ? (
-              <p className="font-sans text-[13px] text-dp-on-surface-variant py-8 text-center">{t('action.loading')}</p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant py-8 text-center"><LoadingDots /></p>
             ) : (
               <>
                 <div className="flex gap-2 mb-3">

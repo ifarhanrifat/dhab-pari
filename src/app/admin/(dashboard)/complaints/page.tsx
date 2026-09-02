@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 type SystemTab = 'water_supply' | 'donors_projects'
 type StatusFilter = 'all' | 'open' | 'awaiting_verification' | 'verified'
@@ -146,7 +147,7 @@ export default function ComplaintsPage() {
 
       <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         {loading ? (
-          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('action.loading')}</p>
+          <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant"><LoadingDots /></p>
         ) : filtered.length === 0 ? (
           <p className="px-5 py-8 text-center font-sans text-[13.5px] text-dp-on-surface-variant">{t('y.noComplaintsFilter')}</p>
         ) : (

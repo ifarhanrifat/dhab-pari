@@ -13,6 +13,7 @@ import { Search, Store, Bus, MapPin, Clock, CheckCircle2, XCircle, Navigation, S
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Shop { id: string; name: string; name_ur: string | null; location: string | null; location_ur: string | null; delivery_enabled: boolean }
 interface Route {
@@ -89,7 +90,7 @@ export default function PortalMarketplacePage() {
     return <span className="inline-flex items-center gap-1 text-amber-700 text-[11px] font-bold"><Clock size={11} /> {t('mp.awaitingStatus')}</span>
   }
 
-  if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('p.couldNotLoad')}</div>
 
   return (
@@ -107,7 +108,7 @@ export default function PortalMarketplacePage() {
       {results !== null && (
         <div className="mb-8">
           <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('mp.searchResultsHeading')}</p>
-          {searching && <p className="font-sans text-[13.5px] text-dp-on-surface-variant">{t('action.loading')}</p>}
+          {searching && <p className="font-sans text-[13.5px] text-dp-on-surface-variant"><LoadingDots /></p>}
           {!searching && results.length === 0 && <p className="font-sans text-[13.5px] text-dp-on-surface-variant">{t('mp.noResults')}</p>}
           <div className="space-y-2">
             {results.map((r) => (

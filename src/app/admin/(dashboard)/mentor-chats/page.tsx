@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { MessageCircle, Search, ShieldCheck } from 'lucide-react'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface ConversationRow {
   id: string; student_portal_user_id: string; mentor_portal_user_id: string
@@ -74,7 +75,7 @@ export default function AdminMentorChatsPage() {
             <Search size={16} className="absolute top-1/2 -translate-y-1/2 start-3 text-dp-on-surface-variant" />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('mc.searchPlaceholder')} className="input-field ps-9" />
           </div>
-          {loading && <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[13px]">{t('action.loading')}</p>}
+          {loading && <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[13px]"><LoadingDots /></p>}
           {!loading && filtered.length === 0 && <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[13px]">{t('mc.noConversations')}</p>}
           <div className="space-y-2 max-h-[70vh] overflow-y-auto">
             {filtered.map((c) => (
@@ -91,7 +92,7 @@ export default function AdminMentorChatsPage() {
           {!selected ? (
             <p className="text-center py-16 text-dp-on-surface-variant font-sans text-[13px]">{t('mc.selectConversation')}</p>
           ) : loadingMessages ? (
-            <p className="text-center py-16 text-dp-on-surface-variant font-sans text-[13px]">{t('action.loading')}</p>
+            <p className="text-center py-16 text-dp-on-surface-variant font-sans text-[13px]"><LoadingDots /></p>
           ) : (
             <div className="space-y-2.5">
               {messages.length === 0 && <p className="text-center py-16 text-dp-on-surface-variant font-sans text-[13px]">{t('mc.noMessages')}</p>}

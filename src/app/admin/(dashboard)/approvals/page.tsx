@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface ApprovalRequest {
   id: string; reference_id: string; system: string; kind: string; particular: string; amount_pkr: number
@@ -159,7 +160,7 @@ export default function ApprovalsPage() {
 
   const otherPending = useMemo(() => allPending.filter((r) => !mine.some((m) => m.approval_request_id === r.id)), [allPending, mine])
 
-  if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>

@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { SITE } from '@/lib/constants'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface LogEntry { id: string; type: string; recipient: string | null; message: string | null; status: string; sent_at: string | null; created_at: string }
 interface HistoryRow {
@@ -405,7 +406,7 @@ export default function AdminNotificationsPage() {
               <th className="p-4">{t('w.date')}</th><th className="p-4">{t('a.type')}</th><th className="p-4">{t('al.recipient')}</th><th className="p-4">{t('g.message')}</th><th className="p-4">{t('w.status')}</th>
             </tr></thead>
             <tbody className="font-sans text-[16px]">
-              {loading && <tr><td colSpan={5} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}
+              {loading && <tr><td colSpan={5} className="p-8 text-center text-dp-on-surface-variant"><LoadingDots /></td></tr>}
               {!loading && logs.map((log, i) => (
                 <tr key={log.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''}`}>
                   <td className="p-4 border-b border-dp-outline-variant text-[14px] text-dp-on-surface-variant">{new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>

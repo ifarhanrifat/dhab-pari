@@ -18,6 +18,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { GraduationCap, HeartHandshake, UserCircle2 } from 'lucide-react'
 import { MentorshipProfileFields, type MentorshipFieldsValue } from '@/components/portal/MentorshipProfileFields'
 import { DonorLinkVerification } from '@/components/portal/DonorLinkVerification'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 export default function PortalWelcomePage() {
   const { t, isUrdu } = useLocale()
@@ -59,7 +60,7 @@ export default function PortalWelcomePage() {
     finish()
   }
 
-  if (userLoading || !user) return <div className="min-h-screen bg-[#E1F5EE] flex items-center justify-center font-sans text-dp-on-surface-variant">{t('action.loading')}</div>
+  if (userLoading || !user) return <div className="min-h-screen bg-[#E1F5EE] flex items-center justify-center font-sans text-dp-on-surface-variant"><LoadingDots /></div>
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="min-h-screen bg-[#E1F5EE] flex flex-col items-center justify-center px-4 py-10">

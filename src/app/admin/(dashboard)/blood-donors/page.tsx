@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Droplet } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface BloodDonor {
   id: string; blood_group: string; is_available: boolean; sector: string | null
@@ -53,7 +54,7 @@ export default function AdminBloodDonorsPage() {
               <th className="p-4">{t('a.name')}</th><th className="p-4">{t('y.group')}</th><th className="p-4">{t('w.sector')}</th><th className="p-4">{t('w.mobile')}</th><th className="p-4">{t('w.whatsapp')}</th><th className="p-4">{t('w.status')}</th>
             </tr></thead>
             <tbody className="font-sans text-[16px]">
-              {loading && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}
+              {loading && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant"><LoadingDots /></td></tr>}
               {!loading && filtered.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">{t('y.noMatchingDonors')}</td></tr>}
               {!loading && filtered.map((d, i) => (
                 <tr key={d.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''}`}>

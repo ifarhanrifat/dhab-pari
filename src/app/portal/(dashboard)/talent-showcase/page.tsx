@@ -15,6 +15,7 @@ import { Sparkles, Clock, CheckCircle2, XCircle, ShieldAlert } from 'lucide-reac
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { PortalHelp } from '@/components/portal/PortalHelp'
 import { VideoUpload } from '@/components/admin/VideoUpload'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Entry {
   id: string; display_name: string; talent_description: string; moderation_status: string; created_at: string
@@ -52,7 +53,7 @@ export default function PortalTalentShowcasePage() {
     load()
   }
 
-  if (userLoading || !user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading || !user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
 
   const needsGuardianInfo = user.is_minor && (!user.guardian_name || !user.guardian_mobile)
 

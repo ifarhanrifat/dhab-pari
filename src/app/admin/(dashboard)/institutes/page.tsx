@@ -11,6 +11,7 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { School, Plus, Pencil, Trash2, X } from 'lucide-react'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Institute {
   id: string; name: string; name_ur: string | null; description: string | null; description_ur: string | null
@@ -92,7 +93,7 @@ export default function InstitutesPage() {
         </button>
       </div>
 
-      {loading && <div className="text-center py-12 text-dp-on-surface-variant">{t('action.loading')}</div>}
+      {loading && <div className="text-center py-12 text-dp-on-surface-variant"><LoadingDots /></div>}
       {!loading && rows.length === 0 && <div className="text-center py-12 text-dp-on-surface-variant">{t('in.none')}</div>}
 
       <div className="space-y-2.5">

@@ -10,6 +10,7 @@ import { DocumentHeader } from '@/components/admin/DocumentHeader'
 import { useRef } from 'react'
 import { dt, type Lang } from '@/lib/docTranslations'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface ConsumerRow { consumer_id: string; name: string; mobile: string | null; sector: string | null; status: string }
 interface BillRow {
@@ -157,7 +158,7 @@ export default function NonPaymentReportPage() {
         </select>
       </div>
 
-      {loading && <p className="text-center py-12 text-dp-on-surface-variant font-sans text-[13.5px]">{t('action.loading')}</p>}
+      {loading && <p className="text-center py-12 text-dp-on-surface-variant font-sans text-[13.5px]"><LoadingDots /></p>}
       {!loading && filtered.length === 0 && (
         <p className="text-center py-12 text-dp-on-surface-variant font-sans text-[13.5px]">
           {dt(lang, 'noConsumersFailedToPay')}

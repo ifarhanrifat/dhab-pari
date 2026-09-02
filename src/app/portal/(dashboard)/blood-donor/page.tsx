@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { Droplet, ShieldCheck } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 const GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 
@@ -146,7 +147,7 @@ export default function PortalBloodDonorPage() {
     setOpenRequests((prev) => prev.map((r) => r.id === requestId ? { ...r, response: answer } : r))
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
 
   return (
     <div>

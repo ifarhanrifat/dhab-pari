@@ -20,6 +20,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Navigation, AlertTriangle } from 'lucide-react'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -92,7 +93,7 @@ export default function TripTrackingPage() {
     return () => clearInterval(id)
   }, [booking, role]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!booking || !role) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('p.couldNotLoad')}</div>
 
   const pins = [

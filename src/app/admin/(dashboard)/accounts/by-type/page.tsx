@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { SystemGuard } from '@/components/admin/SystemGuard'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Account {
   id: string; code: string; name: string; name_ur: string | null
@@ -25,7 +26,7 @@ function fmtAmount(n: number) {
 export default function AccountsByTypePage() {
   const { t } = useLocale()
   return (
-    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>}>
       <AccountsByTypeGuarded />
     </Suspense>
   )
@@ -114,7 +115,7 @@ function AccountsByTypePageInner() {
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</td></tr>}
+              {loading && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans"><LoadingDots /></td></tr>}
               {!loading && accounts.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-dp-on-surface-variant font-sans">{t('y.noAccountsHeader')}</td></tr>}
               {!loading && accounts.map((a) => (
                 <tr key={a.id} className={`font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0 ${!a.is_active ? 'opacity-50' : ''}`}>

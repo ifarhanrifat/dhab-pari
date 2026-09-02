@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { ReceiptDocument, type ReceiptData, type InvoiceTemplate } from './ReceiptDocument'
 import { fetchBrandingSettings, type BrandingSettings } from '@/lib/branding'
 import type { SlipFormat } from './UniversalSlip'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   getPreferredFormat, setPreferredFormat, nodeToPdfBlob, nodeToPngBlob,
   downloadBlob, shareReceipt, printBlob, type ReceiptFormat,
@@ -155,7 +156,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
           {template ? (
             <ReceiptDocument ref={nodeRef} data={{ ...data, ...branding }} template={template} format={slipFormat} />
           ) : (
-            <p className="font-sans text-[13.5px] text-dp-on-surface-variant">{t('action.loading')}</p>
+            <p className="font-sans text-[13.5px] text-dp-on-surface-variant"><LoadingDots /></p>
           )}
         </div>
 

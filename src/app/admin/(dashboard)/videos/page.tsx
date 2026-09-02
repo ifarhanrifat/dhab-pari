@@ -7,6 +7,7 @@ import { friendlyError } from '@/lib/errors'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { VideoUpload } from '@/components/admin/VideoUpload'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Video { id: string; title: string; title_ur: string | null; description: string | null; video_url: string; thumbnail_url: string | null; category: string | null; duration_seconds: number | null; is_published: boolean; is_featured: boolean; views: number }
 const categories = ['wedding', 'interview', 'event', 'sports', 'news', 'documentary', 'project', 'freelancing']
@@ -41,7 +42,7 @@ export default function AdminVideosPage() {
         <button onClick={() => { setForm(empty); setEditing(null); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('y.addVideo')}</button>
       </div>
       <div className="space-y-4">
-        {loading && <div className="text-center py-12 text-dp-on-surface-variant">{t('action.loading')}</div>}
+        {loading && <div className="text-center py-12 text-dp-on-surface-variant"><LoadingDots /></div>}
         {!loading && videos.map((v) => (
           <div key={v.id} className="bg-white border border-dp-outline-variant rounded-lg p-5 flex items-center justify-between gap-4 hover:border-dp-secondary transition-all">
             <div className="flex-1 min-w-0">

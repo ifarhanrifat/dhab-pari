@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ShieldCheck, Search, Plus, X, Save, Home, Users, CheckCircle2, Lock } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 /**
  * The Verified Needs Register.
@@ -235,7 +236,7 @@ export default function NeedsRegisterPage() {
               </tr>
             </thead>
             <tbody className="font-sans text-[14px]">
-              {loading && <tr><td colSpan={8} className="p-8 text-center text-dp-on-surface-variant">{t('action.loading')}</td></tr>}
+              {loading && <tr><td colSpan={8} className="p-8 text-center text-dp-on-surface-variant"><LoadingDots /></td></tr>}
               {!loading && filtered.length === 0 && (
                 <tr><td colSpan={8} className="p-8 text-center text-dp-on-surface-variant">{t('nr.empty')}</td></tr>
               )}

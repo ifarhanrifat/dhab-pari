@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { LoadingDots } from '@/components/shared/LoadingDots'
 
 type TableName = 'bills' | 'payments' | 'donors' | 'vouchers' | 'accounts' | 'consumers'
 type Action = 'insert' | 'update' | 'delete' | 'reverse'
@@ -130,7 +131,7 @@ export default function AuditLogPage() {
   }
 
   if (loading) {
-    return <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</div>
+    return <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   }
 
   if (!authorized) {
@@ -207,7 +208,7 @@ export default function AuditLogPage() {
             </thead>
             <tbody>
               {rowsLoading ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-dp-on-surface-variant font-sans">{t('action.loading')}</td></tr>
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-dp-on-surface-variant font-sans"><LoadingDots /></td></tr>
               ) : filteredRows.length === 0 && (
                 <tr><td colSpan={7} className="px-4 py-12 text-center text-dp-on-surface-variant font-sans">{t('z.noActivity')}</td></tr>
               )}
