@@ -11,7 +11,11 @@ import { useEffect, useRef } from 'react'
 import type { Map as LeafletMapType, Marker } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-export interface MapPin { lat: number; lng: number; label?: string; color?: string }
+// `emoji` is additive and optional — every existing caller (route pins,
+// two-party trip tracking) keeps rendering the plain colored dot exactly
+// as before; only a pin that opts in with `emoji` gets the bigger
+// vehicle-style marker (used by the nearby-open-trips live map).
+export interface MapPin { lat: number; lng: number; label?: string; color?: string; emoji?: string }
 
 interface Props {
   pins: MapPin[]
@@ -24,6 +28,14 @@ interface Props {
 // own CSS, which breaks under a bundler unless repointed — the standard,
 // documented workaround is to point straight at the same version's
 // images on a CDN instead of trying to resolve them through webpack.
+function emojiIcon(L: typeof import('leaflet'), emoji: string, color?: string) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:34px;height:34px;border-radius:50%;background:${color ?? '#16a34a'};border:3px solid white;box-shadow:0 1px 5px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;font-size:17px;line-height:1">${emoji}</div>`,
+    iconSize: [34, 34], iconAnchor: [17, 17],
+  })
+}
+
 function coloredIcon(L: typeof import('leaflet'), color?: string) {
   if (!color) {
     return L.icon({
@@ -60,7 +72,7 @@ export default function LeafletMap({ pins, height = 220, zoom = 12, className = 
 
       if (pins.length === 0) { map.setView([30.3753, 69.3451], 5); return } // Pakistan-wide fallback
       pins.forEach((p) => {
-        const marker = L.marker([p.lat, p.lng], { icon: coloredIcon(L, p.color) }).addTo(map)
+        const marker = L.marker([p.lat, p.lng], { icon: p.emoji ? emojiIcon(L, p.emoji, p.color) : coloredIcon(L, p.color) }).addTo(map)
         if (p.label) marker.bindPopup(p.label)
         markersRef.current.push(marker)
       })

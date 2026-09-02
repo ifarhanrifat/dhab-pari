@@ -17,11 +17,13 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { WalletTopupModal } from '@/components/portal/WalletTopupModal'
+import { TripLiveShareToggle } from '@/components/portal/TripLiveShareToggle'
 
 interface Vehicle { id: string; owner_name: string; vehicle_type: string; commission_mode: string }
 interface TripOffer {
   id: string; trip_type: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   classification: string; travel_date: string; seats_available: number; listed_fare_per_seat_pkr: number; status: string
+  share_live_location: boolean
 }
 interface FareOffer {
   id: string; trip_offer_id: string; seats_requested: number; proposed_fare_per_seat_pkr: number
@@ -440,6 +442,13 @@ export default function MyVehiclePage() {
                     )}
                   </div>
                 ))}
+                {tr.status === 'open' && (
+                  <TripLiveShareToggle
+                    tripOfferId={tr.id}
+                    sharing={tr.share_live_location}
+                    onSharingChange={(on) => setTripOffers((rows) => rows.map((r) => r.id === tr.id ? { ...r, share_live_location: on } : r))}
+                  />
+                )}
               </div>
             ))}
           </div>
