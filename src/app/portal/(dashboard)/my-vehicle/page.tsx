@@ -18,7 +18,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { WalletTopupModal } from '@/components/portal/WalletTopupModal'
 import { TripLiveShareToggle } from '@/components/portal/TripLiveShareToggle'
-import { getCurrentPositionOnce } from '@/hooks/useLiveLocation'
+import { getCurrentPositionOnce, classifyLocationError } from '@/hooks/useLiveLocation'
 
 interface Vehicle { id: string; owner_name: string; vehicle_type: string; commission_mode: string }
 interface TripOffer {
@@ -166,14 +166,24 @@ export default function MyVehiclePage() {
     // the RPC enforces this (409/415/416's geofence), this just supplies
     // the position it checks against. Missing/denied location still
     // reaches the RPC (as null lat/lng) rather than blocking the attempt
-    // client-side, so the server's own error message is what the driver
-    // actually sees.
+    // client-side, so the check-in can still go through for an adda with
+    // no pin set — but tell the driver why the fix failed right away
+    // (GPS off vs. permission vs. timeout are different fixes) rather
+    // than leaving him to guess from whatever the server says next.
     setCheckingLocation(true)
     let lat: number | null = null; let lng: number | null = null
     try {
       const pos = await getCurrentPositionOnce()
       lat = pos.lat; lng = pos.lng
-    } catch { /* fall through with null — server decides whether this adda even needs a pin check */ }
+    } catch (err) {
+      const reason = classifyLocationError(err)
+      toast.error(
+        reason === 'services_disabled' ? t('af.gpsOffHint') :
+        reason === 'permission_denied' ? t('af.locationPermissionDeniedHint') :
+        reason === 'timeout' ? t('af.locationTimeoutHint') :
+        t('af.nearbyLocationFailed')
+      )
+    }
     setCheckingLocation(false)
 
     const { error } = await supabase.rpc('adda_check_in', {

@@ -25,7 +25,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { getCurrentPositionOnce, type LiveLocationPosition } from '@/hooks/useLiveLocation'
+import { getCurrentPositionOnce, classifyLocationError, type LiveLocationPosition } from '@/hooks/useLiveLocation'
 import type { MapPin } from '@/components/shared/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
@@ -122,8 +122,14 @@ export default function NearbyOpenTripsPage() {
     try {
       const pos = await getCurrentPositionOnce()
       setMyPos(pos)
-    } catch {
-      toast.error(t('af.nearbyLocationFailed'))
+    } catch (err) {
+      const reason = classifyLocationError(err)
+      toast.error(
+        reason === 'services_disabled' ? t('af.gpsOffHint') :
+        reason === 'permission_denied' ? t('af.locationPermissionDeniedHint') :
+        reason === 'timeout' ? t('af.locationTimeoutHint') :
+        t('af.nearbyLocationFailed')
+      )
     } finally {
       setLocating(false)
     }

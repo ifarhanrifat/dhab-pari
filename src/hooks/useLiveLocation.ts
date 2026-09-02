@@ -147,6 +147,47 @@ export function useLiveLocation({ enabled, onFix, minIntervalMs = 12000, backgro
   return { error, wakeLockHeld, isNative }
 }
 
+export type LocationErrorReason = 'permission_denied' | 'services_disabled' | 'timeout' | 'unavailable'
+
+// A failed getCurrentPositionOnce() was showing one generic "could not get
+// your location" toast regardless of cause — but the native plugin (and
+// the browser) actually distinguish several real, different problems with
+// different fixes:
+//   - the app doesn't have location permission (fix: grant it in the
+//     phone's app-permission settings)
+//   - the *phone's* Location/GPS service itself is switched off (fix:
+//     turn it on in the phone's system settings — @capacitor/geolocation's
+//     Android plugin raises this as its own distinct error, code
+//     OS-PLUG-GLOC-0007 "Location services are not enabled", separate from
+//     permission denial; the browser's navigator.geolocation can't tell
+//     these two apart on the web, both surface as POSITION_UNAVAILABLE)
+//   - a timeout (weak signal / indoors — fix: move somewhere open, retry)
+// Classifying lets the caller show the actual fix instead of one catch-all
+// "check your permission" line that's often simply wrong (permission was
+// fine, GPS was just off).
+export function classifyLocationError(err: unknown): LocationErrorReason {
+  const e = err as { code?: string | number; message?: string } | undefined
+  const code = e?.code
+  const msg = (e?.message ?? '').toLowerCase()
+
+  if (typeof code === 'string') {
+    // Native Android plugin: "OS-PLUG-GLOC-000N" string codes.
+    if (code.endsWith('0007') || code.endsWith('0017')) return 'services_disabled'
+    if (code.endsWith('0003') || code.endsWith('0009')) return 'permission_denied'
+    if (code.endsWith('0010')) return 'timeout'
+  } else if (typeof code === 'number') {
+    // Browser navigator.geolocation: numeric PositionError codes.
+    if (code === 1) return 'permission_denied'
+    if (code === 3) return 'timeout'
+    // code === 2 (POSITION_UNAVAILABLE) — the web can't tell "GPS is off"
+    // from "no fix yet" any further than this, falls through below.
+  }
+  if (msg.includes('denied')) return 'permission_denied'
+  if (msg.includes('timeout') || msg.includes('timed out')) return 'timeout'
+  if (msg.includes('disabled') || msg.includes('not enabled')) return 'services_disabled'
+  return 'unavailable'
+}
+
 // One-shot "where am I right now" — used by a rider tapping "use my
 // location", not the continuous driver-sharing path above.
 // @capacitor/geolocation's getCurrentPosition works on web natively too
