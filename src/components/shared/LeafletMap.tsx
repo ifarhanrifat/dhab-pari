@@ -15,7 +15,15 @@ import 'leaflet/dist/leaflet.css'
 // two-party trip tracking) keeps rendering the plain colored dot exactly
 // as before; only a pin that opts in with `emoji` gets the bigger
 // vehicle-style marker (used by the nearby-open-trips live map).
-export interface MapPin { lat: number; lng: number; label?: string; color?: string; emoji?: string }
+//
+// `popupHtml`, if set, replaces the plain-text `label` popup with raw
+// HTML — used for the adda pins on the Going Home map to show a real
+// styled banner (name + distance + a "View board" link) instead of
+// Leaflet's bare default popup. It's plain HTML rather than React
+// content on purpose: Leaflet manages this DOM itself outside React's
+// tree, and a plain <a href="..."> inside it navigates via the browser
+// natively — no click-handler wiring back into React needed at all.
+export interface MapPin { lat: number; lng: number; label?: string; popupHtml?: string; color?: string; emoji?: string }
 
 interface Props {
   pins: MapPin[]
@@ -73,7 +81,8 @@ export default function LeafletMap({ pins, height = 220, zoom = 12, className = 
       if (pins.length === 0) { map.setView([30.3753, 69.3451], 5); return } // Pakistan-wide fallback
       pins.forEach((p) => {
         const marker = L.marker([p.lat, p.lng], { icon: p.emoji ? emojiIcon(L, p.emoji, p.color) : coloredIcon(L, p.color) }).addTo(map)
-        if (p.label) marker.bindPopup(p.label)
+        if (p.popupHtml) marker.bindPopup(p.popupHtml, { minWidth: 180 })
+        else if (p.label) marker.bindPopup(p.label)
         markersRef.current.push(marker)
       })
       if (pins.length === 1) map.setView([pins[0].lat, pins[0].lng], zoom)

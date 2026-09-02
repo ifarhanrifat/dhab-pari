@@ -2083,7 +2083,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'af.waitingListHeading': 'Waiting behind ({n})',
     'af.nearbyPageTitle': 'Going Home', 'af.nearbyCardHint': 'Mark where you are — see every adda van, rickshaw & bike heading your way',
     'af.nearbyPageHint': 'Mark your current location and see everything for getting home from here — public transport at nearby addas, plus rickshaws, bikes and cars sharing their live position.',
-    'af.markOnMapBtn': 'Mark on map', 'af.tapMapHint': 'Tap the map where you are right now.',
+    'af.markOnMapBtn': 'Mark on map', 'af.tapMapHint': 'Drag the map until the pin sits on your location.',
     'af.confirmPinBtn': 'Confirm this spot', 'af.changePositionBtn': 'Change',
     'af.positionSetHint': 'Showing what\'s near your marked location',
     'af.publicTransportHeading': 'Public transport nearby', 'af.noNearbyAddas': 'No adda stands nearby.',
@@ -2127,6 +2127,7 @@ export const messages: Record<Locale, Record<string, string>> = {
 
     // Marketplace — static route maps + one-off return-trip ride-share
     'cm.clearOriginPin': 'Clear origin pin', 'cm.clearDestinationPin': 'Clear destination pin', 'cm.clearPin': 'Clear pin',
+    'cm.dragMapHint': 'Drag the map to fine-tune — the pin marks the center.', 'cm.panToStartHint': 'Move the map to place your pin.',
     'cm.mapPinsLabel': 'Route Map', 'cm.mapPinsHint': 'Tap the map to place the origin pin, then tap again for the destination — free OpenStreetMap, optional.',
     'cm.tripPostedToast': 'Trip posted', 'cm.fareAcceptedToast': 'Fare offer accepted', 'cm.fareCounteredToast': 'Counter-offer sent', 'cm.fareRejectedToast': 'Offer declined',
     'cm.tripCompletedToast': 'Trip marked complete',
@@ -6373,7 +6374,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'af.waitingListHeading': 'پیچھے انتظار میں ({n})',
     'af.nearbyPageTitle': 'گھر جانا', 'af.nearbyCardHint': 'اپنی جگہ نشان زد کریں — ہر اڈا ویگن، رکشہ اور بائیک اپنی طرف دیکھیں',
     'af.nearbyPageHint': 'اپنی موجودہ جگہ نشان زد کریں اور یہاں سے گھر جانے کے تمام ذرائع دیکھیں — قریبی اڈوں کی پبلک ٹرانسپورٹ، اور رکشے، بائیکس اور گاڑیاں جو اپنی لائیو لوکیشن شیئر کر رہی ہیں۔',
-    'af.markOnMapBtn': 'نقشے پر نشان لگائیں', 'af.tapMapHint': 'نقشے پر اپنی موجودہ جگہ پر ٹیپ کریں۔',
+    'af.markOnMapBtn': 'نقشے پر نشان لگائیں', 'af.tapMapHint': 'نقشہ گھسیٹیں یہاں تک کہ پن آپ کی جگہ پر آ جائے۔',
     'af.confirmPinBtn': 'یہ جگہ درست ہے', 'af.changePositionBtn': 'تبدیل کریں',
     'af.positionSetHint': 'آپ کی نشان زد جگہ کے قریب دکھایا جا رہا ہے',
     'af.publicTransportHeading': 'قریبی پبلک ٹرانسپورٹ', 'af.noNearbyAddas': 'قریب کوئی اڈا نہیں۔',
@@ -6417,6 +6418,7 @@ export const messages: Record<Locale, Record<string, string>> = {
 
     // Marketplace — static route maps + one-off return-trip ride-share
     'cm.clearOriginPin': 'ابتدائی پن ہٹائیں', 'cm.clearDestinationPin': 'منزل کا پن ہٹائیں', 'cm.clearPin': 'پن ہٹائیں',
+    'cm.dragMapHint': 'باریک ایڈجسٹمنٹ کے لیے نقشہ گھسیٹیں — پن مرکز کی نشاندہی کرتا ہے۔', 'cm.panToStartHint': 'اپنا پن رکھنے کے لیے نقشہ حرکت دیں۔',
     'cm.mapPinsLabel': 'روٹ کا نقشہ', 'cm.mapPinsHint': 'ابتدائی مقام کے لیے نقشے پر ٹیپ کریں، پھر منزل کے لیے دوبارہ ٹیپ کریں — مفت OpenStreetMap، اختیاری۔',
     'cm.tripPostedToast': 'سفر درج ہو گیا', 'cm.fareAcceptedToast': 'کرایہ کی پیشکش قبول ہو گئی', 'cm.fareCounteredToast': 'جوابی پیشکش بھیج دی گئی', 'cm.fareRejectedToast': 'پیشکش مسترد کر دی گئی',
     'cm.tripCompletedToast': 'سفر مکمل نشان زد ہو گیا',

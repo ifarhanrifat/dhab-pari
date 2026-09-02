@@ -69,6 +69,12 @@ function formatTime(t: string) {
   const h12 = h % 12 === 0 ? 12 : h % 12
   return `${h12}:${String(m).padStart(2, '0')} ${period}`
 }
+// Leaflet popups are raw HTML outside React's tree — escape anything
+// interpolated into one (an adda's own name/hours, admin-entered but
+// still worth not trusting blindly) so it can't break the markup.
+function escapeHtml(s: string) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
 
 export default function NearbyOpenTripsPage() {
   const { t, isUrdu } = useLocale()
@@ -166,9 +172,23 @@ export default function NearbyOpenTripsPage() {
   // same-size overlap still lets edges peek through but a big-over-small
   // one doesn't.
   const pins: MapPin[] = [
-    ...addas.filter((a) => a.lat != null && a.lng != null).map((a) => ({
-      lat: a.lat!, lng: a.lng!, color: '#7c3aed', emoji: '🚏', label: isUrdu && a.name_ur ? a.name_ur : a.name,
-    })),
+    ...addas.filter((a) => a.lat != null && a.lng != null).map((a) => {
+      const name = escapeHtml(isUrdu && a.name_ur ? a.name_ur : a.name)
+      const distanceLine = a.distance_km != null ? `${a.distance_km} ${escapeHtml(t('af.kmAway'))}` : ''
+      const hoursLine = a.operating_start_time && a.operating_end_time ? escapeHtml(`${formatTime(a.operating_start_time)} – ${formatTime(a.operating_end_time)}`) : ''
+      const subLine = [distanceLine, hoursLine].filter(Boolean).join(' · ')
+      // A real <a href> — Leaflet's popup DOM sits outside React, so a
+      // plain browser navigation is simpler and more robust here than
+      // wiring a click handler back into React state.
+      return {
+        lat: a.lat!, lng: a.lng!, color: '#7c3aed', emoji: '🚏',
+        popupHtml: `<div style="min-width:170px">`
+          + `<p style="margin:0;font-weight:700;font-size:13px;color:#1f2937;">${name}</p>`
+          + (subLine ? `<p style="margin:3px 0 0;font-size:11px;color:#6b7280;">${subLine}</p>` : '')
+          + `<a href="/portal/marketplace/adda?adda=${a.id}" style="display:inline-block;margin-top:8px;padding:5px 11px;background:var(--color-dp-secondary,#006c4e);color:#fff;border-radius:6px;font-size:11.5px;font-weight:700;text-decoration:none;">${escapeHtml(t('af.viewFullBoardBtn'))} →</a>`
+          + `</div>`,
+      }
+    }),
     ...trips.map((tr) => ({
       lat: tr.lat, lng: tr.lng, color: '#16a34a', emoji: vehicleEmoji(tr.vehicle_type),
       label: `${tr.owner_name} — ${isUrdu && tr.destination_ur ? tr.destination_ur : tr.destination}`,
