@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Search, Store, Bus, MapPin, Clock, CheckCircle2, XCircle, Navigation, Signpost, Radio } from 'lucide-react'
+import { Search, Store, Bus, MapPin, Clock, CheckCircle2, XCircle, Navigation, Signpost, Home } from 'lucide-react'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
@@ -188,7 +188,7 @@ export default function PortalMarketplacePage() {
           </div>
         </Link>
         <Link href="/portal/marketplace/nearby" className="flex items-center gap-2.5 bg-emerald-50 border border-emerald-200 rounded-lg p-4 hover:border-emerald-400 transition-colors">
-          <Radio size={18} className="text-emerald-700 shrink-0" />
+          <Home size={18} className="text-emerald-700 shrink-0" />
           <div>
             <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('af.nearbyPageTitle')}</p>
             <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('af.nearbyCardHint')}</p>

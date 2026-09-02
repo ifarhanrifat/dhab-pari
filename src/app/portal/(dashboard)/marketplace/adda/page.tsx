@@ -9,8 +9,9 @@
 // mirrors place_ride_booking) or a ride-request fare proposal
 // (propose_trip_fare, migration 400, completely untouched).
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, ArrowLeftRight, MapPin, Phone, Timer, Trophy, Users, Loader2 } from 'lucide-react'
@@ -35,9 +36,23 @@ function fmt(n: number) {
 }
 
 export default function AddaBoardPage() {
+  const { t } = useLocale()
+  return (
+    <Suspense fallback={<div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('action.loading')}</div>}>
+      <AddaBoardPageInner />
+    </Suspense>
+  )
+}
+
+function AddaBoardPageInner() {
   const { t, isUrdu } = useLocale()
   const { user } = usePortalUser()
   const supabase = createClient()
+  const searchParams = useSearchParams()
+  // Deep-linked from the "Going Home" nearby page — jump straight to
+  // whichever adda the rider was actually near, instead of always
+  // defaulting to the alphabetically-first one.
+  const preselectAddaId = searchParams.get('adda')
 
   const [addas, setAddas] = useState<Adda[]>([])
   const [activeAddaId, setActiveAddaId] = useState<string | null>(null)
@@ -51,10 +66,13 @@ export default function AddaBoardPage() {
   useEffect(() => {
     supabase.from('addas').select('id, name, name_ur, lat, lng, turn_minutes').eq('is_active', true).order('name').then(({ data }) => {
       setAddas(data ?? [])
-      if (data && data.length > 0) setActiveAddaId(data[0].id)
+      const preselected = preselectAddaId && data?.some((a) => a.id === preselectAddaId) ? preselectAddaId : null
+      if (preselected) setActiveAddaId(preselected)
+      else if (data && data.length > 0) setActiveAddaId(data[0].id)
       setLoading(false)
     })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const loadBoard = async (addaId: string) => {
     const { data } = await supabase.rpc('adda_board', { p_adda_id: addaId })
