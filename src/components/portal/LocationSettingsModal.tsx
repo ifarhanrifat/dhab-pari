@@ -14,6 +14,7 @@
 
 import { useEffect, useState } from 'react'
 import { MapPinOff, ShieldAlert, ExternalLink, X, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import type { LocationErrorReason } from '@/hooks/useLiveLocation'
 
@@ -39,15 +40,28 @@ export function LocationSettingsModal({ reason, onClose }: Props) {
         optionAndroid: reason === 'services_disabled' ? AndroidSettings.Location : AndroidSettings.ApplicationDetails,
         optionIOS: reason === 'services_disabled' ? IOSSettings.LocationServices : IOSSettings.App,
       })
-    } catch { /* nothing more we can do — the explanation text still stands */ }
-    setOpening(false)
-    onClose()
+      onClose()
+    } catch (err) {
+      // Surfaced rather than swallowed on purpose — a silent failure here
+      // gave no way to tell "the tap didn't register" (the z-index bug
+      // this modal shipped with) apart from "the native call itself
+      // genuinely failed." Keep the modal open so the message is visible
+      // instead of also closing on failure.
+      toast.error(err instanceof Error ? err.message : String(err))
+    } finally {
+      setOpening(false)
+    }
   }
 
   const disabled = reason === 'services_disabled'
 
+  // z-[200] to match every other modal in this app (WalletTopupModal etc. use
+  // 100-210) — this one shipped at Tailwind's default z-50, which sits below
+  // Leaflet's own internal panes/controls, so on a page with a map open (like
+  // this one) the map rendered visually above the modal and captured the tap
+  // meant for "Open Settings" instead of passing it through.
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[200] bg-black/50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
       <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center ${disabled ? 'bg-amber-50 text-amber-700' : 'bg-dp-secondary-container/50 text-dp-secondary'}`}>
