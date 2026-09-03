@@ -360,11 +360,30 @@ select.input-field {
      3. padding-bottom on the elements that clip, so the descenders have
         somewhere to go inside their box.
 
-   Sizes are hard-coded for now and become a Settings control later. */
+   Sizes are hard-coded for now and become a Settings control later.
+
+   The clipping this was fighting only ever happened inside a FIXED-height
+   box — a button, an input, a table row, a heading sitting on its own
+   line — and every one of those already gets its own dedicated,
+   deliberately-generous line-height below (buttons/labels/links 2.1,
+   inputs 2, table cells 2.3, h1-h3 2). This body-level rule is the
+   catch-all UNDER those — it's what a plain <p>/<div>/<span> inherits
+   when nothing more specific applies, which in practice means every
+   ordinary paragraph and multi-line description in the app. Free-flowing
+   text like that was never actually at risk of clipping (it has no fixed
+   height to be cut off by — the box just grows), so it never needed
+   2.3's worth of room; it just inherited the same number picked for a
+   genuinely tight single-line table cell. The visible result: a normal
+   two-line transaction description rendered nearly 3x as tall as it
+   needed to, reading as "the whole app has giant fonts" even though the
+   font-size itself was already scaled down (0.92em above, plus the
+   heading down-scales further below) — it was the SPACING, not the
+   size. 1.65 is generous enough that Nastaliq lines still don't collide
+   in ordinary flowing text, without the bloat. */
 html[lang='ur'] body {
   font-family: var(--font-urdu), serif;
   font-size: 0.92em;
-  line-height: 2.3;
+  line-height: 1.65;
 }
 
 html[lang='ur'] .font-sans,
