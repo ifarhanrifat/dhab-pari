@@ -11,6 +11,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { Capacitor } from '@capacitor/core'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Camera, Loader2, Minus, Plus, Trash2, Search, ShoppingCart, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -18,6 +19,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { takeNativePhoto } from '@/lib/nativeCamera'
 
 interface Shop { id: string; name: string; name_ur: string | null }
 interface Product { id: string; name: string; name_ur: string | null; company: string | null; flavor: string | null; flavor_ur: string | null; unit_price_pkr: number; quantity_on_hand: number }
@@ -89,6 +91,22 @@ export default function SellPage() {
   }
   const removeRow = (productId: string) => setBill((rows) => rows.filter((r) => r.product_id !== productId))
 
+  // Same native-camera-first split as my-shop's own scan button — see
+  // src/lib/nativeCamera.ts for why the plain <input capture> path isn't
+  // trustworthy inside the native Android shell.
+  const openScanner = async () => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const file = await takeNativePhoto()
+        if (file) runScan(file)
+      } catch {
+        // user backed out of the camera sheet — nothing to report
+      }
+      return
+    }
+    scanInputRef.current?.click()
+  }
+
   const runScan = async (file: File) => {
     if (!shop) return
     setScanning(true)
@@ -144,7 +162,7 @@ export default function SellPage() {
       <div className="flex items-center gap-2 mb-4">
         <input ref={scanInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) runScan(f) }} />
-        <button onClick={() => scanInputRef.current?.click()} disabled={scanning}
+        <button onClick={openScanner} disabled={scanning}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-60">
           {scanning ? <Loader2 size={17} className="animate-spin" /> : <Camera size={17} />} {scanning ? t('sk.scanningLabel') : t('sk.scanItemBtn')}
         </button>

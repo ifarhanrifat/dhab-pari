@@ -11,12 +11,14 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { Capacitor } from '@capacitor/core'
 import { createClient } from '@/lib/supabase/client'
 import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, BarChart3, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { takeNativePhoto } from '@/lib/nativeCamera'
 import { WalletTopupModal } from '@/components/portal/WalletTopupModal'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { getCategoryLabel } from '@/lib/shopTypes'
@@ -114,6 +116,23 @@ export default function MyShopPage() {
     setCoverUrl(coverByProduct[p.id] ?? '')
     setChangingCategory(false)
     setShowForm(true)
+  }
+
+  // Native shell: launch the real device camera directly (the OS
+  // WebView's <input capture> doesn't reliably do this — see
+  // src/lib/nativeCamera.ts). Plain mobile browser: unchanged, falls
+  // through to the hidden file input, which already works there.
+  const openScanner = async () => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const file = await takeNativePhoto()
+        if (file) runScan(file)
+      } catch {
+        // user backed out of the camera sheet — nothing to report
+      }
+      return
+    }
+    scanInputRef.current?.click()
   }
 
   const runScan = async (file: File) => {
@@ -235,7 +254,7 @@ export default function MyShopPage() {
       <div className="flex items-center gap-2 flex-wrap mb-4">
         <input ref={scanInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) runScan(f) }} />
-        <button onClick={() => scanInputRef.current?.click()} disabled={scanning}
+        <button onClick={openScanner} disabled={scanning}
           className="flex items-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-60">
           {scanning ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />} {scanning ? t('sk.scanningLabel') : t('sk.scanProductBtn')}
         </button>
