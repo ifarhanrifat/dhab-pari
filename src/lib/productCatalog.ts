@@ -573,8 +573,181 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
       { name: 'Rose Petal Pocket Tissue', name_ur: 'روز پیٹل پاکٹ ٹشو', category: 'tissue_paper' },
     ],
   },
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Added against the "Village Portal Marketplace / Shop Portal" design
+  // handoff's own brand list (SHOP_PORTAL_HANDOFF.md §2) to close the
+  // real gaps it named that weren't in the batch above. Unlike that
+  // original batch, these were NOT re-checked live against each brand's
+  // own site tonight — they're well-known, long-standing Pakistani FMCG
+  // brands filled in from general knowledge, same shape/convention as
+  // everything above, but flagged here so that distinction stays honest
+  // rather than silently blurred. Worth a live pass later the same way
+  // the original batch got one.
+  {
+    slug: 'ismail_confectionery', name: 'Hilal / Super Crisp (Ismail Industries)', name_ur: 'ہلال / سپر کرسپ', icon: 'Candy',
+    items: [
+      { name: 'Hilal', name_ur: 'ہلال', flavor: 'Milk Candy', flavor_ur: 'دودھ ٹافی', category: 'confectionery' },
+      { name: 'Hilal Toffee', name_ur: 'ہلال ٹافی', category: 'confectionery' },
+      { name: 'Super Crisp', name_ur: 'سپر کرسپ', flavor: 'Salted', flavor_ur: 'نمکین', category: 'chips_nimko' },
+      { name: 'Super Crisp', name_ur: 'سپر کرسپ', flavor: 'Chatpata', flavor_ur: 'چٹپٹا', category: 'chips_nimko' },
+    ],
+  },
+  {
+    slug: 'pakola', name: 'Pakola', name_ur: 'پاکولا', icon: 'CupSoda',
+    items: sizedDrink('Pakola', 'پاکولا', 'beverages').filter((d) => d.flavor !== '2.25 Litre PET Bottle'),
+  },
+  {
+    slug: 'shezan', name: 'Shezan', name_ur: 'شیزان', icon: 'CupSoda',
+    items: [
+      { name: 'Shezan', name_ur: 'شیزان', flavor: 'Mango Juice', flavor_ur: 'آم کا جوس', category: 'beverages' },
+      { name: 'Shezan', name_ur: 'شیزان', flavor: 'Apple Juice', flavor_ur: 'سیب کا جوس', category: 'beverages' },
+      { name: 'Shezan', name_ur: 'شیزان', flavor: 'Guava Nectar', flavor_ur: 'امرود کا جوس', category: 'beverages' },
+      { name: 'Shezan Squash', name_ur: 'شیزان سکواش', flavor: 'Lemon', flavor_ur: 'لیموں', category: 'beverages' },
+      { name: 'Shezan Jam', name_ur: 'شیزان جیم', flavor: 'Mixed Fruit', flavor_ur: 'مکس فروٹ', category: 'honey_jam_spreads' },
+    ],
+  },
+  {
+    slug: 'mehran', name: 'Mehran Foods', name_ur: 'مہران فوڈز', icon: 'Flame',
+    items: [
+      { name: 'Mehran', name_ur: 'مہران', flavor: 'Biryani Masala', flavor_ur: 'بریانی مصالحہ', category: 'spices_masala' },
+      { name: 'Mehran', name_ur: 'مہران', flavor: 'Karahi Masala', flavor_ur: 'کڑاہی مصالحہ', category: 'spices_masala' },
+      { name: 'Mehran', name_ur: 'مہران', flavor: 'Chicken Fry Masala', flavor_ur: 'چکن فرائی مصالحہ', category: 'spices_masala' },
+      { name: 'Mehran Red Chilli Powder', name_ur: 'مہران لال مرچ پاؤڈر', category: 'spices_masala' },
+      { name: 'Mehran Salt', name_ur: 'مہران نمک', category: 'sugar_salt' },
+    ],
+  },
+  {
+    slug: 'ahmed_foods', name: 'Ahmed Foods', name_ur: 'احمد فوڈز', icon: 'Flame',
+    items: [
+      { name: 'Ahmed', name_ur: 'احمد', flavor: 'Mango Pickle', flavor_ur: 'آم کا اچار', category: 'pickles_sauces' },
+      { name: 'Ahmed', name_ur: 'احمد', flavor: 'Mixed Pickle', flavor_ur: 'مکس اچار', category: 'pickles_sauces' },
+      { name: 'Ahmed Ketchup', name_ur: 'احمد کیچپ', category: 'pickles_sauces' },
+      { name: 'Ahmed Chilli Garlic Sauce', name_ur: 'احمد چلی گارلک ساس', category: 'pickles_sauces' },
+    ],
+  },
+  {
+    slug: 'rafhan', name: 'Rafhan', name_ur: 'رفحان', icon: 'Milk',
+    items: [
+      { name: 'Rafhan', name_ur: 'رفحان', flavor: 'Custard Powder', flavor_ur: 'کسٹرڈ پاؤڈر', category: 'honey_jam_spreads' },
+      { name: 'Rafhan Corn Flour', name_ur: 'رفحان کارن فلور', category: 'grains_pulses' },
+      { name: 'Rafhan', name_ur: 'رفحان', flavor: 'Jelly', flavor_ur: 'جیلی', category: 'honey_jam_spreads' },
+    ],
+  },
+  {
+    slug: 'knorr', name: 'Knorr', name_ur: 'نار', icon: 'Soup',
+    items: [
+      { name: 'Knorr', name_ur: 'نار', flavor: 'Chicken Noodles', flavor_ur: 'چکن نوڈلز', category: 'noodles_pasta' },
+      { name: 'Knorr Chicken Cubes', name_ur: 'نار چکن کیوبز', category: 'spices_masala' },
+      { name: 'Knorr', name_ur: 'نار', flavor: 'Chicken Corn Soup', flavor_ur: 'چکن کارن سوپ', category: 'pickles_sauces' },
+    ],
+  },
+  {
+    slug: 'shangrila', name: 'Shangrila Foods', name_ur: 'شانگریلا فوڈز', icon: 'Flame',
+    items: [
+      { name: 'Shangrila', name_ur: 'شانگریلا', flavor: 'Biryani Masala', flavor_ur: 'بریانی مصالحہ', category: 'spices_masala' },
+      { name: 'Shangrila', name_ur: 'شانگریلا', flavor: 'Mango Pickle', flavor_ur: 'آم کا اچار', category: 'pickles_sauces' },
+      { name: 'Shangrila Squash', name_ur: 'شانگریلا سکواش', flavor: 'Lemon', flavor_ur: 'لیموں', category: 'beverages' },
+    ],
+  },
+  {
+    slug: 'mitchells', name: "Mitchell's", name_ur: 'مچلز', icon: 'Flame',
+    items: [
+      { name: "Mitchell's Jam", name_ur: 'مچلز جیم', flavor: 'Mixed Fruit', flavor_ur: 'مکس فروٹ', category: 'honey_jam_spreads' },
+      { name: "Mitchell's", name_ur: 'مچلز', flavor: 'Mango Pickle', flavor_ur: 'آم کا اچار', category: 'pickles_sauces' },
+      { name: "Mitchell's Tomato Ketchup", name_ur: 'مچلز ٹماٹر کیچپ', category: 'pickles_sauces' },
+      { name: "Mitchell's Squash", name_ur: 'مچلز سکواش', flavor: 'Lemon', flavor_ur: 'لیموں', category: 'beverages' },
+    ],
+  },
+  {
+    slug: 'habib_oil', name: 'Habib Oil Mills', name_ur: 'حبیب آئل ملز', icon: 'Droplet',
+    items: [
+      { name: 'Habib Cooking Oil', name_ur: 'حبیب کوکنگ آئل', category: 'cooking_oil_ghee' },
+      { name: 'Habib Banaspati Ghee', name_ur: 'حبیب بناسپتی گھی', category: 'cooking_oil_ghee' },
+    ],
+  },
+  {
+    slug: 'jj_baby', name: "Johnson's / Canbebe", name_ur: 'جانسنز / کنبیبی', icon: 'Baby',
+    items: [
+      { name: "Johnson's Baby Soap", name_ur: 'جانسنز بےبی صابن', category: 'diapers_wipes' },
+      { name: "Johnson's Baby Shampoo", name_ur: 'جانسنز بےبی شیمپو', category: 'diapers_wipes' },
+      { name: "Johnson's Baby Powder", name_ur: 'جانسنز بےبی پاؤڈر', category: 'diapers_wipes' },
+      { name: 'Canbebe Diapers', name_ur: 'کنبیبی ڈائپرز', flavor: 'Medium', flavor_ur: 'میڈیم', category: 'diapers_wipes' },
+      { name: 'Canbebe Diapers', name_ur: 'کنبیبی ڈائپرز', flavor: 'Large', flavor_ur: 'لارج', category: 'diapers_wipes' },
+    ],
+  },
 ]
 
 export function getAllCatalogBrands(): CatalogBrand[] {
   return PRODUCT_CATALOG
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Non-branded / loose goods — deliberately absent from this catalog
+// until now. The Shop Portal design handoff calls these out as
+// first-class, not an afterthought ("46 loose lines... sold by
+// کلو/پاؤ/درجن/عدد/لیٹر/میٹر"), and that's a genuine gap: everything
+// above is a real packaged brand SKU, but a village kiryana store's
+// actual bulk goods (loose atta, loose tea, produce, meat) had no place
+// in this data model at all. Modelled as its own type rather than
+// forced into CatalogBrand/CatalogItem — a loose good has no brand, no
+// flavor axis, and is priced by weight/unit rather than a fixed pack
+// size, which is a genuinely different shape, not a variant of the
+// branded one. `unit` is the sale unit a shopkeeper actually quotes at
+// the counter (کلو/پاؤ/درجن/عدد/لیٹر), matching the handoff's own list.
+export interface LooseGood {
+  slug: string
+  name: string
+  name_ur: string
+  unit: string
+  unit_ur: string
+  category: string
+}
+
+export const LOOSE_GOODS: LooseGood[] = [
+  { slug: 'atta', name: 'Wheat Flour (Atta)', name_ur: 'آٹا', unit: 'kg', unit_ur: 'کلو', category: 'grains_pulses' },
+  { slug: 'sugar', name: 'Sugar', name_ur: 'چینی', unit: 'kg', unit_ur: 'کلو', category: 'sugar_salt' },
+  { slug: 'rice_loose', name: 'Rice (loose)', name_ur: 'چاول', unit: 'kg', unit_ur: 'کلو', category: 'grains_pulses' },
+  { slug: 'daal_chana', name: 'Chana Daal', name_ur: 'چنے کی دال', unit: 'kg', unit_ur: 'کلو', category: 'grains_pulses' },
+  { slug: 'daal_masoor', name: 'Masoor Daal', name_ur: 'مسور کی دال', unit: 'kg', unit_ur: 'کلو', category: 'grains_pulses' },
+  { slug: 'daal_moong', name: 'Moong Daal', name_ur: 'مونگ کی دال', unit: 'kg', unit_ur: 'کلو', category: 'grains_pulses' },
+  { slug: 'daal_mash', name: 'Mash Daal', name_ur: 'ماش کی دال', unit: 'kg', unit_ur: 'کلو', category: 'grains_pulses' },
+  { slug: 'besan', name: 'Gram Flour (Besan)', name_ur: 'بیسن', unit: 'kg', unit_ur: 'کلو', category: 'grains_pulses' },
+  { slug: 'suji', name: 'Semolina (Suji)', name_ur: 'سوجی', unit: 'kg', unit_ur: 'کلو', category: 'grains_pulses' },
+  { slug: 'salt_loose', name: 'Salt (loose)', name_ur: 'نمک', unit: 'kg', unit_ur: 'کلو', category: 'sugar_salt' },
+  { slug: 'gur', name: 'Jaggery (Gur)', name_ur: 'گڑ', unit: 'kg', unit_ur: 'کلو', category: 'sugar_salt' },
+  { slug: 'tea_loose', name: 'Loose Tea', name_ur: 'کھلی چائے', unit: 'kg', unit_ur: 'کلو', category: 'tea_coffee' },
+  { slug: 'spice_haldi', name: 'Turmeric (loose)', name_ur: 'ہلدی', unit: 'kg', unit_ur: 'کلو', category: 'spices_masala' },
+  { slug: 'spice_mirch', name: 'Red Chilli Powder (loose)', name_ur: 'لال مرچ', unit: 'kg', unit_ur: 'کلو', category: 'spices_masala' },
+  { slug: 'spice_dhania', name: 'Coriander Powder (loose)', name_ur: 'دھنیا پاؤڈر', unit: 'kg', unit_ur: 'کلو', category: 'spices_masala' },
+  { slug: 'spice_zeera', name: 'Cumin (loose)', name_ur: 'زیرہ', unit: 'kg', unit_ur: 'کلو', category: 'spices_masala' },
+  { slug: 'spice_garam_masala', name: 'Garam Masala (loose)', name_ur: 'گرم مصالحہ', unit: 'kg', unit_ur: 'کلو', category: 'spices_masala' },
+  { slug: 'spice_kalonji', name: 'Kalonji (loose)', name_ur: 'کلونجی', unit: 'kg', unit_ur: 'کلو', category: 'spices_masala' },
+  { slug: 'meat_chicken_live', name: 'Live Chicken', name_ur: 'زندہ مرغی', unit: 'kg', unit_ur: 'کلو', category: 'meat_poultry' },
+  { slug: 'meat_chicken_cut', name: 'Chicken (cut/slaughtered)', name_ur: 'ذبح شدہ مرغی', unit: 'kg', unit_ur: 'کلو', category: 'meat_poultry' },
+  { slug: 'meat_chicken_boneless', name: 'Boneless Chicken', name_ur: 'بون لیس چکن', unit: 'kg', unit_ur: 'کلو', category: 'meat_poultry' },
+  { slug: 'meat_mutton', name: 'Mutton', name_ur: 'مٹن', unit: 'kg', unit_ur: 'کلو', category: 'meat_poultry' },
+  { slug: 'meat_beef', name: 'Beef', name_ur: 'بیف', unit: 'kg', unit_ur: 'کلو', category: 'meat_poultry' },
+  { slug: 'meat_qeema', name: 'Qeema (mince)', name_ur: 'قیمہ', unit: 'kg', unit_ur: 'کلو', category: 'meat_poultry' },
+  { slug: 'meat_kaleji', name: 'Kaleji (liver)', name_ur: 'کلیجی', unit: 'kg', unit_ur: 'کلو', category: 'meat_poultry' },
+  { slug: 'produce_eggs', name: 'Eggs', name_ur: 'انڈے', unit: 'dozen', unit_ur: 'درجن', category: 'fruits_vegetables' },
+  { slug: 'produce_potato', name: 'Potato', name_ur: 'آلو', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  { slug: 'produce_onion', name: 'Onion', name_ur: 'پیاز', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  { slug: 'produce_tomato', name: 'Tomato', name_ur: 'ٹماٹر', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  { slug: 'produce_garlic', name: 'Garlic', name_ur: 'لہسن', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  { slug: 'produce_ginger', name: 'Ginger', name_ur: 'ادرک', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  { slug: 'produce_banana', name: 'Banana', name_ur: 'کیلا', unit: 'dozen', unit_ur: 'درجن', category: 'fruits_vegetables' },
+  { slug: 'produce_apple', name: 'Apple', name_ur: 'سیب', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  { slug: 'home_broom', name: 'Broom', name_ur: 'جھاڑو', unit: 'piece', unit_ur: 'عدد', category: 'household' },
+  { slug: 'home_wiper', name: 'Floor Wiper', name_ur: 'وائپر', unit: 'piece', unit_ur: 'عدد', category: 'household' },
+  { slug: 'home_mop', name: 'Mop', name_ur: 'ایم او پی', unit: 'piece', unit_ur: 'عدد', category: 'household' },
+  { slug: 'home_bucket', name: 'Bucket', name_ur: 'بالٹی', unit: 'piece', unit_ur: 'عدد', category: 'household' },
+  { slug: 'home_tub', name: 'Wash Tub', name_ur: 'ٹب', unit: 'piece', unit_ur: 'عدد', category: 'household' },
+  { slug: 'home_scrub', name: 'Scrub Pad', name_ur: 'سکرب', unit: 'piece', unit_ur: 'عدد', category: 'household' },
+  { slug: 'home_matches', name: 'Matches', name_ur: 'ماچس', unit: 'piece', unit_ur: 'عدد', category: 'household' },
+  { slug: 'home_candles', name: 'Candles', name_ur: 'موم بتی', unit: 'piece', unit_ur: 'عدد', category: 'household' },
+  { slug: 'home_rope', name: 'Rope', name_ur: 'رسی', unit: 'meter', unit_ur: 'میٹر', category: 'household' },
+  { slug: 'gas_lpg_refill', name: 'LPG Cylinder Refill', name_ur: 'ایل پی جی ری فل', unit: 'kg', unit_ur: 'کلو', category: 'domestic_refill' },
+  { slug: 'gas_empty_small', name: 'Empty Small Cylinder', name_ur: 'خالی چھوٹا سلنڈر', unit: 'piece', unit_ur: 'عدد', category: 'portable_cylinder' },
+  { slug: 'kerosene', name: 'Kerosene Oil', name_ur: 'مٹی کا تیل', unit: 'litre', unit_ur: 'لیٹر', category: 'household' },
+]

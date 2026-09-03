@@ -17,7 +17,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { getShopTypeTree, getCategoryLabel } from '@/lib/shopTypes'
 import {
   getCatalogForShopType, brandsForShopType, selectedCountByBrand, starterSetEntries,
-  groupByCategory, countByDept, searchCatalogEntries, ownedKey, type CatalogEntry,
+  groupByCategory, countByDept, searchCatalogEntries, ownedKey, looseGoodsAsCatalogEntries, type CatalogEntry,
 } from '@/lib/catalogSelection'
 import { TILE_COLORS, CategoryPicker } from './CategoryBrowser'
 import { DynamicIcon } from './DynamicIcon'
@@ -34,8 +34,21 @@ interface BrandItemPickerProps {
 export function BrandItemPicker({ primaryType, ownedProducts, selection }: BrandItemPickerProps) {
   const { t, isUrdu } = useLocale()
   const tree = useMemo(() => getShopTypeTree(primaryType), [primaryType])
-  const catalog = useMemo(() => getCatalogForShopType(primaryType), [primaryType])
-  const brands = useMemo(() => brandsForShopType(primaryType), [primaryType])
+  const looseEntries = useMemo(() => looseGoodsAsCatalogEntries(primaryType), [primaryType])
+  // Loose goods join the flat catalog (search, "select everything", the
+  // Departments lens all read off this) — a shopkeeper searching "آٹا"
+  // should find the loose one same as a branded item would. They also get
+  // appended as one more brand-style group in the Brands lens below,
+  // rather than getting scattered across whichever category each one
+  // belongs to — "بغیر برانڈ / کھلا سامان" is meant to read as its own
+  // section, per the design handoff's own framing.
+  const catalog = useMemo(() => [...getCatalogForShopType(primaryType), ...looseEntries], [primaryType, looseEntries])
+  const brands = useMemo(() => {
+    const real = brandsForShopType(primaryType)
+    return looseEntries.length > 0
+      ? [...real, { brandSlug: 'loose', brandName: 'Unbranded / Loose Goods', brandName_ur: 'بغیر برانڈ / کھلا سامان', brandIcon: 'Scale', entries: looseEntries }]
+      : real
+  }, [primaryType, looseEntries])
   const starterSet = useMemo(() => starterSetEntries(primaryType), [primaryType])
   const ownedKeys = useMemo(() => new Set(ownedProducts.map((p) => ownedKey(p.name, p.flavor))), [ownedProducts])
   const availableForPick = (e: CatalogEntry) => !ownedKeys.has(ownedKey(e.item.name, e.item.flavor))

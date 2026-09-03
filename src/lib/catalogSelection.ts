@@ -9,7 +9,7 @@
 // flattens it once so lookups, grouping and search are all just array/map
 // ops over CATALOG_INDEX.
 
-import { PRODUCT_CATALOG, type CatalogItem } from './productCatalog'
+import { PRODUCT_CATALOG, LOOSE_GOODS, type CatalogItem, type LooseGood } from './productCatalog'
 import { getShopTypeTree, type CategoryDepartment } from './shopTypes'
 
 export interface CatalogEntry {
@@ -134,6 +134,39 @@ const STARTER_EXCLUDED_CATEGORIES: Record<string, string[]> = {
 export function starterSetEntries(primaryType: string): CatalogEntry[] {
   const excluded = new Set(STARTER_EXCLUDED_CATEGORIES[primaryType] ?? [])
   return getCatalogForShopType(primaryType).filter((e) => !excluded.has(e.item.category))
+}
+
+// Loose goods have no brand/flavor axis (see LooseGood in productCatalog.ts)
+// — rather than teach useCatalogSelection/BulkPriceReview/the commit
+// pipeline in ShopCatalogSection a second row shape, each loose good is
+// wrapped as a CatalogEntry with a synthetic "loose" brand ("بغیر برانڈ /
+// کھلا سامان", per the design handoff's own wording) and no flavor. Same
+// key format as catalogKey() (`loose::${slug}::`) so it stays distinct
+// from every real branded key, and the whole tick → price → commit flow
+// downstream works completely unchanged — it never has to know a row
+// came from a loose good instead of a real brand.
+const LOOSE_BRAND_NAME = 'Unbranded / Loose Goods'
+const LOOSE_BRAND_NAME_UR = 'بغیر برانڈ / کھلا سامان'
+
+export function looseGoodsForShopType(primaryType: string): LooseGood[] {
+  const validSlugs = new Set(getShopTypeTree(primaryType).flatMap((d) => d.categories.map((c) => c.slug)))
+  return LOOSE_GOODS.filter((g) => validSlugs.has(g.category))
+}
+
+export function looseGoodsAsCatalogEntries(primaryType: string): CatalogEntry[] {
+  // The unit (کلو/درجن/عدد/لیٹر/میٹر) rides in the existing flavor field
+  // rather than a new shop_products column — a loose good's "flavor" is
+  // meaningless anyway, and this slot already renders next to the name
+  // everywhere a product shows up, so "آٹا (کلو)" falls out for free.
+  return looseGoodsForShopType(primaryType).map((g) => ({
+    key: `loose::${g.slug}::`,
+    brandSlug: 'loose', brandName: LOOSE_BRAND_NAME, brandName_ur: LOOSE_BRAND_NAME_UR, brandIcon: 'Scale',
+    item: { name: g.name, name_ur: g.name_ur, category: g.category, flavor: g.unit, flavor_ur: g.unit_ur },
+  }))
+}
+
+export function getLooseGood(slug: string): LooseGood | undefined {
+  return LOOSE_GOODS.find((g) => g.slug === slug)
 }
 
 export function roundTo(value: number, nearest: number): number {
