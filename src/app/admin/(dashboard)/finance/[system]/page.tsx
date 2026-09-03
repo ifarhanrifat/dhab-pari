@@ -1179,6 +1179,22 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     const cfg = voucherConfig[activeType as VoucherType]
     if (!voucherForm.fromId || !voucherForm.toId) { toast.error(`${t('v.chooseBoth', 'Choose both')} ${t(cfg.fromLabelKey, cfg.fromLabel)} ${t('v.and', 'and')} ${t(cfg.toLabelKey, cfg.toLabel)}`); return }
     if (voucherForm.fromId === voucherForm.toId) { toast.error(t('fw.fromToMustDiffer')); return }
+    // The account picker deliberately lists accounts from every system this
+    // admin can access (get_transactions_workspace_shell), not just the one
+    // this page is on — but the voucher itself is always tagged with just
+    // this page's `system`, unconditionally. Picking an account that
+    // actually belongs to the other system (an easy mistake when both
+    // systems' cash/bank accounts sit in the same dropdown) silently files
+    // a real transaction under the wrong system: it shows up in the wrong
+    // system's transaction list and never touches the right system's chart
+    // of accounts, while the ledger itself still posts correctly against
+    // whichever accounts were actually picked — exactly the bug a
+    // committee cash-to-bank transfer hit in production. Block it here
+    // instead of only detecting it after the fact.
+    const fromAcct = accounts.find((a) => a.id === voucherForm.fromId)
+    const toAcct = accounts.find((a) => a.id === voucherForm.toId)
+    if (fromAcct && fromAcct.system !== system) { toast.error(t('fw.accountWrongSystem', 'That account belongs to the other system — pick one from this system, or create this voucher from that system\'s page instead.')); return }
+    if (toAcct && toAcct.system !== system) { toast.error(t('fw.accountWrongSystem', 'That account belongs to the other system — pick one from this system, or create this voucher from that system\'s page instead.')); return }
     if (!voucherForm.amount || voucherForm.amount <= 0) { toast.error(t('fw.enterValidAmount')); return }
     if (!voucherForm.particular.trim()) { toast.error(t('fw.descriptionRequired')); return }
     setSaving(true)
@@ -1214,6 +1230,15 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     if (!voucherForm.particular.trim()) { toast.error(t('fw.descriptionRequired')); return }
     const validLines = voucherLines.filter((l) => l.account_id && l.amount > 0)
     if (validLines.length === 0) { toast.error(t('fw.addExpenseLine')); return }
+    // Same cross-system guard as saveVoucher — the account picker isn't
+    // scoped to this page's system, so both the pay-from account and every
+    // line's account need checking.
+    const fromAcct = accounts.find((a) => a.id === voucherForm.fromId)
+    if (fromAcct && fromAcct.system !== system) { toast.error(t('fw.accountWrongSystem', 'That account belongs to the other system — pick one from this system, or create this voucher from that system\'s page instead.')); return }
+    for (const l of validLines) {
+      const lineAcct = accounts.find((a) => a.id === l.account_id)
+      if (lineAcct && lineAcct.system !== system) { toast.error(t('fw.accountWrongSystem', 'That account belongs to the other system — pick one from this system, or create this voucher from that system\'s page instead.')); return }
+    }
     setSaving(true)
 
     const { data: draft, error: draftErr } = await supabase.from('vouchers').insert({
@@ -2663,8 +2688,10 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                             <p className="font-sans text-[12px] text-dp-on-surface-variant whitespace-nowrap">{new Date(c.date).toLocaleDateString('en-GB')}</p>
                           </div>
                         </div>
-                        <div className="flex justify-between items-end gap-3 mt-1.5">
-                          <p className="font-sans text-[13px] text-dp-on-surface-variant truncate">{c.description}</p>
+                        {c.description && (
+                          <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1.5 whitespace-normal break-words">{c.description}</p>
+                        )}
+                        <div className="flex justify-end mt-1.5">
                           <div className="text-end shrink-0">
                             <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">{fmtAmount(c.amount)}</p>
                             {c.badge && (

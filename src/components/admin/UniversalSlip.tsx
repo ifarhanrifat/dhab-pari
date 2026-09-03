@@ -48,15 +48,23 @@ function L({ data, k, className = '', style }: { data: ReceiptData; k: DocString
 
 // In a ~70px icon caption the inline "English / اردو" form wraps mid-phrase.
 // Stack the two scripts on their own lines there instead.
-function WaNumber({ number, size, gap }: { number: string; size: number; gap: number }) {
+//
+// The pair's own digits always run left-to-right (a phone number doesn't
+// reverse in Urdu) — what changes is which side the icon sits on: English
+// reads left-to-right, so the icon leads (icon, then number); Urdu reads
+// right-to-left, so the icon should trail on the right of the number
+// instead — reversing the DOM order inside this still-LTR flex row is
+// what actually moves it there.
+function WaNumber({ number, size, gap, reverse = false }: { number: string; size: number; gap: number; reverse?: boolean }) {
   const href = waHref(number)
+  const icon = <SlipIcon name="whatsapp" size={size} />
+  const digits = <Ltr style={{ fontWeight: 700 }}>{number}</Ltr>
   const pair = (
     <span dir="ltr" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      <SlipIcon name="whatsapp" size={size} />
-      <Ltr style={{ fontWeight: 700 }}>{number}</Ltr>
+      {reverse ? <>{digits}{icon}</> : <>{icon}{digits}</>}
     </span>
   )
-  const body = <span style={{ marginInlineStart: gap }}>{pair}</span>
+  const body = <span style={{ marginInlineStart: gap, display: 'inline-block' }}>{pair}</span>
   return href ? <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{body}</a> : body
 }
 
@@ -163,7 +171,13 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
   // Split into its own rows rather than one bilingual sentence, so the box has
   // room for the full wording at a readable size.
   const boxFont = thermal ? f(0.9) : f(1)
-  const boxRow: React.CSSProperties = { fontSize: boxFont, color: '#14532d', lineHeight: 2, whiteSpace: 'nowrap' }
+  // whiteSpace was 'nowrap' to keep each line tight, but that forced a long
+  // label + number + icon combination wider than the box itself to overflow
+  // right out of the green background instead of wrapping inside it —
+  // exactly the "number is displaying outside the green belt" bug. Letting
+  // it wrap keeps everything inside the box's own painted area, which
+  // matters far more than staying on one line.
+  const boxRow: React.CSSProperties = { fontSize: boxFont, color: '#14532d', lineHeight: 2, whiteSpace: 'normal' }
   const waSize = Math.round(boxFont * 1.15)
   const waGap = thermal ? 6 : 12
   // Settings wording wins where it has been filled in; the built-in strings
@@ -568,7 +582,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
             {helplines.length > 0 && helpUr && (
               <div dir="rtl" style={{ ...boxRow, ...urduFont, textAlign: 'right' }}>
                 {helpUr}
-                {helplines.map((n) => <WaNumber key={n} number={n} size={waSize} gap={waGap} />)}
+                {helplines.map((n) => <WaNumber key={n} number={n} size={waSize} gap={waGap} reverse />)}
               </div>
             )}
             {helplines.length > 0 && !helpUr && helpEn && (
@@ -581,7 +595,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
                 {cmpEn && <span dir="ltr" style={{ display: 'inline-block' }}>{cmpEn}</span>}
                 {cmpEn && cmpUr && <span style={{ opacity: 0.55 }}> / </span>}
                 {cmpUr && <span dir="rtl" style={{ ...urduFont, display: 'inline-block' }}>{cmpUr}</span>}
-                {complaints.map((n) => <WaNumber key={n} number={n} size={waSize} gap={waGap} />)}
+                {complaints.map((n) => <WaNumber key={n} number={n} size={waSize} gap={waGap} reverse={urduLed} />)}
               </div>
             )}
           </div>
