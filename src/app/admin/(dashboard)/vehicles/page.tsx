@@ -31,6 +31,7 @@ interface Vehicle {
   id: string; owner_name: string; owner_mobile: string | null; owner_whatsapp: string | null
   vehicle_type: string; vehicle_number: string | null; total_seats: number; is_active: boolean
   portal_user_id: string | null; commission_mode: string; lumpsum_fee_pkr: number | null; night_booking_enabled: boolean
+  allows_out_of_city: boolean
 }
 interface Route {
   id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
@@ -60,6 +61,7 @@ interface AddaBoard { adda: Adda; pair_adda: Adda | null; entries: AddaBoardEntr
 const emptyVehicle = {
   owner_name: '', owner_mobile: '', owner_whatsapp: '', vehicle_type: '', vehicle_number: '', total_seats: 4, is_active: true,
   portal_user_id: null as string | null, commission_mode: 'per_order' as string, lumpsum_fee_pkr: 0, night_booking_enabled: false,
+  allows_out_of_city: true,
 }
 const emptyRoute = {
   origin: '', origin_ur: '', destination: '', destination_ur: '', classification: 'intercity',
@@ -398,7 +400,7 @@ function AdminVehiclesInner() {
       owner_name: v.owner_name, owner_mobile: v.owner_mobile ?? '', owner_whatsapp: v.owner_whatsapp ?? '',
       vehicle_type: v.vehicle_type, vehicle_number: v.vehicle_number ?? '', total_seats: v.total_seats, is_active: v.is_active,
       portal_user_id: v.portal_user_id, commission_mode: v.commission_mode, lumpsum_fee_pkr: v.lumpsum_fee_pkr ?? 0,
-      night_booking_enabled: v.night_booking_enabled,
+      night_booking_enabled: v.night_booking_enabled, allows_out_of_city: v.allows_out_of_city,
     })
     setKeeperMobile('')
     if (v.portal_user_id) {
@@ -759,6 +761,8 @@ function AdminVehiclesInner() {
               <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.totalSeatsLabel')}</label><input type="number" value={vehicleForm.total_seats || ''} onChange={(e) => setVehicleForm({ ...vehicleForm, total_seats: +e.target.value })} className="input-field" placeholder="0" /></div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={vehicleForm.is_active} onChange={(e) => setVehicleForm({ ...vehicleForm, is_active: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('mk.vehicleActiveLabel')}</span></label>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={vehicleForm.night_booking_enabled} onChange={(e) => setVehicleForm({ ...vehicleForm, night_booking_enabled: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('af.nightBookingLabel')}</span></label>
+              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={vehicleForm.allows_out_of_city} onChange={(e) => setVehicleForm({ ...vehicleForm, allows_out_of_city: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('mk.allowsOutOfCityLabel')}</span></label>
+              <p className="font-sans text-[11px] text-dp-on-surface-variant -mt-1.5">{t('mk.allowsOutOfCityHint')}</p>
 
               <div className="pt-2 border-t border-dp-outline-variant/60">
                 <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.modeLabel')}</label>

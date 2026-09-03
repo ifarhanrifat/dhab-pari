@@ -1,25 +1,24 @@
 'use client'
 
-// Marketplace phase 4 — portal catalog: search across every shop's
-// products, browse shops and vehicle routes, and see the status of your
-// own orders/bookings. Checkout itself (cart, seat picker) lives on the
-// shop/route detail pages this links into — this page is discovery + "what
-// did I already order/book".
+// Marketplace hub — two pillars (Shops & Market / Travel & Transport),
+// matching the original design spec's own home-screen framing
+// ("01 دکانیں اور بازار" / "02 سفر اور ٹرانسپورٹ") instead of the flat
+// tile grid this page used to be. Search and "my orders/bookings" stay
+// here since they cut across both pillars; shop browsing moved to
+// /shops, every travel-related tile (adda/order-city/pro/commute/nearby/
+// trips) plus the map moved to /travel. "My Conversations" also stays
+// here — fetch/share/pro negotiation threads can originate from either
+// pillar, so it doesn't belong nested under just one.
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Search, Store, Bus, MapPin, Clock, CheckCircle2, XCircle, Navigation, Signpost, Home } from 'lucide-react'
+import { Search, Store, Clock, CheckCircle2, XCircle, MessageCircle } from 'lucide-react'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
-interface Shop { id: string; name: string; name_ur: string | null; location: string | null; location_ur: string | null; delivery_enabled: boolean }
-interface Route {
-  id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
-  classification: string; fare_per_seat_pkr: number
-}
 interface SearchResult {
   product_id: string; product_name: string; product_name_ur: string | null; flavor: string | null; flavor_ur: string | null; unit_price_pkr: number
   shop_id: string; shop_name: string; shop_name_ur: string | null; shop_location: string | null; shop_location_ur: string | null; delivery_enabled: boolean
@@ -43,27 +42,11 @@ export default function PortalMarketplacePage() {
   const { user, loading: userLoading } = usePortalUser()
   const supabase = createClient()
 
-  const [shops, setShops] = useState<Shop[]>([])
-  const [routes, setRoutes] = useState<Route[]>([])
-  const [routeVehicleNames, setRouteVehicleNames] = useState<Record<string, string>>({})
   const [orders, setOrders] = useState<ShopOrder[]>([])
   const [bookings, setBookings] = useState<RideBooking[]>([])
   const [query, setQuery] = useState('')
   const [searching, setSearching] = useState(false)
   const [results, setResults] = useState<SearchResult[] | null>(null)
-
-  useEffect(() => {
-    supabase.from('shops').select('id, name, name_ur, location, location_ur, delivery_enabled').eq('status', 'active').order('name')
-      .then(({ data }) => setShops(data ?? []))
-    supabase.from('vehicle_routes').select('id, vehicle_id, origin, origin_ur, destination, destination_ur, classification, fare_per_seat_pkr').eq('is_active', true).order('origin')
-      .then(async ({ data }) => {
-        setRoutes(data ?? [])
-        if (data && data.length > 0) {
-          const { data: vehicles } = await supabase.from('vehicles').select('id, owner_name').in('id', data.map((r) => r.vehicle_id))
-          setRouteVehicleNames(Object.fromEntries((vehicles ?? []).map((v) => [v.id, v.owner_name])))
-        }
-      })
-  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -164,59 +147,38 @@ export default function PortalMarketplacePage() {
         </div>
       )}
 
-      <div className="mb-8">
-        <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('mp.shopsHeading')}</p>
-        {shops.length === 0 && <p className="font-sans text-[13.5px] text-dp-on-surface-variant">{t('mp.noShopsListed')}</p>}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {shops.map((s) => (
-            <Link key={s.id} href={`/portal/marketplace/shop/${s.id}`} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 hover:border-dp-secondary transition-colors">
-              <p className="font-sans text-[14px] font-semibold text-dp-on-surface truncate">{isUrdu && s.name_ur ? s.name_ur : s.name}</p>
-              {s.location && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5 flex items-center gap-1"><MapPin size={11} /> {isUrdu ? (s.location_ur || s.location) : s.location}</p>}
-              <span className={`inline-block mt-2 text-[10.5px] font-bold px-2 py-0.5 rounded-full ${s.delivery_enabled ? 'bg-sky-100 text-sky-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>
-                {s.delivery_enabled ? t('mk.deliveryEnabled') : t('mk.pickupOnly')}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
-        <Link href="/portal/marketplace/adda" className="flex items-center gap-2.5 bg-dp-secondary-container/40 border border-dp-secondary/20 rounded-lg p-4 hover:border-dp-secondary transition-colors">
-          <Signpost size={18} className="text-dp-secondary shrink-0" />
+      <div className="flex flex-col gap-3 mb-6">
+        <Link href="/portal/marketplace/shops" className="flex items-center gap-3.5 bg-dp-secondary-container/60 border border-dp-secondary/25 rounded-xl p-5 hover:border-dp-secondary transition-colors">
+          <div className="w-12 h-12 rounded-xl bg-white/50 flex items-center justify-center shrink-0"><Store size={22} className="text-dp-on-secondary-container" /></div>
           <div>
-            <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('af.addaBoardPageTitle')}</p>
-            <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('af.addaBoardCardHint')}</p>
+            <p className="font-heading text-[18px] font-bold text-dp-on-secondary-container">{t('mp.shopsPillarTitle')}</p>
+            <p className="font-sans text-[12.5px] text-dp-on-secondary-container/80 mt-0.5">{t('mp.shopsPillarHint')}</p>
           </div>
         </Link>
-        <Link href="/portal/marketplace/nearby" className="flex items-center gap-2.5 bg-emerald-50 border border-emerald-200 rounded-lg p-4 hover:border-emerald-400 transition-colors">
-          <Home size={18} className="text-emerald-700 shrink-0" />
+        <Link href="/portal/marketplace/travel" className="flex items-center gap-3.5 bg-dp-primary rounded-xl p-5 hover:opacity-90 transition-opacity">
+          <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center shrink-0"><MapPinIcon /></div>
           <div>
-            <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('af.nearbyPageTitle')}</p>
-            <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('af.nearbyCardHint')}</p>
-          </div>
-        </Link>
-        <Link href="/portal/marketplace/trips" className="flex items-center gap-2.5 bg-dp-primary-container/40 border border-dp-primary/20 rounded-lg p-4 hover:border-dp-primary transition-colors">
-          <Navigation size={18} className="text-dp-primary shrink-0" />
-          <div>
-            <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('cm.tripsPageTitle')}</p>
-            <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('cm.tripsCardHint')}</p>
+            <p className="font-heading text-[18px] font-bold text-white">{t('mp.travelPillarTitle')}</p>
+            <p className="font-sans text-[12.5px] text-white/75 mt-0.5">{t('mp.travelPillarHint')}</p>
           </div>
         </Link>
       </div>
 
-      <div>
-        <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><Bus size={13} /> {t('mp.routesHeading')}</p>
-        {routes.length === 0 && <p className="font-sans text-[13.5px] text-dp-on-surface-variant">{t('mp.noRoutesListed')}</p>}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {routes.map((r) => (
-            <Link key={r.id} href={`/portal/marketplace/route/${r.id}`} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 hover:border-dp-secondary transition-colors">
-              <p className="font-sans text-[14px] font-semibold text-dp-on-surface flex items-center gap-1.5"><MapPin size={13} className="text-dp-secondary shrink-0" /> {isUrdu && r.origin_ur ? r.origin_ur : r.origin} → {isUrdu && r.destination_ur ? r.destination_ur : r.destination}</p>
-              <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{routeVehicleNames[r.vehicle_id] ?? ''}</p>
-              <p className="font-sans text-[14px] font-bold text-dp-secondary mt-1.5">{fmt(r.fare_per_seat_pkr)} <span className="font-normal text-dp-on-surface-variant text-[11.5px]">{t('mk.perSeat')}</span></p>
-            </Link>
-          ))}
+      <Link href="/portal/marketplace/negotiations" className="flex items-center gap-2.5 bg-white border border-dp-outline-variant rounded-lg p-3.5 hover:border-dp-secondary transition-colors">
+        <MessageCircle size={18} className="text-dp-secondary shrink-0" />
+        <div>
+          <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('vp.myConversationsTitle')}</p>
+          <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('vp.conversationsCardHint')}</p>
         </div>
-      </div>
+      </Link>
     </div>
+  )
+}
+
+function MapPinIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
+      <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+    </svg>
   )
 }

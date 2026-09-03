@@ -601,8 +601,11 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
 
         {/* Branded icon row — icon plus a small caption, so a reader who doesn't
             recognise a glyph still knows what it opens. Never raw URLs here;
-            the full address stays in the href. */}
-        {iconLinks.length > 0 && (
+            the full address stays in the href. Dropped for donor/donation
+            receipts specifically (per the committee's own request) — kept
+            for water bills/vouchers/salary slips, which weren't part of that
+            ask. */}
+        {!isDonorSystem && iconLinks.length > 0 && (
           <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: thermal ? 8 : iconGap, marginTop: thermal ? 10 : 16 }}>
             {iconLinks.map((l) => (
               <a
