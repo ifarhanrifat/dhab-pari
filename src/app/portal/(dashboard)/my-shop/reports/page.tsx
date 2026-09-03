@@ -11,7 +11,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Clock, PackageX, CheckCircle2, XCircle, Search } from 'lucide-react'
+import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Clock, Package, PackageX, PackagePlus, CheckCircle2, XCircle, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -23,6 +23,7 @@ interface Shop { id: string; name: string; name_ur: string | null; commission_mo
 interface Summary {
   balance_pkr: number; commission_mode: string; lumpsum_fee_pkr: number | null
   today_earnings_pkr: number; month_earnings_pkr: number; month_profit_pkr: number
+  today_purchase_pkr?: number; stock_value_pkr?: number
   pending_orders_count: number; low_stock_count: number; expiring_count: number
   last_settlement_date: string | null; last_settlement_amount: number | null
 }
@@ -143,6 +144,14 @@ export default function ShopReportsPage() {
         <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
           <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant flex items-center gap-1"><TrendingDown size={12} /> {t('cm.monthProfitLabel')}</p>
           <p className="font-heading text-[19px] font-bold text-emerald-700 mt-1">{fmt(summary?.month_profit_pkr ?? 0)}</p>
+        </div>
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant flex items-center gap-1"><PackagePlus size={12} /> {t('cm.todayPurchaseLabel')}</p>
+          <p className="font-heading text-[19px] font-bold text-amber-700 mt-1">{fmt(summary?.today_purchase_pkr ?? 0)}</p>
+        </div>
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant flex items-center gap-1"><Package size={12} /> {t('cm.stockValueLabel')}</p>
+          <p className="font-heading text-[19px] font-bold text-dp-on-surface mt-1">{fmt(summary?.stock_value_pkr ?? 0)}</p>
         </div>
       </div>
 
