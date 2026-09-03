@@ -2688,10 +2688,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                             <p className="font-sans text-[12px] text-dp-on-surface-variant whitespace-nowrap">{new Date(c.date).toLocaleDateString('en-GB')}</p>
                           </div>
                         </div>
-                        {c.description && (
-                          <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1.5 whitespace-normal break-words">{c.description}</p>
-                        )}
-                        <div className="flex justify-end mt-1.5">
+                        <div className="flex justify-between items-start gap-3 mt-1.5">
+                          <p className="font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-wide">{c.description && t('f.remark')}</p>
                           <div className="text-end shrink-0">
                             <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">{fmtAmount(c.amount)}</p>
                             {c.badge && (
@@ -2701,6 +2699,9 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                             )}
                           </div>
                         </div>
+                        {c.description && (
+                          <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5 whitespace-normal break-words">{c.description}</p>
+                        )}
                       </>
                     )}
                     <div className="flex justify-between items-center gap-3 mt-2.5 pt-2.5 border-t border-dp-outline-variant/60">
