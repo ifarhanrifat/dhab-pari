@@ -53,6 +53,7 @@ export default function ShopDetailPage() {
   const [bookable, setBookable] = useState(true)
   const [activeDept, setActiveDept] = useState<string | null>(null)
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
+  const [deliveryFeePkr, setDeliveryFeePkr] = useState(0)
 
   useEffect(() => {
     const shopId = params.shopId
@@ -60,10 +61,12 @@ export default function ShopDetailPage() {
       supabase.from('shops').select('*').eq('id', shopId).single(),
       supabase.from('shop_products').select('*').eq('shop_id', shopId).eq('is_active', true).order('name'),
       supabase.rpc('shop_bookable', { p_shop_id: shopId }),
-    ]).then(([{ data: s }, { data: p }, { data: bk }]) => {
+      supabase.from('site_settings').select('value').eq('key', 'village_delivery_flat_fee_pkr').maybeSingle(),
+    ]).then(([{ data: s }, { data: p }, { data: bk }, { data: fee }]) => {
       setShop(s)
       setProducts(p ?? [])
       setBookable(bk !== false)
+      setDeliveryFeePkr(fee?.value ? Number(fee.value) : 0)
       setLoading(false)
       if (p && p.length > 0) {
         supabase.from('product_media').select('product_id, url').eq('is_cover', true).in('product_id', p.map((x) => x.id))
@@ -238,8 +241,18 @@ export default function ShopDetailPage() {
             </div>
           ))}
           <div className="flex items-center justify-between pt-2 mt-2 border-t border-dp-outline-variant">
+            <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('mp.goodsSubtotal')}</p>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant">{fmt(cartTotal)}</p>
+          </div>
+          {deliveryFeePkr > 0 && (
+            <div className="flex items-center justify-between py-1">
+              <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('mp.deliveryFee')}</p>
+              <p className="font-sans text-[13px] text-dp-on-surface-variant">{fmt(deliveryFeePkr)}</p>
+            </div>
+          )}
+          <div className="flex items-center justify-between pt-2 mt-1 border-t border-dp-outline-variant">
             <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('mp.cartTotal')}</p>
-            <p className="font-heading text-[19px] font-bold text-dp-secondary">{fmt(cartTotal)}</p>
+            <p className="font-heading text-[19px] font-bold text-dp-secondary">{fmt(cartTotal + deliveryFeePkr)}</p>
           </div>
 
           <div className="mt-4">
