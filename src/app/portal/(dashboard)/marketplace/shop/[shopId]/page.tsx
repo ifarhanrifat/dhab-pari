@@ -9,8 +9,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, MapPin, Minus, Plus, ShoppingCart, ChevronRight, LayoutGrid } from 'lucide-react'
+import { ArrowLeft, MapPin, Minus, Plus, ShoppingCart, ChevronRight, LayoutGrid, Search, Flame, MapPinned } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -27,11 +28,51 @@ interface Shop {
 }
 interface Product {
   id: string; name: string; name_ur: string | null; flavor: string | null; flavor_ur: string | null
-  category: string | null; unit_price_pkr: number; quantity_on_hand: number; is_active: boolean
+  category: string | null; company: string | null; unit_price_pkr: number; quantity_on_hand: number; is_active: boolean
 }
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
+}
+
+// Module-level, not nested inside the page component — a component
+// declared inside another component's render body gets a fresh function
+// identity every render, which makes React remount it (and any input
+// inside it) on every keystroke elsewhere on the page. Cost a real bug
+// in StockListView.tsx tonight; not repeating it here.
+function ProductCard({ p, isUrdu, cover, qty, max, canBuy, onQty, t }: {
+  p: Product; isUrdu: boolean; cover?: string; qty: number; max: number; canBuy: boolean
+  onQty: (productId: string, qty: number, max: number) => void; t: (k: string) => string
+}) {
+  return (
+    <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
+      <div className="h-24 bg-dp-surface-container">
+        {cover && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={cover} alt="" className="w-full h-full object-cover" />
+        )}
+      </div>
+      <div className="p-2.5">
+        <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface truncate">
+          {isUrdu && p.name_ur ? p.name_ur : p.name}
+          {(isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) && <span className="font-normal text-dp-on-surface-variant"> ({isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})</span>}
+        </p>
+        {p.company && <p className="font-sans text-[10.5px] text-dp-on-surface-variant truncate">{p.company}</p>}
+        <p className="font-sans text-[13.5px] font-bold text-dp-secondary mt-0.5">{fmt(p.unit_price_pkr)}</p>
+        {canBuy && (
+          p.quantity_on_hand <= 0 ? (
+            <p className="font-sans text-[11px] text-dp-error mt-1.5">{t('mp.outOfStock')}</p>
+          ) : (
+            <div className="flex items-center justify-between gap-1 mt-1.5">
+              <button onClick={() => onQty(p.id, qty - 1, max)} className="w-6 h-6 rounded-full bg-dp-surface-container-high flex items-center justify-center cursor-pointer"><Minus size={12} /></button>
+              <span className="font-sans text-[13px] font-bold ltr-num">{qty}</span>
+              <button onClick={() => onQty(p.id, qty + 1, max)} className="w-6 h-6 rounded-full bg-dp-secondary text-white flex items-center justify-center cursor-pointer"><Plus size={12} /></button>
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  )
 }
 
 export default function ShopDetailPage() {
@@ -54,6 +95,10 @@ export default function ShopDetailPage() {
   const [activeDept, setActiveDept] = useState<string | null>(null)
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [deliveryFeePkr, setDeliveryFeePkr] = useState(0)
+  const [search, setSearch] = useState('')
+  const [brandFilter, setBrandFilter] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState<'name' | 'cheap' | 'expensive'>('name')
+  const [popularIds, setPopularIds] = useState<string[]>([])
 
   useEffect(() => {
     const shopId = params.shopId
@@ -72,6 +117,13 @@ export default function ShopDetailPage() {
         supabase.from('product_media').select('product_id, url').eq('is_cover', true).in('product_id', p.map((x) => x.id))
           .then(({ data }) => setCoverByProduct(Object.fromEntries((data ?? []).map((m) => [m.product_id, m.url]))))
       }
+    })
+    // shop_popular_products (migration 433) may not exist live yet on
+    // every deploy the instant this ships — fail silently into "no
+    // popular row" rather than an error toast the buyer can't do
+    // anything about; the row just doesn't appear until it's live.
+    supabase.rpc('shop_popular_products', { p_shop_id: shopId }).then(({ data, error }) => {
+      if (!error && Array.isArray(data)) setPopularIds(data)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.shopId])
@@ -100,6 +152,35 @@ export default function ShopDetailPage() {
   const departmentsPresent = shopTree.filter((d) => d.categories.some((c) => (countByCategory[c.slug] ?? 0) > 0))
   const categoriesPresent = (deptKey: string) => (shopTree.find((d) => d.key === deptKey)?.categories ?? []).filter((c) => (countByCategory[c.slug] ?? 0) > 0)
   const visibleProducts = activeCategory ? products.filter((p) => categoryOf(p) === activeCategory) : []
+
+  // Brand rail (shop front) / brand chips (browse) — only brands this
+  // shop actually carries, real names only (no "—" placeholder chip;
+  // an unbranded/loose item still shows up via search/category, it just
+  // doesn't get its own brand chip since the design's کھلا سامان chip
+  // concept maps to "no brand filter selected, still findable by name").
+  const brandsInShop = useMemo(() => {
+    const names = new Set<string>()
+    for (const p of products) if (p.company?.trim()) names.add(p.company.trim())
+    return [...names].sort()
+  }, [products])
+
+  const searchActive = search.trim().length > 0 || brandFilter !== null
+  const searchResults = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    let rows = products
+    if (q) rows = rows.filter((p) => p.name.toLowerCase().includes(q) || (p.name_ur ?? '').includes(q) || (p.company ?? '').toLowerCase().includes(q) || (p.flavor ?? '').toLowerCase().includes(q))
+    if (brandFilter) rows = rows.filter((p) => (p.company ?? '').trim() === brandFilter)
+    const sorted = [...rows]
+    if (sortBy === 'cheap') sorted.sort((a, b) => a.unit_price_pkr - b.unit_price_pkr)
+    else if (sortBy === 'expensive') sorted.sort((a, b) => b.unit_price_pkr - a.unit_price_pkr)
+    else sorted.sort((a, b) => a.name.localeCompare(b.name))
+    return sorted
+  }, [products, search, brandFilter, sortBy])
+
+  const popularProducts = useMemo(() => {
+    const byId = new Map(products.map((p) => [p.id, p]))
+    return popularIds.map((id) => byId.get(id)).filter((p): p is Product => !!p)
+  }, [products, popularIds])
 
   const submit = async () => {
     if (cartItems.length === 0) { toast.error(t('mp.cartEmpty')); return }
@@ -144,6 +225,77 @@ export default function ShopDetailPage() {
         </div>
       )}
 
+      {/* Search + brand rail — shown on the shop front regardless of
+          department/category drill state, so "just find the thing" always
+          works without navigating tiles first. Typing a query or tapping a
+          brand switches the page into flat search-results mode below,
+          bypassing the department drill entirely (see searchActive). */}
+      {!activeDept && (
+        <div className="mt-5">
+          <div className="relative mb-3">
+            <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant/60 pointer-events-none" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('mp.searchInShopPlaceholder')}
+              className="w-full ps-9 pe-3 py-2.5 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[14px] font-sans text-dp-on-surface" />
+          </div>
+          {brandsInShop.length > 1 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+              <button onClick={() => setBrandFilter(null)} className={`shrink-0 px-3 py-1.5 rounded-full text-[12px] font-sans font-semibold cursor-pointer border ${!brandFilter ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{t('cb.allTab')}</button>
+              {brandsInShop.map((b) => (
+                <button key={b} onClick={() => setBrandFilter(b)} className={`shrink-0 px-3 py-1.5 rounded-full text-[12px] font-sans font-semibold cursor-pointer border ${brandFilter === b ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{b}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Popular — real sales data (shop_popular_products, migration 433),
+          not a guess; hides itself entirely once that RPC isn't live yet
+          or the shop has no sales history. */}
+      {!activeDept && !searchActive && popularProducts.length > 0 && (
+        <div className="mt-5">
+          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><Flame size={13} /> {t('mp.popularHeading')}</p>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {popularProducts.map((p) => (
+              <div key={p.id} className="w-32 shrink-0">
+                <ProductCard p={p} isUrdu={isUrdu} cover={coverByProduct[p.id]} qty={cart[p.id] ?? 0} max={p.quantity_on_hand}
+                  canBuy={shop.delivery_enabled && bookable} onQty={setQty} t={t} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Flat search/brand results — combinable, sortable, with a live
+          count and (on zero results) a hand-off into the city-fetch flow
+          rather than a dead end. */}
+      {searchActive ? (
+        <div className="mt-5">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('mp.resultsCount').replace('{n}', String(searchResults.length))}</p>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} className="px-2.5 py-1.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-[12.5px] text-dp-on-surface">
+              <option value="name">{t('mp.sortByName')}</option>
+              <option value="cheap">{t('mp.sortCheapFirst')}</option>
+              <option value="expensive">{t('mp.sortExpensiveFirst')}</option>
+            </select>
+          </div>
+          {searchResults.length === 0 ? (
+            <div className="text-center py-8 bg-white border border-dp-outline-variant rounded-lg">
+              <p className="font-sans text-[13.5px] text-dp-on-surface-variant mb-3">{t('mp.noResultsInShop')}</p>
+              <Link href="/portal/marketplace/order-city" className="inline-flex items-center gap-1.5 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all">
+                <MapPinned size={14} /> {t('mp.orderFromCityBtn')}
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {searchResults.map((p) => (
+                <ProductCard key={p.id} p={p} isUrdu={isUrdu} cover={coverByProduct[p.id]} qty={cart[p.id] ?? 0} max={p.quantity_on_hand}
+                  canBuy={shop.delivery_enabled && bookable} onQty={setQty} t={t} />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+      <>
       {/* Department → category → products, same drill-down shape a real
           department store's app would use — a shop with a handful of
           items still works fine (one department, one category, straight
@@ -200,35 +352,13 @@ export default function ShopDetailPage() {
           <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{(() => { const c = shopTree.flatMap((d) => d.categories).find((c) => c.slug === activeCategory); return c ? (isUrdu ? c.label_ur : c.label) : '' })()}</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {visibleProducts.map((p) => (
-              <div key={p.id} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
-                <div className="h-24 bg-dp-surface-container">
-                  {coverByProduct[p.id] && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={coverByProduct[p.id]} alt="" className="w-full h-full object-cover" />
-                  )}
-                </div>
-                <div className="p-2.5">
-                  <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface truncate">
-                    {isUrdu && p.name_ur ? p.name_ur : p.name}
-                    {(isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) && <span className="font-normal text-dp-on-surface-variant"> ({isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})</span>}
-                  </p>
-                  <p className="font-sans text-[13.5px] font-bold text-dp-secondary mt-0.5">{fmt(p.unit_price_pkr)}</p>
-                  {shop.delivery_enabled && bookable && (
-                    p.quantity_on_hand <= 0 ? (
-                      <p className="font-sans text-[11px] text-dp-error mt-1.5">{t('mp.outOfStock')}</p>
-                    ) : (
-                      <div className="flex items-center justify-between gap-1 mt-1.5">
-                        <button onClick={() => setQty(p.id, (cart[p.id] ?? 0) - 1, p.quantity_on_hand)} className="w-6 h-6 rounded-full bg-dp-surface-container-high flex items-center justify-center cursor-pointer"><Minus size={12} /></button>
-                        <span className="font-sans text-[13px] font-bold ltr-num">{cart[p.id] ?? 0}</span>
-                        <button onClick={() => setQty(p.id, (cart[p.id] ?? 0) + 1, p.quantity_on_hand)} className="w-6 h-6 rounded-full bg-dp-secondary text-white flex items-center justify-center cursor-pointer"><Plus size={12} /></button>
-                      </div>
-                    )
-                  )}
-                </div>
-              </div>
+              <ProductCard key={p.id} p={p} isUrdu={isUrdu} cover={coverByProduct[p.id]} qty={cart[p.id] ?? 0} max={p.quantity_on_hand}
+                canBuy={shop.delivery_enabled && bookable} onQty={setQty} t={t} />
             ))}
           </div>
         </div>
+      )}
+      </>
       )}
 
       {shop.delivery_enabled && bookable && cartItems.length > 0 && (
