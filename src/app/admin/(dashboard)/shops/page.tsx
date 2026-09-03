@@ -376,6 +376,14 @@ function AdminShopsInner() {
     load()
   }
 
+  const inlineUpdate = (productId: string, field: 'cost_price_pkr' | 'unit_price_pkr' | 'quantity_on_hand', value: number) => {
+    if (!selected) return
+    setProducts((rows) => rows.map((p) => (p.id === productId ? { ...p, [field]: value } : p)))
+    supabase.from('shop_products').update({ [field]: value }).eq('id', productId).then(({ error }) => {
+      if (error) { toast.error(friendlyError(error)); loadProducts(selected.id) }
+    })
+  }
+
   const deleteProduct = async (p: Product) => {
     if (!confirm(t('mk.confirmDeleteProduct'))) return
     const { error } = await supabase.from('shop_products').delete().eq('id', p.id)
@@ -467,6 +475,7 @@ function AdminShopsInner() {
             products={products}
             onAddItem={openNewProduct}
             onCommitted={() => loadProducts(selected.id)}
+            onInlineUpdate={inlineUpdate}
             renderProduct={(p) => {
               const tone = expiryTone(p.expiry_date)
               return (

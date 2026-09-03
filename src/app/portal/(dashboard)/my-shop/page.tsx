@@ -199,6 +199,14 @@ export default function MyShopPage() {
     loadProducts(shop.id)
   }
 
+  const inlineUpdate = (productId: string, field: 'cost_price_pkr' | 'unit_price_pkr' | 'quantity_on_hand', value: number) => {
+    if (!shop) return
+    setProducts((rows) => rows.map((p) => (p.id === productId ? { ...p, [field]: value } : p)))
+    supabase.from('shop_products').update({ [field]: value }).eq('id', productId).then(({ error }) => {
+      if (error) { toast.error(friendlyError(error)); loadProducts(shop.id) }
+    })
+  }
+
   const remove = async (p: Product) => {
     if (!confirm(t('mk.confirmDeleteProduct'))) return
     const { error } = await supabase.from('shop_products').delete().eq('id', p.id)
@@ -266,6 +274,7 @@ export default function MyShopPage() {
         products={products}
         onAddItem={openNew}
         onCommitted={() => loadProducts(shop.id)}
+        onInlineUpdate={inlineUpdate}
         renderProduct={(p) => (
           <div key={p.id} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
             <div className="h-28 bg-dp-surface-container relative">

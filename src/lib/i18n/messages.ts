@@ -1971,6 +1971,9 @@ export const messages: Record<Locale, Record<string, string>> = {
     'sk.scanProductBtn': 'Scan Product', 'sk.scanningLabel': 'Reading photo...', 'sk.addManuallyBtn': 'Add Manually',
     'sk.changeCategoryBtn': 'Change',
     'cb.searchPlaceholder': 'Search your products...', 'cb.searchResultsCount': '{n} result(s)', 'cb.noMatches': 'No products match that search.',
+    'sl.listViewTab': 'List', 'sl.tilesViewTab': 'Categories', 'sl.viewAll': 'All items', 'sl.viewByBrand': 'By brand', 'sl.viewLoose': 'Loose only',
+    'sl.itemCol': 'Item', 'sl.qtyCol': 'Qty', 'sl.costCol': 'Cost', 'sl.saleCol': 'Sale', 'sl.marginCol': 'Margin',
+    'sl.noCompany': 'No brand', 'sl.looseGroupHeading': 'Unbranded / Loose Goods', 'sl.stockValueAtCost': 'Stock value (cost):',
     'cb.departmentsHeading': 'Departments', 'cb.addItemBtn': 'Add Item', 'cb.categoryEmpty': 'Nothing added here yet — tap "Add Item" to start.',
     'cb.allTab': 'All',
 
@@ -6356,6 +6359,9 @@ export const messages: Record<Locale, Record<string, string>> = {
     'sk.scanProductBtn': 'چیز اسکین کریں', 'sk.scanningLabel': 'تصویر پڑھی جا رہی ہے...', 'sk.addManuallyBtn': 'خود شامل کریں',
     'sk.changeCategoryBtn': 'تبدیل کریں',
     'cb.searchPlaceholder': 'اپنی اشیاء تلاش کریں...', 'cb.searchResultsCount': '{n} نتیجہ/نتائج', 'cb.noMatches': 'اس تلاش سے کوئی چیز نہیں ملی۔',
+    'sl.listViewTab': 'فہرست', 'sl.tilesViewTab': 'زمرہ جات', 'sl.viewAll': 'سب آئٹم', 'sl.viewByBrand': 'برانڈ وائز', 'sl.viewLoose': 'کھلا سامان',
+    'sl.itemCol': 'آئٹم', 'sl.qtyCol': 'مقدار', 'sl.costCol': 'خرید قیمت', 'sl.saleCol': 'فروخت قیمت', 'sl.marginCol': 'منافع',
+    'sl.noCompany': 'بغیر برانڈ', 'sl.looseGroupHeading': 'بغیر برانڈ / کھلا سامان', 'sl.stockValueAtCost': 'خرید قیمت پر مالیت:',
     'cb.departmentsHeading': 'شعبے', 'cb.addItemBtn': 'چیز شامل کریں', 'cb.categoryEmpty': 'یہاں ابھی کچھ شامل نہیں ہوا — "چیز شامل کریں" پر ٹیپ کریں۔',
     'cb.allTab': 'تمام',
 

@@ -15,7 +15,7 @@
 // Stock" mid-pick and survives the browse/price swap for free.
 
 import { useEffect, useRef, useState } from 'react'
-import { Package, PackagePlus, Loader2, CheckCircle2, ChevronLeft } from 'lucide-react'
+import { Package, PackagePlus, Loader2, CheckCircle2, ChevronLeft, LayoutGrid, List } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -25,26 +25,49 @@ import { ownedKey } from '@/lib/catalogSelection'
 import { CategoryBrowser } from './CategoryBrowser'
 import { BrandItemPicker } from './BrandItemPicker'
 import { BulkPriceReview } from './BulkPriceReview'
+import { StockListView, type StockListProduct } from './StockListView'
 
-interface ShopCatalogSectionProps<P extends { name: string; name_ur?: string | null; company?: string | null; category: string | null; flavor?: string | null }> {
+interface ShopCatalogSectionProps<P extends StockListProduct> {
   shopId: string
   primaryType: string
   products: P[]
   renderProduct: (p: P) => React.ReactNode
   onAddItem: (categorySlug: string) => void
   onCommitted: () => void
+  // Powers the List view's inline qty/cost/sale editing — a direct
+  // shop_products field update, not a full re-open-the-modal edit. Kept
+  // as a prop (not done inside this component) so both callers' own
+  // toast/refresh conventions stay in charge, same as onCommitted above.
+  onInlineUpdate: (productId: string, field: 'cost_price_pkr' | 'unit_price_pkr' | 'quantity_on_hand', value: number) => void
 }
 
 const CHUNK_SIZE = 200
 
-export function ShopCatalogSection<P extends { name: string; name_ur?: string | null; company?: string | null; category: string | null; flavor?: string | null }>({
-  shopId, primaryType, products, renderProduct, onAddItem, onCommitted,
+export function ShopCatalogSection<P extends StockListProduct>({
+  shopId, primaryType, products, renderProduct, onAddItem, onCommitted, onInlineUpdate,
 }: ShopCatalogSectionProps<P>) {
   const { t } = useLocale()
   const supabase = createClient()
   const selection = useCatalogSelection(shopId)
   const [tab, setTab] = useState<'mystock' | 'addstock'>(() => (products.length > 0 ? 'mystock' : 'addstock'))
   const [mode, setMode] = useState<'browse' | 'price'>('browse')
+  const [stockView, setStockView] = useState<'tiles' | 'list'>('list')
+  const userPickedTab = useRef(false)
+  const setTabByUser = (t: 'mystock' | 'addstock') => { userPickedTab.current = true; setTab(t) }
+
+  // products starts as [] on every mount (the parent fetches it async,
+  // after this component has already rendered once) — the useState
+  // initializer above only ever sees that empty array, so a shop that
+  // genuinely HAS stock still opened on the Add Stock tab every time,
+  // simply because the real product list hadn't arrived yet at the
+  // instant the initial tab choice was made. Correct that exactly once,
+  // the first time real products actually show up — never once the
+  // keeper has clicked a tab themselves, so browsing Add Stock for more
+  // items after already having stock doesn't get yanked back.
+  useEffect(() => {
+    if (userPickedTab.current) return
+    if (products.length > 0) setTab('mystock')
+  }, [products.length])
   const [committing, setCommitting] = useState(false)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const barRef = useRef<HTMLDivElement>(null)
@@ -109,18 +132,34 @@ export function ShopCatalogSection<P extends { name: string; name_ur?: string | 
   return (
     <div>
       <div className="flex items-center gap-1.5 mb-4 border-b border-dp-outline-variant">
-        <button onClick={() => setTab('mystock')}
+        <button onClick={() => setTabByUser('mystock')}
           className={`flex items-center gap-1.5 px-3.5 py-2.5 font-sans text-[13.5px] font-semibold cursor-pointer border-b-2 -mb-px ${tab === 'mystock' ? 'border-dp-secondary text-dp-secondary' : 'border-transparent text-dp-on-surface-variant hover:text-dp-on-surface'}`}>
           <Package size={15} className="inline -mt-0.5 me-1.5" /> {t('bs.myStockTab')}{products.length > 0 && ` (${products.length})`}
         </button>
-        <button onClick={() => setTab('addstock')}
+        <button onClick={() => setTabByUser('addstock')}
           className={`flex items-center gap-1.5 px-3.5 py-2.5 font-sans text-[13.5px] font-semibold cursor-pointer border-b-2 -mb-px ${tab === 'addstock' ? 'border-dp-secondary text-dp-secondary' : 'border-transparent text-dp-on-surface-variant hover:text-dp-on-surface'}`}>
           <PackagePlus size={15} className="inline -mt-0.5 me-1.5" /> {t('bs.addStockTab')}
         </button>
       </div>
 
       {tab === 'mystock' ? (
-        <CategoryBrowser primaryType={primaryType} products={products} onAddItem={onAddItem} renderProduct={renderProduct} />
+        <>
+          {products.length > 0 && (
+            <div className="flex items-center gap-1.5 mb-3">
+              <button onClick={() => setStockView('list')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer border ${stockView === 'list' ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant hover:bg-dp-surface-container'}`}>
+                <List size={13} /> {t('sl.listViewTab')}
+              </button>
+              <button onClick={() => setStockView('tiles')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer border ${stockView === 'tiles' ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant hover:bg-dp-surface-container'}`}>
+                <LayoutGrid size={13} /> {t('sl.tilesViewTab')}
+              </button>
+            </div>
+          )}
+          {stockView === 'list' && products.length > 0
+            ? <StockListView products={products} onFieldSave={onInlineUpdate} />
+            : <CategoryBrowser primaryType={primaryType} products={products} onAddItem={onAddItem} renderProduct={renderProduct} />}
+        </>
       ) : (
         <>
           {selection.draftAvailable && (
