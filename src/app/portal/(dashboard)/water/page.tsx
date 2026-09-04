@@ -24,7 +24,7 @@ function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
 const monthName = (m: number) => new Date(2000, m - 1, 1).toLocaleDateString('en-US', { month: 'long' })
-const BILL_STATUS_KEY: Record<string, string> = { paid: 'w.paid', partial: 'tx.partial', unpaid: 'p.billStatusUnpaid' }
+const BILL_STATUS_KEY: Record<string, string> = { paid: 'w.paid', partial: 'tx.partial', unpaid: 'p.billStatusUnpaid', waived: 'tx.waivedStatus' }
 
 export default function PortalWaterPage() {
   const { t, isUrdu } = useLocale()
@@ -124,10 +124,10 @@ export default function PortalWaterPage() {
                     <td className="p-3 font-mono text-[13px] text-dp-on-surface-variant">{b.bill_number ?? '—'}</td>
                     <td className="p-3 text-end">{fmt(b.amount_pkr)}</td>
                     <td className="p-3 text-end">{fmt(b.paid_amount ?? 0)}</td>
-                    <td className="p-3"><span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${b.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{BILL_STATUS_KEY[b.status] ? t(BILL_STATUS_KEY[b.status]) : b.status}</span></td>
+                    <td className="p-3"><span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${b.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : b.status === 'waived' ? 'bg-dp-surface-container-low text-dp-on-surface-variant' : 'bg-amber-100 text-amber-700'}`}>{BILL_STATUS_KEY[b.status] ? t(BILL_STATUS_KEY[b.status]) : b.status}</span></td>
                     <td className="p-3 text-dp-on-surface-variant">{b.due_date ? new Date(b.due_date).toLocaleDateString('en-GB') : '—'}</td>
                     <td className="p-3 text-end">
-                      {b.status === 'paid' ? '—' : claim ? (
+                      {b.status === 'paid' || b.status === 'waived' ? '—' : claim ? (
                         <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${claim.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
                           {claim.status === 'approved' ? t('p.verified') : t('p.pendingVerification')}
                         </span>

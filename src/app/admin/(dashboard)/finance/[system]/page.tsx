@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   Save, Wallet, ArrowDownCircle, ArrowLeftRight, ArrowUpFromLine,
-  ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck, ChevronDown, Search, PlusCircle, ChevronLeft, HandCoins, SlidersHorizontal,
+  ArrowDownToLine, Receipt, Heart, Trash2, Clock, X, BookOpen, Repeat, Plus, FileText, ShoppingCart, Banknote, ArrowUpDown, Pencil, AlertTriangle, Filter, ShieldCheck, ChevronDown, Search, PlusCircle, ChevronLeft, HandCoins, SlidersHorizontal, HeartHandshake,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
@@ -19,8 +19,9 @@ import { FileAttachment } from '@/components/admin/FileAttachment'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import { donorReceiptTotals } from '@/lib/donorReceiptTotals'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
-import { billBadge, billBadgeClass, type BillBadgeTone } from '@/lib/billStatus'
+import { billBadge, billBadgeClass, receivableBadge, type BillBadgeTone } from '@/lib/billStatus'
 import { donationBadge } from '@/lib/donationStatus'
+import { WaiverDialog, type WaiverKind } from '@/components/admin/WaiverDialog'
 import { QuickAddAccountModal, type NewAccount } from '@/components/admin/QuickAddAccountModal'
 import { voucherReceiptKind, entryTypeLabel } from '@/lib/ledgerLabels'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -35,7 +36,7 @@ interface Account { id: string; name: string; name_ur: string | null; type: stri
 interface Consumer { consumer_id: string; name: string; monthly_rate: number; connections: number }
 interface Project { id: string; title: string }
 interface TxnCard {
-  id: string; kind: 'bill' | 'payment' | 'voucher' | 'donation' | 'purchase'
+  id: string; kind: 'bill' | 'payment' | 'voucher' | 'donation' | 'purchase' | 'wazifa_repayment' | 'wazifa_charge' | 'academy_fee'
   borderColor: string; typeLabel: string | null; partyName: string; docLabel: string
   date: string; description: string; amount: number
   badge: { text?: string; textKey?: string; tone: BillBadgeTone } | null
@@ -63,6 +64,14 @@ interface TxnCard {
   voucherToName?: string
   voucherFromName?: string
   voucherNo?: string | null
+  // Waiver (migration 438) — see WaiverDialog.tsx / transactions/page.tsx's
+  // identical fields for the full reasoning.
+  waiverKind?: 'bill' | 'wazifa_repayment' | 'wazifa_charge' | 'academy_fee'
+  waiverRecordId?: string
+  canWaive?: boolean
+  isWaived?: boolean
+  waivedReason?: string | null
+  waivedAt?: string | null
 }
 interface PendingApproval { id: string; kind: string; particular: string; amount_pkr: number; created_at: string }
 interface InventoryItemOpt { id: string; name: string; unit_price: number; unit_cost: number; unit: string }
@@ -257,6 +266,8 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [donorAccounts, setDonorAccounts] = useState<{ donor_key: string; name: string; donor_account_no: string | null }[]>([])
   const [selectedDonorKey, setSelectedDonorKey] = useState('')
   const [confirmDeleteVoucherId, setConfirmDeleteVoucherId] = useState<string | null>(null)
+  const [waiving, setWaiving] = useState<{ id: string; kind: WaiverKind; label: string } | null>(null)
+  const [waiverDetail, setWaiverDetail] = useState<{ reason: string; at: string | null } | null>(null)
   const [editVoucherTarget, setEditVoucherTarget] = useState<{ id: string; voucherNo: string | null } | null>(null)
   const [editVoucherSaving, setEditVoucherSaving] = useState(false)
   const [editVoucherForm, setEditVoucherForm] = useState({
@@ -343,7 +354,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     const consumersById = Object.fromEntries(consumersRes.data.map((c) => [c.consumer_id, c.name]))
     const ascending = logSortDir === 'asc'
 
-    const billsRes = { data: (docs.bills ?? []) as { id: string; bill_number: string | null; consumer_id: string; month: number; year: number; amount_pkr: number; discount_amount: number | null; paid_amount: number | null; due_date: string | null; description: string | null; created_at: string; security_deposit_amount: number | null; security_deposit_voucher_id: string | null; recurring_schedule_id: string | null }[] }
+    const billsRes = { data: (docs.bills ?? []) as { id: string; bill_number: string | null; consumer_id: string; month: number; year: number; amount_pkr: number; discount_amount: number | null; paid_amount: number | null; due_date: string | null; description: string | null; created_at: string; security_deposit_amount: number | null; security_deposit_voucher_id: string | null; recurring_schedule_id: string | null; status: string | null; waived_reason: string | null; waived_at: string | null }[] }
     const paymentsRes = { data: (docs.payments ?? []) as { id: string; bill_id: string; consumer_id: string; amount_pkr: number; method: string | null; paid_date: string; receipt_no: string | null; note: string | null; created_at: string }[] }
     const vouchersRes = { data: (docs.vouchers ?? []) as { id: string; voucher_type: string; voucher_no: string | null; receipt_no: string | null; voucher_date: string; particular: string; amount_pkr: number; party_name: string | null; from_account_id: string | null; to_account_id: string | null; bill_id: string | null; created_at: string; recurring_schedule_id: string | null }[] }
     const donationsRes = { data: (docs.donations ?? []) as { id: string; name: string; name_ur: string | null; amount_pkr: number; date: string; payment_method: string | null; notes: string | null; is_anonymous: boolean; is_verified: boolean; voucher_no: string | null; created_at: string; recurring_schedule_id: string | null; payment_status: string | null }[] }
@@ -354,6 +365,27 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     // never having been gated at all, e.g. because no approvers were
     // configured for this system when it was created).
     const fullyApprovedIds = new Set((autoPostedRes.data ?? []).filter((r) => !r.auto_posted).map((r) => r.reference_id))
+
+    // Pending wazifa instalments/charges and academy fee charges — shown as
+    // their own cards the same way a pending water bill already is, so
+    // there's somewhere to click Waiver from (migration 438). Same three
+    // tables/shapes as All Transactions' identical fetch; this register has
+    // no client date-range filter of its own to match, so just the most
+    // recent 50 of each, same "recent window" convention the workspace RPC
+    // above already uses for bills/payments/vouchers.
+    const [wazifaRepayRes, wazifaChargeRes, academyFeeRes] = system === 'donors_projects'
+      ? await Promise.all([
+          supabase.from('wazifa_repayment_schedule')
+            .select('id, award_id, instalment_no, due_on, amount_pkr, paid_pkr, status, waived_reason, waived_at, wazifa_awards(student_id, wazifa_students(full_name, full_name_ur))')
+            .order('due_on', { ascending: false }).limit(50),
+          supabase.from('wazifa_installment_charges')
+            .select('id, award_id, charge_no, due_on, amount_pkr, paid_pkr, status, waived_reason, waived_at, wazifa_awards(student_id, wazifa_students(full_name, full_name_ur))')
+            .order('due_on', { ascending: false }).limit(50),
+          supabase.from('training_fee_charges')
+            .select('id, enrollment_id, charge_no, due_on, amount_pkr, paid_pkr, status, waived_reason, waived_at, training_enrollments(student_name, student_name_ur)')
+            .order('due_on', { ascending: false }).limit(50),
+        ])
+      : [{ data: [] }, { data: [] }, { data: [] }]
 
     const billsList = billsRes.data ?? []
     const billNumberById = Object.fromEntries(billsList.map((b) => [b.id, b.bill_number]))
@@ -410,6 +442,39 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         description,
         amount: net, badge: billBadge(b), note: null, created_at: b.created_at, billId: b.id,
         billOutstanding: Math.max(net - (b.paid_amount ?? 0), 0), billConsumerId: b.consumer_id,
+        waiverKind: 'bill', waiverRecordId: b.id, canWaive: b.status !== 'waived' && (b.paid_amount ?? 0) <= 0,
+        isWaived: b.status === 'waived', waivedReason: b.waived_reason, waivedAt: b.waived_at,
+      })
+    }
+
+    for (const r of (wazifaRepayRes.data ?? []) as unknown as { id: string; due_on: string; amount_pkr: number; paid_pkr: number | null; status: string; waived_reason: string | null; waived_at: string | null; wazifa_awards: { wazifa_students: { full_name: string; full_name_ur: string | null } | null } | null }[]) {
+      const name = r.wazifa_awards?.wazifa_students ? (isUrdu && r.wazifa_awards.wazifa_students.full_name_ur ? r.wazifa_awards.wazifa_students.full_name_ur : r.wazifa_awards.wazifa_students.full_name) : '—'
+      cards.push({
+        id: `wazrepay-${r.id}`, kind: 'wazifa_repayment', borderColor: 'border-violet-500',
+        typeLabel: t('tx.wazifaRepaymentType'), partyName: name, docLabel: t('tx.wazifaRepaymentDoc'),
+        date: r.due_on, description: t('tx.wazifaRepaymentType'), amount: r.amount_pkr, badge: receivableBadge(r), note: null, created_at: r.due_on,
+        waiverKind: 'wazifa_repayment', waiverRecordId: r.id, canWaive: r.status !== 'waived' && (r.paid_pkr ?? 0) <= 0,
+        isWaived: r.status === 'waived', waivedReason: r.waived_reason, waivedAt: r.waived_at,
+      })
+    }
+    for (const c of (wazifaChargeRes.data ?? []) as unknown as { id: string; due_on: string; amount_pkr: number; paid_pkr: number | null; status: string; waived_reason: string | null; waived_at: string | null; wazifa_awards: { wazifa_students: { full_name: string; full_name_ur: string | null } | null } | null }[]) {
+      const name = c.wazifa_awards?.wazifa_students ? (isUrdu && c.wazifa_awards.wazifa_students.full_name_ur ? c.wazifa_awards.wazifa_students.full_name_ur : c.wazifa_awards.wazifa_students.full_name) : '—'
+      cards.push({
+        id: `wazcharge-${c.id}`, kind: 'wazifa_charge', borderColor: 'border-violet-500',
+        typeLabel: t('tx.wazifaChargeType'), partyName: name, docLabel: t('tx.wazifaChargeDoc'),
+        date: c.due_on, description: t('tx.wazifaChargeType'), amount: c.amount_pkr, badge: receivableBadge(c), note: null, created_at: c.due_on,
+        waiverKind: 'wazifa_charge', waiverRecordId: c.id, canWaive: c.status !== 'waived' && (c.paid_pkr ?? 0) <= 0,
+        isWaived: c.status === 'waived', waivedReason: c.waived_reason, waivedAt: c.waived_at,
+      })
+    }
+    for (const f of (academyFeeRes.data ?? []) as unknown as { id: string; due_on: string; amount_pkr: number; paid_pkr: number | null; status: string; waived_reason: string | null; waived_at: string | null; training_enrollments: { student_name: string; student_name_ur: string | null } | null }[]) {
+      const name = f.training_enrollments ? (isUrdu && f.training_enrollments.student_name_ur ? f.training_enrollments.student_name_ur : f.training_enrollments.student_name) : '—'
+      cards.push({
+        id: `academyfee-${f.id}`, kind: 'academy_fee', borderColor: 'border-fuchsia-500',
+        typeLabel: t('tx.academyFeeType'), partyName: name, docLabel: t('tx.academyFeeType'),
+        date: f.due_on, description: t('tx.academyFeeType'), amount: f.amount_pkr, badge: receivableBadge(f), note: null, created_at: f.due_on,
+        waiverKind: 'academy_fee', waiverRecordId: f.id, canWaive: f.status !== 'waived' && (f.paid_pkr ?? 0) <= 0,
+        isWaived: f.status === 'waived', waivedReason: f.waived_reason, waivedAt: f.waived_at,
       })
     }
 
@@ -2710,9 +2775,17 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                           <div className="text-end shrink-0">
                             <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap">{fmtAmount(c.amount)}</p>
                             {c.badge && (
-                              <span className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide ${billBadgeClass[c.badge.tone]}`}>
-                                {c.badge.textKey ? t(c.badge.textKey) : c.badge.text}
-                              </span>
+                              c.isWaived ? (
+                                <button type="button" onClick={() => setWaiverDetail({ reason: c.waivedReason ?? '', at: c.waivedAt ?? null })}
+                                  title={c.waivedReason ?? undefined}
+                                  className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide cursor-pointer ${billBadgeClass[c.badge.tone]}`}>
+                                  {c.badge.textKey ? t(c.badge.textKey) : c.badge.text}
+                                </button>
+                              ) : (
+                                <span className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide ${billBadgeClass[c.badge.tone]}`}>
+                                  {c.badge.textKey ? t(c.badge.textKey) : c.badge.text}
+                                </span>
+                              )
                             )}
                           </div>
                         </div>
@@ -2733,6 +2806,14 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                             <Link href={`/admin/finance/${system}?action=generate_bill&bill=${c.billId}`} title="Edit bill" className="inline-block p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={15} /></Link>
                             <button onClick={() => attemptDeleteBill(c.billId!)} title="Delete bill" className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={15} /></button>
                           </>
+                        )}
+                        {/* Waiver — pending water bill / wazifa instalment or
+                            charge / academy fee only, and only while genuinely
+                            unpaid (canWaive already excludes anything with a
+                            payment recorded — matches each waive_* RPC's own
+                            server-side rejection, see migration 438). */}
+                        {c.canWaive && c.waiverKind && c.waiverRecordId && (
+                          <button onClick={() => setWaiving({ id: c.waiverRecordId!, kind: c.waiverKind!, label: `${c.partyName} — ${c.docLabel}` })} title={t('tx.waiverTooltip')} className="p-1.5 text-dp-on-surface-variant hover:text-violet-600 cursor-pointer"><HeartHandshake size={15} /></button>
                         )}
                         {c.kind === 'payment' && (
                           <>
@@ -2818,6 +2899,26 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         onConfirm={deleteDonation}
         onCancel={() => setConfirmDeleteDonationId(null)}
       />
+
+      <WaiverDialog
+        recordId={waiving?.id ?? null}
+        kind={waiving?.kind ?? null}
+        label={waiving?.label ?? ''}
+        onClose={() => setWaiving(null)}
+        onWaived={() => { setWaiving(null); load() }}
+      />
+      {waiverDetail && (
+        <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4" onClick={() => setWaiverDetail(null)}>
+          <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white rounded-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <h3 className="font-sans text-[15px] font-bold text-dp-on-surface flex items-center gap-2"><HeartHandshake size={17} className="text-violet-600" /> {t('tx.waivedByLabel')}</h3>
+              <button onClick={() => setWaiverDetail(null)} className="cursor-pointer"><X size={18} /></button>
+            </div>
+            <p className="font-sans text-[13.5px] text-dp-on-surface whitespace-pre-wrap">{waiverDetail.reason || '—'}</p>
+            {waiverDetail.at && <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">{new Date(waiverDetail.at).toLocaleString('en-GB')}</p>}
+          </div>
+        </div>
+      )}
 
       {billDeleteBlock && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setBillDeleteBlock(null)}>

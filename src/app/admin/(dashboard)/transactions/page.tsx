@@ -3,9 +3,10 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Search, FileText, Eye, Pencil, Trash2, SlidersHorizontal, RotateCcw } from 'lucide-react'
+import { Search, FileText, Eye, Pencil, Trash2, SlidersHorizontal, RotateCcw, HeartHandshake, X } from 'lucide-react'
 import { ReverseVoucherDialog } from '@/components/admin/ReverseVoucherDialog'
-import { billBadge, billBadgeClass, type BillBadgeTone } from '@/lib/billStatus'
+import { WaiverDialog, type WaiverKind } from '@/components/admin/WaiverDialog'
+import { billBadge, billBadgeClass, receivableBadge, type BillBadgeTone } from '@/lib/billStatus'
 import { donationBadge } from '@/lib/donationStatus'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { voucherReceiptKind, entryTypeLabel } from '@/lib/ledgerLabels'
@@ -22,7 +23,7 @@ type SystemTab = 'water_supply' | 'donors_projects'
 
 interface TxnRow {
   id: string
-  kind: 'bill' | 'payment' | 'voucher' | 'donation' | 'purchase'
+  kind: 'bill' | 'payment' | 'voucher' | 'donation' | 'purchase' | 'wazifa_repayment' | 'wazifa_charge' | 'academy_fee'
   voucherType?: string
   borderColor: string
   typeLabel: string | null
@@ -58,6 +59,17 @@ interface TxnRow {
   voucherToName?: string
   voucherFromName?: string
   voucherNo?: string | null
+  // Waiver (migration 438) — a committee-decided forgiveness of a single
+  // pending bill/wazifa instalment/academy fee, distinct per source table
+  // so the button knows which of the 4 waive_* RPCs to call. canWaive is
+  // true only for a genuinely unpaid row (no payment recorded at all) —
+  // matches each RPC's own server-side rejection of an already-paid one.
+  waiverKind?: 'bill' | 'wazifa_repayment' | 'wazifa_charge' | 'academy_fee'
+  waiverRecordId?: string
+  canWaive?: boolean
+  isWaived?: boolean
+  waivedReason?: string | null
+  waivedAt?: string | null
   // Set when this voucher has already been reversed (points at the
   // reversal), or is itself a reversal of another voucher — either one
   // draws a badge, and having reversed a voucher or reversed one already
@@ -94,13 +106,15 @@ export default function AllTransactionsPage() {
   }, [access.loading, access.defaultSystem, access.canWaterSupply, access.canDonorsProjects, systemOverride])
   const [from, setFrom] = useState(monthStart())
   const [to, setTo] = useState(today())
-  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'partial' | 'pending' | 'overdue'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'partial' | 'pending' | 'overdue' | 'waived'>('all')
   const [kindFilter, setKindFilter] = useState('all')
   const [autoPostedOnly, setAutoPostedOnly] = useState(false)
   const [search, setSearch] = useState('')
   const [rows, setRows] = useState<TxnRow[]>([])
   const [viewReceipt, setViewReceipt] = useState<ReceiptData | null>(null)
   const [reversing, setReversing] = useState<{ id: string; label: string } | null>(null)
+  const [waiving, setWaiving] = useState<{ id: string; kind: WaiverKind; label: string } | null>(null)
+  const [waiverDetail, setWaiverDetail] = useState<{ reason: string; at: string | null } | null>(null)
   const [loading, setLoading] = useState(true)
   const [showFilterSheet, setShowFilterSheet] = useState(false)
   const supabase = createClient()
@@ -135,9 +149,9 @@ export default function AllTransactionsPage() {
         ? supabase.from('consumers').select('consumer_id, name, mobile')
         : Promise.resolve({ data: [] as { consumer_id: string; name: string; mobile: string }[] }),
       system === 'water_supply'
-        ? supabase.from('bills').select('id, bill_number, consumer_id, month, year, amount_pkr, discount_amount, paid_amount, due_date, description, created_at, security_deposit_amount, security_deposit_voucher_id, recurring_schedule_id')
+        ? supabase.from('bills').select('id, bill_number, consumer_id, month, year, amount_pkr, discount_amount, paid_amount, due_date, description, created_at, security_deposit_amount, security_deposit_voucher_id, recurring_schedule_id, status, waived_reason, waived_at')
             .gte('created_at', from).lte('created_at', `${to}T23:59:59`)
-        : Promise.resolve({ data: [] as { id: string; bill_number: string | null; consumer_id: string; month: number; year: number; amount_pkr: number; discount_amount: number | null; paid_amount: number | null; due_date: string | null; description: string | null; created_at: string; security_deposit_amount: number | null; security_deposit_voucher_id: string | null; recurring_schedule_id: string | null }[] }),
+        : Promise.resolve({ data: [] as { id: string; bill_number: string | null; consumer_id: string; month: number; year: number; amount_pkr: number; discount_amount: number | null; paid_amount: number | null; due_date: string | null; description: string | null; created_at: string; security_deposit_amount: number | null; security_deposit_voucher_id: string | null; recurring_schedule_id: string | null; status: string | null; waived_reason: string | null; waived_at: string | null }[] }),
       system === 'water_supply'
         ? supabase.from('payments').select('id, bill_id, consumer_id, amount_pkr, method, paid_date, receipt_no, note, created_at').gte('paid_date', from).lte('paid_date', to)
         : Promise.resolve({ data: [] as { id: string; bill_id: string; consumer_id: string; amount_pkr: number; method: string | null; paid_date: string; receipt_no: string | null; note: string | null; created_at: string }[] }),
@@ -156,6 +170,26 @@ export default function AllTransactionsPage() {
     ])
     const autoPostedIds = new Set((autoPostedRes.data ?? []).filter((r) => r.auto_posted).map((r) => r.reference_id))
     const fullyApprovedIds = new Set((autoPostedRes.data ?? []).filter((r) => !r.auto_posted).map((r) => r.reference_id))
+
+    // Pending wazifa instalments/charges and academy fee charges — shown as
+    // their own rows the same way a pending water bill already is, so
+    // there's somewhere to click Waiver from (migration 438). Two separate
+    // wazifa obligation tables (loan repayment vs the fixed monthly charge
+    // while studying) both get surfaced; academy fees are a third, distinct
+    // source (training_fee_charges, unrelated to wazifa entirely).
+    const [wazifaRepayRes, wazifaChargeRes, academyFeeRes] = system === 'donors_projects'
+      ? await Promise.all([
+          supabase.from('wazifa_repayment_schedule')
+            .select('id, award_id, instalment_no, due_on, amount_pkr, paid_pkr, status, waived_reason, waived_at, wazifa_awards(student_id, wazifa_students(full_name, full_name_ur))')
+            .gte('due_on', from).lte('due_on', to),
+          supabase.from('wazifa_installment_charges')
+            .select('id, award_id, charge_no, due_on, amount_pkr, paid_pkr, status, waived_reason, waived_at, wazifa_awards(student_id, wazifa_students(full_name, full_name_ur))')
+            .gte('due_on', from).lte('due_on', to),
+          supabase.from('training_fee_charges')
+            .select('id, enrollment_id, charge_no, due_on, amount_pkr, paid_pkr, status, waived_reason, waived_at, training_enrollments(student_name, student_name_ur)')
+            .gte('due_on', from).lte('due_on', to),
+        ])
+      : [{ data: [] }, { data: [] }, { data: [] }]
 
     const consumersById = Object.fromEntries((consumersRes.data ?? []).map((c) => [c.consumer_id, c]))
     const billNumberById = Object.fromEntries((billsRes.data ?? []).map((b) => [b.id, b.bill_number]))
@@ -213,6 +247,42 @@ export default function AllTransactionsPage() {
         date: b.due_date ?? new Date(b.year, b.month - 1, 1).toISOString().slice(0, 10),
         description, amount: net, badge: billBadge(b), note: null, billId: b.id, createdAt: b.created_at,
         searchBlob: `${consumer?.name ?? ''} ${b.consumer_id} ${consumer?.mobile ?? ''} ${b.bill_number ?? ''} ${b.description ?? ''}`.toLowerCase(),
+        waiverKind: 'bill', waiverRecordId: b.id, canWaive: b.status !== 'waived' && (b.paid_amount ?? 0) <= 0,
+        isWaived: b.status === 'waived', waivedReason: b.waived_reason, waivedAt: b.waived_at,
+      })
+    }
+
+    for (const r of (wazifaRepayRes.data ?? []) as unknown as { id: string; due_on: string; amount_pkr: number; paid_pkr: number | null; status: string; waived_reason: string | null; waived_at: string | null; wazifa_awards: { wazifa_students: { full_name: string; full_name_ur: string | null } | null } | null }[]) {
+      const name = r.wazifa_awards?.wazifa_students?.full_name ?? '—'
+      result.push({
+        id: `wazrepay-${r.id}`, kind: 'wazifa_repayment', borderColor: 'border-violet-500',
+        typeLabel: t('tx.wazifaRepaymentType'), partyName: name, docLabel: t('tx.wazifaRepaymentDoc'),
+        date: r.due_on, description: t('tx.wazifaRepaymentType'), amount: r.amount_pkr, badge: receivableBadge(r), note: null, createdAt: r.due_on,
+        searchBlob: name.toLowerCase(),
+        waiverKind: 'wazifa_repayment', waiverRecordId: r.id, canWaive: r.status !== 'waived' && (r.paid_pkr ?? 0) <= 0,
+        isWaived: r.status === 'waived', waivedReason: r.waived_reason, waivedAt: r.waived_at,
+      })
+    }
+    for (const c of (wazifaChargeRes.data ?? []) as unknown as { id: string; due_on: string; amount_pkr: number; paid_pkr: number | null; status: string; waived_reason: string | null; waived_at: string | null; wazifa_awards: { wazifa_students: { full_name: string; full_name_ur: string | null } | null } | null }[]) {
+      const name = c.wazifa_awards?.wazifa_students?.full_name ?? '—'
+      result.push({
+        id: `wazcharge-${c.id}`, kind: 'wazifa_charge', borderColor: 'border-violet-500',
+        typeLabel: t('tx.wazifaChargeType'), partyName: name, docLabel: t('tx.wazifaChargeDoc'),
+        date: c.due_on, description: t('tx.wazifaChargeType'), amount: c.amount_pkr, badge: receivableBadge(c), note: null, createdAt: c.due_on,
+        searchBlob: name.toLowerCase(),
+        waiverKind: 'wazifa_charge', waiverRecordId: c.id, canWaive: c.status !== 'waived' && (c.paid_pkr ?? 0) <= 0,
+        isWaived: c.status === 'waived', waivedReason: c.waived_reason, waivedAt: c.waived_at,
+      })
+    }
+    for (const f of (academyFeeRes.data ?? []) as unknown as { id: string; due_on: string; amount_pkr: number; paid_pkr: number | null; status: string; waived_reason: string | null; waived_at: string | null; training_enrollments: { student_name: string; student_name_ur: string | null } | null }[]) {
+      const name = f.training_enrollments?.student_name ?? '—'
+      result.push({
+        id: `academyfee-${f.id}`, kind: 'academy_fee', borderColor: 'border-fuchsia-500',
+        typeLabel: t('tx.academyFeeType'), partyName: name, docLabel: t('tx.academyFeeType'),
+        date: f.due_on, description: t('tx.academyFeeType'), amount: f.amount_pkr, badge: receivableBadge(f), note: null, createdAt: f.due_on,
+        searchBlob: name.toLowerCase(),
+        waiverKind: 'academy_fee', waiverRecordId: f.id, canWaive: f.status !== 'waived' && (f.paid_pkr ?? 0) <= 0,
+        isWaived: f.status === 'waived', waivedReason: f.waived_reason, waivedAt: f.waived_at,
       })
     }
 
@@ -332,12 +402,28 @@ export default function AllTransactionsPage() {
     const q = search.trim().toLowerCase()
     return rows.filter((r) => {
       if (statusFilter !== 'all') {
-        if (r.kind !== 'bill' || !r.badge) return false
+        // Was bill-only and tone-only — now that wazifa/academy rows carry
+        // the same badge shape (receivableBadge, migration 438) they
+        // belong in this filter too, so the gate is "has a status badge at
+        // all" rather than literally kind === 'bill'. Tone alone also
+        // stopped being a unique discriminator once WAIVED claimed 'gray'
+        // (the tone PENDING and OVERDUE already shared, 'red', for "not
+        // paid yet") — text tells the two apart; WAIVED gets its own
+        // branch instead of colliding with either.
+        // Bill-only before — now also the three receivable kinds that
+        // share billBadge/receivableBadge's shape (wazifa/academy,
+        // migration 438). Deliberately NOT widened to donations/payments/
+        // vouchers: donationBadge's green/amber tones mean something
+        // different ("received"/"pledged") that would misleadingly match
+        // a bill-flavoured "Paid"/"Partial" filter.
+        if (!(r.kind === 'bill' || r.kind === 'wazifa_repayment' || r.kind === 'wazifa_charge' || r.kind === 'academy_fee') || !r.badge) return false
         const tone = r.badge.tone
+        const text = r.badge.text ?? ''
         if (statusFilter === 'paid' && tone !== 'green') return false
         if (statusFilter === 'partial' && tone !== 'amber') return false
-        if (statusFilter === 'pending' && tone !== 'gray') return false
-        if (statusFilter === 'overdue' && tone !== 'red') return false
+        if (statusFilter === 'pending' && text !== 'PENDING') return false
+        if (statusFilter === 'overdue' && !text.startsWith('OVERDUE')) return false
+        if (statusFilter === 'waived' && tone !== 'gray') return false
       }
       if (kindFilter !== 'all') {
         if (kindFilter.startsWith('voucher:')) {
@@ -537,6 +623,7 @@ export default function AllTransactionsPage() {
             { id: 'partial', label: t('tx.partial') },
             { id: 'pending', label: t('tx.pending') },
             { id: 'overdue', label: t('tx.overdue') },
+            { id: 'waived', label: t('tx.waivedStatus') },
           ]}
         />
         <label className="flex items-center gap-2.5 cursor-pointer" title={t('tx.autoPostedTooltip')}>
@@ -645,7 +732,15 @@ export default function AllTransactionsPage() {
                         <p className="font-sans text-[12px] text-dp-on-surface-variant whitespace-nowrap">{new Date(r.date).toLocaleDateString('en-GB')}</p>
                         {r.amount > 0 && <p className="font-sans text-[15px] font-bold text-dp-on-surface whitespace-nowrap mt-1">{fmtAmount(r.amount)}</p>}
                         {r.badge && (
-                          <span className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide ${billBadgeClass[r.badge.tone]}`}>{r.badge.textKey ? t(r.badge.textKey) : r.badge.text}</span>
+                          r.isWaived ? (
+                            <button type="button" onClick={() => setWaiverDetail({ reason: r.waivedReason ?? '', at: r.waivedAt ?? null })}
+                              title={r.waivedReason ?? undefined}
+                              className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide cursor-pointer ${billBadgeClass[r.badge.tone]}`}>
+                              {r.badge.textKey ? t(r.badge.textKey) : r.badge.text}
+                            </button>
+                          ) : (
+                            <span className={`inline-block mt-1 px-2 py-0.5 rounded font-sans text-[10.5px] font-bold tracking-wide ${billBadgeClass[r.badge.tone]}`}>{r.badge.textKey ? t(r.badge.textKey) : r.badge.text}</span>
+                          )
                         )}
                       </div>
                     </div>
@@ -660,10 +755,18 @@ export default function AllTransactionsPage() {
                     check, a closed month still shows nothing here rather
                     than a control that would fail — instead of keeping a
                     second copy of any of that logic on this list. */}
-                {(r.billId || r.kind === 'payment' || r.kind === 'voucher' || r.kind === 'purchase' || r.kind === 'donation') && (
+                {(r.billId || r.kind === 'payment' || r.kind === 'voucher' || r.kind === 'purchase' || r.kind === 'donation' || r.canWaive) && (
                   <div className="flex justify-end items-center gap-1 mt-2 pt-2 border-t border-dp-outline-variant/60">
                     {r.billId && (
                       <Link href={`/admin/invoice/bill/${r.billId}`} title={t('tx.viewInvoiceTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><FileText size={15} /></Link>
+                    )}
+                    {/* Waiver — pending water bill / wazifa instalment or
+                        charge / academy fee only, and only while genuinely
+                        unpaid (canWaive already excludes anything with a
+                        payment recorded — matches each waive_* RPC's own
+                        server-side rejection, see migration 438). */}
+                    {r.canWaive && r.waiverKind && r.waiverRecordId && (
+                      <button onClick={() => setWaiving({ id: r.waiverRecordId!, kind: r.waiverKind!, label: `${r.partyName} — ${r.docLabel}` })} title={t('tx.waiverTooltip')} className="p-1.5 text-dp-on-surface-variant hover:text-violet-600 cursor-pointer"><HeartHandshake size={15} /></button>
                     )}
                     {(r.kind === 'payment' || r.kind === 'voucher' || r.kind === 'purchase' || r.kind === 'donation') && (
                       <button onClick={() => openRowReceipt(r)} title={t('tx.viewReceiptTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer"><Eye size={15} /></button>
@@ -713,6 +816,25 @@ export default function AllTransactionsPage() {
         onClose={() => setReversing(null)}
         onReversed={() => { setReversing(null); load() }}
       />
+      <WaiverDialog
+        recordId={waiving?.id ?? null}
+        kind={waiving?.kind ?? null}
+        label={waiving?.label ?? ''}
+        onClose={() => setWaiving(null)}
+        onWaived={() => { setWaiving(null); load() }}
+      />
+      {waiverDetail && (
+        <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4" onClick={() => setWaiverDetail(null)}>
+          <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white rounded-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <h3 className="font-sans text-[15px] font-bold text-dp-on-surface flex items-center gap-2"><HeartHandshake size={17} className="text-violet-600" /> {t('tx.waivedByLabel')}</h3>
+              <button onClick={() => setWaiverDetail(null)} className="cursor-pointer"><X size={18} /></button>
+            </div>
+            <p className="font-sans text-[13.5px] text-dp-on-surface whitespace-pre-wrap">{waiverDetail.reason || '—'}</p>
+            {waiverDetail.at && <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">{new Date(waiverDetail.at).toLocaleString('en-GB')}</p>}
+          </div>
+        </div>
+      )}
 
     </div>
   )

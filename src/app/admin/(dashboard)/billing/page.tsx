@@ -68,6 +68,11 @@ interface Bill {
   waiver_type: string | null
   waiver_percent: number | null
   advance_applied_amount: number | null
+  // Committee waiver (migration 438) — distinct from the complaint-linked
+  // waiver_* fields above. select('*') already returns these; only the
+  // type annotation needed catching up.
+  waived_reason: string | null
+  waived_at: string | null
 }
 
 interface LinkedComplaint { id: string; complaint_number: string; status: string; complaint_text: string }
@@ -109,6 +114,17 @@ function outstanding(bill: Bill) {
 // — a bill reads identically whether you're looking at it there or here.
 function StatusBadge({ bill }: { bill: Bill }) {
   const badge = billBadge(bill)
+  // Waived bills carry the committee's reason — hover (or tap, on a
+  // touch device the title still shows via long-press) to read it,
+  // same "point on the label" reveal as All/Recent Transactions' own
+  // waived badge, just without that page's dedicated click-through modal.
+  if (bill.status === 'waived') {
+    return (
+      <span title={bill.waived_reason ?? undefined} className={`inline-block px-2.5 py-0.5 rounded-full font-sans text-[10.5px] font-bold tracking-wide whitespace-nowrap cursor-help ${billBadgeClass[badge.tone]}`}>
+        {badge.text}
+      </span>
+    )
+  }
   return (
     <span className={`inline-block px-2.5 py-0.5 rounded-full font-sans text-[10.5px] font-bold tracking-wide whitespace-nowrap ${billBadgeClass[badge.tone]}`}>
       {badge.text}
@@ -301,7 +317,13 @@ function BillingPageInner() {
     const stats: Record<string, { outstanding: number; pendingCount: number; pendingMonths: string[] }> = {}
     consumers.forEach((c) => {
       const cb = billsByConsumer[c.consumer_id] ?? []
-      const pending = cb.filter((b) => b.status !== 'paid')
+      // A waived bill (migration 438) is neither paid nor genuinely
+      // outstanding — the committee forgave it, so it must not inflate
+      // "pending" counts/badges into looking like the consumer still owes
+      // something. netPayable already reads ₨0 for these via
+      // discount_amount, but status !== 'paid' alone would still have
+      // counted them here without this explicit exclusion.
+      const pending = cb.filter((b) => b.status !== 'paid' && b.status !== 'waived')
       stats[c.consumer_id] = {
         outstanding: pending.reduce((s, b) => s + outstanding(b), 0),
         pendingCount: pending.length,
@@ -350,6 +372,10 @@ function BillingPageInner() {
       noDiscountConsumerIds,
       billedConsumerIds: new Set(thisMonthBills.map((b) => b.consumer_id)),
       newConsumerIds: new Set(newConsumers.map((c) => c.consumer_id)),
+      // All-time, not scoped to thisMonthBills like the other sets above —
+      // a committee waiver is a rare one-off decision worth surfacing
+      // whenever it happened, not just if it happened to land this month.
+      waivedConsumerIds: new Set(bills.filter((b) => b.status === 'waived').map((b) => b.consumer_id)),
     }
   }, [bills, consumers, currentMonth, currentYear])
 
@@ -378,6 +404,7 @@ function BillingPageInner() {
         if (sectorFilter && c.sector !== sectorFilter) return false
         if (statusFilter === 'pending' && (consumerStats[c.consumer_id]?.pendingCount ?? 0) === 0) return false
         if (statusFilter === 'clear' && (consumerStats[c.consumer_id]?.pendingCount ?? 0) > 0) return false
+        if (statusFilter === 'waived' && !monthlyStats.waivedConsumerIds.has(c.consumer_id)) return false
         if (quickFilter === 'with_discount' && !monthlyStats.discountConsumerIds.has(c.consumer_id)) return false
         if (quickFilter === 'without_discount' && !monthlyStats.noDiscountConsumerIds.has(c.consumer_id)) return false
         if (quickFilter === 'active' && c.status !== 'active') return false
@@ -874,6 +901,7 @@ function BillingPageInner() {
             <option value="">{t('billing.allStatus')}</option>
             <option value="pending">{t('billing.hasOutstanding')}</option>
             <option value="clear">{t('billing.fullyPaid')}</option>
+            <option value="waived">{t('billing.hasWaivedBills')}</option>
           </select>
           <ChevronDown size={14} className="absolute end-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
         </div>

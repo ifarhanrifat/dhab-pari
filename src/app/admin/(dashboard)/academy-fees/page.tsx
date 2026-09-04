@@ -18,7 +18,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Users, PlusCircle, X, HandCoins, CheckCircle2, Clock, Pencil, UserMinus, Layers, UserCheck, UserX, Bell, AlertTriangle } from 'lucide-react'
+import { Users, PlusCircle, X, HandCoins, CheckCircle2, Clock, Pencil, UserMinus, Layers, UserCheck, UserX, Bell, AlertTriangle, HeartHandshake } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -40,6 +40,7 @@ interface Batch {
 interface Charge {
   id: string; charge_no: number; due_on: string; amount_pkr: number; paid_pkr: number; status: string
   announced_amount_pkr: number | null; announced_method: string | null; announced_proof_url: string | null
+  waived_reason?: string | null
 }
 interface Enrollment {
   id: string; student_name: string; student_age: number | null; guardian_name: string | null; guardian_whatsapp_number: string | null
@@ -183,7 +184,7 @@ function AcademyFeesInner() {
     setRequests((reqRows ?? []) as PendingRequest[])
     if (rows && rows.length > 0) {
       const { data: chargeRows } = await supabase.from('training_fee_charges')
-        .select('id, enrollment_id, charge_no, due_on, amount_pkr, paid_pkr, status, announced_amount_pkr, announced_method, announced_proof_url')
+        .select('id, enrollment_id, charge_no, due_on, amount_pkr, paid_pkr, status, announced_amount_pkr, announced_method, announced_proof_url, waived_reason')
         .in('enrollment_id', rows.map((r) => r.id)).order('charge_no')
       const grouped: Record<string, Charge[]> = {}
       for (const c of chargeRows ?? []) (grouped[c.enrollment_id] ??= []).push(c)
@@ -641,10 +642,13 @@ function AcademyFeesInner() {
                   <div className="mt-3 pt-3 border-t border-dp-outline-variant flex flex-wrap gap-2">
                     {(charges[e.id] ?? []).map((c) => (
                       <div key={c.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12.5px] font-sans font-semibold ${
-                        c.status === 'paid' ? 'bg-emerald-50 text-emerald-700' : c.status === 'announced' ? 'bg-blue-50 text-blue-700' : c.status === 'part_paid' ? 'bg-amber-50 text-amber-700' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>
-                        {c.status === 'paid' ? <CheckCircle2 size={13} /> : c.status === 'announced' ? <Bell size={13} /> : <Clock size={13} />}
+                        c.status === 'paid' ? 'bg-emerald-50 text-emerald-700' : c.status === 'waived' ? 'bg-dp-surface-container-low text-dp-on-surface-variant' : c.status === 'announced' ? 'bg-blue-50 text-blue-700' : c.status === 'part_paid' ? 'bg-amber-50 text-amber-700' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}
+                        title={c.status === 'waived' ? (c.waived_reason ?? undefined) : undefined}>
+                        {c.status === 'paid' ? <CheckCircle2 size={13} /> : c.status === 'waived' ? <HeartHandshake size={13} /> : c.status === 'announced' ? <Bell size={13} /> : <Clock size={13} />}
                         {new Date(c.due_on).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })} — {fmt(c.amount_pkr)}
-                        {c.status === 'announced' ? (
+                        {c.status === 'waived' ? (
+                          <span>{t('af.waivedLabel')}</span>
+                        ) : c.status === 'announced' ? (
                           <>
                             <span className="ltr-num">{t('af.paidViaPortalLabel')} {fmt(c.announced_amount_pkr ?? 0)}</span>
                             {c.announced_proof_url && (

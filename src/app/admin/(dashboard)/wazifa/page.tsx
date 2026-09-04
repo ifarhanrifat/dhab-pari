@@ -668,7 +668,11 @@ export default function WazifaPage() {
     setCalendarMonths(((data as { months?: typeof calendarMonths })?.months) ?? [])
   }
   const toggleCalendarMonth = (month: string, status: string) => {
-    if (status === 'paid') return
+    // A waived month (migration 438) can't be ticked any more than an
+    // already-paid one — wazifa_pay_specific_months (439) would just
+    // skip it server-side anyway, but the calendar shouldn't offer it
+    // as if it were a real outstanding month in the first place.
+    if (status === 'paid' || status === 'waived') return
     const next = new Set(calendarSelected)
     if (next.has(month)) next.delete(month); else next.add(month)
     setCalendarSelected(next)
@@ -1148,15 +1152,19 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
           return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
         })
         const collected = monthCharges.reduce((s, c) => s + Number(c.paid_pkr), 0)
-        const due = monthCharges.reduce((s, c) => s + Number(c.amount_pkr), 0)
+        // A waived charge (migration 438) has nothing left to collect — the
+        // committee cancelled it — so it must not inflate "due this month"
+        // the way an ordinary unpaid charge would.
+        const due = monthCharges.filter((c) => c.status !== 'waived').reduce((s, c) => s + Number(c.amount_pkr), 0)
         // Standard-track instalments overdue, and zakat-track repayments
         // overdue (migration 235) — two different tables, one worklist,
         // since an accountant does not think in tables, only in "who is
         // behind." No penalty is computed or implied here — a committee
         // decides what, if anything, follows from being on this list.
-        const overdue = installmentCharges.filter((c) => c.status !== 'paid' && new Date(c.due_on) < now)
+        // A waived one isn't "behind" — it isn't due at all any more.
+        const overdue = installmentCharges.filter((c) => c.status !== 'paid' && c.status !== 'waived' && new Date(c.due_on) < now)
         const overdueAmt = overdue.reduce((s, c) => s + (Number(c.amount_pkr) - Number(c.paid_pkr)), 0)
-        const repayOverdue = repaymentSchedule.filter((r) => r.status !== 'paid' && new Date(r.due_on) < now)
+        const repayOverdue = repaymentSchedule.filter((r) => r.status !== 'paid' && r.status !== 'waived' && new Date(r.due_on) < now)
         const repayOverdueAmt = repayOverdue.reduce((s, r) => s + (Number(r.amount_pkr) - Number(r.paid_pkr)), 0)
         return (
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-5">
@@ -1610,9 +1618,9 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                       {/* Charges the automated plan has already raised —
                           recording a payment is the one manual step left
                           in this whole flow. */}
-                      {installmentCharges.filter((c) => c.award_id === aw.id && c.status !== 'paid').length > 0 && (
+                      {installmentCharges.filter((c) => c.award_id === aw.id && c.status !== 'paid' && c.status !== 'waived').length > 0 && (
                         <div className="mt-2.5 flex flex-wrap gap-2">
-                          {installmentCharges.filter((c) => c.award_id === aw.id && c.status !== 'paid').map((c) => (
+                          {installmentCharges.filter((c) => c.award_id === aw.id && c.status !== 'paid' && c.status !== 'waived').map((c) => (
                             <button key={c.id} onClick={() => { setPayChargeTarget(c); setPayChargeForm({ amount: c.amount_pkr - c.paid_pkr, method: 'cash' }) }}
                               className="flex items-center gap-1.5 px-2.5 py-1 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[11.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
                               <HandCoins size={12} />
@@ -2330,7 +2338,10 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                 <div className="flex gap-2 mb-3">
                   {[3, 6, 12].map((n) => (
                     <button key={n} type="button" onClick={() => {
-                        const unpaid = calendarMonths.filter((m) => m.status !== 'paid').slice(0, n).map((m) => m.month)
+                        // A waived month is as settled as a paid one for
+                        // this purpose — nothing left to collect — so
+                        // "next N unpaid" must skip it the same way.
+                        const unpaid = calendarMonths.filter((m) => m.status !== 'paid' && m.status !== 'waived').slice(0, n).map((m) => m.month)
                         setCalendarSelected(new Set(unpaid))
                       }}
                       className="px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[12px] font-semibold hover:text-dp-primary transition-all cursor-pointer">
@@ -2348,11 +2359,12 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                     const label = new Date(m.month + 'T00:00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
                     const selected = calendarSelected.has(m.month)
                     const isPaid = m.status === 'paid'
+                    const isWaived = m.status === 'waived'
                     return (
                       <label key={m.month}
-                        className={`flex items-center justify-between gap-3 px-3.5 py-2.5 ${isPaid ? 'bg-emerald-50 cursor-default' : 'cursor-pointer hover:bg-dp-surface-container-low'}`}>
+                        className={`flex items-center justify-between gap-3 px-3.5 py-2.5 ${isPaid || isWaived ? 'bg-emerald-50 cursor-default' : 'cursor-pointer hover:bg-dp-surface-container-low'}`}>
                         <span className="flex items-center gap-2.5">
-                          <input type="checkbox" checked={selected || isPaid} disabled={isPaid}
+                          <input type="checkbox" checked={selected || isPaid} disabled={isPaid || isWaived}
                             onChange={() => toggleCalendarMonth(m.month, m.status)} className="accent-dp-secondary" />
                           <span className="font-sans text-[13px] font-semibold text-dp-on-surface">{label}</span>
                         </span>
@@ -2360,6 +2372,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                           <span className="font-sans text-[12.5px] text-dp-on-surface-variant">{fmt(m.amount)}</span>
                           <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
                             isPaid ? 'bg-emerald-100 text-emerald-700'
+                            : isWaived ? 'bg-dp-surface-container-low text-dp-on-surface-variant'
                             : m.status === 'part_paid' ? 'bg-amber-100 text-amber-700'
                             : m.status === 'upcoming' ? 'bg-dp-surface-container-high text-dp-on-surface-variant'
                             : 'bg-dp-secondary/10 text-dp-secondary'}`}>
