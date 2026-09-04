@@ -166,44 +166,37 @@ interface ShareOptions {
 }
 
 /**
- * Best available way to get the document into a WhatsApp chat, in order:
+ * Puts the document in front of a WhatsApp chat. Every button that calls this
+ * is labelled WhatsApp, so this goes to WhatsApp and nowhere else:
  *
- *  1. OS share sheet with the file attached (`navigator.share({ files })`) —
- *     on Android/iOS this hands WhatsApp the real file, no download step. This
- *     is the only true "attach directly" a web page has.
- *  2. Clipboard — copy the PNG, open the chat, user presses Ctrl/Cmd+V. WhatsApp
- *     Web accepts a pasted image as an attachment, so this is one keystroke away
- *     from the same result on desktop.
- *  3. Download + open the chat, and tell them to attach it.
+ *  1. Clipboard — copy the PNG, open the chat, user presses Ctrl/Cmd+V.
+ *     WhatsApp Web accepts a pasted image, so this is one keystroke from done.
+ *  2. Download + open the chat, and tell them to attach it.
  *
- * There is deliberately no fourth option: wa.me/api.whatsapp.com accept text
+ * This used to lead with the OS share sheet (`navigator.share({ files })`),
+ * which does hand WhatsApp the real file on a phone — but it is a *chooser*:
+ * it offers every app on the device, so a button that reads "Share via
+ * WhatsApp" could just as easily end in Gmail or Drive, and on a shared
+ * committee phone the wrong app is a real way to leak a consumer's receipt.
+ * A button has to do what it says, so the sheet is gone.
+ *
+ * There is deliberately no third option: wa.me/api.whatsapp.com accept text
  * only, and no browser API can push a file into another site's composer. Native
  * desktop apps manage it because they drive the OS, not a sandboxed page.
  */
-export async function shareReceipt({ blob, filename, mime, phone, message, clipboardBlob }: ShareOptions): Promise<'shared' | 'copied' | 'downloaded'> {
-  const file = new File([blob], filename, { type: mime })
-
-  if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: filename, text: message })
-      return 'shared'
-    } catch {
-      // user cancelled or share failed — fall through
-    }
-  }
-
+export async function shareReceipt({ blob, filename, phone, message, clipboardBlob }: ShareOptions): Promise<'copied' | 'downloaded'> {
   const copied = clipboardBlob ? await copyImageToClipboard(clipboardBlob) : false
   if (!copied) downloadBlob(blob, filename)
 
-  if (phone) {
-    const intl = normalizePakPhone(phone)
-    if (intl) {
-      const note = copied
-        ? ' (Image copied — press Ctrl+V / Cmd+V here to attach it.)'
-        : ' (File downloaded — please attach it to this chat.)'
-      window.open(`https://wa.me/${intl}?text=${encodeURIComponent((message ?? 'Your receipt is attached.') + note)}`, '_blank')
-    }
-  }
+  const note = copied
+    ? ' (Image copied — press Ctrl+V / Cmd+V here to attach it.)'
+    : ' (File downloaded — please attach it to this chat.)'
+  const text = encodeURIComponent((message ?? 'Your receipt is attached.') + note)
+  // With a number we open that consumer's chat; without one, wa.me's own chat
+  // picker. Either way WhatsApp opens — never a generic share sheet, and never
+  // nothing at all, which is what a missing number used to produce.
+  const intl = phone ? normalizePakPhone(phone) : null
+  window.open(intl ? `https://wa.me/${intl}?text=${text}` : `https://wa.me/?text=${text}`, '_blank')
 
   return copied ? 'copied' : 'downloaded'
 }

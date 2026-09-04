@@ -182,7 +182,13 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
         blob, filename: filename(), mime, phone: whatsappPhone,
         message: `Water bill ${data.receiptNo} — ${netAmount.toLocaleString()}`,
       })
-      toast.success(result === 'shared' ? 'Shared' : whatsappPhone ? 'Downloaded — WhatsApp opened, attach the file to send' : 'Downloaded — no WhatsApp number on file for this consumer')
+      toast.success(
+        result === 'copied'
+          ? 'Image copied — press Ctrl+V (⌘V) in the WhatsApp chat to attach it'
+          : whatsappPhone
+            ? 'Downloaded — WhatsApp opened, attach the file to send'
+            : 'Downloaded — pick the chat in WhatsApp, then attach the file'
+      )
     } catch {
       toast.error('Could not share the invoice')
     } finally {

@@ -40,9 +40,13 @@ export interface BrandingSettings {
   slipFontBody: number
   slipFontFooter: number
   slipFormat: SlipFormat
+  // Which roll the thermal slip is built for (migration 443). Per system:
+  // the two systems can own different printers.
+  slipThermalWidthMm: ThermalWidthMm
 }
 
 export type SlipFormat = 'a4' | 'thermal'
+export type ThermalWidthMm = 58 | 80
 
 const KEYS = [
   'company_name_en', 'company_name_ur', 'company_email',
@@ -54,6 +58,7 @@ const KEYS = [
   'helpline_label_en', 'helpline_label_ur', 'complaint_label_en', 'complaint_label_ur',
   'slip_display_mode', 'slip_font_heading', 'slip_font_body', 'slip_font_footer',
   'slip_format_water', 'slip_format_donor',
+  'slip_thermal_width_water', 'slip_thermal_width_donor',
 ]
 
 // Donor receipts can override any of these (migration 158) — company
@@ -162,5 +167,10 @@ export async function fetchBrandingSettings(system?: 'water_supply' | 'donors_pr
     slipFontBody: num(v.slip_font_body, 14),
     slipFontFooter: num(v.slip_font_footer, 12),
     slipFormat: (system === 'donors_projects' ? v.slip_format_donor : v.slip_format_water) === 'thermal' ? 'thermal' : 'a4',
+    // Anything other than an explicit 80 means 58 — the width the committee's
+    // current printer takes, and the safer default either way: a slip built
+    // for 58mm and fed to an 80mm roll simply prints narrow, whereas the
+    // reverse crops the right-hand column of every money row clean off.
+    slipThermalWidthMm: (system === 'donors_projects' ? v.slip_thermal_width_donor : v.slip_thermal_width_water) === '80' ? 80 : 58,
   }
 }

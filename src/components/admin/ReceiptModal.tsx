@@ -100,23 +100,19 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
     try {
       const blob = await buildBlob()
       const mime = format === 'pdf' ? 'application/pdf' : 'image/png'
-      // A PDF cannot be pasted into a chat, so the clipboard fallback always
-      // gets a PNG — rendered here only when the OS share sheet is unavailable,
-      // which is the one case it will actually be used.
-      const canNativeShare = typeof navigator !== 'undefined'
-        && navigator.canShare?.({ files: [new File([blob], filename(), { type: mime })] })
-      const clipboardBlob = canNativeShare
-        ? null
-        : format === 'png' ? blob : await nodeToPngBlob(nodeRef.current!)
+      // A PDF cannot be pasted into a chat, so the clipboard always gets a
+      // PNG. It is rendered unconditionally now: the OS share sheet used to
+      // cover most cases, and with that gone the clipboard IS the good path.
+      const clipboardBlob = format === 'png' ? blob : await nodeToPngBlob(nodeRef.current!)
 
       const result = await shareReceipt({
         blob, filename: filename(), mime, phone, clipboardBlob,
         message: `Receipt ${data.receiptNo} — ${data.amount.toLocaleString()}`,
       })
       toast.success(
-        result === 'shared' ? 'Shared'
-          : result === 'copied' ? 'Image copied — press Ctrl+V (⌘V) in the WhatsApp chat to attach it'
-            : 'Downloaded — attach it in the chat that just opened'
+        result === 'copied'
+          ? 'Image copied — press Ctrl+V (⌘V) in the WhatsApp chat to attach it'
+          : 'Downloaded — attach it in the chat that just opened'
       )
     } catch {
       toast.error('Could not share the receipt')
@@ -160,15 +156,24 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
           )}
         </div>
 
-        <div className="flex items-center gap-2 px-4 py-3 border-t border-dp-outline-variant print:hidden">
-          <button disabled={busy || !template} onClick={handlePrint} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
-            <Printer size={16} /> {t('g.print')}
+        {/* Each label stays on one line. These are flex-1 buttons holding an
+            icon and a phrase ("Download PDF", "Share via WhatsApp"), so on a
+            narrow phone they used to wrap into two ragged rows of text and the
+            three buttons stopped lining up. whitespace-nowrap keeps every
+            label intact; the row scrolls sideways if the three genuinely
+            cannot fit, the same treatment the document above already gets,
+            because a readable label you have to scroll to beats a squashed
+            one you cannot read at all. shrink-0 is what makes that real —
+            without it flex would shrink the buttons rather than overflow. */}
+        <div className="flex items-center gap-2 px-4 py-3 border-t border-dp-outline-variant print:hidden overflow-x-auto">
+          <button disabled={busy || !template} onClick={handlePrint} className="flex-1 shrink-0 whitespace-nowrap flex items-center justify-center gap-2 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
+            <Printer size={16} className="shrink-0" /> {t('g.print')}
           </button>
-          <button disabled={busy || !template} onClick={handleDownload} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
-            <Download size={16} /> Download {format.toUpperCase()}
+          <button disabled={busy || !template} onClick={handleDownload} className="flex-1 shrink-0 whitespace-nowrap flex items-center justify-center gap-2 px-4 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] font-semibold text-dp-on-surface hover:bg-dp-surface-container-low transition-all cursor-pointer disabled:opacity-50">
+            <Download size={16} className="shrink-0" /> Download {format.toUpperCase()}
           </button>
-          <button disabled={busy || !template} onClick={handleShare} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-            <Share2 size={16} /> {t('y.shareWhatsapp')}
+          <button disabled={busy || !template} onClick={handleShare} className="flex-1 shrink-0 whitespace-nowrap flex items-center justify-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+            <Share2 size={16} className="shrink-0" /> {t('y.shareWhatsapp')}
           </button>
         </div>
       </div>

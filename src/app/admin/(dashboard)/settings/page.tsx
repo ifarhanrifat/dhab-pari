@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Save, PlusCircle, Trash2, Pencil, X, Check, Bell, MessageCircle, ShieldCheck, MessageSquareWarning, AlertTriangle, Copy, MessageSquareText, Building2, Wallet, FileText, MapPin, Heart, HandHeart, HelpCircle, ClipboardList, Award, ChevronDown, ChevronRight, ChevronLeft, Languages } from 'lucide-react'
+import { Save, PlusCircle, Trash2, Pencil, X, Check, Bell, MessageCircle, ShieldCheck, MessageSquareWarning, AlertTriangle, Copy, MessageSquareText, Building2, Wallet, FileText, MapPin, Heart, HandHeart, HelpCircle, ClipboardList, Award, ChevronDown, ChevronRight, ChevronLeft, Languages, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ImageUpload } from '@/components/admin/ImageUpload'
@@ -69,7 +69,7 @@ const invoiceTemplates: { id: string; labelKey: string; blurbKey: string }[] = [
   { id: 'statement', labelKey: 'st.tpl.statement.label', blurbKey: 'st.tpl.statement.blurb' },
 ]
 
-type SettingsCategory = 'general' | 'payments' | 'language' | 'documents' | 'donorTemplates' | 'welfareCards' | 'portalGuides' | 'adminGuides' | 'donorBadges' | 'connections' | 'approvals' | 'danger'
+type SettingsCategory = 'general' | 'payments' | 'language' | 'printing' | 'documents' | 'donorTemplates' | 'welfareCards' | 'portalGuides' | 'adminGuides' | 'donorBadges' | 'connections' | 'approvals' | 'danger'
 
 // Grouped by which part of the system each one belongs to, so a village that
 // runs only water supply — or only donations — sees a settings screen with
@@ -92,6 +92,12 @@ const CATEGORIES: {
     blurbKey: 'st.cat.payments.blurb' },
   { id: 'language', labelKey: 'st.cat.language.label', icon: Languages, groupKey: 'st.group.committee',
     blurbKey: 'st.cat.language.blurb' },
+  // Type sizes and label language are one setting for both systems, so they
+  // belong under Committee rather than inside either system's own tab. They
+  // used to sit in the water supply's Documents tab alongside the donor
+  // print-format control, which is why nobody could find either one.
+  { id: 'printing', labelKey: 'st.cat.printing.label', icon: Printer, groupKey: 'st.group.committee',
+    blurbKey: 'st.cat.printing.blurb' },
 
   { id: 'connections', labelKey: 'st.cat.connections.label', icon: MapPin, groupKey: 'st.group.waterSupply', system: 'water_supply',
     blurbKey: 'st.cat.connections.blurb' },
@@ -117,7 +123,7 @@ const CATEGORIES: {
 
 // labelKey is an i18n key — resolved via tr() at render time (module scope
 // has no useLocale()).
-const settingGroups: { labelKey: string; keys: string[]; category: SettingsCategory }[] = [
+const settingGroups: { labelKey: string; description?: string; keys: string[]; category: SettingsCategory }[] = [
   { labelKey: 'st.grp.displayLanguage', keys: ['display_language'], category: 'general' },
   { labelKey: 'st.grp.whatsapp', keys: ['whatsapp_number', 'whatsapp_link'], category: 'payments' },
   {
@@ -135,26 +141,41 @@ const settingGroups: { labelKey: string; keys: string[]; category: SettingsCateg
     ], category: 'payments',
   },
   { labelKey: 'st.grp.office', keys: ['office_hours'], category: 'general' },
+  // One group per audience, in the tab that audience actually lives in.
+  // These were a single "Universal Slip" group inside the water supply's
+  // Documents tab — so the DONOR print format was set from a water supply
+  // screen, and the shared type sizes looked like water supply settings.
   {
-    labelKey: 'st.grp.universalSlip', keys: [
+    labelKey: 'st.grp.slipShared', description: 'st.grp.slipShared.desc', keys: [
       'slip_display_mode', 'slip_font_heading', 'slip_font_body', 'slip_font_footer',
-      'slip_format_water', 'slip_format_donor', 'footer_website_link',
+    ],
+    category: 'printing',
+  },
+  {
+    labelKey: 'st.grp.waterPrinter', description: 'st.grp.waterPrinter.desc', keys: [
+      'slip_format_water', 'slip_thermal_width_water',
     ],
     category: 'documents',
   },
   {
-    labelKey: 'st.grp.invoiceFooter', keys: [
+    labelKey: 'st.grp.donorPrinter', description: 'st.grp.donorPrinter.desc', keys: [
+      'slip_format_donor', 'slip_thermal_width_donor',
+    ],
+    category: 'donorTemplates',
+  },
+  {
+    labelKey: 'st.grp.invoiceFooter', description: 'st.grp.invoiceFooter.desc', keys: [
       'helpline_numbers', 'helpline_label_en', 'helpline_label_ur',
       'footer_complaint_number', 'complaint_label_en', 'complaint_label_ur',
       'invoice_instructions', 'receipt_fund_note',
       'footer_facebook_link', 'footer_whatsapp_group_link', 'footer_whatsapp_chat',
-      'footer_projects_link', 'footer_donation_link',
+      'footer_projects_link', 'footer_donation_link', 'footer_website_link',
       'footer_suggestions_link', 'footer_complaints_link',
     ],
     category: 'documents',
   },
   {
-    labelKey: 'st.grp.donorInvoiceFooter', keys: [
+    labelKey: 'st.grp.donorInvoiceFooter', description: 'st.grp.donorInvoiceFooter.desc', keys: [
       'donor_helpline_numbers', 'donor_helpline_label_en', 'donor_helpline_label_ur',
       'donor_footer_complaint_number', 'donor_complaint_label_en', 'donor_complaint_label_ur',
       'donor_invoice_instructions', 'donor_receipt_fund_note',
@@ -209,6 +230,48 @@ const settingGroups: { labelKey: string; keys: string[]; category: SettingsCateg
   { labelKey: 'st.grp.reminders', keys: ['defaulter_restore_fee'], category: 'connections' },
   { labelKey: 'st.grp.newConnectionCharges', keys: ['connection_plumber_charge', 'connection_digging_charge', 'connection_security_deposit'], category: 'connections' },
 ]
+
+// Every field on this page used to be titled by its own database key,
+// shouted — DONOR_RECEIPT_FUND_NOTE. That is fine for a developer and
+// useless to the committee member who has a misprinted receipt in his hand
+// and is hunting for the thing that produced it. These are the receipt and
+// printer fields, named the way the person changing them would describe
+// them; everything else still falls back to the key.
+const FIELD_LABELS: Record<string, string> = {
+  slip_display_mode: 'Label language on receipts',
+  slip_font_heading: 'Heading size',
+  slip_font_body: 'Body size',
+  slip_font_footer: 'Footer size',
+  slip_format_water: 'Default print target — water supply',
+  slip_format_donor: 'Default print target — donor receipts',
+  slip_thermal_width_water: 'Thermal roll width — water supply',
+  slip_thermal_width_donor: 'Thermal roll width — donor receipts',
+
+  helpline_numbers: 'Helpline number(s) — water supply receipts',
+  helpline_label_en: 'Helpline wording (English) — water supply',
+  helpline_label_ur: 'Helpline wording (Urdu) — water supply',
+  footer_complaint_number: 'Complaint number — water supply receipts',
+  complaint_label_en: 'Complaint wording (English) — water supply',
+  complaint_label_ur: 'Complaint wording (Urdu) — water supply',
+  invoice_instructions: 'Instructions paragraph — water supply receipts',
+  receipt_fund_note: 'Fund note — water supply receipts',
+
+  donor_helpline_numbers: 'Helpline number(s) — donor receipts',
+  donor_helpline_label_en: 'Helpline wording (English) — donor receipts',
+  donor_helpline_label_ur: 'Helpline wording (Urdu) — donor receipts',
+  donor_footer_complaint_number: 'Complaint number — donor receipts',
+  donor_complaint_label_en: 'Complaint wording (English) — donor receipts',
+  donor_complaint_label_ur: 'Complaint wording (Urdu) — donor receipts',
+  donor_invoice_instructions: 'Instructions paragraph — donor receipts',
+  donor_receipt_fund_note: 'Fund note — donor receipts',
+}
+
+// Migration 171 seeded this wording and it has since been cleared in
+// production, so donor receipts print no fund note at all. It is offered as a
+// one-click restore rather than written back by a migration: the field is
+// admin-editable, and quietly re-filling prose somebody may have deleted on
+// purpose is not a fix, it is a second bug.
+const FUND_NOTE_SUGGESTION = 'اگر آپ کے ریکارڈ کے مطابق رقم اس رسید یا کل فنڈ سے مطابقت نہیں رکھتی تو براہ کرم ہماری ہیلپ لائن پر کال یا واٹس ایپ کریں۔'
 
 const emptyContact: ManagementContact = { name: '', designation: '', whatsapp: '' }
 
@@ -588,16 +651,25 @@ export default function AdminSettingsPage() {
   const renderSettingGroups = (category: SettingsCategory) => (
     <>
       {settingGroups.filter((g) => g.category === category).map((group, groupIdx) => (
-        <SettingsSection key={group.labelKey} title={tr(group.labelKey)} defaultOpen={groupIdx === 0 && !hasBespokeSectionAbove(category)}>
+        <SettingsSection
+          key={group.labelKey}
+          title={tr(group.labelKey)}
+          description={group.description ? tr(group.description) : undefined}
+          defaultOpen={groupIdx === 0 && !hasBespokeSectionAbove(category)}
+        >
           <div className="space-y-4">
             {group.keys.map((key) => {
               const setting = settings.find((s) => s.key === key)
               const isLong = ['about_text', 'vision', 'mission', 'invoice_instructions', 'donor_invoice_instructions', 'receipt_fund_note', 'donor_receipt_fund_note', 'publisher_guidelines_ur', 'publisher_guidelines_en', 'recurring_policy_ur', 'recurring_policy_en'].includes(key) || WELFARE_LONG_FIELDS.includes(key) || PORTAL_GUIDE_LONG_FIELDS.includes(key) || ADMIN_GUIDE_LONG_FIELDS.includes(key)
               return (
                 <div key={key}>
-                  <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">
-                    {key.replace(/_/g, ' ').toUpperCase()}
-                    {setting?.description && <span className="font-normal text-[12px] ms-2 opacity-70">— {setting.description}</span>}
+                  <label className="block font-sans mb-2">
+                    <span className="text-[14px] font-semibold text-dp-on-surface">
+                      {FIELD_LABELS[key] ?? key.replace(/_/g, ' ').toUpperCase()}
+                    </span>
+                    {setting?.description && (
+                      <span className="block font-normal text-[12px] text-dp-on-surface-variant mt-0.5">{setting.description}</span>
+                    )}
                   </label>
                   {key === 'slip_display_mode' ? (
                     <>
@@ -618,6 +690,16 @@ export default function AdminSettingsPage() {
                       </select>
                       <p className="font-sans text-[12px] text-dp-on-surface-variant mt-2">
                         Which target is pre-selected when a {key === 'slip_format_donor' ? 'donor' : 'consumer'} slip is opened. Whoever is printing can still switch it on the slip itself.
+                      </p>
+                    </>
+                  ) : key === 'slip_thermal_width_water' || key === 'slip_thermal_width_donor' ? (
+                    <>
+                      <select value={values[key] || '58'} onChange={(e) => setValues({ ...values, [key]: e.target.value })} className="input-field">
+                        <option value="58">58 mm roll (small — the usual pocket printer)</option>
+                        <option value="80">80 mm roll (wide)</option>
+                      </select>
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant mt-2">
+                        Set this to the paper your Bluetooth printer actually takes — it is printed on the roll or its box. The slip is built at the exact printable width of that roll, so if a printout comes out cramped, cut off at the right, or shrunk in the middle of the paper, this is the setting to change. Type size does not change with it; only how much fits on a line.
                       </p>
                     </>
                   ) : key.startsWith('slip_font_') ? (
@@ -651,13 +733,30 @@ export default function AdminSettingsPage() {
                       </p>
                     </>
                   ) : isLong ? (
-                    <textarea
-                      value={values[key] ?? ''}
-                      onChange={(e) => setValues({ ...values, [key]: e.target.value })}
-                      rows={key.startsWith('publisher_guidelines') || key.startsWith('recurring_policy') ? 14 : 3}
-                      dir={key.endsWith('_ur') ? 'rtl' : 'ltr'}
-                      className="input-field resize-y"
-                    />
+                    <>
+                      <textarea
+                        value={values[key] ?? ''}
+                        onChange={(e) => setValues({ ...values, [key]: e.target.value })}
+                        rows={key.startsWith('publisher_guidelines') || key.startsWith('recurring_policy') ? 14 : 3}
+                        dir={key.endsWith('_ur') || /[\u0600-\u06FF]/.test(values[key] ?? '') ? 'rtl' : 'ltr'}
+                        className="input-field resize-y"
+                      />
+                      {(key === 'receipt_fund_note' || key === 'donor_receipt_fund_note') && !values[key]?.trim() && (
+                        <div className="mt-2 rounded-lg border border-dp-outline-variant bg-dp-surface-container-low/60 px-3 py-2.5">
+                          <p className="font-sans text-[12px] text-dp-on-surface-variant">
+                            Nothing prints here while this is empty. Suggested wording:
+                          </p>
+                          <p dir="rtl" className="font-urdu text-[13px] text-dp-on-surface mt-1.5 leading-loose">{FUND_NOTE_SUGGESTION}</p>
+                          <button
+                            type="button"
+                            onClick={() => setValues({ ...values, [key]: FUND_NOTE_SUGGESTION })}
+                            className="mt-2 px-3 py-1.5 rounded-md border border-dp-outline-variant font-sans text-[12.5px] font-semibold text-dp-secondary hover:bg-white cursor-pointer"
+                          >
+                            Use this wording
+                          </button>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <input
                       type="text"
@@ -819,6 +918,8 @@ export default function AdminSettingsPage() {
           {activeCategory === 'payments' && renderSettingGroups('payments')}
 
           {activeCategory === 'language' && <LanguageSettings />}
+
+          {activeCategory === 'printing' && renderSettingGroups('printing')}
 
           {activeCategory === 'documents' && (
             <>

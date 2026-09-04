@@ -91,6 +91,9 @@ export interface ReceiptData {
   slipFontHeading?: number
   slipFontBody?: number
   slipFontFooter?: number
+  // Which thermal roll to build for, 58 or 80 (mm) — migration 443, set per
+  // system in Settings. Only read when format is 'thermal'.
+  slipThermalWidthMm?: 58 | 80
   // Payroll body (kind: 'salary'), Universal Slip only.
   payroll?: {
     designation?: string | null

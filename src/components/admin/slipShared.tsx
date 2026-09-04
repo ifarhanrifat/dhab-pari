@@ -42,6 +42,17 @@ export function splitNumbers(raw: string | null | undefined): string[] {
   return raw.split(/[,،/|]+/).map((s) => s.trim()).filter(Boolean)
 }
 
+// Which way a block of admin-typed free text should read. Narrations on this
+// system are usually Urdu but not always ("Monthly water bill", a supplier's
+// name), and a paragraph laid out against its own script puts the label that
+// introduces it at the end of the reader's line instead of the start.
+// First strong character decides, the same rule dir="auto" uses — leading
+// digits and punctuation are skipped so "60000 الگ جمع…" still counts as Urdu.
+const RTL_FIRST_STRONG = /^[^\p{L}]*[\p{Script=Arabic}\p{Script=Hebrew}]/u
+export function isRtlText(s: string | null | undefined): boolean {
+  return !!s && RTL_FIRST_STRONG.test(s)
+}
+
 export function prettyUrl(href: string): string {
   return href.replace(/^mailto:/, '').replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '')
 }
