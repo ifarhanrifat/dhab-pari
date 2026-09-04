@@ -122,6 +122,34 @@
 }
 
 :root {
+  /* --- The Urdu interface font stack -------------------------------------
+     Source Sans is listed BEFORE Nastaliq on purpose, and that ordering is
+     the whole point of this variable.
+
+     Noto Nastaliq Urdu is loaded (layout.tsx) with the *latin* subset
+     included, so the Nastaliq webfont itself carries glyphs for every
+     English letter, digit and punctuation mark. Font matching is
+     per-character and first-match-wins, so with Nastaliq first it claimed
+     all of them — and Nastaliq's Latin is a calligraphic serif drawn
+     oversized to sit optically beside the Nastaliq script. That is what
+     made account names, voucher numbers, phone numbers, dates and money
+     amounts render as a huge, Times-looking serif throughout Urdu mode:
+     the reported "huge and ugly" was mostly the LATIN text, not the Urdu.
+
+     Source Sans has no Arabic-script glyphs at all, so putting it first
+     takes nothing away from Urdu — Urdu still falls straight through to
+     Nastaliq. It only claims the Latin runs, which is exactly the
+     convention every real Pakistani banking/messaging app follows:
+     Nastaliq for Urdu, a clean Latin sans for names, numerals and codes.
+
+     Literal family names here, deliberately, NOT var(--font-source-sans):
+     next/font expands that variable to `"Source Sans 3", "Source Sans 3
+     Fallback", ...`, and that injected metric-fallback is a local system
+     face (Arial/Helvetica) which DOES carry Arabic — listed ahead of
+     Nastaliq it would hijack the Urdu into a flat naskh. Naming the two
+     real families directly skips both injected fallbacks. */
+  --font-urdu-ui: 'Source Sans 3', 'Noto Nastaliq Urdu', ui-sans-serif, system-ui, sans-serif;
+
   --radius: 0.5rem;
   --background: #E1F5EE;
   --foreground: #1c1b1b;
@@ -381,48 +409,83 @@ select.input-field {
    size. 1.65 is generous enough that Nastaliq lines still don't collide
    in ordinary flowing text, without the bloat. */
 html[lang='ur'] body {
-  font-family: var(--font-urdu), serif;
+  font-family: var(--font-urdu-ui);
   font-size: 0.92em;
   line-height: 1.65;
 }
 
 html[lang='ur'] .font-sans,
 html[lang='ur'] .font-heading {
-  font-family: var(--font-urdu), serif;
+  font-family: var(--font-urdu-ui);
 }
 
 /* Controls have fixed heights; give the descenders room rather than letting
-   them be clipped by overflow. */
+   them be clipped by overflow.
+
+   Same correction as the body rule above, one level down. 2.1 was picked
+   for a BARE single-line control, where line-height is the only thing
+   holding the box open. But almost every button, nav row and link in this
+   app already carries its own explicit padding (py-2 / py-2.5 / py-3 from
+   the utility classes, or .filter-btn's fixed h-11) — so 2.1 wasn't
+   opening a box that would otherwise collapse, it was stacking on top of
+   padding that had already done the job. Measured result: sidebar nav rows
+   at 49px each and the donor list's action buttons at ~85px, roughly
+   double their English-mode height, which is why the admin drawer showed
+   only 11 of ~40 destinations and the donor list fit 3 rows a screen.
+
+   1.75 still clears Nastaliq's descenders comfortably (it is above the
+   1.65 the body settled on, and these are the shorter, tighter strings),
+   keeps the 0.15em descender pad, and leaves every control's own padding
+   to set the actual tap-target height — which is what it was written to
+   do. Nothing here is overflow:hidden, so the calligraphic ink that does
+   fall outside the line box still paints rather than clipping. */
 html[lang='ur'] button,
 html[lang='ur'] label,
 html[lang='ur'] a {
-  line-height: 2.1;
+  line-height: 1.75;
   padding-bottom: 0.15em;
 }
 
+/* Inputs keep more room than buttons: text sits inside a hard border here,
+   so a descender crossing it reads as a rendering fault rather than as
+   ordinary overhang. 1.7 plus the existing pad still lands well inside the
+   52px .input-field / 44px .filter-field fixed heights. */
 html[lang='ur'] input,
 html[lang='ur'] select,
 html[lang='ur'] textarea {
-  line-height: 2;
+  line-height: 1.7;
   padding-top: 0.35em;
   padding-bottom: 0.45em;
 }
 
 /* Table cells were the worst case: a single Urdu line in a tight row lost its
-   entire lower half. */
+   entire lower half — hence the deliberately generous original numbers. But
+   2.3 plus 1.1em of vertical padding put report rows at ~108px each, so a
+   trial balance that shows 8 accounts a screen in English showed 3 in Urdu.
+   A ledger is a scanning surface: how many rows land in one view is the
+   feature. 1.9 with 0.8em of padding still gives a single Urdu line more
+   room than it occupies, and keeps rows comfortably above the 44px
+   touch-target floor, while nearly halving the row height. */
 html[lang='ur'] th,
 html[lang='ur'] td {
-  line-height: 2.3;
-  padding-top: 0.5em;
-  padding-bottom: 0.6em;
+  line-height: 1.9;
+  padding-top: 0.35em;
+  padding-bottom: 0.45em;
   vertical-align: middle;
 }
 
-/* Headings sit on their own line and can afford to breathe. */
+/* Headings sit on their own line and can afford to breathe — but 2.0 was
+   breathing into the content below it, not around itself: a single-line
+   page title reserved a full blank line's worth of space under its own
+   baseline, on top of whatever margin the layout already set, which read
+   as a heading floating loose from the section it introduces. Headings are
+   also the largest type on the page, where a line-height multiplier costs
+   the most pixels. 1.5 is the conventional display-type ratio and still
+   clears Nastaliq's descenders at heading sizes; the 0.2em pad stays. */
 html[lang='ur'] h1,
 html[lang='ur'] h2,
 html[lang='ur'] h3 {
-  line-height: 2;
+  line-height: 1.5;
   padding-bottom: 0.2em;
 }
 
@@ -507,6 +570,26 @@ html[lang='ur'] .text-\[38px\] { font-size: 31px !important; }
 html[lang='ur'] .text-\[40px\] { font-size: 33px !important; }
 html[lang='ur'] .text-\[42px\] { font-size: 34px !important; }
 html[lang='ur'] .text-\[48px\] { font-size: 39px !important; }
+
+/* Tailwind's leading-* utilities set line-height on the element itself, so
+   they override every Urdu rule above by inheritance — a component that
+   opts into leading-tight escapes the body/td/heading numbers entirely.
+   That is fine for the loose end of the scale (leading-relaxed lands
+   around 1.8 in practice, which measures comfortably for Nastaliq), but
+   leading-tight's 1.25 is a Latin ratio: it assumes ink stays inside the
+   em box. Nastaliq's does not — its baseline slopes and its descenders
+   drop well below — so any leading-tight text that actually WRAPS has its
+   lines physically overlapping. Audited the rendered pages rather than the
+   class list: six wrapped Urdu captions were colliding at 1.25 (home page
+   stat/scheme captions, the admin dashboard's best-seller line).
+
+   Raised only enough to separate the lines, preserving the relative
+   hierarchy tight < snug < relaxed, and left leading-relaxed/loose alone
+   since those already measured fine. Single-line uses of these utilities —
+   the large majority — only gain a couple of pixels of box height. */
+html[lang='ur'] .leading-none { line-height: 1.45 !important; }
+html[lang='ur'] .leading-tight { line-height: 1.5 !important; }
+html[lang='ur'] .leading-snug { line-height: 1.6 !important; }
 
 /* The section-title accent bar (::before) is always first in the DOM, so
    it always rendered before the heading text — fine left-to-right,

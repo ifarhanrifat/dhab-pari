@@ -2630,13 +2630,26 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                       // type/number/amount/status stack sits on its own
                       // side, so a long account name can never crowd the
                       // status pills or vice versa.
+                      //
+                      // The description is deliberately NOT inside the
+                      // account column: the metadata column beside it is
+                      // shrink-0 with whitespace-nowrap contents (voucher
+                      // number, date, amount), so it takes whatever width
+                      // it needs and the account column absorbs the rest.
+                      // On a 390px phone in Urdu that left the description
+                      // a ~105px ribbon wrapping one word per line for 8+
+                      // lines, while the whole area under the amount sat
+                      // empty. A remark is full-width prose, so it now
+                      // spans the card underneath the two columns — the
+                      // same shape the non-voucher branch below already
+                      // uses for its own description.
+                      <>
                       <div className="flex justify-between items-start gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{c.voucherToName}</p>
                           {c.voucherFromName && (
                             <p className="font-sans text-[12px] text-dp-on-surface-variant truncate">{c.voucherFromName}</p>
                           )}
-                          <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">{c.description}</p>
                         </div>
                         <div className="text-end shrink-0">
                           <p className="font-sans text-[13px] font-bold text-dp-on-surface whitespace-nowrap">{c.docLabel}</p>
@@ -2661,6 +2674,10 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                           </div>
                         </div>
                       </div>
+                      {c.description && (
+                        <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1 whitespace-normal break-words">{c.description}</p>
+                      )}
+                      </>
                     ) : (
                       <>
                         <div className="flex justify-between items-start gap-3">
