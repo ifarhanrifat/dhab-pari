@@ -39,6 +39,11 @@ interface Product {
   unit_price_pkr: number; quantity_on_hand: number; expiry_date: string | null; is_active: boolean
 }
 
+interface BrandSubmission {
+  id: string; brand_name: string; brand_name_ur: string | null; category: string; status: string; created_at: string
+  items: { name: string; name_ur: string | null; flavor: string | null; cost_price_pkr: number; unit_price_pkr: number }[]
+}
+
 interface Order {
   id: string; status: string; total_amount_pkr: number; announced_method: string | null; announced_at: string | null; rejected_reason: string | null
   fulfillment_status: string; delivery_address: string | null; buyer_mobile: string | null
@@ -91,6 +96,8 @@ function AdminShopsInner() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Shop | null>(null)
   const [products, setProducts] = useState<Product[]>([])
+  const [brandSubmissions, setBrandSubmissions] = useState<BrandSubmission[]>([])
+  const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [coverByProduct, setCoverByProduct] = useState<Record<string, string>>({})
   const [orders, setOrders] = useState<Order[]>([])
   const [orderActionId, setOrderActionId] = useState<string | null>(null)
@@ -169,7 +176,21 @@ function AdminShopsInner() {
     setTopups(data ?? [])
   }
 
-  const openShop = (s: Shop) => { setSelected(s); loadProducts(s.id); loadOrders(s.id); loadCharges(s.id); loadTopups(s.id) }
+  const loadBrandSubmissions = async (shopId: string) => {
+    const { data } = await supabase.from('catalog_brand_submissions').select('id, brand_name, brand_name_ur, category, status, created_at, items')
+      .eq('shop_id', shopId).eq('status', 'pending').order('created_at', { ascending: false })
+    setBrandSubmissions((data ?? []) as unknown as BrandSubmission[])
+  }
+  const reviewBrand = async (submissionId: string, approve: boolean) => {
+    setReviewingId(submissionId)
+    const { error } = await supabase.rpc('review_catalog_brand_submission', { p_submission_id: submissionId, p_approve: approve, p_note: null })
+    setReviewingId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(approve ? t('bb.approvedToast') : t('bb.rejectedToast'))
+    if (selected) loadBrandSubmissions(selected.id)
+  }
+
+  const openShop = (s: Shop) => { setSelected(s); loadProducts(s.id); loadOrders(s.id); loadCharges(s.id); loadTopups(s.id); loadBrandSubmissions(s.id) }
 
   const confirmTopup = async (id: string) => {
     setTopupActionId(id)
@@ -468,6 +489,36 @@ function AdminShopsInner() {
               <button onClick={() => deleteShop(selected)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-error cursor-pointer hover:bg-red-50"><Trash2 size={14} /> {t('cm.deleteShopBtn')}</button>
             </div>
           </div>
+
+          {brandSubmissions.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+              <p className="font-sans text-[13px] font-bold text-amber-900 mb-3">{t('bb.pendingReviewHeading').replace('{n}', String(brandSubmissions.length))}</p>
+              <div className="space-y-3">
+                {brandSubmissions.map((s) => (
+                  <div key={s.id} className="bg-white border border-amber-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+                      <div>
+                        <p className="font-sans text-[14px] font-bold text-dp-on-surface">{isUrdu && s.brand_name_ur ? s.brand_name_ur : s.brand_name}</p>
+                        <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{getCategoryLabel(s.category, isUrdu)} · {s.items.length} {t('mk.productsCount')} · {new Date(s.created_at).toLocaleDateString('en-GB')}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button onClick={() => reviewBrand(s.id, false)} disabled={reviewingId === s.id} className="px-2.5 py-1.5 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container disabled:opacity-50">{t('bb.rejectBtn')}</button>
+                        <button onClick={() => reviewBrand(s.id, true)} disabled={reviewingId === s.id} className="px-2.5 py-1.5 rounded text-[12px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50">{t('bb.approveBtn')}</button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {s.items.map((it, i) => (
+                        <span key={i} className="text-[11px] font-sans bg-dp-surface-container px-2 py-1 rounded-full text-dp-on-surface-variant">
+                          {isUrdu && it.name_ur ? it.name_ur : it.name}{it.flavor && ` (${it.flavor})`} — {it.unit_price_pkr}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="font-sans text-[11px] text-amber-800 mt-3">{t('bb.reviewApprovalNote')}</p>
+            </div>
+          )}
 
           <ShopCatalogSection
             shopId={selected.id}

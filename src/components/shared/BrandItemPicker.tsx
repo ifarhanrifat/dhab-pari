@@ -12,7 +12,7 @@
 // replaced in AddStockWizard's git history for why that mattered.
 
 import { useMemo, useState } from 'react'
-import { ChevronRight, ChevronDown, ChevronUp, Check, LayoutGrid, Tags, Sparkles, PackageCheck } from 'lucide-react'
+import { ChevronRight, ChevronDown, ChevronUp, Check, LayoutGrid, Tags, Sparkles, PackageCheck, PackagePlus } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { getShopTypeTree, getCategoryLabel } from '@/lib/shopTypes'
 import {
@@ -21,17 +21,20 @@ import {
 } from '@/lib/catalogSelection'
 import { TILE_COLORS, CategoryPicker } from './CategoryBrowser'
 import { DynamicIcon } from './DynamicIcon'
+import { BrandBuilderModal } from './BrandBuilderModal'
 import type { CatalogSelection } from '@/hooks/useCatalogSelection'
 
 interface OwnedProduct { name: string; flavor?: string | null }
 
 interface BrandItemPickerProps {
+  shopId: string
   primaryType: string
   ownedProducts: OwnedProduct[]
   selection: CatalogSelection
+  onBrandSubmitted: () => void
 }
 
-export function BrandItemPicker({ primaryType, ownedProducts, selection }: BrandItemPickerProps) {
+export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection, onBrandSubmitted }: BrandItemPickerProps) {
   const { t, isUrdu } = useLocale()
   const tree = useMemo(() => getShopTypeTree(primaryType), [primaryType])
   const looseEntries = useMemo(() => looseGoodsAsCatalogEntries(primaryType), [primaryType])
@@ -56,6 +59,7 @@ export function BrandItemPicker({ primaryType, ownedProducts, selection }: Brand
   const [lens, setLens] = useState<'brands' | 'departments'>(brands.length > 0 ? 'brands' : 'departments')
   const [openBrands, setOpenBrands] = useState<Set<string>>(new Set())
   const [showAddCustom, setShowAddCustom] = useState(false)
+  const [showBrandBuilder, setShowBrandBuilder] = useState(false)
 
   const [activeDeptKey, setActiveDeptKey] = useState<string | null>(null)
   const [activeCatSlug, setActiveCatSlug] = useState<string | null>(null)
@@ -277,20 +281,37 @@ export function BrandItemPicker({ primaryType, ownedProducts, selection }: Brand
           )}
 
           {lens === 'brands' && (
-            showAddCustom ? (
-              <div className="mt-4 bg-dp-surface-container rounded-lg p-3">
-                <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface mb-2">{t('bs.pickCategoryForItemHint')}</p>
-                <CategoryPicker primaryType={primaryType} value="" onPick={(slug) => { selection.addCustomRow(slug); setShowAddCustom(false) }} />
-                <button onClick={() => setShowAddCustom(false)} className="mt-2 font-sans text-[12px] text-dp-on-surface-variant hover:underline cursor-pointer">{t('action.cancel')}</button>
-              </div>
-            ) : (
-              <button onClick={() => setShowAddCustom(true)}
-                className="w-full mt-4 flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-dp-secondary/50 bg-dp-secondary-container/20 text-dp-secondary rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-secondary-container/40">
-                {t('bs.addYourOwnItemBtn')}
+            <>
+              {showAddCustom ? (
+                <div className="mt-4 bg-dp-surface-container rounded-lg p-3">
+                  <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface mb-2">{t('bs.pickCategoryForItemHint')}</p>
+                  <CategoryPicker primaryType={primaryType} value="" onPick={(slug) => { selection.addCustomRow(slug); setShowAddCustom(false) }} />
+                  <button onClick={() => setShowAddCustom(false)} className="mt-2 font-sans text-[12px] text-dp-on-surface-variant hover:underline cursor-pointer">{t('action.cancel')}</button>
+                </div>
+              ) : (
+                <button onClick={() => setShowAddCustom(true)}
+                  className="w-full mt-4 flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-dp-secondary/50 bg-dp-secondary-container/20 text-dp-secondary rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-secondary-container/40">
+                  {t('bs.addYourOwnItemBtn')}
+                </button>
+              )}
+              {/* Distinct from "add your own item" above: that's a quick
+                  one-off row straight into this basket, no brand name, no
+                  review. This is for a whole BRAND missing from the shared
+                  catalog — goes into this shop instantly too, but also
+                  queues a real submission for the committee (§3, migration
+                  435), so the next shop that needs it isn't starting from
+                  zero either. */}
+              <button onClick={() => setShowBrandBuilder(true)}
+                className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface-variant cursor-pointer hover:bg-dp-surface-container">
+                <PackagePlus size={15} /> {t('bb.openBuilderBtn')}
               </button>
-            )
+            </>
           )}
         </>
+      )}
+
+      {showBrandBuilder && (
+        <BrandBuilderModal shopId={shopId} primaryType={primaryType} onClose={() => setShowBrandBuilder(false)} onSubmitted={onBrandSubmitted} />
       )}
     </div>
   )

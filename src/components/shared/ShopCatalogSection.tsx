@@ -179,7 +179,7 @@ export function ShopCatalogSection<P extends StockListProduct>({
           )}
 
           {mode === 'browse'
-            ? <BrandItemPicker primaryType={primaryType} ownedProducts={products} selection={selection} />
+            ? <BrandItemPicker shopId={shopId} primaryType={primaryType} ownedProducts={products} selection={selection} onBrandSubmitted={onCommitted} />
             : <BulkPriceReview primaryType={primaryType} selection={selection} />}
 
           {selection.count > 0 && (
