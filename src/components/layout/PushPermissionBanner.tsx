@@ -53,7 +53,16 @@ export function PushPermissionBanner({ owner }: { owner: { adminUserId?: string;
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{permission === 'denied' ? t('g.pushDeniedTitle') : t('g.pushEnableTitle')}</p>
-          <p className="font-sans text-[12px] text-dp-on-surface-variant leading-[17px] mt-1">{permission === 'denied' ? deniedBody : t('g.pushEnableBody')}</p>
+          {/* leading-[17px] (~1.4x) is fine for the English copy this was
+              tuned for, but too tight for Nastaliq — its sloped baseline and
+              deep descenders need closer to 1.6-1.8x or wrapped lines
+              visually collide. This banner is fixed-position and stays on
+              screen until dismissed, so it's exactly the kind of thing
+              worth getting right rather than leaving to the sitewide
+              .leading-* class overrides, which only catch the three named
+              Tailwind utilities (tight/snug/none), not arbitrary [Npx]
+              values like this one. */}
+          <p className={`font-sans text-[12px] text-dp-on-surface-variant mt-1 ${isUrdu ? 'leading-[22px]' : 'leading-[17px]'}`}>{permission === 'denied' ? deniedBody : t('g.pushEnableBody')}</p>
           {permission !== 'denied' && (
             <button onClick={enable} disabled={subscribing} className="mt-2.5 bg-dp-secondary text-white px-3.5 py-1.5 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
               {t('g.pushEnableButton')}
