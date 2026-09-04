@@ -634,6 +634,8 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                 <>
                   {billStatusMap[row.reference_id]?.status === 'paid' ? (
                     <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 whitespace-nowrap">{t('w.paid')}</span>
+                  ) : billStatusMap[row.reference_id]?.status === 'waived' ? (
+                    <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-dp-surface-container-low text-dp-on-surface-variant whitespace-nowrap">{t('tx.waivedStatus')}</span>
                   ) : (
                     <>
                       {billStatusMap[row.reference_id]?.status === 'partial' && (
@@ -720,6 +722,8 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                         <>
                           {billStatusMap[row.reference_id]?.status === 'paid' ? (
                             <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 whitespace-nowrap">{t('w.paid')}</span>
+                          ) : billStatusMap[row.reference_id]?.status === 'waived' ? (
+                            <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-dp-surface-container-low text-dp-on-surface-variant whitespace-nowrap">{t('tx.waivedStatus')}</span>
                           ) : (
                             <>
                               {billStatusMap[row.reference_id]?.status === 'partial' && (
