@@ -557,14 +557,21 @@ export default function AllTransactionsPage() {
                   // (paid-to on top, paid-from underneath) instead of a
                   // free-text party name — and the type/number/amount/status
                   // stack sits on its own side, so a long account name can
-                  // never crowd the status pills or vice versa.
+                  // never crowd the status pills or vice versa. Description
+                  // is deliberately NOT inside the account column, same
+                  // reasoning as the non-voucher branch below (and the
+                  // per-system finance register this page duplicates) — the
+                  // metadata column beside it is shrink-0/whitespace-nowrap,
+                  // so it takes whatever width it needs and the account
+                  // column absorbs the rest, leaving a narration only ~100px
+                  // wide on a phone otherwise.
+                  <>
                   <div className="flex justify-between items-start gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="font-sans text-[14px] font-bold text-dp-on-surface">{r.voucherToName}</p>
                       {r.voucherFromName && (
                         <p className="font-sans text-[12px] text-dp-on-surface-variant">{r.voucherFromName}</p>
                       )}
-                      <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">{r.description}</p>
                     </div>
                     <div className="text-end shrink-0">
                       <p className="font-sans text-[13px] font-bold text-dp-on-surface whitespace-nowrap">{r.docLabel}</p>
@@ -599,6 +606,10 @@ export default function AllTransactionsPage() {
                       </div>
                     </div>
                   </div>
+                  {r.description && (
+                    <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1 whitespace-normal break-words">{r.description}</p>
+                  )}
+                  </>
                 ) : (
                   <>
                     {/* Name gets full room to wrap onto 2 lines instead of a
