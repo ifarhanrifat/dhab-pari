@@ -215,6 +215,33 @@
   .admin-shell .text-\[14px\] { font-size: 16.5px !important; }
 }
 
+/* --- ...but the top of that table overshoots in Urdu ---
+   The block above is language-blind and predates the Urdu work. It is right
+   for English and is left untouched there. In Urdu it stacks on a typeface
+   that already reads larger at the same nominal px (see the --font-urdu-ui
+   commit), and it collides with the html[lang='ur'] heading downscale table
+   further down this file — which, unlike this one, is NOT width-scoped.
+   Measured on /admin/finance/donors_projects at 390px in Urdu:
+
+     text-[13px] -> 15.5px  |  text-[14px] -> 16.5px
+     text-[15px] -> 15px    |  text-[16px] -> 16px  |  text-[18px] -> 15px
+
+   i.e. nominal-14px body text rendered LARGER than every heading size above
+   it, including the 18px dashboard stat numbers. The two tables cross over.
+
+   Only the top two rows are corrected, and only for Urdu. text-[12px] ->
+   14px is deliberately left alone: that is the "نقد" paid-from line the user
+   pointed to as the one correctly-sized piece of text on the transaction
+   card, so it is the reference the rows above are brought down to meet.
+   Rows below it (the 10/11px badges) were not flagged and are not touched.
+   text-[15px] keeps its 15px so the money amount stays the dominant datum on
+   a transaction card — the one place on that card a size step is wanted. */
+@media (max-width: 767px) {
+  html[lang='ur'] .admin-shell .text-\[13px\],
+  html[lang='ur'] .admin-shell .text-\[13\.5px\] { font-size: 14px !important; }
+  html[lang='ur'] .admin-shell .text-\[14px\] { font-size: 14.5px !important; }
+}
+
 /* --- Urdu text utility --- */
 .urdu-text {
   font-family: var(--font-urdu), serif;
