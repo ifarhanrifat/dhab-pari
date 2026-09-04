@@ -22,7 +22,7 @@ const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr
 
 interface Route {
   id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
-  classification: string; fare_per_seat_pkr: number; departure_time: string | null; days_of_week: number[]
+  classification: string; fare_mode: string; total_fare_pkr: number | null; fare_per_seat_pkr: number; departure_time: string | null; days_of_week: number[]
   origin_lat: number | null; origin_lng: number | null; destination_lat: number | null; destination_lng: number | null
 }
 interface Vehicle { id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; total_seats: number; commission_mode: string }
@@ -84,7 +84,16 @@ export default function RouteDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [travelDate, route?.id, wrongDay])
 
-  const total = route ? seats * route.fare_per_seat_pkr : 0
+  const isFlex = route?.fare_mode === 'flex'
+  // Live estimate only — the actual charge locks in server-side
+  // (place_ride_booking, migration 437) at whatever the split is the
+  // moment this booking is placed. seatsBookedSoFar comes from
+  // route_seats_available (already fetched, already public) rather
+  // than a second query.
+  const seatsBookedSoFar = isFlex && vehicle && available !== null ? vehicle.total_seats - available : 0
+  const estimatedPerSeatNow = isFlex && route?.total_fare_pkr ? route.total_fare_pkr / Math.max(1, seatsBookedSoFar + seats) : 0
+  const minPerSeatIfFull = isFlex && route?.total_fare_pkr && vehicle ? route.total_fare_pkr / vehicle.total_seats : 0
+  const total = !route ? 0 : isFlex ? Math.round(seats * estimatedPerSeatNow) : seats * route.fare_per_seat_pkr
   const isPerOrder = vehicle?.commission_mode === 'per_order'
 
   const submit = async () => {
@@ -120,7 +129,14 @@ export default function RouteDetailPage() {
         {' · '}
         {route.days_of_week.length === 7 ? t('mk.everyDay') : route.days_of_week.map((d) => t(DAY_KEYS[d])).join('، ')}
       </p>
-      <p className="font-heading text-[22px] font-bold text-dp-secondary mt-2">{fmt(route.fare_per_seat_pkr)} <span className="font-sans font-normal text-dp-on-surface-variant text-[13px]">{t('mk.perSeat')}</span></p>
+      {isFlex ? (
+        <div className="mt-2">
+          <p className="font-heading text-[20px] font-bold text-dp-secondary">{fmt(minPerSeatIfFull)}–{fmt(route.total_fare_pkr ?? 0)} <span className="font-sans font-normal text-dp-on-surface-variant text-[13px]">{t('mp.flexPerSeatRangeSuffix')}</span></p>
+          <p className="font-sans text-[12px] text-dp-on-surface-variant bg-dp-secondary-container/30 rounded-lg px-3 py-2 mt-1.5">{t('mp.flexModeExplain')}</p>
+        </div>
+      ) : (
+        <p className="font-heading text-[22px] font-bold text-dp-secondary mt-2">{fmt(route.fare_per_seat_pkr)} <span className="font-sans font-normal text-dp-on-surface-variant text-[13px]">{t('mk.perSeat')}</span></p>
+      )}
 
       {route.origin_lat != null && route.origin_lng != null && route.destination_lat != null && route.destination_lng != null && (
         <div className="mt-4">
@@ -161,6 +177,9 @@ export default function RouteDetailPage() {
               <button onClick={() => setSeats((s) => Math.min(available, s + 1))} className="w-8 h-8 rounded-full bg-dp-secondary text-white flex items-center justify-center cursor-pointer"><Plus size={14} /></button>
             </div>
 
+            {isFlex && (
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2">{t('mp.flexEstimateNote').replace('{n}', String(seatsBookedSoFar + seats))}</p>
+            )}
             <div className="flex items-center justify-between pt-3 mt-3 border-t border-dp-outline-variant">
               <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('mp.cartTotal')}</p>
               <p className="font-heading text-[19px] font-bold text-dp-secondary">{fmt(total)}</p>

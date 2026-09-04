@@ -13,7 +13,9 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Search, Store, Clock, CheckCircle2, XCircle, MessageCircle } from 'lucide-react'
+import { Search, Store, Clock, CheckCircle2, XCircle, MessageCircle, Ban } from 'lucide-react'
+import { toast } from 'sonner'
+import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
@@ -30,8 +32,15 @@ interface ShopOrder {
 }
 interface RideBooking {
   id: string; status: string; total_amount_pkr: number; seats: number; travel_date: string; rejected_reason: string | null; created_at: string
-  vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null
+  vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; departure_time: string | null } | null
 }
+
+// Free cancellation cutoff — matches cancel_ride_booking's own rule
+// (migration 436): outside this window a rider's cancellation is fully
+// reversed, inside it the booking still cancels but nothing refunds.
+// This is display-only (a heads-up before they tap Cancel); the RPC is
+// the actual source of truth.
+const LATE_CUTOFF_HOURS = 2
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -47,16 +56,39 @@ export default function PortalMarketplacePage() {
   const [query, setQuery] = useState('')
   const [searching, setSearching] = useState(false)
   const [results, setResults] = useState<SearchResult[] | null>(null)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
+
+  const reloadBookings = () => {
+    if (!user) return
+    supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, created_at, vehicle_routes(origin, origin_ur, destination, destination_ur, departure_time)')
+      .eq('portal_user_id', user.id).order('created_at', { ascending: false }).limit(10)
+      .then(({ data }) => setBookings((data ?? []) as unknown as RideBooking[]))
+  }
 
   useEffect(() => {
     if (!user) return
     supabase.from('shop_orders').select('id, status, total_amount_pkr, rejected_reason, created_at, fulfillment_status, shops(name, name_ur)')
       .eq('portal_user_id', user.id).order('created_at', { ascending: false }).limit(10)
       .then(({ data }) => setOrders((data ?? []) as unknown as ShopOrder[]))
-    supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, created_at, vehicle_routes(origin, origin_ur, destination, destination_ur)')
-      .eq('portal_user_id', user.id).order('created_at', { ascending: false }).limit(10)
-      .then(({ data }) => setBookings((data ?? []) as unknown as RideBooking[]))
-  }, [user])
+    reloadBookings()
+  }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isLate = (b: RideBooking) => {
+    if (!b.vehicle_routes?.departure_time) return false
+    const departure = new Date(`${b.travel_date}T${b.vehicle_routes.departure_time}`)
+    return (departure.getTime() - Date.now()) / 3600000 < LATE_CUTOFF_HOURS
+  }
+
+  const cancelBooking = async (b: RideBooking) => {
+    const late = b.status === 'confirmed' && isLate(b)
+    if (!confirm(late ? t('mp.confirmLateCancelHint') : t('mp.confirmCancelHint'))) return
+    setCancellingId(b.id)
+    const { error } = await supabase.rpc('cancel_ride_booking', { p_booking_id: b.id, p_reason: t('mp.riderCancelledReason') })
+    setCancellingId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mp.bookingCancelledToast'))
+    reloadBookings()
+  }
 
   const runSearch = async (q: string) => {
     setQuery(q)
@@ -130,17 +162,31 @@ export default function PortalMarketplacePage() {
               </div>
             ))}
             {bookings.map((b) => (
-              <div key={b.id} className="flex items-center justify-between gap-3 bg-white border border-dp-outline-variant rounded-lg p-3">
-                <div className="min-w-0">
-                  <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface truncate">
-                    {b.vehicle_routes ? `${isUrdu && b.vehicle_routes.origin_ur ? b.vehicle_routes.origin_ur : b.vehicle_routes.origin} → ${isUrdu && b.vehicle_routes.destination_ur ? b.vehicle_routes.destination_ur : b.vehicle_routes.destination}` : '—'}
-                  </p>
-                  <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{new Date(b.travel_date).toLocaleDateString('en-GB')} · {b.seats} {t('mk.seatsLabel')}</p>
+              <div key={b.id} className="bg-white border border-dp-outline-variant rounded-lg p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface truncate">
+                      {b.vehicle_routes ? `${isUrdu && b.vehicle_routes.origin_ur ? b.vehicle_routes.origin_ur : b.vehicle_routes.origin} → ${isUrdu && b.vehicle_routes.destination_ur ? b.vehicle_routes.destination_ur : b.vehicle_routes.destination}` : '—'}
+                    </p>
+                    <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{new Date(b.travel_date).toLocaleDateString('en-GB')} · {b.seats} {t('mk.seatsLabel')}</p>
+                  </div>
+                  <div className="text-end shrink-0">
+                    <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{fmt(b.total_amount_pkr)}</p>
+                    {b.status === 'cancelled'
+                      ? <span className="inline-flex items-center gap-1 text-dp-on-surface-variant text-[11px] font-bold"><Ban size={11} /> {t('mp.cancelledStatus')}</span>
+                      : <StatusPill status={b.status} reason={b.rejected_reason} />}
+                  </div>
                 </div>
-                <div className="text-end shrink-0">
-                  <p className="font-sans text-[13.5px] font-bold text-dp-on-surface">{fmt(b.total_amount_pkr)}</p>
-                  <StatusPill status={b.status} reason={b.rejected_reason} />
-                </div>
+                {(b.status === 'announced' || b.status === 'confirmed') && (
+                  <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-dp-outline-variant/60">
+                    {b.status === 'confirmed' && isLate(b) && (
+                      <span className="font-sans text-[11px] text-amber-700">{t('mp.lateCancelWarning')}</span>
+                    )}
+                    <button onClick={() => cancelBooking(b)} disabled={cancellingId === b.id} className="ms-auto px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-error hover:bg-red-50 disabled:opacity-50">
+                      {t('mp.cancelBookingBtn')}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

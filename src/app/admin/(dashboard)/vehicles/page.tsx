@@ -31,11 +31,11 @@ interface Vehicle {
   id: string; owner_name: string; owner_mobile: string | null; owner_whatsapp: string | null
   vehicle_type: string; vehicle_number: string | null; total_seats: number; is_active: boolean
   portal_user_id: string | null; commission_mode: string; lumpsum_fee_pkr: number | null; night_booking_enabled: boolean
-  allows_out_of_city: boolean
+  allows_out_of_city: boolean; per_km_pkr: number | null
 }
 interface Route {
   id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
-  classification: string; fare_per_seat_pkr: number; departure_time: string | null; days_of_week: number[]; is_active: boolean
+  classification: string; fare_mode: string; total_fare_pkr: number | null; fare_per_seat_pkr: number; departure_time: string | null; days_of_week: number[]; is_active: boolean
   origin_lat: number | null; origin_lng: number | null; destination_lat: number | null; destination_lng: number | null
 }
 interface Booking {
@@ -61,11 +61,11 @@ interface AddaBoard { adda: Adda; pair_adda: Adda | null; entries: AddaBoardEntr
 const emptyVehicle = {
   owner_name: '', owner_mobile: '', owner_whatsapp: '', vehicle_type: '', vehicle_number: '', total_seats: 4, is_active: true,
   portal_user_id: null as string | null, commission_mode: 'per_order' as string, lumpsum_fee_pkr: 0, night_booking_enabled: false,
-  allows_out_of_city: true,
+  allows_out_of_city: true, per_km_pkr: null as number | null,
 }
 const emptyRoute = {
   origin: '', origin_ur: '', destination: '', destination_ur: '', classification: 'intercity',
-  fare_per_seat_pkr: 0, departure_time: '', days_of_week: [0, 1, 2, 3, 4, 5, 6] as number[], is_active: true,
+  fare_mode: 'fixed' as string, total_fare_pkr: 0, fare_per_seat_pkr: 0, departure_time: '', days_of_week: [0, 1, 2, 3, 4, 5, 6] as number[], is_active: true,
   origin_lat: null as number | null, origin_lng: null as number | null, destination_lat: null as number | null, destination_lng: null as number | null,
 }
 
@@ -400,7 +400,7 @@ function AdminVehiclesInner() {
       owner_name: v.owner_name, owner_mobile: v.owner_mobile ?? '', owner_whatsapp: v.owner_whatsapp ?? '',
       vehicle_type: v.vehicle_type, vehicle_number: v.vehicle_number ?? '', total_seats: v.total_seats, is_active: v.is_active,
       portal_user_id: v.portal_user_id, commission_mode: v.commission_mode, lumpsum_fee_pkr: v.lumpsum_fee_pkr ?? 0,
-      night_booking_enabled: v.night_booking_enabled, allows_out_of_city: v.allows_out_of_city,
+      night_booking_enabled: v.night_booking_enabled, allows_out_of_city: v.allows_out_of_city, per_km_pkr: v.per_km_pkr,
     })
     setKeeperMobile('')
     if (v.portal_user_id) {
@@ -442,7 +442,7 @@ function AdminVehiclesInner() {
     setEditingRoute(r)
     setRouteForm({
       origin: r.origin, origin_ur: r.origin_ur ?? '', destination: r.destination, destination_ur: r.destination_ur ?? '',
-      classification: r.classification, fare_per_seat_pkr: r.fare_per_seat_pkr, departure_time: r.departure_time ?? '',
+      classification: r.classification, fare_mode: r.fare_mode ?? 'fixed', total_fare_pkr: r.total_fare_pkr ?? 0, fare_per_seat_pkr: r.fare_per_seat_pkr, departure_time: r.departure_time ?? '',
       days_of_week: r.days_of_week, is_active: r.is_active,
       origin_lat: r.origin_lat, origin_lng: r.origin_lng, destination_lat: r.destination_lat, destination_lng: r.destination_lng,
     })
@@ -456,11 +456,18 @@ function AdminVehiclesInner() {
   const saveRoute = async () => {
     if (!selected || !routeForm.origin.trim() || !routeForm.destination.trim()) { toast.error(t('mk.nameRequired')); return }
     if (routeForm.days_of_week.length === 0) { toast.error(t('mk.pickAtLeastOneDay')); return }
+    if (!routeForm.total_fare_pkr || routeForm.total_fare_pkr <= 0) { toast.error(t('mk.enterTotalFareError')); return }
     setSaving(true)
+    // fixed: fare_per_seat_pkr (the authoritative field place_ride_booking
+    // actually reads) is total/seats, locked in now. flex: total_fare_pkr
+    // is authoritative instead; fare_per_seat_pkr is stored too but only
+    // as an "if full" display estimate — place_ride_booking (437)
+    // recomputes the real per-seat charge live off total_fare_pkr.
+    const perSeat = Math.round(routeForm.total_fare_pkr / Math.max(1, selected.total_seats))
     const payload = {
       vehicle_id: selected.id, origin: routeForm.origin, origin_ur: routeForm.origin_ur || null,
       destination: routeForm.destination, destination_ur: routeForm.destination_ur || null,
-      classification: routeForm.classification, fare_per_seat_pkr: routeForm.fare_per_seat_pkr,
+      classification: routeForm.classification, fare_mode: routeForm.fare_mode, total_fare_pkr: routeForm.total_fare_pkr, fare_per_seat_pkr: perSeat,
       departure_time: routeForm.departure_time || null, days_of_week: routeForm.days_of_week, is_active: routeForm.is_active,
       origin_lat: routeForm.origin_lat, origin_lng: routeForm.origin_lng, destination_lat: routeForm.destination_lat, destination_lng: routeForm.destination_lng,
     }
@@ -763,6 +770,11 @@ function AdminVehiclesInner() {
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={vehicleForm.night_booking_enabled} onChange={(e) => setVehicleForm({ ...vehicleForm, night_booking_enabled: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('af.nightBookingLabel')}</span></label>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={vehicleForm.allows_out_of_city} onChange={(e) => setVehicleForm({ ...vehicleForm, allows_out_of_city: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('mk.allowsOutOfCityLabel')}</span></label>
               <p className="font-sans text-[11px] text-dp-on-surface-variant -mt-1.5">{t('mk.allowsOutOfCityHint')}</p>
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.perKmRateLabel')}</label>
+                <input type="number" value={vehicleForm.per_km_pkr ?? ''} onChange={(e) => setVehicleForm({ ...vehicleForm, per_km_pkr: e.target.value === '' ? null : +e.target.value })} className="input-field" placeholder="0" />
+                <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('mk.perKmRateHint')}</p>
+              </div>
 
               <div className="pt-2 border-t border-dp-outline-variant/60">
                 <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.modeLabel')}</label>
@@ -825,8 +837,28 @@ function AdminVehiclesInner() {
                 <option value="intercity">{t('mk.intercity')}</option>
                 <option value="out_of_city">{t('mk.outOfCity')}</option>
               </select>
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.fareModeLabel')}</label>
+                <div className="flex items-center gap-1.5 bg-dp-surface-container rounded-lg p-1 w-fit mb-1.5">
+                  {(['fixed', 'flex'] as const).map((m) => (
+                    <button key={m} type="button" onClick={() => setRouteForm({ ...routeForm, fare_mode: m })}
+                      className={`px-3.5 py-1.5 rounded-md font-sans text-[12.5px] font-semibold cursor-pointer transition-all ${routeForm.fare_mode === m ? 'bg-white text-dp-secondary shadow-sm' : 'text-dp-on-surface-variant hover:text-dp-on-surface'}`}>
+                      {m === 'fixed' ? t('mk.fareModeFixed') : t('mk.fareModeFlex')}
+                    </button>
+                  ))}
+                </div>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant bg-dp-secondary-container/30 rounded-lg px-3 py-2">
+                  {routeForm.fare_mode === 'fixed' ? t('mk.fareModeFixedHint') : t('mk.fareModeFlexHint')}
+                </p>
+              </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.farePerSeatLabel')}</label><input type="number" value={routeForm.fare_per_seat_pkr || ''} onChange={(e) => setRouteForm({ ...routeForm, fare_per_seat_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
+                <div>
+                  <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.totalFareLabel')}</label>
+                  <input type="number" value={routeForm.total_fare_pkr || ''} onChange={(e) => setRouteForm({ ...routeForm, total_fare_pkr: +e.target.value })} className="input-field" placeholder="0" />
+                  {selected && routeForm.total_fare_pkr > 0 && (
+                    <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('mk.impliesPerSeat')} <span className="ltr-num font-semibold">{fmt(Math.round(routeForm.total_fare_pkr / Math.max(1, selected.total_seats)))}</span> ({selected.total_seats} {t('mk.seatsLabel')})</p>
+                  )}
+                </div>
                 <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.departureTimeLabel')}</label><input type="time" value={routeForm.departure_time} onChange={(e) => setRouteForm({ ...routeForm, departure_time: e.target.value })} className="input-field" /></div>
               </div>
               <div>
