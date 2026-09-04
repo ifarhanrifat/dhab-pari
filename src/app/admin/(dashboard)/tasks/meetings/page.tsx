@@ -25,11 +25,12 @@ interface ProjectCommentEntry { id: string; username: string | null; content: st
 interface ProjectCommentGroup { projectId: string; projectTitle: string; comments: ProjectCommentEntry[] }
 const ACTIVITY_ICON: Record<string, typeof Briefcase> = {
   job: Briefcase, volunteer: HandHeart, comment: MessageCircle, complaint: MessageSquareWarning,
-  suggestion: Lightbulb, donation: HeartHandshake, proposal: Vote,
+  suggestion: Lightbulb, donation: HeartHandshake, proposal: Vote, waiver: HeartHandshake,
 }
 const ACTIVITY_LABEL: Record<string, string> = {
   job: 'New job listing', volunteer: 'New volunteer', comment: 'New comment', complaint: 'New complaint',
   suggestion: 'New suggestion', donation: 'Donation confirmed', proposal: 'New project proposal',
+  waiver: 'Waived by committee',
 }
 
 type Category = 'miscellaneous' | 'donation_projects' | 'medical' | 'tree_plantation' | 'water_supply'
