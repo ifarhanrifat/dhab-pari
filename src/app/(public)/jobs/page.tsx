@@ -68,7 +68,7 @@ export default function JobsPage() {
             <div key={l.id} className="bg-white border border-dp-outline-variant rounded-lg p-5">
               <span className="text-[10.5px] font-bold px-2.5 py-1 rounded-full bg-dp-secondary-container text-dp-on-secondary-container uppercase">{l.category}</span>
               <h3 className="font-sans text-[17px] font-semibold text-dp-on-surface mt-2">{l.headline}</h3>
-              {l.description && <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1.5 leading-[20px]">{l.description}</p>}
+              {l.description && <p className={`font-sans text-[13.5px] text-dp-on-surface-variant mt-1.5 ${isUrdu ? 'leading-[23px]' : 'leading-[20px]'}`}>{l.description}</p>}
               <p className="font-sans text-[13px] text-dp-on-surface-variant mt-2">{l.contact_name}{l.sector && (
                 <span className="inline-flex items-center gap-1 ms-2"><MapPin size={12} /> {l.sector}</span>
               )}</p>

@@ -171,7 +171,7 @@ export default function NewsPage() {
                 <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mt-2 group-hover:text-dp-secondary transition-colors">
                   {featured.title}
                 </h2>
-                <p className="text-dp-on-surface-variant font-sans text-[16px] leading-[24px] mt-3 line-clamp-3">
+                <p className={`text-dp-on-surface-variant font-sans text-[16px] mt-3 line-clamp-3 ${isUrdu ? 'leading-[26px]' : 'leading-[24px]'}`}>
                   {featured.content}
                 </p>
               </div>

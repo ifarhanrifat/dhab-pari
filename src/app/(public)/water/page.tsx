@@ -40,7 +40,7 @@ const monthNames = [
 ]
 
 export default function WaterBillPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [query, setQuery] = useState('')
   const [verify, setVerify] = useState('')
   const [loading, setLoading] = useState(false)
@@ -116,7 +116,7 @@ export default function WaterBillPage() {
               پانی کا بل چیک کریں
             </span>
           </h1>
-          <p className="text-dp-on-surface-variant font-sans text-[16px] leading-[24px]">
+          <p className={`text-dp-on-surface-variant font-sans text-[16px] ${isUrdu ? 'leading-[26px]' : 'leading-[24px]'}`}>
             {t('x.enterConsumerId')}
           </p>
         </div>

@@ -22,7 +22,7 @@ const STATUS_LABEL: Record<string, string> = { offered: 'Offered', assigned: 'As
 // Public directory, same reasoning as the Village Job Board — volunteering
 // is meant to be seen ("this person joined as a volunteer"), not private.
 export default function VolunteerPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const { user } = usePortalUser()
   const [volunteers, setVolunteers] = useState<VolunteerRow[]>([])
   const [projects, setProjects] = useState<ProjectOption[]>([])
@@ -91,7 +91,7 @@ export default function VolunteerPage() {
                   <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-secondary-container text-dp-on-secondary-container uppercase shrink-0">{STATUS_LABEL[v.status] ?? v.status}</span>
                 </div>
                 <p className="font-sans text-[13px] text-dp-secondary font-semibold mt-0.5">{projectTitle(v.project_id)}</p>
-                {v.message && <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1.5 leading-[19px]">{v.message}</p>}
+                {v.message && <p className={`font-sans text-[13px] text-dp-on-surface-variant mt-1.5 ${isUrdu ? 'leading-[22px]' : 'leading-[19px]'}`}>{v.message}</p>}
               </div>
             </div>
           ))}

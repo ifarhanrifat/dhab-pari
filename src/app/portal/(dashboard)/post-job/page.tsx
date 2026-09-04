@@ -106,7 +106,7 @@ export default function PostJobPage() {
 
       <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 max-w-xl flex gap-3">
         <Megaphone size={18} className="text-amber-700 shrink-0 mt-0.5" />
-        <p className="font-sans text-[13px] text-amber-900 leading-[20px]">
+        <p className={`font-sans text-[13px] text-amber-900 ${isUrdu ? 'leading-[22px]' : 'leading-[20px]'}`}>
           {t('p.jobsPublicWarning')}
         </p>
       </div>

@@ -23,7 +23,7 @@ const IOS_DISMISS_KEY = 'dp_ios_hint_dismissed_at'
 const IOS_RESURFACE_MS = 14 * 24 * 60 * 60 * 1000
 
 export function PwaProvider() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
   const [showIosHint, setShowIosHint] = useState(false)
   const [iosNeedsSafari, setIosNeedsSafari] = useState(false)
@@ -147,11 +147,11 @@ export function PwaProvider() {
           {showIosHint ? (
             <>
               {iosNeedsSafari && (
-                <p className="font-sans text-[12.5px] text-white/75 leading-[18px] mt-1">
+                <p className={`font-sans text-[12.5px] text-white/75 mt-1 ${isUrdu ? 'leading-[21px]' : 'leading-[18px]'}`}>
                   {t('y.iosSwitchSafari')}
                 </p>
               )}
-              <ol className="mt-1.5 space-y-1 font-sans text-[12.5px] text-white/90 leading-[18px] list-decimal ps-4">
+              <ol className={`mt-1.5 space-y-1 font-sans text-[12.5px] text-white/90 list-decimal ps-4 ${isUrdu ? 'leading-[21px]' : 'leading-[18px]'}`}>
                 <li>{t('y.iosStep1')} <Share size={12} className="inline align-[-1px] ms-0.5" /></li>
                 <li>{t('y.iosStep2')}</li>
                 <li>{t('y.iosStep3')}</li>

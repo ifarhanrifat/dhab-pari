@@ -635,7 +635,7 @@ function CompletedCard({ project, isHot, dt, isUrdu, received, expense }: { proj
               <p className="text-dp-on-surface-variant text-[11px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
                 {dt('totalReceived')}
               </p>
-              <p className="text-[16px] font-bold text-dp-on-surface font-sans leading-[22px]">
+              <p className={`text-[16px] font-bold text-dp-on-surface font-sans ${isUrdu ? 'leading-[28px]' : 'leading-[22px]'}`}>
                 {fmtFull(received)}
               </p>
             </div>
@@ -643,7 +643,7 @@ function CompletedCard({ project, isHot, dt, isUrdu, received, expense }: { proj
               <p className="text-dp-on-surface-variant text-[11px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
                 {dt('totalSpent')}
               </p>
-              <p className="text-[16px] font-bold text-dp-on-surface font-sans leading-[22px]">
+              <p className={`text-[16px] font-bold text-dp-on-surface font-sans ${isUrdu ? 'leading-[28px]' : 'leading-[22px]'}`}>
                 {fmtFull(expense)}
               </p>
             </div>
@@ -651,7 +651,7 @@ function CompletedCard({ project, isHot, dt, isUrdu, received, expense }: { proj
               <p className="text-dp-on-surface-variant text-[11px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
                 {dt('beneficiaries')}
               </p>
-              <p className="text-[16px] font-bold text-dp-on-surface font-sans leading-[22px]">
+              <p className={`text-[16px] font-bold text-dp-on-surface font-sans ${isUrdu ? 'leading-[28px]' : 'leading-[22px]'}`}>
                 {project.beneficiaries_count ?? 0}+{' '}
                 <span className="text-[12px] font-normal" style={isUrdu ? urduStyle : undefined}>{dt('homes')}</span>
               </p>
@@ -755,7 +755,7 @@ function UpcomingCard({ project, voteCount, isHot, dt, isUrdu }: { project: Proj
             <MapPin size={16} />
             <span className="font-sans text-[16px]">{isUrdu ? (project.location_ur || project.location) : project.location}</span>
           </div>
-          <p className="text-dp-on-surface-variant mb-4 line-clamp-3 font-sans text-[16px] leading-[24px]">
+          <p className={`text-dp-on-surface-variant mb-4 line-clamp-3 font-sans text-[16px] ${isUrdu ? 'leading-[26px]' : 'leading-[24px]'}`}>
             {project.description}
           </p>
 
@@ -850,7 +850,7 @@ function AnnouncedCard({ project, dt, isUrdu }: { project: Project; dt: Dt; isUr
             <MapPin size={16} />
             <span className="font-sans text-[16px]">{isUrdu ? (project.location_ur || project.location) : project.location}</span>
           </div>
-          <p className="text-dp-on-surface-variant line-clamp-3 font-sans text-[16px] leading-[24px] mb-4">
+          <p className={`text-dp-on-surface-variant line-clamp-3 font-sans text-[16px] mb-4 ${isUrdu ? 'leading-[26px]' : 'leading-[24px]'}`}>
             {project.description}
           </p>
           <div className="flex items-center justify-between px-1">

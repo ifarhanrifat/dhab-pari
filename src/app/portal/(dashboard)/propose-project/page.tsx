@@ -288,7 +288,7 @@ export default function ProposeProjectPage() {
           <ListChecks size={18} className="text-amber-700 shrink-0 mt-0.5" />
           <strong className="font-sans text-[13.5px] text-amber-900">{dt('conditionsTitle')}</strong>
         </div>
-        <ol className="list-decimal ps-9 space-y-1.5 font-sans text-[12.5px] text-amber-900 leading-[19px]">
+        <ol className={`list-decimal ps-9 space-y-1.5 font-sans text-[12.5px] text-amber-900 ${isUrdu ? 'leading-[21px]' : 'leading-[19px]'}`}>
           <li>{dt('cond1')}</li>
           <li>{dt('cond2')}</li>
           <li>{dt('cond3')}</li>

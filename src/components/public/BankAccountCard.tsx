@@ -46,7 +46,7 @@ function Field({ label, value }: { label: string; value: string }) {
 }
 
 export function BankAccountCard({ account }: { account: PaymentAccount }) {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   return (
     <div className="bg-white border-2 border-dp-secondary p-8 flex flex-col items-center text-center rounded-lg md:col-span-1">
       <div className="w-16 h-16 mb-6 flex items-center justify-center bg-dp-secondary-container rounded-lg">
@@ -65,7 +65,7 @@ export function BankAccountCard({ account }: { account: PaymentAccount }) {
         <CopyRow label={t('p.accountNumber')} value={account.bankAccountNumber} />
         <CopyRow label={t('p.iban')} value={account.bankIban} />
       </div>
-      <p className="mt-5 text-dp-secondary text-[13px] font-sans font-bold tracking-[0.02em] leading-[20px]">
+      <p className={`mt-5 text-dp-secondary text-[13px] font-sans font-bold tracking-[0.02em] ${isUrdu ? 'leading-[22px]' : 'leading-[20px]'}`}>
         {t('p.payOnlyNote')}
       </p>
     </div>
