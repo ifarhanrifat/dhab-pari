@@ -8,7 +8,7 @@
 // RPCs, never a direct read of accounts/ledger_entries — those stay
 // closed to portal users everywhere in this app (182), on purpose.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Clock, Package, PackageX, PackagePlus, CheckCircle2, XCircle, Search } from 'lucide-react'
@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { getCategoryLabel } from '@/lib/shopTypes'
 import { OrderFulfillmentPanel } from '@/components/shared/OrderFulfillmentPanel'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
@@ -36,6 +37,11 @@ interface ShopOrder {
 }
 interface WalkinSale { id: string; total_amount_pkr: number; created_at: string; shop_sale_items: { product_name_snapshot: string; quantity: number }[] }
 interface DemandRow { query: string; searches: number }
+type Period = 'today' | 'week' | 'month'
+interface PeriodSaleRow { total_amount_pkr: number; created_at: string; shop_sale_items: { product_id: string | null; quantity: number; line_total_pkr: number }[] }
+interface PeriodOrderRow { total_amount_pkr: number; confirmed_at: string | null; status: string; shop_order_items: { product_id: string | null; quantity: number; line_total_pkr: number }[] }
+interface PeriodPurchaseRow { total_cost_pkr: number; created_at: string }
+interface CatalogProduct { id: string; name: string; name_ur: string | null; category: string | null; cost_price_pkr: number; quantity_on_hand: number }
 
 function fmt(n: number) {
   return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -55,6 +61,11 @@ export default function ShopReportsPage() {
   const [sales, setSales] = useState<WalkinSale[]>([])
   const [demand, setDemand] = useState<{ matched: DemandRow[]; unmatched: DemandRow[] } | null>(null)
   const [orderActionId, setOrderActionId] = useState<string | null>(null)
+  const [period, setPeriod] = useState<Period>('today')
+  const [periodSales, setPeriodSales] = useState<PeriodSaleRow[]>([])
+  const [periodOrders, setPeriodOrders] = useState<PeriodOrderRow[]>([])
+  const [periodPurchases, setPeriodPurchases] = useState<PeriodPurchaseRow[]>([])
+  const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([])
 
   const reloadOrders = async (shopId: string) => {
     const [{ data: s }, { data: o }] = await Promise.all([
@@ -72,20 +83,35 @@ export default function ShopReportsPage() {
       setShop(data)
       if (!data) { setLoading(false); return }
 
-      const [{ data: s }, { data: d }, { data: b }, { data: o }, { data: w }] = await Promise.all([
+      const cutoff31 = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString()
+      const [{ data: s }, { data: d }, { data: b }, { data: o }, { data: w }, { data: ps }, { data: po }, { data: pp }, { data: cp }] = await Promise.all([
         supabase.rpc('shop_dashboard_summary', { p_shop_id: data.id }),
         supabase.rpc('shop_daily_earnings', { p_shop_id: data.id, p_days: 14 }),
-        supabase.rpc('shop_best_sellers', { p_shop_id: data.id, p_days: 30 }),
+        supabase.rpc('shop_best_sellers', { p_shop_id: data.id, p_days: 1 }),
         supabase.from('shop_orders').select('id, status, total_amount_pkr, created_at, rejected_reason, fulfillment_status, delivery_address, buyer_mobile, shop_order_items(quantity, shop_products(name, name_ur))')
           .eq('shop_id', data.id).order('created_at', { ascending: false }).limit(20),
         supabase.from('shop_sales').select('id, total_amount_pkr, created_at, shop_sale_items(product_name_snapshot, quantity)')
           .eq('shop_id', data.id).order('created_at', { ascending: false }).limit(20),
+        // Wide (31-day) raw fetches purely for the period control's own
+        // aggregates below — filtered client-side per period rather than
+        // re-querying the server on every تبدیلی, since a shop's own
+        // month of activity is small enough to just hold in memory once.
+        supabase.from('shop_sales').select('total_amount_pkr, created_at, shop_sale_items(product_id, quantity, line_total_pkr)')
+          .eq('shop_id', data.id).gte('created_at', cutoff31),
+        supabase.from('shop_orders').select('total_amount_pkr, confirmed_at, status, shop_order_items(product_id, quantity, line_total_pkr)')
+          .eq('shop_id', data.id).eq('status', 'confirmed').gte('confirmed_at', cutoff31),
+        supabase.from('shop_purchases').select('total_cost_pkr, created_at').eq('shop_id', data.id).gte('created_at', cutoff31),
+        supabase.from('shop_products').select('id, name, name_ur, category, cost_price_pkr, quantity_on_hand').eq('shop_id', data.id).eq('is_active', true),
       ])
       setSummary(s as unknown as Summary)
       setDaily((d ?? []) as DayEarning[])
       setBestSellers((b ?? []) as BestSeller[])
       setOrders((o ?? []) as unknown as ShopOrder[])
       setSales((w ?? []) as unknown as WalkinSale[])
+      setPeriodSales((ps ?? []) as unknown as PeriodSaleRow[])
+      setPeriodOrders((po ?? []) as unknown as PeriodOrderRow[])
+      setPeriodPurchases((pp ?? []) as PeriodPurchaseRow[])
+      setCatalogProducts((cp ?? []) as CatalogProduct[])
 
       if (data.commission_mode === 'monthly_lumpsum') {
         const { data: demandData } = await supabase.rpc('marketplace_search_demand_report', { p_days: 30 })
@@ -94,6 +120,61 @@ export default function ShopReportsPage() {
       setLoading(false)
     })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Best sellers is server-computed (it needs shop_sale_items/shop_order_items
+  // joins the client doesn't have loaded at full 31-day depth) — refetch on
+  // period change; everything else on this page derives from the wide
+  // fetch above via periodCutoff/useMemo, no new request needed.
+  useEffect(() => {
+    if (!shop) return
+    const days = period === 'today' ? 1 : period === 'week' ? 7 : 30
+    supabase.rpc('shop_best_sellers', { p_shop_id: shop.id, p_days: days }).then(({ data }) => setBestSellers((data ?? []) as BestSeller[]))
+  }, [period, shop]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const periodCutoff = useMemo(() => {
+    const now = new Date()
+    if (period === 'today') { const d = new Date(now); d.setHours(0, 0, 0, 0); return d }
+    if (period === 'week') return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    return new Date(now.getFullYear(), now.getMonth(), 1)
+  }, [period])
+
+  const productById = useMemo(() => new Map(catalogProducts.map((p) => [p.id, p])), [catalogProducts])
+
+  const periodStats = useMemo(() => {
+    const sales = periodSales.filter((s) => new Date(s.created_at) >= periodCutoff)
+    const orders = periodOrders.filter((o) => o.confirmed_at && new Date(o.confirmed_at) >= periodCutoff)
+    const purchases = periodPurchases.filter((p) => new Date(p.created_at) >= periodCutoff)
+
+    const saleTotal = sales.reduce((s, r) => s + r.total_amount_pkr, 0) + orders.reduce((s, r) => s + r.total_amount_pkr, 0)
+    const purchaseTotal = purchases.reduce((s, r) => s + r.total_cost_pkr, 0)
+    const bills = sales.length + orders.length
+
+    const byCategory: Record<string, { qty: number; revenue: number; cost: number }> = {}
+    let totalCost = 0
+    for (const row of [...sales.flatMap((s) => s.shop_sale_items), ...orders.flatMap((o) => o.shop_order_items)]) {
+      const product = row.product_id ? productById.get(row.product_id) : undefined
+      const category = product?.category ?? 'other'
+      const cost = (product?.cost_price_pkr ?? 0) * row.quantity
+      totalCost += cost
+      if (!byCategory[category]) byCategory[category] = { qty: 0, revenue: 0, cost: 0 }
+      byCategory[category].qty += row.quantity
+      byCategory[category].revenue += row.line_total_pkr
+      byCategory[category].cost += cost
+    }
+    const categoryBreakdown = Object.entries(byCategory)
+      .map(([category, v]) => ({ category, ...v, share: saleTotal > 0 ? (v.revenue / saleTotal) * 100 : 0 }))
+      .sort((a, b) => b.revenue - a.revenue)
+
+    const profit = saleTotal - totalCost
+    return {
+      saleTotal, purchaseTotal, profit, bills,
+      avgBill: bills > 0 ? saleTotal / bills : 0,
+      margin: saleTotal > 0 ? (profit / saleTotal) * 100 : 0,
+      categoryBreakdown,
+    }
+  }, [periodSales, periodOrders, periodPurchases, periodCutoff, productById])
+
+  const lowStockProducts = useMemo(() => catalogProducts.filter((p) => p.quantity_on_hand <= 5).sort((a, b) => a.quantity_on_hand - b.quantity_on_hand), [catalogProducts])
 
   // Only meaningful for per_order orders — the shop's own keeper marks
   // them fulfilled themselves (no payment to verify, the customer already
@@ -154,6 +235,88 @@ export default function ShopReportsPage() {
           <p className="font-heading text-[19px] font-bold text-dp-on-surface mt-1">{fmt(summary?.stock_value_pkr ?? 0)}</p>
         </div>
       </div>
+
+      {/* Period control — drives everything below this point (sale,
+          purchase, profit, bills, average bill, margin, category
+          breakdown), matching the design's own آج/اس ہفتے/اس مہینے
+          segmented control. The tiles above stay fixed to today/month
+          since that's what the dashboard summary is for at a glance. */}
+      <div className="flex items-center gap-1.5 mb-3 bg-dp-surface-container rounded-lg p-1 w-fit">
+        {(['today', 'week', 'month'] as const).map((p) => (
+          <button key={p} onClick={() => setPeriod(p)}
+            className={`px-3.5 py-1.5 rounded-md font-sans text-[12.5px] font-semibold cursor-pointer transition-all ${period === p ? 'bg-white text-dp-secondary shadow-sm' : 'text-dp-on-surface-variant hover:text-dp-on-surface'}`}>
+            {p === 'today' ? t('cm.periodToday') : p === 'week' ? t('cm.periodWeek') : t('cm.periodMonth')}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div>
+            <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('cm.periodSaleLabel')}</p>
+            <p className="font-heading text-[18px] font-bold text-dp-secondary">{fmt(periodStats.saleTotal)}</p>
+          </div>
+          <div>
+            <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('cm.periodPurchaseLabel')}</p>
+            <p className="font-heading text-[18px] font-bold text-amber-700">{fmt(periodStats.purchaseTotal)}</p>
+          </div>
+          <div>
+            <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('cm.periodProfitLabel')}</p>
+            <p className="font-heading text-[18px] font-bold text-emerald-700">{fmt(periodStats.profit)}</p>
+          </div>
+          <div>
+            <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('cm.periodBillsLabel')}</p>
+            <p className="font-heading text-[18px] font-bold text-dp-on-surface ltr-num">{fmt(periodStats.bills)}</p>
+          </div>
+          <div>
+            <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('cm.periodAvgBillLabel')}</p>
+            <p className="font-heading text-[18px] font-bold text-dp-on-surface">{fmt(periodStats.avgBill)}</p>
+          </div>
+          <div>
+            <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('cm.periodMarginLabel')}</p>
+            <p className="font-heading text-[18px] font-bold text-dp-on-surface ltr-num">{periodStats.margin.toFixed(0)}%</p>
+          </div>
+        </div>
+      </div>
+
+      {/* By category — proportional bars + share%, period-scoped */}
+      {periodStats.categoryBreakdown.length > 0 && (
+        <div className="mb-8">
+          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('cm.byCategoryHeading')}</p>
+          <div className="bg-white border border-dp-outline-variant rounded-lg p-4 space-y-3">
+            {periodStats.categoryBreakdown.map((c) => (
+              <div key={c.category}>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="font-sans text-[12.5px] font-semibold text-dp-on-surface truncate">{getCategoryLabel(c.category, isUrdu)}</span>
+                  <span className="font-sans text-[11.5px] text-dp-on-surface-variant shrink-0 ltr-num">{fmt(c.revenue)} · {c.share.toFixed(0)}%</span>
+                </div>
+                <div className="h-2 bg-dp-surface-container rounded-full overflow-hidden">
+                  <div className="h-full bg-dp-secondary rounded-full" style={{ width: `${Math.max(2, c.share)}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Low stock — with a direct shortcut into restocking, now that
+          Purchase Entry exists. */}
+      {lowStockProducts.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between gap-3 mb-2.5">
+            <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em]">{t('cm.lowStockHeading')}</p>
+            <Link href="/portal/my-shop/purchase" className="font-sans text-[12px] font-semibold text-dp-secondary hover:underline">{t('cm.restockShortcutBtn')}</Link>
+          </div>
+          <div className="space-y-1.5">
+            {lowStockProducts.map((p) => (
+              <div key={p.id} className="flex items-center justify-between gap-3 bg-white border border-dp-outline-variant rounded-lg px-3.5 py-2.5">
+                <p className="font-sans text-[13px] text-dp-on-surface truncate">{isUrdu && p.name_ur ? p.name_ur : p.name}</p>
+                <p className={`font-sans text-[12.5px] font-bold shrink-0 ltr-num ${p.quantity_on_hand <= 0 ? 'text-dp-error' : 'text-amber-700'}`}>{fmt(p.quantity_on_hand)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {summary && (summary.pending_orders_count > 0 || summary.low_stock_count > 0 || summary.expiring_count > 0) && (
         <div className="flex flex-wrap gap-2 mb-6">
