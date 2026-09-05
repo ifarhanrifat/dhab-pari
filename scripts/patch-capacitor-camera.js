@@ -83,7 +83,18 @@ const replacement = `            // PATCHED (dhab-pari, see scripts/patch-capaci
                 try {
                     activityStarter.startActivityForResult(call, takePictureIntent, "processCameraImage");
                 } catch (android.content.ActivityNotFoundException ex) {
-                    call.reject(NO_CAMERA_ACTIVITY_ERROR);
+                    // Deliberately a DIFFERENT string than the original
+                    // NO_CAMERA_ACTIVITY_ERROR ("Unable to resolve camera
+                    // activity") — the whole point of this patch was
+                    // removing the resolveActivity() pre-check that produced
+                    // that exact message, so if a real device still shows
+                    // that old text after this patch is live, the build the
+                    // device is running isn't actually patched (a stale
+                    // install/cache problem, not this code). This message
+                    // means the OS itself refused to start the intent even
+                    // when actually attempted — a genuinely different,
+                    // deeper problem than a resolveActivity() false negative.
+                    call.reject("No app responded to the camera intent when actually launched (not a pre-check false negative)");
                 }
             }`
 
