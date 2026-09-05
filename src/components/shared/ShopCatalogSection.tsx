@@ -9,13 +9,16 @@
 // behind one "Add Stock" button + a multi-step wizard read as features
 // having been deleted. Picking now happens inline, on the page.
 //
-// "Review & set prices" swaps the Add Stock tab's own content over to
-// BulkPriceReview in place (no modal) — the selection basket lives here,
-// not inside either child, so it survives switching tabs to peek at "My
-// Stock" mid-pick and survives the browse/price swap for free.
+// There is no separate "review & set prices" screen — the design handoff
+// never has one; its catalog rows already carry cost/sale (and a unit
+// <select>) right on the row, editable before the tick, so ticking IS
+// pricing. The basket still lives here rather than inside BrandItemPicker
+// so it survives switching to "My Stock" and back for free, but the
+// sticky bar below only ever has one button now: commit straight from
+// wherever the shopkeeper is.
 
 import { useEffect, useRef, useState } from 'react'
-import { Package, PackagePlus, Loader2, CheckCircle2, ChevronLeft, LayoutGrid, List } from 'lucide-react'
+import { Package, PackagePlus, Loader2, CheckCircle2, LayoutGrid, List } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -24,7 +27,6 @@ import { useCatalogSelection } from '@/hooks/useCatalogSelection'
 import { ownedKey } from '@/lib/catalogSelection'
 import { CategoryBrowser } from './CategoryBrowser'
 import { BrandItemPicker } from './BrandItemPicker'
-import { BulkPriceReview } from './BulkPriceReview'
 import { StockListView, type StockListProduct } from './StockListView'
 
 interface ShopCatalogSectionProps<P extends StockListProduct> {
@@ -55,7 +57,6 @@ export function ShopCatalogSection<P extends StockListProduct>({
   const supabase = createClient()
   const selection = useCatalogSelection(shopId)
   const [tab, setTab] = useState<'mystock' | 'addstock'>(() => (products.length > 0 ? 'mystock' : 'addstock'))
-  const [mode, setMode] = useState<'browse' | 'price'>('browse')
   const [stockView, setStockView] = useState<'tiles' | 'list'>('list')
   const userPickedTab = useRef(false)
   const setTabByUser = (t: 'mystock' | 'addstock') => { userPickedTab.current = true; setTab(t) }
@@ -76,8 +77,6 @@ export function ShopCatalogSection<P extends StockListProduct>({
   const [committing, setCommitting] = useState(false)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const barRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => { if (tab !== 'addstock') setMode('browse') }, [tab])
 
   const commit = async () => {
     if (selection.count === 0) return
@@ -130,7 +129,6 @@ export function ShopCatalogSection<P extends StockListProduct>({
     setCommitting(false)
     setProgress(null)
     toast.success(skipped > 0 ? t('bs.committedWithSkipsToast').replace('{n}', String(payloads.length)).replace('{s}', String(skipped)) : t('bs.committedToast').replace('{n}', String(payloads.length)))
-    setMode('browse')
     setTab('mystock')
     onCommitted()
   }
@@ -178,31 +176,17 @@ export function ShopCatalogSection<P extends StockListProduct>({
             </div>
           )}
 
-          {mode === 'price' && (
-            <button onClick={() => setMode('browse')} className="flex items-center gap-1 font-sans text-[13px] font-semibold text-dp-secondary hover:underline cursor-pointer mb-3">
-              <ChevronLeft size={15} /> {t('bs.backToBrowsingBtn')}
-            </button>
-          )}
-
-          {mode === 'browse'
-            ? <BrandItemPicker shopId={shopId} primaryType={primaryType} ownedProducts={products} selection={selection} onBrandSubmitted={onCommitted} onScanClick={onScanClick} />
-            : <BulkPriceReview primaryType={primaryType} selection={selection} />}
+          <BrandItemPicker shopId={shopId} primaryType={primaryType} ownedProducts={products} selection={selection} onBrandSubmitted={onCommitted} onScanClick={onScanClick} />
 
           {selection.count > 0 && (
             <div ref={barRef} className="sticky bottom-0 mt-4 -mx-1 px-1 pb-1">
               <div className="flex items-center justify-between gap-3 bg-white border-2 border-dp-outline-variant rounded-xl shadow-lg px-4 py-3">
                 <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant">{t('bs.selectedCount').replace('{n}', String(selection.count))}</span>
-                {mode === 'browse' ? (
-                  <button onClick={() => setMode('price')} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
-                    {t('bs.nextSetPricesBtn')}
-                  </button>
-                ) : (
-                  <button onClick={commit} disabled={committing}
-                    className="flex items-center gap-2 px-4 py-2 bg-dp-primary text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:opacity-90 transition-all disabled:opacity-50">
-                    {committing ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                    {progress ? `${progress.done} / ${progress.total}` : committing ? t('action.saving') : t('bs.saveAllBtn')}
-                  </button>
-                )}
+                <button onClick={commit} disabled={committing}
+                  className="flex items-center gap-2 px-4 py-2 bg-dp-primary text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:opacity-90 transition-all disabled:opacity-50">
+                  {committing ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                  {progress ? `${progress.done} / ${progress.total}` : committing ? t('action.saving') : t('bs.saveAllBtn')}
+                </button>
               </div>
             </div>
           )}

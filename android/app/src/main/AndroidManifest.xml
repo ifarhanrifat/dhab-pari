@@ -35,6 +35,23 @@
         </provider>
     </application>
 
+    <!-- "Unable to resolve camera activity" — @capacitor/camera's Android
+         side calls Intent#resolveActivity() against MediaStore's own
+         image-capture action before launching it, and since API 30
+         Android hides other apps' launchable activities from that call
+         by default (package-visibility) unless this app explicitly
+         declares it queries for them here. targetSdkVersion 36 (well
+         past that cutoff) with no <queries> block at all meant
+         resolveActivity() always came back null — a real camera app was
+         always present, the OS just wouldn't let this app see it. This
+         is a native manifest change: it only takes effect in a rebuilt
+         APK, not the next web deploy. -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
+
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />

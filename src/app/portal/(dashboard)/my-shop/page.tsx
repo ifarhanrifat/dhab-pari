@@ -392,26 +392,26 @@ export default function MyShopPage() {
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
       <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
         <h1 className="font-heading text-[26px] font-bold leading-[34px] flex items-center gap-2" style={{ color: INK }}><Store size={22} /> {isUrdu && shop.name_ur ? shop.name_ur : shop.name}</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {shop.commission_mode === 'per_order' && (
-            <button onClick={() => setShowTopup(true)} className="flex items-center gap-1.5 px-3 py-2 border border-[#dcd8d4] font-sans text-[13px] font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
-              <Wallet size={14} /> {t('cm.topupWalletBtn')}
+            <button onClick={() => setShowTopup(true)} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
+              <Wallet size={12} /> {t('cm.topupWalletBtn')}
             </button>
           )}
-          <button onClick={() => setShowAiSettings(true)} className="flex items-center gap-1.5 px-3 py-2 border border-[#dcd8d4] font-sans text-[13px] font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
-            <KeyRound size={14} /> {keySaved ? t('sk.aiSettingsBtn') : t('sk.setUpAiBtn')}
+          <button onClick={() => setShowAiSettings(true)} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
+            <KeyRound size={12} /> {keySaved ? t('sk.aiSettingsBtn') : t('sk.setUpAiBtn')}
           </button>
-          <Link href="/portal/my-shop/reports" className="flex items-center gap-1.5 px-3 py-2 border border-[#dcd8d4] font-sans text-[13px] font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
-            <BarChart3 size={14} /> {t('cm.reportsBtn')}
+          <Link href="/portal/my-shop/reports" className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
+            <BarChart3 size={12} /> {t('cm.reportsBtn')}
           </Link>
-          <Link href="/portal/my-shop/purchase" className="flex items-center gap-1.5 px-3 py-2 border border-[#dcd8d4] font-sans text-[13px] font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
-            <PackagePlus size={14} /> {t('sk.purchaseEntryBtn')}
+          <Link href="/portal/my-shop/purchase" className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
+            <PackagePlus size={12} /> {t('sk.purchaseEntryBtn')}
           </Link>
-          <button onClick={() => setShowKits(true)} className="flex items-center gap-1.5 px-3 py-2 border border-[#dcd8d4] font-sans text-[13px] font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
-            <UtensilsCrossed size={14} /> {t('sk.kitsBtn')}
+          <button onClick={() => setShowKits(true)} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
+            <UtensilsCrossed size={12} /> {t('sk.kitsBtn')}
           </button>
-          <Link href="/portal/my-shop/sell" className="flex items-center gap-1.5 px-3 py-2 text-white font-sans text-[13px] font-semibold transition-colors" style={{ background: INK }}>
-            <ShoppingCart size={14} /> {t('sk.sellBtn')}
+          <Link href="/portal/my-shop/sell" className="flex items-center gap-1 px-2.5 py-1.5 text-white font-sans text-[11px] whitespace-nowrap font-semibold transition-colors" style={{ background: INK }}>
+            <ShoppingCart size={12} /> {t('sk.sellBtn')}
           </Link>
         </div>
       </div>

@@ -273,7 +273,7 @@ export default function ShopDetailPage() {
   if (!shop) return <div className="text-center py-12 text-[#7a736d] font-sans">{t('mp.shopNotFound')}</div>
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className={`shop-ink-theme ${cartItems.length > 0 ? 'pb-16' : ''}`}>
       <button onClick={() => router.push('/portal/marketplace')} className="inline-flex items-center gap-1.5 font-sans text-[13.5px] font-semibold hover:underline cursor-pointer mb-4" style={{ color: ACCENT }}>
         <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('mp.backToMarketplace')}
       </button>
@@ -482,8 +482,26 @@ export default function ShopDetailPage() {
       </>
       )}
 
+      {/* Pinned mini-cart (spec §4: "cart subtotal pinned at the bottom")
+          — the full checkout form below is an ordinary block in normal
+          flow, so on a shop with a long product list it sits far past
+          the fold; a shopper who's added items while browsing near the
+          top would never see any sign of the cart without scrolling all
+          the way down first. This floats above everything and jumps to
+          the real form on tap — same cart state, just always reachable. */}
       {shop.delivery_enabled && bookable && cartItems.length > 0 && (
-        <div className="bg-white border border-[#dcd8d4] mt-5">
+        <button onClick={() => document.getElementById('shop-cart-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          className="fixed bottom-4 inset-x-4 z-40 mx-auto max-w-md flex items-center justify-between gap-3 px-4 py-3 text-white cursor-pointer shadow-lg"
+          style={{ background: INK }}>
+          <span className="flex items-center gap-2 font-sans text-[13px] font-semibold">
+            <ShoppingCart size={16} /> {t('mp.cartHeading')} · <span className="ltr-num">{cartItems.reduce((s, p) => s + cart[p.id], 0)}</span>
+          </span>
+          <span className="font-sans text-[15px] font-bold ltr-num" style={{ color: ACCENT }}>{fmt(cartTotal + deliveryFeePkr)}</span>
+        </button>
+      )}
+
+      {shop.delivery_enabled && bookable && cartItems.length > 0 && (
+        <div id="shop-cart-panel" className="bg-white border border-[#dcd8d4] mt-5">
           <div className="px-4 py-3 text-white flex items-center gap-1.5" style={{ background: INK }}>
             <ShoppingCart size={14} />
             <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em]">{t('mp.cartHeading')}</p>

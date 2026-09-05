@@ -160,13 +160,13 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
           {(checked || owned) && <Check size={13} className="text-white" strokeWidth={3} />}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block font-sans text-[13.5px] font-semibold text-dp-on-surface truncate">{rowLabel(e)}</span>
-          <span className="block font-sans text-[11px] text-dp-on-surface-variant truncate">{getCategoryLabel(e.item.category, isUrdu)}</span>
+          <span className="block font-sans text-[11.5px] font-semibold text-dp-on-surface truncate">{rowLabel(e)}</span>
+          <span className="block font-sans text-[9px] text-dp-on-surface-variant truncate">{getCategoryLabel(e.item.category, isUrdu)}</span>
         </span>
         {owned ? (
-          <span className="shrink-0 font-sans text-[10px] font-bold text-dp-on-surface-variant">{t('bs.alreadyStocked')}</span>
+          <span className="shrink-0 font-sans text-[8px] font-bold text-dp-on-surface-variant">{t('bs.alreadyStocked')}</span>
         ) : e.item.price ? (
-          <span className="shrink-0 font-sans text-[11.5px] font-bold text-dp-secondary">~{e.item.price}</span>
+          <span className="shrink-0 font-sans text-[9.5px] font-bold text-dp-secondary">~{e.item.price}</span>
         ) : null}
       </button>
     )
@@ -185,15 +185,15 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
           {(checked || owned) && <Check size={13} className="text-white" strokeWidth={3} />}
         </button>
         <span className="min-w-0 flex-1">
-          <span className="block font-sans text-[13px] text-dp-on-surface truncate">{flavorLabel}</span>
-          {e.item.price ? <span className="block font-sans text-[10.5px] text-dp-on-surface-variant">{t('bs.mrpLabel').replace('{v}', String(e.item.price))}</span> : null}
+          <span className="block font-sans text-[11px] text-dp-on-surface truncate">{flavorLabel}</span>
+          {e.item.price ? <span className="block font-sans text-[8.5px] text-dp-on-surface-variant">{t('bs.mrpLabel').replace('{v}', String(e.item.price))}</span> : null}
         </span>
         <input disabled={owned} inputMode="decimal" placeholder={t('bs.costPlaceholder')}
           value={fieldValue(e, 'cost_price_pkr', '')} onChange={(ev) => ensureAndSet(e, 'cost_price_pkr', ev.target.value === '' ? '' : Number(ev.target.value))}
-          className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-outline-variant bg-dp-surface-container font-sans text-[12px] text-dp-on-surface disabled:opacity-50" />
+          className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-outline-variant bg-dp-surface-container font-sans text-[10px] text-dp-on-surface disabled:opacity-50" />
         <input disabled={owned} inputMode="decimal" placeholder={t('bs.salePlaceholder')}
           value={fieldValue(e, 'unit_price_pkr', e.item.price ?? '')} onChange={(ev) => ensureAndSet(e, 'unit_price_pkr', ev.target.value === '' ? '' : Number(ev.target.value))}
-          className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-secondary bg-white font-sans text-[12px] font-bold text-dp-on-surface disabled:opacity-50" />
+          className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-secondary bg-white font-sans text-[10px] font-bold text-dp-on-surface disabled:opacity-50" />
       </div>
     )
   }
@@ -210,18 +210,18 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
           className={`shrink-0 w-5 h-5 rounded flex items-center justify-center border-2 ${owned ? 'border-dp-outline-variant bg-dp-outline-variant/30' : checked ? 'bg-dp-secondary border-dp-secondary cursor-pointer' : 'border-dp-outline-variant cursor-pointer'}`}>
           {(checked || owned) && <Check size={13} className="text-white" strokeWidth={3} />}
         </button>
-        <span className="min-w-0 flex-1 font-sans text-[13px] text-dp-on-surface truncate">{name}</span>
+        <span className="min-w-0 flex-1 font-sans text-[11px] text-dp-on-surface truncate">{name}</span>
         <select disabled={owned} value={fieldValue(e, 'unit', e.item.flavor ?? UNIT_OPTIONS[0])}
           onChange={(ev) => ensureAndSet(e, 'unit', ev.target.value)}
-          className="shrink-0 w-[74px] px-1 py-1.5 rounded-lg border border-dp-outline-variant bg-white font-sans text-[11px] text-dp-on-surface disabled:opacity-50">
+          className="shrink-0 w-[74px] px-1 py-1.5 rounded-lg border border-dp-outline-variant bg-white font-sans text-[9px] text-dp-on-surface disabled:opacity-50">
           {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
         </select>
         <input disabled={owned} inputMode="decimal" placeholder={t('bs.costPlaceholder')}
           value={fieldValue(e, 'cost_price_pkr', '')} onChange={(ev) => ensureAndSet(e, 'cost_price_pkr', ev.target.value === '' ? '' : Number(ev.target.value))}
-          className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-outline-variant bg-dp-surface-container font-sans text-[12px] text-dp-on-surface disabled:opacity-50" />
+          className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-outline-variant bg-dp-surface-container font-sans text-[10px] text-dp-on-surface disabled:opacity-50" />
         <input disabled={owned} inputMode="decimal" placeholder={t('bs.salePlaceholder')}
           value={fieldValue(e, 'unit_price_pkr', '')} onChange={(ev) => ensureAndSet(e, 'unit_price_pkr', ev.target.value === '' ? '' : Number(ev.target.value))}
-          className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-secondary bg-white font-sans text-[12px] font-bold text-dp-on-surface disabled:opacity-50" />
+          className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-secondary bg-white font-sans text-[10px] font-bold text-dp-on-surface disabled:opacity-50" />
       </div>
     )
   }
@@ -254,13 +254,13 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
     <div>
       <div className="relative mb-3">
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('bs.searchCatalogPlaceholder')}
-          className="w-full px-3 py-2.5 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[14px] font-sans text-dp-on-surface" />
+          className="w-full px-3 py-2.5 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[12px] font-sans text-dp-on-surface" />
       </div>
 
       {query.trim() ? (
         <div className="space-y-1.5">
           {searchResults.length === 0 ? (
-            <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('cb.noMatches')}</p>
+            <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[12px]">{t('cb.noMatches')}</p>
           ) : searchResults.map((e) => <ItemRow key={e.key} e={e} />)}
         </div>
       ) : (
@@ -269,10 +269,10 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
             <div className="flex items-center gap-1.5">
               {realBrands.length > 0 && (
                 <>
-                  <button onClick={() => setLens('brands')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-sans font-semibold cursor-pointer border ${lens === 'brands' ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>
+                  <button onClick={() => setLens('brands')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10.5px] font-sans font-semibold cursor-pointer border ${lens === 'brands' ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>
                     <Tags size={13} /> {t('bs.brandsLensTab')}
                   </button>
-                  <button onClick={() => setLens('departments')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-sans font-semibold cursor-pointer border ${lens === 'departments' ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>
+                  <button onClick={() => setLens('departments')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10.5px] font-sans font-semibold cursor-pointer border ${lens === 'departments' ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>
                     <LayoutGrid size={13} /> {t('bs.deptLensTab')}
                   </button>
                 </>
@@ -280,15 +280,15 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
             </div>
             {catalog.length > 0 && (
               <div className="flex items-center gap-3">
-                <button onClick={takeStarterSet} className="flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-secondary hover:underline cursor-pointer"><Sparkles size={12} /> {t('bs.tickStandardStockBtn').replace('{n}', String(starterSet.length))}</button>
-                <button onClick={takeEverything} className="font-sans text-[12px] font-semibold text-dp-secondary hover:underline cursor-pointer">{t('bs.selectEverythingBtn').replace('{n}', String(catalog.length))}</button>
+                <button onClick={takeStarterSet} className="flex items-center gap-1 font-sans text-[10px] font-semibold text-dp-secondary hover:underline cursor-pointer"><Sparkles size={12} /> {t('bs.tickStandardStockBtn').replace('{n}', String(starterSet.length))}</button>
+                <button onClick={takeEverything} className="font-sans text-[10px] font-semibold text-dp-secondary hover:underline cursor-pointer">{t('bs.selectEverythingBtn').replace('{n}', String(catalog.length))}</button>
               </div>
             )}
           </div>
 
           {lens === 'brands' ? (
             realBrands.length === 0 ? (
-              <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('bs.noBrandsForShopType')}</p>
+              <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[12px]">{t('bs.noBrandsForShopType')}</p>
             ) : openBrand ? (
               // ── S · brand catalog ────────────────────────────────────
               (() => {
@@ -298,17 +298,17 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                 return (
                   <div>
                     <div className="flex items-center gap-3 bg-dp-primary text-white rounded-lg px-3.5 py-3 mb-3">
-                      <div className="w-[42px] h-[42px] shrink-0 bg-white/15 rounded-lg flex items-center justify-center font-sans text-[11px] font-extrabold tracking-[0.02em]">{initials(openBrand.brandName)}</div>
+                      <div className="w-[42px] h-[42px] shrink-0 bg-white/15 rounded-lg flex items-center justify-center font-sans text-[9px] font-extrabold tracking-[0.02em]">{initials(openBrand.brandName)}</div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-sans text-[15px] font-bold truncate">{isUrdu ? openBrand.brandName_ur : openBrand.brandName}</p>
-                        <p className="font-sans text-[10.5px] tracking-[0.06em] opacity-70 truncate">{openBrand.brandName.toUpperCase()} · {t('bs.brandDefaultCatalogLabel')}</p>
+                        <p className="font-sans text-[13px] font-bold truncate">{isUrdu ? openBrand.brandName_ur : openBrand.brandName}</p>
+                        <p className="font-sans text-[8.5px] tracking-[0.06em] opacity-70 truncate">{openBrand.brandName.toUpperCase()} · {t('bs.brandDefaultCatalogLabel')}</p>
                       </div>
                       <div className="shrink-0 text-end">
-                        <p className="font-sans text-[9.5px] tracking-[0.08em] opacity-60">{t('bs.pickedLabel')}</p>
-                        <p className="font-sans text-[17px] font-extrabold">{selHere}</p>
+                        <p className="font-sans text-[8px] tracking-[0.08em] opacity-60">{t('bs.pickedLabel')}</p>
+                        <p className="font-sans text-[15px] font-extrabold">{selHere}</p>
                       </div>
                     </div>
-                    <p className="font-sans text-[12px] text-dp-on-surface-variant leading-6 mb-3">{t('bs.brandCatalogHint')}</p>
+                    <p className="font-sans text-[10px] text-dp-on-surface-variant leading-6 mb-3">{t('bs.brandCatalogHint')}</p>
 
                     <div className="space-y-3 mb-4">
                       {Object.entries(byCat).map(([slug, entries]) => {
@@ -316,8 +316,8 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                         return (
                           <div key={slug} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
                             <div className="flex items-baseline gap-2 px-3 py-2.5 border-b-2 border-dp-outline-variant">
-                              <span className="flex-1 font-sans text-[13.5px] font-semibold text-dp-on-surface">{getCategoryLabel(slug, isUrdu)}</span>
-                              <button type="button" onClick={() => toggleWholeCategory(slug)} className="font-sans text-[11px] font-bold text-dp-secondary cursor-pointer">
+                              <span className="flex-1 font-sans text-[11.5px] font-semibold text-dp-on-surface">{getCategoryLabel(slug, isUrdu)}</span>
+                              <button type="button" onClick={() => toggleWholeCategory(slug)} className="font-sans text-[9px] font-bold text-dp-secondary cursor-pointer">
                                 {groupSelected === entries.length ? t('bs.tickedBtn') : t('bs.groupAllBtn')}
                               </button>
                             </div>
@@ -328,31 +328,31 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                     </div>
 
                     <div className="bg-white border-2 border-dashed border-dp-secondary/60 rounded-lg p-3.5 mb-4">
-                      <p className="font-sans text-[9.5px] font-bold tracking-[0.1em] text-dp-secondary">{t('bs.addItemToBrandKicker')}</p>
-                      <p className="font-sans text-[15px] font-bold text-dp-on-surface mt-0.5">{t('bs.addItemToBrandHeading')}</p>
-                      <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-6 mt-1">{t('bs.addItemToBrandHint')}</p>
+                      <p className="font-sans text-[8px] font-bold tracking-[0.1em] text-dp-secondary">{t('bs.addItemToBrandKicker')}</p>
+                      <p className="font-sans text-[13px] font-bold text-dp-on-surface mt-0.5">{t('bs.addItemToBrandHeading')}</p>
+                      <p className="font-sans text-[9.5px] text-dp-on-surface-variant leading-6 mt-1">{t('bs.addItemToBrandHint')}</p>
                       <div className="flex gap-1.5 mt-3">
-                        <input value={aiName} onChange={(e) => setAiName(e.target.value)} placeholder={t('bs.itemNamePlaceholder')} className="input-field flex-1 min-w-0 text-[12.5px] py-2" />
-                        <select value={aiUnit} onChange={(e) => setAiUnit(e.target.value)} className="shrink-0 w-24 px-2 rounded-lg border border-dp-outline-variant bg-white font-sans text-[12.5px] text-dp-on-surface">
+                        <input value={aiName} onChange={(e) => setAiName(e.target.value)} placeholder={t('bs.itemNamePlaceholder')} className="input-field flex-1 min-w-0 text-[10.5px] py-2" />
+                        <select value={aiUnit} onChange={(e) => setAiUnit(e.target.value)} className="shrink-0 w-24 px-2 rounded-lg border border-dp-outline-variant bg-white font-sans text-[10.5px] text-dp-on-surface">
                           {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
                         </select>
                       </div>
                       <div className="flex gap-1.5 mt-1.5">
-                        <input value={aiFlavor} onChange={(e) => setAiFlavor(e.target.value)} placeholder={t('bs.flavorOrSizePlaceholder')} className="input-field flex-1 min-w-0 text-[12.5px] py-2" />
-                        <input value={aiCost} onChange={(e) => setAiCost(e.target.value)} inputMode="decimal" placeholder={t('bs.costPlaceholder')} className="w-14 shrink-0 px-1.5 rounded-lg border border-dp-outline-variant bg-dp-surface-container text-center font-sans text-[12.5px]" />
-                        <input value={aiSale} onChange={(e) => setAiSale(e.target.value)} inputMode="decimal" placeholder={t('bs.salePlaceholder')} className="w-14 shrink-0 px-1.5 rounded-lg border border-dp-secondary bg-white text-center font-sans text-[12.5px] font-bold" />
+                        <input value={aiFlavor} onChange={(e) => setAiFlavor(e.target.value)} placeholder={t('bs.flavorOrSizePlaceholder')} className="input-field flex-1 min-w-0 text-[10.5px] py-2" />
+                        <input value={aiCost} onChange={(e) => setAiCost(e.target.value)} inputMode="decimal" placeholder={t('bs.costPlaceholder')} className="w-14 shrink-0 px-1.5 rounded-lg border border-dp-outline-variant bg-dp-surface-container text-center font-sans text-[10.5px]" />
+                        <input value={aiSale} onChange={(e) => setAiSale(e.target.value)} inputMode="decimal" placeholder={t('bs.salePlaceholder')} className="w-14 shrink-0 px-1.5 rounded-lg border border-dp-secondary bg-white text-center font-sans text-[10.5px] font-bold" />
                       </div>
                       <button onClick={() => submitBrandItem(openBrand.brandSlug, openBrand.brandName, openBrand.brandName_ur, defaultCat)}
-                        className="w-full mt-2.5 py-2.5 rounded-lg bg-dp-secondary text-white font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
+                        className="w-full mt-2.5 py-2.5 rounded-lg bg-dp-secondary text-white font-sans text-[10.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
                         {t('bs.addToCatalogBtn')}
                       </button>
                     </div>
 
                     <div className="flex gap-2">
-                      <button onClick={() => setOpenBrandSlug(null)} className="flex-1 py-3 rounded-lg bg-dp-secondary text-white font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
+                      <button onClick={() => setOpenBrandSlug(null)} className="flex-1 py-3 rounded-lg bg-dp-secondary text-white font-sans text-[11px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
                         {t('bs.saveToShopBtn')}
                       </button>
-                      <button onClick={() => setOpenBrandSlug(null)} className="shrink-0 px-4 py-3 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-on-surface-variant cursor-pointer hover:bg-dp-surface-container">
+                      <button onClick={() => setOpenBrandSlug(null)} className="shrink-0 px-4 py-3 rounded-lg border border-dp-outline-variant font-sans text-[11px] font-semibold text-dp-on-surface-variant cursor-pointer hover:bg-dp-surface-container">
                         {t('bs.moreBrandsBtn')}
                       </button>
                     </div>
@@ -362,30 +362,30 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
             ) : (
               // ── S · catalog · brands ─────────────────────────────────
               <>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant leading-6 mb-3">{t('bs.catalogIntroHint')}</p>
+                <p className="font-sans text-[10px] text-dp-on-surface-variant leading-6 mb-3">{t('bs.catalogIntroHint')}</p>
 
                 {brandCategories.length > 0 && (
                   <div className="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1">
-                    <button onClick={() => setCatFilter(null)} className={`shrink-0 px-2.5 py-1 rounded-full text-[11.5px] font-sans font-semibold cursor-pointer border ${!catFilter ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{t('cb.allTab')}</button>
+                    <button onClick={() => setCatFilter(null)} className={`shrink-0 px-2.5 py-1 rounded-full text-[9.5px] font-sans font-semibold cursor-pointer border ${!catFilter ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{t('cb.allTab')}</button>
                     {brandCategories.map((c) => (
-                      <button key={c.slug} onClick={() => setCatFilter(c.slug)} className={`shrink-0 px-2.5 py-1 rounded-full text-[11.5px] font-sans font-semibold cursor-pointer border ${catFilter === c.slug ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{isUrdu ? c.label_ur : c.label}</button>
+                      <button key={c.slug} onClick={() => setCatFilter(c.slug)} className={`shrink-0 px-2.5 py-1 rounded-full text-[9.5px] font-sans font-semibold cursor-pointer border ${catFilter === c.slug ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{isUrdu ? c.label_ur : c.label}</button>
                     ))}
                   </div>
                 )}
 
                 {onScanClick && (
                   <button onClick={onScanClick}
-                    className="w-full flex items-center gap-2 px-3.5 py-3 rounded-lg bg-dp-primary text-white font-sans text-[12.5px] cursor-pointer hover:bg-dp-secondary transition-all mb-2">
+                    className="w-full flex items-center gap-2 px-3.5 py-3 rounded-lg bg-dp-primary text-white font-sans text-[10.5px] cursor-pointer hover:bg-dp-secondary transition-all mb-2">
                     <Camera size={16} /> <span className="flex-1 text-start">{t('bs.scanFromCatalogBtn')}</span>
                   </button>
                 )}
                 <button onClick={() => setShowBrandBuilder(true)}
-                  className="w-full flex items-center gap-2 px-3.5 py-3 rounded-lg border-2 border-dashed border-dp-secondary/60 text-dp-secondary font-sans text-[12.5px] cursor-pointer hover:bg-dp-secondary-container/20 transition-all mb-3">
+                  className="w-full flex items-center gap-2 px-3.5 py-3 rounded-lg border-2 border-dashed border-dp-secondary/60 text-dp-secondary font-sans text-[10.5px] cursor-pointer hover:bg-dp-secondary-container/20 transition-all mb-3">
                   <PackagePlus size={16} /> <span className="flex-1 text-start">{t('bs.newBrandFromCatalogBtn')}</span>
                 </button>
 
                 {visibleBrands.length === 0 ? (
-                  <p className="font-sans text-[12px] text-dp-on-surface-variant border border-dp-outline-variant rounded-lg bg-white p-3.5 leading-6">{t('bs.noBrandsInCategoryHint')}</p>
+                  <p className="font-sans text-[10px] text-dp-on-surface-variant border border-dp-outline-variant rounded-lg bg-white p-3.5 leading-6">{t('bs.noBrandsInCategoryHint')}</p>
                 ) : (
                   <div className="grid grid-cols-2 gap-2.5">
                     {visibleBrands.map((b) => {
@@ -395,22 +395,22 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                       return (
                         <div key={b.brandSlug} className="bg-white border border-dp-outline-variant rounded-lg p-3 flex flex-col">
                           <div className="flex items-start gap-2">
-                            <div className="w-[34px] h-[34px] shrink-0 bg-dp-surface-container border border-dp-outline-variant rounded-lg flex items-center justify-center font-sans text-[9px] font-extrabold tracking-[0.02em] text-center leading-tight p-0.5">{initials(b.brandName)}</div>
+                            <div className="w-[34px] h-[34px] shrink-0 bg-dp-surface-container border border-dp-outline-variant rounded-lg flex items-center justify-center font-sans text-[8px] font-extrabold tracking-[0.02em] text-center leading-tight p-0.5">{initials(b.brandName)}</div>
                             <div className="min-w-0 flex-1">
-                              <p className="font-sans text-[12.5px] leading-tight text-dp-on-surface truncate">{isUrdu ? b.brandName_ur : b.brandName}</p>
-                              <p className="font-sans text-[8.5px] tracking-[0.08em] text-dp-on-surface-variant truncate">{b.brandName.toUpperCase()}</p>
+                              <p className="font-sans text-[10.5px] leading-tight text-dp-on-surface truncate">{isUrdu ? b.brandName_ur : b.brandName}</p>
+                              <p className="font-sans text-[8px] tracking-[0.08em] text-dp-on-surface-variant truncate">{b.brandName.toUpperCase()}</p>
                             </div>
                           </div>
-                          <p className="font-sans text-[10.5px] text-dp-on-surface-variant mt-1.5">
+                          <p className="font-sans text-[8.5px] text-dp-on-surface-variant mt-1.5">
                             {catSlug ? getCategoryLabel(catSlug, isUrdu) : ''} · {b.entries.length} {t('mk.productsCount')}
                           </p>
                           <div className="flex items-center gap-1.5 mt-2">
                             <button type="button" onClick={() => toggleWholeBrand(b.entries)}
-                              className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg font-sans text-[11px] font-bold cursor-pointer border ${fullySelected ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>
+                              className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg font-sans text-[9px] font-bold cursor-pointer border ${fullySelected ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>
                               {fullySelected && <Check size={12} strokeWidth={3} />} {fullySelected ? t('bs.tickedBtn') : t('bs.tickBtn')}
                             </button>
                             <button type="button" onClick={() => setOpenBrandSlug(b.brandSlug)}
-                              className="shrink-0 px-2.5 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[11px] font-semibold text-dp-on-surface-variant cursor-pointer hover:bg-dp-surface-container">
+                              className="shrink-0 px-2.5 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[9px] font-semibold text-dp-on-surface-variant cursor-pointer hover:bg-dp-surface-container">
                               {t('bs.catalogBtn')}
                             </button>
                           </div>
@@ -426,30 +426,30 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                   <div className="mt-6">
                     <div className="flex items-end justify-between gap-3 border-b-2 border-dp-primary pb-2">
                       <div>
-                        <p className="font-sans text-[10px] font-bold text-dp-secondary uppercase tracking-[0.14em]">{t('bs.nonBrandedKicker')}</p>
-                        <p className="font-sans text-[16px] font-bold text-dp-on-surface">{t('bs.looseGoodsHeading')}</p>
+                        <p className="font-sans text-[8px] font-bold text-dp-secondary uppercase tracking-[0.14em]">{t('bs.nonBrandedKicker')}</p>
+                        <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('bs.looseGoodsHeading')}</p>
                       </div>
-                      <p className="font-sans text-[11px] text-dp-on-surface-variant pb-0.5">{t('bs.looseOnLabel').replace('{n}', String(looseOnCount))}</p>
+                      <p className="font-sans text-[9px] text-dp-on-surface-variant pb-0.5">{t('bs.looseOnLabel').replace('{n}', String(looseOnCount))}</p>
                     </div>
-                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2 mb-3">{t('bs.looseGoodsHint')}</p>
+                    <p className="font-sans text-[9.5px] text-dp-on-surface-variant mt-2 mb-3">{t('bs.looseGoodsHint')}</p>
 
                     <div className="flex items-center gap-2 border-2 border-dp-primary bg-white px-3 py-2 mb-3 rounded-lg">
                       <Search size={15} className="text-dp-on-surface-variant shrink-0" />
                       <input value={looseQuery} onChange={(e) => setLooseQuery(e.target.value)} placeholder={t('bs.searchLooseGoodsPlaceholder')}
-                        className="flex-1 min-w-0 font-sans text-[13px] text-dp-on-surface outline-none bg-transparent" />
-                      {looseQuery && <button onClick={() => setLooseQuery('')} className="shrink-0 font-sans text-[12px] font-semibold text-dp-secondary cursor-pointer">{t('bs.clearBtn')}</button>}
-                      <span className="shrink-0 font-sans text-[11px] text-dp-on-surface-variant ltr-num">{looseShownCount}</span>
+                        className="flex-1 min-w-0 font-sans text-[11px] text-dp-on-surface outline-none bg-transparent" />
+                      {looseQuery && <button onClick={() => setLooseQuery('')} className="shrink-0 font-sans text-[10px] font-semibold text-dp-secondary cursor-pointer">{t('bs.clearBtn')}</button>}
+                      <span className="shrink-0 font-sans text-[9px] text-dp-on-surface-variant ltr-num">{looseShownCount}</span>
                     </div>
 
                     {looseByCategory.length === 0 ? (
-                      <p className="font-sans text-[12px] text-dp-on-surface-variant border border-dp-outline-variant rounded-lg bg-white p-3.5 leading-6">{t('bs.noLooseHitsHint')}</p>
+                      <p className="font-sans text-[10px] text-dp-on-surface-variant border border-dp-outline-variant rounded-lg bg-white p-3.5 leading-6">{t('bs.noLooseHitsHint')}</p>
                     ) : (
                       <div className="space-y-3">
                         {looseByCategory.map((g) => (
                           <div key={g.slug}>
                             <div className="flex items-baseline gap-2 bg-dp-primary text-white px-3 py-2 rounded-lg">
-                              <span className="flex-1 font-sans text-[12.5px] font-semibold">{getCategoryLabel(g.slug, isUrdu)}</span>
-                              <span className="font-sans text-[11px] opacity-80 ltr-num">{g.entries.length}</span>
+                              <span className="flex-1 font-sans text-[10.5px] font-semibold">{getCategoryLabel(g.slug, isUrdu)}</span>
+                              <span className="font-sans text-[9px] opacity-80 ltr-num">{g.entries.length}</span>
                             </div>
                             <div className="space-y-1.5 mt-1.5">{g.entries.map((e) => <LooseRow key={e.key} e={e} />)}</div>
                           </div>
@@ -458,27 +458,27 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                     )}
 
                     <div className="bg-white border-2 border-dashed border-dp-primary rounded-lg p-3.5 mt-3">
-                      <p className="font-sans text-[9.5px] font-bold tracking-[0.1em] text-dp-on-surface-variant">{t('bs.addLooseGoodKicker')}</p>
-                      <p className="font-sans text-[15px] font-bold text-dp-on-surface mt-0.5">{t('bs.addLooseGoodBtn')}</p>
-                      <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-6 mt-1">{t('bs.addLooseGoodFormHint')}</p>
+                      <p className="font-sans text-[8px] font-bold tracking-[0.1em] text-dp-on-surface-variant">{t('bs.addLooseGoodKicker')}</p>
+                      <p className="font-sans text-[13px] font-bold text-dp-on-surface mt-0.5">{t('bs.addLooseGoodBtn')}</p>
+                      <p className="font-sans text-[9.5px] text-dp-on-surface-variant leading-6 mt-1">{t('bs.addLooseGoodFormHint')}</p>
                       <div className="flex gap-1.5 mt-3">
-                        <input value={nlName} onChange={(e) => setNlName(e.target.value)} placeholder={t('bs.looseGoodNamePlaceholder')} className="input-field flex-1 min-w-0 text-[12.5px] py-2" />
-                        <select value={nlUnit} onChange={(e) => setNlUnit(e.target.value)} className="shrink-0 w-24 px-2 rounded-lg border border-dp-outline-variant bg-white font-sans text-[12.5px] text-dp-on-surface">
+                        <input value={nlName} onChange={(e) => setNlName(e.target.value)} placeholder={t('bs.looseGoodNamePlaceholder')} className="input-field flex-1 min-w-0 text-[10.5px] py-2" />
+                        <select value={nlUnit} onChange={(e) => setNlUnit(e.target.value)} className="shrink-0 w-24 px-2 rounded-lg border border-dp-outline-variant bg-white font-sans text-[10.5px] text-dp-on-surface">
                           {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
                         </select>
                       </div>
                       <div className="flex items-center gap-1.5 mt-1.5">
-                        <span className="flex-1 min-w-0 font-sans text-[11.5px] text-dp-on-surface-variant truncate">{t('bs.categoryPrefixLabel').replace('{name}', nlCat ? getCategoryLabel(nlCat, isUrdu) : '—')}</span>
-                        <input value={nlCost} onChange={(e) => setNlCost(e.target.value)} inputMode="decimal" placeholder={t('bs.costPlaceholder')} className="w-14 shrink-0 px-1.5 rounded-lg border border-dp-outline-variant bg-dp-surface-container text-center font-sans text-[12.5px]" />
-                        <input value={nlSale} onChange={(e) => setNlSale(e.target.value)} inputMode="decimal" placeholder={t('bs.salePlaceholder')} className="w-14 shrink-0 px-1.5 rounded-lg border border-dp-secondary bg-white text-center font-sans text-[12.5px] font-bold" />
+                        <span className="flex-1 min-w-0 font-sans text-[9.5px] text-dp-on-surface-variant truncate">{t('bs.categoryPrefixLabel').replace('{name}', nlCat ? getCategoryLabel(nlCat, isUrdu) : '—')}</span>
+                        <input value={nlCost} onChange={(e) => setNlCost(e.target.value)} inputMode="decimal" placeholder={t('bs.costPlaceholder')} className="w-14 shrink-0 px-1.5 rounded-lg border border-dp-outline-variant bg-dp-surface-container text-center font-sans text-[10.5px]" />
+                        <input value={nlSale} onChange={(e) => setNlSale(e.target.value)} inputMode="decimal" placeholder={t('bs.salePlaceholder')} className="w-14 shrink-0 px-1.5 rounded-lg border border-dp-secondary bg-white text-center font-sans text-[10.5px] font-bold" />
                       </div>
                       <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto pb-1">
                         {tree.flatMap((d) => d.categories).map((c) => (
-                          <button key={c.slug} onClick={() => setNlCat(c.slug)} className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-sans font-semibold cursor-pointer border ${nlCat === c.slug ? 'bg-dp-primary text-white border-dp-primary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{isUrdu ? c.label_ur : c.label}</button>
+                          <button key={c.slug} onClick={() => setNlCat(c.slug)} className={`shrink-0 px-2.5 py-1 rounded-full text-[9px] font-sans font-semibold cursor-pointer border ${nlCat === c.slug ? 'bg-dp-primary text-white border-dp-primary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{isUrdu ? c.label_ur : c.label}</button>
                         ))}
                       </div>
                       <button onClick={submitLooseGood}
-                        className="w-full mt-2.5 py-2.5 rounded-lg bg-dp-primary text-white font-sans text-[12.5px] cursor-pointer hover:bg-dp-secondary transition-all">
+                        className="w-full mt-2.5 py-2.5 rounded-lg bg-dp-primary text-white font-sans text-[10.5px] cursor-pointer hover:bg-dp-secondary transition-all">
                         {t('bs.addToLooseGoodsBtn')}
                       </button>
                     </div>
@@ -495,15 +495,15 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                   <button key={d.key} onClick={() => { setActiveDeptKey(d.key); setActiveCatSlug(null) }}
                     className="flex flex-col items-center gap-2 bg-white border border-dp-outline-variant rounded-xl p-4 text-center hover:border-dp-secondary hover:shadow-sm transition-all cursor-pointer">
                     <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-dp-secondary-container/40 text-dp-secondary"><DynamicIcon name={d.icon} size={22} /></div>
-                    <span className="font-sans text-[12.5px] font-semibold text-dp-on-surface leading-tight">{isUrdu ? d.label_ur : d.label}</span>
-                    <span className="font-sans text-[10.5px] font-bold text-dp-on-surface-variant">{total === 0 ? t('bs.noCatalogItems') : `${selHere} / ${total}`}</span>
+                    <span className="font-sans text-[10.5px] font-semibold text-dp-on-surface leading-tight">{isUrdu ? d.label_ur : d.label}</span>
+                    <span className="font-sans text-[8.5px] font-bold text-dp-on-surface-variant">{total === 0 ? t('bs.noCatalogItems') : `${selHere} / ${total}`}</span>
                   </button>
                 )
               })}
             </div>
           ) : !activeCat ? (
             <>
-              <div className="flex items-center gap-1.5 mb-3 font-sans text-[13px]">
+              <div className="flex items-center gap-1.5 mb-3 font-sans text-[11px]">
                 <button onClick={() => setActiveDeptKey(null)} className="font-semibold text-dp-secondary hover:underline cursor-pointer">{t('cb.departmentsHeading')}</button>
                 <ArrowRight size={14} className="text-dp-on-surface-variant rotate-180 rtl:rotate-0" />
                 <span className="font-semibold text-dp-on-surface">{isUrdu ? activeDept.label_ur : activeDept.label}</span>
@@ -518,8 +518,8 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                       <button onClick={() => setActiveCatSlug(c.slug)}
                         className="w-full flex flex-col items-center gap-2 bg-white border border-dp-outline-variant rounded-xl p-4 text-center hover:border-dp-secondary hover:shadow-sm transition-all cursor-pointer">
                         <div className="w-11 h-11 rounded-lg flex items-center justify-center bg-dp-secondary-container/40 text-dp-secondary"><DynamicIcon name={activeDept.icon} size={20} /></div>
-                        <span className="font-sans text-[12px] font-semibold text-dp-on-surface leading-tight">{isUrdu ? c.label_ur : c.label}</span>
-                        <span className="font-sans text-[10px] font-bold text-dp-on-surface-variant">{total === 0 ? t('bs.noCatalogItems') : `${selHere} / ${total}`}</span>
+                        <span className="font-sans text-[10px] font-semibold text-dp-on-surface leading-tight">{isUrdu ? c.label_ur : c.label}</span>
+                        <span className="font-sans text-[8px] font-bold text-dp-on-surface-variant">{total === 0 ? t('bs.noCatalogItems') : `${selHere} / ${total}`}</span>
                       </button>
                       {total > 0 && availableHere.length > 0 && (
                         <button type="button" onClick={(ev) => { ev.stopPropagation(); toggleWholeCategory(c.slug) }} title={t('bs.selectWholeCategory')}
@@ -534,7 +534,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
             </>
           ) : (
             <>
-              <div className="flex items-center gap-1.5 mb-3 font-sans text-[13px] flex-wrap">
+              <div className="flex items-center gap-1.5 mb-3 font-sans text-[11px] flex-wrap">
                 <button onClick={() => setActiveDeptKey(null)} className="font-semibold text-dp-secondary hover:underline cursor-pointer">{t('cb.departmentsHeading')}</button>
                 <ArrowRight size={14} className="text-dp-on-surface-variant rotate-180 rtl:rotate-0" />
                 <button onClick={() => setActiveCatSlug(null)} className="font-semibold text-dp-secondary hover:underline cursor-pointer">{isUrdu ? activeDept.label_ur : activeDept.label}</button>
@@ -542,20 +542,20 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                 <span className="font-semibold text-dp-on-surface">{isUrdu ? activeCat.label_ur : activeCat.label}</span>
               </div>
               {itemsInCat.length === 0 ? (
-                <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('bs.noCatalogItemsHint')}</p>
+                <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[12px]">{t('bs.noCatalogItemsHint')}</p>
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 mb-3">
-                    <button onClick={() => toggleWholeCategory(activeCat.slug)} className="flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline cursor-pointer">
+                    <button onClick={() => toggleWholeCategory(activeCat.slug)} className="flex items-center gap-1.5 font-sans text-[10.5px] font-semibold text-dp-secondary hover:underline cursor-pointer">
                       {catSelectedCount(activeCat.slug) === itemsInCat.length ? t('bs.deselectAllHere') : t('bs.selectAllHere')}
                     </button>
-                    <span className="font-sans text-[11.5px] font-bold text-dp-on-surface-variant">{catSelectedCount(activeCat.slug)} / {itemsInCat.length}</span>
+                    <span className="font-sans text-[9.5px] font-bold text-dp-on-surface-variant">{catSelectedCount(activeCat.slug)} / {itemsInCat.length}</span>
                   </div>
                   <div className="space-y-1.5">{itemsInCat.map((e) => <ItemRow key={e.key} e={e} />)}</div>
                 </>
               )}
               <button onClick={() => selection.addCustomRow(activeCat.slug)}
-                className="w-full mt-4 flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-dp-secondary/50 bg-dp-secondary-container/20 text-dp-secondary rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-secondary-container/40">
+                className="w-full mt-4 flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-dp-secondary/50 bg-dp-secondary-container/20 text-dp-secondary rounded-lg font-sans text-[11px] font-semibold cursor-pointer hover:bg-dp-secondary-container/40">
                 {t('bs.addYourOwnItemBtn')}
               </button>
             </>
