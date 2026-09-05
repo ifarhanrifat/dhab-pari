@@ -29,6 +29,13 @@ export interface BasketRow {
   unit_price_pkr: number | ''
   quantity_on_hand: number | ''
   expiry_date: string
+  // Real shop_products.unit (migration 444) — blank for a normal branded
+  // item (pack size lives in `flavor` instead), pre-filled from the
+  // catalog's own default for a loose good, editable inline in the
+  // catalog-screen unit <select> per the design handoff, which lets a
+  // shopkeeper override it (e.g. "لیٹر" instead of the suggested "کلو")
+  // before the item is even ticked.
+  unit: string
 }
 
 function rowFromEntry(e: CatalogEntry): BasketRow {
@@ -37,6 +44,7 @@ function rowFromEntry(e: CatalogEntry): BasketRow {
     name: e.item.name, name_ur: e.item.name_ur ?? '', flavor: e.item.flavor ?? '', flavor_ur: e.item.flavor_ur ?? '',
     category: e.item.category, suggestedPrice: e.item.price ?? null,
     cost_price_pkr: '', unit_price_pkr: e.item.price ?? '', quantity_on_hand: '', expiry_date: '',
+    unit: e.brandSlug === 'loose' ? (e.item.flavor ?? '') : '',
   }
 }
 
@@ -126,7 +134,7 @@ export function useCatalogSelection(shopId: string | null) {
       ...r,
       [key]: {
         key, custom: true, brandName: '', brandName_ur: '', name: '', name_ur: '', flavor: '', flavor_ur: '',
-        category, suggestedPrice: null, cost_price_pkr: '', unit_price_pkr: '', quantity_on_hand: '', expiry_date: '',
+        category, suggestedPrice: null, cost_price_pkr: '', unit_price_pkr: '', quantity_on_hand: '', expiry_date: '', unit: '',
       },
     }))
     return key

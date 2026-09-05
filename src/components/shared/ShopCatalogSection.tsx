@@ -39,12 +39,17 @@ interface ShopCatalogSectionProps<P extends StockListProduct> {
   // as a prop (not done inside this component) so both callers' own
   // toast/refresh conventions stay in charge, same as onCommitted above.
   onInlineUpdate: (productId: string, field: 'cost_price_pkr' | 'unit_price_pkr' | 'quantity_on_hand', value: number) => void
+  // Add Stock's own camera button (Shop Portal v3.dc.html's catalog
+  // screen) reuses the exact same scan pipeline my-shop's page-level scan
+  // button already wires up — not a second AI call, just a second place
+  // to trigger the one that exists. Optional: admin/shops doesn't scan.
+  onScanClick?: () => void
 }
 
 const CHUNK_SIZE = 200
 
 export function ShopCatalogSection<P extends StockListProduct>({
-  shopId, primaryType, products, renderProduct, onAddItem, onCommitted, onInlineUpdate,
+  shopId, primaryType, products, renderProduct, onAddItem, onCommitted, onInlineUpdate, onScanClick,
 }: ShopCatalogSectionProps<P>) {
   const { t } = useLocale()
   const supabase = createClient()
@@ -94,6 +99,7 @@ export function ShopCatalogSection<P extends StockListProduct>({
       unit_price_pkr: Number(r.unit_price_pkr),
       quantity_on_hand: r.quantity_on_hand === '' ? 0 : Number(r.quantity_on_hand),
       expiry_date: r.expiry_date || null,
+      unit: r.unit.trim() || null,
       is_active: true,
     })).filter((p) => p.name.length > 0)
 
@@ -179,7 +185,7 @@ export function ShopCatalogSection<P extends StockListProduct>({
           )}
 
           {mode === 'browse'
-            ? <BrandItemPicker shopId={shopId} primaryType={primaryType} ownedProducts={products} selection={selection} onBrandSubmitted={onCommitted} />
+            ? <BrandItemPicker shopId={shopId} primaryType={primaryType} ownedProducts={products} selection={selection} onBrandSubmitted={onCommitted} onScanClick={onScanClick} />
             : <BulkPriceReview primaryType={primaryType} selection={selection} />}
 
           {selection.count > 0 && (

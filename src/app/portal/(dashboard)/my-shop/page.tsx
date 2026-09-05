@@ -18,10 +18,11 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { takeNativePhoto, openCameraAppSettings, CameraPermissionDeniedError } from '@/lib/nativeCamera'
+import { takeNativePhoto, openCameraAppSettings, CameraPermissionDeniedError, isCameraCancel } from '@/lib/nativeCamera'
 import { WalletTopupModal } from '@/components/portal/WalletTopupModal'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { getCategoryLabel } from '@/lib/shopTypes'
+import { UNIT_OPTIONS } from '@/lib/catalogSelection'
 import { CategoryPicker } from '@/components/shared/CategoryBrowser'
 import { ShopCatalogSection } from '@/components/shared/ShopCatalogSection'
 import { LoadingDots } from '@/components/shared/LoadingDots'
@@ -37,8 +38,9 @@ interface Product {
 // کھلا سامان unit choices (migration 444) — the same 13-value list the
 // design spec lists, in the same order, so a shopkeeper's own mental
 // model of "which units exist" never drifts between what's typed here
-// and what a buyer sees on the price.
-const UNIT_OPTIONS = ['عدد', 'کلو', 'پاؤ', 'آدھا کلو', 'گرام', 'لیٹر', 'ملی لیٹر', 'درجن', 'پیکٹ', 'تھیلا', 'بوتل', 'بنڈل', 'میٹر']
+// and what a buyer sees on the price. Shared from catalogSelection.ts so
+// the catalog screen's own unit <select>s (BrandItemPicker) use the
+// exact same list, not a second copy.
 
 const emptyProduct = {
   name: '', name_ur: '', description: '', company: '', category: 'other' as string, flavor: '', flavor_ur: '',
@@ -204,9 +206,11 @@ export default function MyShopPage() {
       } catch (err) {
         if (err instanceof CameraPermissionDeniedError) {
           toast.error(t('sk.cameraPermissionDeniedToast'), { action: { label: t('af.openSettingsBtn'), onClick: () => openCameraAppSettings() } })
+        } else if (!isCameraCancel(err)) {
+          // A real failure the permission fix alone didn't cover — surface
+          // it instead of leaving the tap looking like it did nothing.
+          toast.error(err instanceof Error ? err.message : String(err))
         }
-        // Any other rejection is getPhoto() reporting the user backed out
-        // of the camera sheet without taking a photo — not a real error.
       }
       return
     }
@@ -429,6 +433,7 @@ export default function MyShopPage() {
         onAddItem={openNew}
         onCommitted={() => loadProducts(shop.id)}
         onInlineUpdate={inlineUpdate}
+        onScanClick={openScanner}
         renderProduct={(p) => (
           <div key={p.id} className="bg-white border border-[#dcd8d4] overflow-hidden">
             <div className="h-28 bg-[#eeece9] relative">

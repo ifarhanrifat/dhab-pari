@@ -35,6 +35,19 @@
 // Android answers instantly with no dialog on the next attempt) throws
 // CameraPermissionDeniedError so the caller can point the shopkeeper at
 // Settings instead of the tap silently doing nothing a second time.
+//
+// Every other rejection is now let through to the caller too, instead of
+// being swallowed — the permission fix above did NOT fix the report that
+// came back after it shipped ("still nothing happens, even after
+// granting"), which means whatever's actually failing on that device
+// is a DIFFERENT error the old bare `catch {}` was hiding from both the
+// shopkeeper and from us. isCameraCancel() is the one thing still
+// swallowed silently: @capacitor/camera rejects with a message
+// containing "cancel" when the user backs out of the camera app with no
+// photo taken — a real outcome, not a bug.
+export function isCameraCancel(err: unknown): boolean {
+  return err instanceof Error && /cancel/i.test(err.message)
+}
 
 export class CameraPermissionDeniedError extends Error {
   constructor() { super('Camera permission denied') }

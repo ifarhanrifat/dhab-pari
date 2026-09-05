@@ -25,7 +25,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
-import { takeNativePhoto, openCameraAppSettings, CameraPermissionDeniedError } from '@/lib/nativeCamera'
+import { takeNativePhoto, openCameraAppSettings, CameraPermissionDeniedError, isCameraCancel } from '@/lib/nativeCamera'
 
 const INK = '#201e1d'
 const ACCENT = '#ec3013'
@@ -126,9 +126,9 @@ export default function SellPage() {
       } catch (err) {
         if (err instanceof CameraPermissionDeniedError) {
           toast.error(t('sk.cameraPermissionDeniedToast'), { action: { label: t('af.openSettingsBtn'), onClick: () => openCameraAppSettings() } })
+        } else if (!isCameraCancel(err)) {
+          toast.error(err instanceof Error ? err.message : String(err))
         }
-        // Any other rejection is getPhoto() reporting the user backed out
-        // of the camera sheet without taking a photo — not a real error.
       }
       return
     }

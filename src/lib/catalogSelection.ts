@@ -169,6 +169,12 @@ export function getLooseGood(slug: string): LooseGood | undefined {
   return LOOSE_GOODS.find((g) => g.slug === slug)
 }
 
+// Canonical shop_products.unit values (migration 444) — the same list
+// my-shop's own "Add Product" form uses, shared here so the catalog
+// screen's loose-goods unit <select> and its "add a new loose good" card
+// (Shop Portal v3.dc.html's `units`) never drift into a second list.
+export const UNIT_OPTIONS = ['عدد', 'کلو', 'پاؤ', 'آدھا کلو', 'گرام', 'لیٹر', 'ملی لیٹر', 'درجن', 'پیکٹ', 'تھیلا', 'بوتل', 'بنڈل', 'میٹر']
+
 export function roundTo(value: number, nearest: number): number {
   if (!nearest || nearest <= 0) return Math.round(value)
   return Math.round(value / nearest) * nearest
