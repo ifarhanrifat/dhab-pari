@@ -42,6 +42,16 @@ function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
+// Ink/accent two-tone from the "Village Portal Marketplace" design spec
+// (2026-09-05) — same palette as the buyer-facing shop pages. Only the
+// chrome this file itself renders (header, action row, scan button,
+// product cards, modals) is restyled here; ShopCatalogSection is a
+// shared component reused elsewhere in the portal, so its own internal
+// styling is left as a separate, deliberately scoped-out follow-up.
+const INK = '#201e1d'
+const ACCENT = '#ec3013'
+const ACCENT_DARK = '#ae1800'
+
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -239,34 +249,34 @@ export default function MyShopPage() {
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-        <h1 className="font-heading text-[26px] font-bold leading-[34px] text-dp-primary flex items-center gap-2"><Store size={22} /> {isUrdu && shop.name_ur ? shop.name_ur : shop.name}</h1>
+        <h1 className="font-heading text-[26px] font-bold leading-[34px] flex items-center gap-2" style={{ color: INK }}><Store size={22} /> {isUrdu && shop.name_ur ? shop.name_ur : shop.name}</h1>
         <div className="flex items-center gap-2">
           {shop.commission_mode === 'per_order' && (
-            <button onClick={() => setShowTopup(true)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+            <button onClick={() => setShowTopup(true)} className="flex items-center gap-1.5 px-3 py-2 border border-[#dcd8d4] font-sans text-[13px] font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
               <Wallet size={14} /> {t('cm.topupWalletBtn')}
             </button>
           )}
-          <button onClick={() => setShowAiSettings(true)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+          <button onClick={() => setShowAiSettings(true)} className="flex items-center gap-1.5 px-3 py-2 border border-[#dcd8d4] font-sans text-[13px] font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
             <KeyRound size={14} /> {keySaved ? t('sk.aiSettingsBtn') : t('sk.setUpAiBtn')}
           </button>
-          <Link href="/portal/my-shop/reports" className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+          <Link href="/portal/my-shop/reports" className="flex items-center gap-1.5 px-3 py-2 border border-[#dcd8d4] font-sans text-[13px] font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
             <BarChart3 size={14} /> {t('cm.reportsBtn')}
           </Link>
-          <Link href="/portal/my-shop/purchase" className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+          <Link href="/portal/my-shop/purchase" className="flex items-center gap-1.5 px-3 py-2 border border-[#dcd8d4] font-sans text-[13px] font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
             <PackagePlus size={14} /> {t('sk.purchaseEntryBtn')}
           </Link>
-          <Link href="/portal/my-shop/sell" className="flex items-center gap-1.5 px-3 py-2 bg-dp-primary text-white rounded-lg font-sans text-[13px] font-semibold hover:opacity-90">
+          <Link href="/portal/my-shop/sell" className="flex items-center gap-1.5 px-3 py-2 text-white font-sans text-[13px] font-semibold transition-colors" style={{ background: INK }}>
             <ShoppingCart size={14} /> {t('sk.sellBtn')}
           </Link>
         </div>
       </div>
-      <p className="font-sans text-[13px] text-dp-on-surface-variant mb-5">{t('sk.pageSubtitle')}</p>
+      <p className="font-sans text-[13px] text-[#7a736d] mb-5">{t('sk.pageSubtitle')}</p>
 
       <div className="flex items-center gap-2 flex-wrap mb-4">
         <input ref={scanInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) runScan(f) }} />
         <button onClick={openScanner} disabled={scanning}
-          className="flex items-center gap-2 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-60">
+          className="flex items-center gap-2 px-4 py-2.5 text-white font-sans text-[14px] font-semibold cursor-pointer transition-all disabled:opacity-60" style={{ background: ACCENT }} onMouseEnter={(e) => !scanning && (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>
           {scanning ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />} {scanning ? t('sk.scanningLabel') : t('sk.scanProductBtn')}
         </button>
       </div>
@@ -279,30 +289,30 @@ export default function MyShopPage() {
         onCommitted={() => loadProducts(shop.id)}
         onInlineUpdate={inlineUpdate}
         renderProduct={(p) => (
-          <div key={p.id} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
-            <div className="h-28 bg-dp-surface-container relative">
+          <div key={p.id} className="bg-white border border-[#dcd8d4] overflow-hidden">
+            <div className="h-28 bg-[#eeece9] relative">
               {coverByProduct[p.id] ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={coverByProduct[p.id]} alt="" className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-dp-on-surface-variant/40"><Store size={24} /></div>
+                <div className="w-full h-full flex items-center justify-center text-[#c3bdb7]"><Store size={24} /></div>
               )}
-              {p.quantity_on_hand <= 0 && <span className="absolute top-1.5 end-1.5 inline-flex items-center gap-1 text-[9.5px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-100 text-red-700"><PackageX size={10} /> {t('sk.outOfStock')}</span>}
+              {p.quantity_on_hand <= 0 && <span className="absolute top-1.5 end-1.5 inline-flex items-center gap-1 text-[9.5px] font-bold uppercase px-2 py-0.5 border" style={{ background: '#fce3dc', borderColor: '#f4a68f', color: ACCENT_DARK }}><PackageX size={10} /> {t('sk.outOfStock')}</span>}
             </div>
             <div className="p-3">
-              <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface truncate">
+              <p className="font-sans text-[13.5px] font-semibold truncate" style={{ color: INK }}>
                 {isUrdu && p.name_ur ? p.name_ur : p.name}
-                {(isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) && <span className="font-normal text-dp-on-surface-variant"> ({isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})</span>}
+                {(isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) && <span className="font-normal text-[#7a736d]"> ({isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})</span>}
               </p>
-              {p.company && <p className="font-sans text-[11px] text-dp-on-surface-variant truncate">{p.company}</p>}
+              {p.company && <p className="font-sans text-[11px] text-[#7a736d] truncate">{p.company}</p>}
               <div className="flex items-baseline gap-2 mt-1">
-                <p className="font-sans text-[14px] font-bold text-dp-secondary">{fmt(p.unit_price_pkr)}</p>
-                {p.cost_price_pkr > 0 && <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('sk.costLabel')} {fmt(p.cost_price_pkr)}</p>}
+                <p className="font-sans text-[14px] font-bold" style={{ color: INK }}>{fmt(p.unit_price_pkr)}</p>
+                {p.cost_price_pkr > 0 && <p className="font-sans text-[11px] text-[#7a736d]">{t('sk.costLabel')} {fmt(p.cost_price_pkr)}</p>}
               </div>
-              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">{t('mk.stockLabel')} {fmt(p.quantity_on_hand)}</p>
-              <div className="flex items-center gap-1 mt-2 pt-2 border-t border-dp-outline-variant/60">
-                <button onClick={() => openEdit(p)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-primary cursor-pointer"><Pencil size={14} /></button>
-                <button onClick={() => remove(p)} className="p-1.5 text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={14} /></button>
+              <p className="font-sans text-[11.5px] text-[#7a736d] mt-0.5">{t('mk.stockLabel')} {fmt(p.quantity_on_hand)}</p>
+              <div className="flex items-center gap-1 mt-2 pt-2 border-t border-[#e2ded9]">
+                <button onClick={() => openEdit(p)} className="p-1.5 text-[#7a736d] hover:opacity-70 cursor-pointer" style={{ color: INK }}><Pencil size={14} /></button>
+                <button onClick={() => remove(p)} className="p-1.5 cursor-pointer" style={{ color: ACCENT }}><Trash2 size={14} /></button>
               </div>
             </div>
           </div>
@@ -311,12 +321,12 @@ export default function MyShopPage() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary">{editing ? t('mk.editProductBtn') : t('mk.newProductBtn')}</h2>
+              <h2 className="font-heading text-[20px] font-bold" style={{ color: INK }}>{editing ? t('mk.editProductBtn') : t('mk.newProductBtn')}</h2>
               <button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button>
             </div>
-            {!editing && form.name && <p className="font-sans text-[12px] text-dp-secondary bg-dp-secondary-container/40 rounded-lg px-3 py-2 mb-3">{t('sk.reviewDraftHint')}</p>}
+            {!editing && form.name && <p className="font-sans text-[12px] px-3 py-2 mb-3 border" style={{ background: '#fce3dc', borderColor: '#f4a68f', color: ACCENT_DARK }}>{t('sk.reviewDraftHint')}</p>}
             <div className="space-y-3">
               <ImageUpload bucket="images" label={t('mk.productPhoto')} currentUrl={coverUrl} onUpload={setCoverUrl} />
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('mk.productNamePlaceholder')} className="input-field" />
@@ -327,11 +337,11 @@ export default function MyShopPage() {
                 <input value={form.flavor_ur} onChange={(e) => setForm({ ...form, flavor_ur: e.target.value })} placeholder={t('sk.flavorUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
               </div>
               <div>
-                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.categoryLabel')}</label>
+                <label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('cm.categoryLabel')}</label>
                 {!changingCategory ? (
-                  <div className="flex items-center justify-between gap-2 bg-dp-secondary-container/40 rounded-lg px-3 py-2.5">
-                    <span className="font-sans text-[13.5px] font-semibold text-dp-secondary">{getCategoryLabel(form.category, isUrdu)}</span>
-                    <button type="button" onClick={() => setChangingCategory(true)} className="font-sans text-[12px] font-semibold text-dp-secondary hover:underline cursor-pointer shrink-0">{t('sk.changeCategoryBtn')}</button>
+                  <div className="flex items-center justify-between gap-2 px-3 py-2.5 border" style={{ background: '#fce3dc', borderColor: '#f4a68f' }}>
+                    <span className="font-sans text-[13.5px] font-semibold" style={{ color: ACCENT_DARK }}>{getCategoryLabel(form.category, isUrdu)}</span>
+                    <button type="button" onClick={() => setChangingCategory(true)} className="font-sans text-[12px] font-semibold hover:underline cursor-pointer shrink-0" style={{ color: ACCENT_DARK }}>{t('sk.changeCategoryBtn')}</button>
                   </div>
                 ) : (
                   <CategoryPicker primaryType={shop?.primary_type ?? 'general_store'} value={form.category}
@@ -340,13 +350,13 @@ export default function MyShopPage() {
               </div>
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} placeholder={t('a.notesOptional')} className="input-field resize-none" />
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('sk.costPriceLabel')}</label><input type="number" value={form.cost_price_pkr || ''} onChange={(e) => setForm({ ...form, cost_price_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
-                <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.unitPriceLabel')}</label><input type="number" value={form.unit_price_pkr || ''} onChange={(e) => setForm({ ...form, unit_price_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
+                <div><label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('sk.costPriceLabel')}</label><input type="number" value={form.cost_price_pkr || ''} onChange={(e) => setForm({ ...form, cost_price_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
+                <div><label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('mk.unitPriceLabel')}</label><input type="number" value={form.unit_price_pkr || ''} onChange={(e) => setForm({ ...form, unit_price_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
               </div>
-              <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.stockLabel')}</label><input type="number" value={form.quantity_on_hand || ''} onChange={(e) => setForm({ ...form, quantity_on_hand: +e.target.value })} className="input-field" placeholder="0" /></div>
-              <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.expiryDateLabel')}</label><input type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} className="input-field" /></div>
-              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('mk.productActiveLabel')}</span></label>
-              <button onClick={save} disabled={saving} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{saving ? t('action.saving') : t('g.saveChanges')}</button>
+              <div><label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('mk.stockLabel')}</label><input type="number" value={form.quantity_on_hand || ''} onChange={(e) => setForm({ ...form, quantity_on_hand: +e.target.value })} className="input-field" placeholder="0" /></div>
+              <div><label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('mk.expiryDateLabel')}</label><input type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} className="input-field" /></div>
+              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} style={{ accentColor: ACCENT }} /><span className="font-sans text-[14px]">{t('mk.productActiveLabel')}</span></label>
+              <button onClick={save} disabled={saving} className="w-full text-white py-3 font-sans font-semibold cursor-pointer transition-all disabled:opacity-50" style={{ background: ACCENT }} onMouseEnter={(e) => !saving && (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>{saving ? t('action.saving') : t('g.saveChanges')}</button>
             </div>
           </div>
         </div>
@@ -358,14 +368,14 @@ export default function MyShopPage() {
 
       {showAiSettings && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowAiSettings(false)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="font-heading text-[20px] font-bold text-dp-primary flex items-center gap-2"><KeyRound size={18} /> {t('sk.aiSettingsBtn')}</h2>
+              <h2 className="font-heading text-[20px] font-bold flex items-center gap-2" style={{ color: INK }}><KeyRound size={18} /> {t('sk.aiSettingsBtn')}</h2>
               <button onClick={() => setShowAiSettings(false)} className="cursor-pointer"><X size={20} /></button>
             </div>
-            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-3">{t('sk.aiSettingsHint')}</p>
+            <p className="font-sans text-[13px] text-[#7a736d] mb-3">{t('sk.aiSettingsHint')}</p>
             <input type="password" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} placeholder={t('sk.apiKeyPlaceholder')} className="input-field mb-3" dir="ltr" />
-            <button onClick={saveKey} disabled={savingKey} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{savingKey ? t('action.saving') : t('g.saveChanges')}</button>
+            <button onClick={saveKey} disabled={savingKey} className="w-full text-white py-3 font-sans font-semibold cursor-pointer transition-all disabled:opacity-50" style={{ background: ACCENT }} onMouseEnter={(e) => !savingKey && (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>{savingKey ? t('action.saving') : t('g.saveChanges')}</button>
           </div>
         </div>
       )}

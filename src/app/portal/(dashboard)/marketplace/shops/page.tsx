@@ -24,19 +24,25 @@ export default function MarketplaceShopsPage() {
       .then(({ data }) => setShops(data ?? []))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Ink/accent two-tone from the "Village Portal Marketplace" design spec
+  // (2026-09-05) — same palette as the shop detail page, square corners,
+  // uppercase tracked micro-labels for the status chip.
+  const INK = '#201e1d'
+  const ACCENT = '#ec3013'
+
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('mp.shopsHeading')}</h1>
+        <h1 className="font-heading text-[26px] font-bold" style={{ color: INK }}>{t('mp.shopsHeading')}</h1>
       </div>
-      {shops === null && <p className="font-sans text-[13.5px] text-dp-on-surface-variant"><LoadingDots /></p>}
-      {shops !== null && shops.length === 0 && <p className="font-sans text-[13.5px] text-dp-on-surface-variant">{t('mp.noShopsListed')}</p>}
+      {shops === null && <p className="font-sans text-[13.5px] text-[#7a736d]"><LoadingDots /></p>}
+      {shops !== null && shops.length === 0 && <p className="font-sans text-[13.5px] text-[#7a736d]">{t('mp.noShopsListed')}</p>}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {(shops ?? []).map((s) => (
-          <Link key={s.id} href={`/portal/marketplace/shop/${s.id}`} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 hover:border-dp-secondary transition-colors">
-            <p className="font-sans text-[14px] font-semibold text-dp-on-surface truncate">{isUrdu && s.name_ur ? s.name_ur : s.name}</p>
-            {s.location && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5 flex items-center gap-1"><MapPin size={11} /> {isUrdu ? (s.location_ur || s.location) : s.location}</p>}
-            <span className={`inline-block mt-2 text-[10.5px] font-bold px-2 py-0.5 rounded-full ${s.delivery_enabled ? 'bg-sky-100 text-sky-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>
+          <Link key={s.id} href={`/portal/marketplace/shop/${s.id}`} className="bg-white border border-[#dcd8d4] p-3.5 hover:border-[#201e1d] transition-colors">
+            <p className="font-sans text-[14px] font-semibold truncate" style={{ color: INK }}>{isUrdu && s.name_ur ? s.name_ur : s.name}</p>
+            {s.location && <p className="font-sans text-[12px] text-[#7a736d] mt-0.5 flex items-center gap-1"><MapPin size={11} /> {isUrdu ? (s.location_ur || s.location) : s.location}</p>}
+            <span className="inline-block mt-2 text-[10.5px] font-bold px-2 py-0.5 border" style={s.delivery_enabled ? { background: '#fce3dc', borderColor: '#f4a68f', color: '#ae1800' } : { background: '#eeece9', borderColor: '#dcd8d4', color: '#7a736d' }}>
               {s.delivery_enabled ? t('mk.deliveryEnabled') : t('mk.pickupOnly')}
             </span>
           </Link>

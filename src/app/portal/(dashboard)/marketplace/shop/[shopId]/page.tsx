@@ -6,6 +6,22 @@
 // non-delivery shop still shows its full catalog, just with a "visit this
 // store" note instead of quantity pickers, so price comparison from the
 // search page still works either way.
+//
+// Visual language matches the "Village Portal Marketplace" design spec
+// (2026-09-05 handoff zip): ink (#201e1d) / accent (#ec3013) two-tone,
+// square-cornered cards, uppercase tracked micro-labels. All data/logic
+// below is unchanged from before the restyle — this is a pure visual
+// pass over the same department→category→product drill-down, cart, and
+// checkout flow. Font stack deliberately stays this app's own (Nastaliq
+// for Urdu headings via --font-urdu, the existing font-sans for body) —
+// the mockup's Archivo/Noto Naskh Arabic pairing would need new webfonts
+// wired through layout.tsx, and this app has already fought (and
+// documented, see globals.css) a real Nastaliq-hijacks-Latin-glyphs bug
+// from exactly that kind of font-stack change; not worth reopening for a
+// visual-parity pass.
+const INK = '#201e1d'
+const ACCENT = '#ec3013'
+const ACCENT_DARK = '#ae1800'
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -45,28 +61,28 @@ function ProductCard({ p, isUrdu, cover, qty, max, canBuy, onQty, t }: {
   onQty: (productId: string, qty: number, max: number) => void; t: (k: string) => string
 }) {
   return (
-    <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
-      <div className="h-24 bg-dp-surface-container">
+    <div className="bg-white border border-[#dcd8d4] overflow-hidden">
+      <div className="h-24 bg-[#eeece9]">
         {cover && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={cover} alt="" className="w-full h-full object-cover" />
         )}
       </div>
       <div className="p-2.5">
-        <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface truncate">
+        <p className="font-sans text-[12.5px] font-semibold truncate" style={{ color: INK }}>
           {isUrdu && p.name_ur ? p.name_ur : p.name}
-          {(isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) && <span className="font-normal text-dp-on-surface-variant"> ({isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})</span>}
+          {(isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) && <span className="font-normal text-[#7a736d]"> ({isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})</span>}
         </p>
-        {p.company && <p className="font-sans text-[10.5px] text-dp-on-surface-variant truncate">{p.company}</p>}
-        <p className="font-sans text-[13.5px] font-bold text-dp-secondary mt-0.5">{fmt(p.unit_price_pkr)}</p>
+        {p.company && <p className="font-sans text-[10.5px] text-[#7a736d] truncate">{p.company}</p>}
+        <p className="font-sans text-[13.5px] font-bold mt-0.5" style={{ color: INK }}>{fmt(p.unit_price_pkr)}</p>
         {canBuy && (
           p.quantity_on_hand <= 0 ? (
-            <p className="font-sans text-[11px] text-dp-error mt-1.5">{t('mp.outOfStock')}</p>
+            <p className="font-sans text-[11px] mt-1.5" style={{ color: ACCENT_DARK }}>{t('mp.outOfStock')}</p>
           ) : (
             <div className="flex items-center justify-between gap-1 mt-1.5">
-              <button onClick={() => onQty(p.id, qty - 1, max)} className="w-6 h-6 rounded-full bg-dp-surface-container-high flex items-center justify-center cursor-pointer"><Minus size={12} /></button>
-              <span className="font-sans text-[13px] font-bold ltr-num">{qty}</span>
-              <button onClick={() => onQty(p.id, qty + 1, max)} className="w-6 h-6 rounded-full bg-dp-secondary text-white flex items-center justify-center cursor-pointer"><Plus size={12} /></button>
+              <button onClick={() => onQty(p.id, qty - 1, max)} className="w-6 h-6 border border-[#dcd8d4] flex items-center justify-center cursor-pointer hover:border-[#201e1d] transition-colors"><Minus size={12} /></button>
+              <span className="font-sans text-[13px] font-bold ltr-num" style={{ color: INK }}>{qty}</span>
+              <button onClick={() => onQty(p.id, qty + 1, max)} className="w-6 h-6 text-white flex items-center justify-center cursor-pointer transition-colors" style={{ background: ACCENT }} onMouseEnter={(e) => (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}><Plus size={12} /></button>
             </div>
           )
         )}
@@ -198,30 +214,45 @@ export default function ShopDetailPage() {
     router.push('/portal/marketplace')
   }
 
-  if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
-  if (!user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('p.couldNotLoad')}</div>
-  if (!shop) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('mp.shopNotFound')}</div>
+  if (userLoading || loading) return <div className="text-center py-12 text-[#7a736d] font-sans"><LoadingDots /></div>
+  if (!user) return <div className="text-center py-12 text-[#7a736d] font-sans">{t('p.couldNotLoad')}</div>
+  if (!shop) return <div className="text-center py-12 text-[#7a736d] font-sans">{t('mp.shopNotFound')}</div>
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
-      <button onClick={() => router.push('/portal/marketplace')} className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[13.5px] font-semibold hover:underline cursor-pointer mb-4">
+      <button onClick={() => router.push('/portal/marketplace')} className="inline-flex items-center gap-1.5 font-sans text-[13.5px] font-semibold hover:underline cursor-pointer mb-4" style={{ color: ACCENT }}>
         <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('mp.backToMarketplace')}
       </button>
 
-      <h1 className="font-heading text-[24px] font-bold text-dp-primary">{isUrdu && shop.name_ur ? shop.name_ur : shop.name}</h1>
-      {shop.location && <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1 flex items-center gap-1"><MapPin size={13} /> {isUrdu ? (shop.location_ur || shop.location) : shop.location}</p>}
-      {shop.description && <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-2">{isUrdu && shop.description_ur ? shop.description_ur : shop.description}</p>}
+      {/* Shop info card — ink/accent badges instead of the amber "visit
+          store" tone, square corners, uppercase tracked micro-labels. */}
+      <div className="bg-white border border-[#dcd8d4] p-4">
+        <div className="flex items-center gap-3">
+          <div className="shrink-0 w-10 h-10 bg-[#eeece9] border border-[#c3bdb7] flex items-center justify-center font-sans text-[13px] font-extrabold" style={{ color: INK }}>
+            {(isUrdu && shop.name_ur ? shop.name_ur : shop.name).trim().charAt(0)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="font-heading text-[19px] font-bold leading-[2.1]" style={{ color: INK }}>{isUrdu && shop.name_ur ? shop.name_ur : shop.name}</h1>
+            {shop.location && <p className="font-sans text-[11px] text-[#7a736d] flex items-center gap-1"><MapPin size={12} /> {isUrdu ? (shop.location_ur || shop.location) : shop.location}</p>}
+          </div>
+        </div>
+        {shop.description && <p className="font-sans text-[13px] text-[#5b544f] mt-2.5">{isUrdu && shop.description_ur ? shop.description_ur : shop.description}</p>}
+        <div className="flex flex-wrap gap-1.5 mt-3">
+          {shop.delivery_enabled && <span className="font-sans text-[10.5px] font-semibold px-2 py-1 border" style={{ background: '#fce3dc', borderColor: '#f4a68f', color: ACCENT_DARK }}>{t('mp.deliveryFee')} {fmt(deliveryFeePkr)}</span>}
+          <span className="font-sans text-[10.5px] font-semibold px-2 py-1 bg-[#eeece9] border border-[#dcd8d4]" style={{ color: INK }}>{t('w.cash')}</span>
+        </div>
+      </div>
 
       {!shop.delivery_enabled && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3.5 mt-4">
-          <p className="font-sans text-[13px] text-amber-900">{t('mp.visitStoreExplain')}</p>
-          {shop.owner_mobile && <p className="font-sans text-[13px] font-semibold text-amber-900 mt-1 ltr-num">{shop.owner_mobile}</p>}
+        <div className="bg-white border-2 p-3.5 mt-3" style={{ borderColor: ACCENT }}>
+          <p className="font-sans text-[13px]" style={{ color: INK }}>{t('mp.visitStoreExplain')}</p>
+          {shop.owner_mobile && <p className="font-sans text-[13px] font-semibold mt-1 ltr-num" style={{ color: ACCENT_DARK }}>{shop.owner_mobile}</p>}
         </div>
       )}
       {shop.delivery_enabled && !bookable && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3.5 mt-4">
-          <p className="font-sans text-[13px] text-amber-900">{t('cm.notBookableExplain')}</p>
-          {shop.owner_mobile && <p className="font-sans text-[13px] font-semibold text-amber-900 mt-1 ltr-num">{shop.owner_mobile}</p>}
+        <div className="bg-white border-2 p-3.5 mt-3" style={{ borderColor: ACCENT }}>
+          <p className="font-sans text-[13px]" style={{ color: INK }}>{t('cm.notBookableExplain')}</p>
+          {shop.owner_mobile && <p className="font-sans text-[13px] font-semibold mt-1 ltr-num" style={{ color: ACCENT_DARK }}>{shop.owner_mobile}</p>}
         </div>
       )}
 
@@ -233,15 +264,16 @@ export default function ShopDetailPage() {
       {!activeDept && (
         <div className="mt-5">
           <div className="relative mb-3">
-            <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant/60 pointer-events-none" />
+            <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-[#7a736d]/70 pointer-events-none" />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('mp.searchInShopPlaceholder')}
-              className="w-full ps-9 pe-3 py-2.5 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[14px] font-sans text-dp-on-surface" />
+              className="w-full ps-9 pe-3 py-2.5 bg-white border transition-all text-[14px] font-sans focus:ring-0"
+              style={{ borderColor: INK, color: INK }} />
           </div>
           {brandsInShop.length > 1 && (
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-              <button onClick={() => setBrandFilter(null)} className={`shrink-0 px-3 py-1.5 rounded-full text-[12px] font-sans font-semibold cursor-pointer border ${!brandFilter ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{t('cb.allTab')}</button>
+              <button onClick={() => setBrandFilter(null)} className="shrink-0 px-3 py-1.5 text-[12px] font-sans font-semibold cursor-pointer border" style={!brandFilter ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { background: '#fff', color: '#7a736d', borderColor: '#dcd8d4' }}>{t('cb.allTab')}</button>
               {brandsInShop.map((b) => (
-                <button key={b} onClick={() => setBrandFilter(b)} className={`shrink-0 px-3 py-1.5 rounded-full text-[12px] font-sans font-semibold cursor-pointer border ${brandFilter === b ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{b}</button>
+                <button key={b} onClick={() => setBrandFilter(b)} className="shrink-0 px-3 py-1.5 text-[12px] font-sans font-semibold cursor-pointer border" style={brandFilter === b ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { background: '#fff', color: '#7a736d', borderColor: '#dcd8d4' }}>{b}</button>
               ))}
             </div>
           )}
@@ -253,7 +285,7 @@ export default function ShopDetailPage() {
           or the shop has no sales history. */}
       {!activeDept && !searchActive && popularProducts.length > 0 && (
         <div className="mt-5">
-          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><Flame size={13} /> {t('mp.popularHeading')}</p>
+          <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-[#7a736d] mb-2.5 flex items-center gap-1.5"><Flame size={13} /> {t('mp.popularHeading')}</p>
           <div className="flex gap-3 overflow-x-auto pb-1">
             {popularProducts.map((p) => (
               <div key={p.id} className="w-32 shrink-0">
@@ -271,17 +303,17 @@ export default function ShopDetailPage() {
       {searchActive ? (
         <div className="mt-5">
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('mp.resultsCount').replace('{n}', String(searchResults.length))}</p>
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} className="px-2.5 py-1.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-[12.5px] text-dp-on-surface">
+            <p className="font-sans text-[13px] text-[#7a736d]">{t('mp.resultsCount').replace('{n}', String(searchResults.length))}</p>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} className="px-2.5 py-1.5 bg-white border border-[#dcd8d4] font-sans text-[12.5px]" style={{ color: INK }}>
               <option value="name">{t('mp.sortByName')}</option>
               <option value="cheap">{t('mp.sortCheapFirst')}</option>
               <option value="expensive">{t('mp.sortExpensiveFirst')}</option>
             </select>
           </div>
           {searchResults.length === 0 ? (
-            <div className="text-center py-8 bg-white border border-dp-outline-variant rounded-lg">
-              <p className="font-sans text-[13.5px] text-dp-on-surface-variant mb-3">{t('mp.noResultsInShop')}</p>
-              <Link href="/portal/marketplace/order-city" className="inline-flex items-center gap-1.5 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all">
+            <div className="text-center py-8 bg-white border border-[#dcd8d4]">
+              <p className="font-sans text-[13.5px] text-[#7a736d] mb-3">{t('mp.noResultsInShop')}</p>
+              <Link href="/portal/marketplace/order-city" className="inline-flex items-center gap-1.5 px-4 py-2 text-white font-sans text-[13px] font-semibold transition-all" style={{ background: ACCENT }}>
                 <MapPinned size={14} /> {t('mp.orderFromCityBtn')}
               </Link>
             </div>
@@ -303,20 +335,15 @@ export default function ShopDetailPage() {
           wall of everything at once once a shop has real variety. */}
       {!activeDept && (
         <div className="mt-5">
-          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><LayoutGrid size={13} /> {t('cm.browseByDept')}</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-[#7a736d] mb-2.5 flex items-center gap-1.5"><LayoutGrid size={13} /> {t('cm.browseByDept')}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {departmentsPresent.map((d) => {
               const count = d.categories.reduce((s, c) => s + (countByCategory[c.slug] ?? 0), 0)
               return (
-                <button key={d.key} onClick={() => setActiveDept(d.key)} className="text-start bg-white border border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-colors cursor-pointer flex items-center gap-3">
-                  <div className="shrink-0 w-9 h-9 rounded-lg bg-dp-secondary-container/50 text-dp-secondary flex items-center justify-center">
-                    <DynamicIcon name={d.icon} size={18} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-sans text-[14px] font-bold text-dp-on-surface">{isUrdu ? d.label_ur : d.label}</p>
-                    <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{count} {t('mk.productsCount')}</p>
-                  </div>
-                  <ChevronRight size={16} className={`shrink-0 text-dp-on-surface-variant ${isUrdu ? 'rotate-180' : ''}`} />
+                <button key={d.key} onClick={() => setActiveDept(d.key)} className="text-start bg-white border border-[#dcd8d4] p-3 hover:border-[#201e1d] transition-colors cursor-pointer">
+                  <DynamicIcon name={d.icon} size={18} color={ACCENT} />
+                  <p className="font-sans text-[11.5px] mt-1.5 leading-[1.5]" style={{ color: INK }}>{isUrdu ? d.label_ur : d.label}</p>
+                  <p className="font-sans text-[9.5px] text-[#7a736d] mt-0.5">{count} {t('mk.productsCount')}</p>
                 </button>
               )
             })}
@@ -326,18 +353,18 @@ export default function ShopDetailPage() {
 
       {activeDept && !activeCategory && (
         <div className="mt-5">
-          <button onClick={() => setActiveDept(null)} className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[13px] font-semibold hover:underline cursor-pointer mb-3">
+          <button onClick={() => setActiveDept(null)} className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold hover:underline cursor-pointer mb-3" style={{ color: ACCENT }}>
             <ArrowLeft size={13} className={isUrdu ? 'rotate-180' : ''} /> {t('cm.browseByDept')}
           </button>
-          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{(() => { const d = shopTree.find((d) => d.key === activeDept); return d ? (isUrdu ? d.label_ur : d.label) : '' })()}</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-[#7a736d] mb-2.5">{(() => { const d = shopTree.find((d) => d.key === activeDept); return d ? (isUrdu ? d.label_ur : d.label) : '' })()}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {categoriesPresent(activeDept).map((c) => (
-              <button key={c.slug} onClick={() => setActiveCategory(c.slug)} className="text-start bg-white border border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-colors cursor-pointer flex items-center justify-between gap-2">
+              <button key={c.slug} onClick={() => setActiveCategory(c.slug)} className="text-start bg-white border border-[#dcd8d4] p-3 hover:border-[#201e1d] transition-colors cursor-pointer flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="font-sans text-[14px] font-bold text-dp-on-surface">{isUrdu ? c.label_ur : c.label}</p>
-                  <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{countByCategory[c.slug] ?? 0} {t('mk.productsCount')}</p>
+                  <p className="font-sans text-[13px] font-semibold" style={{ color: INK }}>{isUrdu ? c.label_ur : c.label}</p>
+                  <p className="font-sans text-[10.5px] text-[#7a736d] mt-0.5">{countByCategory[c.slug] ?? 0} {t('mk.productsCount')}</p>
                 </div>
-                <ChevronRight size={16} className={`shrink-0 text-dp-on-surface-variant ${isUrdu ? 'rotate-180' : ''}`} />
+                <ChevronRight size={15} className={`shrink-0 text-[#7a736d] ${isUrdu ? 'rotate-180' : ''}`} />
               </button>
             ))}
           </div>
@@ -346,10 +373,10 @@ export default function ShopDetailPage() {
 
       {activeCategory && (
         <div className="mt-5">
-          <button onClick={() => setActiveCategory(null)} className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[13px] font-semibold hover:underline cursor-pointer mb-3">
+          <button onClick={() => setActiveCategory(null)} className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold hover:underline cursor-pointer mb-3" style={{ color: ACCENT }}>
             <ArrowLeft size={13} className={isUrdu ? 'rotate-180' : ''} /> {(() => { const d = shopTree.find((d) => d.key === activeDept); return d ? (isUrdu ? d.label_ur : d.label) : '' })()}
           </button>
-          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{(() => { const c = shopTree.flatMap((d) => d.categories).find((c) => c.slug === activeCategory); return c ? (isUrdu ? c.label_ur : c.label) : '' })()}</p>
+          <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-[#7a736d] mb-2.5">{(() => { const c = shopTree.flatMap((d) => d.categories).find((c) => c.slug === activeCategory); return c ? (isUrdu ? c.label_ur : c.label) : '' })()}</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {visibleProducts.map((p) => (
               <ProductCard key={p.id} p={p} isUrdu={isUrdu} cover={coverByProduct[p.id]} qty={cart[p.id] ?? 0} max={p.quantity_on_hand}
@@ -362,43 +389,47 @@ export default function ShopDetailPage() {
       )}
 
       {shop.delivery_enabled && bookable && cartItems.length > 0 && (
-        <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mt-5">
-          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2 flex items-center gap-1.5"><ShoppingCart size={13} /> {t('mp.cartHeading')}</p>
+        <div className="bg-white border border-[#dcd8d4] mt-5">
+          <div className="px-4 py-3 text-white flex items-center gap-1.5" style={{ background: INK }}>
+            <ShoppingCart size={14} />
+            <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em]">{t('mp.cartHeading')}</p>
+          </div>
+          <div className="p-4">
           {cartItems.map((p) => (
             <div key={p.id} className="flex items-center justify-between gap-2 py-1">
-              <p className="font-sans text-[13px] text-dp-on-surface truncate">{isUrdu && p.name_ur ? p.name_ur : p.name}{(isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) && ` (${isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})`} × <span className="ltr-num">{cart[p.id]}</span></p>
-              <p className="font-sans text-[13px] font-semibold text-dp-on-surface shrink-0">{fmt(p.unit_price_pkr * cart[p.id])}</p>
+              <p className="font-sans text-[13px] truncate" style={{ color: INK }}>{isUrdu && p.name_ur ? p.name_ur : p.name}{(isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) && ` (${isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})`} × <span className="ltr-num">{cart[p.id]}</span></p>
+              <p className="font-sans text-[13px] font-semibold shrink-0" style={{ color: INK }}>{fmt(p.unit_price_pkr * cart[p.id])}</p>
             </div>
           ))}
-          <div className="flex items-center justify-between pt-2 mt-2 border-t border-dp-outline-variant">
-            <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('mp.goodsSubtotal')}</p>
-            <p className="font-sans text-[13px] text-dp-on-surface-variant">{fmt(cartTotal)}</p>
+          <div className="flex items-center justify-between pt-2 mt-2 border-t border-[#e2ded9]">
+            <p className="font-sans text-[13px] text-[#7a736d]">{t('mp.goodsSubtotal')}</p>
+            <p className="font-sans text-[13px] text-[#7a736d]">{fmt(cartTotal)}</p>
           </div>
           {deliveryFeePkr > 0 && (
             <div className="flex items-center justify-between py-1">
-              <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('mp.deliveryFee')}</p>
-              <p className="font-sans text-[13px] text-dp-on-surface-variant">{fmt(deliveryFeePkr)}</p>
+              <p className="font-sans text-[13px] text-[#7a736d]">{t('mp.deliveryFee')}</p>
+              <p className="font-sans text-[13px] text-[#7a736d]">{fmt(deliveryFeePkr)}</p>
             </div>
           )}
-          <div className="flex items-center justify-between pt-2 mt-1 border-t border-dp-outline-variant">
-            <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('mp.cartTotal')}</p>
-            <p className="font-heading text-[19px] font-bold text-dp-secondary">{fmt(cartTotal + deliveryFeePkr)}</p>
+          <div className="flex items-center justify-between pt-2 mt-1 border-t border-[#e2ded9]">
+            <p className="font-sans text-[14px] font-bold" style={{ color: INK }}>{t('mp.cartTotal')}</p>
+            <p className="font-heading text-[19px] font-bold" style={{ color: ACCENT }}>{fmt(cartTotal + deliveryFeePkr)}</p>
           </div>
 
           <div className="mt-4">
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('mp.deliveryAddressLabel')}</label>
+            <label className="block font-sans text-[13px] font-semibold text-[#5b544f] mb-1.5">{t('mp.deliveryAddressLabel')}</label>
             <textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={2}
-              placeholder={t('mp.deliveryAddressPlaceholder')} className="input-field resize-none" />
-            {user?.mobile && <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('mp.deliveryContactNote')} <span className="font-semibold ltr-num">{user.mobile}</span></p>}
+              placeholder={t('mp.deliveryAddressPlaceholder')} className="w-full border border-[#dcd8d4] p-2.5 font-sans text-[13.5px] resize-none focus:ring-0" style={{ borderColor: '#dcd8d4' }} onFocus={(e) => (e.currentTarget.style.borderColor = INK)} onBlur={(e) => (e.currentTarget.style.borderColor = '#dcd8d4')} />
+            {user?.mobile && <p className="font-sans text-[11.5px] text-[#7a736d] mt-1.5">{t('mp.deliveryContactNote')} <span className="font-semibold ltr-num">{user.mobile}</span></p>}
           </div>
 
           {isPerOrder ? (
-            <p className="font-sans text-[12.5px] text-dp-on-surface-variant bg-dp-secondary-container/40 rounded-lg px-3 py-2.5 mt-4">{t('cm.payDirectlyNote')}</p>
+            <p className="font-sans text-[12.5px] px-3 py-2.5 mt-4 border" style={{ background: '#fce3dc', borderColor: '#f4a68f', color: ACCENT_DARK }}>{t('cm.payDirectlyNote')}</p>
           ) : (
             <>
               <div className="mt-4">
-                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
-                <select value={method} onChange={(e) => setMethod(e.target.value)} className="input-field">
+                <label className="block font-sans text-[13px] font-semibold text-[#5b544f] mb-1.5">{t('w.paymentMethod')}</label>
+                <select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full border border-[#dcd8d4] p-2.5 font-sans text-[13.5px]" style={{ color: INK }}>
                   <option value="cash">{t('w.cash')}</option>
                   <option value="jazzcash">{t('w.jazzcash')}</option>
                   <option value="easypaisa">{t('w.easypaisa')}</option>
@@ -410,9 +441,10 @@ export default function ShopDetailPage() {
               </div>
             </>
           )}
-          <button onClick={submit} disabled={submitting} className="w-full mt-4 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+          <button onClick={submit} disabled={submitting} className="w-full mt-4 text-white py-3 font-sans font-semibold cursor-pointer transition-all disabled:opacity-50" style={{ background: ACCENT }} onMouseEnter={(e) => !submitting && (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>
             {submitting ? t('mp.placingOrder') : t('mp.placeOrderBtn')}
           </button>
+          </div>
         </div>
       )}
     </div>
