@@ -35,11 +35,13 @@ Respond with the category CODE only (e.g. "${categorySlugs[0]}"), not the label.
 
 Most packaged products (biscuits, chips, drinks, etc.) come in a specific flavor or variant — read it off the packaging if printed (e.g. "Salted", "BBQ", "Chocolate", "Orange", "Masala"). Leave it empty if the product has no flavor/variant (e.g. plain rice, a bar of soap) or none is legible.
 
+Also rate your own confidence in this reading as a number from 0 to 1 — 1 means every field was clearly legible on the packaging, lower means you had to guess or the photo was blurry/partial/glare. Be honest and conservative; a shopkeeper will be asked to double-check anything below 0.75.
+
 Respond with ONLY a JSON object, no markdown fences, no other text, in this exact shape:
-{"name": "product name in English/Roman, as printed", "name_ur": "product name in Urdu script if determinable, else empty string", "company": "brand/manufacturer name, else empty string", "category": "one of the allowed category codes", "flavor": "flavor/variant in English/Roman if printed, else empty string", "flavor_ur": "flavor/variant in Urdu script if determinable, else empty string", "description": "one short phrase, e.g. size/variant, else empty string"}`
+{"name": "product name in English/Roman, as printed", "name_ur": "product name in Urdu script if determinable, else empty string", "company": "brand/manufacturer name, else empty string", "category": "one of the allowed category codes", "flavor": "flavor/variant in English/Roman if printed, else empty string", "flavor_ur": "flavor/variant in Urdu script if determinable, else empty string", "description": "one short phrase, e.g. size/variant, else empty string", "confidence": 0.0}`
 }
 
-function extractJsonObject(text: string): Record<string, string> {
+function extractJsonObject(text: string): Record<string, string | number> {
   const match = text.match(/\{[\s\S]*\}/)
   const raw = match ? match[0] : text
   const parsed = JSON.parse(raw)
@@ -116,10 +118,15 @@ export async function POST(req: NextRequest) {
     const text = result.text ?? result.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
     if (!text) throw new Error('No text in model response')
     const fields = extractJsonObject(text)
-    const category = categorySlugs.includes(fields.category) ? fields.category : 'other'
+    const category = categorySlugs.includes(String(fields.category)) ? String(fields.category) : 'other'
+    // Missing/unparseable confidence reads as 0, not 1 — an old model
+    // response shape or a field the model dropped should trigger the
+    // "please confirm" path, never silently skip it.
+    const confidence = Number(fields.confidence)
     return NextResponse.json({
       name: fields.name ?? '', name_ur: fields.name_ur ?? '', company: fields.company ?? '',
       category, flavor: fields.flavor ?? '', flavor_ur: fields.flavor_ur ?? '', description: fields.description ?? '',
+      confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0,
     })
   } catch (err) {
     return NextResponse.json({ error: friendlyGeminiError(err) }, { status: 500 })

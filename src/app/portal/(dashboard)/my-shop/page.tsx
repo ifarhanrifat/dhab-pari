@@ -76,6 +76,34 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
+// AI-scan duplicate check (Shop Portal v3.2 §L), scoped to what this app
+// actually has: there is no separate shared Brand→Item→Variant catalog
+// service to match against (the "Add Stock" tab's own catalog is a
+// static seed file, browsed by hand — scanning has always deliberately
+// read straight off the packaging instead, see this file's own header
+// comment). What a scan CAN and should check is the one thing a stray
+// duplicate would actually break: this shop's OWN existing listings.
+// Three real verdicts fall out of that, matching the spec's first three
+// (its fourth, "in the shared catalog but not this shop", has no
+// counterpart here — scanning never reads that catalog to begin with):
+//   'listed'  — same name+company+flavor already a row here -> edit it,
+//               never insert a second row for the same physical product.
+//   'variant' — same name+company, different flavor -> a new row is
+//               correct (each flavor is its own row in this schema), just
+//               say so plainly rather than silently treating it as new.
+//   'new'     — no match at all -> today's existing behaviour, unchanged.
+const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase()
+type ScanVerdict = 'listed' | 'variant' | 'new'
+function matchScannedProduct(draft: { name: string; company: string; flavor: string }, existing: Product[]): { verdict: ScanVerdict; match: Product | null } {
+  const dName = norm(draft.name), dCompany = norm(draft.company), dFlavor = norm(draft.flavor)
+  if (!dName) return { verdict: 'new', match: null }
+  const sameItem = existing.filter((p) => norm(p.name) === dName && norm(p.company) === dCompany)
+  if (sameItem.length === 0) return { verdict: 'new', match: null }
+  const exact = sameItem.find((p) => norm(p.flavor) === dFlavor)
+  if (exact) return { verdict: 'listed', match: exact }
+  return { verdict: 'variant', match: sameItem[0] }
+}
+
 export default function MyShopPage() {
   const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
@@ -92,6 +120,7 @@ export default function MyShopPage() {
   const [coverUrl, setCoverUrl] = useState('')
   const [saving, setSaving] = useState(false)
   const [scanning, setScanning] = useState(false)
+  const [scanBanner, setScanBanner] = useState<{ verdict: ScanVerdict; confidence: number } | null>(null)
   const scanInputRef = useRef<HTMLInputElement>(null)
 
   const [showTopup, setShowTopup] = useState(false)
@@ -146,6 +175,7 @@ export default function MyShopPage() {
     setForm({ ...emptyProduct, category: categorySlug, company: presetCompany ?? '' })
     setCoverUrl('')
     setChangingCategory(false)
+    setScanBanner(null)
     setShowForm(true)
   }
   const openEdit = (p: Product) => {
@@ -198,15 +228,27 @@ export default function MyShopPage() {
       const { data: uploaded } = await supabase.storage.from('images').upload(path, file)
       const publicUrl = uploaded ? supabase.storage.from('images').getPublicUrl(uploaded.path).data.publicUrl : ''
 
-      setEditing(null)
-      setForm({
-        ...emptyProduct, name: json.name || '', name_ur: json.name_ur || '', company: json.company || '',
-        category: json.category || 'other', flavor: json.flavor || '', flavor_ur: json.flavor_ur || '',
-        description: json.description || '',
-      })
-      setCoverUrl(publicUrl)
-      setChangingCategory(false)
-      setShowForm(true)
+      const { verdict, match } = matchScannedProduct({ name: json.name || '', company: json.company || '', flavor: json.flavor || '' }, products)
+      setScanBanner({ verdict, confidence: typeof json.confidence === 'number' ? json.confidence : 0 })
+
+      if (verdict === 'listed' && match) {
+        // Already a row for this exact item — open ITS edit form so
+        // saving updates cost/sale/qty in place, never inserts a second
+        // row for the same physical product. The scan's own photo still
+        // becomes the cover if the listing doesn't already have one.
+        openEdit(match)
+        if (!coverByProduct[match.id]) setCoverUrl(publicUrl)
+      } else {
+        setEditing(null)
+        setForm({
+          ...emptyProduct, name: json.name || '', name_ur: json.name_ur || '', company: json.company || '',
+          category: json.category || 'other', flavor: json.flavor || '', flavor_ur: json.flavor_ur || '',
+          description: json.description || '',
+        })
+        setCoverUrl(publicUrl)
+        setChangingCategory(false)
+        setShowForm(true)
+      }
       toast.success(t('sk.scanDraftedToast'))
     } catch {
       toast.error(t('sk.scanFailed'))
@@ -406,7 +448,7 @@ export default function MyShopPage() {
               </div>
               <p className="font-sans text-[11.5px] text-[#7a736d] mt-0.5">{t('mk.stockLabel')} {fmt(p.quantity_on_hand)}</p>
               <div className="flex items-center gap-1 mt-2 pt-2 border-t border-[#e2ded9]">
-                <button onClick={() => openEdit(p)} className="p-1.5 text-[#7a736d] hover:opacity-70 cursor-pointer" style={{ color: INK }}><Pencil size={14} /></button>
+                <button onClick={() => { setScanBanner(null); openEdit(p) }} className="p-1.5 text-[#7a736d] hover:opacity-70 cursor-pointer" style={{ color: INK }}><Pencil size={14} /></button>
                 <button onClick={() => remove(p)} className="p-1.5 cursor-pointer" style={{ color: ACCENT }}><Trash2 size={14} /></button>
               </div>
             </div>
@@ -421,7 +463,14 @@ export default function MyShopPage() {
               <h2 className="font-heading text-[20px] font-bold" style={{ color: INK }}>{editing ? t('mk.editProductBtn') : t('mk.newProductBtn')}</h2>
               <button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button>
             </div>
-            {!editing && form.name && <p className="font-sans text-[12px] px-3 py-2 mb-3 border" style={{ background: '#fce3dc', borderColor: '#f4a68f', color: ACCENT_DARK }}>{t('sk.reviewDraftHint')}</p>}
+            {scanBanner && (
+              <p className="font-sans text-[12px] px-3 py-2 mb-3 border" style={{ background: '#fce3dc', borderColor: '#f4a68f', color: ACCENT_DARK }}>
+                {scanBanner.verdict === 'listed' ? t('sk.scanVerdictListed')
+                  : scanBanner.verdict === 'variant' ? t('sk.scanVerdictVariant')
+                  : t('sk.reviewDraftHint')}
+                {scanBanner.confidence > 0 && scanBanner.confidence < 0.75 && <span className="block mt-1 font-semibold">{t('sk.scanLowConfidence')}</span>}
+              </p>
+            )}
             <div className="space-y-3">
               <ImageUpload bucket="images" label={t('mk.productPhoto')} currentUrl={coverUrl} onUpload={setCoverUrl} />
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('mk.productNamePlaceholder')} className="input-field" />
