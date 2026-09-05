@@ -9,22 +9,19 @@
 // behind one "Add Stock" button + a multi-step wizard read as features
 // having been deleted. Picking now happens inline, on the page.
 //
-// There is no separate "review & set prices" screen — the design handoff
-// never has one; its catalog rows already carry cost/sale (and a unit
-// <select>) right on the row, editable before the tick, so ticking IS
-// pricing. The basket still lives here rather than inside BrandItemPicker
-// so it survives switching to "My Stock" and back for free, but the
-// sticky bar below only ever has one button now: commit straight from
-// wherever the shopkeeper is.
+// There is no "review & set prices" screen, and no "Save" step of any
+// kind — the design handoff never has either. A tap on a catalog row
+// commits straight to shop_products right then (BrandItemPicker owns
+// that insert/delete itself now); tapping an already-stocked row deletes
+// it just as immediately. useCatalogSelection still lives here (not
+// inside BrandItemPicker) purely so a few keystrokes of cost/sale typed
+// into a not-yet-ticked row survive switching over to peek at "My Stock"
+// and back — it is never itself "the basket that gets saved" anymore.
 
 import { useEffect, useRef, useState } from 'react'
-import { Package, PackagePlus, Loader2, CheckCircle2, LayoutGrid, List } from 'lucide-react'
-import { toast } from 'sonner'
-import { createClient } from '@/lib/supabase/client'
-import { friendlyError } from '@/lib/errors'
+import { Package, PackagePlus, LayoutGrid, List } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useCatalogSelection } from '@/hooks/useCatalogSelection'
-import { ownedKey } from '@/lib/catalogSelection'
 import { CategoryBrowser } from './CategoryBrowser'
 import { BrandItemPicker } from './BrandItemPicker'
 import { StockListView, type StockListProduct } from './StockListView'
@@ -48,13 +45,10 @@ interface ShopCatalogSectionProps<P extends StockListProduct> {
   onScanClick?: () => void
 }
 
-const CHUNK_SIZE = 200
-
 export function ShopCatalogSection<P extends StockListProduct>({
   shopId, primaryType, products, renderProduct, onAddItem, onCommitted, onInlineUpdate, onScanClick,
 }: ShopCatalogSectionProps<P>) {
   const { t } = useLocale()
-  const supabase = createClient()
   const selection = useCatalogSelection(shopId)
   const [tab, setTab] = useState<'mystock' | 'addstock'>(() => (products.length > 0 ? 'mystock' : 'addstock'))
   const [stockView, setStockView] = useState<'tiles' | 'list'>('list')
@@ -74,64 +68,6 @@ export function ShopCatalogSection<P extends StockListProduct>({
     if (userPickedTab.current) return
     if (products.length > 0) setTab('mystock')
   }, [products.length])
-  const [committing, setCommitting] = useState(false)
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
-  const barRef = useRef<HTMLDivElement>(null)
-
-  const commit = async () => {
-    if (selection.count === 0) return
-    if (selection.rowsMissingPrice.length > 0) { toast.error(t('bs.missingPriceToast')); return }
-    setCommitting(true)
-
-    const { data: freshProducts } = await supabase.from('shop_products').select('name, flavor').eq('shop_id', shopId)
-    const freshOwned = new Set((freshProducts ?? []).map((p) => ownedKey(p.name, p.flavor)))
-
-    const toInsert = selection.rowList.filter((r) => !freshOwned.has(ownedKey(r.name, r.flavor)))
-    const skipped = selection.rowList.length - toInsert.length
-
-    const payloads = toInsert.map((r) => ({
-      shop_id: shopId,
-      name: r.name.trim(), name_ur: r.name_ur.trim() || null,
-      company: r.brandName.trim() || null, company_ur: r.brandName_ur.trim() || null,
-      category: r.category, flavor: r.flavor.trim() || null, flavor_ur: r.flavor_ur.trim() || null,
-      cost_price_pkr: r.cost_price_pkr === '' ? 0 : Number(r.cost_price_pkr),
-      unit_price_pkr: Number(r.unit_price_pkr),
-      quantity_on_hand: r.quantity_on_hand === '' ? 0 : Number(r.quantity_on_hand),
-      expiry_date: r.expiry_date || null,
-      unit: r.unit.trim() || null,
-      is_active: true,
-    })).filter((p) => p.name.length > 0)
-
-    if (payloads.length === 0) {
-      setCommitting(false)
-      if (skipped > 0) toast.error(t('bs.allSkippedToast').replace('{n}', String(skipped)))
-      return
-    }
-
-    setProgress({ done: 0, total: payloads.length })
-    const sentKeys: string[] = []
-    for (let i = 0; i < payloads.length; i += CHUNK_SIZE) {
-      const chunk = payloads.slice(i, i + CHUNK_SIZE)
-      const chunkRows = toInsert.slice(i, i + CHUNK_SIZE)
-      const { error } = await supabase.from('shop_products').insert(chunk)
-      if (error) {
-        selection.deselectMany(sentKeys)
-        setCommitting(false)
-        setProgress(null)
-        toast.error(friendlyError(error))
-        return
-      }
-      sentKeys.push(...chunkRows.map((r) => r.key))
-      setProgress({ done: Math.min(i + CHUNK_SIZE, payloads.length), total: payloads.length })
-    }
-
-    selection.clear()
-    setCommitting(false)
-    setProgress(null)
-    toast.success(skipped > 0 ? t('bs.committedWithSkipsToast').replace('{n}', String(payloads.length)).replace('{s}', String(skipped)) : t('bs.committedToast').replace('{n}', String(payloads.length)))
-    setTab('mystock')
-    onCommitted()
-  }
 
   return (
     <div>
@@ -177,19 +113,6 @@ export function ShopCatalogSection<P extends StockListProduct>({
           )}
 
           <BrandItemPicker shopId={shopId} primaryType={primaryType} ownedProducts={products} selection={selection} onBrandSubmitted={onCommitted} onScanClick={onScanClick} />
-
-          {selection.count > 0 && (
-            <div ref={barRef} className="sticky bottom-0 mt-4 -mx-1 px-1 pb-1">
-              <div className="flex items-center justify-between gap-3 bg-white border-2 border-dp-outline-variant rounded-xl shadow-lg px-4 py-3">
-                <span className="font-sans text-[13px] font-bold text-dp-on-surface-variant">{t('bs.selectedCount').replace('{n}', String(selection.count))}</span>
-                <button onClick={commit} disabled={committing}
-                  className="flex items-center gap-2 px-4 py-2 bg-dp-primary text-white rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:opacity-90 transition-all disabled:opacity-50">
-                  {committing ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                  {progress ? `${progress.done} / ${progress.total}` : committing ? t('action.saving') : t('bs.saveAllBtn')}
-                </button>
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>

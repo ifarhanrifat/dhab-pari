@@ -2101,6 +2101,14 @@ export const messages: Record<Locale, Record<string, string>> = {
     'sk.kitNameRequired': 'Give the kit a name.', 'sk.kitNeedsItemsToast': 'Add at least one item to the kit.',
     'sk.kitSavedToast': 'Kit saved.', 'sk.confirmDeleteKit': 'Delete this kit? This cannot be undone.', 'sk.kitDeletedToast': 'Kit deleted.',
     'sk.saleCompletedToast': 'Sale recorded', 'sk.searchOwnCatalogPlaceholder': 'Search your products...',
+    'sk.dealsBtn': 'Deals & Offers', 'sk.newDealBtn': 'New Deal', 'sk.editDealTitle': 'Edit Deal', 'sk.noDealsYet': 'No deals yet.',
+    'sk.dealNamePlaceholder': 'Deal name (e.g. Eid Package)', 'sk.dealNameUrPlaceholder': 'Deal name in Urdu',
+    'sk.dealSubPlaceholder': 'One-line description', 'sk.dealSubUrPlaceholder': 'Description in Urdu',
+    'sk.discountTypeLabel': 'Discount type', 'sk.discountPercent': '% off', 'sk.discountAmount': 'Rs off', 'sk.discountFixedPrice': 'Fixed price',
+    'sk.dealValidForLabel': 'Valid for', 'sk.daysSuffix': 'days', 'sk.dealExpiredTag': 'expired',
+    'sk.dealOnLabel': 'Running', 'sk.dealOffLabel': 'Paused',
+    'sk.dealNameRequired': 'Give the deal a name.', 'sk.dealNeedsItemsToast': 'Add at least one item to the deal.',
+    'sk.dealSavedToast': 'Deal saved.', 'sk.confirmDeleteDeal': 'Delete this deal? This cannot be undone.', 'sk.dealDeletedToast': 'Deal deleted.',
 
     // Marketplace — commission modes + shop keeper back-office
     'cm.lumpsumBadge': 'Monthly fee', 'cm.modeLabel': 'Commission model',
@@ -6583,6 +6591,14 @@ export const messages: Record<Locale, Record<string, string>> = {
     'sk.kitNameRequired': 'سیٹ کا نام درج کریں۔', 'sk.kitNeedsItemsToast': 'سیٹ میں کم از کم ایک چیز شامل کریں۔',
     'sk.kitSavedToast': 'سیٹ محفوظ ہو گیا۔', 'sk.confirmDeleteKit': 'کیا یہ سیٹ حذف کرنا ہے؟ یہ واپس نہیں ہو سکتا۔', 'sk.kitDeletedToast': 'سیٹ حذف کر دیا گیا۔',
     'sk.saleCompletedToast': 'فروخت درج ہو گئی', 'sk.searchOwnCatalogPlaceholder': 'اپنی اشیاء تلاش کریں...',
+    'sk.dealsBtn': 'ڈیلز اور رعایتیں', 'sk.newDealBtn': 'نئی ڈیل', 'sk.editDealTitle': 'ڈیل میں ترمیم', 'sk.noDealsYet': 'ابھی کوئی ڈیل نہیں بنائی گئی۔',
+    'sk.dealNamePlaceholder': 'ڈیل کا نام (مثلاً عید پیکج)', 'sk.dealNameUrPlaceholder': 'ڈیل کا نام اردو میں',
+    'sk.dealSubPlaceholder': 'ایک لائن کی تفصیل', 'sk.dealSubUrPlaceholder': 'تفصیل اردو میں',
+    'sk.discountTypeLabel': 'رعایت کی قسم', 'sk.discountPercent': '% کمی', 'sk.discountAmount': 'روپے کمی', 'sk.discountFixedPrice': 'مقررہ قیمت',
+    'sk.dealValidForLabel': 'کتنے دن چلے', 'sk.daysSuffix': 'دن', 'sk.dealExpiredTag': 'ختم ہو گئی',
+    'sk.dealOnLabel': 'چل رہی ہے', 'sk.dealOffLabel': 'روکی ہوئی',
+    'sk.dealNameRequired': 'ڈیل کا نام درج کریں۔', 'sk.dealNeedsItemsToast': 'ڈیل میں کم از کم ایک چیز شامل کریں۔',
+    'sk.dealSavedToast': 'ڈیل محفوظ ہو گئی۔', 'sk.confirmDeleteDeal': 'کیا یہ ڈیل حذف کرنی ہے؟ یہ واپس نہیں ہو سکتا۔', 'sk.dealDeletedToast': 'ڈیل حذف کر دی گئی۔',
 
     // Marketplace — commission modes + shop keeper back-office
     'cm.lumpsumBadge': 'ماہانہ فیس', 'cm.modeLabel': 'کمیشن ماڈل',

@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Capacitor } from '@capacitor/core'
 import { createClient } from '@/lib/supabase/client'
-import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, PackagePlus, BarChart3, Wallet, UtensilsCrossed, PlusCircle } from 'lucide-react'
+import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, PackagePlus, BarChart3, Wallet, UtensilsCrossed, PlusCircle, Tag } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -54,6 +54,25 @@ interface Kit {
   shop_kit_items: { product_id: string; quantity: number }[]
 }
 const emptyKitForm = { name: '', name_ur: '', sub: '', sub_ur: '', tint: 'ink' as 'accent' | 'ink' | 'photo', photo_url: '' }
+
+// Deals & Offers (Shop Portal v3 "S · deals" / "B · deal") — same object
+// shape as a kit (a named list of the shop's own products at a fixed
+// quantity each), plus a discount applied to the live-computed total
+// three possible ways, running for a fixed number of days from the
+// moment it's saved.
+interface Deal {
+  id: string; name: string; name_ur: string | null; sub: string | null; sub_ur: string | null
+  tint: 'accent' | 'ink' | 'photo'; photo_url: string | null
+  discount_kind: 'percent' | 'amount' | 'fixed_price'; discount_value: number
+  is_active: boolean; expires_at: string
+  shop_deal_items: { product_id: string; quantity: number }[]
+}
+const emptyDealForm = { name: '', name_ur: '', sub: '', sub_ur: '', tint: 'accent' as 'accent' | 'ink' | 'photo', photo_url: '', discount_kind: 'percent' as 'percent' | 'amount' | 'fixed_price', discount_value: '' as number | '', valid_days: 7 }
+function dealFinalPrice(baseTotal: number, kind: Deal['discount_kind'] | typeof emptyDealForm.discount_kind, value: number) {
+  if (kind === 'percent') return Math.max(0, Math.round(baseTotal * (1 - value / 100)))
+  if (kind === 'amount') return Math.max(0, Math.round(baseTotal - value))
+  return Math.max(0, Math.round(value))
+}
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -144,6 +163,22 @@ export default function MyShopPage() {
   const [savingKit, setSavingKit] = useState(false)
   const [deletingKitId, setDeletingKitId] = useState<string | null>(null)
 
+  // Deals & Offers — same shape as the kits state block above.
+  // A fixed "now" from mount, not a live Date.now()/new Date() call
+  // during render — React's purity check (rightly) disallows the latter;
+  // same pattern this app already uses for anything time-based (see
+  // marketplace/adda, my-vehicle).
+  const [now] = useState(() => Date.now())
+  const [showDeals, setShowDeals] = useState(false)
+  const [deals, setDeals] = useState<Deal[]>([])
+  const [showDealBuilder, setShowDealBuilder] = useState(false)
+  const [editingDeal, setEditingDeal] = useState<Deal | null>(null)
+  const [dealForm, setDealForm] = useState(emptyDealForm)
+  const [dealItems, setDealItems] = useState<{ product_id: string; quantity: number }[]>([])
+  const [dealItemSearch, setDealItemSearch] = useState('')
+  const [savingDeal, setSavingDeal] = useState(false)
+  const [deletingDealId, setDeletingDealId] = useState<string | null>(null)
+
   useEffect(() => {
     if (!user) return
     supabase.from('shops').select('id, name, name_ur, delivery_enabled, commission_mode, primary_type').eq('portal_user_id', user.id).maybeSingle()
@@ -155,6 +190,12 @@ export default function MyShopPage() {
     setKits((data ?? []) as unknown as Kit[])
   }
   useEffect(() => { if (shop) loadKits(shop.id) }, [shop]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadDeals = async (shopId: string) => {
+    const { data } = await supabase.from('shop_deals').select('*, shop_deal_items(product_id, quantity)').eq('shop_id', shopId).order('display_order')
+    setDeals((data ?? []) as unknown as Deal[])
+  }
+  useEffect(() => { if (shop) loadDeals(shop.id) }, [shop]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadProducts = async (shopId: string) => {
     const { data } = await supabase.from('shop_products').select('*').eq('shop_id', shopId).order('name')
@@ -378,6 +419,71 @@ export default function MyShopPage() {
     ? products.filter((p) => p.name.toLowerCase().includes(kitItemSearch.toLowerCase()) || (p.name_ur ?? '').includes(kitItemSearch))
     : products
 
+  const openNewDeal = () => {
+    setEditingDeal(null)
+    setDealForm(emptyDealForm)
+    setDealItems([])
+    setDealItemSearch('')
+    setShowDealBuilder(true)
+  }
+  const openEditDeal = (d: Deal) => {
+    setEditingDeal(d)
+    const daysLeft = Math.max(1, Math.ceil((new Date(d.expires_at).getTime() - now) / 86400000))
+    setDealForm({ name: d.name, name_ur: d.name_ur ?? '', sub: d.sub ?? '', sub_ur: d.sub_ur ?? '', tint: d.tint, photo_url: d.photo_url ?? '', discount_kind: d.discount_kind, discount_value: d.discount_value, valid_days: daysLeft })
+    setDealItems(d.shop_deal_items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })))
+    setDealItemSearch('')
+    setShowDealBuilder(true)
+  }
+  const toggleDealItem = (productId: string) => {
+    setDealItems((rows) => rows.find((r) => r.product_id === productId)
+      ? rows.filter((r) => r.product_id !== productId)
+      : [...rows, { product_id: productId, quantity: 1 }])
+  }
+  const setDealItemQty = (productId: string, qty: number) => {
+    setDealItems((rows) => rows.map((r) => r.product_id === productId ? { ...r, quantity: Math.max(1, qty) } : r))
+  }
+  const dealBaseTotal = dealItems.reduce((s, r) => {
+    const p = products.find((x) => x.id === r.product_id)
+    return s + (p ? p.unit_price_pkr * r.quantity : 0)
+  }, 0)
+  const dealFinalTotal = dealFinalPrice(dealBaseTotal, dealForm.discount_kind, Number(dealForm.discount_value) || 0)
+  const saveDeal = async () => {
+    if (!shop) return
+    if (!dealForm.name.trim()) { toast.error(t('sk.dealNameRequired')); return }
+    if (dealItems.length === 0) { toast.error(t('sk.dealNeedsItemsToast')); return }
+    setSavingDeal(true)
+    const { error } = await supabase.rpc('save_shop_deal', {
+      p_deal_id: editingDeal?.id ?? null, p_shop_id: shop.id,
+      p_name: dealForm.name.trim(), p_name_ur: dealForm.name_ur.trim() || null,
+      p_sub: dealForm.sub.trim() || null, p_sub_ur: dealForm.sub_ur.trim() || null,
+      p_tint: dealForm.tint, p_photo_url: dealForm.tint === 'photo' ? (dealForm.photo_url || null) : null,
+      p_discount_kind: dealForm.discount_kind, p_discount_value: Number(dealForm.discount_value) || 0,
+      p_valid_days: dealForm.valid_days, p_items: dealItems,
+    })
+    setSavingDeal(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('sk.dealSavedToast'))
+    setShowDealBuilder(false)
+    loadDeals(shop.id)
+  }
+  const removeDeal = async (d: Deal) => {
+    if (!confirm(t('sk.confirmDeleteDeal'))) return
+    setDeletingDealId(d.id)
+    const { error } = await supabase.rpc('delete_shop_deal', { p_deal_id: d.id })
+    setDeletingDealId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('sk.dealDeletedToast'))
+    if (shop) loadDeals(shop.id)
+  }
+  const toggleDealActive = async (d: Deal) => {
+    const { error } = await supabase.rpc('toggle_shop_deal', { p_deal_id: d.id, p_is_active: !d.is_active })
+    if (error) { toast.error(friendlyError(error)); return }
+    if (shop) loadDeals(shop.id)
+  }
+  const dealItemResults = dealItemSearch.trim()
+    ? products.filter((p) => p.name.toLowerCase().includes(dealItemSearch.toLowerCase()) || (p.name_ur ?? '').includes(dealItemSearch))
+    : products
+
   if (userLoading || shopLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!shop) {
     return (
@@ -407,6 +513,9 @@ export default function MyShopPage() {
           <Link href="/portal/my-shop/purchase" className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
             <PackagePlus size={12} /> {t('sk.purchaseEntryBtn')}
           </Link>
+          <button onClick={() => setShowDeals(true)} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
+            <Tag size={12} /> {t('sk.dealsBtn')}
+          </button>
           <button onClick={() => setShowKits(true)} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
             <UtensilsCrossed size={12} /> {t('sk.kitsBtn')}
           </button>
@@ -645,6 +754,146 @@ export default function MyShopPage() {
               </div>
 
               <button onClick={saveKit} disabled={savingKit} className="w-full text-white py-3 font-sans font-semibold cursor-pointer transition-all disabled:opacity-50" style={{ background: ACCENT }} onMouseEnter={(e) => !savingKit && (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>{savingKit ? t('action.saving') : t('g.saveChanges')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeals && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowDeals(false)}>
+          <div className="bg-white p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[20px] font-bold flex items-center gap-2" style={{ color: INK }}><Tag size={18} /> {t('sk.dealsBtn')}</h2>
+              <button onClick={() => setShowDeals(false)} className="cursor-pointer"><X size={20} /></button>
+            </div>
+            <button onClick={() => { setShowDeals(false); openNewDeal() }} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-[#f7f6f5] transition-all mb-4" style={{ borderColor: '#dcd8d4', color: ACCENT }}>
+              <PlusCircle size={16} /> {t('sk.newDealBtn')}
+            </button>
+            {deals.length === 0 ? (
+              <p className="text-center py-8 text-[#7a736d] font-sans text-[13.5px]">{t('sk.noDealsYet')}</p>
+            ) : (
+              <div className="space-y-2">
+                {deals.map((d) => {
+                  const base = d.shop_deal_items.reduce((s, i) => { const p = products.find((x) => x.id === i.product_id); return s + (p ? p.unit_price_pkr * i.quantity : 0) }, 0)
+                  const final = dealFinalPrice(base, d.discount_kind, d.discount_value)
+                  const expired = new Date(d.expires_at).getTime() < now
+                  return (
+                    <div key={d.id} className="bg-white border border-[#dcd8d4] p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-sans text-[14px] font-semibold truncate" style={{ color: INK }}>{isUrdu && d.name_ur ? d.name_ur : d.name}</p>
+                          <p className="font-sans text-[11.5px] text-[#7a736d] mt-0.5"><span className="line-through">{fmt(base)}</span> → <span className="font-bold ltr-num" style={{ color: ACCENT_DARK }}>{fmt(final)}</span> {expired && `· ${t('sk.dealExpiredTag')}`}</p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button onClick={() => { setShowDeals(false); openEditDeal(d) }} className="p-1.5 cursor-pointer" style={{ color: INK }}><Pencil size={14} /></button>
+                          <button onClick={() => removeDeal(d)} disabled={deletingDealId === d.id} className="p-1.5 cursor-pointer disabled:opacity-50" style={{ color: ACCENT }}><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+                      <button onClick={() => toggleDealActive(d)} className="mt-2 px-2.5 py-1 border font-sans text-[11px] font-semibold cursor-pointer" style={d.is_active ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { borderColor: '#dcd8d4', color: '#7a736d' }}>
+                        {d.is_active ? t('sk.dealOnLabel') : t('sk.dealOffLabel')}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Deal builder — same shape as the kit builder, plus a discount
+          type/value and a "valid for N days" picker (Shop Portal v3's own
+          "S · deals" NEW DEAL card). */}
+      {showDealBuilder && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowDealBuilder(false)}>
+          <div className="bg-white p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[20px] font-bold" style={{ color: INK }}>{editingDeal ? t('sk.editDealTitle') : t('sk.newDealBtn')}</h2>
+              <button onClick={() => setShowDealBuilder(false)} className="cursor-pointer"><X size={20} /></button>
+            </div>
+            <div className="space-y-3">
+              <input value={dealForm.name} onChange={(e) => setDealForm({ ...dealForm, name: e.target.value })} placeholder={t('sk.dealNamePlaceholder')} className="input-field" />
+              <input value={dealForm.name_ur} onChange={(e) => setDealForm({ ...dealForm, name_ur: e.target.value })} placeholder={t('sk.dealNameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+              <input value={dealForm.sub} onChange={(e) => setDealForm({ ...dealForm, sub: e.target.value })} placeholder={t('sk.dealSubPlaceholder')} className="input-field" />
+              <input value={dealForm.sub_ur} onChange={(e) => setDealForm({ ...dealForm, sub_ur: e.target.value })} placeholder={t('sk.dealSubUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1.5">{t('sk.kitCardLookLabel')}</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['accent', 'ink', 'photo'] as const).map((tint) => (
+                    <button key={tint} type="button" onClick={() => setDealForm({ ...dealForm, tint })}
+                      className="px-3 py-2 border font-sans text-[12.5px] font-semibold cursor-pointer transition-colors"
+                      style={dealForm.tint === tint ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { borderColor: '#dcd8d4', color: INK }}>
+                      {tint === 'accent' ? t('sk.kitTintAccent') : tint === 'ink' ? t('sk.kitTintInk') : t('sk.kitTintPhoto')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {dealForm.tint === 'photo' && (
+                <ImageUpload bucket="images" label={t('sk.kitPhotoLabel')} currentUrl={dealForm.photo_url} onUpload={(url) => setDealForm({ ...dealForm, photo_url: url })} />
+              )}
+
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1.5">{t('sk.discountTypeLabel')}</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['percent', 'amount', 'fixed_price'] as const).map((kind) => (
+                    <button key={kind} type="button" onClick={() => setDealForm({ ...dealForm, discount_kind: kind })}
+                      className="px-2 py-2 border font-sans text-[11.5px] font-semibold cursor-pointer transition-colors"
+                      style={dealForm.discount_kind === kind ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { borderColor: '#dcd8d4', color: INK }}>
+                      {kind === 'percent' ? t('sk.discountPercent') : kind === 'amount' ? t('sk.discountAmount') : t('sk.discountFixedPrice')}
+                    </button>
+                  ))}
+                </div>
+                <input type="number" inputMode="decimal" value={dealForm.discount_value}
+                  onChange={(e) => setDealForm({ ...dealForm, discount_value: e.target.value === '' ? '' : Number(e.target.value) })}
+                  placeholder={dealForm.discount_kind === 'percent' ? '%' : 'Rs'} className="input-field mt-2" />
+              </div>
+
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1.5">{t('sk.dealValidForLabel')}</label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {[3, 7, 15, 30].map((d) => (
+                    <button key={d} type="button" onClick={() => setDealForm({ ...dealForm, valid_days: d })}
+                      className="px-3 py-1.5 border font-sans text-[12px] font-semibold cursor-pointer ltr-num"
+                      style={dealForm.valid_days === d ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { borderColor: '#dcd8d4', color: INK }}>
+                      {d} {t('sk.daysSuffix')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block font-sans text-[12.5px] font-semibold text-[#5b544f]">{t('sk.kitItemsLabel')}</label>
+                  <span className="font-sans text-[11.5px] text-[#7a736d]">
+                    <span className="line-through">{fmt(dealBaseTotal)}</span> → <span className="font-bold ltr-num" style={{ color: ACCENT_DARK }}>{fmt(dealFinalTotal)}</span>
+                  </span>
+                </div>
+                <input value={dealItemSearch} onChange={(e) => setDealItemSearch(e.target.value)} placeholder={t('sk.searchOwnCatalogPlaceholder')} className="input-field mb-2" />
+                <div className="border border-[#dcd8d4] max-h-64 overflow-y-auto">
+                  {dealItemResults.map((p) => {
+                    const picked = dealItems.find((r) => r.product_id === p.id)
+                    return (
+                      <div key={p.id} className="flex items-center justify-between gap-2 px-3 py-2 border-b border-[#e2ded9] last:border-b-0">
+                        <label className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer">
+                          <input type="checkbox" checked={!!picked} onChange={() => toggleDealItem(p.id)} style={{ accentColor: ACCENT }} />
+                          <span className="font-sans text-[13px] truncate" style={{ color: INK }}>{isUrdu && p.name_ur ? p.name_ur : p.name}</span>
+                        </label>
+                        {picked && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => setDealItemQty(p.id, picked.quantity - 1)} className="w-6 h-6 border border-[#dcd8d4] flex items-center justify-center cursor-pointer text-[12px]">−</button>
+                            <span className="w-5 text-center font-sans text-[12.5px] font-bold ltr-num" style={{ color: INK }}>{picked.quantity}</span>
+                            <button onClick={() => setDealItemQty(p.id, picked.quantity + 1)} className="w-6 h-6 border border-[#dcd8d4] flex items-center justify-center cursor-pointer text-[12px]">+</button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {dealItemResults.length === 0 && <p className="text-center py-6 text-[#7a736d] font-sans text-[13px]">{t('mp.noResults')}</p>}
+                </div>
+              </div>
+
+              <button onClick={saveDeal} disabled={savingDeal} className="w-full text-white py-3 font-sans font-semibold cursor-pointer transition-all disabled:opacity-50" style={{ background: ACCENT }} onMouseEnter={(e) => !savingDeal && (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>{savingDeal ? t('action.saving') : t('g.saveChanges')}</button>
             </div>
           </div>
         </div>

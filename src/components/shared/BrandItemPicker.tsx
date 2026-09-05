@@ -18,20 +18,32 @@
 // checkbox first. Colors/corners flow through the dp-* tokens (see
 // .shop-ink-theme in globals.css) so this file stays shared with the
 // admin shop screen's own green theme unchanged.
+//
+// Ticking commits immediately — there is no separate "Save" step here
+// at all. A tap on an un-owned row inserts it into shop_products right
+// then (using whatever cost/sale/unit is currently typed, or the
+// catalog's own defaults if nothing was touched); a tap on an
+// already-owned row deletes that real row. useCatalogSelection's `rows`
+// is still used, but only as pre-commit scratch space for the fields on
+// a row that isn't owned yet — it's never itself "the thing that gets
+// saved" the way the old batch commit treated it.
 
 import { useMemo, useState } from 'react'
-import { ArrowRight, Check, LayoutGrid, Tags, Sparkles, PackagePlus, Search, Camera } from 'lucide-react'
+import { ArrowRight, Check, LayoutGrid, Tags, Sparkles, PackagePlus, Search, Camera, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
+import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { getShopTypeTree, getCategoryLabel } from '@/lib/shopTypes'
 import {
-  getCatalogForShopType, brandsForShopType, selectedCountByBrand, starterSetEntries,
+  getCatalogForShopType, brandsForShopType, starterSetEntries,
   groupByCategory, countByDept, searchCatalogEntries, ownedKey, looseGoodsAsCatalogEntries, UNIT_OPTIONS, type CatalogEntry,
 } from '@/lib/catalogSelection'
 import { DynamicIcon } from './DynamicIcon'
 import { BrandBuilderModal } from './BrandBuilderModal'
 import type { CatalogSelection, BasketRow } from '@/hooks/useCatalogSelection'
 
-interface OwnedProduct { name: string; flavor?: string | null }
+interface OwnedProduct { id: string; name: string; flavor?: string | null }
 
 interface BrandItemPickerProps {
   shopId: string
@@ -51,6 +63,8 @@ function initials(name: string): string {
 
 export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection, onBrandSubmitted, onScanClick }: BrandItemPickerProps) {
   const { t, isUrdu } = useLocale()
+  const supabase = createClient()
+  const [committingKeys, setCommittingKeys] = useState<Set<string>>(new Set())
   const tree = useMemo(() => getShopTypeTree(primaryType), [primaryType])
   const looseEntries = useMemo(() => looseGoodsAsCatalogEntries(primaryType), [primaryType])
   const catalog = useMemo(() => [...getCatalogForShopType(primaryType), ...looseEntries], [primaryType, looseEntries])
@@ -90,7 +104,9 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
   const catalogByCategory = useMemo(() => groupByCategory(catalog), [catalog])
   const itemsInCat = activeCat ? (catalogByCategory[activeCat.slug] ?? []) : []
 
-  const selCountByBrand = useMemo(() => selectedCountByBrand(selection.rowList), [selection.rowList])
+  // "Selected" now means "already in this shop's real stock" — ticked and
+  // owned are the same thing since a tap commits immediately.
+  const ownedCount = (entries: CatalogEntry[]) => entries.filter((e) => !availableForPick(e)).length
 
   const searchResults = useMemo(() => (query.trim() ? searchCatalogEntries(catalog, query) : []), [catalog, query])
 
@@ -126,23 +142,89 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
   const fieldValue = <K extends keyof BasketRow>(e: CatalogEntry, field: K, fallback: BasketRow[K]): BasketRow[K] =>
     selection.rows[e.key] ? selection.rows[e.key][field] : fallback
 
+  // Builds the real shop_products insert row from whatever's currently
+  // drafted for this entry (selection.rows, pre-commit scratch space) —
+  // falling back to the catalog's own defaults for anything untouched.
+  const buildInsertPayload = (e: CatalogEntry) => {
+    const draft = selection.rows[e.key]
+    const name = (draft?.name || e.item.name || '').trim()
+    if (!name) return null
+    return {
+      shop_id: shopId,
+      name, name_ur: (draft?.name_ur ?? e.item.name_ur ?? '').trim() || null,
+      company: (draft?.brandName ?? e.brandName ?? '').trim() || null,
+      company_ur: (draft?.brandName_ur ?? e.brandName_ur ?? '').trim() || null,
+      category: e.item.category,
+      flavor: (draft?.flavor ?? e.item.flavor ?? '').trim() || null,
+      flavor_ur: (draft?.flavor_ur ?? e.item.flavor_ur ?? '').trim() || null,
+      cost_price_pkr: draft && draft.cost_price_pkr !== '' ? Number(draft.cost_price_pkr) : 0,
+      unit_price_pkr: draft && draft.unit_price_pkr !== '' ? Number(draft.unit_price_pkr) : (e.item.price ?? 0),
+      quantity_on_hand: 0,
+      // shop_products.unit is NOT NULL (migration 444, default 'عدد') —
+      // an explicit null here would override that column default rather
+      // than falling back to it, so a branded item with no unit info
+      // ever typed just gets the same 'عدد' default the column itself
+      // would have used.
+      unit: (draft?.unit || (e.brandSlug === 'loose' ? e.item.flavor : '') || '').trim() || UNIT_OPTIONS[0],
+      is_active: true,
+    }
+  }
+  const findOwned = (e: CatalogEntry) => ownedProducts.find((p) => ownedKey(p.name, p.flavor) === ownedKey(e.item.name, e.item.flavor))
+
+  // "Select everything"/"tick standard stock" can mean 100s of rows in
+  // one go — chunked the same way ShopCatalogSection's old batch commit
+  // used to, so a single insert never gets big enough to risk a
+  // statement-size failure that would silently lose the whole batch.
+  const COMMIT_CHUNK = 200
+  const commitEntries = async (entries: CatalogEntry[]) => {
+    const todo = entries.filter(availableForPick)
+    if (todo.length === 0) return
+    const rows = todo.map((e) => ({ e, payload: buildInsertPayload(e) })).filter((r): r is { e: CatalogEntry; payload: NonNullable<ReturnType<typeof buildInsertPayload>> } => !!r.payload)
+    if (rows.length === 0) return
+    setCommittingKeys((s) => new Set([...s, ...rows.map((r) => r.e.key)]))
+    for (let i = 0; i < rows.length; i += COMMIT_CHUNK) {
+      const chunk = rows.slice(i, i + COMMIT_CHUNK)
+      const { error } = await supabase.from('shop_products').insert(chunk.map((r) => r.payload))
+      if (error) {
+        toast.error(friendlyError(error))
+        setCommittingKeys((s) => { const n = new Set(s); rows.forEach((r) => n.delete(r.e.key)); return n })
+        onBrandSubmitted()
+        return
+      }
+    }
+    setCommittingKeys((s) => { const n = new Set(s); rows.forEach((r) => n.delete(r.e.key)); return n })
+    selection.deselectMany(rows.map((r) => r.e.key))
+    onBrandSubmitted()
+  }
+  const uncommitEntries = async (entries: CatalogEntry[]) => {
+    const todo = entries.filter((e) => !availableForPick(e))
+    if (todo.length === 0) return
+    const ids = todo.map(findOwned).filter((p): p is OwnedProduct => !!p).map((p) => p.id)
+    if (ids.length === 0) return
+    setCommittingKeys((s) => new Set([...s, ...todo.map((e) => e.key)]))
+    const { error } = await supabase.from('shop_products').delete().in('id', ids)
+    setCommittingKeys((s) => { const n = new Set(s); todo.forEach((e) => n.delete(e.key)); return n })
+    if (error) { toast.error(friendlyError(error)); return }
+    onBrandSubmitted()
+  }
+  const toggleOwned = (e: CatalogEntry) => { if (availableForPick(e)) commitEntries([e]); else uncommitEntries([e]) }
+
   const toggleWholeBrand = (entries: CatalogEntry[]) => {
-    const pickable = entries.filter(availableForPick)
-    const allSelected = pickable.length > 0 && pickable.every((e) => selection.rows[e.key])
-    if (allSelected) selection.deselectMany(pickable.map((e) => e.key))
-    else selection.selectMany(pickable)
+    const allOwned = entries.length > 0 && entries.every((e) => !availableForPick(e))
+    if (allOwned) uncommitEntries(entries)
+    else commitEntries(entries)
   }
   const toggleWholeCategory = (slug: string) => {
-    const entries = (catalogByCategory[slug] ?? []).filter(availableForPick)
-    const allSelected = entries.length > 0 && entries.every((e) => selection.rows[e.key])
-    if (allSelected) selection.deselectMany(entries.map((e) => e.key))
-    else selection.selectMany(entries)
+    const entries = catalogByCategory[slug] ?? []
+    const allOwned = entries.length > 0 && entries.every((e) => !availableForPick(e))
+    if (allOwned) uncommitEntries(entries)
+    else commitEntries(entries)
   }
-  const catSelectedCount = (slug: string) => (catalogByCategory[slug] ?? []).filter((e) => selection.rows[e.key]).length
+  const catSelectedCount = (slug: string) => (catalogByCategory[slug] ?? []).filter((e) => !availableForPick(e)).length
   const catKeysAvailable = (slug: string) => (catalogByCategory[slug] ?? []).filter(availableForPick).map((e) => e.key)
 
-  const takeStarterSet = () => selection.selectMany(starterSet.filter(availableForPick))
-  const takeEverything = () => selection.selectMany(catalog.filter(availableForPick))
+  const takeStarterSet = () => commitEntries(starterSet)
+  const takeEverything = () => commitEntries(catalog)
 
   const rowLabel = (e: CatalogEntry) => {
     const name = isUrdu && e.item.name_ur ? e.item.name_ur : e.item.name
@@ -152,102 +234,116 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
 
   const ItemRow = ({ e }: { e: CatalogEntry }) => {
     const owned = !availableForPick(e)
-    const checked = !!selection.rows[e.key]
+    const busy = committingKeys.has(e.key)
     return (
-      <button type="button" disabled={owned} onClick={() => selection.toggle(e)}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-start transition-all ${owned ? 'bg-dp-surface-container/60 border-dp-outline-variant/60 cursor-default' : checked ? 'bg-dp-secondary-container/40 border-dp-secondary cursor-pointer' : 'bg-white border-dp-outline-variant hover:border-dp-secondary cursor-pointer'}`}>
-        <span className={`shrink-0 w-5 h-5 rounded flex items-center justify-center border-2 ${owned ? 'border-dp-outline-variant bg-dp-outline-variant/30' : checked ? 'bg-dp-secondary border-dp-secondary' : 'border-dp-outline-variant'}`}>
-          {(checked || owned) && <Check size={13} className="text-white" strokeWidth={3} />}
+      <button type="button" disabled={busy} onClick={() => toggleOwned(e)}
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-start transition-all ${owned ? 'bg-dp-secondary-container/40 border-dp-secondary' : 'bg-white border-dp-outline-variant hover:border-dp-secondary'} ${busy ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
+        <span className={`shrink-0 w-5 h-5 rounded flex items-center justify-center border-2 ${owned ? 'bg-dp-secondary border-dp-secondary' : 'border-dp-outline-variant'}`}>
+          {busy ? <Loader2 size={12} className="text-dp-secondary animate-spin" /> : owned && <Check size={13} className="text-white" strokeWidth={3} />}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block font-sans text-[11.5px] font-semibold text-dp-on-surface truncate">{rowLabel(e)}</span>
           <span className="block font-sans text-[9px] text-dp-on-surface-variant truncate">{getCategoryLabel(e.item.category, isUrdu)}</span>
         </span>
-        {owned ? (
-          <span className="shrink-0 font-sans text-[8px] font-bold text-dp-on-surface-variant">{t('bs.alreadyStocked')}</span>
-        ) : e.item.price ? (
-          <span className="shrink-0 font-sans text-[9.5px] font-bold text-dp-secondary">~{e.item.price}</span>
-        ) : null}
+        {!owned && e.item.price ? <span className="shrink-0 font-sans text-[9.5px] font-bold text-dp-secondary">~{e.item.price}</span> : null}
       </button>
     )
   }
 
   // A brand-catalog variant row (S · brand catalog): tick + flavor + MRP,
   // with real cost/sale inputs on the row itself, editable pre-tick.
+  // Ticked = owned in the real shop_products table; tapping it again
+  // deletes that row immediately, no separate remove step.
   const VariantRow = ({ e }: { e: CatalogEntry }) => {
     const owned = !availableForPick(e)
-    const checked = !!selection.rows[e.key]
+    const busy = committingKeys.has(e.key)
     const flavorLabel = isUrdu ? (e.item.flavor_ur || e.item.flavor || e.item.name) : (e.item.flavor || e.item.name)
     return (
-      <div className={`flex items-center gap-2 px-3 py-2.5 border-t border-dp-outline-variant/60 first:border-t-0 ${owned ? 'bg-dp-surface-container/60' : ''}`}>
-        <button type="button" disabled={owned} onClick={() => selection.toggle(e)}
-          className={`shrink-0 w-5 h-5 rounded flex items-center justify-center border-2 ${owned ? 'border-dp-outline-variant bg-dp-outline-variant/30' : checked ? 'bg-dp-secondary border-dp-secondary cursor-pointer' : 'border-dp-outline-variant cursor-pointer'}`}>
-          {(checked || owned) && <Check size={13} className="text-white" strokeWidth={3} />}
+      <div className={`flex items-center gap-2 px-3 py-2.5 border-t border-dp-outline-variant/60 first:border-t-0 ${owned ? 'bg-dp-secondary-container/20' : ''}`}>
+        <button type="button" disabled={busy} onClick={() => toggleOwned(e)}
+          className={`shrink-0 w-5 h-5 rounded flex items-center justify-center border-2 cursor-pointer ${owned ? 'bg-dp-secondary border-dp-secondary' : 'border-dp-outline-variant'} ${busy ? 'opacity-60' : ''}`}>
+          {busy ? <Loader2 size={12} className="text-dp-secondary animate-spin" /> : owned && <Check size={13} className="text-white" strokeWidth={3} />}
         </button>
         <span className="min-w-0 flex-1">
           <span className="block font-sans text-[11px] text-dp-on-surface truncate">{flavorLabel}</span>
           {e.item.price ? <span className="block font-sans text-[8.5px] text-dp-on-surface-variant">{t('bs.mrpLabel').replace('{v}', String(e.item.price))}</span> : null}
         </span>
-        <input disabled={owned} inputMode="decimal" placeholder={t('bs.costPlaceholder')}
-          value={fieldValue(e, 'cost_price_pkr', '')} onChange={(ev) => ensureAndSet(e, 'cost_price_pkr', ev.target.value === '' ? '' : Number(ev.target.value))}
-          className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-outline-variant bg-dp-surface-container font-sans text-[10px] text-dp-on-surface disabled:opacity-50" />
-        <input disabled={owned} inputMode="decimal" placeholder={t('bs.salePlaceholder')}
-          value={fieldValue(e, 'unit_price_pkr', e.item.price ?? '')} onChange={(ev) => ensureAndSet(e, 'unit_price_pkr', ev.target.value === '' ? '' : Number(ev.target.value))}
-          className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-secondary bg-white font-sans text-[10px] font-bold text-dp-on-surface disabled:opacity-50" />
+        {!owned && (
+          <>
+            <input inputMode="decimal" placeholder={t('bs.costPlaceholder')}
+              value={fieldValue(e, 'cost_price_pkr', '')} onChange={(ev) => ensureAndSet(e, 'cost_price_pkr', ev.target.value === '' ? '' : Number(ev.target.value))}
+              className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-outline-variant bg-dp-surface-container font-sans text-[10px] text-dp-on-surface" />
+            <input inputMode="decimal" placeholder={t('bs.salePlaceholder')}
+              value={fieldValue(e, 'unit_price_pkr', e.item.price ?? '')} onChange={(ev) => ensureAndSet(e, 'unit_price_pkr', ev.target.value === '' ? '' : Number(ev.target.value))}
+              className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-secondary bg-white font-sans text-[10px] font-bold text-dp-on-surface" />
+          </>
+        )}
       </div>
     )
   }
 
   // A loose-good row: tick + name + a REAL unit <select> (overridable,
-  // not just a read-only badge) + cost/sale inputs, all editable pre-tick.
+  // not just a read-only badge) + cost/sale inputs, editable pre-tick.
+  // Same immediate commit/remove as every other row here.
   const LooseRow = ({ e }: { e: CatalogEntry }) => {
     const owned = !availableForPick(e)
-    const checked = !!selection.rows[e.key]
+    const busy = committingKeys.has(e.key)
     const name = isUrdu && e.item.name_ur ? e.item.name_ur : e.item.name
     return (
-      <div className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border ${owned ? 'bg-dp-surface-container/60 border-dp-outline-variant/60' : checked ? 'bg-dp-secondary-container/40 border-dp-secondary' : 'bg-white border-dp-outline-variant'}`}>
-        <button type="button" disabled={owned} onClick={() => selection.toggle(e)}
-          className={`shrink-0 w-5 h-5 rounded flex items-center justify-center border-2 ${owned ? 'border-dp-outline-variant bg-dp-outline-variant/30' : checked ? 'bg-dp-secondary border-dp-secondary cursor-pointer' : 'border-dp-outline-variant cursor-pointer'}`}>
-          {(checked || owned) && <Check size={13} className="text-white" strokeWidth={3} />}
+      <div className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border ${owned ? 'bg-dp-secondary-container/40 border-dp-secondary' : 'bg-white border-dp-outline-variant'}`}>
+        <button type="button" disabled={busy} onClick={() => toggleOwned(e)}
+          className={`shrink-0 w-5 h-5 rounded flex items-center justify-center border-2 cursor-pointer ${owned ? 'bg-dp-secondary border-dp-secondary' : 'border-dp-outline-variant'} ${busy ? 'opacity-60' : ''}`}>
+          {busy ? <Loader2 size={12} className="text-dp-secondary animate-spin" /> : owned && <Check size={13} className="text-white" strokeWidth={3} />}
         </button>
         <span className="min-w-0 flex-1 font-sans text-[11px] text-dp-on-surface truncate">{name}</span>
-        <select disabled={owned} value={fieldValue(e, 'unit', e.item.flavor ?? UNIT_OPTIONS[0])}
-          onChange={(ev) => ensureAndSet(e, 'unit', ev.target.value)}
-          className="shrink-0 w-[74px] px-1 py-1.5 rounded-lg border border-dp-outline-variant bg-white font-sans text-[9px] text-dp-on-surface disabled:opacity-50">
-          {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
-        </select>
-        <input disabled={owned} inputMode="decimal" placeholder={t('bs.costPlaceholder')}
-          value={fieldValue(e, 'cost_price_pkr', '')} onChange={(ev) => ensureAndSet(e, 'cost_price_pkr', ev.target.value === '' ? '' : Number(ev.target.value))}
-          className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-outline-variant bg-dp-surface-container font-sans text-[10px] text-dp-on-surface disabled:opacity-50" />
-        <input disabled={owned} inputMode="decimal" placeholder={t('bs.salePlaceholder')}
-          value={fieldValue(e, 'unit_price_pkr', '')} onChange={(ev) => ensureAndSet(e, 'unit_price_pkr', ev.target.value === '' ? '' : Number(ev.target.value))}
-          className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-secondary bg-white font-sans text-[10px] font-bold text-dp-on-surface disabled:opacity-50" />
+        {!owned && (
+          <>
+            <select value={fieldValue(e, 'unit', e.item.flavor ?? UNIT_OPTIONS[0])}
+              onChange={(ev) => ensureAndSet(e, 'unit', ev.target.value)}
+              className="shrink-0 w-[74px] px-1 py-1.5 rounded-lg border border-dp-outline-variant bg-white font-sans text-[9px] text-dp-on-surface">
+              {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+            <input inputMode="decimal" placeholder={t('bs.costPlaceholder')}
+              value={fieldValue(e, 'cost_price_pkr', '')} onChange={(ev) => ensureAndSet(e, 'cost_price_pkr', ev.target.value === '' ? '' : Number(ev.target.value))}
+              className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-outline-variant bg-dp-surface-container font-sans text-[10px] text-dp-on-surface" />
+            <input inputMode="decimal" placeholder={t('bs.salePlaceholder')}
+              value={fieldValue(e, 'unit_price_pkr', '')} onChange={(ev) => ensureAndSet(e, 'unit_price_pkr', ev.target.value === '' ? '' : Number(ev.target.value))}
+              className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-secondary bg-white font-sans text-[10px] font-bold text-dp-on-surface" />
+          </>
+        )}
       </div>
     )
   }
 
-  const submitLooseGood = () => {
+  const [addingLoose, setAddingLoose] = useState(false)
+  const submitLooseGood = async () => {
     if (!nlName.trim() || !nlCat) return
-    const key = selection.addCustomRow(nlCat)
-    selection.setField(key, 'name', nlName.trim())
-    selection.setField(key, 'unit', nlUnit)
-    if (nlCost !== '') selection.setField(key, 'cost_price_pkr', Number(nlCost))
-    if (nlSale !== '') selection.setField(key, 'unit_price_pkr', Number(nlSale))
+    setAddingLoose(true)
+    const { error } = await supabase.from('shop_products').insert({
+      shop_id: shopId, name: nlName.trim(), category: nlCat, unit: nlUnit,
+      cost_price_pkr: nlCost === '' ? 0 : Number(nlCost), unit_price_pkr: nlSale === '' ? 0 : Number(nlSale),
+      quantity_on_hand: 0, is_active: true,
+    })
+    setAddingLoose(false)
+    if (error) { toast.error(friendlyError(error)); return }
     setNlName(''); setNlCost(''); setNlSale('')
+    onBrandSubmitted()
   }
 
-  const submitBrandItem = (brandSlug: string, brandName: string, brandName_ur: string, catSlug: string) => {
+  const [addingBrandItem, setAddingBrandItem] = useState(false)
+  const submitBrandItem = async (brandName: string, brandName_ur: string, catSlug: string) => {
     if (!aiName.trim()) return
-    const key = selection.addCustomRow(catSlug)
-    selection.setField(key, 'name', aiName.trim())
-    selection.setField(key, 'flavor', aiFlavor.trim())
-    selection.setField(key, 'unit', aiUnit)
-    selection.setField(key, 'brandName', brandName)
-    selection.setField(key, 'brandName_ur', brandName_ur)
-    void brandSlug
-    if (aiCost !== '') selection.setField(key, 'cost_price_pkr', Number(aiCost))
-    if (aiSale !== '') selection.setField(key, 'unit_price_pkr', Number(aiSale))
+    setAddingBrandItem(true)
+    const { error } = await supabase.from('shop_products').insert({
+      shop_id: shopId, name: aiName.trim(), flavor: aiFlavor.trim() || null, unit: aiUnit,
+      company: brandName || null, company_ur: brandName_ur || null, category: catSlug,
+      cost_price_pkr: aiCost === '' ? 0 : Number(aiCost), unit_price_pkr: aiSale === '' ? 0 : Number(aiSale),
+      quantity_on_hand: 0, is_active: true,
+    })
+    setAddingBrandItem(false)
+    if (error) { toast.error(friendlyError(error)); return }
     setAiName(''); setAiFlavor(''); setAiCost(''); setAiSale('')
+    onBrandSubmitted()
   }
 
   return (
@@ -293,7 +389,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
               // ── S · brand catalog ────────────────────────────────────
               (() => {
                 const byCat = groupByCategory(openBrand.entries)
-                const selHere = selCountByBrand[openBrand.brandSlug] ?? 0
+                const selHere = ownedCount(openBrand.entries)
                 const defaultCat = openBrand.entries[0]?.item.category ?? ''
                 return (
                   <div>
@@ -312,7 +408,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
 
                     <div className="space-y-3 mb-4">
                       {Object.entries(byCat).map(([slug, entries]) => {
-                        const groupSelected = entries.filter((e) => selection.rows[e.key]).length
+                        const groupSelected = ownedCount(entries)
                         return (
                           <div key={slug} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
                             <div className="flex items-baseline gap-2 px-3 py-2.5 border-b-2 border-dp-outline-variant">
@@ -342,9 +438,9 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                         <input value={aiCost} onChange={(e) => setAiCost(e.target.value)} inputMode="decimal" placeholder={t('bs.costPlaceholder')} className="w-14 shrink-0 px-1.5 rounded-lg border border-dp-outline-variant bg-dp-surface-container text-center font-sans text-[10.5px]" />
                         <input value={aiSale} onChange={(e) => setAiSale(e.target.value)} inputMode="decimal" placeholder={t('bs.salePlaceholder')} className="w-14 shrink-0 px-1.5 rounded-lg border border-dp-secondary bg-white text-center font-sans text-[10.5px] font-bold" />
                       </div>
-                      <button onClick={() => submitBrandItem(openBrand.brandSlug, openBrand.brandName, openBrand.brandName_ur, defaultCat)}
-                        className="w-full mt-2.5 py-2.5 rounded-lg bg-dp-secondary text-white font-sans text-[10.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
-                        {t('bs.addToCatalogBtn')}
+                      <button onClick={() => submitBrandItem(openBrand.brandName, openBrand.brandName_ur, defaultCat)} disabled={addingBrandItem}
+                        className="w-full mt-2.5 py-2.5 rounded-lg bg-dp-secondary text-white font-sans text-[10.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-60 flex items-center justify-center gap-1.5">
+                        {addingBrandItem && <Loader2 size={13} className="animate-spin" />} {t('bs.addToCatalogBtn')}
                       </button>
                     </div>
 
@@ -389,7 +485,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                 ) : (
                   <div className="grid grid-cols-2 gap-2.5">
                     {visibleBrands.map((b) => {
-                      const selHere = selCountByBrand[b.brandSlug] ?? 0
+                      const selHere = ownedCount(b.entries)
                       const fullySelected = selHere === b.entries.length
                       const catSlug = b.entries[0]?.item.category
                       return (
@@ -477,9 +573,9 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                           <button key={c.slug} onClick={() => setNlCat(c.slug)} className={`shrink-0 px-2.5 py-1 rounded-full text-[9px] font-sans font-semibold cursor-pointer border ${nlCat === c.slug ? 'bg-dp-primary text-white border-dp-primary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{isUrdu ? c.label_ur : c.label}</button>
                         ))}
                       </div>
-                      <button onClick={submitLooseGood}
-                        className="w-full mt-2.5 py-2.5 rounded-lg bg-dp-primary text-white font-sans text-[10.5px] cursor-pointer hover:bg-dp-secondary transition-all">
-                        {t('bs.addToLooseGoodsBtn')}
+                      <button onClick={submitLooseGood} disabled={addingLoose}
+                        className="w-full mt-2.5 py-2.5 rounded-lg bg-dp-primary text-white font-sans text-[10.5px] cursor-pointer hover:bg-dp-secondary transition-all disabled:opacity-60 flex items-center justify-center gap-1.5">
+                        {addingLoose && <Loader2 size={13} className="animate-spin" />} {t('bs.addToLooseGoodsBtn')}
                       </button>
                     </div>
                   </div>
@@ -490,7 +586,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {tree.map((d) => {
                 const total = deptCounts[d.key] ?? 0
-                const selHere = catalog.filter((e) => d.categories.some((c) => c.slug === e.item.category) && selection.rows[e.key]).length
+                const selHere = ownedCount(catalog.filter((e) => d.categories.some((c) => c.slug === e.item.category)))
                 return (
                   <button key={d.key} onClick={() => { setActiveDeptKey(d.key); setActiveCatSlug(null) }}
                     className="flex flex-col items-center gap-2 bg-white border border-dp-outline-variant rounded-xl p-4 text-center hover:border-dp-secondary hover:shadow-sm transition-all cursor-pointer">
@@ -554,10 +650,6 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                   <div className="space-y-1.5">{itemsInCat.map((e) => <ItemRow key={e.key} e={e} />)}</div>
                 </>
               )}
-              <button onClick={() => selection.addCustomRow(activeCat.slug)}
-                className="w-full mt-4 flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-dp-secondary/50 bg-dp-secondary-container/20 text-dp-secondary rounded-lg font-sans text-[11px] font-semibold cursor-pointer hover:bg-dp-secondary-container/40">
-                {t('bs.addYourOwnItemBtn')}
-              </button>
             </>
           )}
         </>
