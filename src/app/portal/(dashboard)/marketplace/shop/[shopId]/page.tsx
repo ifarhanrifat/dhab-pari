@@ -27,7 +27,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, MapPin, Minus, Plus, ShoppingCart, ChevronRight, LayoutGrid, Search, Flame, MapPinned } from 'lucide-react'
+import { ArrowLeft, MapPin, Minus, Plus, ShoppingCart, ChevronRight, LayoutGrid, Search, Flame, MapPinned, UtensilsCrossed, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -45,6 +45,12 @@ interface Shop {
 interface Product {
   id: string; name: string; name_ur: string | null; flavor: string | null; flavor_ur: string | null
   category: string | null; company: string | null; unit_price_pkr: number; quantity_on_hand: number; is_active: boolean
+  unit: string; is_quick_food: boolean
+}
+interface Kit {
+  id: string; name: string; name_ur: string | null; sub: string | null; sub_ur: string | null
+  tint: 'accent' | 'ink' | 'photo'; photo_url: string | null
+  shop_kit_items: { product_id: string; quantity: number }[]
 }
 
 function fmt(n: number) {
@@ -74,7 +80,7 @@ function ProductCard({ p, isUrdu, cover, qty, max, canBuy, onQty, t }: {
           {(isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) && <span className="font-normal text-[#7a736d]"> ({isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})</span>}
         </p>
         {p.company && <p className="font-sans text-[10.5px] text-[#7a736d] truncate">{p.company}</p>}
-        <p className="font-sans text-[13.5px] font-bold mt-0.5" style={{ color: INK }}>{fmt(p.unit_price_pkr)}</p>
+        <p className="font-sans text-[13.5px] font-bold mt-0.5" style={{ color: INK }}>{fmt(p.unit_price_pkr)}{p.unit && p.unit !== 'عدد' && <span className="font-normal text-[10.5px] text-[#7a736d]"> {t('mp.perUnitPrefix')} {p.unit}</span>}</p>
         {canBuy && (
           p.quantity_on_hand <= 0 ? (
             <p className="font-sans text-[11px] mt-1.5" style={{ color: ACCENT_DARK }}>{t('mp.outOfStock')}</p>
@@ -115,6 +121,9 @@ export default function ShopDetailPage() {
   const [brandFilter, setBrandFilter] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'name' | 'cheap' | 'expensive'>('name')
   const [popularIds, setPopularIds] = useState<string[]>([])
+  const [kits, setKits] = useState<Kit[]>([])
+  const [openKit, setOpenKit] = useState<Kit | null>(null)
+  const [kitBasket, setKitBasket] = useState<Record<string, number>>({})
 
   useEffect(() => {
     const shopId = params.shopId
@@ -141,6 +150,8 @@ export default function ShopDetailPage() {
     supabase.rpc('shop_popular_products', { p_shop_id: shopId }).then(({ data, error }) => {
       if (!error && Array.isArray(data)) setPopularIds(data)
     })
+    supabase.from('shop_kits').select('*, shop_kit_items(product_id, quantity)').eq('shop_id', shopId).order('display_order')
+      .then(({ data }) => setKits((data ?? []) as unknown as Kit[]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.shopId])
 
@@ -197,6 +208,49 @@ export default function ShopDetailPage() {
     const byId = new Map(products.map((p) => [p.id, p]))
     return popularIds.map((id) => byId.get(id)).filter((p): p is Product => !!p)
   }, [products, popularIds])
+
+  // Quick Food rail (Shop Portal v3.2, §K) — a curated, shopkeeper-flagged
+  // subset (is_quick_food, migration 444), not a category: bread, frozen
+  // snacks, instant noodles and the like span several real categories, so
+  // this reads them straight off the flag instead of filtering by any one
+  // category slug.
+  const quickFoodProducts = useMemo(() => products.filter((p) => p.is_quick_food), [products])
+
+  // Recipe kits (Shop Portal v3 §E) — a kit's own "N / total items"
+  // count and live total are always computed against this SHOP's current
+  // products/prices, never stored, so two shops (or a shop that repriced
+  // an ingredient) show different, always-current numbers for the same
+  // kit definition.
+  const kitCards = useMemo(() => kits.map((k) => {
+    const lines = k.shop_kit_items.map((i) => ({ ...i, product: products.find((p) => p.id === i.product_id) }))
+    const stockedCount = lines.filter((l) => l.product).length
+    const total = lines.reduce((s, l) => s + (l.product ? l.product.unit_price_pkr * l.quantity : 0), 0)
+    return { kit: k, lines, stockedCount, total }
+  }), [kits, products])
+
+  const openKitDetail = (k: Kit) => {
+    setOpenKit(k)
+    const preset: Record<string, number> = {}
+    for (const i of k.shop_kit_items) {
+      const p = products.find((x) => x.id === i.product_id)
+      if (p) preset[i.product_id] = Math.min(i.quantity, p.quantity_on_hand)
+    }
+    setKitBasket(preset)
+  }
+  const addKitToCart = () => {
+    setCart((c) => {
+      const next = { ...c }
+      for (const [productId, qty] of Object.entries(kitBasket)) {
+        if (qty <= 0) continue
+        const p = products.find((x) => x.id === productId)
+        if (!p) continue
+        next[productId] = Math.min((next[productId] ?? 0) + qty, p.quantity_on_hand)
+      }
+      return next
+    })
+    setOpenKit(null)
+    toast.success(t('mp.kitAddedToCartToast'))
+  }
 
   const submit = async () => {
     if (cartItems.length === 0) { toast.error(t('mp.cartEmpty')); return }
@@ -277,6 +331,46 @@ export default function ShopDetailPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Recipe kits — one tap opens a pre-filled basket (§E). Rendered
+          only for kits this shop actually has SOME line for; a kit with
+          zero stocked lines has nothing useful to open. */}
+      {!activeDept && !searchActive && kitCards.filter((k) => k.stockedCount > 0).length > 0 && (
+        <div className="mt-5">
+          <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-[#7a736d] mb-2.5 flex items-center gap-1.5"><UtensilsCrossed size={13} /> {t('mp.kitsHeading')}</p>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {kitCards.filter((k) => k.stockedCount > 0).map(({ kit: k, lines, stockedCount, total }) => (
+              <button key={k.id} onClick={() => openKitDetail(k)} className="shrink-0 w-40 text-start bg-white border cursor-pointer transition-colors" style={{ borderColor: '#dcd8d4' }}>
+                <div className="h-16 flex items-end p-2.5 relative overflow-hidden" style={k.tint === 'photo' && k.photo_url ? { backgroundImage: `url(${k.photo_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : { background: k.tint === 'accent' ? ACCENT : INK }}>
+                  {k.tint === 'photo' && k.photo_url && <span className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(32,30,29,.72), rgba(32,30,29,.08))' }} />}
+                  <span className="relative font-heading text-[15px] font-bold text-white leading-[1.9]">{isUrdu && k.name_ur ? k.name_ur : k.name}</span>
+                </div>
+                <div className="p-2.5">
+                  <p className="font-sans text-[10.5px] text-[#7a736d] ltr-num">{stockedCount} / {lines.length} {t('mp.itemsSuffix')}</p>
+                  <p className="font-sans text-[13.5px] font-bold mt-0.5" style={{ color: INK }}>{fmt(total)}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quick Food — shopkeeper-flagged rail (§K, migration 444). Same
+          shelf position as the design's own مقبول اشیاء rail, one step
+          before it. */}
+      {!activeDept && !searchActive && quickFoodProducts.length > 0 && (
+        <div className="mt-5">
+          <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-[#7a736d] mb-2.5">{t('mp.quickFoodHeading')}</p>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {quickFoodProducts.map((p) => (
+              <div key={p.id} className="w-32 shrink-0">
+                <ProductCard p={p} isUrdu={isUrdu} cover={coverByProduct[p.id]} qty={cart[p.id] ?? 0} max={p.quantity_on_hand}
+                  canBuy={shop.delivery_enabled && bookable} onQty={setQty} t={t} />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -444,6 +538,60 @@ export default function ShopDetailPage() {
           <button onClick={submit} disabled={submitting} className="w-full mt-4 text-white py-3 font-sans font-semibold cursor-pointer transition-all disabled:opacity-50" style={{ background: ACCENT }} onMouseEnter={(e) => !submitting && (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>
             {submitting ? t('mp.placingOrder') : t('mp.placeOrderBtn')}
           </button>
+          </div>
+        </div>
+      )}
+
+      {/* Kit detail — pre-filled basket (§E). A line the shop doesn't
+          stock renders dimmed and priced "—", never blocks the kit; only
+          the lines this shop actually carries can be adjusted or dropped
+          before merging into the real cart. */}
+      {openKit && (
+        <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4" onClick={() => setOpenKit(null)}>
+          <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white p-5 w-full max-w-md max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-3 mb-1">
+              <h3 className="font-heading text-[18px] font-bold" style={{ color: INK }}>{isUrdu && openKit.name_ur ? openKit.name_ur : openKit.name}</h3>
+              <button onClick={() => setOpenKit(null)} className="cursor-pointer" style={{ color: INK }}><X size={18} /></button>
+            </div>
+            {(isUrdu && openKit.sub_ur ? openKit.sub_ur : openKit.sub) && <p className="font-sans text-[12.5px] text-[#7a736d] mb-3">{isUrdu && openKit.sub_ur ? openKit.sub_ur : openKit.sub}</p>}
+            <div className="border border-[#dcd8d4] divide-y divide-[#e2ded9]">
+              {openKit.shop_kit_items.map((i) => {
+                const p = products.find((x) => x.id === i.product_id)
+                const inBasket = kitBasket[i.product_id] ?? 0
+                if (!p) {
+                  return (
+                    <div key={i.product_id} className="flex items-center justify-between gap-2 px-3 py-2.5 opacity-45">
+                      <span className="font-sans text-[13px]" style={{ color: INK }}>{t('mp.kitLineUnavailable')}</span>
+                      <span className="font-sans text-[13px] font-bold" style={{ color: INK }}>—</span>
+                    </div>
+                  )
+                }
+                return (
+                  <div key={i.product_id} className="flex items-center justify-between gap-2 px-3 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-sans text-[13px] truncate" style={{ color: INK }}>{isUrdu && p.name_ur ? p.name_ur : p.name}</p>
+                      <p className="font-sans text-[11px] text-[#7a736d]">{fmt(p.unit_price_pkr)}</p>
+                    </div>
+                    {inBasket > 0 ? (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button onClick={() => setKitBasket((b) => ({ ...b, [i.product_id]: Math.max(0, (b[i.product_id] ?? 0) - 1) }))} className="w-7 h-7 border border-[#dcd8d4] flex items-center justify-center cursor-pointer"><Minus size={13} /></button>
+                        <span className="w-5 text-center font-sans text-[13px] font-bold ltr-num" style={{ color: INK }}>{inBasket}</span>
+                        <button onClick={() => setKitBasket((b) => ({ ...b, [i.product_id]: Math.min((b[i.product_id] ?? 0) + 1, p.quantity_on_hand) }))} className="w-7 h-7 border border-[#dcd8d4] flex items-center justify-center cursor-pointer"><Plus size={13} /></button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setKitBasket((b) => ({ ...b, [i.product_id]: 1 }))} className="px-2.5 py-1 border font-sans text-[11.5px] font-semibold cursor-pointer shrink-0" style={{ borderColor: ACCENT, color: ACCENT }}>{t('mp.addBtn')}</button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            <div className="flex items-center justify-between mt-3 mb-4">
+              <span className="font-sans text-[13px] font-semibold text-[#7a736d]">{t('mp.kitTotalLabel')}</span>
+              <span className="font-heading text-[19px] font-bold" style={{ color: INK }}>{fmt(Object.entries(kitBasket).reduce((s, [pid, qty]) => { const p = products.find((x) => x.id === pid); return s + (p ? p.unit_price_pkr * qty : 0) }, 0))}</span>
+            </div>
+            <button onClick={addKitToCart} disabled={Object.values(kitBasket).every((q) => q <= 0)} className="w-full text-white py-3 font-sans font-semibold cursor-pointer transition-all disabled:opacity-50" style={{ background: ACCENT }} onMouseEnter={(e) => (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>
+              {t('mp.addKitToCartBtn')}
+            </button>
           </div>
         </div>
       )}

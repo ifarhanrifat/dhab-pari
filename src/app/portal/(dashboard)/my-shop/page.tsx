@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Capacitor } from '@capacitor/core'
 import { createClient } from '@/lib/supabase/client'
-import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, PackagePlus, BarChart3, Wallet } from 'lucide-react'
+import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, PackagePlus, BarChart3, Wallet, UtensilsCrossed, PlusCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -31,12 +31,27 @@ interface Product {
   id: string; name: string; name_ur: string | null; description: string | null
   company: string | null; category: string | null; flavor: string | null; flavor_ur: string | null
   unit_price_pkr: number; cost_price_pkr: number; quantity_on_hand: number; expiry_date: string | null; is_active: boolean
+  unit: string; is_quick_food: boolean
 }
+
+// کھلا سامان unit choices (migration 444) — the same 13-value list the
+// design spec lists, in the same order, so a shopkeeper's own mental
+// model of "which units exist" never drifts between what's typed here
+// and what a buyer sees on the price.
+const UNIT_OPTIONS = ['عدد', 'کلو', 'پاؤ', 'آدھا کلو', 'گرام', 'لیٹر', 'ملی لیٹر', 'درجن', 'پیکٹ', 'تھیلا', 'بوتل', 'بنڈل', 'میٹر']
 
 const emptyProduct = {
   name: '', name_ur: '', description: '', company: '', category: 'other' as string, flavor: '', flavor_ur: '',
   unit_price_pkr: 0, cost_price_pkr: 0, quantity_on_hand: 0, expiry_date: '', is_active: true,
+  unit: 'عدد', is_quick_food: false,
 }
+
+interface Kit {
+  id: string; name: string; name_ur: string | null; sub: string | null; sub_ur: string | null
+  tint: 'accent' | 'ink' | 'photo'; photo_url: string | null
+  shop_kit_items: { product_id: string; quantity: number }[]
+}
+const emptyKitForm = { name: '', name_ur: '', sub: '', sub_ur: '', tint: 'ink' as 'accent' | 'ink' | 'photo', photo_url: '' }
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -86,11 +101,29 @@ export default function MyShopPage() {
   const [keySaved, setKeySaved] = useState(false)
   const [savingKey, setSavingKey] = useState(false)
 
+  // Recipe kits (Shop Portal v3 §E / v3.2 §J) — kits list for the
+  // "ڈیش بورڈ → پکوان کے سیٹ" panel, plus the builder's own draft state.
+  const [showKits, setShowKits] = useState(false)
+  const [kits, setKits] = useState<Kit[]>([])
+  const [showKitBuilder, setShowKitBuilder] = useState(false)
+  const [editingKit, setEditingKit] = useState<Kit | null>(null)
+  const [kitForm, setKitForm] = useState(emptyKitForm)
+  const [kitItems, setKitItems] = useState<{ product_id: string; quantity: number }[]>([])
+  const [kitItemSearch, setKitItemSearch] = useState('')
+  const [savingKit, setSavingKit] = useState(false)
+  const [deletingKitId, setDeletingKitId] = useState<string | null>(null)
+
   useEffect(() => {
     if (!user) return
     supabase.from('shops').select('id, name, name_ur, delivery_enabled, commission_mode, primary_type').eq('portal_user_id', user.id).maybeSingle()
       .then(({ data }) => { setShop(data); setShopLoading(false) })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadKits = async (shopId: string) => {
+    const { data } = await supabase.from('shop_kits').select('*, shop_kit_items(product_id, quantity)').eq('shop_id', shopId).order('display_order')
+    setKits((data ?? []) as unknown as Kit[])
+  }
+  useEffect(() => { if (shop) loadKits(shop.id) }, [shop]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadProducts = async (shopId: string) => {
     const { data } = await supabase.from('shop_products').select('*').eq('shop_id', shopId).order('name')
@@ -122,6 +155,7 @@ export default function MyShopPage() {
       category: p.category ?? 'other', flavor: p.flavor ?? '', flavor_ur: p.flavor_ur ?? '',
       unit_price_pkr: p.unit_price_pkr, cost_price_pkr: p.cost_price_pkr,
       quantity_on_hand: p.quantity_on_hand, expiry_date: p.expiry_date ?? '', is_active: p.is_active,
+      unit: p.unit || 'عدد', is_quick_food: p.is_quick_food ?? false,
     })
     setCoverUrl(coverByProduct[p.id] ?? '')
     setChangingCategory(false)
@@ -190,6 +224,7 @@ export default function MyShopPage() {
       company: form.company || null, category: form.category || null, flavor: form.flavor || null, flavor_ur: form.flavor_ur || null,
       unit_price_pkr: form.unit_price_pkr, cost_price_pkr: form.cost_price_pkr, quantity_on_hand: form.quantity_on_hand,
       expiry_date: form.expiry_date || null, is_active: form.is_active,
+      unit: form.unit, is_quick_food: form.is_quick_food,
     }
     const { data, error } = editing
       ? await supabase.from('shop_products').update(payload).eq('id', editing.id).select('id').single()
@@ -236,6 +271,63 @@ export default function MyShopPage() {
     setShowAiSettings(false)
   }
 
+  const openNewKit = () => {
+    setEditingKit(null)
+    setKitForm(emptyKitForm)
+    setKitItems([])
+    setKitItemSearch('')
+    setShowKitBuilder(true)
+  }
+  const openEditKit = (k: Kit) => {
+    setEditingKit(k)
+    setKitForm({ name: k.name, name_ur: k.name_ur ?? '', sub: k.sub ?? '', sub_ur: k.sub_ur ?? '', tint: k.tint, photo_url: k.photo_url ?? '' })
+    setKitItems(k.shop_kit_items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })))
+    setKitItemSearch('')
+    setShowKitBuilder(true)
+  }
+  const toggleKitItem = (productId: string) => {
+    setKitItems((rows) => rows.find((r) => r.product_id === productId)
+      ? rows.filter((r) => r.product_id !== productId)
+      : [...rows, { product_id: productId, quantity: 1 }])
+  }
+  const setKitItemQty = (productId: string, qty: number) => {
+    setKitItems((rows) => rows.map((r) => r.product_id === productId ? { ...r, quantity: Math.max(1, qty) } : r))
+  }
+  const kitTotal = kitItems.reduce((s, r) => {
+    const p = products.find((x) => x.id === r.product_id)
+    return s + (p ? p.unit_price_pkr * r.quantity : 0)
+  }, 0)
+  const saveKit = async () => {
+    if (!shop) return
+    if (!kitForm.name.trim()) { toast.error(t('sk.kitNameRequired')); return }
+    if (kitItems.length === 0) { toast.error(t('sk.kitNeedsItemsToast')); return }
+    setSavingKit(true)
+    const { error } = await supabase.rpc('save_shop_kit', {
+      p_kit_id: editingKit?.id ?? null, p_shop_id: shop.id,
+      p_name: kitForm.name.trim(), p_name_ur: kitForm.name_ur.trim() || null,
+      p_sub: kitForm.sub.trim() || null, p_sub_ur: kitForm.sub_ur.trim() || null,
+      p_tint: kitForm.tint, p_photo_url: kitForm.tint === 'photo' ? (kitForm.photo_url || null) : null,
+      p_items: kitItems,
+    })
+    setSavingKit(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('sk.kitSavedToast'))
+    setShowKitBuilder(false)
+    loadKits(shop.id)
+  }
+  const removeKit = async (k: Kit) => {
+    if (!confirm(t('sk.confirmDeleteKit'))) return
+    setDeletingKitId(k.id)
+    const { error } = await supabase.rpc('delete_shop_kit', { p_kit_id: k.id })
+    setDeletingKitId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('sk.kitDeletedToast'))
+    if (shop) loadKits(shop.id)
+  }
+  const kitItemResults = kitItemSearch.trim()
+    ? products.filter((p) => p.name.toLowerCase().includes(kitItemSearch.toLowerCase()) || (p.name_ur ?? '').includes(kitItemSearch))
+    : products
+
   if (userLoading || shopLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!shop) {
     return (
@@ -265,6 +357,9 @@ export default function MyShopPage() {
           <Link href="/portal/my-shop/purchase" className="flex items-center gap-1.5 px-3 py-2 border border-[#dcd8d4] font-sans text-[13px] font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
             <PackagePlus size={14} /> {t('sk.purchaseEntryBtn')}
           </Link>
+          <button onClick={() => setShowKits(true)} className="flex items-center gap-1.5 px-3 py-2 border border-[#dcd8d4] font-sans text-[13px] font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
+            <UtensilsCrossed size={14} /> {t('sk.kitsBtn')}
+          </button>
           <Link href="/portal/my-shop/sell" className="flex items-center gap-1.5 px-3 py-2 text-white font-sans text-[13px] font-semibold transition-colors" style={{ background: INK }}>
             <ShoppingCart size={14} /> {t('sk.sellBtn')}
           </Link>
@@ -306,7 +401,7 @@ export default function MyShopPage() {
               </p>
               {p.company && <p className="font-sans text-[11px] text-[#7a736d] truncate">{p.company}</p>}
               <div className="flex items-baseline gap-2 mt-1">
-                <p className="font-sans text-[14px] font-bold" style={{ color: INK }}>{fmt(p.unit_price_pkr)}</p>
+                <p className="font-sans text-[14px] font-bold" style={{ color: INK }}>{fmt(p.unit_price_pkr)}{p.unit && p.unit !== 'عدد' && <span className="font-normal text-[11px] text-[#7a736d]"> {t('mp.perUnitPrefix')} {p.unit}</span>}</p>
                 {p.cost_price_pkr > 0 && <p className="font-sans text-[11px] text-[#7a736d]">{t('sk.costLabel')} {fmt(p.cost_price_pkr)}</p>}
               </div>
               <p className="font-sans text-[11.5px] text-[#7a736d] mt-0.5">{t('mk.stockLabel')} {fmt(p.quantity_on_hand)}</p>
@@ -353,9 +448,18 @@ export default function MyShopPage() {
                 <div><label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('sk.costPriceLabel')}</label><input type="number" value={form.cost_price_pkr || ''} onChange={(e) => setForm({ ...form, cost_price_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
                 <div><label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('mk.unitPriceLabel')}</label><input type="number" value={form.unit_price_pkr || ''} onChange={(e) => setForm({ ...form, unit_price_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
               </div>
-              <div><label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('mk.stockLabel')}</label><input type="number" value={form.quantity_on_hand || ''} onChange={(e) => setForm({ ...form, quantity_on_hand: +e.target.value })} className="input-field" placeholder="0" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('mk.stockLabel')}</label><input type="number" value={form.quantity_on_hand || ''} onChange={(e) => setForm({ ...form, quantity_on_hand: +e.target.value })} className="input-field" placeholder="0" /></div>
+                <div>
+                  <label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('sk.unitLabel')}</label>
+                  <select value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="input-field" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+                    {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              </div>
               <div><label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('mk.expiryDateLabel')}</label><input type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} className="input-field" /></div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} style={{ accentColor: ACCENT }} /><span className="font-sans text-[14px]">{t('mk.productActiveLabel')}</span></label>
+              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_quick_food} onChange={(e) => setForm({ ...form, is_quick_food: e.target.checked })} style={{ accentColor: ACCENT }} /><span className="font-sans text-[14px]">{t('sk.quickFoodLabel')}</span></label>
               <button onClick={save} disabled={saving} className="w-full text-white py-3 font-sans font-semibold cursor-pointer transition-all disabled:opacity-50" style={{ background: ACCENT }} onMouseEnter={(e) => !saving && (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>{saving ? t('action.saving') : t('g.saveChanges')}</button>
             </div>
           </div>
@@ -376,6 +480,114 @@ export default function MyShopPage() {
             <p className="font-sans text-[13px] text-[#7a736d] mb-3">{t('sk.aiSettingsHint')}</p>
             <input type="password" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} placeholder={t('sk.apiKeyPlaceholder')} className="input-field mb-3" dir="ltr" />
             <button onClick={saveKey} disabled={savingKey} className="w-full text-white py-3 font-sans font-semibold cursor-pointer transition-all disabled:opacity-50" style={{ background: ACCENT }} onMouseEnter={(e) => !savingKey && (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>{savingKey ? t('action.saving') : t('g.saveChanges')}</button>
+          </div>
+        </div>
+      )}
+
+      {/* Recipe kits list — "ڈیش بورڈ → پکوان کے سیٹ" (v3.2 §J). Each
+          card mirrors the buyer-facing kit card's own fields (name, sub,
+          live count/total) so the shopkeeper sees exactly what a
+          villager would see. */}
+      {showKits && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowKits(false)}>
+          <div className="bg-white p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[20px] font-bold flex items-center gap-2" style={{ color: INK }}><UtensilsCrossed size={18} /> {t('sk.kitsBtn')}</h2>
+              <button onClick={() => setShowKits(false)} className="cursor-pointer"><X size={20} /></button>
+            </div>
+            <button onClick={() => { setShowKits(false); openNewKit() }} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed font-sans text-[13.5px] font-semibold cursor-pointer hover:bg-[#f7f6f5] transition-all mb-4" style={{ borderColor: '#dcd8d4', color: ACCENT }}>
+              <PlusCircle size={16} /> {t('sk.newKitBtn')}
+            </button>
+            {kits.length === 0 ? (
+              <p className="text-center py-8 text-[#7a736d] font-sans text-[13.5px]">{t('sk.noKitsYet')}</p>
+            ) : (
+              <div className="space-y-2">
+                {kits.map((k) => {
+                  const stocked = k.shop_kit_items.filter((i) => products.find((p) => p.id === i.product_id)).length
+                  const total = k.shop_kit_items.reduce((s, i) => { const p = products.find((x) => x.id === i.product_id); return s + (p ? p.unit_price_pkr * i.quantity : 0) }, 0)
+                  return (
+                    <div key={k.id} className="bg-white border border-[#dcd8d4] p-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-sans text-[14px] font-semibold truncate" style={{ color: INK }}>{isUrdu && k.name_ur ? k.name_ur : k.name}</p>
+                        <p className="font-sans text-[11.5px] text-[#7a736d] mt-0.5"><span className="ltr-num">{stocked} / {k.shop_kit_items.length}</span> {t('sk.kitItemsStockedSuffix')} · {fmt(total)}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button onClick={() => { setShowKits(false); openEditKit(k) }} className="p-1.5 cursor-pointer" style={{ color: INK }}><Pencil size={14} /></button>
+                        <button onClick={() => removeKit(k)} disabled={deletingKitId === k.id} className="p-1.5 cursor-pointer disabled:opacity-50" style={{ color: ACCENT }}><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Kit builder — name/description/card-look, then an item picker
+          mirroring the same tick+search pattern the catalog Add Stock
+          tab already uses, over the shop's OWN products (a kit is only
+          ever built from what this shop already carries). */}
+      {showKitBuilder && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowKitBuilder(false)}>
+          <div className="bg-white p-6 w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-[20px] font-bold" style={{ color: INK }}>{editingKit ? t('sk.editKitTitle') : t('sk.newKitBtn')}</h2>
+              <button onClick={() => setShowKitBuilder(false)} className="cursor-pointer"><X size={20} /></button>
+            </div>
+            <div className="space-y-3">
+              <input value={kitForm.name} onChange={(e) => setKitForm({ ...kitForm, name: e.target.value })} placeholder={t('sk.kitNamePlaceholder')} className="input-field" />
+              <input value={kitForm.name_ur} onChange={(e) => setKitForm({ ...kitForm, name_ur: e.target.value })} placeholder={t('sk.kitNameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+              <input value={kitForm.sub} onChange={(e) => setKitForm({ ...kitForm, sub: e.target.value })} placeholder={t('sk.kitSubPlaceholder')} className="input-field" />
+              <input value={kitForm.sub_ur} onChange={(e) => setKitForm({ ...kitForm, sub_ur: e.target.value })} placeholder={t('sk.kitSubUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1.5">{t('sk.kitCardLookLabel')}</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['accent', 'ink', 'photo'] as const).map((tint) => (
+                    <button key={tint} type="button" onClick={() => setKitForm({ ...kitForm, tint })}
+                      className="px-3 py-2 border font-sans text-[12.5px] font-semibold cursor-pointer transition-colors"
+                      style={kitForm.tint === tint ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { borderColor: '#dcd8d4', color: INK }}>
+                      {tint === 'accent' ? t('sk.kitTintAccent') : tint === 'ink' ? t('sk.kitTintInk') : t('sk.kitTintPhoto')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {kitForm.tint === 'photo' && (
+                <ImageUpload bucket="images" label={t('sk.kitPhotoLabel')} currentUrl={kitForm.photo_url} onUpload={(url) => setKitForm({ ...kitForm, photo_url: url })} />
+              )}
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block font-sans text-[12.5px] font-semibold text-[#5b544f]">{t('sk.kitItemsLabel')}</label>
+                  <span className="font-sans text-[11.5px] text-[#7a736d]">{t('sk.kitLiveTotalLabel')} <span className="font-bold ltr-num" style={{ color: INK }}>{fmt(kitTotal)}</span></span>
+                </div>
+                <input value={kitItemSearch} onChange={(e) => setKitItemSearch(e.target.value)} placeholder={t('sk.searchOwnCatalogPlaceholder')} className="input-field mb-2" />
+                <div className="border border-[#dcd8d4] max-h-64 overflow-y-auto">
+                  {kitItemResults.map((p) => {
+                    const picked = kitItems.find((r) => r.product_id === p.id)
+                    return (
+                      <div key={p.id} className="flex items-center justify-between gap-2 px-3 py-2 border-b border-[#e2ded9] last:border-b-0">
+                        <label className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer">
+                          <input type="checkbox" checked={!!picked} onChange={() => toggleKitItem(p.id)} style={{ accentColor: ACCENT }} />
+                          <span className="font-sans text-[13px] truncate" style={{ color: INK }}>{isUrdu && p.name_ur ? p.name_ur : p.name}</span>
+                        </label>
+                        {picked && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => setKitItemQty(p.id, picked.quantity - 1)} className="w-6 h-6 border border-[#dcd8d4] flex items-center justify-center cursor-pointer text-[12px]">−</button>
+                            <span className="w-5 text-center font-sans text-[12.5px] font-bold ltr-num" style={{ color: INK }}>{picked.quantity}</span>
+                            <button onClick={() => setKitItemQty(p.id, picked.quantity + 1)} className="w-6 h-6 border border-[#dcd8d4] flex items-center justify-center cursor-pointer text-[12px]">+</button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {kitItemResults.length === 0 && <p className="text-center py-6 text-[#7a736d] font-sans text-[13px]">{t('mp.noResults')}</p>}
+                </div>
+              </div>
+
+              <button onClick={saveKit} disabled={savingKit} className="w-full text-white py-3 font-sans font-semibold cursor-pointer transition-all disabled:opacity-50" style={{ background: ACCENT }} onMouseEnter={(e) => !savingKit && (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>{savingKit ? t('action.saving') : t('g.saveChanges')}</button>
+            </div>
           </div>
         </div>
       )}
