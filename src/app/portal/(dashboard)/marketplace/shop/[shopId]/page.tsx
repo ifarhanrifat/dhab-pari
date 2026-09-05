@@ -27,7 +27,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, MapPin, Minus, Plus, ShoppingCart, ChevronRight, LayoutGrid, Search, Flame, MapPinned, UtensilsCrossed, X } from 'lucide-react'
+import { ArrowLeft, MapPin, Minus, Plus, ShoppingCart, ChevronRight, LayoutGrid, Search, Flame, MapPinned, UtensilsCrossed, X, Tag } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -52,9 +52,20 @@ interface Kit {
   tint: 'accent' | 'ink' | 'photo'; photo_url: string | null
   shop_kit_items: { product_id: string; quantity: number }[]
 }
+interface Deal {
+  id: string; name: string; name_ur: string | null; sub: string | null; sub_ur: string | null
+  tint: 'accent' | 'ink' | 'photo'; photo_url: string | null
+  discount_kind: 'percent' | 'amount' | 'fixed_price'; discount_value: number; expires_at: string
+  shop_deal_items: { product_id: string; quantity: number }[]
+}
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
+}
+function dealFinalPrice(baseTotal: number, kind: Deal['discount_kind'], value: number) {
+  if (kind === 'percent') return Math.max(0, Math.round(baseTotal * (1 - value / 100)))
+  if (kind === 'amount') return Math.max(0, Math.round(baseTotal - value))
+  return Math.max(0, Math.round(value))
 }
 
 // Module-level, not nested inside the page component — a component
@@ -124,6 +135,9 @@ export default function ShopDetailPage() {
   const [kits, setKits] = useState<Kit[]>([])
   const [openKit, setOpenKit] = useState<Kit | null>(null)
   const [kitBasket, setKitBasket] = useState<Record<string, number>>({})
+  const [deals, setDeals] = useState<Deal[]>([])
+  const [openDeal, setOpenDeal] = useState<Deal | null>(null)
+  const [dealBasket, setDealBasket] = useState<Record<string, number>>({})
 
   useEffect(() => {
     const shopId = params.shopId
@@ -152,6 +166,12 @@ export default function ShopDetailPage() {
     })
     supabase.from('shop_kits').select('*, shop_kit_items(product_id, quantity)').eq('shop_id', shopId).order('display_order')
       .then(({ data }) => setKits((data ?? []) as unknown as Kit[]))
+    // Only running, not-yet-expired deals — a shopkeeper who paused one
+    // (toggle_shop_deal) or let it run out shouldn't have it show up on
+    // the shop front just because the row still exists.
+    supabase.from('shop_deals').select('*, shop_deal_items(product_id, quantity)').eq('shop_id', shopId).eq('is_active', true)
+      .gt('expires_at', new Date().toISOString()).order('display_order')
+      .then(({ data }) => setDeals((data ?? []) as unknown as Deal[]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.shopId])
 
@@ -252,6 +272,46 @@ export default function ShopDetailPage() {
     toast.success(t('mp.kitAddedToCartToast'))
   }
 
+  // Deals & Offers (Shop Portal v3 §S deals / §B deal) — same live-priced
+  // shape as recipe kits above, plus a discount applied to the stocked
+  // lines' own current total. The discount is informational on the shop
+  // front (shows what the bundle would cost at the discounted rate); the
+  // cart itself still adds the real per-item prices, same as a kit does
+  // — there's no separate "bundle SKU" or discount-aware line item in
+  // place_shop_order, so this never silently promises a price the order
+  // wouldn't actually charge.
+  const dealCards = useMemo(() => deals.map((d) => {
+    const lines = d.shop_deal_items.map((i) => ({ ...i, product: products.find((p) => p.id === i.product_id) }))
+    const stockedCount = lines.filter((l) => l.product).length
+    const base = lines.reduce((s, l) => s + (l.product ? l.product.unit_price_pkr * l.quantity : 0), 0)
+    const final = dealFinalPrice(base, d.discount_kind, d.discount_value)
+    return { deal: d, lines, stockedCount, base, final }
+  }), [deals, products])
+
+  const openDealDetail = (d: Deal) => {
+    setOpenDeal(d)
+    const preset: Record<string, number> = {}
+    for (const i of d.shop_deal_items) {
+      const p = products.find((x) => x.id === i.product_id)
+      if (p) preset[i.product_id] = Math.min(i.quantity, p.quantity_on_hand)
+    }
+    setDealBasket(preset)
+  }
+  const addDealToCart = () => {
+    setCart((c) => {
+      const next = { ...c }
+      for (const [productId, qty] of Object.entries(dealBasket)) {
+        if (qty <= 0) continue
+        const p = products.find((x) => x.id === productId)
+        if (!p) continue
+        next[productId] = Math.min((next[productId] ?? 0) + qty, p.quantity_on_hand)
+      }
+      return next
+    })
+    setOpenDeal(null)
+    toast.success(t('mp.kitAddedToCartToast'))
+  }
+
   const submit = async () => {
     if (cartItems.length === 0) { toast.error(t('mp.cartEmpty')); return }
     if (!deliveryAddress.trim()) { toast.error(t('mp.deliveryAddressRequired')); return }
@@ -331,6 +391,31 @@ export default function ShopDetailPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Deals & Offers — same shelf position as the design's own ڈیل
+          banners, right above Recipe Kits. Rendered only for deals this
+          shop has some stocked line for, same "nothing useful to open
+          otherwise" reasoning as kits below. */}
+      {!activeDept && !searchActive && dealCards.filter((d) => d.stockedCount > 0).length > 0 && (
+        <div className="mt-5">
+          <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-[#7a736d] mb-2.5 flex items-center gap-1.5"><Tag size={13} /> {t('sk.dealsBtn')}</p>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {dealCards.filter((d) => d.stockedCount > 0).map(({ deal: d, lines, stockedCount, base, final }) => (
+              <button key={d.id} onClick={() => openDealDetail(d)} className="shrink-0 w-40 text-start bg-white border cursor-pointer transition-colors" style={{ borderColor: '#dcd8d4' }}>
+                <div className="h-16 flex items-end p-2.5 relative overflow-hidden" style={d.tint === 'photo' && d.photo_url ? { backgroundImage: `url(${d.photo_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : { background: d.tint === 'accent' ? ACCENT : INK }}>
+                  {d.tint === 'photo' && d.photo_url && <span className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(32,30,29,.72), rgba(32,30,29,.08))' }} />}
+                  <span className="relative font-heading text-[15px] font-bold text-white leading-[1.9]">{isUrdu && d.name_ur ? d.name_ur : d.name}</span>
+                </div>
+                <div className="p-2.5">
+                  <p className="font-sans text-[10.5px] text-[#7a736d] ltr-num">{stockedCount} / {lines.length} {t('mp.itemsSuffix')}</p>
+                  <p className="font-sans text-[11px] text-[#7a736d] line-through ltr-num">{fmt(base)}</p>
+                  <p className="font-sans text-[13.5px] font-bold ltr-num" style={{ color: ACCENT_DARK }}>{fmt(final)}</p>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -608,6 +693,68 @@ export default function ShopDetailPage() {
               <span className="font-heading text-[19px] font-bold" style={{ color: INK }}>{fmt(Object.entries(kitBasket).reduce((s, [pid, qty]) => { const p = products.find((x) => x.id === pid); return s + (p ? p.unit_price_pkr * qty : 0) }, 0))}</span>
             </div>
             <button onClick={addKitToCart} disabled={Object.values(kitBasket).every((q) => q <= 0)} className="w-full text-white py-3 font-sans font-semibold cursor-pointer transition-all disabled:opacity-50" style={{ background: ACCENT }} onMouseEnter={(e) => (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>
+              {t('mp.addKitToCartBtn')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Deal detail — same pre-filled-basket pattern as a kit, plus the
+          discounted total shown alongside the real (undiscounted) one so
+          the savings are visible before adding to cart. */}
+      {openDeal && (
+        <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4" onClick={() => setOpenDeal(null)}>
+          <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white p-5 w-full max-w-md max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-3 mb-1">
+              <h3 className="font-heading text-[18px] font-bold" style={{ color: INK }}>{isUrdu && openDeal.name_ur ? openDeal.name_ur : openDeal.name}</h3>
+              <button onClick={() => setOpenDeal(null)} className="cursor-pointer" style={{ color: INK }}><X size={18} /></button>
+            </div>
+            {(isUrdu && openDeal.sub_ur ? openDeal.sub_ur : openDeal.sub) && <p className="font-sans text-[12.5px] text-[#7a736d] mb-3">{isUrdu && openDeal.sub_ur ? openDeal.sub_ur : openDeal.sub}</p>}
+            <div className="border border-[#dcd8d4] divide-y divide-[#e2ded9]">
+              {openDeal.shop_deal_items.map((i) => {
+                const p = products.find((x) => x.id === i.product_id)
+                const inBasket = dealBasket[i.product_id] ?? 0
+                if (!p) {
+                  return (
+                    <div key={i.product_id} className="flex items-center justify-between gap-2 px-3 py-2.5 opacity-45">
+                      <span className="font-sans text-[13px]" style={{ color: INK }}>{t('mp.kitLineUnavailable')}</span>
+                      <span className="font-sans text-[13px] font-bold" style={{ color: INK }}>—</span>
+                    </div>
+                  )
+                }
+                return (
+                  <div key={i.product_id} className="flex items-center justify-between gap-2 px-3 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-sans text-[13px] truncate" style={{ color: INK }}>{isUrdu && p.name_ur ? p.name_ur : p.name}</p>
+                      <p className="font-sans text-[11px] text-[#7a736d]">{fmt(p.unit_price_pkr)}</p>
+                    </div>
+                    {inBasket > 0 ? (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button onClick={() => setDealBasket((b) => ({ ...b, [i.product_id]: Math.max(0, (b[i.product_id] ?? 0) - 1) }))} className="w-7 h-7 border border-[#dcd8d4] flex items-center justify-center cursor-pointer"><Minus size={13} /></button>
+                        <span className="w-5 text-center font-sans text-[13px] font-bold ltr-num" style={{ color: INK }}>{inBasket}</span>
+                        <button onClick={() => setDealBasket((b) => ({ ...b, [i.product_id]: Math.min((b[i.product_id] ?? 0) + 1, p.quantity_on_hand) }))} className="w-7 h-7 border border-[#dcd8d4] flex items-center justify-center cursor-pointer"><Plus size={13} /></button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setDealBasket((b) => ({ ...b, [i.product_id]: 1 }))} className="px-2.5 py-1 border font-sans text-[11.5px] font-semibold cursor-pointer shrink-0" style={{ borderColor: ACCENT, color: ACCENT }}>{t('mp.addBtn')}</button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            {(() => {
+              const basketBase = Object.entries(dealBasket).reduce((s, [pid, qty]) => { const p = products.find((x) => x.id === pid); return s + (p ? p.unit_price_pkr * qty : 0) }, 0)
+              const basketFinal = dealFinalPrice(basketBase, openDeal.discount_kind, openDeal.discount_value)
+              return (
+                <div className="flex items-center justify-between mt-3 mb-4">
+                  <span className="font-sans text-[13px] font-semibold text-[#7a736d]">{t('mp.kitTotalLabel')}</span>
+                  <span className="text-end">
+                    <span className="block font-sans text-[12px] text-[#7a736d] line-through ltr-num">{fmt(basketBase)}</span>
+                    <span className="block font-heading text-[19px] font-bold ltr-num" style={{ color: ACCENT_DARK }}>{fmt(basketFinal)}</span>
+                  </span>
+                </div>
+              )
+            })()}
+            <button onClick={addDealToCart} disabled={Object.values(dealBasket).every((q) => q <= 0)} className="w-full text-white py-3 font-sans font-semibold cursor-pointer transition-all disabled:opacity-50" style={{ background: ACCENT }} onMouseEnter={(e) => (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>
               {t('mp.addKitToCartBtn')}
             </button>
           </div>

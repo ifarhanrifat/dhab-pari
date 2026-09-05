@@ -2109,6 +2109,16 @@ export const messages: Record<Locale, Record<string, string>> = {
     'sk.dealOnLabel': 'Running', 'sk.dealOffLabel': 'Paused',
     'sk.dealNameRequired': 'Give the deal a name.', 'sk.dealNeedsItemsToast': 'Add at least one item to the deal.',
     'sk.dealSavedToast': 'Deal saved.', 'sk.confirmDeleteDeal': 'Delete this deal? This cannot be undone.', 'sk.dealDeletedToast': 'Deal deleted.',
+    'sk.navDashboard': 'Dashboard', 'sk.navCounter': 'Counter', 'sk.navStock': 'Stock', 'sk.navCatalog': 'Catalog', 'sk.navReports': 'Reports',
+    'sk.dashCounterBtn': 'Make a counter bill', 'sk.dashCounterSub': 'Tap what was sold at the counter — the math happens itself',
+    'sk.dashAddStockHeading': 'Add Stock', 'sk.dashAddStockSub': 'Record today\'s purchase slip',
+    'sk.dashCatalogSub': '{n} brands picked',
+    'sk.dashDealsSub': 'Build packages — they stand out on your shop front',
+    'sk.dashKitsSub': 'Pizza, cake, biryani — the whole thing in one card',
+    'sk.dashLowStockPrefix': '{n} items are running low', 'sk.dashViewBtn': 'View',
+    'sk.dashTodaysBillsHeading': "Today's Bills", 'sk.todaySaleLabel': 'Today Sale', 'sk.todayProfitLabel': 'Today Profit',
+    'sk.todayPurchaseLabel2': 'Today Purchase', 'sk.stockValueLabel': 'Stock Value',
+    'sk.shopOpenBadge': 'Open', 'sk.billsSuffix': 'bills', 'sk.dashNoBillsToday': 'No bills yet today.',
 
     // Marketplace — commission modes + shop keeper back-office
     'cm.lumpsumBadge': 'Monthly fee', 'cm.modeLabel': 'Commission model',
@@ -6599,6 +6609,16 @@ export const messages: Record<Locale, Record<string, string>> = {
     'sk.dealOnLabel': 'چل رہی ہے', 'sk.dealOffLabel': 'روکی ہوئی',
     'sk.dealNameRequired': 'ڈیل کا نام درج کریں۔', 'sk.dealNeedsItemsToast': 'ڈیل میں کم از کم ایک چیز شامل کریں۔',
     'sk.dealSavedToast': 'ڈیل محفوظ ہو گئی۔', 'sk.confirmDeleteDeal': 'کیا یہ ڈیل حذف کرنی ہے؟ یہ واپس نہیں ہو سکتا۔', 'sk.dealDeletedToast': 'ڈیل حذف کر دی گئی۔',
+    'sk.navDashboard': 'ڈیش بورڈ', 'sk.navCounter': 'کاؤنٹر', 'sk.navStock': 'سٹاک', 'sk.navCatalog': 'کیٹلاگ', 'sk.navReports': 'رپورٹس',
+    'sk.dashCounterBtn': 'کاؤنٹر پرچی بنائیں', 'sk.dashCounterSub': 'دکان پر بیچی ہوئی چیز ٹیپ کریں — حساب خود ہو جائے گا',
+    'sk.dashAddStockHeading': 'سٹاک شامل کریں', 'sk.dashAddStockSub': 'خرید کی پرچی درج کریں',
+    'sk.dashCatalogSub': '{n} برانڈ منتخب',
+    'sk.dashDealsSub': 'پیکج بنائیں — دکان کے سامنے نمایاں ہوں گے',
+    'sk.dashKitsSub': 'پیزا، کیک، بریانی — پورا سامان ایک کارڈ میں',
+    'sk.dashLowStockPrefix': '{n} اشیاء کم ہو رہی ہیں', 'sk.dashViewBtn': 'دیکھیں',
+    'sk.dashTodaysBillsHeading': 'آج کی پرچیاں', 'sk.todaySaleLabel': 'آج کی فروخت', 'sk.todayProfitLabel': 'آج کا منافع',
+    'sk.todayPurchaseLabel2': 'آج کی خریداری', 'sk.stockValueLabel': 'لاگت پر مال',
+    'sk.shopOpenBadge': 'کھلی ہے', 'sk.billsSuffix': 'پرچیاں', 'sk.dashNoBillsToday': 'آج ابھی کوئی پرچی نہیں بنی۔',
 
     // Marketplace — commission modes + shop keeper back-office
     'cm.lumpsumBadge': 'ماہانہ فیس', 'cm.modeLabel': 'کمیشن ماڈل',

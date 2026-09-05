@@ -43,17 +43,25 @@ interface ShopCatalogSectionProps<P extends StockListProduct> {
   // button already wires up — not a second AI call, just a second place
   // to trigger the one that exists. Optional: admin/shops doesn't scan.
   onScanClick?: () => void
+  // Lets a caller with its own navigation (my-shop's bottom-tab Stock vs
+  // Catalog links, both landing on this same section) force which tab is
+  // showing, overriding the usual products.length-based default —
+  // changing this prop always wins over whatever the shopkeeper had
+  // clicked before, same as a fresh mount would.
+  forceTab?: 'mystock' | 'addstock'
 }
 
 export function ShopCatalogSection<P extends StockListProduct>({
-  shopId, primaryType, products, renderProduct, onAddItem, onCommitted, onInlineUpdate, onScanClick,
+  shopId, primaryType, products, renderProduct, onAddItem, onCommitted, onInlineUpdate, onScanClick, forceTab,
 }: ShopCatalogSectionProps<P>) {
   const { t } = useLocale()
   const selection = useCatalogSelection(shopId)
-  const [tab, setTab] = useState<'mystock' | 'addstock'>(() => (products.length > 0 ? 'mystock' : 'addstock'))
+  const [tab, setTab] = useState<'mystock' | 'addstock'>(() => forceTab ?? (products.length > 0 ? 'mystock' : 'addstock'))
   const [stockView, setStockView] = useState<'tiles' | 'list'>('list')
   const userPickedTab = useRef(false)
   const setTabByUser = (t: 'mystock' | 'addstock') => { userPickedTab.current = true; setTab(t) }
+
+  useEffect(() => { if (forceTab) { setTab(forceTab); userPickedTab.current = true } }, [forceTab])
 
   // products starts as [] on every mount (the parent fetches it async,
   // after this component has already rendered once) — the useState

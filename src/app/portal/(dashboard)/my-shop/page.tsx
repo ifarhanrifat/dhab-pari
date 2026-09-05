@@ -9,17 +9,19 @@
 // sets the buying/selling price themselves before saving. The exact same
 // photo becomes the product's cover, so there's only one photo to take.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, Suspense } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { Capacitor } from '@capacitor/core'
 import { createClient } from '@/lib/supabase/client'
-import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, PackagePlus, BarChart3, Wallet, UtensilsCrossed, PlusCircle, Tag } from 'lucide-react'
+import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, PackagePlus, Wallet, UtensilsCrossed, PlusCircle, Tag, AlertTriangle, LayoutGrid, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { takeNativePhoto, openCameraAppSettings, CameraPermissionDeniedError, isCameraCancel } from '@/lib/nativeCamera'
 import { WalletTopupModal } from '@/components/portal/WalletTopupModal'
+import { ShopBottomNav } from '@/components/portal/ShopBottomNav'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { getCategoryLabel } from '@/lib/shopTypes'
 import { UNIT_OPTIONS } from '@/lib/catalogSelection'
@@ -78,6 +80,17 @@ function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
+// The kit/deal builder's own item picker showed bare product names —
+// several flavours of the same brand (e.g. five different Slanty bags)
+// all rendered as the identical string "Slanty" with no way to tell
+// which row was which, reading as duplicates rather than real variants.
+// Same "name (flavor)" shape displayName() uses on purchase/page.tsx.
+function productDisplayName(p: { name: string; name_ur: string | null; flavor: string | null; flavor_ur: string | null }, isUrdu: boolean) {
+  const name = isUrdu && p.name_ur ? p.name_ur : p.name
+  const flavor = isUrdu ? (p.flavor_ur || p.flavor) : p.flavor
+  return flavor ? `${name} (${flavor})` : name
+}
+
 // Ink/accent two-tone from the "Village Portal Marketplace" design spec
 // (2026-09-05) — same palette as the buyer-facing shop pages. Only the
 // chrome this file itself renders (header, action row, scan button,
@@ -126,9 +139,28 @@ function matchScannedProduct(draft: { name: string; company: string; flavor: str
 }
 
 export default function MyShopPage() {
+  return (
+    <Suspense fallback={null}>
+      <MyShopPageInner />
+    </Suspense>
+  )
+}
+
+interface DashSummary {
+  today_earnings_pkr: number; today_profit_pkr: number; today_purchase_pkr: number; stock_value_pkr: number
+  today_bills_count: number; low_stock_count: number
+}
+interface TodayBill { id: string; total_amount_pkr: number; created_at: string; shop_sale_items: { product_name_snapshot: string; quantity: number }[] }
+
+function MyShopPageInner() {
   const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
   const supabase = createClient()
+  const searchParams = useSearchParams()
+  const view = searchParams.get('view') // null = dashboard, 'stock' | 'catalog' = ShopCatalogSection
+
+  const [dashSummary, setDashSummary] = useState<DashSummary | null>(null)
+  const [todayBills, setTodayBills] = useState<TodayBill[]>([])
 
   const [shop, setShop] = useState<Shop | null>(null)
   const [shopLoading, setShopLoading] = useState(true)
@@ -206,6 +238,18 @@ export default function MyShopPage() {
     }
   }
   useEffect(() => { if (shop) loadProducts(shop.id) }, [shop]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadDashboard = async (shopId: string) => {
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0)
+    const [{ data: s }, { data: bills }] = await Promise.all([
+      supabase.rpc('shop_dashboard_summary', { p_shop_id: shopId }),
+      supabase.from('shop_sales').select('id, total_amount_pkr, created_at, shop_sale_items(product_name_snapshot, quantity)')
+        .eq('shop_id', shopId).gte('created_at', startOfToday.toISOString()).order('created_at', { ascending: false }).limit(8),
+    ])
+    setDashSummary(s as unknown as DashSummary)
+    setTodayBills((bills ?? []) as unknown as TodayBill[])
+  }
+  useEffect(() => { if (shop) loadDashboard(shop.id) }, [shop]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!shop) return
@@ -494,56 +538,55 @@ export default function MyShopPage() {
     )
   }
 
+  const dashLowStock = dashSummary?.low_stock_count ?? 0
+
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
-      <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-        <h1 className="font-heading text-[26px] font-bold leading-[34px] flex items-center gap-2" style={{ color: INK }}><Store size={22} /> {isUrdu && shop.name_ur ? shop.name_ur : shop.name}</h1>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {shop.commission_mode === 'per_order' && (
-            <button onClick={() => setShowTopup(true)} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
-              <Wallet size={12} /> {t('cm.topupWalletBtn')}
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme pb-16">
+      {view ? (
+        <>
+          <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+            <h1 className="font-heading text-[26px] font-bold leading-[34px] flex items-center gap-2" style={{ color: INK }}><Store size={22} /> {isUrdu && shop.name_ur ? shop.name_ur : shop.name}</h1>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {shop.commission_mode === 'per_order' && (
+                <button onClick={() => setShowTopup(true)} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
+                  <Wallet size={12} /> {t('cm.topupWalletBtn')}
+                </button>
+              )}
+              <button onClick={() => setShowAiSettings(true)} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
+                <KeyRound size={12} /> {keySaved ? t('sk.aiSettingsBtn') : t('sk.setUpAiBtn')}
+              </button>
+              <Link href="/portal/my-shop/purchase" className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
+                <PackagePlus size={12} /> {t('sk.purchaseEntryBtn')}
+              </Link>
+              <button onClick={() => setShowDeals(true)} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
+                <Tag size={12} /> {t('sk.dealsBtn')}
+              </button>
+              <button onClick={() => setShowKits(true)} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
+                <UtensilsCrossed size={12} /> {t('sk.kitsBtn')}
+              </button>
+            </div>
+          </div>
+          <p className="font-sans text-[13px] text-[#7a736d] mb-5">{t('sk.pageSubtitle')}</p>
+
+          <div className="flex items-center gap-2 flex-wrap mb-4">
+            <input ref={scanInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) runScan(f) }} />
+            <button onClick={openScanner} disabled={scanning}
+              className="flex items-center gap-2 px-4 py-2.5 text-white font-sans text-[14px] font-semibold cursor-pointer transition-all disabled:opacity-60" style={{ background: ACCENT }} onMouseEnter={(e) => !scanning && (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>
+              {scanning ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />} {scanning ? t('sk.scanningLabel') : t('sk.scanProductBtn')}
             </button>
-          )}
-          <button onClick={() => setShowAiSettings(true)} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
-            <KeyRound size={12} /> {keySaved ? t('sk.aiSettingsBtn') : t('sk.setUpAiBtn')}
-          </button>
-          <Link href="/portal/my-shop/reports" className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
-            <BarChart3 size={12} /> {t('cm.reportsBtn')}
-          </Link>
-          <Link href="/portal/my-shop/purchase" className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
-            <PackagePlus size={12} /> {t('sk.purchaseEntryBtn')}
-          </Link>
-          <button onClick={() => setShowDeals(true)} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
-            <Tag size={12} /> {t('sk.dealsBtn')}
-          </button>
-          <button onClick={() => setShowKits(true)} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
-            <UtensilsCrossed size={12} /> {t('sk.kitsBtn')}
-          </button>
-          <Link href="/portal/my-shop/sell" className="flex items-center gap-1 px-2.5 py-1.5 text-white font-sans text-[11px] whitespace-nowrap font-semibold transition-colors" style={{ background: INK }}>
-            <ShoppingCart size={12} /> {t('sk.sellBtn')}
-          </Link>
-        </div>
-      </div>
-      <p className="font-sans text-[13px] text-[#7a736d] mb-5">{t('sk.pageSubtitle')}</p>
+          </div>
 
-      <div className="flex items-center gap-2 flex-wrap mb-4">
-        <input ref={scanInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) runScan(f) }} />
-        <button onClick={openScanner} disabled={scanning}
-          className="flex items-center gap-2 px-4 py-2.5 text-white font-sans text-[14px] font-semibold cursor-pointer transition-all disabled:opacity-60" style={{ background: ACCENT }} onMouseEnter={(e) => !scanning && (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>
-          {scanning ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />} {scanning ? t('sk.scanningLabel') : t('sk.scanProductBtn')}
-        </button>
-      </div>
-
-      <ShopCatalogSection
-        shopId={shop.id}
-        primaryType={shop.primary_type}
-        products={products}
-        onAddItem={openNew}
-        onCommitted={() => loadProducts(shop.id)}
-        onInlineUpdate={inlineUpdate}
-        onScanClick={openScanner}
-        renderProduct={(p) => (
+          <ShopCatalogSection
+            shopId={shop.id}
+            primaryType={shop.primary_type}
+            products={products}
+            forceTab={view === 'catalog' ? 'addstock' : 'mystock'}
+            onAddItem={openNew}
+            onCommitted={() => loadProducts(shop.id)}
+            onInlineUpdate={inlineUpdate}
+            onScanClick={openScanner}
+            renderProduct={(p) => (
           <div key={p.id} className="bg-white border border-[#dcd8d4] overflow-hidden">
             <div className="h-28 bg-[#eeece9] relative">
               {coverByProduct[p.id] ? (
@@ -572,7 +615,116 @@ export default function MyShopPage() {
             </div>
           </div>
         )}
-      />
+          />
+        </>
+      ) : (
+        // ── S · dashboard ──────────────────────────────────────────────
+        <>
+          <div className="bg-white border border-[#dcd8d4] p-3.5">
+            <div className="flex items-start gap-2.5">
+              <div className="shrink-0 w-10 h-10 bg-[#eeece9] border border-[#c3bdb7] flex items-center justify-center font-sans text-[13px] font-extrabold" style={{ color: INK }}>
+                {(isUrdu && shop.name_ur ? shop.name_ur : shop.name).trim().charAt(0)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h1 className="font-heading text-[18px] font-bold leading-[1.9]" style={{ color: INK }}>{isUrdu && shop.name_ur ? shop.name_ur : shop.name}</h1>
+              </div>
+              <span className="shrink-0 font-sans text-[10.5px] font-bold px-2 py-1 text-white" style={{ background: ACCENT }}>{t('sk.shopOpenBadge')}</span>
+            </div>
+            <div className="flex items-center gap-2 mt-3">
+              {shop.commission_mode === 'per_order' && (
+                <button onClick={() => setShowTopup(true)} className="flex items-center gap-1 font-sans text-[11px] font-semibold cursor-pointer" style={{ color: ACCENT }}><Wallet size={12} /> {t('cm.topupWalletBtn')}</button>
+              )}
+              <button onClick={() => setShowAiSettings(true)} className="flex items-center gap-1 font-sans text-[11px] font-semibold cursor-pointer" style={{ color: ACCENT }}><KeyRound size={12} /> {keySaved ? t('sk.aiSettingsBtn') : t('sk.setUpAiBtn')}</button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <div className="p-3" style={{ background: INK }}>
+              <p className="font-sans text-[9px] font-bold uppercase tracking-[0.12em] text-white/60">{t('sk.todaySaleLabel')}</p>
+              <p className="font-heading text-[20px] font-bold text-white mt-0.5 ltr-num">{fmt(dashSummary?.today_earnings_pkr ?? 0)}</p>
+              <p className="font-sans text-[10px] text-white/75 mt-0.5 ltr-num">{dashSummary?.today_bills_count ?? 0} {t('sk.billsSuffix')}</p>
+            </div>
+            <div className="p-3" style={{ background: ACCENT }}>
+              <p className="font-sans text-[9px] font-bold uppercase tracking-[0.12em] text-white/80">{t('sk.todayProfitLabel')}</p>
+              <p className="font-heading text-[20px] font-bold text-white mt-0.5 ltr-num">{fmt(dashSummary?.today_profit_pkr ?? 0)}</p>
+            </div>
+            <div className="p-3 bg-white border border-[#dcd8d4]">
+              <p className="font-sans text-[9px] font-bold uppercase tracking-[0.12em] text-[#7a736d]">{t('sk.todayPurchaseLabel2')}</p>
+              <p className="font-heading text-[17px] font-bold mt-0.5 ltr-num" style={{ color: INK }}>{fmt(dashSummary?.today_purchase_pkr ?? 0)}</p>
+            </div>
+            <div className="p-3 bg-white border border-[#dcd8d4]">
+              <p className="font-sans text-[9px] font-bold uppercase tracking-[0.12em] text-[#7a736d]">{t('sk.stockValueLabel')}</p>
+              <p className="font-heading text-[17px] font-bold mt-0.5 ltr-num" style={{ color: INK }}>{fmt(dashSummary?.stock_value_pkr ?? 0)}</p>
+            </div>
+          </div>
+
+          <Link href="/portal/my-shop/sell" className="w-full mt-2 flex items-center gap-2.5 px-3.5 py-4 text-white cursor-pointer" style={{ background: ACCENT }}>
+            <ShoppingCart size={20} />
+            <span className="flex-1">
+              <span className="block font-heading text-[16px] font-bold leading-[1.9]">{t('sk.dashCounterBtn')}</span>
+              <span className="block font-sans text-[10.5px] opacity-90">{t('sk.dashCounterSub')}</span>
+            </span>
+            <ArrowRight size={16} className="rotate-180 rtl:rotate-0" />
+          </Link>
+
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <Link href="/portal/my-shop/purchase" className="text-start text-white p-3 cursor-pointer" style={{ background: ACCENT }}>
+              <PlusCircle size={16} />
+              <span className="block font-sans text-[12px] font-semibold mt-1.5">{t('sk.dashAddStockHeading')}</span>
+              <span className="block font-sans text-[10px] opacity-90 mt-0.5">{t('sk.dashAddStockSub')}</span>
+            </Link>
+            <Link href="/portal/my-shop?view=catalog" className="text-start bg-white border border-[#dcd8d4] p-3 cursor-pointer" style={{ borderInlineStart: `3px solid ${INK}` }}>
+              <LayoutGrid size={16} style={{ color: INK }} />
+              <span className="block font-sans text-[12px] font-semibold mt-1.5" style={{ color: INK }}>{t('sk.navCatalog')}</span>
+              <span className="block font-sans text-[10px] text-[#7a736d] mt-0.5 ltr-num">{t('sk.dashCatalogSub').replace('{n}', String(new Set(products.map((p) => p.company).filter(Boolean)).size))}</span>
+            </Link>
+          </div>
+
+          <button onClick={() => setShowDeals(true)} className="w-full mt-2 flex items-center gap-2.5 px-3.5 py-3.5 text-white cursor-pointer text-start" style={{ background: INK }}>
+            <Tag size={18} />
+            <span className="flex-1">
+              <span className="block font-sans text-[13px]">{t('sk.dealsBtn')}</span>
+              <span className="block font-sans text-[10.5px] opacity-75 mt-0.5">{t('sk.dashDealsSub')}</span>
+            </span>
+            <ArrowRight size={15} className="rotate-180 rtl:rotate-0" />
+          </button>
+
+          <button onClick={() => setShowKits(true)} className="w-full mt-2 flex items-center gap-2.5 px-3.5 py-3.5 bg-white border border-[#dcd8d4] cursor-pointer text-start" style={{ borderInlineStart: `3px solid ${INK}` }}>
+            <UtensilsCrossed size={18} style={{ color: INK }} />
+            <span className="flex-1">
+              <span className="block font-sans text-[13px]" style={{ color: INK }}>{t('sk.kitsBtn')}</span>
+              <span className="block font-sans text-[10.5px] text-[#7a736d] mt-0.5">{t('sk.dashKitsSub')}</span>
+            </span>
+            <ArrowRight size={15} className="rotate-180 rtl:rotate-0 text-[#7a736d]" />
+          </button>
+
+          {dashLowStock > 0 && (
+            <div className="border-2 p-3 mt-3 flex items-center gap-2" style={{ borderColor: ACCENT, background: '#fce3dc' }}>
+              <AlertTriangle size={16} style={{ color: ACCENT_DARK }} />
+              <span className="flex-1 font-sans text-[13px]" style={{ color: ACCENT_DARK }}>{t('sk.dashLowStockPrefix').replace('{n}', String(dashLowStock))}</span>
+              <Link href="/portal/my-shop?view=stock" className="font-sans text-[11.5px] font-semibold underline cursor-pointer" style={{ color: ACCENT_DARK }}>{t('sk.dashViewBtn')}</Link>
+            </div>
+          )}
+
+          <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-[#7a736d] mt-5 mb-2">{t('sk.dashTodaysBillsHeading')}</p>
+          {todayBills.length === 0 ? (
+            <p className="font-sans text-[13px] text-[#7a736d] text-center py-4">{t('sk.dashNoBillsToday')}</p>
+          ) : (
+            <div className="space-y-1.5">
+              {todayBills.map((b) => (
+                <div key={b.id} className="bg-white border border-[#dcd8d4] p-2.5 flex items-center gap-2.5">
+                  <span className="min-w-0 flex-1 font-sans text-[12px] text-[#7a736d] truncate">
+                    {b.shop_sale_items.map((it) => it.product_name_snapshot).join('، ')}
+                  </span>
+                  <span className="shrink-0 font-sans text-[13px] font-bold ltr-num" style={{ color: INK }}>{fmt(b.total_amount_pkr)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      <ShopBottomNav />
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
@@ -737,7 +889,7 @@ export default function MyShopPage() {
                       <div key={p.id} className="flex items-center justify-between gap-2 px-3 py-2 border-b border-[#e2ded9] last:border-b-0">
                         <label className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer">
                           <input type="checkbox" checked={!!picked} onChange={() => toggleKitItem(p.id)} style={{ accentColor: ACCENT }} />
-                          <span className="font-sans text-[13px] truncate" style={{ color: INK }}>{isUrdu && p.name_ur ? p.name_ur : p.name}</span>
+                          <span className="font-sans text-[13px] truncate" style={{ color: INK }}>{productDisplayName(p, isUrdu)}</span>
                         </label>
                         {picked && (
                           <div className="flex items-center gap-1 shrink-0">
@@ -877,7 +1029,7 @@ export default function MyShopPage() {
                       <div key={p.id} className="flex items-center justify-between gap-2 px-3 py-2 border-b border-[#e2ded9] last:border-b-0">
                         <label className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer">
                           <input type="checkbox" checked={!!picked} onChange={() => toggleDealItem(p.id)} style={{ accentColor: ACCENT }} />
-                          <span className="font-sans text-[13px] truncate" style={{ color: INK }}>{isUrdu && p.name_ur ? p.name_ur : p.name}</span>
+                          <span className="font-sans text-[13px] truncate" style={{ color: INK }}>{productDisplayName(p, isUrdu)}</span>
                         </label>
                         {picked && (
                           <div className="flex items-center gap-1 shrink-0">
