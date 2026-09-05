@@ -47,34 +47,105 @@ export async function nodeToPngBlob(node: HTMLElement): Promise<Blob> {
   })
 }
 
-export async function nodeToPdfBlob(node: HTMLElement): Promise<Blob> {
+/**
+ * What kind of *page* the PDF gets, which is a separate question from how the
+ * node was laid out:
+ *
+ *   'a4'      — a real 210×297mm sheet, the content placed on it.
+ *   'content' — the page is cut to whatever the node rendered to.
+ *
+ * 'content' is right for a thermal roll and only for a thermal roll: a roll has
+ * a fixed printable width and no page length at all, so "the page is as long as
+ * the receipt" is a truthful description of the paper. It is wrong for a sheet
+ * printer, which has a page length whether the document uses it or not.
+ */
+export type PdfPageSize = 'a4' | 'content'
+
+const A4_W_MM = 210
+const A4_H_MM = 297
+
+export async function nodeToPdfBlob(node: HTMLElement, page: PdfPageSize = 'content'): Promise<Blob> {
   const canvas = await renderNodeToCanvas(node)
   const { jsPDF } = await import('jspdf')
   const imgData = canvas.toDataURL('image/png')
   const pxToMm = 25.4 / 96
-  const widthMm = canvas.width * pxToMm / 2
-  const heightMm = canvas.height * pxToMm / 2
+  // renderNodeToCanvas rasterizes at scale 2, so halve back to CSS pixels
+  // before converting — these are the node's own on-screen millimetres.
+  const contentW = canvas.width * pxToMm / 2
+  const contentH = canvas.height * pxToMm / 2
+
+  // The A4 button used to be a label, not a page size. Every export took this
+  // branch: format [contentW, contentH] makes a *custom* page exactly as tall
+  // as whatever was rendered, so a short receipt produced a 210×270mm page and
+  // a long bill a 210×292mm one — measured, not guessed. A print dialog handed
+  // a custom page either scales it onto the real sheet or centres it, which is
+  // why "the A4 print is not A4 size at all". The page is the sheet now, and
+  // the content sits on it.
+  const isA4 = page === 'a4'
+  const pageW = isA4 ? A4_W_MM : contentW
+  const pageH = isA4 ? A4_H_MM : contentH
+
+  // Natural size wherever it fits — a bill that only fills two thirds of the
+  // sheet should leave the last third blank, exactly like every printed
+  // invoice does; stretching it to the paper would just make the type grow
+  // with the shortness of the document. Two things override that:
+  //
+  //  - Wider than the sheet is never acceptable, so width fits first. The
+  //    slip is built at 794px = 210.08mm, a hair over A4, so this trims a
+  //    fraction of a percent rather than doing real work — but a legacy skin
+  //    or a future wider document would otherwise lose its right edge.
+  //  - A document a little taller than one page shrinks to fit instead of
+  //    spilling a 5mm sliver of footer onto a second sheet. Past that (8%)
+  //    the shrink would start costing legibility, so it genuinely paginates.
+  const fit = Math.min(1, pageW / contentW)
+  let drawW = contentW * fit
+  let drawH = contentH * fit
+  if (drawH > pageH && drawH <= pageH * 1.08) {
+    const squeeze = pageH / drawH
+    drawW *= squeeze
+    drawH *= squeeze
+  }
+  const pageCount = Math.max(1, Math.ceil(drawH / pageH - 1e-6))
+  const offsetX = (pageW - drawW) / 2
+
   const pdf = new jsPDF({
-    orientation: widthMm > heightMm ? 'landscape' : 'portrait',
+    orientation: pageW > pageH ? 'landscape' : 'portrait',
     unit: 'mm',
-    format: [widthMm, heightMm],
+    format: [pageW, pageH],
   })
-  pdf.addImage(imgData, 'PNG', 0, 0, widthMm, heightMm)
+  // Top-anchored, centred across. Pages after the first place the same image
+  // shifted up by a whole page, so each sheet shows its own band of it — the
+  // standard way to paginate a raster, and the only one available here since
+  // html2canvas has already flattened the document.
+  for (let i = 0; i < pageCount; i++) {
+    if (i > 0) pdf.addPage([pageW, pageH], pageW > pageH ? 'landscape' : 'portrait')
+    pdf.addImage(imgData, 'PNG', offsetX, -i * pageH, drawW, drawH)
+  }
 
   // html2canvas flattens the document to pixels, which kills every hyperlink —
   // the Facebook/WhatsApp/Donate row and the helpline numbers all came out dead
   // in the exported file. Re-attach them as real PDF link annotations, mapped
   // from each anchor's on-screen box into page millimetres. The visual stays a
   // raster; the tappable regions come back.
+  //
+  // The scale factor is drawW/base.width, not pageW/base.width: the page is no
+  // longer necessarily the same size as the content drawn on it, so the boxes
+  // have to follow the image, offset and all, or they would drift off their
+  // own glyphs on any page that isn't a perfect 1:1 fit.
   const base = node.getBoundingClientRect()
-  const mmPerPx = base.width > 0 ? widthMm / base.width : 0
+  const mmPerPx = base.width > 0 ? drawW / base.width : 0
   if (mmPerPx > 0) {
     node.querySelectorAll('a[href]').forEach((el) => {
       const href = (el as HTMLAnchorElement).href
       if (!href || href.startsWith('blob:') || href.startsWith('javascript:')) return
       const r = el.getBoundingClientRect()
       if (r.width <= 0 || r.height <= 0) return
-      pdf.link((r.left - base.left) * mmPerPx, (r.top - base.top) * mmPerPx, r.width * mmPerPx, r.height * mmPerPx, { url: href })
+      const yAbs = (r.top - base.top) * mmPerPx
+      // A link lives on the sheet its top edge landed on; pdf.link always
+      // annotates the *current* page, so seek there first.
+      const onPage = Math.min(pageCount, Math.max(1, Math.floor(yAbs / pageH) + 1))
+      pdf.setPage(onPage)
+      pdf.link(offsetX + (r.left - base.left) * mmPerPx, yAbs - (onPage - 1) * pageH, r.width * mmPerPx, r.height * mmPerPx, { url: href })
     })
   }
 

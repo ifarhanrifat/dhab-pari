@@ -94,11 +94,21 @@ function Prose({ children, style }: { children: React.ReactNode; style?: React.C
   return <span dir="auto" style={{ unicodeBidi: 'isolate', ...style }}>{children}</span>
 }
 
-// One fact, one line: "Label / اردو: value". The label and the value it
-// introduces belong on the same row — split across two rows they read as two
-// separate facts, and on a 58mm roll that doubles the height of the meta
-// block to say the same thing.
-function Field({
+// A heading with its value on the line beneath it.
+//
+// This is the two headline facts only: who the document is for ("Received
+// From / Billed To / Donor / Paid To / Employee") and what the document is
+// ("Receipt / Bill / Payment Voucher / Salary Slip"). Both were briefly run
+// as "Label: value" on one line — a line of roll saved per fact, and on paper
+// it read as a form field rather than a heading, with the consumer's name and
+// the receipt number reduced to run-on text after a colon. Against a real
+// print the committee called it ugly and they are right: these two are the
+// things someone holding the slip looks for first, and a value that starts a
+// line is found faster than one buried mid-sentence behind a bilingual label.
+//
+// The compact one-line treatment is kept for the supporting facts below
+// (Billing Period, Due, Designation) — see the meta block.
+function Stacked({
   data, k, labelSize, valueStyle, align = 'left', children,
 }: {
   data: ReceiptData
@@ -109,10 +119,12 @@ function Field({
   children: React.ReactNode
 }) {
   return (
-    <div style={{ fontSize: labelSize, color: MUTED, textAlign: align, lineHeight: 1.5 }}>
-      <L data={data} k={k} phrase />
-      <span>: </span>
-      <span style={{ color: INK, unicodeBidi: 'isolate', ...valueStyle }}>{children}</span>
+    <div style={{ textAlign: align }}>
+      {/* phrase: on its own line the pair still may not break inside either
+          script — a long one breaks at the slash instead of dropping a lone
+          Urdu word onto a third line. */}
+      <L data={data} k={k} phrase style={{ display: 'block', fontSize: labelSize, color: MUTED, lineHeight: 1.5 }} />
+      <div style={{ color: INK, unicodeBidi: 'isolate', lineHeight: 1.35, ...valueStyle }}>{children}</div>
     </div>
   )
 }
@@ -397,7 +409,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
           only the system label stays small, muted and tracked, because that
           genuinely is a caption. Same structure on both targets so an A4
           sheet and a roll are recognisably the same document. */}
-      <div style={{ borderBottom: `2px solid ${INK}`, paddingBottom: thermal ? 8 : 18, textAlign: 'center' }}>
+      <div style={{ borderBottom: `2px solid ${INK}`, paddingBottom: thermal ? 8 : 14, textAlign: 'center' }}>
         {data.logoUrl && (
           <img
             src={data.logoUrl} alt=""
@@ -431,7 +443,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
       {/* ── Type badge: the one thing that must be readable in half a
           second — a bill, a receipt, a payment voucher and a donation
           receipt otherwise share the exact same chrome. */}
-      <div style={{ textAlign: 'center', marginTop: thermal ? 8 : 14 }}>
+      <div style={{ textAlign: 'center', marginTop: thermal ? 7 : 12 }}>
         <span
           style={{
             display: 'inline-block', padding: thermal ? '3px 11px' : '5px 18px', borderRadius: 999,
@@ -450,7 +462,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
           "label: value" on its own single line. Labels and values used to
           occupy separate rows, which meant pairing one with the other was a
           downward eye movement on a document people scan across. */}
-      <div style={{ textAlign: 'right', fontSize: f(1), color: MUTED, marginTop: thermal ? 6 : 8 }}>
+      <div style={{ textAlign: 'right', fontSize: f(1), color: MUTED, marginTop: thermal ? 5 : 6 }}>
         <Ltr>{fmtDate(data.date)}</Ltr>
       </div>
 
@@ -460,38 +472,42 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
         // each other until the Urdu name overlapped the address beneath it —
         // visible on any account whose name runs past one line. On the roll the
         // same facts run one per line instead: who the document is for, then
-        // what the document is, each label beside its own value and nothing
-        // competing for the same horizontal space.
+        // what the document is, with nothing competing for the same horizontal
+        // space.
         <div style={{ marginTop: 6 }}>
-          {/* The name reads on the same line as the label that introduces
-              it. It may still wrap onto a second line when a name is
-              genuinely long — what it may not do is start on one. */}
-          <Field data={data} k={partyKey} labelSize={f(1)} valueStyle={{ fontWeight: 600, fontSize: b(1.1) }}>
+          {/* Heading, then the name under it. On a 48mm strip the inline form
+              was the worst of both: "Billed To / بل بنام: Muhammad Ramzan s/o
+              Abdul Ghafoor" still took two lines on any real name, but broke
+              in the middle of the name rather than between the label and the
+              name — so it cost the line anyway and read worse for it. */}
+          <Stacked data={data} k={partyKey} labelSize={f(1)} valueStyle={{ fontWeight: 600, fontSize: b(1.1) }}>
             {data.accountName}
-          </Field>
+          </Stacked>
           {/* Left-aligned like the Latin name it belongs to, not flushed to the
               right by its own direction — the two are one name, not two. */}
           {data.accountNameUr && <div style={{ ...urduFont, fontSize: b(0.95), color: MUTED, lineHeight: 1.9, marginBottom: 2, textAlign: 'left' }} dir="rtl">{data.accountNameUr}</div>}
           {data.accountAddress && <div style={{ fontSize: f(1), color: MUTED, lineHeight: 1.4 }}>{data.accountAddress}</div>}
           {data.accountPhone && <div style={{ fontSize: f(1), color: MUTED, lineHeight: 1.4 }}><Ltr>{data.accountPhone}</Ltr></div>}
 
-          {/* Each fact gets its own row with real air around it.
-              These labels are deliberately NOT stacked, unlike the money rows
-              further down: the value beside them is a short number or a date,
-              not a wide bold figure, so the bilingual pair and its value fit
-              one line even on the 48mm strip. "Receipt / رسید" printing above
-              its own number was costing a line of roll per fact to no end. */}
+          {/* Two ranks of fact, deliberately shaped differently.
+              The document's own number is the headline — the thing a consumer
+              quotes back on the phone — so it gets a heading with the number
+              under it, matching the party block above. Billing Period, Due
+              and Designation stay as one-line "label  value" rows: they are
+              short supporting facts, they fit beside their label on the 48mm
+              strip with room over, and giving each of them a heading of its
+              own would add three lines of roll while flattening the hierarchy
+              that makes the number easy to find. */}
           <div style={{ marginTop: 6, borderTop: `1px solid ${RULE}`, paddingTop: 5, display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <div style={{ ...totalRow, alignItems: 'center' }}>
-              <L data={data} k={titleKey} phrase style={{ fontSize: f(1), color: MUTED, lineHeight: 1.4 }} />
+            <Stacked data={data} k={titleKey} labelSize={f(1)} valueStyle={{ fontWeight: 700, fontSize: b(1.1) }}>
               {unconfirmed
-                // The one value on the slip that is words rather than a figure,
-                // so it gets the stacked treatment and is allowed to wrap —
-                // "Not yet confirmed / ابھی تصدیق نہیں ہوئی" held on one
-                // nowrap line would run straight off a 48mm roll.
-                ? <L data={data} k="notYetConfirmed" stack={stackLabels} style={{ flexShrink: 1, fontWeight: 700, fontSize: b(0.95), color: '#b3261e', textAlign: 'right' }} />
-                : <Ltr style={{ ...moneyCell, fontWeight: 700, fontSize: b(1.1) }}>{data.receiptNo}</Ltr>}
-            </div>
+                // The one value here that is words rather than a figure, so it
+                // gets the stacked bilingual treatment and is allowed to wrap —
+                // "Not yet confirmed / ابھی تصدیق نہیں ہوئی" held on one nowrap
+                // line would run straight off a 48mm roll.
+                ? <L data={data} k="notYetConfirmed" stack={stackLabels} style={{ fontWeight: 700, fontSize: b(0.95), color: '#b3261e' }} />
+                : <Ltr>{data.receiptNo}</Ltr>}
+            </Stacked>
             {payroll?.designation && (
               <div style={{ ...totalRow, alignItems: 'center' }}>
                 <L data={data} k="designation" phrase style={{ fontSize: f(1), color: MUTED, lineHeight: 1.4 }} />
@@ -513,21 +529,29 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
           </div>
         </div>
       ) : (
-        // Two columns, but each one now carries its label and its value on
-        // the same line. This used to be a four-cell grid whose first row
-        // held both labels and whose second held both values, so "Received
-        // From / وصول کنندہ از" sat on one row with the consumer's name
-        // directly beneath it — the eye had to read down to pair a label
-        // with its own value, and on a document people scan for one fact
-        // that is a row of height spent on nothing.
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', columnGap: 16, marginTop: 10, alignItems: 'start' }}>
+        // Two columns, each a heading with its value beneath it — the party on
+        // the left, the document's own number on the right, and the shorter
+        // supporting facts under the number as one-line rows.
+        //
+        // The two headline fields spent a few hours as "Label: value" on one
+        // line. On the sheet that read as a form being filled in rather than a
+        // document being presented, and it buried the consumer's name and the
+        // receipt number behind a bilingual label the reader has to skip past
+        // every time. A heading over its value is how an invoice has always
+        // addressed its "Bill To", and it is what the committee asked for after
+        // seeing both printed.
+        //
+        // Each column is its own block rather than a shared four-cell grid, so
+        // a long label wrapping on one side cannot push the other side's value
+        // down out of alignment with it.
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', columnGap: 16, marginTop: 8, alignItems: 'start' }}>
           <div style={{ minWidth: 0 }}>
-            <Field data={data} k={partyKey} labelSize={f(1)} valueStyle={{ fontWeight: 600, fontSize: b(1.15) - 2 }}>
+            <Stacked data={data} k={partyKey} labelSize={f(1)} valueStyle={{ fontWeight: 600, fontSize: b(1.15) - 2 }}>
               {data.accountName}
-            </Field>
+            </Stacked>
           </div>
           <div style={{ minWidth: 0 }}>
-            <Field
+            <Stacked
               data={data} k={titleKey} labelSize={f(1)} align="right"
               valueStyle={unconfirmed
                 ? { fontWeight: 700, fontSize: b(0.95), color: '#b3261e' }
@@ -536,7 +560,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
               {unconfirmed
                 ? <L data={data} k="notYetConfirmed" />
                 : <Ltr>{data.receiptNo}</Ltr>}
-            </Field>
+            </Stacked>
           </div>
 
           <div style={{ minWidth: 0 }}>
@@ -569,12 +593,12 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
 
       {/* ── Body ─────────────────────────────────────────────────────── */}
       {body === 'payroll' ? (
-        <div style={{ marginTop: thermal ? 10 : 24 }}>
+        <div style={{ marginTop: thermal ? 9 : 18 }}>
           <div style={{ display: thermal ? 'block' : 'grid', gridTemplateColumns: '1fr 1fr', gap: thermal ? 0 : 28 }}>
             <div>
               <L data={data} k="earningsThisCycle" stack={stackLabels} style={{ display: 'block', fontSize: f(0.95), textTransform: 'uppercase', letterSpacing: '0.05em', color: MUTED, borderBottom: `2px solid ${INK}`, paddingBottom: 6, lineHeight: 1.9 }} />
               {payroll!.earnings.map((e, i) => (
-                <div key={i} style={{ ...totalRow, padding: thermal ? '5px 0' : '8px 0', borderBottom: `1px solid ${RULE}`, fontSize: b(1) }}>
+                <div key={i} style={{ ...totalRow, padding: thermal ? '5px 0' : '7px 0', borderBottom: `1px solid ${RULE}`, fontSize: b(1) }}>
                   <span>{e.label}</span>
                   <Ltr style={moneyCell}>{money(e.amount)}</Ltr>
                 </div>
@@ -587,15 +611,15 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
 
             <div style={{ marginTop: thermal ? 14 : 0 }}>
               <L data={data} k="settlement" stack={stackLabels} style={{ display: 'block', fontSize: f(0.95), textTransform: 'uppercase', letterSpacing: '0.05em', color: MUTED, borderBottom: `2px solid ${INK}`, paddingBottom: 6, lineHeight: 1.9 }} />
-              <div style={{ ...totalRow, padding: thermal ? '5px 0' : '8px 0', borderBottom: `1px solid ${RULE}`, fontSize: b(1) }}>
+              <div style={{ ...totalRow, padding: thermal ? '5px 0' : '7px 0', borderBottom: `1px solid ${RULE}`, fontSize: b(1) }}>
                 <L data={data} k="balanceOwed" stack={stackLabels} />
                 <Ltr style={moneyCell}>{money(payroll!.balanceOwed)}</Ltr>
               </div>
-              <div style={{ ...totalRow, padding: thermal ? '5px 0' : '8px 0', borderBottom: `1px solid ${RULE}`, fontSize: b(1), color: '#0f7a4d' }}>
+              <div style={{ ...totalRow, padding: thermal ? '5px 0' : '7px 0', borderBottom: `1px solid ${RULE}`, fontSize: b(1), color: '#0f7a4d' }}>
                 <L data={data} k="paidNow" stack={stackLabels} />
                 <Ltr style={moneyCell}>− {money(payroll!.paidNow)}</Ltr>
               </div>
-              <div style={{ ...totalRow, padding: thermal ? '5px 0' : '8px 0', fontSize: b(1) }}>
+              <div style={{ ...totalRow, padding: thermal ? '5px 0' : '7px 0', fontSize: b(1) }}>
                 <L data={data} k="carriedForward" stack={stackLabels} />
                 <Ltr style={moneyCell}>{money(payroll!.carriedForward)}</Ltr>
               </div>
@@ -604,7 +628,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
 
           {/* Net Pay is the cash actually leaving the committee today — the
               number the employee signs for, not the accrued total. */}
-          <div style={{ marginTop: thermal ? 10 : 22, paddingTop: thermal ? 8 : 14, borderTop: `2px solid ${INK}`, display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ marginTop: thermal ? 9 : 18, paddingTop: thermal ? 7 : 11, borderTop: `2px solid ${INK}`, display: 'flex', justifyContent: 'flex-end' }}>
             <div style={{ width: thermal ? '100%' : 360, ...totalRow, fontWeight: 700, fontSize: b(1.35) }}>
               <L data={data} k="netPay" stack={stackLabels} />
               <Ltr style={moneyCell}>{money(payroll!.paidNow)}</Ltr>
@@ -613,7 +637,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
         </div>
       ) : body === 'itemized' ? (
         <>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: thermal ? 10 : 24 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: thermal ? 9 : 18 }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${INK}` }}>
                 <th style={{ textAlign: 'left', paddingBottom: 6, fontSize: f(0.92), textTransform: 'uppercase', letterSpacing: '0.05em', color: MUTED, fontWeight: 600, lineHeight: 1.9 }}>
@@ -630,14 +654,14 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
                 : [{ label: data.particular, amount: data.amount + discount }]
               ).map((row, i) => (
                 <tr key={i} style={{ borderBottom: `1px solid ${RULE}` }}>
-                  <td style={{ padding: thermal ? '5px 0' : '9px 0', fontSize: b(1) }}>{row.label}</td>
-                  <td style={{ padding: thermal ? '5px 0 5px 6px' : '9px 0', textAlign: 'right', fontSize: b(1), whiteSpace: 'nowrap' }}><Ltr>{money(row.amount)}</Ltr></td>
+                  <td style={{ padding: thermal ? '5px 0' : '7px 0', fontSize: b(1) }}>{row.label}</td>
+                  <td style={{ padding: thermal ? '5px 0 5px 6px' : '7px 0', textAlign: 'right', fontSize: b(1), whiteSpace: 'nowrap' }}><Ltr>{money(row.amount)}</Ltr></td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          <div style={{ marginTop: thermal ? 8 : 18, paddingTop: thermal ? 8 : 12, borderTop: `2px solid ${INK}`, display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ marginTop: thermal ? 8 : 14, paddingTop: thermal ? 7 : 10, borderTop: `2px solid ${INK}`, display: 'flex', justifyContent: 'flex-end' }}>
             <div style={{ width: thermal ? '100%' : 360 }}>
               {discount > 0 && (
                 <div style={totalRow} >
@@ -679,7 +703,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
         // under the same "Paid To" group instead of each getting its own —
         // that grouping IS the fact being shown, not an accident of layout.
         <>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: thermal ? 10 : 24 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: thermal ? 9 : 18 }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${INK}` }}>
                 <th style={{ textAlign: 'left', paddingBottom: 6, fontSize: f(0.92), textTransform: 'uppercase', letterSpacing: '0.05em', color: MUTED, fontWeight: 600, lineHeight: 1.9 }}>
@@ -708,9 +732,9 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
                     </td>
                   </tr>
                   <tr style={{ borderBottom: `1px solid ${RULE}` }}>
-                    <td style={{ padding: thermal ? '5px 0' : '9px 0', fontSize: b(1) }}>{data.paidFromName}</td>
-                    <td style={{ padding: thermal ? '5px 0' : '9px 0' }} />
-                    <td style={{ padding: thermal ? '5px 0 5px 6px' : '9px 0', textAlign: 'right', fontSize: b(1), whiteSpace: 'nowrap' }}><Ltr>{money(data.amount)}</Ltr></td>
+                    <td style={{ padding: thermal ? '5px 0' : '7px 0', fontSize: b(1) }}>{data.paidFromName}</td>
+                    <td style={{ padding: thermal ? '5px 0' : '7px 0' }} />
+                    <td style={{ padding: thermal ? '5px 0 5px 6px' : '7px 0', textAlign: 'right', fontSize: b(1), whiteSpace: 'nowrap' }}><Ltr>{money(data.amount)}</Ltr></td>
                   </tr>
                 </>
               )}
@@ -728,9 +752,9 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
                 : [{ label: data.accountName, amount: data.amount }]
               ).map((row, i, arr) => (
                 <tr key={i} style={{ borderBottom: i === arr.length - 1 ? `1px solid ${INK}` : `1px solid ${RULE}` }}>
-                  <td style={{ padding: thermal ? '5px 0' : '9px 0', fontSize: b(1) }}>{row.label}</td>
-                  <td style={{ padding: thermal ? '5px 0 5px 6px' : '9px 0', textAlign: 'right', fontSize: b(1), whiteSpace: 'nowrap' }}><Ltr>{money(row.amount)}</Ltr></td>
-                  <td style={{ padding: thermal ? '5px 0' : '9px 0' }} />
+                  <td style={{ padding: thermal ? '5px 0' : '7px 0', fontSize: b(1) }}>{row.label}</td>
+                  <td style={{ padding: thermal ? '5px 0 5px 6px' : '7px 0', textAlign: 'right', fontSize: b(1), whiteSpace: 'nowrap' }}><Ltr>{money(row.amount)}</Ltr></td>
+                  <td style={{ padding: thermal ? '5px 0' : '7px 0' }} />
                 </tr>
               ))}
             </tbody>
@@ -755,7 +779,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
           )}
         </>
       ) : (
-        <div style={{ textAlign: 'center', marginTop: thermal ? 12 : 26 }}>
+        <div style={{ textAlign: 'center', marginTop: thermal ? 10 : 20 }}>
           <L data={data} k={isDonation ? 'donationReceived' : 'amount'} style={{ fontSize: f(1.05), color: MUTED, display: 'block' }} />
           <div style={{ fontWeight: 700, fontSize: (thermal ? b(1.9) : b(3)) - 3, marginTop: 4, letterSpacing: '-0.01em' }}>
             <Ltr>{fmt(data.amount)}</Ltr>
@@ -793,7 +817,13 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
 
       {/* ── Signature: A4 only. Thermal rolls stay compact. ──────────── */}
       {!thermal && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 40 }}>
+        // 40px of clear space above the rule, plus the rule's own 26px of
+        // reserve and the footer margin under it, stacked to nearly a
+        // centimetre and a half of empty sheet between the last figure and the
+        // dashed footer line on every short document. The signature still needs
+        // room to be signed in — that is what the 26px reserve under the rule
+        // is for — but it does not need this much air over it.
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 26 }}>
           <div style={{ textAlign: 'center' }}>
             {data.signatureUrl && <img src={data.signatureUrl} alt="" style={{ height: 38, marginLeft: 'auto', display: 'block', objectFit: 'contain' }} />}
             <div style={{ width: 170, borderBottom: `1px solid ${MUTED}`, height: data.signatureUrl ? 4 : 26 }} />
@@ -803,7 +833,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
       )}
 
       {/* ── Footer: entirely settings-driven, same block everywhere ──── */}
-      <div style={{ borderTop: `1px dashed ${RULE}`, marginTop: thermal ? 12 : 28, paddingTop: thermal ? 10 : 16, textAlign: 'center' }}>
+      <div style={{ borderTop: `1px dashed ${RULE}`, marginTop: thermal ? 10 : 20, paddingTop: thermal ? 9 : 14, textAlign: 'center' }}>
         {data.instructions && (
           <div dir="rtl" style={{ ...urduFont, fontSize: f(1.05), lineHeight: 1.9, color: MUTED }}>{data.instructions}</div>
         )}
@@ -826,7 +856,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
           <div
             style={{
               background: '#e6f4ea', borderRadius: 8, color: '#14532d',
-              padding: thermal ? '8px 8px' : '12px 16px', marginTop: 12,
+              padding: thermal ? '8px 8px' : '10px 14px', marginTop: 10,
               textAlign: 'center',
             }}
           >
@@ -861,7 +891,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
             for water bills/vouchers/salary slips, which weren't part of that
             ask. */}
         {!isDonorSystem && iconLinks.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: thermal ? 8 : iconGap, marginTop: thermal ? 10 : 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: thermal ? 8 : iconGap, marginTop: thermal ? 8 : 14 }}>
             {iconLinks.map((l) => (
               <a
                 key={l.name} href={l.href} target="_blank" rel="noopener noreferrer"

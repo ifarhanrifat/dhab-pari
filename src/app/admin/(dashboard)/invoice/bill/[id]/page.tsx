@@ -142,16 +142,19 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
   }
 
   const chooseFormat = (f: ReceiptFormat) => { setFormat(f); setPreferredFormat(f) }
+  // This screen never offers the thermal target — the document below is
+  // always rendered at sheet width — so its PDF always gets a real A4 page
+  // rather than one cut to the height of the invoice.
   const buildBlob = async () => {
     if (!nodeRef.current) throw new Error('Invoice not ready')
-    return format === 'pdf' ? nodeToPdfBlob(nodeRef.current) : nodeToPngBlob(nodeRef.current)
+    return format === 'pdf' ? nodeToPdfBlob(nodeRef.current, 'a4') : nodeToPngBlob(nodeRef.current)
   }
   const filename = () => `invoice-${data.receiptNo}.${format === 'pdf' ? 'pdf' : 'png'}`
 
   const handlePrint = async () => {
     setBusy(true)
     try {
-      const blob = await nodeToPdfBlob(nodeRef.current!)
+      const blob = await nodeToPdfBlob(nodeRef.current!, 'a4')
       printBlob(blob)
     } catch {
       toast.error('Could not prepare the invoice for printing')

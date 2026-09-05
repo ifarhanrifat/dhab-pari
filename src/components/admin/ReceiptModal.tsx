@@ -61,9 +61,16 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
     setPreferredFormat(f)
   }
 
+  // The roll gets a page cut to the receipt (a roll has no page length); the
+  // sheet target gets a real A4 page. Passing this through is the whole fix
+  // for "the A4 print is not A4 size" — the export used to size every page to
+  // the content, so the A4 button produced a custom 210×~280mm page that a
+  // print dialog then rescaled onto the actual sheet.
+  const pdfPage = () => (slipFormat === 'thermal' ? 'content' : 'a4')
+
   const buildBlob = async () => {
     if (!nodeRef.current) throw new Error('Receipt not ready')
-    return format === 'pdf' ? nodeToPdfBlob(nodeRef.current) : nodeToPngBlob(nodeRef.current)
+    return format === 'pdf' ? nodeToPdfBlob(nodeRef.current, pdfPage()) : nodeToPngBlob(nodeRef.current)
   }
 
   const filename = () => `receipt-${data.receiptNo}.${format === 'pdf' ? 'pdf' : 'png'}`
@@ -73,7 +80,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
     try {
       // Print the generated PDF in its own blob document, never the live admin page —
       // printing the page itself would leak the internal admin URL into the printout.
-      const blob = await nodeToPdfBlob(nodeRef.current!)
+      const blob = await nodeToPdfBlob(nodeRef.current!, pdfPage())
       printBlob(blob)
     } catch {
       toast.error('Could not prepare the document for printing')

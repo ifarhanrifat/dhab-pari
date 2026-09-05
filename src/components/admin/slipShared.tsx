@@ -5,8 +5,23 @@
 // start.
 import { normalizePakPhone } from '@/lib/receiptExport'
 
+// Paisa are printed only when there are paisa. A committee that bills in whole
+// rupees was getting "750.00" on every line of every document — two characters
+// of noise per figure on a 48mm roll, and a decimal point the reader has to
+// check before trusting the number. A real amount keeps its decimals.
+//
+// Deliberately all-or-nothing per figure rather than minimumFractionDigits: 0,
+// which would print 750.5 for seven hundred fifty rupees fifty paisa. Money is
+// written with both paisa digits or with none; one is a typo. The decision is
+// made on the value *as it will be shown* (rounded to two places first), so a
+// float carrying 750.000000001 from a sum reads as 750 rather than 750.00.
 export function fmt(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const rounded = Math.round(Number(n) * 100) / 100
+  const wholeRupees = Number.isInteger(rounded)
+  return rounded.toLocaleString(undefined, {
+    minimumFractionDigits: wholeRupees ? 0 : 2,
+    maximumFractionDigits: 2,
+  })
 }
 
 export function fmtDate(d: string) {

@@ -795,11 +795,18 @@ function PayslipButton({
     },
   }
 
+  // A roll has no page length, so its PDF page is cut to the slip; the sheet
+  // target gets a genuine A4 page instead of one sized to the payslip's own
+  // height, which is what made an "A4" print come out at whatever size the
+  // document happened to be. The legacy PayslipDocument is sheet-width too, so
+  // it takes the A4 branch whenever the universal slip isn't in thermal mode.
+  const pdfPage = () => (useUniversal && slipFormat === 'thermal' ? 'content' : 'a4')
+
   const buildBlob = async () => {
     if (!nodeRef.current) throw new Error('Document not ready')
-    return format === 'pdf' ? nodeToPdfBlob(nodeRef.current) : nodeToPngBlob(nodeRef.current)
+    return format === 'pdf' ? nodeToPdfBlob(nodeRef.current, pdfPage()) : nodeToPngBlob(nodeRef.current)
   }
-  const handlePrint = async () => { try { printBlob(await nodeToPdfBlob(nodeRef.current!)) } catch { toast.error(t('em.couldNotPreparePrint')) } }
+  const handlePrint = async () => { try { printBlob(await nodeToPdfBlob(nodeRef.current!, pdfPage())) } catch { toast.error(t('em.couldNotPreparePrint')) } }
   const handleDownload = async () => { try { downloadBlob(await buildBlob(), `payslip-${employee.name}-${month}-${year}.${format === 'pdf' ? 'pdf' : 'png'}`) } catch { toast.error(t('em.couldNotPrepareDoc')) } }
 
   return (
