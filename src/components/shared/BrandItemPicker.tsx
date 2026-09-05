@@ -1,25 +1,35 @@
 'use client'
 
-// Brand-first catalog browsing for the shop's "Add Stock" tab — every
-// brand valid for this shop type is visible immediately (an accordion,
-// several can be open at once), so a keeper restocking "what do I carry
-// from LU, from Tapal, from Wall's" sees real brand names and items with
-// zero taps beyond the tab itself. Departments is a secondary lens
-// (toggle at the top) for the opposite mental model ("fill my spice
-// shelf") and for the handful of general_store categories with no brand
-// coverage yet. No starter-set intro screen, no forced department drill
-// before a real item appears on screen — see the correction note this
-// replaced in AddStockWizard's git history for why that mattered.
+// Brand-first catalog browsing for the shop's "Add Stock" tab — laid out
+// to match the "Village Portal Marketplace" design handoff's own catalog
+// screen (Shop Portal v3.dc.html, "S · catalog · brands") directly: a
+// 2-column brand-card grid (tap "کیٹلاگ" to open that brand's own full
+// item list, tap the tick button to grab the whole brand at once) with
+// category chips filtering the grid, and — kept visually distinct, never
+// folded into the brand grid — an ink-bannered "کھلا سامان — بغیر برانڈ"
+// section below it, its own search bar, grouped by category under
+// ink-bar headers. Departments stays a secondary lens (toggle at the
+// top) for the handful of categories with no brand coverage at all.
+//
+// Price entry (cost/sale) still happens one step later, in
+// BulkPriceReview after "Next: Set Prices" — the design's own per-row
+// price inputs aren't reproduced inline here, since that would mean
+// teaching the tick→price→commit pipeline a second timing model just for
+// this screen. Everything else — grid shape, the brand-detail screen,
+// the loose-goods banner/search/grouping — matches the handoff file's
+// markup directly, colors and corners flow through the dp-* tokens (see
+// .shop-ink-theme in globals.css) so this file stays shared with the
+// admin shop screen's own green theme unchanged.
 
 import { useMemo, useState } from 'react'
-import { ChevronRight, ChevronDown, ChevronUp, Check, LayoutGrid, Tags, Sparkles, PackageCheck, PackagePlus } from 'lucide-react'
+import { ArrowRight, Check, LayoutGrid, Tags, Sparkles, PackagePlus, Search, X } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { getShopTypeTree, getCategoryLabel } from '@/lib/shopTypes'
 import {
   getCatalogForShopType, brandsForShopType, selectedCountByBrand, starterSetEntries,
   groupByCategory, countByDept, searchCatalogEntries, ownedKey, looseGoodsAsCatalogEntries, type CatalogEntry,
 } from '@/lib/catalogSelection'
-import { TILE_COLORS, CategoryPicker } from './CategoryBrowser'
+import { CategoryPicker } from './CategoryBrowser'
 import { DynamicIcon } from './DynamicIcon'
 import { BrandBuilderModal } from './BrandBuilderModal'
 import type { CatalogSelection } from '@/hooks/useCatalogSelection'
@@ -34,36 +44,40 @@ interface BrandItemPickerProps {
   onBrandSubmitted: () => void
 }
 
+function initials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return '?'
+  if (words.length === 1) return words[0].slice(0, 3).toUpperCase()
+  return words.slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+}
+
 export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection, onBrandSubmitted }: BrandItemPickerProps) {
   const { t, isUrdu } = useLocale()
   const tree = useMemo(() => getShopTypeTree(primaryType), [primaryType])
   const looseEntries = useMemo(() => looseGoodsAsCatalogEntries(primaryType), [primaryType])
-  // Loose goods join the flat catalog (search, "select everything", the
-  // Departments lens all read off this) — a shopkeeper searching "آٹا"
-  // should find the loose one same as a branded item would. They also get
-  // appended as one more brand-style group in the Brands lens below,
-  // rather than getting scattered across whichever category each one
-  // belongs to — "بغیر برانڈ / کھلا سامان" is meant to read as its own
-  // section, per the design handoff's own framing.
+  // Loose goods still join the flat catalog for search / "select
+  // everything" / the Departments lens — a shopkeeper searching "آٹا"
+  // should find the loose one same as a branded item would — but they
+  // are NEVER appended as a fake brand entry here; the "Brands" lens
+  // grid below only ever shows real brands, and loose goods get their
+  // own dedicated, visually distinct section underneath it, per the
+  // design handoff's own framing.
   const catalog = useMemo(() => [...getCatalogForShopType(primaryType), ...looseEntries], [primaryType, looseEntries])
-  const brands = useMemo(() => {
-    const real = brandsForShopType(primaryType)
-    return looseEntries.length > 0
-      ? [...real, { brandSlug: 'loose', brandName: 'Unbranded / Loose Goods', brandName_ur: 'بغیر برانڈ / کھلا سامان', brandIcon: 'Scale', entries: looseEntries }]
-      : real
-  }, [primaryType, looseEntries])
+  const realBrands = useMemo(() => brandsForShopType(primaryType), [primaryType])
   const starterSet = useMemo(() => starterSetEntries(primaryType), [primaryType])
   const ownedKeys = useMemo(() => new Set(ownedProducts.map((p) => ownedKey(p.name, p.flavor))), [ownedProducts])
   const availableForPick = (e: CatalogEntry) => !ownedKeys.has(ownedKey(e.item.name, e.item.flavor))
 
-  const [lens, setLens] = useState<'brands' | 'departments'>(brands.length > 0 ? 'brands' : 'departments')
-  const [openBrands, setOpenBrands] = useState<Set<string>>(new Set())
+  const [lens, setLens] = useState<'brands' | 'departments'>(realBrands.length > 0 ? 'brands' : 'departments')
+  const [catFilter, setCatFilter] = useState<string | null>(null)
+  const [openBrandSlug, setOpenBrandSlug] = useState<string | null>(null)
   const [showAddCustom, setShowAddCustom] = useState(false)
   const [showBrandBuilder, setShowBrandBuilder] = useState(false)
 
   const [activeDeptKey, setActiveDeptKey] = useState<string | null>(null)
   const [activeCatSlug, setActiveCatSlug] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [looseQuery, setLooseQuery] = useState('')
 
   const activeDept = tree.find((d) => d.key === activeDeptKey)
   const activeCat = activeDept?.categories.find((c) => c.slug === activeCatSlug)
@@ -75,11 +89,28 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
 
   const searchResults = useMemo(() => (query.trim() ? searchCatalogEntries(catalog, query) : []), [catalog, query])
 
-  const toggleBrandOpen = (slug: string) => setOpenBrands((s) => {
-    const n = new Set(s)
-    if (n.has(slug)) n.delete(slug); else n.add(slug)
-    return n
-  })
+  // Category chips over the brand grid — every category that at least
+  // one real brand actually carries, in shop-type-tree order.
+  const brandCategories = useMemo(() => {
+    const present = new Set<string>()
+    for (const b of realBrands) for (const e of b.entries) present.add(e.item.category)
+    return tree.flatMap((d) => d.categories).filter((c) => present.has(c.slug))
+  }, [realBrands, tree])
+
+  const visibleBrands = useMemo(() => {
+    if (!catFilter) return realBrands
+    return realBrands.filter((b) => b.entries.some((e) => e.item.category === catFilter))
+  }, [realBrands, catFilter])
+
+  const openBrand = realBrands.find((b) => b.brandSlug === openBrandSlug)
+
+  const looseByCategory = useMemo(() => {
+    const filtered = looseQuery.trim() ? searchCatalogEntries(looseEntries, looseQuery) : looseEntries
+    const byCat = groupByCategory(filtered)
+    return tree.flatMap((d) => d.categories).filter((c) => byCat[c.slug]?.length).map((c) => ({ slug: c.slug, entries: byCat[c.slug] }))
+  }, [looseEntries, looseQuery, tree])
+  const looseShownCount = looseByCategory.reduce((s, g) => s + g.entries.length, 0)
+
   const toggleWholeBrand = (entries: CatalogEntry[]) => {
     const pickable = entries.filter(availableForPick)
     const allSelected = pickable.length > 0 && pickable.every((e) => selection.rows[e.key])
@@ -126,6 +157,27 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
     )
   }
 
+  // A single loose-good row — tick + name, and its unit (baked into the
+  // catalog entry's own flavor field, see catalogSelection.ts) shown as a
+  // read-only badge in the same slot the design's own unit <select> sits.
+  const LooseRow = ({ e }: { e: CatalogEntry }) => {
+    const owned = !availableForPick(e)
+    const checked = !!selection.rows[e.key]
+    const name = isUrdu && e.item.name_ur ? e.item.name_ur : e.item.name
+    const unit = isUrdu ? (e.item.flavor_ur || e.item.flavor) : e.item.flavor
+    return (
+      <button type="button" disabled={owned} onClick={() => selection.toggle(e)}
+        className={`w-full flex items-center gap-3 px-3 py-2.5 border text-start transition-all rounded-lg ${owned ? 'bg-dp-surface-container/60 border-dp-outline-variant/60 cursor-default' : checked ? 'bg-dp-secondary-container/40 border-dp-secondary cursor-pointer' : 'bg-white border-dp-outline-variant hover:border-dp-secondary cursor-pointer'}`}>
+        <span className={`shrink-0 w-5 h-5 rounded flex items-center justify-center border-2 ${owned ? 'border-dp-outline-variant bg-dp-outline-variant/30' : checked ? 'bg-dp-secondary border-dp-secondary' : 'border-dp-outline-variant'}`}>
+          {(checked || owned) && <Check size={13} className="text-white" strokeWidth={3} />}
+        </span>
+        <span className="min-w-0 flex-1 font-sans text-[13.5px] font-semibold text-dp-on-surface truncate">{name}</span>
+        {unit && <span className="shrink-0 px-2 py-1 border border-dp-outline-variant rounded-lg font-sans text-[11px] text-dp-on-surface-variant bg-dp-surface-container">{unit}</span>}
+        {owned && <span className="shrink-0 font-sans text-[10px] font-bold text-dp-on-surface-variant">{t('bs.alreadyStocked')}</span>}
+      </button>
+    )
+  }
+
   return (
     <div>
       <div className="relative mb-3">
@@ -143,7 +195,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
         <>
           <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
             <div className="flex items-center gap-1.5">
-              {brands.length > 0 && (
+              {realBrands.length > 0 && (
                 <>
                   <button onClick={() => setLens('brands')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-sans font-semibold cursor-pointer border ${lens === 'brands' ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>
                     <Tags size={13} /> {t('bs.brandsLensTab')}
@@ -163,56 +215,155 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
           </div>
 
           {lens === 'brands' ? (
-            brands.length === 0 ? (
+            realBrands.length === 0 ? (
               <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('bs.noBrandsForShopType')}</p>
-            ) : (
-              <div className="space-y-2">
-                {brands.map((b) => {
-                  const open = openBrands.has(b.brandSlug)
-                  const selHere = selCountByBrand[b.brandSlug] ?? 0
-                  const byCat = groupByCategory(b.entries)
-                  return (
-                    <div key={b.brandSlug} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
-                      <div className="w-full flex items-center gap-3 px-3 py-2.5">
-                        <button type="button" onClick={() => toggleWholeBrand(b.entries)}
-                          title={t('bs.selectWholeBrand')}
-                          className={`shrink-0 w-6 h-6 rounded flex items-center justify-center border-2 cursor-pointer ${selHere === b.entries.length ? 'bg-dp-secondary border-dp-secondary' : 'border-dp-outline-variant'}`}>
-                          {selHere === b.entries.length && <Check size={14} className="text-white" strokeWidth={3} />}
-                        </button>
-                        <button type="button" onClick={() => toggleBrandOpen(b.brandSlug)} className="flex-1 flex items-center gap-2.5 min-w-0 cursor-pointer text-start">
-                          <div className="w-8 h-8 rounded-full bg-dp-secondary-container/40 text-dp-secondary flex items-center justify-center shrink-0"><DynamicIcon name={b.brandIcon} size={16} /></div>
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-sans text-[13.5px] font-bold text-dp-on-surface truncate">{isUrdu ? b.brandName_ur : b.brandName}</span>
-                            <span className="block font-sans text-[11px] text-dp-on-surface-variant">{b.entries.length} {t('mk.productsCount')}{selHere > 0 && ` · ${selHere} ${t('bs.tickedSuffix')}`}</span>
-                          </span>
-                          {open ? <ChevronUp size={16} className="text-dp-on-surface-variant shrink-0" /> : <ChevronDown size={16} className="text-dp-on-surface-variant shrink-0" />}
-                        </button>
+            ) : openBrand ? (
+              // ── Brand detail — full screen swap, matches the design's own
+              // "S · brand catalog" screen: back button, brand header, items
+              // grouped by category underneath.
+              (() => {
+                const byCat = groupByCategory(openBrand.entries)
+                const selHere = selCountByBrand[openBrand.brandSlug] ?? 0
+                return (
+                  <div>
+                    <button onClick={() => setOpenBrandSlug(null)} className="flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline cursor-pointer mb-3">
+                      <ArrowRight size={15} className="rtl:rotate-180" /> {t('bs.brandsLensTab')}
+                    </button>
+                    <div className="flex items-center gap-3 bg-dp-primary text-white rounded-lg px-3.5 py-3 mb-4">
+                      <div className="w-9 h-9 shrink-0 bg-white/15 rounded-lg flex items-center justify-center font-sans text-[11px] font-extrabold tracking-[0.02em]">{initials(openBrand.brandName)}</div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-sans text-[14.5px] font-bold truncate">{isUrdu ? openBrand.brandName_ur : openBrand.brandName}</p>
+                        <p className="font-sans text-[11px] opacity-80">{openBrand.entries.length} {t('mk.productsCount')}{selHere > 0 && ` · ${selHere} ${t('bs.tickedSuffix')}`}</p>
                       </div>
-                      {open && (
-                        <div className="px-3 pb-3 space-y-3">
-                          {Object.entries(byCat).map(([slug, entries]) => (
-                            <div key={slug}>
-                              <p className="font-sans text-[10.5px] font-bold text-dp-on-surface-variant uppercase tracking-[0.04em] mb-1.5">{getCategoryLabel(slug, isUrdu)}</p>
-                              <div className="space-y-1.5">{entries.map((e) => <ItemRow key={e.key} e={e} />)}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <button type="button" onClick={() => toggleWholeBrand(openBrand.entries)}
+                        className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-sans text-[12px] font-bold cursor-pointer ${selHere === openBrand.entries.length ? 'bg-white text-dp-primary' : 'bg-white/15 text-white'}`}>
+                        <Check size={13} strokeWidth={3} /> {selHere === openBrand.entries.length ? t('bs.deselectAllHere') : t('bs.selectAllHere')}
+                      </button>
                     </div>
-                  )
-                })}
-              </div>
+                    <div className="space-y-3">
+                      {Object.entries(byCat).map(([slug, entries]) => (
+                        <div key={slug}>
+                          <p className="font-sans text-[10.5px] font-bold text-dp-on-surface-variant uppercase tracking-[0.04em] mb-1.5">{getCategoryLabel(slug, isUrdu)}</p>
+                          <div className="space-y-1.5">{entries.map((e) => <ItemRow key={e.key} e={e} />)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()
+            ) : (
+              <>
+                {brandCategories.length > 0 && (
+                  <div className="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1">
+                    <button onClick={() => setCatFilter(null)} className={`shrink-0 px-2.5 py-1 rounded-full text-[11.5px] font-sans font-semibold cursor-pointer border ${!catFilter ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{t('cb.allTab')}</button>
+                    {brandCategories.map((c) => (
+                      <button key={c.slug} onClick={() => setCatFilter(c.slug)} className={`shrink-0 px-2.5 py-1 rounded-full text-[11.5px] font-sans font-semibold cursor-pointer border ${catFilter === c.slug ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{isUrdu ? c.label_ur : c.label}</button>
+                    ))}
+                  </div>
+                )}
+
+                <button onClick={() => setShowBrandBuilder(true)}
+                  className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 border-2 border-dashed border-dp-secondary/60 bg-dp-secondary-container/20 text-dp-secondary rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-secondary-container/40 mb-3">
+                  <PackagePlus size={15} /> {t('bb.openBuilderBtn')}
+                </button>
+
+                {visibleBrands.length === 0 ? (
+                  <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[14px]">{t('cb.noMatches')}</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {visibleBrands.map((b) => {
+                      const selHere = selCountByBrand[b.brandSlug] ?? 0
+                      const fullySelected = selHere === b.entries.length
+                      const catSlug = b.entries[0]?.item.category
+                      return (
+                        <div key={b.brandSlug} className="bg-white border border-dp-outline-variant rounded-lg p-3 flex flex-col">
+                          <div className="flex items-start gap-2">
+                            <div className="w-8 h-8 shrink-0 bg-dp-secondary-container/40 text-dp-secondary rounded-lg flex items-center justify-center font-sans text-[10px] font-extrabold tracking-[0.02em]">{initials(b.brandName)}</div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-sans text-[12.5px] font-bold text-dp-on-surface leading-tight truncate">{isUrdu ? b.brandName_ur : b.brandName}</p>
+                            </div>
+                          </div>
+                          <p className="font-sans text-[10.5px] text-dp-on-surface-variant mt-1.5">
+                            {catSlug ? getCategoryLabel(catSlug, isUrdu) : ''} · {b.entries.length} {t('mk.productsCount')}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <button type="button" onClick={() => toggleWholeBrand(b.entries)}
+                              className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg font-sans text-[11px] font-bold cursor-pointer border ${fullySelected ? 'bg-dp-secondary text-white border-dp-secondary' : selHere > 0 ? 'bg-dp-secondary-container/40 text-dp-secondary border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>
+                              {(fullySelected || selHere > 0) && <Check size={12} strokeWidth={3} />} {fullySelected ? t('bs.tickedSuffix') : selHere > 0 ? `${selHere}/${b.entries.length}` : t('bs.selectWholeBrand')}
+                            </button>
+                            <button type="button" onClick={() => setOpenBrandSlug(b.brandSlug)}
+                              className="shrink-0 px-2.5 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[11px] font-semibold text-dp-on-surface-variant cursor-pointer hover:bg-dp-surface-container">
+                              {t('bs.catalogBtn')}
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* Loose goods — its own visually distinct section, never a
+                    fake "brand" card above. */}
+                {looseEntries.length > 0 && (
+                  <div className="mt-6">
+                    <div className="flex items-end justify-between gap-3 border-b-2 border-dp-primary pb-2">
+                      <div>
+                        <p className="font-sans text-[10px] font-bold text-dp-secondary uppercase tracking-[0.14em]">{t('bs.nonBrandedKicker')}</p>
+                        <p className="font-sans text-[16px] font-bold text-dp-on-surface">{t('bs.looseGoodsHeading')}</p>
+                      </div>
+                      <p className="font-sans text-[11px] text-dp-on-surface-variant pb-0.5">{looseEntries.length} {t('mk.productsCount')}</p>
+                    </div>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2 mb-3">{t('bs.looseGoodsHint')}</p>
+
+                    <div className="flex items-center gap-2 border-2 border-dp-primary bg-white px-3 py-2 mb-3 rounded-lg">
+                      <Search size={15} className="text-dp-on-surface-variant shrink-0" />
+                      <input value={looseQuery} onChange={(e) => setLooseQuery(e.target.value)} placeholder={t('bs.searchLooseGoodsPlaceholder')}
+                        className="flex-1 min-w-0 font-sans text-[13px] text-dp-on-surface outline-none bg-transparent" />
+                      {looseQuery && <button onClick={() => setLooseQuery('')} className="shrink-0 text-dp-on-surface-variant cursor-pointer"><X size={14} /></button>}
+                      <span className="shrink-0 font-sans text-[11px] text-dp-on-surface-variant ltr-num">{looseShownCount}</span>
+                    </div>
+
+                    {looseByCategory.length === 0 ? (
+                      <p className="text-center py-6 text-dp-on-surface-variant font-sans text-[13.5px]">{t('cb.noMatches')}</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {looseByCategory.map((g) => (
+                          <div key={g.slug}>
+                            <div className="flex items-baseline gap-2 bg-dp-primary text-white px-3 py-2 rounded-lg">
+                              <span className="flex-1 font-sans text-[12.5px] font-semibold">{getCategoryLabel(g.slug, isUrdu)}</span>
+                              <span className="font-sans text-[11px] opacity-80 ltr-num">{g.entries.length}</span>
+                            </div>
+                            <div className="space-y-1.5 mt-1.5">{g.entries.map((e) => <LooseRow key={e.key} e={e} />)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {showAddCustom ? (
+                      <div className="mt-3 bg-white border-2 border-dashed border-dp-primary rounded-lg p-3">
+                        <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface mb-2">{t('bs.pickCategoryForItemHint')}</p>
+                        <CategoryPicker primaryType={primaryType} value="" onPick={(slug) => { selection.addCustomRow(slug); setShowAddCustom(false) }} />
+                        <button onClick={() => setShowAddCustom(false)} className="mt-2 font-sans text-[12px] text-dp-on-surface-variant hover:underline cursor-pointer">{t('action.cancel')}</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setShowAddCustom(true)}
+                        className="w-full mt-3 flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-dp-primary bg-dp-surface-container/40 text-dp-on-surface rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+                        {t('bs.addLooseGoodBtn')}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
             )
           ) : !activeDept ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {tree.map((d, i) => {
-                const color = TILE_COLORS[i % TILE_COLORS.length]
+              {tree.map((d) => {
                 const total = deptCounts[d.key] ?? 0
                 const selHere = catalog.filter((e) => d.categories.some((c) => c.slug === e.item.category) && selection.rows[e.key]).length
                 return (
                   <button key={d.key} onClick={() => { setActiveDeptKey(d.key); setActiveCatSlug(null) }}
                     className="flex flex-col items-center gap-2 bg-white border border-dp-outline-variant rounded-xl p-4 text-center hover:border-dp-secondary hover:shadow-sm transition-all cursor-pointer">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${color.bg} ${color.text}`}><DynamicIcon name={d.icon} size={22} /></div>
+                    <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-dp-secondary-container/40 text-dp-secondary"><DynamicIcon name={d.icon} size={22} /></div>
                     <span className="font-sans text-[12.5px] font-semibold text-dp-on-surface leading-tight">{isUrdu ? d.label_ur : d.label}</span>
                     <span className="font-sans text-[10.5px] font-bold text-dp-on-surface-variant">{total === 0 ? t('bs.noCatalogItems') : `${selHere} / ${total}`}</span>
                   </button>
@@ -223,12 +374,11 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
             <>
               <div className="flex items-center gap-1.5 mb-3 font-sans text-[13px]">
                 <button onClick={() => setActiveDeptKey(null)} className="font-semibold text-dp-secondary hover:underline cursor-pointer">{t('cb.departmentsHeading')}</button>
-                <ChevronRight size={14} className="text-dp-on-surface-variant rtl:rotate-180" />
+                <ArrowRight size={14} className="text-dp-on-surface-variant rotate-180 rtl:rotate-0" />
                 <span className="font-semibold text-dp-on-surface">{isUrdu ? activeDept.label_ur : activeDept.label}</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {activeDept.categories.map((c, i) => {
-                  const color = TILE_COLORS[i % TILE_COLORS.length]
+                {activeDept.categories.map((c) => {
                   const total = (catalogByCategory[c.slug] ?? []).length
                   const selHere = catSelectedCount(c.slug)
                   const availableHere = catKeysAvailable(c.slug)
@@ -236,7 +386,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                     <div key={c.slug} className="relative">
                       <button onClick={() => setActiveCatSlug(c.slug)}
                         className="w-full flex flex-col items-center gap-2 bg-white border border-dp-outline-variant rounded-xl p-4 text-center hover:border-dp-secondary hover:shadow-sm transition-all cursor-pointer">
-                        <div className={`w-11 h-11 rounded-full flex items-center justify-center ${color.bg} ${color.text}`}><DynamicIcon name={activeDept.icon} size={20} /></div>
+                        <div className="w-11 h-11 rounded-lg flex items-center justify-center bg-dp-secondary-container/40 text-dp-secondary"><DynamicIcon name={activeDept.icon} size={20} /></div>
                         <span className="font-sans text-[12px] font-semibold text-dp-on-surface leading-tight">{isUrdu ? c.label_ur : c.label}</span>
                         <span className="font-sans text-[10px] font-bold text-dp-on-surface-variant">{total === 0 ? t('bs.noCatalogItems') : `${selHere} / ${total}`}</span>
                       </button>
@@ -255,9 +405,9 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
             <>
               <div className="flex items-center gap-1.5 mb-3 font-sans text-[13px] flex-wrap">
                 <button onClick={() => setActiveDeptKey(null)} className="font-semibold text-dp-secondary hover:underline cursor-pointer">{t('cb.departmentsHeading')}</button>
-                <ChevronRight size={14} className="text-dp-on-surface-variant rtl:rotate-180" />
+                <ArrowRight size={14} className="text-dp-on-surface-variant rotate-180 rtl:rotate-0" />
                 <button onClick={() => setActiveCatSlug(null)} className="font-semibold text-dp-secondary hover:underline cursor-pointer">{isUrdu ? activeDept.label_ur : activeDept.label}</button>
-                <ChevronRight size={14} className="text-dp-on-surface-variant rtl:rotate-180" />
+                <ArrowRight size={14} className="text-dp-on-surface-variant rotate-180 rtl:rotate-0" />
                 <span className="font-semibold text-dp-on-surface">{isUrdu ? activeCat.label_ur : activeCat.label}</span>
               </div>
               {itemsInCat.length === 0 ? (
@@ -266,7 +416,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                 <>
                   <div className="flex items-center justify-between gap-2 mb-3">
                     <button onClick={() => toggleWholeCategory(activeCat.slug)} className="flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline cursor-pointer">
-                      <PackageCheck size={14} /> {catSelectedCount(activeCat.slug) === itemsInCat.length ? t('bs.deselectAllHere') : t('bs.selectAllHere')}
+                      {catSelectedCount(activeCat.slug) === itemsInCat.length ? t('bs.deselectAllHere') : t('bs.selectAllHere')}
                     </button>
                     <span className="font-sans text-[11.5px] font-bold text-dp-on-surface-variant">{catSelectedCount(activeCat.slug)} / {itemsInCat.length}</span>
                   </div>
@@ -276,34 +426,6 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
               <button onClick={() => selection.addCustomRow(activeCat.slug)}
                 className="w-full mt-4 flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-dp-secondary/50 bg-dp-secondary-container/20 text-dp-secondary rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-secondary-container/40">
                 {t('bs.addYourOwnItemBtn')}
-              </button>
-            </>
-          )}
-
-          {lens === 'brands' && (
-            <>
-              {showAddCustom ? (
-                <div className="mt-4 bg-dp-surface-container rounded-lg p-3">
-                  <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface mb-2">{t('bs.pickCategoryForItemHint')}</p>
-                  <CategoryPicker primaryType={primaryType} value="" onPick={(slug) => { selection.addCustomRow(slug); setShowAddCustom(false) }} />
-                  <button onClick={() => setShowAddCustom(false)} className="mt-2 font-sans text-[12px] text-dp-on-surface-variant hover:underline cursor-pointer">{t('action.cancel')}</button>
-                </div>
-              ) : (
-                <button onClick={() => setShowAddCustom(true)}
-                  className="w-full mt-4 flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-dp-secondary/50 bg-dp-secondary-container/20 text-dp-secondary rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-secondary-container/40">
-                  {t('bs.addYourOwnItemBtn')}
-                </button>
-              )}
-              {/* Distinct from "add your own item" above: that's a quick
-                  one-off row straight into this basket, no brand name, no
-                  review. This is for a whole BRAND missing from the shared
-                  catalog — goes into this shop instantly too, but also
-                  queues a real submission for the committee (§3, migration
-                  435), so the next shop that needs it isn't starting from
-                  zero either. */}
-              <button onClick={() => setShowBrandBuilder(true)}
-                className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface-variant cursor-pointer hover:bg-dp-surface-container">
-                <PackagePlus size={15} /> {t('bb.openBuilderBtn')}
               </button>
             </>
           )}

@@ -18,7 +18,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { takeNativePhoto } from '@/lib/nativeCamera'
+import { takeNativePhoto, openCameraAppSettings, CameraPermissionDeniedError } from '@/lib/nativeCamera'
 import { WalletTopupModal } from '@/components/portal/WalletTopupModal'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { getCategoryLabel } from '@/lib/shopTypes'
@@ -201,8 +201,12 @@ export default function MyShopPage() {
       try {
         const file = await takeNativePhoto()
         if (file) runScan(file)
-      } catch {
-        // user backed out of the camera sheet — nothing to report
+      } catch (err) {
+        if (err instanceof CameraPermissionDeniedError) {
+          toast.error(t('sk.cameraPermissionDeniedToast'), { action: { label: t('af.openSettingsBtn'), onClick: () => openCameraAppSettings() } })
+        }
+        // Any other rejection is getPhoto() reporting the user backed out
+        // of the camera sheet without taking a photo — not a real error.
       }
       return
     }
@@ -381,7 +385,7 @@ export default function MyShopPage() {
   }
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'}>
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
       <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
         <h1 className="font-heading text-[26px] font-bold leading-[34px] flex items-center gap-2" style={{ color: INK }}><Store size={22} /> {isUrdu && shop.name_ur ? shop.name_ur : shop.name}</h1>
         <div className="flex items-center gap-2">

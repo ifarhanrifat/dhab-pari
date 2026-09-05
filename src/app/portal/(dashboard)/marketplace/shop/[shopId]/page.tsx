@@ -273,7 +273,7 @@ export default function ShopDetailPage() {
   if (!shop) return <div className="text-center py-12 text-[#7a736d] font-sans">{t('mp.shopNotFound')}</div>
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'}>
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
       <button onClick={() => router.push('/portal/marketplace')} className="inline-flex items-center gap-1.5 font-sans text-[13.5px] font-semibold hover:underline cursor-pointer mb-4" style={{ color: ACCENT }}>
         <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('mp.backToMarketplace')}
       </button>

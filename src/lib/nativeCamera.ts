@@ -19,13 +19,51 @@
 // Web: returns null, telling the caller to fall back to its own
 // <input capture> click — that already works fine in a browser tab and
 // this file has no reason to reimplement it.
+//
+// Permission is checked/requested EXPLICITLY, as its own awaited step,
+// before ever calling getPhoto() — reported bug: first tap shows the OS
+// camera-permission dialog, user grants it, but no camera opens, and a
+// second tap does nothing either. getPhoto() is documented to request
+// permission internally and continue on to launch the camera in the same
+// call, but that hand-off is exactly what was failing here — once
+// getPhoto() has already returned (rejected) for a call made before
+// permission existed, nothing retries it automatically. Requesting
+// permission first, as a separate awaited round-trip, means the actual
+// getPhoto() call that launches the camera only ever happens once the OS
+// has already confirmed access is granted — no reliance on the plugin's
+// own internal chaining. A denial (including "don't ask again", which
+// Android answers instantly with no dialog on the next attempt) throws
+// CameraPermissionDeniedError so the caller can point the shopkeeper at
+// Settings instead of the tap silently doing nothing a second time.
 
-import { Capacitor } from '@capacitor/core'
+export class CameraPermissionDeniedError extends Error {
+  constructor() { super('Camera permission denied') }
+}
+
+// Same in-app AppSettings plugin LocationSettingsModal already uses to
+// deep-link straight to this app's system settings page — see that
+// component's header comment for why it's a small explicit-registration
+// plugin rather than a third-party settings package.
+interface AppSettingsPlugin { openAppDetailsSettings(): Promise<{ status: boolean }> }
+
+export async function openCameraAppSettings(): Promise<void> {
+  const { registerPlugin } = await import('@capacitor/core')
+  const AppSettings = registerPlugin<AppSettingsPlugin>('AppSettings')
+  await AppSettings.openAppDetailsSettings()
+}
 
 export async function takeNativePhoto(): Promise<File | null> {
+  const { Capacitor } = await import('@capacitor/core')
   if (!Capacitor.isNativePlatform()) return null
 
   const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera')
+
+  const current = await Camera.checkPermissions()
+  if (current.camera !== 'granted') {
+    const requested = await Camera.requestPermissions({ permissions: ['camera'] })
+    if (requested.camera !== 'granted') throw new CameraPermissionDeniedError()
+  }
+
   const photo = await Camera.getPhoto({
     resultType: CameraResultType.Uri,
     source: CameraSource.Camera,

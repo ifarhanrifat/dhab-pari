@@ -38,7 +38,58 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* --- Dhab Pari Design System Colors --- */
+  /* --- Fonts --- */
+  --font-sans: var(--font-source-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-playfair);
+  --font-urdu: var(--font-noto-nastaliq);
+  --font-quran: var(--font-noto-naskh);
+
+  /* --- Font sizes (design system scale) --- */
+  --font-size-display-lg: 48px;
+  --font-size-display-lg--line-height: 60px;
+  --font-size-headline-lg: 32px;
+  --font-size-headline-lg--line-height: 40px;
+  --font-size-headline-lg-mobile: 24px;
+  --font-size-headline-lg-mobile--line-height: 32px;
+  --font-size-title-md: 20px;
+  --font-size-title-md--line-height: 28px;
+  --font-size-body-lg: 18px;
+  --font-size-body-lg--line-height: 28px;
+  --font-size-body-md: 16px;
+  --font-size-body-md--line-height: 24px;
+  --font-size-label-sm: 14px;
+  --font-size-label-sm--line-height: 20px;
+  --font-size-urdu-body: 18px;
+  --font-size-urdu-body--line-height: 36px;
+
+  /* --- Spacing --- */
+  --spacing-unit: 4px;
+  --spacing-gutter: 24px;
+  --spacing-container-max: 1200px;
+  --spacing-margin-mobile: 16px;
+  --spacing-margin-desktop: 40px;
+
+  /* --- Radius --- */
+  --radius-3xl: 1.25rem;
+  --radius-4xl: 1.5rem;
+}
+
+/* Dhab Pari Design System Colors + radius scale — deliberately NOT inside
+   the `@theme inline` block above. Every one of these values is a plain
+   literal (never itself a var() reference, unlike the shadcn bindings and
+   font stacks above, which DO need `inline` so they keep tracking
+   `--background`/`--font-source-sans` etc. reactively), so there's no
+   reason to inline them — and every reason not to: `@theme inline` bakes
+   the theme value straight into each generated utility at build time
+   (`.bg-dp-secondary { background-color: #006c4e }`), which is exactly
+   why the `.shop-ink-theme` override below used to silently do nothing —
+   redefining --color-dp-secondary in a wrapper class had no effect on
+   utilities that never referenced the variable at runtime in the first
+   place. A plain `@theme` block emits real `var(--color-dp-secondary)`
+   in the utility, so overriding the variable in a descendant selector
+   (any `.shop-ink-theme`) actually re-skins it. */
+@theme {
   --color-dp-primary: #00372c;
   --color-dp-primary-container: #085041;
   --color-dp-on-primary: #ffffff;
@@ -77,47 +128,11 @@
   --color-dp-tertiary-fixed: #8af7cf;
   --color-dp-tertiary-fixed-dim: #6edab4;
   --color-dp-surface-tint: #2a6959;
-
-  /* --- Fonts --- */
-  --font-sans: var(--font-source-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-playfair);
-  --font-urdu: var(--font-noto-nastaliq);
-  --font-quran: var(--font-noto-naskh);
-
-  /* --- Font sizes (design system scale) --- */
-  --font-size-display-lg: 48px;
-  --font-size-display-lg--line-height: 60px;
-  --font-size-headline-lg: 32px;
-  --font-size-headline-lg--line-height: 40px;
-  --font-size-headline-lg-mobile: 24px;
-  --font-size-headline-lg-mobile--line-height: 32px;
-  --font-size-title-md: 20px;
-  --font-size-title-md--line-height: 28px;
-  --font-size-body-lg: 18px;
-  --font-size-body-lg--line-height: 28px;
-  --font-size-body-md: 16px;
-  --font-size-body-md--line-height: 24px;
-  --font-size-label-sm: 14px;
-  --font-size-label-sm--line-height: 20px;
-  --font-size-urdu-body: 18px;
-  --font-size-urdu-body--line-height: 36px;
-
-  /* --- Spacing --- */
-  --spacing-unit: 4px;
-  --spacing-gutter: 24px;
-  --spacing-container-max: 1200px;
-  --spacing-margin-mobile: 16px;
-  --spacing-margin-desktop: 40px;
-
-  /* --- Radius --- */
   --radius-sm: 0.125rem;
   --radius-md: 0.25rem;
   --radius-lg: 0.5rem;
   --radius-xl: 0.75rem;
   --radius-2xl: 1rem;
-  --radius-3xl: 1.25rem;
-  --radius-4xl: 1.5rem;
   --radius-full: 9999px;
 }
 
@@ -645,4 +660,63 @@ html[lang='ur'] .leading-snug { line-height: 1.6 !important; }
 html[lang='ur'] .section-title {
   text-align: right;
   direction: rtl;
+}
+
+/* ── Shop portal: ink/accent theme override (2026-09-06) ──────────────
+   The "Village Portal Marketplace" handoff zip's own palette — ink
+   #201e1d, accent #ec3013 — applied by overriding the app's own dp-*
+   design tokens WITHIN this class, rather than editing every dp-*
+   className in every shop-related component by hand. Tailwind v4
+   generates every bg-dp-, text-dp-, border-dp- and accent-dp- utility as
+   var(--color-dp-...), so redefining those custom properties here
+   re-skins EVERYTHING painted inside a `.shop-ink-theme` wrapper —
+   including the shared catalog components (ShopCatalogSection,
+   CategoryBrowser, BrandItemPicker, StockListView, BulkPriceReview,
+   BrandBuilderModal) that a first restyle pass touched page-by-page and
+   missed, since those are also reused by the ADMIN shop screen, which
+   must keep the rest of the admin panel's own green theme untouched.
+   This scopes the swap to wherever a portal shop page actually wraps
+   itself in the class, and nowhere else.
+
+   --radius-lg/-md/-full are the same mechanism for corners — the
+   design's own cards are square, and Tailwind's rounded-* utilities are
+   just as var()-driven as the colors.
+
+   .input-field is the one thing that does NOT flow through dp-* tokens
+   (it's written with literal hex in its own @apply rule, used by every
+   form field in the whole app, admin included) — overridden explicitly
+   below so shop forms actually pick up ink/accent too. */
+.shop-ink-theme {
+  --color-dp-primary: #201e1d;
+  --color-dp-primary-container: #f7f6f5;
+  --color-dp-secondary: #ec3013;
+  --color-dp-secondary-container: #fce3dc;
+  --color-dp-on-surface: #201e1d;
+  --color-dp-on-surface-variant: #7a736d;
+  --color-dp-outline: #7a736d;
+  --color-dp-outline-variant: #dcd8d4;
+  --color-dp-surface: #ffffff;
+  --color-dp-surface-dim: #eeece9;
+  --color-dp-surface-bright: #ffffff;
+  --color-dp-surface-container-lowest: #ffffff;
+  --color-dp-surface-container-low: #f7f6f5;
+  --color-dp-surface-container: #eeece9;
+  --color-dp-surface-container-high: #e2ded9;
+  --color-dp-surface-container-highest: #dcd8d4;
+  --color-dp-error: #ae1800;
+  --color-dp-error-container: #fce3dc;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-full: 0px;
+}
+.shop-ink-theme .input-field {
+  border-color: #dcd8d4;
+  color: #201e1d;
+  border-radius: 0;
+}
+.shop-ink-theme .input-field:focus {
+  border-color: #ec3013;
 }
