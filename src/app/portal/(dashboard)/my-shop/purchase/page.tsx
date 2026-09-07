@@ -30,7 +30,7 @@ const INK = '#201e1d'
 const ACCENT = '#ec3013'
 
 interface Shop { id: string; name: string; name_ur: string | null }
-interface Product { id: string; name: string; name_ur: string | null; company: string | null; flavor: string | null; flavor_ur: string | null; cost_price_pkr: number; quantity_on_hand: number }
+interface Product { id: string; name: string; name_ur: string | null; company: string | null; flavor: string | null; flavor_ur: string | null; cost_price_pkr: number; quantity_on_hand: number; unit: string }
 
 function displayName(p: { name: string; name_ur: string | null; flavor: string | null; flavor_ur: string | null }, isUrdu: boolean) {
   const name = isUrdu && p.name_ur ? p.name_ur : p.name
@@ -41,7 +41,7 @@ function displayName(p: { name: string; name_ur: string | null; flavor: string |
 // moment this line was added — used only to preview the resulting
 // weighted-average cost live; the actual average is always recomputed
 // server-side by record_shop_purchase itself, this is purely a preview.
-interface Line { product_id: string; name: string; unit_cost_pkr: number; quantity: number; existingQty: number; existingCost: number }
+interface Line { product_id: string; name: string; unit: string; unit_cost_pkr: number; quantity: number; existingQty: number; existingCost: number }
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -66,7 +66,7 @@ export default function PurchaseEntryPage() {
     supabase.from('shops').select('id, name, name_ur').eq('portal_user_id', user.id).maybeSingle().then(({ data }) => {
       setShop(data)
       if (data) {
-        supabase.from('shop_products').select('id, name, name_ur, company, flavor, flavor_ur, cost_price_pkr, quantity_on_hand')
+        supabase.from('shop_products').select('id, name, name_ur, company, flavor, flavor_ur, cost_price_pkr, quantity_on_hand, unit')
           .eq('shop_id', data.id).eq('is_active', true).order('name')
           .then(({ data: p }) => { setProducts(p ?? []); setLoading(false) })
       } else setLoading(false)
@@ -77,7 +77,7 @@ export default function PurchaseEntryPage() {
     setLines((rows) => {
       const existing = rows.find((r) => r.product_id === p.id)
       if (existing) return rows.map((r) => r.product_id === p.id ? { ...r, quantity: r.quantity + 1 } : r)
-      return [...rows, { product_id: p.id, name: displayName(p, isUrdu), unit_cost_pkr: p.cost_price_pkr, quantity: 1, existingQty: p.quantity_on_hand, existingCost: p.cost_price_pkr }]
+      return [...rows, { product_id: p.id, name: displayName(p, isUrdu), unit: p.unit, unit_cost_pkr: p.cost_price_pkr, quantity: 1, existingQty: p.quantity_on_hand, existingCost: p.cost_price_pkr }]
     })
     setShowSearch(false)
     setSearch('')
@@ -111,7 +111,7 @@ export default function PurchaseEntryPage() {
     toast.success(t('sk.purchaseCompletedToast'))
     setLines([])
     setSupplier('')
-    supabase.from('shop_products').select('id, name, name_ur, company, flavor, flavor_ur, cost_price_pkr, quantity_on_hand')
+    supabase.from('shop_products').select('id, name, name_ur, company, flavor, flavor_ur, cost_price_pkr, quantity_on_hand, unit')
       .eq('shop_id', shop!.id).eq('is_active', true).order('name').then(({ data }) => setProducts(data ?? []))
   }
 
@@ -145,16 +145,26 @@ export default function PurchaseEntryPage() {
                 <MarqueeText text={r.name} className="font-sans text-[13.5px] font-semibold" style={{ color: INK }} />
                 <button onClick={() => removeLine(r.product_id)} className="p-1 cursor-pointer shrink-0" style={{ color: ACCENT }}><Trash2 size={14} /></button>
               </div>
-              {r.existingQty > 0 && <p className="font-sans text-[10.5px] text-[#7a736d] mb-1.5">{t('sk.currentlyOnHandLabel').replace('{qty}', fmt(r.existingQty)).replace('{cost}', fmt(r.existingCost))}</p>}
+              {/* The unit shown here is whatever's set on the product's own
+                  edit form (pencil button) — this screen only ever adds
+                  quantity + cost IN that unit, it never changes what the
+                  unit itself is. A shopkeeper searching a plain-item like
+                  Banana that's still at its "عدد" (piece) default needs to
+                  fix that on the edit form FIRST, or every number entered
+                  here is priced/counted per piece, not per دوزن. */}
+              <p className="font-sans text-[10.5px] text-[#7a736d] mb-1.5">
+                {t('sk.buyingInUnitHint').replace('{unit}', r.unit)}
+                {r.existingQty > 0 && ' · ' + t('sk.currentlyOnHandLabel').replace('{qty}', fmt(r.existingQty)).replace('{cost}', fmt(r.existingCost))}
+              </p>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-sans text-[11.5px] text-[#7a736d]">{t('sk.costPriceLabel')}</span>
+                  <span className="font-sans text-[11.5px] text-[#7a736d]">{t('sk.costPriceLabel')} <span className="ltr-num">({r.unit})</span></span>
                   <input type="number" value={r.unit_cost_pkr || ''} onChange={(e) => setCost(r.product_id, +e.target.value)}
                     className="w-20 px-2 py-1 border text-[13px] font-sans text-center ltr-num" style={{ borderColor: '#f4a68f', background: '#fce3dc', color: '#ae1800' }} />
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button onClick={() => setQty(r.product_id, r.quantity - 1)} className="w-8 h-8 border border-[#dcd8d4] flex items-center justify-center cursor-pointer hover:border-[#201e1d] transition-colors"><Minus size={14} /></button>
-                  <span className="w-6 text-center font-sans text-[14px] font-bold ltr-num" style={{ color: INK }}>{r.quantity}</span>
+                  <span className="text-center font-sans text-[14px] font-bold ltr-num whitespace-nowrap px-1" style={{ color: INK }}>{r.quantity} {r.unit}</span>
                   <button onClick={() => setQty(r.product_id, r.quantity + 1)} className="w-8 h-8 border border-[#dcd8d4] flex items-center justify-center cursor-pointer hover:border-[#201e1d] transition-colors"><Plus size={14} /></button>
                 </div>
               </div>

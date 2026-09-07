@@ -120,7 +120,8 @@ export function ShopCatalogSection<P extends StockListProduct>({
             </div>
           )}
 
-          <BrandItemPicker shopId={shopId} primaryType={primaryType} ownedProducts={products} selection={selection} onBrandSubmitted={onCommitted} onScanClick={onScanClick} />
+          <BrandItemPicker shopId={shopId} primaryType={primaryType} ownedProducts={products} selection={selection} onBrandSubmitted={onCommitted} onScanClick={onScanClick}
+            onEditOwned={(productId) => { const p = products.find((pr) => pr.id === productId); if (p) onEditProduct(p) }} />
         </>
       )}
     </div>

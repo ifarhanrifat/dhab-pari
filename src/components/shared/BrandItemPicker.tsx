@@ -10,14 +10,20 @@
 // Ticking commits immediately — there is no separate "Save" step here at
 // all. A tap on an un-owned row inserts it into shop_products right then
 // at cost=0/sale=0 and a default unit; a tap on an already-owned row
-// deletes that real row. Pricing was originally settable right here too
-// (an editable cost/sale/unit per row, both before and after the tick),
-// but that meant three different places could set a product's price
-// (here, again after ticking, and the actual product edit form) with no
-// clear answer for which one was "the real one" — a real, confirmed
-// complaint. The pencil button on the product edit form (my-shop/
-// page.tsx's openEdit) is now the ONLY place price/sale/unit/expiry get
-// set; every row here is purely tick-to-add.
+// opens that product's own edit form instead of un-ticking (removing)
+// it — un-ticking one row at a time to delete stopped being the point
+// once there was nothing left to edit inline (uncommitEntries is still
+// real and still used, just from the whole-brand/whole-category/
+// select-everything toggles, where "everything here is already owned,
+// tapping again means remove all of it" is still the right call).
+// Pricing was originally settable right here too (an editable cost/
+// sale/unit per row, both before and after the tick), but that meant
+// three different places could set a product's price (here, again
+// after ticking, and the actual product edit form) with no clear answer
+// for which one was "the real one" — a real, confirmed complaint. The
+// pencil button on the product edit form (my-shop/page.tsx's openEdit)
+// is now the ONLY place price/sale/unit/expiry get set; an owned row
+// here shows those values read-only.
 //
 // ItemRow is hoisted to module scope on purpose — defining it inside
 // BrandItemPicker's own function body (an earlier version of this file
@@ -44,7 +50,7 @@ import type { CatalogSelection } from '@/hooks/useCatalogSelection'
 
 interface OwnedProduct {
   id: string; name: string; flavor?: string | null
-  cost_price_pkr?: number; unit_price_pkr?: number; unit?: string
+  cost_price_pkr?: number; unit_price_pkr?: number; unit?: string; quantity_on_hand?: number
 }
 
 interface BrandItemPickerProps {
@@ -54,6 +60,12 @@ interface BrandItemPickerProps {
   selection: CatalogSelection
   onBrandSubmitted: () => void
   onScanClick?: () => void
+  // A row that's already owned shows its real cost/sale/margin/stock
+  // (read-only — see ItemRow's own comment) and tapping it comes here
+  // instead of un-ticking it, wired to the same pencil-button edit form
+  // as everywhere else. Optional only so a caller that hasn't wired it
+  // yet still falls back to the old toggle-to-remove behavior.
+  onEditOwned?: (productId: string) => void
 }
 
 function initials(name: string): string {
@@ -71,30 +83,49 @@ function initials(name: string): string {
 // button — three different places doing the same job, easy to lose
 // track of which one you last touched. The pencil button (my-shop/
 // page.tsx's openEdit) is now the ONLY place price/sale/unit/expiry get
-// set — every row here is purely tick-to-add-at-default-price, exactly
-// like ItemRow already was for plain catalog items. VariantRow and
-// LooseRow used to be separate, wider components specifically to fit
-// those now-removed inputs; with nothing left to fit, they're gone and
-// every row in this file (plain items, brand variants, loose goods)
-// renders through this one shared component.
-interface ItemRowProps { e: CatalogEntry; isUrdu: boolean; label: string; owned: boolean; busy: boolean; onToggle: () => void }
-function ItemRow({ e, isUrdu, label, owned, busy, onToggle }: ItemRowProps) {
+// set. An unowned row is purely tick-to-add-at-default-price, exactly
+// like before; an OWNED row shows its real cost/sale/margin/stock
+// read-only and tapping it opens that same edit form instead of
+// un-ticking (removing) it — un-ticking to delete stopped making sense
+// as the only interaction once there was nothing left to edit inline.
+// VariantRow and LooseRow used to be separate, wider components
+// specifically to fit those now-removed inputs; with nothing left to
+// fit, they're gone and every row in this file (plain items, brand
+// variants, loose goods) renders through this one shared component.
+interface ItemRowProps {
+  e: CatalogEntry; isUrdu: boolean; label: string; owned: boolean; busy: boolean; onToggle: () => void
+  ownedInfo?: OwnedProduct; onEdit?: () => void; t: (k: string) => string
+}
+function ItemRow({ e, isUrdu, label, owned, busy, onToggle, ownedInfo, onEdit, t }: ItemRowProps) {
+  const cost = ownedInfo?.cost_price_pkr ?? 0
+  const sale = ownedInfo?.unit_price_pkr ?? 0
+  const margin = sale > 0 ? Math.round(((sale - cost) / sale) * 100) : null
+  const handleClick = owned && onEdit ? onEdit : onToggle
   return (
-    <button type="button" disabled={busy} onClick={onToggle}
-      className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg border text-start transition-all ${owned ? 'bg-dp-secondary-container/40 border-dp-secondary' : 'bg-white border-dp-outline-variant hover:border-dp-secondary'} ${busy ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
+    <button type="button" disabled={!owned && busy} onClick={handleClick}
+      className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg border text-start transition-all ${owned ? 'bg-dp-secondary-container/40 border-dp-secondary' : 'bg-white border-dp-outline-variant hover:border-dp-secondary'} ${!owned && busy ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
       <span className={`shrink-0 w-5 h-5 rounded flex items-center justify-center border-2 ${owned ? 'bg-dp-secondary border-dp-secondary' : 'border-dp-outline-variant'}`}>
         {busy ? <Loader2 size={12} className="text-dp-secondary animate-spin" /> : owned && <Check size={13} className="text-white" strokeWidth={3} />}
       </span>
       <span className="min-w-0 flex-1">
         <MarqueeText text={label} className="font-sans text-[13px] font-semibold text-dp-on-surface" />
-        <span className="block font-sans text-[9.5px] text-dp-on-surface-variant truncate mt-0.5">{getCategoryLabel(e.item.category, isUrdu)}</span>
+        {owned && ownedInfo ? (
+          <span className="flex items-center gap-2.5 flex-wrap mt-0.5">
+            <span className="font-sans text-[9px] text-amber-800 ltr-num">{t('sl.costCol')} {cost}</span>
+            <span className="font-sans text-[9px] font-bold text-dp-secondary ltr-num">{t('sl.saleCol')} {sale}</span>
+            {margin !== null && <span className={`font-sans text-[9px] font-bold ltr-num ${margin < 0 ? 'text-dp-error' : 'text-emerald-700'}`}>{margin}%</span>}
+            <span className="font-sans text-[9px] text-dp-on-surface-variant ltr-num">{t('mk.stockLabel')} {ownedInfo.quantity_on_hand ?? 0} {ownedInfo.unit}</span>
+          </span>
+        ) : (
+          <span className="block font-sans text-[9.5px] text-dp-on-surface-variant truncate mt-0.5">{getCategoryLabel(e.item.category, isUrdu)}</span>
+        )}
       </span>
       {!owned && e.item.price ? <span className="shrink-0 font-sans text-[10px] font-bold text-dp-secondary">~{e.item.price}</span> : null}
     </button>
   )
 }
 
-export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection, onBrandSubmitted, onScanClick }: BrandItemPickerProps) {
+export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection, onBrandSubmitted, onScanClick, onEditOwned }: BrandItemPickerProps) {
   const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const [committingKeys, setCommittingKeys] = useState<Set<string>>(new Set())
@@ -333,7 +364,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
             <p className="text-center py-8 text-dp-on-surface-variant font-sans text-[12px]">{t('cb.noMatches')}</p>
           ) : searchResults.map((e) => {
             const owned = !availableForPick(e)
-            return <ItemRow key={e.key} e={e} isUrdu={isUrdu} label={rowLabel(e)} owned={owned} busy={committingKeys.has(e.key)} onToggle={() => toggleOwned(e)} />
+            return <ItemRow key={e.key} e={e} isUrdu={isUrdu} label={rowLabel(e)} owned={owned} busy={committingKeys.has(e.key)} onToggle={() => toggleOwned(e)} t={t} ownedInfo={owned ? findOwned(e) : undefined} onEdit={owned ? () => { const op = findOwned(e); if (op) onEditOwned?.(op.id) } : undefined} />
           })}
         </div>
       ) : (
@@ -402,7 +433,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                             {entries.map((e) => {
                               const owned = !availableForPick(e)
                               // eslint-disable-next-line react-hooks/refs -- toggleOwned -> commitEntries only reads pendingKeysRef.current inside the click handler body, never during render
-                              return <ItemRow key={e.key} e={e} isUrdu={isUrdu} label={rowLabel(e)} owned={owned} busy={committingKeys.has(e.key)} onToggle={() => toggleOwned(e)} />
+                              return <ItemRow key={e.key} e={e} isUrdu={isUrdu} label={rowLabel(e)} owned={owned} busy={committingKeys.has(e.key)} onToggle={() => toggleOwned(e)} t={t} ownedInfo={owned ? findOwned(e) : undefined} onEdit={owned ? () => { const op = findOwned(e); if (op) onEditOwned?.(op.id) } : undefined} />
                             })}
                           </div>
                         )
@@ -531,7 +562,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                               {g.entries.map((e) => {
                                 const owned = !availableForPick(e)
                                 const name = (isUrdu ? e.item.name_ur : e.item.name) || e.item.name
-                                return <ItemRow key={e.key} e={e} isUrdu={isUrdu} label={name} owned={owned} busy={committingKeys.has(e.key)} onToggle={() => toggleOwned(e)} />
+                                return <ItemRow key={e.key} e={e} isUrdu={isUrdu} label={name} owned={owned} busy={committingKeys.has(e.key)} onToggle={() => toggleOwned(e)} t={t} ownedInfo={owned ? findOwned(e) : undefined} onEdit={owned ? () => { const op = findOwned(e); if (op) onEditOwned?.(op.id) } : undefined} />
                               })}
                             </div>
                           </div>
@@ -629,7 +660,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                   <div className="space-y-1.5">
                     {itemsInCat.map((e) => {
                       const owned = !availableForPick(e)
-                      return <ItemRow key={e.key} e={e} isUrdu={isUrdu} label={rowLabel(e)} owned={owned} busy={committingKeys.has(e.key)} onToggle={() => toggleOwned(e)} />
+                      return <ItemRow key={e.key} e={e} isUrdu={isUrdu} label={rowLabel(e)} owned={owned} busy={committingKeys.has(e.key)} onToggle={() => toggleOwned(e)} t={t} ownedInfo={owned ? findOwned(e) : undefined} onEdit={owned ? () => { const op = findOwned(e); if (op) onEditOwned?.(op.id) } : undefined} />
                     })}
                   </div>
                 </>
