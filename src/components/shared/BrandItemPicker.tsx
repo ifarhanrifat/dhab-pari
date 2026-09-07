@@ -488,6 +488,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                           <div key={slug} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
                             <div className="flex items-baseline gap-2 px-3 py-2.5 border-b-2 border-dp-outline-variant">
                               <span className="flex-1 font-sans text-[11.5px] font-semibold text-dp-on-surface">{getCategoryLabel(slug, isUrdu)}</span>
+                              {/* eslint-disable-next-line react-hooks/refs -- toggleWholeCategory -> commitEntries only reads pendingKeysRef.current inside the click handler body, never during render */}
                               <button type="button" onClick={() => toggleWholeCategory(slug)} className="font-sans text-[9px] font-bold text-dp-secondary cursor-pointer">
                                 {groupSelected === entries.length ? t('bs.tickedBtn') : t('bs.groupAllBtn')}
                               </button>
@@ -495,6 +496,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                             {entries.map((e) => {
                               const owned = !availableForPick(e)
                               const flavorLabel = (isUrdu ? (e.item.flavor_ur || e.item.flavor || e.item.name_ur) : (e.item.flavor || e.item.name)) || e.item.flavor || e.item.name
+                              // eslint-disable-next-line react-hooks/refs -- toggleOwned -> commitEntries only reads pendingKeysRef.current inside the click handler body, never during render
                               return <VariantRow key={e.key} e={e} t={t} flavorLabel={flavorLabel} owned={owned} busy={committingKeys.has(e.key)} onToggle={() => toggleOwned(e)} cost={bindCost(e, owned)} sale={bindSale(e, owned)} />
                             })}
                           </div>

@@ -14,7 +14,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Capacitor } from '@capacitor/core'
 import { createClient } from '@/lib/supabase/client'
-import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, PackagePlus, Wallet, UtensilsCrossed, PlusCircle, Tag, AlertTriangle, LayoutGrid, ArrowRight } from 'lucide-react'
+import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, PackagePlus, Wallet, UtensilsCrossed, PlusCircle, Tag, AlertTriangle, LayoutGrid, ArrowRight, ScanBarcode } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -29,13 +29,14 @@ import { CategoryPicker } from '@/components/shared/CategoryBrowser'
 import { ShopCatalogSection } from '@/components/shared/ShopCatalogSection'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { compressImageToBase64 } from '@/lib/imageCompress'
+import { BarcodeScannerModal } from '@/components/shared/BarcodeScannerModal'
 
 interface Shop { id: string; name: string; name_ur: string | null; delivery_enabled: boolean; commission_mode: string; primary_type: string }
 interface Product {
   id: string; name: string; name_ur: string | null; description: string | null
   company: string | null; category: string | null; flavor: string | null; flavor_ur: string | null
   unit_price_pkr: number; cost_price_pkr: number; quantity_on_hand: number; expiry_date: string | null; is_active: boolean
-  unit: string; is_quick_food: boolean
+  unit: string; is_quick_food: boolean; barcode: string | null
 }
 
 // کھلا سامان unit choices (migration 444) — the same 13-value list the
@@ -48,7 +49,7 @@ interface Product {
 const emptyProduct = {
   name: '', name_ur: '', description: '', company: '', category: 'other' as string, flavor: '', flavor_ur: '',
   unit_price_pkr: 0, cost_price_pkr: 0, quantity_on_hand: 0, expiry_date: '', is_active: true,
-  unit: 'عدد', is_quick_food: false,
+  unit: 'عدد', is_quick_food: false, barcode: '',
 }
 
 interface Kit {
@@ -171,6 +172,7 @@ function MyShopPageInner() {
 
   const [showTopup, setShowTopup] = useState(false)
   const [showAiSettings, setShowAiSettings] = useState(false)
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
   const [changingCategory, setChangingCategory] = useState(false)
   const [geminiKey, setGeminiKey] = useState('')
   const [keySaved, setKeySaved] = useState(false)
@@ -265,7 +267,7 @@ function MyShopPageInner() {
       category: p.category ?? 'other', flavor: p.flavor ?? '', flavor_ur: p.flavor_ur ?? '',
       unit_price_pkr: p.unit_price_pkr, cost_price_pkr: p.cost_price_pkr,
       quantity_on_hand: p.quantity_on_hand, expiry_date: p.expiry_date ?? '', is_active: p.is_active,
-      unit: p.unit || 'عدد', is_quick_food: p.is_quick_food ?? false,
+      unit: p.unit || 'عدد', is_quick_food: p.is_quick_food ?? false, barcode: p.barcode ?? '',
     })
     setCoverUrl(coverByProduct[p.id] ?? '')
     setChangingCategory(false)
@@ -367,7 +369,7 @@ function MyShopPageInner() {
       company: form.company || null, category: form.category || null, flavor: form.flavor || null, flavor_ur: form.flavor_ur || null,
       unit_price_pkr: form.unit_price_pkr, cost_price_pkr: form.cost_price_pkr, quantity_on_hand: form.quantity_on_hand,
       expiry_date: form.expiry_date || null, is_active: form.is_active,
-      unit: form.unit, is_quick_food: form.is_quick_food,
+      unit: form.unit, is_quick_food: form.is_quick_food, barcode: form.barcode.trim() || null,
     }
     const { data, error } = editing
       ? await supabase.from('shop_products').update(payload).eq('id', editing.id).select('id').single()
@@ -794,6 +796,13 @@ function MyShopPageInner() {
                   </select>
                 </div>
               </div>
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('sk.barcodeLabel')}</label>
+                <div className="flex items-center gap-2">
+                  <input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder={t('sk.barcodeOptionalPlaceholder')} className="input-field flex-1 ltr-num" dir="ltr" />
+                  <button type="button" onClick={() => setShowBarcodeScanner(true)} className="shrink-0 px-3 py-2.5 border font-sans text-[12px] font-semibold cursor-pointer flex items-center gap-1.5" style={{ borderColor: ACCENT, color: ACCENT }}><ScanBarcode size={15} /> {t('sk.scanBtn')}</button>
+                </div>
+              </div>
               <div><label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('mk.expiryDateLabel')}</label><input type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} className="input-field" /></div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} style={{ accentColor: ACCENT }} /><span className="font-sans text-[14px]">{t('mk.productActiveLabel')}</span></label>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_quick_food} onChange={(e) => setForm({ ...form, is_quick_food: e.target.checked })} style={{ accentColor: ACCENT }} /><span className="font-sans text-[14px]">{t('sk.quickFoodLabel')}</span></label>
@@ -805,6 +814,13 @@ function MyShopPageInner() {
 
       {showTopup && (
         <WalletTopupModal kind="shop" sellerId={shop.id} onClose={() => setShowTopup(false)} onSubmitted={() => setShowTopup(false)} />
+      )}
+
+      {showBarcodeScanner && (
+        <BarcodeScannerModal
+          onClose={() => setShowBarcodeScanner(false)}
+          onDetected={(code) => { setForm((f) => ({ ...f, barcode: code })); setShowBarcodeScanner(false); toast.success(t('sk.barcodeCapturedToast')) }}
+        />
       )}
 
       {showAiSettings && (

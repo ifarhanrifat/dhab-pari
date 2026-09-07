@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Capacitor } from '@capacitor/core'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Camera, Loader2, Minus, Plus, Trash2, Search, ShoppingCart, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Camera, Loader2, Minus, Plus, Trash2, Search, ShoppingCart, CheckCircle2, ScanBarcode } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -28,13 +28,14 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import { ShopBottomNav } from '@/components/portal/ShopBottomNav'
 import { takeNativePhoto, openCameraAppSettings, CameraPermissionDeniedError, isCameraCancel } from '@/lib/nativeCamera'
 import { compressImageToBase64 } from '@/lib/imageCompress'
+import { BarcodeScannerModal } from '@/components/shared/BarcodeScannerModal'
 
 const INK = '#201e1d'
 const ACCENT = '#ec3013'
 const ACCENT_DARK = '#ae1800'
 
 interface Shop { id: string; name: string; name_ur: string | null }
-interface Product { id: string; name: string; name_ur: string | null; company: string | null; flavor: string | null; flavor_ur: string | null; unit_price_pkr: number; cost_price_pkr: number; quantity_on_hand: number }
+interface Product { id: string; name: string; name_ur: string | null; company: string | null; flavor: string | null; flavor_ur: string | null; unit_price_pkr: number; cost_price_pkr: number; quantity_on_hand: number; barcode: string | null }
 
 function displayName(p: { name: string; name_ur: string | null; flavor: string | null; flavor_ur: string | null }, isUrdu: boolean) {
   const name = isUrdu && p.name_ur ? p.name_ur : p.name
@@ -65,11 +66,12 @@ export default function SellPage() {
   const [showSearch, setShowSearch] = useState(false)
   const [completing, setCompleting] = useState(false)
   const [cashReceived, setCashReceived] = useState('')
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
   const scanInputRef = useRef<HTMLInputElement>(null)
   const scanChooserInputRef = useRef<HTMLInputElement>(null)
 
   const loadProducts = (shopId: string) =>
-    supabase.from('shop_products').select('id, name, name_ur, company, flavor, flavor_ur, unit_price_pkr, cost_price_pkr, quantity_on_hand')
+    supabase.from('shop_products').select('id, name, name_ur, company, flavor, flavor_ur, unit_price_pkr, cost_price_pkr, quantity_on_hand, barcode')
       .eq('shop_id', shopId).eq('is_active', true).order('name')
       .then(({ data }) => setProducts(data ?? []))
 
@@ -164,6 +166,20 @@ export default function SellPage() {
     }
   }
 
+  // Exact lookup against this shop's own shop_products.barcode (migration
+  // 449) — no Gemini call, no guessing which flavor matched a numbered
+  // list. This is the actual fix for the reliability problem the AI
+  // photo-match (runScan above) has by nature: it replaces a confidence
+  // guess with a deterministic read, whenever the product has a barcode
+  // recorded (Add Stock's own "Scan" button next to the barcode field is
+  // where that gets captured in the first place).
+  const onBarcodeDetected = (code: string) => {
+    setShowBarcodeScanner(false)
+    const match = products.find((p) => p.barcode === code)
+    if (!match) { toast.error(t('sk.barcodeNotFoundToast')); return }
+    addToBill(match)
+  }
+
   const total = bill.reduce((s, r) => s + r.unit_price_pkr * r.quantity, 0)
   // Shopkeeper's own margin on this bill — never shown to a buyer, same
   // privacy rule cost_price_pkr already carries everywhere else in this
@@ -214,10 +230,18 @@ export default function SellPage() {
           className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-white font-sans text-[14px] font-semibold cursor-pointer transition-all disabled:opacity-60" style={{ background: ACCENT }} onMouseEnter={(e) => !scanning && (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>
           {scanning ? <Loader2 size={17} className="animate-spin" /> : <Camera size={17} />} {scanning ? t('sk.scanningLabel') : t('sk.scanItemBtn')}
         </button>
+        {/* Exact barcode lookup — see onBarcodeDetected's own comment for
+            why this exists alongside the AI photo match above rather than
+            replacing it: only products with a barcode recorded can use
+            this path, everything else still needs the photo match. */}
+        <button onClick={() => setShowBarcodeScanner(true)} className="flex items-center gap-1.5 px-3 py-3 border font-sans text-[13px] font-semibold cursor-pointer transition-colors" style={{ borderColor: ACCENT, color: ACCENT }}>
+          <ScanBarcode size={17} />
+        </button>
         <button onClick={() => setShowSearch(true)} className="flex items-center gap-1.5 px-3 py-3 border border-[#dcd8d4] font-sans text-[13px] font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
           <Search size={16} />
         </button>
       </div>
+      {showBarcodeScanner && <BarcodeScannerModal onClose={() => setShowBarcodeScanner(false)} onDetected={onBarcodeDetected} />}
 
       {noMatch && <p className="font-sans text-[12.5px] px-3 py-2 mb-4 border" style={{ background: '#fce3dc', borderColor: '#f4a68f', color: ACCENT_DARK }}>{t('sk.noMatchHint')}</p>}
 
