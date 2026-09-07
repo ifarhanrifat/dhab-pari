@@ -29,6 +29,7 @@ import { ShopBottomNav } from '@/components/portal/ShopBottomNav'
 import { takeNativePhoto, openCameraAppSettings, CameraPermissionDeniedError, isCameraCancel } from '@/lib/nativeCamera'
 import { compressImageToBase64 } from '@/lib/imageCompress'
 import { BarcodeScannerModal } from '@/components/shared/BarcodeScannerModal'
+import { WebCameraCaptureModal } from '@/components/shared/WebCameraCaptureModal'
 
 const INK = '#201e1d'
 const ACCENT = '#ec3013'
@@ -80,6 +81,7 @@ export default function SellPage() {
   const [completing, setCompleting] = useState(false)
   const [cashReceived, setCashReceived] = useState('')
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
+  const [showWebCamera, setShowWebCamera] = useState(false)
   const [packsByProduct, setPacksByProduct] = useState<Record<string, Pack[]>>({})
   const [chooserProduct, setChooserProduct] = useState<Product | null>(null)
   const scanInputRef = useRef<HTMLInputElement>(null)
@@ -180,14 +182,14 @@ export default function SellPage() {
         if (err instanceof CameraPermissionDeniedError) {
           toast.error(t('sk.cameraPermissionDeniedToast'), { action: { label: t('af.openSettingsBtn'), onClick: () => openCameraAppSettings() } })
         } else if (!isCameraCancel(err)) {
-          // A real failure, confirmed live on a real device (Pixel 4a):
-          // Android itself refuses to launch the legacy camera-capture
-          // intent even though a working stock Camera app exists — see
-          // my-shop/page.tsx's own openScanner for the full story. Falling
-          // through to the same <input capture> the web build already
-          // uses gives a real way forward instead of a dead end.
-          toast.error(err instanceof Error ? err.message : String(err))
-          scanChooserInputRef.current?.click()
+          // A real failure, confirmed live on a rooted/custom-ROM device:
+          // see my-shop/page.tsx's own openScanner for the full story —
+          // getUserMedia (WebCameraCaptureModal) is a completely
+          // different code path with no dependency on any native camera
+          // app being registered, already proven working on this exact
+          // device by the barcode scanner.
+          toast.error(t('sk.nativeCameraFailedFallbackToast'))
+          setShowWebCamera(true)
         }
       }
       return
@@ -310,6 +312,13 @@ export default function SellPage() {
         </button>
       </div>
       {showBarcodeScanner && <BarcodeScannerModal onClose={() => setShowBarcodeScanner(false)} onDetected={onBarcodeDetected} />}
+      {showWebCamera && (
+        <WebCameraCaptureModal
+          onClose={() => setShowWebCamera(false)}
+          onCaptured={(file) => { setShowWebCamera(false); runScan(file) }}
+          onUseGalleryInstead={() => { setShowWebCamera(false); scanChooserInputRef.current?.click() }}
+        />
+      )}
 
       {/* Only ever shown for a product that has bulk packs recorded
           (addToBill's own guard) — everything else skips straight to

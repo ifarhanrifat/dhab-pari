@@ -30,6 +30,7 @@ import { ShopCatalogSection } from '@/components/shared/ShopCatalogSection'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { compressImageToBase64 } from '@/lib/imageCompress'
 import { BarcodeScannerModal } from '@/components/shared/BarcodeScannerModal'
+import { WebCameraCaptureModal } from '@/components/shared/WebCameraCaptureModal'
 
 interface Shop { id: string; name: string; name_ur: string | null; delivery_enabled: boolean; commission_mode: string; primary_type: string }
 interface Product {
@@ -175,6 +176,7 @@ function MyShopPageInner() {
   const [showTopup, setShowTopup] = useState(false)
   const [showAiSettings, setShowAiSettings] = useState(false)
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
+  const [showWebCamera, setShowWebCamera] = useState(false)
   const [changingCategory, setChangingCategory] = useState(false)
   // Bulk pack pricing (migration 450) — "Container (80 pcs)" for a
   // packaged good, "دھاڑی (5 کلو)" for a loose one. Only meaningful once
@@ -337,17 +339,20 @@ function MyShopPageInner() {
         if (err instanceof CameraPermissionDeniedError) {
           toast.error(t('sk.cameraPermissionDeniedToast'), { action: { label: t('af.openSettingsBtn'), onClick: () => openCameraAppSettings() } })
         } else if (!isCameraCancel(err)) {
-          // A real failure, confirmed live on a real device (Pixel 4a):
-          // Android itself refuses to launch the legacy camera-capture
-          // intent even though a working stock Camera app exists — not a
-          // permission problem, not this app's manifest, a real gap in
-          // that specific native path with no code-side workaround left.
-          // Falling through to the same <input capture> the web (non-
-          // native) build already relies on gives a real way forward
-          // instead of a dead end — worse than the ideal "camera opens
-          // directly," but it still lets the scan happen.
-          toast.error(err instanceof Error ? err.message : String(err))
-          scanChooserInputRef.current?.click()
+          // A real failure, confirmed live on a rooted/custom-ROM device
+          // (Pixel 4a): Android throws ActivityNotFoundException on the
+          // legacy camera-capture intent even with CameraSource.Prompt —
+          // some privacy-hardened/de-Googled ROMs ship a camera app that
+          // deliberately doesn't register for it at all, pushing every
+          // app toward modern picker flows instead. Not a permission
+          // problem, not this app's manifest, not fixable by retrying
+          // the same intent a different way. getUserMedia is a
+          // completely different code path with no dependency on any
+          // native camera app being registered for anything — already
+          // proven working on this exact device by the barcode scanner —
+          // so it's the real fallback now, not just a gallery picker.
+          toast.error(t('sk.nativeCameraFailedFallbackToast'))
+          setShowWebCamera(true)
         }
       }
       return
@@ -923,6 +928,14 @@ function MyShopPageInner() {
         <BarcodeScannerModal
           onClose={() => setShowBarcodeScanner(false)}
           onDetected={(code) => { setForm((f) => ({ ...f, barcode: code })); setShowBarcodeScanner(false); toast.success(t('sk.barcodeCapturedToast')) }}
+        />
+      )}
+
+      {showWebCamera && (
+        <WebCameraCaptureModal
+          onClose={() => setShowWebCamera(false)}
+          onCaptured={(file) => { setShowWebCamera(false); runScan(file) }}
+          onUseGalleryInstead={() => { setShowWebCamera(false); scanChooserInputRef.current?.click() }}
         />
       )}
 
