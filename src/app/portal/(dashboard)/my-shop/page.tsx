@@ -28,6 +28,7 @@ import { UNIT_OPTIONS } from '@/lib/catalogSelection'
 import { CategoryPicker } from '@/components/shared/CategoryBrowser'
 import { ShopCatalogSection } from '@/components/shared/ShopCatalogSection'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { compressImageToBase64 } from '@/lib/imageCompress'
 
 interface Shop { id: string; name: string; name_ur: string | null; delivery_enabled: boolean; commission_mode: string; primary_type: string }
 interface Product {
@@ -100,15 +101,6 @@ function productDisplayName(p: { name: string; name_ur: string | null; flavor: s
 const INK = '#201e1d'
 const ACCENT = '#ec3013'
 const ACCENT_DARK = '#ae1800'
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve((reader.result as string).split(',')[1] ?? '')
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
 
 // AI-scan duplicate check (Shop Portal v3.2 §L), scoped to what this app
 // actually has: there is no separate shared Brand→Item→Variant catalog
@@ -316,10 +308,16 @@ function MyShopPageInner() {
     if (!keySaved) { toast.error(t('sk.needKeyFirst')); setShowAiSettings(true); return }
     setScanning(true)
     try {
-      const imageBase64 = await fileToBase64(file)
+      // Downscaled/re-encoded before ever reaching Gemini — a real
+      // camera/gallery photo can be 8-15MB at full resolution, and
+      // sending that straight as base64 JSON was the actual cause of
+      // "this image can't be read" failures reported only on mobile
+      // (the exact same photo worked fine via a desktop browser upload,
+      // where the file was already much smaller) — not image quality.
+      const { base64: imageBase64, mimeType } = await compressImageToBase64(file)
       const res = await fetch('/api/portal/shops/scan-product', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shopId: shop.id, imageBase64, mimeType: file.type }),
+        body: JSON.stringify({ shopId: shop.id, imageBase64, mimeType }),
       })
       const json = await res.json()
       if (!res.ok) { toast.error(json.error ?? t('sk.scanFailed')); setScanning(false); return }

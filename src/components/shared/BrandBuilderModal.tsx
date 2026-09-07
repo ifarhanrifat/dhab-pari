@@ -25,6 +25,7 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { CategoryPicker } from './CategoryBrowser'
 import { getCategoryLabel } from '@/lib/shopTypes'
+import { compressImageToBase64 } from '@/lib/imageCompress'
 
 interface BrandItemDraft {
   key: string
@@ -34,15 +35,6 @@ interface BrandItemDraft {
 
 function emptyItem(): BrandItemDraft {
   return { key: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, name: '', name_ur: '', flavor: '', flavor_ur: '', cost_price_pkr: '', unit_price_pkr: '' }
-}
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve((reader.result as string).split(',')[1] ?? '')
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
 }
 
 export function BrandBuilderModal({ shopId, primaryType, onClose, onSubmitted }: {
@@ -70,10 +62,13 @@ export function BrandBuilderModal({ shopId, primaryType, onClose, onSubmitted }:
       const { data: aiSettings } = await supabase.from('shop_ai_settings').select('gemini_api_key').eq('shop_id', shopId).maybeSingle()
       if (!aiSettings?.gemini_api_key) { toast.error(t('sk.needKeyFirst')); setScanning(false); return }
 
-      const imageBase64 = await fileToBase64(file)
+      // Downscaled/re-encoded first — see src/lib/imageCompress.ts: same
+      // mobile-vs-website Gemini-scan failure as the main catalog page's
+      // scan button, since this reuses the exact same API route.
+      const { base64: imageBase64, mimeType } = await compressImageToBase64(file)
       const res = await fetch('/api/portal/shops/scan-product', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shopId, imageBase64, mimeType: file.type }),
+        body: JSON.stringify({ shopId, imageBase64, mimeType }),
       })
       const json = await res.json()
       if (!res.ok) { toast.error(json.error ?? t('sk.scanFailed')); setScanning(false); return }

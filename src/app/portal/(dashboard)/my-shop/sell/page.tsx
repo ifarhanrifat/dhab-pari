@@ -27,6 +27,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { ShopBottomNav } from '@/components/portal/ShopBottomNav'
 import { takeNativePhoto, openCameraAppSettings, CameraPermissionDeniedError, isCameraCancel } from '@/lib/nativeCamera'
+import { compressImageToBase64 } from '@/lib/imageCompress'
 
 const INK = '#201e1d'
 const ACCENT = '#ec3013'
@@ -44,15 +45,6 @@ interface BillRow { product_id: string; name: string; unit_price_pkr: number; co
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
-}
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve((reader.result as string).split(',')[1] ?? '')
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
 }
 
 const CASH_CHIPS = [500, 1000, 2000, 5000]
@@ -149,10 +141,14 @@ export default function SellPage() {
     setScanning(true)
     setNoMatch(false)
     try {
-      const imageBase64 = await fileToBase64(file)
+      // Downscaled/re-encoded first — see src/lib/imageCompress.ts: a full-
+      // resolution mobile camera/gallery photo sent straight as base64 was
+      // the actual cause of "this image can't be read" on the counter scan
+      // too (identical root cause as my-shop's Add Stock scan).
+      const { base64: imageBase64, mimeType } = await compressImageToBase64(file)
       const res = await fetch('/api/portal/shops/scan-sale-item', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shopId: shop.id, imageBase64, mimeType: file.type }),
+        body: JSON.stringify({ shopId: shop.id, imageBase64, mimeType }),
       })
       const json = await res.json()
       if (!res.ok) { toast.error(json.error ?? t('sk.scanFailed')); return }
