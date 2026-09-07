@@ -71,15 +71,42 @@ export async function takeNativePhoto(): Promise<File | null> {
 
   const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera')
 
+  // Requesting both up front, not just 'camera' — CameraSource.Prompt
+  // below can lead to either the camera or the gallery, and the whole
+  // reason permission is requested as its own explicit step (rather
+  // than left to getPhoto()'s internal handling) is that this device
+  // class doesn't reliably chain "just-granted permission" into
+  // "actually launch" within the same call. Only a hard fail if BOTH
+  // ended up denied — the prompt is still useful with just one granted.
   const current = await Camera.checkPermissions()
-  if (current.camera !== 'granted') {
-    const requested = await Camera.requestPermissions({ permissions: ['camera'] })
-    if (requested.camera !== 'granted') throw new CameraPermissionDeniedError()
+  const needed: ('camera' | 'photos')[] = []
+  if (current.camera !== 'granted') needed.push('camera')
+  if (current.photos !== 'granted') needed.push('photos')
+  if (needed.length > 0) {
+    const requested = await Camera.requestPermissions({ permissions: needed })
+    if (requested.camera !== 'granted' && requested.photos !== 'granted') throw new CameraPermissionDeniedError()
   }
 
+  // CameraSource.Prompt (not .Camera) — shows the plugin's own native
+  // "Take Photo / Choose from Gallery" dialog every time, instead of
+  // jumping straight into a camera capture that has no fallback if it
+  // fails. This is the actual fix for a real, repeated report on one
+  // device (Pixel 4a): Android genuinely has no app registered to
+  // answer the camera-capture intent there ("No app responded to the
+  // camera intent when actually launched" — confirmed a real
+  // ActivityNotFoundException, not a resolveActivity() false negative,
+  // see LegacyCameraFlow's own patch history in patch-capacitor-camera.js).
+  // CameraSource.Camera gave that failure nowhere to go but an error
+  // toast; Prompt means "Choose from Gallery" is sitting right there as
+  // an already-visible option in the same dialog on the very first tap,
+  // on every device, not just this one. No APK rebuild needed for this
+  // change — the native plugin's own PROMPT handling has always shipped
+  // in the installed app; only the JS-side `source` value picked here
+  // is new, and this file is served fresh from the live website like
+  // the rest of the app's JS (see capacitor.config.ts's own comment).
   const photo = await Camera.getPhoto({
     resultType: CameraResultType.Uri,
-    source: CameraSource.Camera,
+    source: CameraSource.Prompt,
     quality: 80,
     saveToGallery: false,
   })
