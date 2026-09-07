@@ -110,11 +110,15 @@ function ItemRow({ e, isUrdu, label, owned, busy, onToggle, ownedInfo, onEdit, t
       <span className="min-w-0 flex-1">
         <MarqueeText text={label} className="font-sans text-[13px] font-semibold text-dp-on-surface" />
         {owned && ownedInfo ? (
-          <span className="flex items-center gap-2.5 flex-wrap mt-0.5">
-            <span className="font-sans text-[9px] text-amber-800 ltr-num">{t('sl.costCol')} {cost}</span>
-            <span className="font-sans text-[9px] font-bold text-dp-secondary ltr-num">{t('sl.saleCol')} {sale}</span>
-            {margin !== null && <span className={`font-sans text-[9px] font-bold ltr-num ${margin < 0 ? 'text-dp-error' : 'text-emerald-700'}`}>{margin}%</span>}
-            <span className="font-sans text-[9px] text-dp-on-surface-variant ltr-num">{t('mk.stockLabel')} {ownedInfo.quantity_on_hand ?? 0} {ownedInfo.unit}</span>
+          // Same boxed/tinted look VariantRow's own cost+sale inputs used
+          // to have (amber box for cost, secondary-bordered box for
+          // sale) — read-only now, but sized and styled like real
+          // values worth reading at a glance, not a small caption line.
+          <span className="flex items-center gap-1.5 flex-wrap mt-1.5">
+            <span className="px-2 py-1 rounded-lg border border-dp-outline-variant bg-dp-surface-container font-sans text-[11px] text-dp-on-surface ltr-num">{t('sl.costCol')} {cost}</span>
+            <span className="px-2 py-1 rounded-lg border border-dp-secondary bg-white font-sans text-[11px] font-bold text-dp-secondary ltr-num">{t('sl.saleCol')} {sale}</span>
+            {margin !== null && <span className={`px-2 py-1 rounded-lg font-sans text-[11px] font-bold ltr-num ${margin < 0 ? 'text-dp-error bg-dp-error-container' : 'text-emerald-700 bg-emerald-50'}`}>{margin}%</span>}
+            <span className="px-2 py-1 rounded-lg border border-dp-outline-variant bg-white font-sans text-[11px] text-dp-on-surface-variant ltr-num">{t('mk.stockLabel')} {ownedInfo.quantity_on_hand ?? 0} {ownedInfo.unit}</span>
           </span>
         ) : (
           <span className="block font-sans text-[9.5px] text-dp-on-surface-variant truncate mt-0.5">{getCategoryLabel(e.item.category, isUrdu)}</span>

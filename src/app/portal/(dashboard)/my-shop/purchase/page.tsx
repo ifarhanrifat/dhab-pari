@@ -47,6 +47,88 @@ function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
+// Module-level, not defined inside PurchaseEntryPage's own render body —
+// same reasoning as every other hoisted row component in this codebase
+// (BrandItemPicker's ItemRow, StockListView's Row): a component declared
+// inside a parent's function body gets a fresh identity every render,
+// which remounts its <input>s and loses focus/local state on every
+// keystroke elsewhere on the page.
+//
+// "calculate from total" here is the direct fix for a real live mistake:
+// a shopkeeper bought bananas by the dozen (3 دوزن) but the product's
+// own price is tracked per-unit, whatever that unit is — if they typed
+// "3" as the quantity meaning "3 dozen" while the cost field expected a
+// per-unit rate, the purchase silently priced it as 3 pieces, not 3
+// dozen. Same qty+total-paid -> per-unit divide LooseRow/the product
+// edit form already have, so "36 pieces for Rs 900 total" divides out
+// correctly regardless of what unit the product actually tracks in.
+interface PurchaseLineCardProps {
+  r: Line; t: (k: string) => string
+  onRemove: () => void; onSetQty: (qty: number) => void; onSetCost: (cost: number) => void
+  previewAvgCost: number
+}
+function PurchaseLineCard({ r, t, onRemove, onSetQty, onSetCost, previewAvgCost }: PurchaseLineCardProps) {
+  const [showCalc, setShowCalc] = useState(false)
+  const [calcQty, setCalcQty] = useState('')
+  const [calcTotal, setCalcTotal] = useState('')
+  const calcQtyNum = Number(calcQty)
+  const calcTotalNum = Number(calcTotal)
+  const computedCost = calcQtyNum > 0 && calcTotalNum >= 0 ? Math.round((calcTotalNum / calcQtyNum) * 100) / 100 : null
+  const applyCalc = () => {
+    if (computedCost === null || calcQtyNum <= 0) return
+    onSetCost(computedCost)
+    onSetQty(calcQtyNum)
+    setShowCalc(false); setCalcQty(''); setCalcTotal('')
+  }
+  return (
+    <div className="bg-white border border-[#dcd8d4] p-3">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <MarqueeText text={r.name} className="font-sans text-[13.5px] font-semibold" style={{ color: INK }} />
+        <button onClick={onRemove} className="p-1 cursor-pointer shrink-0" style={{ color: ACCENT }}><Trash2 size={14} /></button>
+      </div>
+      {/* The unit shown here is whatever's set on the product's own edit
+          form (pencil button) — this screen only ever adds quantity +
+          cost IN that unit, it never changes what the unit itself is. */}
+      <p className="font-sans text-[10.5px] text-[#7a736d] mb-1.5">
+        {t('sk.buyingInUnitHint').replace('{unit}', r.unit)}
+        {r.existingQty > 0 && ' · ' + t('sk.currentlyOnHandLabel').replace('{qty}', fmt(r.existingQty)).replace('{cost}', fmt(r.existingCost))}
+      </p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col items-start gap-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="font-sans text-[11.5px] text-[#7a736d]">{t('sk.costPriceLabel')} <span className="ltr-num">({r.unit})</span></span>
+            <input type="number" value={r.unit_cost_pkr || ''} onChange={(e) => onSetCost(+e.target.value)}
+              className="w-20 px-2 py-1 border text-[13px] font-sans text-center ltr-num" style={{ borderColor: '#f4a68f', background: '#fce3dc', color: '#ae1800' }} />
+          </div>
+          <button type="button" onClick={() => setShowCalc((s) => !s)} className="font-sans text-[10px] underline cursor-pointer" style={{ color: ACCENT }}>{t('sk.calcFromTotalBtn')}</button>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button onClick={() => onSetQty(r.quantity - 1)} className="w-8 h-8 border border-[#dcd8d4] flex items-center justify-center cursor-pointer hover:border-[#201e1d] transition-colors"><Minus size={14} /></button>
+          <span className="text-center font-sans text-[14px] font-bold ltr-num whitespace-nowrap px-1" style={{ color: INK }}>{r.quantity} {r.unit}</span>
+          <button onClick={() => onSetQty(r.quantity + 1)} className="w-8 h-8 border border-[#dcd8d4] flex items-center justify-center cursor-pointer hover:border-[#201e1d] transition-colors"><Plus size={14} /></button>
+        </div>
+      </div>
+      {showCalc && (
+        <div className="flex items-center gap-1.5 mt-2 p-2 border border-dashed" style={{ borderColor: '#dcd8d4' }}>
+          <input inputMode="decimal" value={calcQty} onChange={(e) => setCalcQty(e.target.value)} placeholder={t('sk.calcQtyInUnitPlaceholder').replace('{unit}', r.unit)}
+            className="w-20 px-1.5 py-1.5 text-center border font-sans text-[11px]" style={{ borderColor: '#dcd8d4' }} />
+          <span className="font-sans text-[10px] text-[#7a736d] shrink-0">{t('sk.calcForPlaceholder')}</span>
+          <input inputMode="decimal" value={calcTotal} onChange={(e) => setCalcTotal(e.target.value)} placeholder={t('sk.calcTotalPlaceholder')}
+            className="w-20 px-1.5 py-1.5 text-center border font-sans text-[11px]" style={{ borderColor: '#dcd8d4' }} />
+          <button type="button" onClick={applyCalc} disabled={computedCost === null}
+            className="flex-1 py-1.5 text-white font-sans text-[10.5px] font-bold cursor-pointer disabled:opacity-40" style={{ background: ACCENT }}>
+            {computedCost !== null ? t('sk.calcUseValueBtn').replace('{v}', String(computedCost)) : t('sk.calcUseBtn')}
+          </button>
+        </div>
+      )}
+      <div className="flex items-center justify-between mt-1.5">
+        <p className="font-sans text-[11px] text-[#7a736d]">{t('sk.newAvgCostLabel')} <span className="font-bold ltr-num" style={{ color: INK }}>{fmt(previewAvgCost)}</span></p>
+        <p className="font-sans text-[12px] text-[#7a736d]">{t('sk.lineTotalLabel')} <span className="font-bold ltr-num" style={{ color: INK }}>{fmt(r.unit_cost_pkr * r.quantity)}</span></p>
+      </div>
+    </div>
+  )
+}
+
 export default function PurchaseEntryPage() {
   const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
@@ -140,39 +222,11 @@ export default function PurchaseEntryPage() {
       ) : (
         <div className="space-y-2 mb-5">
           {lines.map((r) => (
-            <div key={r.product_id} className="bg-white border border-[#dcd8d4] p-3">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <MarqueeText text={r.name} className="font-sans text-[13.5px] font-semibold" style={{ color: INK }} />
-                <button onClick={() => removeLine(r.product_id)} className="p-1 cursor-pointer shrink-0" style={{ color: ACCENT }}><Trash2 size={14} /></button>
-              </div>
-              {/* The unit shown here is whatever's set on the product's own
-                  edit form (pencil button) — this screen only ever adds
-                  quantity + cost IN that unit, it never changes what the
-                  unit itself is. A shopkeeper searching a plain-item like
-                  Banana that's still at its "عدد" (piece) default needs to
-                  fix that on the edit form FIRST, or every number entered
-                  here is priced/counted per piece, not per دوزن. */}
-              <p className="font-sans text-[10.5px] text-[#7a736d] mb-1.5">
-                {t('sk.buyingInUnitHint').replace('{unit}', r.unit)}
-                {r.existingQty > 0 && ' · ' + t('sk.currentlyOnHandLabel').replace('{qty}', fmt(r.existingQty)).replace('{cost}', fmt(r.existingCost))}
-              </p>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-sans text-[11.5px] text-[#7a736d]">{t('sk.costPriceLabel')} <span className="ltr-num">({r.unit})</span></span>
-                  <input type="number" value={r.unit_cost_pkr || ''} onChange={(e) => setCost(r.product_id, +e.target.value)}
-                    className="w-20 px-2 py-1 border text-[13px] font-sans text-center ltr-num" style={{ borderColor: '#f4a68f', background: '#fce3dc', color: '#ae1800' }} />
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button onClick={() => setQty(r.product_id, r.quantity - 1)} className="w-8 h-8 border border-[#dcd8d4] flex items-center justify-center cursor-pointer hover:border-[#201e1d] transition-colors"><Minus size={14} /></button>
-                  <span className="text-center font-sans text-[14px] font-bold ltr-num whitespace-nowrap px-1" style={{ color: INK }}>{r.quantity} {r.unit}</span>
-                  <button onClick={() => setQty(r.product_id, r.quantity + 1)} className="w-8 h-8 border border-[#dcd8d4] flex items-center justify-center cursor-pointer hover:border-[#201e1d] transition-colors"><Plus size={14} /></button>
-                </div>
-              </div>
-              <div className="flex items-center justify-between mt-1.5">
-                <p className="font-sans text-[11px] text-[#7a736d]">{t('sk.newAvgCostLabel')} <span className="font-bold ltr-num" style={{ color: INK }}>{fmt(previewAvgCost(r))}</span></p>
-                <p className="font-sans text-[12px] text-[#7a736d]">{t('sk.lineTotalLabel')} <span className="font-bold ltr-num" style={{ color: INK }}>{fmt(r.unit_cost_pkr * r.quantity)}</span></p>
-              </div>
-            </div>
+            <PurchaseLineCard key={r.product_id} r={r} t={t}
+              onRemove={() => removeLine(r.product_id)}
+              onSetQty={(qty) => setQty(r.product_id, qty)}
+              onSetCost={(cost) => setCost(r.product_id, cost)}
+              previewAvgCost={previewAvgCost(r)} />
           ))}
         </div>
       )}
