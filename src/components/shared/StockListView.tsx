@@ -4,10 +4,17 @@
 // list with three views via a segmented control — سب آئٹم (everything),
 // برانڈ وائز (grouped under brand headers, each showing item count + stock
 // value at cost, loose goods getting their own group at the end), کھلا سامان
-// (loose-only). Every row is inline-editable — qty (red once low), cost
-// (tinted, private), sale (bold, public) — with margin% computed live, so
-// "the delivery driver just told me sugar went up 5 rupees" is a two-tap
-// fix, not open-modal-change-one-field-save-close per item.
+// (loose-only).
+//
+// Read-only now, tap-through to edit — this used to be directly
+// inline-editable (qty/cost/sale typed right in the cell, saved on
+// blur), but that was one of at least three different places a
+// shopkeeper could set a price (here, BrandItemPicker's own inline
+// fields, and the actual product edit form), a real, confirmed
+// complaint. The pencil button on the product edit form (my-shop/
+// page.tsx's openEdit, wired in here as onRowClick) is now the ONLY
+// place price/sale/unit/quantity get set — this view is purely an
+// at-a-glance overview, tap a row to go edit it.
 //
 // Deliberately separate from CategoryBrowser rather than replacing it —
 // that component's department-tile drill is a genuinely different, still
@@ -16,24 +23,17 @@
 // for day-to-day price/stock upkeep. ShopCatalogSection's "My Stock" tab
 // offers both, toggled at the top.
 //
-// Saves on blur, not on every keystroke — a draft value lives in local
-// state per (productId, field) while focused, committed to the parent's
-// onFieldSave only once the keeper actually moves on, same reasoning
-// BulkPriceReview's own inputs already use.
-//
 // Row/Header are real module-level components, NOT defined inside
 // StockListView's own body — a component declared inside another
 // component's render function gets a fresh function identity every
 // render, which React treats as a brand-new component type and
-// unmounts/remounts on every keystroke. That silently broke onBlur here
-// during testing: the <input> DOM node was torn down and rebuilt on
-// every character typed, so a save could get lost depending on exactly
-// when blur landed relative to the remount. Hoisting them out is the
-// real fix, not a workaround.
+// unmounts/remounts on every render — see this file's own git history
+// for the onBlur-losing-focus bug that cost, back when this was editable.
 
 import { useMemo, useState } from 'react'
 import { Search, Package, Layers } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { MarqueeText } from './MarqueeText'
 
 // Must match src/lib/catalogSelection.ts's LOOSE_BRAND_NAME — that's the
 // `company` value ShopCatalogSection's commit() stamps on every loose-good
@@ -55,22 +55,18 @@ export interface StockListProduct {
   is_active?: boolean
 }
 
-type EditableField = 'cost_price_pkr' | 'unit_price_pkr' | 'quantity_on_hand'
-
 interface StockListViewProps<P extends StockListProduct> {
   products: P[]
-  onFieldSave: (productId: string, field: EditableField, value: number) => void
+  onRowClick: (p: P) => void
 }
 
 function fmt(n: number) {
   return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
-const draftKey = (id: string, field: EditableField) => `${id}::${field}`
-
 function Header({ t }: { t: (k: string) => string }) {
   return (
-    <div className="grid grid-cols-[1fr_72px_84px_84px_56px] sm:grid-cols-[1fr_88px_100px_100px_64px] items-center gap-2 px-2.5 py-1.5 border-b-2 border-dp-outline-variant">
+    <div className="grid grid-cols-[1fr_60px_72px_72px_56px] sm:grid-cols-[1fr_72px_84px_84px_64px] items-center gap-2 px-2.5 py-1.5 border-b-2 border-dp-outline-variant">
       <p className="font-sans text-[10.5px] font-bold text-dp-on-surface-variant uppercase tracking-[0.04em]">{t('sl.itemCol')}</p>
       <p className="font-sans text-[10.5px] font-bold text-dp-on-surface-variant uppercase tracking-[0.04em] text-center">{t('sl.qtyCol')}</p>
       <p className="font-sans text-[10.5px] font-bold text-amber-800 uppercase tracking-[0.04em] text-center">{t('sl.costCol')}</p>
@@ -80,51 +76,35 @@ function Header({ t }: { t: (k: string) => string }) {
   )
 }
 
-interface RowProps<P extends StockListProduct> {
-  p: P
-  isUrdu: boolean
-  showCompany: boolean
-  getValue: (p: P, field: EditableField) => string
-  onChange: (id: string, field: EditableField, value: string) => void
-  onBlur: (p: P, field: EditableField) => void
-}
-
-function Row<P extends StockListProduct>({ p, isUrdu, showCompany, getValue, onChange, onBlur }: RowProps<P>) {
-  const cost = Number(getValue(p, 'cost_price_pkr')) || 0
-  const sale = Number(getValue(p, 'unit_price_pkr')) || 0
+interface RowProps<P extends StockListProduct> { p: P; isUrdu: boolean; showCompany: boolean; onClick: () => void }
+function Row<P extends StockListProduct>({ p, isUrdu, showCompany, onClick }: RowProps<P>) {
+  const cost = p.cost_price_pkr || 0
+  const sale = p.unit_price_pkr || 0
   const margin = sale > 0 ? Math.round(((sale - cost) / sale) * 100) : null
-  const qtyNum = Number(getValue(p, 'quantity_on_hand')) || 0
-  const low = qtyNum <= 4
+  const low = p.quantity_on_hand <= 4
+  const name = isUrdu && p.name_ur ? p.name_ur : p.name
+  const flavor = isUrdu ? (p.flavor_ur || p.flavor) : p.flavor
   return (
-    <div className="grid grid-cols-[1fr_72px_84px_84px_56px] sm:grid-cols-[1fr_88px_100px_100px_64px] items-center gap-2 px-2.5 py-2 border-b border-dp-outline-variant/60 last:border-b-0">
+    <button type="button" onClick={onClick}
+      className="w-full grid grid-cols-[1fr_60px_72px_72px_56px] sm:grid-cols-[1fr_72px_84px_84px_64px] items-center gap-2 px-2.5 py-2.5 border-b border-dp-outline-variant/60 last:border-b-0 text-start cursor-pointer hover:bg-dp-surface-container/50 transition-colors">
       <div className="min-w-0">
-        <p className="font-sans text-[13px] font-semibold text-dp-on-surface truncate">
-          {isUrdu && p.name_ur ? p.name_ur : p.name}
-          {(isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) && <span className="font-normal text-dp-on-surface-variant"> ({isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})</span>}
-        </p>
-        {showCompany && p.company && <p className="font-sans text-[10.5px] text-dp-on-surface-variant truncate">{p.company}</p>}
+        <MarqueeText text={flavor ? `${name} (${flavor})` : name} className="font-sans text-[13.5px] font-semibold text-dp-on-surface" />
+        {showCompany && p.company && <MarqueeText text={p.company} className="font-sans text-[10.5px] text-dp-on-surface-variant mt-0.5" />}
       </div>
-      <input type="number" value={getValue(p, 'quantity_on_hand')} onChange={(e) => onChange(p.id, 'quantity_on_hand', e.target.value)} onBlur={() => onBlur(p, 'quantity_on_hand')}
-        className={`w-full px-1.5 py-1 rounded border text-[12.5px] font-sans text-center font-bold ltr-num ${low ? 'border-dp-error/50 bg-red-50 text-dp-error' : 'border-dp-outline-variant bg-white text-dp-on-surface'}`} />
-      <input type="number" value={getValue(p, 'cost_price_pkr')} onChange={(e) => onChange(p.id, 'cost_price_pkr', e.target.value)} onBlur={() => onBlur(p, 'cost_price_pkr')}
-        className="w-full px-1.5 py-1 rounded border border-amber-300 bg-amber-50 text-[12.5px] font-sans text-center text-amber-900 ltr-num" />
-      <input type="number" value={getValue(p, 'unit_price_pkr')} onChange={(e) => onChange(p.id, 'unit_price_pkr', e.target.value)} onBlur={() => onBlur(p, 'unit_price_pkr')}
-        className="w-full px-1.5 py-1 rounded border border-dp-secondary/40 bg-dp-secondary-container/20 text-[12.5px] font-sans font-bold text-center text-dp-secondary ltr-num" />
+      <p className={`font-sans text-[12.5px] font-bold text-center ltr-num ${low ? 'text-dp-error' : 'text-dp-on-surface'}`}>{fmt(p.quantity_on_hand)}</p>
+      <p className="font-sans text-[12.5px] font-semibold text-center text-amber-900 ltr-num">{fmt(cost)}</p>
+      <p className="font-sans text-[12.5px] font-bold text-center text-dp-secondary ltr-num">{fmt(sale)}</p>
       <p className={`font-sans text-[11.5px] font-bold text-center ltr-num ${margin === null ? 'text-dp-on-surface-variant/50' : margin < 0 ? 'text-dp-error' : 'text-emerald-700'}`}>
         {margin === null ? '—' : `${margin}%`}
       </p>
-    </div>
+    </button>
   )
 }
 
-export function StockListView<P extends StockListProduct>({ products, onFieldSave }: StockListViewProps<P>) {
+export function StockListView<P extends StockListProduct>({ products, onRowClick }: StockListViewProps<P>) {
   const { t, isUrdu } = useLocale()
   const [view, setView] = useState<'all' | 'brand' | 'loose'>('all')
   const [query, setQuery] = useState('')
-  // Draft text per "productId::field" while a cell is focused — lets the
-  // input hold whatever's being typed (including a momentarily-invalid
-  // "" or "12.") without fighting the parent's own re-render.
-  const [drafts, setDrafts] = useState<Record<string, string>>({})
 
   const q = query.trim().toLowerCase()
   const filtered = useMemo(() => {
@@ -151,21 +131,6 @@ export function StockListView<P extends StockListProduct>({ products, onFieldSav
   }, [brandedOnly, looseOnly, t])
 
   const rowsToShow = view === 'all' ? filtered : view === 'loose' ? looseOnly : null
-
-  const getValue = (p: P, field: EditableField) => {
-    const k = draftKey(p.id, field)
-    return k in drafts ? drafts[k] : String(p[field] || '')
-  }
-  const onChange = (id: string, field: EditableField, value: string) => setDrafts((d) => ({ ...d, [draftKey(id, field)]: value }))
-  const onBlur = (p: P, field: EditableField) => {
-    const k = draftKey(p.id, field)
-    const raw = drafts[k]
-    setDrafts((d) => { const next = { ...d }; delete next[k]; return next })
-    if (raw === undefined) return
-    const num = Number(raw)
-    if (!Number.isFinite(num) || num < 0 || num === p[field]) return
-    onFieldSave(p.id, field, num)
-  }
 
   return (
     <div>
@@ -199,7 +164,7 @@ export function StockListView<P extends StockListProduct>({ products, onFieldSav
                   <p className="font-sans text-[11px] text-dp-on-surface-variant shrink-0">{g.rows.length} {t('mk.productsCount')} · {t('sl.stockValueAtCost')} <span className="font-bold ltr-num">{fmt(stockValue)}</span></p>
                 </div>
                 <Header t={t} />
-                {g.rows.map((p) => <Row key={p.id} p={p} isUrdu={isUrdu} showCompany={false} getValue={getValue} onChange={onChange} onBlur={onBlur} />)}
+                {g.rows.map((p) => <Row key={p.id} p={p} isUrdu={isUrdu} showCompany={false} onClick={() => onRowClick(p)} />)}
               </div>
             )
           })}
@@ -207,7 +172,7 @@ export function StockListView<P extends StockListProduct>({ products, onFieldSav
       ) : (
         <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
           <Header t={t} />
-          {(rowsToShow ?? []).map((p) => <Row key={p.id} p={p} isUrdu={isUrdu} showCompany={view === 'all'} getValue={getValue} onChange={onChange} onBlur={onBlur} />)}
+          {(rowsToShow ?? []).map((p) => <Row key={p.id} p={p} isUrdu={isUrdu} showCompany={view === 'all'} onClick={() => onRowClick(p)} />)}
         </div>
       )}
     </div>

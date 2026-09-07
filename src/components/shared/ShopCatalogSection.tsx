@@ -33,11 +33,11 @@ interface ShopCatalogSectionProps<P extends StockListProduct> {
   renderProduct: (p: P) => React.ReactNode
   onAddItem: (categorySlug: string) => void
   onCommitted: () => void
-  // Powers the List view's inline qty/cost/sale editing — a direct
-  // shop_products field update, not a full re-open-the-modal edit. Kept
-  // as a prop (not done inside this component) so both callers' own
-  // toast/refresh conventions stay in charge, same as onCommitted above.
-  onInlineUpdate: (productId: string, field: 'cost_price_pkr' | 'unit_price_pkr' | 'quantity_on_hand', value: number) => void
+  // The List view is read-only (see StockListView's own header comment
+  // on why) — tapping a row calls this to open the caller's own product
+  // edit modal (the pencil button's form), the one and only place
+  // price/sale/unit/quantity get set.
+  onEditProduct: (product: P) => void
   // Add Stock's own camera button (Shop Portal v3.dc.html's catalog
   // screen) reuses the exact same scan pipeline my-shop's page-level scan
   // button already wires up — not a second AI call, just a second place
@@ -52,7 +52,7 @@ interface ShopCatalogSectionProps<P extends StockListProduct> {
 }
 
 export function ShopCatalogSection<P extends StockListProduct>({
-  shopId, primaryType, products, renderProduct, onAddItem, onCommitted, onInlineUpdate, onScanClick, forceTab,
+  shopId, primaryType, products, renderProduct, onAddItem, onCommitted, onEditProduct, onScanClick, forceTab,
 }: ShopCatalogSectionProps<P>) {
   const { t } = useLocale()
   const selection = useCatalogSelection(shopId)
@@ -105,7 +105,7 @@ export function ShopCatalogSection<P extends StockListProduct>({
             </div>
           )}
           {stockView === 'list' && products.length > 0
-            ? <StockListView products={products} onFieldSave={onInlineUpdate} />
+            ? <StockListView products={products} onRowClick={onEditProduct} />
             : <CategoryBrowser primaryType={primaryType} products={products} onAddItem={onAddItem} renderProduct={renderProduct} />}
         </>
       ) : (
