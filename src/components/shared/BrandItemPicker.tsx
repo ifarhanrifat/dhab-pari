@@ -220,8 +220,18 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
       company: (draft?.brandName ?? e.brandName ?? '').trim() || null,
       company_ur: (draft?.brandName_ur ?? e.brandName_ur ?? '').trim() || null,
       category: e.item.category,
-      flavor: (draft?.flavor ?? e.item.flavor ?? '').trim() || null,
-      flavor_ur: (draft?.flavor_ur ?? e.item.flavor_ur ?? '').trim() || null,
+      // A real bug found live: for a loose good, item.flavor/flavor_ur is
+      // NOT a real flavor at all — it's catalogSelection.ts's own reused
+      // storage for "this loose good's default unit" (e.g. 'kg'/'کلو',
+      // 'dozen'/'درجن'), the exact same fields the `unit:` line below
+      // deliberately reads from for that reason. Falling through to
+      // e.item.flavor here for a loose good was writing that unit hint
+      // into the real flavor column — every single loose good ever
+      // ticked ended up with a flavor of "kg"/"dozen"/"piece"/etc.,
+      // never a real flavor, since loose goods don't have one. Confirmed
+      // live: 43 rows in one shop alone, all with this exact pollution.
+      flavor: e.brandSlug === 'loose' ? null : (draft?.flavor ?? e.item.flavor ?? '').trim() || null,
+      flavor_ur: e.brandSlug === 'loose' ? null : (draft?.flavor_ur ?? e.item.flavor_ur ?? '').trim() || null,
       cost_price_pkr: draft && draft.cost_price_pkr !== '' ? Number(draft.cost_price_pkr) : 0,
       unit_price_pkr: draft && draft.unit_price_pkr !== '' ? Number(draft.unit_price_pkr) : (e.item.price ?? 0),
       quantity_on_hand: 0,
