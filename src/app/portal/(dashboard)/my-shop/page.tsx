@@ -351,7 +351,10 @@ function MyShopPageInner() {
           // native camera app being registered for anything — already
           // proven working on this exact device by the barcode scanner —
           // so it's the real fallback now, not just a gallery picker.
-          toast.error(t('sk.nativeCameraFailedFallbackToast'))
+          // Silent switch, no toast — a shopkeeper hitting this every
+          // single scan doesn't need to be told the native path failed
+          // each time; the in-app camera opening immediately IS the
+          // answer, not an error to read past.
           setShowWebCamera(true)
         }
       }

@@ -187,8 +187,8 @@ export default function SellPage() {
           // getUserMedia (WebCameraCaptureModal) is a completely
           // different code path with no dependency on any native camera
           // app being registered, already proven working on this exact
-          // device by the barcode scanner.
-          toast.error(t('sk.nativeCameraFailedFallbackToast'))
+          // device by the barcode scanner. Silent switch, no toast — see
+          // my-shop/page.tsx's own openScanner for why.
           setShowWebCamera(true)
         }
       }
