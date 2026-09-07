@@ -292,9 +292,17 @@ function MyShopPageInner() {
         if (err instanceof CameraPermissionDeniedError) {
           toast.error(t('sk.cameraPermissionDeniedToast'), { action: { label: t('af.openSettingsBtn'), onClick: () => openCameraAppSettings() } })
         } else if (!isCameraCancel(err)) {
-          // A real failure the permission fix alone didn't cover — surface
-          // it instead of leaving the tap looking like it did nothing.
+          // A real failure, confirmed live on a real device (Pixel 4a):
+          // Android itself refuses to launch the legacy camera-capture
+          // intent even though a working stock Camera app exists — not a
+          // permission problem, not this app's manifest, a real gap in
+          // that specific native path with no code-side workaround left.
+          // Falling through to the same <input capture> the web (non-
+          // native) build already relies on gives a real way forward
+          // instead of a dead end — worse than the ideal "camera opens
+          // directly," but it still lets the scan happen.
           toast.error(err instanceof Error ? err.message : String(err))
+          scanInputRef.current?.click()
         }
       }
       return

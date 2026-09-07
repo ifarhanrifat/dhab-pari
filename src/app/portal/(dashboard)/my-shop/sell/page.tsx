@@ -128,7 +128,14 @@ export default function SellPage() {
         if (err instanceof CameraPermissionDeniedError) {
           toast.error(t('sk.cameraPermissionDeniedToast'), { action: { label: t('af.openSettingsBtn'), onClick: () => openCameraAppSettings() } })
         } else if (!isCameraCancel(err)) {
+          // A real failure, confirmed live on a real device (Pixel 4a):
+          // Android itself refuses to launch the legacy camera-capture
+          // intent even though a working stock Camera app exists — see
+          // my-shop/page.tsx's own openScanner for the full story. Falling
+          // through to the same <input capture> the web build already
+          // uses gives a real way forward instead of a dead end.
           toast.error(err instanceof Error ? err.message : String(err))
+          scanInputRef.current?.click()
         }
       }
       return
