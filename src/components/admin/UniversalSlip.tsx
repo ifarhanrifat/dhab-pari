@@ -466,14 +466,20 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
         <Ltr>{fmtDate(data.date)}</Ltr>
       </div>
 
-      {thermal ? (
-        // Two columns do not survive 48mm. Side by side, a long consumer name
-        // on the left and "Billing Period / بلنگ مدت" on the right grew into
-        // each other until the Urdu name overlapped the address beneath it —
-        // visible on any account whose name runs past one line. On the roll the
-        // same facts run one per line instead: who the document is for, then
-        // what the document is, with nothing competing for the same horizontal
-        // space.
+      {thermal && rollMm === 58 ? (
+        // Two columns do not survive 48mm (58mm roll's printable strip). Side
+        // by side, a long consumer name on the left and "Billing Period /
+        // بلنگ مدت" on the right grew into each other until the Urdu name
+        // overlapped the address beneath it — visible on any account whose
+        // name runs past one line. On the roll the same facts run one per
+        // line instead: who the document is for, then what the document is,
+        // with nothing competing for the same horizontal space.
+        //
+        // 80mm gets the same side-by-side layout A4 uses (below) instead of
+        // this stacked one — its printable strip (272px here) has real room
+        // for two columns, and a shopkeeper printing a donor receipt on an
+        // 80mm roll expects the same "name — receipt number" row A4 shows,
+        // not this narrower 58mm-specific fallback.
         <div style={{ marginTop: 6 }}>
           {/* Heading, then the name under it. On a 48mm strip the inline form
               was the worst of both: "Billed To / بل بنام: Muhammad Ramzan s/o
@@ -531,7 +537,10 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
       ) : (
         // Two columns, each a heading with its value beneath it — the party on
         // the left, the document's own number on the right, and the shorter
-        // supporting facts under the number as one-line rows.
+        // supporting facts under the number as one-line rows. Used for A4 and
+        // for 80mm thermal both now (see the 58mm branch's own comment) — b()/
+        // f() already scale every size here down for thermal, so this same
+        // layout just renders smaller on the 80mm roll, not differently.
         //
         // The two headline fields spent a few hours as "Label: value" on one
         // line. On the sheet that read as a form being filled in rather than a
