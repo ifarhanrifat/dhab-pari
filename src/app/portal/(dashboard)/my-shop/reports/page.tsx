@@ -20,6 +20,7 @@ import { getCategoryLabel } from '@/lib/shopTypes'
 import { OrderFulfillmentPanel } from '@/components/shared/OrderFulfillmentPanel'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { ShopBottomNav } from '@/components/portal/ShopBottomNav'
+import { MarqueeText } from '@/components/shared/MarqueeText'
 
 interface Shop { id: string; name: string; name_ur: string | null; commission_mode: string }
 interface Summary {
@@ -42,7 +43,7 @@ type Period = 'today' | 'week' | 'month'
 interface PeriodSaleRow { total_amount_pkr: number; created_at: string; shop_sale_items: { product_id: string | null; quantity: number; line_total_pkr: number }[] }
 interface PeriodOrderRow { total_amount_pkr: number; confirmed_at: string | null; status: string; shop_order_items: { product_id: string | null; quantity: number; line_total_pkr: number }[] }
 interface PeriodPurchaseRow { total_cost_pkr: number; created_at: string }
-interface CatalogProduct { id: string; name: string; name_ur: string | null; category: string | null; cost_price_pkr: number; quantity_on_hand: number }
+interface CatalogProduct { id: string; name: string; name_ur: string | null; flavor: string | null; flavor_ur: string | null; category: string | null; cost_price_pkr: number; quantity_on_hand: number }
 
 function fmt(n: number) {
  return Number(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -102,7 +103,7 @@ export default function ShopReportsPage() {
  supabase.from('shop_orders').select('total_amount_pkr, confirmed_at, status, shop_order_items(product_id, quantity, line_total_pkr)')
  .eq('shop_id', data.id).eq('status', 'confirmed').gte('confirmed_at', cutoff31),
  supabase.from('shop_purchases').select('total_cost_pkr, created_at').eq('shop_id', data.id).gte('created_at', cutoff31),
- supabase.from('shop_products').select('id, name, name_ur, category, cost_price_pkr, quantity_on_hand').eq('shop_id', data.id).eq('is_active', true),
+ supabase.from('shop_products').select('id, name, name_ur, flavor, flavor_ur, category, cost_price_pkr, quantity_on_hand').eq('shop_id', data.id).eq('is_active', true),
  ])
  setSummary(s as unknown as Summary)
  setDaily((d ?? []) as DayEarning[])
@@ -311,7 +312,9 @@ export default function ShopReportsPage() {
  <div className="space-y-1.5">
  {lowStockProducts.map((p) => (
  <div key={p.id} className="flex items-center justify-between gap-3 bg-white border border-[#dcd8d4] px-3.5 py-2.5">
- <p className="font-sans text-[13px] text-[#201e1d] truncate">{isUrdu && p.name_ur ? p.name_ur : p.name}</p>
+ <MarqueeText
+ text={(isUrdu && p.name_ur ? p.name_ur : p.name) + ((isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) ? ` (${isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})` : '')}
+ className="font-sans text-[13px] text-[#201e1d]" />
  <p className={`font-sans text-[12.5px] font-bold shrink-0 ltr-num ${p.quantity_on_hand <= 0 ? 'text-[#ae1800]' : 'text-[#201e1d]'}`}>{fmt(p.quantity_on_hand)}</p>
  </div>
  ))}

@@ -796,6 +796,20 @@ function MyShopPageInner() {
             <ArrowRight size={15} className="rotate-180 rtl:rotate-0 text-[#7a736d]" />
           </button>
 
+          {/* Only a tiny 11px header-row button before this — a real
+              complaint, confirmed: "I can't see [credit] in this app" —
+              buried among five other small utility buttons is not
+              findable on a phone screen. Same visual weight as Deals/
+              Kits above now, not hidden behind icon-only chrome. */}
+          <Link href="/portal/my-shop/customers" className="w-full mt-2 flex items-center gap-2.5 px-3.5 py-3.5 bg-white border border-[#dcd8d4] cursor-pointer text-start" style={{ borderInlineStart: `3px solid ${ACCENT}` }}>
+            <Users size={18} style={{ color: ACCENT_DARK }} />
+            <span className="flex-1">
+              <span className="block font-sans text-[13px]" style={{ color: INK }}>{t('sk.customersBtn')}</span>
+              <span className="block font-sans text-[10.5px] text-[#7a736d] mt-0.5">{t('sk.dashCustomersSub')}</span>
+            </span>
+            <ArrowRight size={15} className="rotate-180 rtl:rotate-0 text-[#7a736d]" />
+          </Link>
+
           {dashLowStock > 0 && (
             <div className="border-2 p-3 mt-3 flex items-center gap-2" style={{ borderColor: ACCENT, background: '#fce3dc' }}>
               <AlertTriangle size={16} style={{ color: ACCENT_DARK }} />
