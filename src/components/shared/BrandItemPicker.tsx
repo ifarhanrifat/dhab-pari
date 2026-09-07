@@ -3,35 +3,28 @@
 // Brand-first catalog browsing for the shop's "Add Stock" tab — a literal
 // port of the "Village Portal Marketplace" design handoff's own catalog
 // screens (Shop Portal v3.dc.html: "S · catalog · brands" and "S · brand
-// catalog"), not a reinterpretation. Every button's copy, every hint
-// paragraph, the exact fields on a row (unit <select>, cost, sale) and
-// the exact two-button bottom bar on the brand-detail screen are taken
-// straight from that file's own markup — nothing invented, nothing
-// summarized into a shorter label of its own. Departments stays a
-// secondary lens (toggle at the top, not in the handoff file at all) for
-// the handful of categories with no brand coverage.
+// catalog"), not a reinterpretation. Departments stays a secondary lens
+// (toggle at the top, not in the handoff file at all) for the handful of
+// categories with no brand coverage.
 //
 // Ticking commits immediately — there is no separate "Save" step here at
 // all. A tap on an un-owned row inserts it into shop_products right then
-// (using whatever cost/sale/unit is currently typed, or the catalog's
-// own defaults if nothing was touched); a tap on an already-owned row
-// deletes that real row. Cost/sale/unit stay visible AND editable after
-// a row is owned too — typing there now updates the real product
-// directly (onBlur), the same "type a rate, it saves" feel before and
-// after the tick, instead of the fields vanishing the moment a row
-// becomes stock.
+// at cost=0/sale=0 and a default unit; a tap on an already-owned row
+// deletes that real row. Pricing was originally settable right here too
+// (an editable cost/sale/unit per row, both before and after the tick),
+// but that meant three different places could set a product's price
+// (here, again after ticking, and the actual product edit form) with no
+// clear answer for which one was "the real one" — a real, confirmed
+// complaint. The pencil button on the product edit form (my-shop/
+// page.tsx's openEdit) is now the ONLY place price/sale/unit/expiry get
+// set; every row here is purely tick-to-add.
 //
-// VariantRow/LooseRow/ItemRow are hoisted to module scope on purpose —
-// defining them inside BrandItemPicker's own function body (an earlier
-// version of this file did) gives every row a brand-new component
-// identity on every re-render, and React remounts a function component
-// whose identity changed since the last render. Since ANY keystroke in
-// any price field triggers a state update and thus a re-render of
-// BrandItemPicker, that meant every row's <input> was destroyed and
-// recreated after every character — which reads as "can't type
-// anything" or "the rate disappears" depending on timing. Hoisted here,
-// only their *props* change between renders, so React just re-renders
-// the existing DOM nodes and focus/typing works normally.
+// ItemRow is hoisted to module scope on purpose — defining it inside
+// BrandItemPicker's own function body (an earlier version of this file
+// did, back when rows had their own price inputs) gives every row a
+// brand-new component identity on every re-render, and React remounts a
+// function component whose identity changed since the last render.
+// Hoisted here, only its *props* change between renders.
 
 import { useMemo, useRef, useState } from 'react'
 import { ArrowRight, Check, LayoutGrid, Tags, Sparkles, PackagePlus, Search, Camera, Loader2 } from 'lucide-react'
@@ -46,6 +39,7 @@ import {
 } from '@/lib/catalogSelection'
 import { DynamicIcon } from './DynamicIcon'
 import { BrandBuilderModal } from './BrandBuilderModal'
+import { MarqueeText } from './MarqueeText'
 import type { CatalogSelection } from '@/hooks/useCatalogSelection'
 
 interface OwnedProduct {
@@ -69,101 +63,34 @@ function initials(name: string): string {
   return words.slice(0, 2).map((w) => w[0]).join('').toUpperCase()
 }
 
-// A field binding hides "is this row owned yet or still a pre-commit
-// draft" from the row components entirely — they just get a value +
-// onChange (+ optional onBlur to push an owned row's edit to the DB).
-interface FieldBinding { value: string | number; onChange: (v: string) => void; onBlur?: () => void }
-
+// Pricing is deliberately NOT settable anywhere in this file — a real
+// complaint, confirmed as a real inconsistency: a shopkeeper could set
+// cost/sale/unit right here at tick-time (VariantRow/LooseRow's own
+// inline fields, now removed), again after ticking (owned-row inline
+// editing, also removed), or via the actual product edit form's pencil
+// button — three different places doing the same job, easy to lose
+// track of which one you last touched. The pencil button (my-shop/
+// page.tsx's openEdit) is now the ONLY place price/sale/unit/expiry get
+// set — every row here is purely tick-to-add-at-default-price, exactly
+// like ItemRow already was for plain catalog items. VariantRow and
+// LooseRow used to be separate, wider components specifically to fit
+// those now-removed inputs; with nothing left to fit, they're gone and
+// every row in this file (plain items, brand variants, loose goods)
+// renders through this one shared component.
 interface ItemRowProps { e: CatalogEntry; isUrdu: boolean; label: string; owned: boolean; busy: boolean; onToggle: () => void }
 function ItemRow({ e, isUrdu, label, owned, busy, onToggle }: ItemRowProps) {
   return (
     <button type="button" disabled={busy} onClick={onToggle}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-start transition-all ${owned ? 'bg-dp-secondary-container/40 border-dp-secondary' : 'bg-white border-dp-outline-variant hover:border-dp-secondary'} ${busy ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
+      className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg border text-start transition-all ${owned ? 'bg-dp-secondary-container/40 border-dp-secondary' : 'bg-white border-dp-outline-variant hover:border-dp-secondary'} ${busy ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
       <span className={`shrink-0 w-5 h-5 rounded flex items-center justify-center border-2 ${owned ? 'bg-dp-secondary border-dp-secondary' : 'border-dp-outline-variant'}`}>
         {busy ? <Loader2 size={12} className="text-dp-secondary animate-spin" /> : owned && <Check size={13} className="text-white" strokeWidth={3} />}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block font-sans text-[11.5px] font-semibold text-dp-on-surface truncate">{label}</span>
-        <span className="block font-sans text-[9px] text-dp-on-surface-variant truncate">{getCategoryLabel(e.item.category, isUrdu)}</span>
+        <MarqueeText text={label} className="font-sans text-[13px] font-semibold text-dp-on-surface" />
+        <span className="block font-sans text-[9.5px] text-dp-on-surface-variant truncate mt-0.5">{getCategoryLabel(e.item.category, isUrdu)}</span>
       </span>
-      {!owned && e.item.price ? <span className="shrink-0 font-sans text-[9.5px] font-bold text-dp-secondary">~{e.item.price}</span> : null}
+      {!owned && e.item.price ? <span className="shrink-0 font-sans text-[10px] font-bold text-dp-secondary">~{e.item.price}</span> : null}
     </button>
-  )
-}
-
-interface VariantRowProps { e: CatalogEntry; flavorLabel: string; owned: boolean; busy: boolean; onToggle: () => void; cost: FieldBinding; sale: FieldBinding; t: (k: string) => string }
-function VariantRow({ e, flavorLabel, owned, busy, onToggle, cost, sale, t }: VariantRowProps) {
-  return (
-    <div className={`flex items-center gap-2 px-3 py-2.5 border-t border-dp-outline-variant/60 first:border-t-0 ${owned ? 'bg-dp-secondary-container/20' : ''}`}>
-      <button type="button" disabled={busy} onClick={onToggle}
-        className={`shrink-0 w-5 h-5 rounded flex items-center justify-center border-2 cursor-pointer ${owned ? 'bg-dp-secondary border-dp-secondary' : 'border-dp-outline-variant'} ${busy ? 'opacity-60' : ''}`}>
-        {busy ? <Loader2 size={12} className="text-dp-secondary animate-spin" /> : owned && <Check size={13} className="text-white" strokeWidth={3} />}
-      </button>
-      <span className="min-w-0 flex-1">
-        <span className="block font-sans text-[11px] text-dp-on-surface truncate">{flavorLabel}</span>
-        {e.item.price ? <span className="block font-sans text-[8.5px] text-dp-on-surface-variant">{t('bs.mrpLabel').replace('{v}', String(e.item.price))}</span> : null}
-      </span>
-      <input inputMode="decimal" placeholder={t('bs.costPlaceholder')} value={cost.value} onChange={(ev) => cost.onChange(ev.target.value)} onBlur={cost.onBlur}
-        className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-outline-variant bg-dp-surface-container font-sans text-[10px] text-dp-on-surface" />
-      <input inputMode="decimal" placeholder={t('bs.salePlaceholder')} value={sale.value} onChange={(ev) => sale.onChange(ev.target.value)} onBlur={sale.onBlur}
-        className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-secondary bg-white font-sans text-[10px] font-bold text-dp-on-surface" />
-    </div>
-  )
-}
-
-interface LooseRowProps { name: string; owned: boolean; busy: boolean; onToggle: () => void; unit: FieldBinding; cost: FieldBinding; sale: FieldBinding; t: (k: string) => string }
-function LooseRow({ name, owned, busy, onToggle, unit, cost, sale, t }: LooseRowProps) {
-  // A shopkeeper buying loose goods at the wholesale market usually knows
-  // "40kg of onions for Rs 3200 total," not the per-kg rate — this just
-  // does that division for them and drops the result straight into the
-  // same cost field typing it by hand would. Sale price is deliberately
-  // untouched here: that's the shopkeeper's own margin call, unrelated to
-  // what they paid.
-  const [showCalc, setShowCalc] = useState(false)
-  const [calcQty, setCalcQty] = useState('')
-  const [calcTotal, setCalcTotal] = useState('')
-  const calcQtyNum = Number(calcQty)
-  const calcTotalNum = Number(calcTotal)
-  const computedCost = calcQtyNum > 0 && calcTotalNum >= 0 ? Math.round((calcTotalNum / calcQtyNum) * 100) / 100 : null
-  const applyCalc = () => {
-    if (computedCost === null) return
-    cost.onChange(String(computedCost))
-    setShowCalc(false); setCalcQty(''); setCalcTotal('')
-  }
-  return (
-    <div className={`px-3 py-2.5 rounded-lg border ${owned ? 'bg-dp-secondary-container/40 border-dp-secondary' : 'bg-white border-dp-outline-variant'}`}>
-      <div className="flex items-center gap-2">
-        <button type="button" disabled={busy} onClick={onToggle}
-          className={`shrink-0 w-5 h-5 rounded flex items-center justify-center border-2 cursor-pointer ${owned ? 'bg-dp-secondary border-dp-secondary' : 'border-dp-outline-variant'} ${busy ? 'opacity-60' : ''}`}>
-          {busy ? <Loader2 size={12} className="text-dp-secondary animate-spin" /> : owned && <Check size={13} className="text-white" strokeWidth={3} />}
-        </button>
-        <span className="min-w-0 flex-1 font-sans text-[11px] text-dp-on-surface truncate">{name}</span>
-        <select value={unit.value} onChange={(ev) => unit.onChange(ev.target.value)} onBlur={unit.onBlur}
-          className="shrink-0 w-[74px] px-1 py-1.5 rounded-lg border border-dp-outline-variant bg-white font-sans text-[9px] text-dp-on-surface">
-          {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
-        </select>
-        <div className="shrink-0 flex flex-col items-center gap-0.5">
-          <input inputMode="decimal" placeholder={t('bs.costPlaceholder')} value={cost.value} onChange={(ev) => cost.onChange(ev.target.value)} onBlur={cost.onBlur}
-            className="w-14 px-1.5 py-1.5 text-center rounded-lg border border-dp-outline-variant bg-dp-surface-container font-sans text-[10px] text-dp-on-surface" />
-          <button type="button" onClick={() => setShowCalc((s) => !s)} className="font-sans text-[7.5px] text-dp-secondary underline cursor-pointer whitespace-nowrap">{t('sk.calcFromTotalBtn')}</button>
-        </div>
-        <input inputMode="decimal" placeholder={t('bs.salePlaceholder')} value={sale.value} onChange={(ev) => sale.onChange(ev.target.value)} onBlur={sale.onBlur}
-          className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-secondary bg-white font-sans text-[10px] font-bold text-dp-on-surface" />
-      </div>
-      {showCalc && (
-        <div className="flex items-center gap-1.5 mt-2 ps-7">
-          <input inputMode="decimal" placeholder={t('sk.calcQtyPlaceholder')} value={calcQty} onChange={(ev) => setCalcQty(ev.target.value)}
-            className="w-16 px-1.5 py-1.5 text-center rounded-lg border border-dp-outline-variant bg-white font-sans text-[10px] text-dp-on-surface" />
-          <span className="font-sans text-[9px] text-dp-on-surface-variant">{t('sk.calcForPlaceholder')}</span>
-          <input inputMode="decimal" placeholder={t('sk.calcTotalPlaceholder')} value={calcTotal} onChange={(ev) => setCalcTotal(ev.target.value)}
-            className="w-16 px-1.5 py-1.5 text-center rounded-lg border border-dp-outline-variant bg-white font-sans text-[10px] text-dp-on-surface" />
-          <button type="button" onClick={applyCalc} disabled={computedCost === null}
-            className="flex-1 py-1.5 rounded-lg font-sans text-[9.5px] font-bold text-white bg-dp-secondary cursor-pointer disabled:opacity-40">
-            {computedCost !== null ? t('sk.calcUseValueBtn').replace('{v}', String(computedCost)) : t('sk.calcUseBtn')}
-          </button>
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -180,10 +107,6 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
   // a second synchronous call in the same tick still reads the old set.
   // A plain ref IS synchronous, so it actually blocks the second call.
   const pendingKeysRef = useRef<Set<string>>(new Set())
-  // Pre-commit price/unit edits key off catalog key (selection.rows,
-  // useCatalogSelection); once a row is owned, edits key off the real
-  // product id instead — a totally different identity, so a separate map.
-  const [ownedDrafts, setOwnedDrafts] = useState<Record<string, Partial<{ cost_price_pkr: string | number; unit_price_pkr: string | number; unit: string }>>>({})
   const tree = useMemo(() => getShopTypeTree(primaryType), [primaryType])
   const looseEntries = useMemo(() => looseGoodsAsCatalogEntries(primaryType), [primaryType])
   const catalog = useMemo(() => [...getCatalogForShopType(primaryType), ...looseEntries], [primaryType, looseEntries])
@@ -205,18 +128,16 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
 
   // The "add item to this brand" / "add a new loose good" mini-forms are
   // always-visible cards at the bottom of their section in the handoff
-  // file — never behind a "show form" toggle.
+  // file — never behind a "show form" toggle. No price/sale/unit fields
+  // here (or anywhere in this file) — every new row lands at cost=0/
+  // sale=0/default unit and gets its real numbers set exactly once, via
+  // the product edit form's pencil button. See this file's own top
+  // comment on ItemRow for why.
   const [nlName, setNlName] = useState('')
-  const [nlUnit, setNlUnit] = useState(UNIT_OPTIONS[0])
-  const [nlCost, setNlCost] = useState('')
-  const [nlSale, setNlSale] = useState('')
   const [nlCat, setNlCat] = useState<string | null>(null)
 
   const [aiName, setAiName] = useState('')
-  const [aiUnit, setAiUnit] = useState(UNIT_OPTIONS[0])
   const [aiFlavor, setAiFlavor] = useState('')
-  const [aiCost, setAiCost] = useState('')
-  const [aiSale, setAiSale] = useState('')
 
   const activeDept = tree.find((d) => d.key === activeDeptKey)
   const activeCat = activeDept?.categories.find((c) => c.slug === activeCatSlug)
@@ -250,59 +171,6 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
   }, [looseEntries, looseQuery, tree])
   const looseShownCount = looseByCategory.reduce((s, g) => s + g.entries.length, 0)
   const looseOnCount = looseEntries.filter((e) => !availableForPick(e)).length
-
-  // Pre-commit field editing (row not owned yet) — a keystroke drops the
-  // value into useCatalogSelection's basket, creating the draft row on
-  // first touch if it doesn't exist yet. Nothing is saved until the tick.
-  const ensureAndSet = <K extends 'cost_price_pkr' | 'unit_price_pkr' | 'unit'>(e: CatalogEntry, field: K, value: string) => {
-    if (!selection.rows[e.key]) selection.selectMany([e])
-    selection.setField(e.key, field, (field === 'unit' ? value : (value === '' ? '' : Number(value))) as never)
-  }
-  const draftValue = (e: CatalogEntry, field: 'cost_price_pkr' | 'unit_price_pkr' | 'unit', fallback: string | number) =>
-    selection.rows[e.key] ? selection.rows[e.key][field] : fallback
-
-  // Post-commit field editing (row already owned, a real shop_products
-  // row) — a keystroke only ever touches local draft state; onBlur pushes
-  // the real UPDATE. Never fights the input while the shopkeeper is still
-  // typing the way an eager per-keystroke save would.
-  const ownedFieldValue = (op: OwnedProduct, field: 'cost_price_pkr' | 'unit_price_pkr' | 'unit') => {
-    const d = ownedDrafts[op.id]
-    if (d && field in d) return d[field] as string | number
-    return op[field] ?? ''
-  }
-  const setOwnedDraft = (opId: string, field: 'cost_price_pkr' | 'unit_price_pkr' | 'unit', value: string) => {
-    setOwnedDrafts((d) => ({ ...d, [opId]: { ...d[opId], [field]: value } }))
-  }
-  const commitOwnedField = async (op: OwnedProduct, field: 'cost_price_pkr' | 'unit_price_pkr' | 'unit') => {
-    const d = ownedDrafts[op.id]
-    if (!d || !(field in d)) return
-    const value: string | number = field === 'unit' ? String(d[field]) : (d[field] === '' ? 0 : Number(d[field]))
-    const { error } = await supabase.from('shop_products').update({ [field]: value }).eq('id', op.id)
-    if (error) { toast.error(friendlyError(error)); return }
-    onBrandSubmitted()
-  }
-
-  // One binding per field, per row — hides the owned/not-owned branch
-  // from every row component entirely.
-  const bindCost = (e: CatalogEntry, owned: boolean): FieldBinding => {
-    if (owned) { const op = findOwned(e)!; return { value: ownedFieldValue(op, 'cost_price_pkr'), onChange: (v) => setOwnedDraft(op.id, 'cost_price_pkr', v), onBlur: () => commitOwnedField(op, 'cost_price_pkr') } }
-    return { value: draftValue(e, 'cost_price_pkr', ''), onChange: (v) => ensureAndSet(e, 'cost_price_pkr', v) }
-  }
-  const bindSale = (e: CatalogEntry, owned: boolean): FieldBinding => {
-    if (owned) { const op = findOwned(e)!; return { value: ownedFieldValue(op, 'unit_price_pkr'), onChange: (v) => setOwnedDraft(op.id, 'unit_price_pkr', v), onBlur: () => commitOwnedField(op, 'unit_price_pkr') } }
-    return { value: draftValue(e, 'unit_price_pkr', e.item.price ?? ''), onChange: (v) => ensureAndSet(e, 'unit_price_pkr', v) }
-  }
-  const bindUnit = (e: CatalogEntry, owned: boolean): FieldBinding => {
-    if (owned) { const op = findOwned(e)!; return { value: ownedFieldValue(op, 'unit') || UNIT_OPTIONS[0], onChange: (v) => setOwnedDraft(op.id, 'unit', v), onBlur: () => commitOwnedField(op, 'unit') } }
-    // A loose good's unit lives on item.flavor in ENGLISH ('kg') per
-    // catalogSelection.ts, with the Urdu spelling ('کلو') on
-    // item.flavor_ur — the <select>'s own <option>s (UNIT_OPTIONS) and
-    // shop_products.unit's CHECK constraint are both Urdu-only, so the
-    // Urdu spelling is the only one that's ever valid to default to
-    // here, never the plain .flavor fallback the rest of this file uses
-    // for actual product names/flavors.
-    return { value: draftValue(e, 'unit', e.item.flavor_ur || UNIT_OPTIONS[0]), onChange: (v) => ensureAndSet(e, 'unit', v) }
-  }
 
   // Builds the real shop_products insert row from whatever's currently
   // drafted for this entry (selection.rows, pre-commit scratch space) —
@@ -422,14 +290,17 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
   const submitLooseGood = async () => {
     if (!nlName.trim() || !nlCat) return
     setAddingLoose(true)
+    // No cost/sale/unit here — lands at cost=0/sale=0/کلو (the overwhelming
+    // common case for a loose good) and gets its real numbers set via the
+    // pencil button, same as every other row in this file.
     const { error } = await supabase.from('shop_products').insert({
-      shop_id: shopId, name: nlName.trim(), category: nlCat, unit: nlUnit,
-      cost_price_pkr: nlCost === '' ? 0 : Number(nlCost), unit_price_pkr: nlSale === '' ? 0 : Number(nlSale),
+      shop_id: shopId, name: nlName.trim(), category: nlCat, unit: 'کلو',
+      cost_price_pkr: 0, unit_price_pkr: 0,
       quantity_on_hand: 0, is_active: true,
     })
     setAddingLoose(false)
     if (error) { toast.error(friendlyError(error)); return }
-    setNlName(''); setNlCost(''); setNlSale('')
+    setNlName('')
     onBrandSubmitted()
   }
 
@@ -438,14 +309,14 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
     if (!aiName.trim()) return
     setAddingBrandItem(true)
     const { error } = await supabase.from('shop_products').insert({
-      shop_id: shopId, name: aiName.trim(), flavor: aiFlavor.trim() || null, unit: aiUnit,
+      shop_id: shopId, name: aiName.trim(), flavor: aiFlavor.trim() || null, unit: UNIT_OPTIONS[0],
       company: brandName || null, company_ur: brandName_ur || null, category: catSlug,
-      cost_price_pkr: aiCost === '' ? 0 : Number(aiCost), unit_price_pkr: aiSale === '' ? 0 : Number(aiSale),
+      cost_price_pkr: 0, unit_price_pkr: 0,
       quantity_on_hand: 0, is_active: true,
     })
     setAddingBrandItem(false)
     if (error) { toast.error(friendlyError(error)); return }
-    setAiName(''); setAiFlavor(''); setAiCost(''); setAiSale('')
+    setAiName(''); setAiFlavor('')
     onBrandSubmitted()
   }
 
@@ -530,9 +401,8 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                             </div>
                             {entries.map((e) => {
                               const owned = !availableForPick(e)
-                              const flavorLabel = (isUrdu ? (e.item.flavor_ur || e.item.flavor || e.item.name_ur) : (e.item.flavor || e.item.name)) || e.item.flavor || e.item.name
                               // eslint-disable-next-line react-hooks/refs -- toggleOwned -> commitEntries only reads pendingKeysRef.current inside the click handler body, never during render
-                              return <VariantRow key={e.key} e={e} t={t} flavorLabel={flavorLabel} owned={owned} busy={committingKeys.has(e.key)} onToggle={() => toggleOwned(e)} cost={bindCost(e, owned)} sale={bindSale(e, owned)} />
+                              return <ItemRow key={e.key} e={e} isUrdu={isUrdu} label={rowLabel(e)} owned={owned} busy={committingKeys.has(e.key)} onToggle={() => toggleOwned(e)} />
                             })}
                           </div>
                         )
@@ -544,15 +414,8 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                       <p className="font-sans text-[13px] font-bold text-dp-on-surface mt-0.5">{t('bs.addItemToBrandHeading')}</p>
                       <p className="font-sans text-[9.5px] text-dp-on-surface-variant leading-6 mt-1">{t('bs.addItemToBrandHint')}</p>
                       <div className="flex gap-1.5 mt-3">
-                        <input value={aiName} onChange={(e) => setAiName(e.target.value)} placeholder={t('bs.itemNamePlaceholder')} className="input-field flex-1 min-w-0 text-[10.5px] py-2" />
-                        <select value={aiUnit} onChange={(e) => setAiUnit(e.target.value)} className="shrink-0 w-24 px-2 rounded-lg border border-dp-outline-variant bg-white font-sans text-[10.5px] text-dp-on-surface">
-                          {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
-                        </select>
-                      </div>
-                      <div className="flex gap-1.5 mt-1.5">
-                        <input value={aiFlavor} onChange={(e) => setAiFlavor(e.target.value)} placeholder={t('bs.flavorOrSizePlaceholder')} className="input-field flex-1 min-w-0 text-[10.5px] py-2" />
-                        <input value={aiCost} onChange={(e) => setAiCost(e.target.value)} inputMode="decimal" placeholder={t('bs.costPlaceholder')} className="w-14 shrink-0 px-1.5 rounded-lg border border-dp-outline-variant bg-dp-surface-container text-center font-sans text-[10.5px]" />
-                        <input value={aiSale} onChange={(e) => setAiSale(e.target.value)} inputMode="decimal" placeholder={t('bs.salePlaceholder')} className="w-14 shrink-0 px-1.5 rounded-lg border border-dp-secondary bg-white text-center font-sans text-[10.5px] font-bold" />
+                        <input value={aiName} onChange={(e) => setAiName(e.target.value)} placeholder={t('bs.itemNamePlaceholder')} className="input-field flex-1 min-w-0 text-[12px] py-2.5" />
+                        <input value={aiFlavor} onChange={(e) => setAiFlavor(e.target.value)} placeholder={t('bs.flavorOrSizePlaceholder')} className="input-field flex-1 min-w-0 text-[12px] py-2.5" />
                       </div>
                       <button onClick={() => submitBrandItem(openBrand.brandName, openBrand.brandName_ur, defaultCat)} disabled={addingBrandItem}
                         className="w-full mt-2.5 py-2.5 rounded-lg bg-dp-secondary text-white font-sans text-[10.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-60 flex items-center justify-center gap-1.5">
@@ -668,7 +531,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                               {g.entries.map((e) => {
                                 const owned = !availableForPick(e)
                                 const name = (isUrdu ? e.item.name_ur : e.item.name) || e.item.name
-                                return <LooseRow key={e.key} t={t} name={name} owned={owned} busy={committingKeys.has(e.key)} onToggle={() => toggleOwned(e)} unit={bindUnit(e, owned)} cost={bindCost(e, owned)} sale={bindSale(e, owned)} />
+                                return <ItemRow key={e.key} e={e} isUrdu={isUrdu} label={name} owned={owned} busy={committingKeys.has(e.key)} onToggle={() => toggleOwned(e)} />
                               })}
                             </div>
                           </div>
@@ -680,16 +543,9 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                       <p className="font-sans text-[8px] font-bold tracking-[0.1em] text-dp-on-surface-variant">{t('bs.addLooseGoodKicker')}</p>
                       <p className="font-sans text-[13px] font-bold text-dp-on-surface mt-0.5">{t('bs.addLooseGoodBtn')}</p>
                       <p className="font-sans text-[9.5px] text-dp-on-surface-variant leading-6 mt-1">{t('bs.addLooseGoodFormHint')}</p>
-                      <div className="flex gap-1.5 mt-3">
-                        <input value={nlName} onChange={(e) => setNlName(e.target.value)} placeholder={t('bs.looseGoodNamePlaceholder')} className="input-field flex-1 min-w-0 text-[10.5px] py-2" />
-                        <select value={nlUnit} onChange={(e) => setNlUnit(e.target.value)} className="shrink-0 w-24 px-2 rounded-lg border border-dp-outline-variant bg-white font-sans text-[10.5px] text-dp-on-surface">
-                          {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
-                        </select>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <span className="flex-1 min-w-0 font-sans text-[9.5px] text-dp-on-surface-variant truncate">{t('bs.categoryPrefixLabel').replace('{name}', nlCat ? getCategoryLabel(nlCat, isUrdu) : '—')}</span>
-                        <input value={nlCost} onChange={(e) => setNlCost(e.target.value)} inputMode="decimal" placeholder={t('bs.costPlaceholder')} className="w-14 shrink-0 px-1.5 rounded-lg border border-dp-outline-variant bg-dp-surface-container text-center font-sans text-[10.5px]" />
-                        <input value={nlSale} onChange={(e) => setNlSale(e.target.value)} inputMode="decimal" placeholder={t('bs.salePlaceholder')} className="w-14 shrink-0 px-1.5 rounded-lg border border-dp-secondary bg-white text-center font-sans text-[10.5px] font-bold" />
+                      <div className="flex items-center gap-1.5 mt-3">
+                        <input value={nlName} onChange={(e) => setNlName(e.target.value)} placeholder={t('bs.looseGoodNamePlaceholder')} className="input-field flex-1 min-w-0 text-[12px] py-2.5" />
+                        <span className="shrink-0 font-sans text-[10px] text-dp-on-surface-variant">{t('bs.categoryPrefixLabel').replace('{name}', nlCat ? getCategoryLabel(nlCat, isUrdu) : '—')}</span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto pb-1">
                         {tree.flatMap((d) => d.categories).map((c) => (

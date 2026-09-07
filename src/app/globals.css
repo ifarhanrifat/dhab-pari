@@ -720,3 +720,25 @@ html[lang='ur'] .section-title {
 .shop-ink-theme .input-field:focus {
   border-color: #ec3013;
 }
+
+/* MarqueeText (src/components/shared/MarqueeText.tsx) — a name/label too
+   long for its box scrolls fully into view instead of just truncating
+   with "...", direction matched to how each script is actually read:
+   English (LTR) scrolls right-to-left like a classic news ticker (enters
+   from the right, exits left); Urdu (RTL) mirrors that — enters from the
+   left, exits right. Percent-based transform is relative to the text
+   span's own width, not the container's, which is the standard simple
+   marquee technique — good enough for "read the whole thing as it
+   passes," not meant to be frame-perfect. Respects prefers-reduced-motion
+   by falling back to a plain static (truncated) label. */
+@keyframes marquee-rtl {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+@keyframes marquee-ltr {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-text-scroll { animation: none !important; }
+}
