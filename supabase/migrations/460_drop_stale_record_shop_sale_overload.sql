@@ -1,0 +1,15 @@
+-- Real bug, caught by testing just now (not a user report): migration
+-- 452 added a third parameter to record_shop_sale via CREATE OR REPLACE
+-- FUNCTION record_shop_sale(p_shop_id uuid, p_items jsonb, p_customer_id
+-- uuid DEFAULT NULL) — but CREATE OR REPLACE only replaces a function
+-- with the EXACT SAME parameter list. Adding a parameter creates a
+-- brand new overload; it does not touch the original two-argument
+-- version, which stayed registered this whole time. Because the new
+-- third parameter has a DEFAULT, a call with just two arguments matches
+-- BOTH overloads at once — Postgres refuses to guess and raises
+-- "Could not choose the best candidate function." The live app was
+-- never affected (sell/page.tsx always passes all three named
+-- arguments explicitly, customer_id included as null for a cash sale),
+-- but any other caller — direct API testing, a future integration,
+-- this session's own verification script — hits it immediately.
+DROP FUNCTION IF EXISTS record_shop_sale(uuid, jsonb);
