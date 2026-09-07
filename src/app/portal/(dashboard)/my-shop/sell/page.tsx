@@ -30,6 +30,7 @@ import { takeNativePhoto, openCameraAppSettings, CameraPermissionDeniedError, is
 import { compressImageToBase64 } from '@/lib/imageCompress'
 import { BarcodeScannerModal } from '@/components/shared/BarcodeScannerModal'
 import { WebCameraCaptureModal } from '@/components/shared/WebCameraCaptureModal'
+import { MarqueeText } from '@/components/shared/MarqueeText'
 
 const INK = '#201e1d'
 const ACCENT = '#ec3013'
@@ -359,7 +360,7 @@ export default function SellPage() {
               return (
                 <button key={p.id} onClick={() => addToBill(p)} className="shrink-0 w-24 text-start bg-white border p-2.5 cursor-pointer transition-colors"
                   style={inBill ? { borderColor: ACCENT, borderWidth: 2 } : { borderColor: '#dcd8d4' }}>
-                  <p className="font-sans text-[11.5px] font-semibold leading-[1.4] truncate" style={{ color: INK }}>{displayName(p, isUrdu)}</p>
+                  <MarqueeText text={displayName(p, isUrdu)} className="font-sans text-[11.5px] font-semibold leading-[1.4]" style={{ color: INK }} />
                   <div className="flex items-center justify-between mt-1.5">
                     <span className="font-sans text-[12px] font-bold" style={{ color: INK }}>{fmt(p.unit_price_pkr)}</span>
                     {inBill && <span className="font-sans text-[11px] font-bold text-white rounded-full w-4.5 h-4.5 flex items-center justify-center px-1" style={{ background: ACCENT }}>{inBill.quantity}</span>}
@@ -384,7 +385,7 @@ export default function SellPage() {
             return (
               <div key={r.key} className="bg-white border border-[#dcd8d4] p-3 flex items-center gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="font-sans text-[13.5px] font-semibold truncate" style={{ color: INK }}>{r.name}</p>
+                  <MarqueeText text={r.name} className="font-sans text-[13.5px] font-semibold" style={{ color: INK }} />
                   <p className="font-sans text-[12px] text-[#7a736d]">{fmt(r.unit_price_pkr * r.pack_step)} × <span className="ltr-num">{stepCount}</span> = <span className="font-bold" style={{ color: INK }}>{fmt(r.unit_price_pkr * r.quantity)}</span></p>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -442,7 +443,7 @@ export default function SellPage() {
             <div className="space-y-1">
               {filtered.map((p) => (
                 <button key={p.id} onClick={() => addToBill(p)} className="w-full text-start flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-[#f7f6f5] cursor-pointer">
-                  <span className="min-w-0 truncate font-sans text-[13.5px]" style={{ color: INK }}>{displayName(p, isUrdu)}</span>
+                  <MarqueeText text={displayName(p, isUrdu)} className="min-w-0 flex-1 font-sans text-[13.5px]" style={{ color: INK }} />
                   <span className="shrink-0 font-sans text-[12.5px] font-bold" style={{ color: INK }}>{fmt(p.unit_price_pkr)}</span>
                 </button>
               ))}

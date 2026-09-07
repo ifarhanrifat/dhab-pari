@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
-export function MarqueeText({ text, className }: { text: string; className?: string }) {
+export function MarqueeText({ text, className, style }: { text: string; className?: string; style?: React.CSSProperties }) {
   const { isUrdu } = useLocale()
   const containerRef = useRef<HTMLDivElement>(null)
   const textRef = useRef<HTMLSpanElement>(null)
@@ -37,7 +37,7 @@ export function MarqueeText({ text, className }: { text: string; className?: str
   }, [text])
 
   return (
-    <div ref={containerRef} className={`overflow-hidden whitespace-nowrap ${className ?? ''}`}>
+    <div ref={containerRef} className={`overflow-hidden whitespace-nowrap ${className ?? ''}`} style={style}>
       <span
         ref={textRef}
         className={`inline-block ${overflowing ? '' : 'truncate max-w-full align-bottom'} marquee-text-scroll`}

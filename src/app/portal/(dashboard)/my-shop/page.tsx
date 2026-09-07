@@ -31,6 +31,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import { compressImageToBase64 } from '@/lib/imageCompress'
 import { BarcodeScannerModal } from '@/components/shared/BarcodeScannerModal'
 import { WebCameraCaptureModal } from '@/components/shared/WebCameraCaptureModal'
+import { MarqueeText } from '@/components/shared/MarqueeText'
 
 interface Shop { id: string; name: string; name_ur: string | null; delivery_enabled: boolean; commission_mode: string; primary_type: string }
 interface Product {
@@ -668,11 +669,8 @@ function MyShopPageInner() {
               {p.quantity_on_hand <= 0 && <span className="absolute top-1.5 end-1.5 inline-flex items-center gap-1 text-[9.5px] font-bold uppercase px-2 py-0.5 border" style={{ background: '#fce3dc', borderColor: '#f4a68f', color: ACCENT_DARK }}><PackageX size={10} /> {t('sk.outOfStock')}</span>}
             </div>
             <div className="p-3">
-              <p className="font-sans text-[13.5px] font-semibold truncate" style={{ color: INK }}>
-                {isUrdu && p.name_ur ? p.name_ur : p.name}
-                {(isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) && <span className="font-normal text-[#7a736d]"> ({isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})</span>}
-              </p>
-              {p.company && <p className="font-sans text-[11px] text-[#7a736d] truncate">{p.company}</p>}
+              <MarqueeText text={productDisplayName(p, isUrdu)} className="font-sans text-[13.5px] font-semibold" style={{ color: INK }} />
+              {p.company && <MarqueeText text={p.company} className="font-sans text-[11px] text-[#7a736d] mt-0.5" />}
               <div className="flex items-baseline gap-2 mt-1">
                 <p className="font-sans text-[14px] font-bold" style={{ color: INK }}>{fmt(p.unit_price_pkr)}{p.unit && p.unit !== 'عدد' && <span className="font-normal text-[11px] text-[#7a736d]"> {t('mp.perUnitPrefix')} {p.unit}</span>}</p>
                 {p.cost_price_pkr > 0 && <p className="font-sans text-[11px] text-[#7a736d]">{t('sk.costLabel')} {fmt(p.cost_price_pkr)}</p>}
