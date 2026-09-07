@@ -132,6 +132,27 @@ export default function SellPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
+  // Real report: a shopkeeper added a bulk pack to a product (my-shop's
+  // own edit form), then tapped over to this already-open counter-sale
+  // screen and the pack chooser never appeared — tapping the product
+  // just silently added one plain unit instead. products/packsByProduct
+  // only ever loaded once, on mount; a native app's WebView keeps this
+  // page alive in the background rather than remounting it on every
+  // visit, so switching away to edit a product and back never re-ran
+  // that initial fetch. Refetching on visibility/focus closes that gap
+  // without needing a real-time subscription for what's a rare event.
+  useEffect(() => {
+    if (!shop) return
+    const refresh = () => { if (document.visibilityState === 'visible') { loadProducts(shop.id); loadPacks(shop.id) } }
+    document.addEventListener('visibilitychange', refresh)
+    window.addEventListener('focus', refresh)
+    return () => {
+      document.removeEventListener('visibilitychange', refresh)
+      window.removeEventListener('focus', refresh)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shop])
+
   // Adds one unit (or, for a pack, one whole pack) as its own bill row —
   // pack_id is part of the row key, so a per-unit line and a pack line
   // for the same product coexist instead of colliding.

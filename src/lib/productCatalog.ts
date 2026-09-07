@@ -437,37 +437,6 @@ export const PRODUCT_CATALOG: CatalogBrand[] = [
       { name: 'Burshane LPG', name_ur: 'برشین ایل پی جی', flavor: 'Domestic Refill', flavor_ur: 'گھریلو ری فل', category: 'domestic_refill' },
     ],
   },
-  // Fresh produce — not a branded company (kiryana stores buy this loose
-  // from the mandi, not from a manufacturer), so these sit under a
-  // plain "Fresh Produce" heading instead of a fabricated brand name —
-  // the everyday vegetables/fruits/cooking basics every general store
-  // keeps, so there's always something to pick even for the one
-  // department here that's never going to have a real company behind it.
-  {
-    slug: 'fresh_produce', name: 'Fresh Produce', name_ur: 'تازہ سبزیاں اور پھل', icon: 'Carrot',
-    items: [
-      { name: 'Potato', name_ur: 'آلو', category: 'fruits_vegetables' },
-      { name: 'Onion', name_ur: 'پیاز', category: 'fruits_vegetables' },
-      { name: 'Tomato', name_ur: 'ٹماٹر', category: 'fruits_vegetables' },
-      { name: 'Garlic', name_ur: 'لہسن', category: 'fruits_vegetables' },
-      { name: 'Ginger', name_ur: 'ادرک', category: 'fruits_vegetables' },
-      { name: 'Green Chilli', name_ur: 'ہری مرچ', category: 'fruits_vegetables' },
-      { name: 'Coriander', name_ur: 'دھنیا', category: 'fruits_vegetables' },
-      { name: 'Mint', name_ur: 'پودینہ', category: 'fruits_vegetables' },
-      { name: 'Cucumber', name_ur: 'کھیرا', category: 'fruits_vegetables' },
-      { name: 'Lemon', name_ur: 'لیموں', category: 'fruits_vegetables' },
-      { name: 'Spinach', name_ur: 'پالک', category: 'fruits_vegetables' },
-      { name: 'Cauliflower', name_ur: 'گوبھی', category: 'fruits_vegetables' },
-      { name: 'Capsicum', name_ur: 'شملہ مرچ', category: 'fruits_vegetables' },
-      { name: 'Carrot', name_ur: 'گاجر', category: 'fruits_vegetables' },
-      { name: 'Banana', name_ur: 'کیلا', category: 'fruits_vegetables' },
-      { name: 'Apple', name_ur: 'سیب', category: 'fruits_vegetables' },
-      { name: 'Orange', name_ur: 'مالٹا', category: 'fruits_vegetables' },
-      { name: 'Mango', name_ur: 'آم', category: 'fruits_vegetables' },
-      { name: 'Watermelon', name_ur: 'تربوز', category: 'fruits_vegetables' },
-      { name: 'Guava', name_ur: 'امرود', category: 'fruits_vegetables' },
-    ],
-  },
   {
     slug: 'cocacola', name: 'Coca-Cola', name_ur: 'کوکا کولا', icon: 'CupSoda',
     items: [
@@ -738,6 +707,29 @@ export const LOOSE_GOODS: LooseGood[] = [
   { slug: 'produce_ginger', name: 'Ginger', name_ur: 'ادرک', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
   { slug: 'produce_banana', name: 'Banana', name_ur: 'کیلا', unit: 'dozen', unit_ur: 'درجن', category: 'fruits_vegetables' },
   { slug: 'produce_apple', name: 'Apple', name_ur: 'سیب', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  // Merged in from the old "Fresh Produce" catalog brand (removed) — a
+  // real duplicate-entry-point bug, confirmed live: Potato/Onion/Tomato/
+  // Garlic/Ginger/Banana/Apple existed in BOTH that brand (no unit at
+  // all, always defaulting to 'عدد'/piece — wrong for anything sold by
+  // weight or the dozen) AND here (correct default units already).
+  // Ticking the same real vegetable from either place created two
+  // separate shop_products rows for it, each with different units — the
+  // exact bug that produced two "Banana" entries in one shop. One
+  // authoritative entry per item now, with the unit it's actually sold
+  // in already set correctly.
+  { slug: 'produce_green_chilli', name: 'Green Chilli', name_ur: 'ہری مرچ', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  { slug: 'produce_coriander', name: 'Coriander', name_ur: 'دھنیا', unit: 'bundle', unit_ur: 'بنڈل', category: 'fruits_vegetables' },
+  { slug: 'produce_mint', name: 'Mint', name_ur: 'پودینہ', unit: 'bundle', unit_ur: 'بنڈل', category: 'fruits_vegetables' },
+  { slug: 'produce_cucumber', name: 'Cucumber', name_ur: 'کھیرا', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  { slug: 'produce_lemon', name: 'Lemon', name_ur: 'لیموں', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  { slug: 'produce_spinach', name: 'Spinach', name_ur: 'پالک', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  { slug: 'produce_cauliflower', name: 'Cauliflower', name_ur: 'گوبھی', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  { slug: 'produce_capsicum', name: 'Capsicum', name_ur: 'شملہ مرچ', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  { slug: 'produce_carrot', name: 'Carrot', name_ur: 'گاجر', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  { slug: 'produce_orange', name: 'Orange', name_ur: 'مالٹا', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  { slug: 'produce_mango', name: 'Mango', name_ur: 'آم', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  { slug: 'produce_watermelon', name: 'Watermelon', name_ur: 'تربوز', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
+  { slug: 'produce_guava', name: 'Guava', name_ur: 'امرود', unit: 'kg', unit_ur: 'کلو', category: 'fruits_vegetables' },
   { slug: 'home_broom', name: 'Broom', name_ur: 'جھاڑو', unit: 'piece', unit_ur: 'عدد', category: 'household' },
   { slug: 'home_wiper', name: 'Floor Wiper', name_ur: 'وائپر', unit: 'piece', unit_ur: 'عدد', category: 'household' },
   { slug: 'home_mop', name: 'Mop', name_ur: 'ایم او پی', unit: 'piece', unit_ur: 'عدد', category: 'household' },
