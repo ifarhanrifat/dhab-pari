@@ -184,6 +184,14 @@ function MyShopPageInner() {
   const [productPacks, setProductPacks] = useState<Pack[]>([])
   const [packForm, setPackForm] = useState({ label: '', label_ur: '', pack_qty: '', pack_price_pkr: '' })
   const [savingPack, setSavingPack] = useState(false)
+  // Same "bought at a lump sum, not a per-unit rate" calculator LooseRow
+  // has for the Loose Goods tab (e.g. sugar), but here on the product
+  // form itself so it also covers things like Fresh Produce's Banana —
+  // ticked as a plain catalog item with no cost field of its own at
+  // tick-time, priced only once it's a real product being edited here.
+  const [showCostCalc, setShowCostCalc] = useState(false)
+  const [costCalcQty, setCostCalcQty] = useState('')
+  const [costCalcTotal, setCostCalcTotal] = useState('')
   const [geminiKey, setGeminiKey] = useState('')
   const [keySaved, setKeySaved] = useState(false)
   const [savingKey, setSavingKey] = useState(false)
@@ -270,6 +278,7 @@ function MyShopPageInner() {
     setScanBanner(null)
     setProductPacks([])
     setPackForm({ label: '', label_ur: '', pack_qty: '', pack_price_pkr: '' })
+    setShowCostCalc(false); setCostCalcQty(''); setCostCalcTotal('')
     setShowForm(true)
   }
   const openEdit = (p: Product) => {
@@ -284,6 +293,7 @@ function MyShopPageInner() {
     setCoverUrl(coverByProduct[p.id] ?? '')
     setChangingCategory(false)
     setPackForm({ label: '', label_ur: '', pack_qty: '', pack_price_pkr: '' })
+    setShowCostCalc(false); setCostCalcQty(''); setCostCalcTotal('')
     loadPacks(p.id)
     setShowForm(true)
   }
@@ -824,9 +834,30 @@ function MyShopPageInner() {
               </div>
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} placeholder={t('a.notesOptional')} className="input-field resize-none" />
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('sk.costPriceLabel')}</label><input type="number" value={form.cost_price_pkr || ''} onChange={(e) => setForm({ ...form, cost_price_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
+                <div>
+                  <label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('sk.costPriceLabel')}</label>
+                  <input type="number" value={form.cost_price_pkr || ''} onChange={(e) => setForm({ ...form, cost_price_pkr: +e.target.value })} className="input-field" placeholder="0" />
+                  <button type="button" onClick={() => setShowCostCalc((s) => !s)} className="mt-1 font-sans text-[10.5px] underline cursor-pointer" style={{ color: ACCENT }}>{t('sk.calcFromTotalBtn')}</button>
+                </div>
                 <div><label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('mk.unitPriceLabel')}</label><input type="number" value={form.unit_price_pkr || ''} onChange={(e) => setForm({ ...form, unit_price_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
               </div>
+              {showCostCalc && (() => {
+                const qtyNum = Number(costCalcQty)
+                const totalNum = Number(costCalcTotal)
+                const computed = qtyNum > 0 && totalNum >= 0 ? Math.round((totalNum / qtyNum) * 100) / 100 : null
+                return (
+                  <div className="flex items-center gap-1.5 -mt-1 p-2 border border-dashed" style={{ borderColor: '#dcd8d4' }}>
+                    <input inputMode="decimal" value={costCalcQty} onChange={(e) => setCostCalcQty(e.target.value)} placeholder={t('sk.calcQtyPlaceholder')} className="input-field flex-1 text-center" />
+                    <span className="font-sans text-[10px] text-[#7a736d] shrink-0">{t('sk.calcForPlaceholder')}</span>
+                    <input inputMode="decimal" value={costCalcTotal} onChange={(e) => setCostCalcTotal(e.target.value)} placeholder={t('sk.calcTotalPlaceholder')} className="input-field flex-1 text-center" />
+                    <button type="button" disabled={computed === null}
+                      onClick={() => { setForm({ ...form, cost_price_pkr: computed as number }); setShowCostCalc(false); setCostCalcQty(''); setCostCalcTotal('') }}
+                      className="shrink-0 px-3 py-2.5 text-white font-sans text-[11px] font-bold cursor-pointer disabled:opacity-40" style={{ background: ACCENT }}>
+                      {computed !== null ? t('sk.calcUseValueBtn').replace('{v}', String(computed)) : t('sk.calcUseBtn')}
+                    </button>
+                  </div>
+                )
+              })()}
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('mk.stockLabel')}</label><input type="number" value={form.quantity_on_hand || ''} onChange={(e) => setForm({ ...form, quantity_on_hand: +e.target.value })} className="input-field" placeholder="0" /></div>
                 <div>
