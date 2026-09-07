@@ -175,6 +175,7 @@ function MyShopPageInner() {
   const [scanning, setScanning] = useState(false)
   const [scanBanner, setScanBanner] = useState<{ verdict: ScanVerdict; confidence: number } | null>(null)
   const scanInputRef = useRef<HTMLInputElement>(null)
+  const scanChooserInputRef = useRef<HTMLInputElement>(null)
 
   const [showTopup, setShowTopup] = useState(false)
   const [showAiSettings, setShowAiSettings] = useState(false)
@@ -302,7 +303,7 @@ function MyShopPageInner() {
           // instead of a dead end — worse than the ideal "camera opens
           // directly," but it still lets the scan happen.
           toast.error(err instanceof Error ? err.message : String(err))
-          scanInputRef.current?.click()
+          scanChooserInputRef.current?.click()
         }
       }
       return
@@ -356,6 +357,7 @@ function MyShopPageInner() {
     } finally {
       setScanning(false)
       if (scanInputRef.current) scanInputRef.current.value = ''
+      if (scanChooserInputRef.current) scanChooserInputRef.current.value = ''
     }
   }
 
@@ -578,6 +580,16 @@ function MyShopPageInner() {
 
           <div className="flex items-center gap-2 flex-wrap mb-4">
             <input ref={scanInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) runScan(f) }} />
+            {/* No `capture` attribute here on purpose — that hint is what
+                tells Android to skip straight to one specific app instead
+                of showing its own chooser, and skipping straight to one
+                specific app is exactly the behavior that's failing on the
+                native path this input is a fallback for. Dropping it lets
+                Android show its real "open with" list (Camera, Files,
+                Gallery, whatever's installed) — see openScanner's own
+                catch block. */}
+            <input ref={scanChooserInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) runScan(f) }} />
             <button onClick={openScanner} disabled={scanning}
               className="flex items-center gap-2 px-4 py-2.5 text-white font-sans text-[14px] font-semibold cursor-pointer transition-all disabled:opacity-60" style={{ background: ACCENT }} onMouseEnter={(e) => !scanning && (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>

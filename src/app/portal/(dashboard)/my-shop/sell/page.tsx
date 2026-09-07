@@ -74,6 +74,7 @@ export default function SellPage() {
   const [completing, setCompleting] = useState(false)
   const [cashReceived, setCashReceived] = useState('')
   const scanInputRef = useRef<HTMLInputElement>(null)
+  const scanChooserInputRef = useRef<HTMLInputElement>(null)
 
   const loadProducts = (shopId: string) =>
     supabase.from('shop_products').select('id, name, name_ur, company, flavor, flavor_ur, unit_price_pkr, cost_price_pkr, quantity_on_hand')
@@ -135,7 +136,7 @@ export default function SellPage() {
           // through to the same <input capture> the web build already
           // uses gives a real way forward instead of a dead end.
           toast.error(err instanceof Error ? err.message : String(err))
-          scanInputRef.current?.click()
+          scanChooserInputRef.current?.click()
         }
       }
       return
@@ -163,6 +164,7 @@ export default function SellPage() {
     } finally {
       setScanning(false)
       if (scanInputRef.current) scanInputRef.current.value = ''
+      if (scanChooserInputRef.current) scanChooserInputRef.current.value = ''
     }
   }
 
@@ -205,6 +207,12 @@ export default function SellPage() {
 
       <div className="flex items-center gap-2 mb-4">
         <input ref={scanInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) runScan(f) }} />
+        {/* No `capture` here — see my-shop/page.tsx's own scanChooserInputRef
+            for why: it's the difference between Android jumping straight to
+            one specific app (which is exactly what's failing natively on
+            this device) and showing its real "open with" list instead. */}
+        <input ref={scanChooserInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) runScan(f) }} />
         <button onClick={openScanner} disabled={scanning}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-white font-sans text-[14px] font-semibold cursor-pointer transition-all disabled:opacity-60" style={{ background: ACCENT }} onMouseEnter={(e) => !scanning && (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>
