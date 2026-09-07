@@ -46,6 +46,8 @@ interface Product {
 // the catalog screen's own unit <select>s (BrandItemPicker) use the
 // exact same list, not a second copy.
 
+interface Pack { id: string; label: string; label_ur: string | null; pack_qty: number; pack_price_pkr: number; is_active: boolean }
+
 const emptyProduct = {
   name: '', name_ur: '', description: '', company: '', category: 'other' as string, flavor: '', flavor_ur: '',
   unit_price_pkr: 0, cost_price_pkr: 0, quantity_on_hand: 0, expiry_date: '', is_active: true,
@@ -174,6 +176,14 @@ function MyShopPageInner() {
   const [showAiSettings, setShowAiSettings] = useState(false)
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
   const [changingCategory, setChangingCategory] = useState(false)
+  // Bulk pack pricing (migration 450) — "Container (80 pcs)" for a
+  // packaged good, "دھاڑی (5 کلو)" for a loose one. Only meaningful once
+  // the product itself already has an id (shop_product_packs.
+  // shop_product_id is a real FK), so this list/form only shows once
+  // editing an already-saved product, never on the "new product" form.
+  const [productPacks, setProductPacks] = useState<Pack[]>([])
+  const [packForm, setPackForm] = useState({ label: '', label_ur: '', pack_qty: '', pack_price_pkr: '' })
+  const [savingPack, setSavingPack] = useState(false)
   const [geminiKey, setGeminiKey] = useState('')
   const [keySaved, setKeySaved] = useState(false)
   const [savingKey, setSavingKey] = useState(false)
@@ -258,6 +268,8 @@ function MyShopPageInner() {
     setCoverUrl('')
     setChangingCategory(false)
     setScanBanner(null)
+    setProductPacks([])
+    setPackForm({ label: '', label_ur: '', pack_qty: '', pack_price_pkr: '' })
     setShowForm(true)
   }
   const openEdit = (p: Product) => {
@@ -271,7 +283,35 @@ function MyShopPageInner() {
     })
     setCoverUrl(coverByProduct[p.id] ?? '')
     setChangingCategory(false)
+    setPackForm({ label: '', label_ur: '', pack_qty: '', pack_price_pkr: '' })
+    loadPacks(p.id)
     setShowForm(true)
+  }
+
+  const loadPacks = async (productId: string) => {
+    const { data } = await supabase.from('shop_product_packs').select('*').eq('shop_product_id', productId).order('pack_qty')
+    setProductPacks((data ?? []) as Pack[])
+  }
+  const addPack = async () => {
+    if (!editing) return
+    const label = packForm.label.trim()
+    const qty = Number(packForm.pack_qty)
+    const price = Number(packForm.pack_price_pkr)
+    if (!label || !(qty > 0) || !(price >= 0)) { toast.error(t('sk.packFormInvalid')); return }
+    setSavingPack(true)
+    const { error } = await supabase.from('shop_product_packs').insert({
+      shop_product_id: editing.id, label, label_ur: packForm.label_ur.trim() || null, pack_qty: qty, pack_price_pkr: price,
+    })
+    setSavingPack(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    setPackForm({ label: '', label_ur: '', pack_qty: '', pack_price_pkr: '' })
+    loadPacks(editing.id)
+  }
+  const removePack = async (packId: string) => {
+    if (!editing) return
+    const { error } = await supabase.from('shop_product_packs').delete().eq('id', packId)
+    if (error) { toast.error(friendlyError(error)); return }
+    loadPacks(editing.id)
   }
 
   // Native shell: launch the real device camera directly (the OS
@@ -806,6 +846,38 @@ function MyShopPageInner() {
               <div><label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('mk.expiryDateLabel')}</label><input type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} className="input-field" /></div>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} style={{ accentColor: ACCENT }} /><span className="font-sans text-[14px]">{t('mk.productActiveLabel')}</span></label>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_quick_food} onChange={(e) => setForm({ ...form, is_quick_food: e.target.checked })} style={{ accentColor: ACCENT }} /><span className="font-sans text-[14px]">{t('sk.quickFoodLabel')}</span></label>
+
+              {editing && (
+                <div className="border-t pt-3 mt-1" style={{ borderColor: '#e2ded9' }}>
+                  <p className="font-sans text-[12.5px] font-bold mb-0.5" style={{ color: INK }}>{t('sk.bulkPacksHeading')}</p>
+                  <p className="font-sans text-[11px] text-[#7a736d] mb-2">{t('sk.bulkPacksHint')}</p>
+                  {productPacks.length > 0 && (
+                    <div className="space-y-1.5 mb-2.5">
+                      {productPacks.map((pk) => (
+                        <div key={pk.id} className="flex items-center justify-between gap-2 px-2.5 py-2 border border-[#dcd8d4] bg-white">
+                          <div className="min-w-0">
+                            <p className="font-sans text-[13px] font-semibold truncate" style={{ color: INK }}>{isUrdu && pk.label_ur ? pk.label_ur : pk.label}</p>
+                            <p className="font-sans text-[11px] text-[#7a736d] ltr-num">{fmt(pk.pack_qty)} {form.unit} · {fmt(pk.pack_price_pkr)}</p>
+                          </div>
+                          <button type="button" onClick={() => removePack(pk.id)} className="shrink-0 p-1 cursor-pointer" style={{ color: ACCENT }}><Trash2 size={14} /></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="space-y-2 p-2.5 border border-dashed" style={{ borderColor: '#dcd8d4' }}>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input value={packForm.label} onChange={(e) => setPackForm({ ...packForm, label: e.target.value })} placeholder={t('sk.packLabelPlaceholder')} className="input-field" />
+                      <input value={packForm.label_ur} onChange={(e) => setPackForm({ ...packForm, label_ur: e.target.value })} placeholder={t('sk.packLabelUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input type="number" value={packForm.pack_qty} onChange={(e) => setPackForm({ ...packForm, pack_qty: e.target.value })} placeholder={t('sk.packQtyPlaceholder').replace('{unit}', form.unit)} className="input-field" />
+                      <input type="number" value={packForm.pack_price_pkr} onChange={(e) => setPackForm({ ...packForm, pack_price_pkr: e.target.value })} placeholder={t('sk.packPricePlaceholder')} className="input-field" />
+                    </div>
+                    <button type="button" onClick={addPack} disabled={savingPack} className="w-full py-2 border font-sans text-[12.5px] font-semibold cursor-pointer disabled:opacity-60" style={{ borderColor: ACCENT, color: ACCENT }}>{savingPack ? t('action.saving') : t('sk.addPackBtn')}</button>
+                  </div>
+                </div>
+              )}
+
               <button onClick={save} disabled={saving} className="w-full text-white py-3 font-sans font-semibold cursor-pointer transition-all disabled:opacity-50" style={{ background: ACCENT }} onMouseEnter={(e) => !saving && (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}>{saving ? t('action.saving') : t('g.saveChanges')}</button>
             </div>
           </div>

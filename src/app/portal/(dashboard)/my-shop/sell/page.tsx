@@ -35,14 +35,27 @@ const ACCENT = '#ec3013'
 const ACCENT_DARK = '#ae1800'
 
 interface Shop { id: string; name: string; name_ur: string | null }
-interface Product { id: string; name: string; name_ur: string | null; company: string | null; flavor: string | null; flavor_ur: string | null; unit_price_pkr: number; cost_price_pkr: number; quantity_on_hand: number; barcode: string | null }
+interface Product { id: string; name: string; name_ur: string | null; company: string | null; flavor: string | null; flavor_ur: string | null; unit_price_pkr: number; cost_price_pkr: number; quantity_on_hand: number; barcode: string | null; unit: string }
+// Bulk pack pricing (migration 450) — "Container (80 pcs)", "دھاڑی (5
+// کلو)". pack_price_pkr is the TOTAL for the whole pack, not a per-unit
+// rate — see shop_product_packs's own comment for why cost basis is
+// deliberately just the product's own cost_price_pkr × pack_qty, no
+// separate bulk-cost field.
+interface Pack { id: string; label: string; label_ur: string | null; pack_qty: number; pack_price_pkr: number }
 
 function displayName(p: { name: string; name_ur: string | null; flavor: string | null; flavor_ur: string | null }, isUrdu: boolean) {
   const name = isUrdu && p.name_ur ? p.name_ur : p.name
   const flavor = isUrdu ? (p.flavor_ur || p.flavor) : p.flavor
   return flavor ? `${name} (${flavor})` : name
 }
-interface BillRow { product_id: string; name: string; unit_price_pkr: number; cost_price_pkr: number; quantity: number; max: number }
+// key, not just product_id, identifies a row — a product can appear
+// TWICE in one bill, once sold per-unit and once as a bulk pack (or even
+// as two different packs), and those need separate quantities/totals.
+interface BillRow {
+  key: string; product_id: string; pack_id: string | null; pack_step: number
+  name: string; unit_price_pkr: number; cost_price_pkr: number; quantity: number; max: number
+}
+const rowKey = (productId: string, packId: string | null) => `${productId}::${packId ?? 'unit'}`
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -67,13 +80,28 @@ export default function SellPage() {
   const [completing, setCompleting] = useState(false)
   const [cashReceived, setCashReceived] = useState('')
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
+  const [packsByProduct, setPacksByProduct] = useState<Record<string, Pack[]>>({})
+  const [chooserProduct, setChooserProduct] = useState<Product | null>(null)
   const scanInputRef = useRef<HTMLInputElement>(null)
   const scanChooserInputRef = useRef<HTMLInputElement>(null)
 
   const loadProducts = (shopId: string) =>
-    supabase.from('shop_products').select('id, name, name_ur, company, flavor, flavor_ur, unit_price_pkr, cost_price_pkr, quantity_on_hand, barcode')
+    supabase.from('shop_products').select('id, name, name_ur, company, flavor, flavor_ur, unit_price_pkr, cost_price_pkr, quantity_on_hand, barcode, unit')
       .eq('shop_id', shopId).eq('is_active', true).order('name')
       .then(({ data }) => setProducts(data ?? []))
+
+  // Nested filter (shop_products!inner) so this doesn't need the product
+  // id list up front — one query for every pack across the whole shop.
+  const loadPacks = (shopId: string) =>
+    supabase.from('shop_product_packs').select('id, shop_product_id, label, label_ur, pack_qty, pack_price_pkr, shop_products!inner(shop_id)')
+      .eq('shop_products.shop_id', shopId).eq('is_active', true)
+      .then(({ data }) => {
+        const grouped: Record<string, Pack[]> = {}
+        for (const row of (data ?? []) as unknown as (Pack & { shop_product_id: string })[]) {
+          (grouped[row.shop_product_id] ??= []).push(row)
+        }
+        setPacksByProduct(grouped)
+      })
 
   useEffect(() => {
     if (!user) return
@@ -81,6 +109,7 @@ export default function SellPage() {
       setShop(data)
       if (data) {
         loadProducts(data.id).then(() => setLoading(false))
+        loadPacks(data.id)
         // Same real-sales-derived ranking the buyer's shop front already
         // uses (shop_popular_products, migration 433) — the fast-add rail
         // is "what this shopkeeper actually sells most", not a guess.
@@ -92,24 +121,52 @@ export default function SellPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
-  const addToBill = (p: Product) => {
-    if (p.quantity_on_hand <= 0) { toast.error(t('sk.outOfStock')); return }
+  // Adds one unit (or, for a pack, one whole pack) as its own bill row —
+  // pack_id is part of the row key, so a per-unit line and a pack line
+  // for the same product coexist instead of colliding.
+  const addLine = (p: Product, pack: Pack | null) => {
+    const step = pack ? pack.pack_qty : 1
+    if (step > p.quantity_on_hand) { toast.error(t('sk.noMoreStock')); return }
+    const key = rowKey(p.id, pack?.id ?? null)
     setBill((rows) => {
-      const existing = rows.find((r) => r.product_id === p.id)
+      const existing = rows.find((r) => r.key === key)
       if (existing) {
-        if (existing.quantity >= existing.max) { toast.error(t('sk.noMoreStock')); return rows }
-        return rows.map((r) => r.product_id === p.id ? { ...r, quantity: r.quantity + 1 } : r)
+        if (existing.quantity + step > existing.max) { toast.error(t('sk.noMoreStock')); return rows }
+        return rows.map((r) => r.key === key ? { ...r, quantity: r.quantity + step } : r)
       }
-      return [...rows, { product_id: p.id, name: displayName(p, isUrdu), unit_price_pkr: p.unit_price_pkr, cost_price_pkr: p.cost_price_pkr, quantity: 1, max: p.quantity_on_hand }]
+      const name = pack
+        ? `${displayName(p, isUrdu)} — ${isUrdu && pack.label_ur ? pack.label_ur : pack.label}`
+        : displayName(p, isUrdu)
+      const unitPrice = pack ? pack.pack_price_pkr / pack.pack_qty : p.unit_price_pkr
+      return [...rows, { key, product_id: p.id, pack_id: pack?.id ?? null, pack_step: step, name, unit_price_pkr: unitPrice, cost_price_pkr: p.cost_price_pkr, quantity: step, max: p.quantity_on_hand }]
     })
     setShowSearch(false)
     setSearch('')
+    setChooserProduct(null)
   }
 
-  const setQty = (productId: string, qty: number) => {
-    setBill((rows) => rows.map((r) => r.product_id === productId ? { ...r, quantity: Math.max(1, Math.min(qty, r.max)) } : r))
+  // Only products with at least one bulk pack recorded (my-shop's own
+  // product edit form is where those get added) show the chooser at
+  // all — everything else keeps the exact one-tap-adds-one-unit
+  // behavior this screen always had.
+  const addToBill = (p: Product) => {
+    if (p.quantity_on_hand <= 0) { toast.error(t('sk.outOfStock')); return }
+    const packs = packsByProduct[p.id] ?? []
+    if (packs.length > 0) { setChooserProduct(p); return }
+    addLine(p, null)
   }
-  const removeRow = (productId: string) => setBill((rows) => rows.filter((r) => r.product_id !== productId))
+
+  // delta is in whole steps (±1), not raw units — a pack row's step is
+  // its own pack_qty (e.g. a whole container of 80 at a time), never 1,
+  // so tapping +/- on a pack line can't land on a partial pack.
+  const setQty = (key: string, delta: number) => {
+    setBill((rows) => rows.map((r) => {
+      if (r.key !== key) return r
+      const maxSteps = Math.floor(r.max / r.pack_step) * r.pack_step
+      return { ...r, quantity: Math.max(r.pack_step, Math.min(r.quantity + delta * r.pack_step, maxSteps)) }
+    }))
+  }
+  const removeRow = (key: string) => setBill((rows) => rows.filter((r) => r.key !== key))
 
   // Same native-camera-first split as my-shop's own scan button — see
   // src/lib/nativeCamera.ts for why the plain <input capture> path isn't
@@ -191,7 +248,18 @@ export default function SellPage() {
   const complete = async () => {
     if (bill.length === 0) return
     setCompleting(true)
-    const items = bill.map((r) => ({ product_id: r.product_id, quantity: r.quantity }))
+    // A pack row's own quantity/price come from the pack itself
+    // server-side (migration 450's record_shop_sale) — the client-sent
+    // `quantity` is ignored whenever pack_id is set, so a merged row of
+    // e.g. 2 containers is sent as two separate {product_id, pack_id}
+    // entries rather than one entry with quantity=160.
+    const items = bill.flatMap((r): { product_id: string; pack_id?: string; quantity?: number }[] => {
+      if (r.pack_id) {
+        const packCount = Math.round(r.quantity / r.pack_step)
+        return Array.from({ length: packCount }, () => ({ product_id: r.product_id, pack_id: r.pack_id as string }))
+      }
+      return [{ product_id: r.product_id, quantity: r.quantity }]
+    })
     const { error } = await supabase.rpc('record_shop_sale', { p_shop_id: shop!.id, p_items: items })
     setCompleting(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -243,6 +311,30 @@ export default function SellPage() {
       </div>
       {showBarcodeScanner && <BarcodeScannerModal onClose={() => setShowBarcodeScanner(false)} onDetected={onBarcodeDetected} />}
 
+      {/* Only ever shown for a product that has bulk packs recorded
+          (addToBill's own guard) — everything else skips straight to
+          addLine with no interruption, same one-tap flow as always. */}
+      {chooserProduct && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-end sm:items-center justify-center p-4" onClick={() => setChooserProduct(null)}>
+          <div className="bg-white w-full max-w-sm p-4" onClick={(e) => e.stopPropagation()}>
+            <p className="font-heading text-[16px] font-bold mb-1" style={{ color: INK }}>{displayName(chooserProduct, isUrdu)}</p>
+            <p className="font-sans text-[12.5px] text-[#7a736d] mb-3">{t('sk.chooseSaleTypeTitle')}</p>
+            <div className="space-y-2">
+              <button onClick={() => addLine(chooserProduct, null)} className="w-full flex items-center justify-between gap-2 px-3 py-2.5 border border-[#dcd8d4] font-sans text-[13.5px] font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
+                <span>{t('sk.perUnitOption').replace('{unit}', chooserProduct.unit || 'عدد')}</span>
+                <span className="ltr-num">{fmt(chooserProduct.unit_price_pkr)}</span>
+              </button>
+              {(packsByProduct[chooserProduct.id] ?? []).map((pk) => (
+                <button key={pk.id} onClick={() => addLine(chooserProduct, pk)} className="w-full flex items-center justify-between gap-2 px-3 py-2.5 border font-sans text-[13.5px] font-semibold cursor-pointer transition-colors" style={{ borderColor: ACCENT, color: ACCENT }}>
+                  <span>{isUrdu && pk.label_ur ? pk.label_ur : pk.label}</span>
+                  <span className="ltr-num">{fmt(pk.pack_price_pkr)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {noMatch && <p className="font-sans text-[12.5px] px-3 py-2 mb-4 border" style={{ background: '#fce3dc', borderColor: '#f4a68f', color: ACCENT_DARK }}>{t('sk.noMatchHint')}</p>}
 
       {/* Fast-add rail — most-sold items as one-tap cards, per the spec's
@@ -274,20 +366,27 @@ export default function SellPage() {
         <p className="text-center py-8 text-[#7a736d] font-sans text-[14px]">{t('sk.billEmpty')}</p>
       ) : (
         <div className="space-y-2 mb-5">
-          {bill.map((r) => (
-            <div key={r.product_id} className="bg-white border border-[#dcd8d4] p-3 flex items-center gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="font-sans text-[13.5px] font-semibold truncate" style={{ color: INK }}>{r.name}</p>
-                <p className="font-sans text-[12px] text-[#7a736d]">{fmt(r.unit_price_pkr)} × <span className="ltr-num">{r.quantity}</span> = <span className="font-bold" style={{ color: INK }}>{fmt(r.unit_price_pkr * r.quantity)}</span></p>
+          {bill.map((r) => {
+            // For a pack row the stepper counts whole packs (1, 2, 3…),
+            // not raw units — r.name already spells out the pack size
+            // ("Lays — Container (80 pcs)"), so showing "×80" here would
+            // just be confusing next to that.
+            const stepCount = r.quantity / r.pack_step
+            return (
+              <div key={r.key} className="bg-white border border-[#dcd8d4] p-3 flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-sans text-[13.5px] font-semibold truncate" style={{ color: INK }}>{r.name}</p>
+                  <p className="font-sans text-[12px] text-[#7a736d]">{fmt(r.unit_price_pkr * r.pack_step)} × <span className="ltr-num">{stepCount}</span> = <span className="font-bold" style={{ color: INK }}>{fmt(r.unit_price_pkr * r.quantity)}</span></p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button onClick={() => setQty(r.key, -1)} className="w-8 h-8 border border-[#dcd8d4] flex items-center justify-center cursor-pointer hover:border-[#201e1d] transition-colors"><Minus size={14} /></button>
+                  <span className="w-6 text-center font-sans text-[14px] font-bold ltr-num" style={{ color: INK }}>{stepCount}</span>
+                  <button onClick={() => setQty(r.key, 1)} className="w-8 h-8 border border-[#dcd8d4] flex items-center justify-center cursor-pointer hover:border-[#201e1d] transition-colors"><Plus size={14} /></button>
+                  <button onClick={() => removeRow(r.key)} className="p-1.5 cursor-pointer" style={{ color: ACCENT }}><Trash2 size={14} /></button>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button onClick={() => setQty(r.product_id, r.quantity - 1)} className="w-8 h-8 border border-[#dcd8d4] flex items-center justify-center cursor-pointer hover:border-[#201e1d] transition-colors"><Minus size={14} /></button>
-                <span className="w-6 text-center font-sans text-[14px] font-bold ltr-num" style={{ color: INK }}>{r.quantity}</span>
-                <button onClick={() => setQty(r.product_id, r.quantity + 1)} className="w-8 h-8 border border-[#dcd8d4] flex items-center justify-center cursor-pointer hover:border-[#201e1d] transition-colors"><Plus size={14} /></button>
-                <button onClick={() => removeRow(r.product_id)} className="p-1.5 cursor-pointer" style={{ color: ACCENT }}><Trash2 size={14} /></button>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

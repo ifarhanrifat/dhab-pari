@@ -113,21 +113,56 @@ function VariantRow({ e, flavorLabel, owned, busy, onToggle, cost, sale, t }: Va
 
 interface LooseRowProps { name: string; owned: boolean; busy: boolean; onToggle: () => void; unit: FieldBinding; cost: FieldBinding; sale: FieldBinding; t: (k: string) => string }
 function LooseRow({ name, owned, busy, onToggle, unit, cost, sale, t }: LooseRowProps) {
+  // A shopkeeper buying loose goods at the wholesale market usually knows
+  // "40kg of onions for Rs 3200 total," not the per-kg rate — this just
+  // does that division for them and drops the result straight into the
+  // same cost field typing it by hand would. Sale price is deliberately
+  // untouched here: that's the shopkeeper's own margin call, unrelated to
+  // what they paid.
+  const [showCalc, setShowCalc] = useState(false)
+  const [calcQty, setCalcQty] = useState('')
+  const [calcTotal, setCalcTotal] = useState('')
+  const calcQtyNum = Number(calcQty)
+  const calcTotalNum = Number(calcTotal)
+  const computedCost = calcQtyNum > 0 && calcTotalNum >= 0 ? Math.round((calcTotalNum / calcQtyNum) * 100) / 100 : null
+  const applyCalc = () => {
+    if (computedCost === null) return
+    cost.onChange(String(computedCost))
+    setShowCalc(false); setCalcQty(''); setCalcTotal('')
+  }
   return (
-    <div className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border ${owned ? 'bg-dp-secondary-container/40 border-dp-secondary' : 'bg-white border-dp-outline-variant'}`}>
-      <button type="button" disabled={busy} onClick={onToggle}
-        className={`shrink-0 w-5 h-5 rounded flex items-center justify-center border-2 cursor-pointer ${owned ? 'bg-dp-secondary border-dp-secondary' : 'border-dp-outline-variant'} ${busy ? 'opacity-60' : ''}`}>
-        {busy ? <Loader2 size={12} className="text-dp-secondary animate-spin" /> : owned && <Check size={13} className="text-white" strokeWidth={3} />}
-      </button>
-      <span className="min-w-0 flex-1 font-sans text-[11px] text-dp-on-surface truncate">{name}</span>
-      <select value={unit.value} onChange={(ev) => unit.onChange(ev.target.value)} onBlur={unit.onBlur}
-        className="shrink-0 w-[74px] px-1 py-1.5 rounded-lg border border-dp-outline-variant bg-white font-sans text-[9px] text-dp-on-surface">
-        {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
-      </select>
-      <input inputMode="decimal" placeholder={t('bs.costPlaceholder')} value={cost.value} onChange={(ev) => cost.onChange(ev.target.value)} onBlur={cost.onBlur}
-        className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-outline-variant bg-dp-surface-container font-sans text-[10px] text-dp-on-surface" />
-      <input inputMode="decimal" placeholder={t('bs.salePlaceholder')} value={sale.value} onChange={(ev) => sale.onChange(ev.target.value)} onBlur={sale.onBlur}
-        className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-secondary bg-white font-sans text-[10px] font-bold text-dp-on-surface" />
+    <div className={`px-3 py-2.5 rounded-lg border ${owned ? 'bg-dp-secondary-container/40 border-dp-secondary' : 'bg-white border-dp-outline-variant'}`}>
+      <div className="flex items-center gap-2">
+        <button type="button" disabled={busy} onClick={onToggle}
+          className={`shrink-0 w-5 h-5 rounded flex items-center justify-center border-2 cursor-pointer ${owned ? 'bg-dp-secondary border-dp-secondary' : 'border-dp-outline-variant'} ${busy ? 'opacity-60' : ''}`}>
+          {busy ? <Loader2 size={12} className="text-dp-secondary animate-spin" /> : owned && <Check size={13} className="text-white" strokeWidth={3} />}
+        </button>
+        <span className="min-w-0 flex-1 font-sans text-[11px] text-dp-on-surface truncate">{name}</span>
+        <select value={unit.value} onChange={(ev) => unit.onChange(ev.target.value)} onBlur={unit.onBlur}
+          className="shrink-0 w-[74px] px-1 py-1.5 rounded-lg border border-dp-outline-variant bg-white font-sans text-[9px] text-dp-on-surface">
+          {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
+        </select>
+        <div className="shrink-0 flex flex-col items-center gap-0.5">
+          <input inputMode="decimal" placeholder={t('bs.costPlaceholder')} value={cost.value} onChange={(ev) => cost.onChange(ev.target.value)} onBlur={cost.onBlur}
+            className="w-14 px-1.5 py-1.5 text-center rounded-lg border border-dp-outline-variant bg-dp-surface-container font-sans text-[10px] text-dp-on-surface" />
+          <button type="button" onClick={() => setShowCalc((s) => !s)} className="font-sans text-[7.5px] text-dp-secondary underline cursor-pointer whitespace-nowrap">{t('sk.calcFromTotalBtn')}</button>
+        </div>
+        <input inputMode="decimal" placeholder={t('bs.salePlaceholder')} value={sale.value} onChange={(ev) => sale.onChange(ev.target.value)} onBlur={sale.onBlur}
+          className="w-14 shrink-0 px-1.5 py-1.5 text-center rounded-lg border border-dp-secondary bg-white font-sans text-[10px] font-bold text-dp-on-surface" />
+      </div>
+      {showCalc && (
+        <div className="flex items-center gap-1.5 mt-2 ps-7">
+          <input inputMode="decimal" placeholder={t('sk.calcQtyPlaceholder')} value={calcQty} onChange={(ev) => setCalcQty(ev.target.value)}
+            className="w-16 px-1.5 py-1.5 text-center rounded-lg border border-dp-outline-variant bg-white font-sans text-[10px] text-dp-on-surface" />
+          <span className="font-sans text-[9px] text-dp-on-surface-variant">{t('sk.calcForPlaceholder')}</span>
+          <input inputMode="decimal" placeholder={t('sk.calcTotalPlaceholder')} value={calcTotal} onChange={(ev) => setCalcTotal(ev.target.value)}
+            className="w-16 px-1.5 py-1.5 text-center rounded-lg border border-dp-outline-variant bg-white font-sans text-[10px] text-dp-on-surface" />
+          <button type="button" onClick={applyCalc} disabled={computedCost === null}
+            className="flex-1 py-1.5 rounded-lg font-sans text-[9.5px] font-bold text-white bg-dp-secondary cursor-pointer disabled:opacity-40">
+            {computedCost !== null ? t('sk.calcUseValueBtn').replace('{v}', String(computedCost)) : t('sk.calcUseBtn')}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
