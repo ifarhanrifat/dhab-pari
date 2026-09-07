@@ -81,6 +81,12 @@ export default function SellPage() {
   const [showSearch, setShowSearch] = useState(false)
   const [completing, setCompleting] = useState(false)
   const [cashReceived, setCashReceived] = useState('')
+  // Credit sale (migration 452) — same counter-sale screen, just paying
+  // with a registered customer's tab instead of cash, per the confirmed
+  // design (2026-09-07). Nothing else about the flow changes.
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit'>('cash')
+  const [customers, setCustomers] = useState<{ id: string; name: string; name_ur: string | null }[]>([])
+  const [creditCustomerId, setCreditCustomerId] = useState<string | null>(null)
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
   const [showWebCamera, setShowWebCamera] = useState(false)
   const [packsByProduct, setPacksByProduct] = useState<Record<string, Pack[]>>({})
@@ -113,6 +119,8 @@ export default function SellPage() {
       if (data) {
         loadProducts(data.id).then(() => setLoading(false))
         loadPacks(data.id)
+        supabase.from('shop_customers').select('id, name, name_ur').eq('shop_id', data.id).eq('is_active', true).order('name')
+          .then(({ data: c }) => setCustomers(c ?? []))
         // Same real-sales-derived ranking the buyer's shop front already
         // uses (shop_popular_products, migration 433) — the fast-add rail
         // is "what this shopkeeper actually sells most", not a guess.
@@ -250,6 +258,7 @@ export default function SellPage() {
 
   const complete = async () => {
     if (bill.length === 0) return
+    if (paymentMethod === 'credit' && !creditCustomerId) { toast.error(t('sk.pickCustomerHint')); return }
     setCompleting(true)
     // A pack row's own quantity/price come from the pack itself
     // server-side (migration 450's record_shop_sale) — the client-sent
@@ -263,12 +272,16 @@ export default function SellPage() {
       }
       return [{ product_id: r.product_id, quantity: r.quantity }]
     })
-    const { error } = await supabase.rpc('record_shop_sale', { p_shop_id: shop!.id, p_items: items })
+    const { error } = await supabase.rpc('record_shop_sale', {
+      p_shop_id: shop!.id, p_items: items, p_customer_id: paymentMethod === 'credit' ? creditCustomerId : null,
+    })
     setCompleting(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('sk.saleCompletedToast'))
+    toast.success(paymentMethod === 'credit' ? t('sk.creditSaleCompletedToast') : t('sk.saleCompletedToast'))
     setBill([])
     setCashReceived('')
+    setPaymentMethod('cash')
+    setCreditCustomerId(null)
     loadProducts(shop!.id)
   }
 
@@ -413,24 +426,50 @@ export default function SellPage() {
           </div>
 
           <div className="px-4 mt-3">
-            <p className="font-sans text-[11px] font-semibold text-[#7a736d] mb-1.5">{t('sk.cashReceivedLabel')}</p>
-            <div className="flex items-center gap-1.5 flex-wrap mb-2">
-              <button onClick={() => setCashReceived(String(total))} className="px-2.5 py-1.5 border font-sans text-[12px] font-semibold cursor-pointer transition-colors" style={cashNum === total && cashReceived !== '' ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { borderColor: '#dcd8d4', color: INK }}>{t('sk.exactAmountChip')}</button>
-              {CASH_CHIPS.map((c) => (
-                <button key={c} onClick={() => setCashReceived(String(c))} className="px-2.5 py-1.5 border font-sans text-[12px] font-semibold cursor-pointer transition-colors" style={Number(cashReceived) === c ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { borderColor: '#dcd8d4', color: INK }}>{fmt(c)}</button>
-              ))}
-              <input type="number" value={cashReceived} onChange={(e) => setCashReceived(e.target.value)} placeholder={t('sk.typedAmountPlaceholder')}
-                className="w-24 px-2 py-1.5 border font-sans text-[13px] text-center ltr-num focus:ring-0" style={{ borderColor: '#dcd8d4', color: INK }} />
+            <div className="flex items-center gap-1.5 mb-2.5 bg-[#eeece9] rounded-lg p-1">
+              <button onClick={() => setPaymentMethod('cash')} className="flex-1 py-1.5 rounded-md font-sans text-[12.5px] font-semibold cursor-pointer transition-all" style={paymentMethod === 'cash' ? { background: '#fff', color: INK } : { color: '#7a736d' }}>{t('sk.payWithCashBtn')}</button>
+              <button onClick={() => setPaymentMethod('credit')} className="flex-1 py-1.5 rounded-md font-sans text-[12.5px] font-semibold cursor-pointer transition-all" style={paymentMethod === 'credit' ? { background: '#fff', color: ACCENT_DARK } : { color: '#7a736d' }}>{t('sk.payOnCreditBtn')}</button>
             </div>
-            {cashReceived !== '' && (
-              <div className="flex items-center justify-between py-1.5 border-t border-[#e2ded9]">
-                <span className="font-sans text-[12.5px] font-semibold text-[#7a736d]">{changeDue < 0 ? t('sk.shortLabel') : t('sk.changeDueLabel')}</span>
-                <span className="font-sans text-[16px] font-bold" style={{ color: changeDue < 0 ? ACCENT_DARK : ACCENT }}>{fmt(Math.abs(changeDue))}</span>
+
+            {paymentMethod === 'cash' ? (
+              <>
+                <p className="font-sans text-[11px] font-semibold text-[#7a736d] mb-1.5">{t('sk.cashReceivedLabel')}</p>
+                <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                  <button onClick={() => setCashReceived(String(total))} className="px-2.5 py-1.5 border font-sans text-[12px] font-semibold cursor-pointer transition-colors" style={cashNum === total && cashReceived !== '' ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { borderColor: '#dcd8d4', color: INK }}>{t('sk.exactAmountChip')}</button>
+                  {CASH_CHIPS.map((c) => (
+                    <button key={c} onClick={() => setCashReceived(String(c))} className="px-2.5 py-1.5 border font-sans text-[12px] font-semibold cursor-pointer transition-colors" style={Number(cashReceived) === c ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { borderColor: '#dcd8d4', color: INK }}>{fmt(c)}</button>
+                  ))}
+                  <input type="number" value={cashReceived} onChange={(e) => setCashReceived(e.target.value)} placeholder={t('sk.typedAmountPlaceholder')}
+                    className="w-24 px-2 py-1.5 border font-sans text-[13px] text-center ltr-num focus:ring-0" style={{ borderColor: '#dcd8d4', color: INK }} />
+                </div>
+                {cashReceived !== '' && (
+                  <div className="flex items-center justify-between py-1.5 border-t border-[#e2ded9]">
+                    <span className="font-sans text-[12.5px] font-semibold text-[#7a736d]">{changeDue < 0 ? t('sk.shortLabel') : t('sk.changeDueLabel')}</span>
+                    <span className="font-sans text-[16px] font-bold" style={{ color: changeDue < 0 ? ACCENT_DARK : ACCENT }}>{fmt(Math.abs(changeDue))}</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div>
+                <p className="font-sans text-[11px] font-semibold text-[#7a736d] mb-1.5">{t('sk.pickCustomerHint')}</p>
+                {customers.length === 0 ? (
+                  <p className="font-sans text-[12px] text-[#7a736d] border border-[#dcd8d4] p-3">{t('sk.noCustomersForCreditHint')}</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {customers.map((c) => (
+                      <button key={c.id} onClick={() => setCreditCustomerId(c.id)}
+                        className="px-2.5 py-1.5 border font-sans text-[12px] font-semibold cursor-pointer transition-colors"
+                        style={creditCustomerId === c.id ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { borderColor: '#dcd8d4', color: INK }}>
+                        {isUrdu && c.name_ur ? c.name_ur : c.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          <button onClick={complete} disabled={completing} className="w-full flex items-center justify-center gap-2 text-white py-3 mt-3 font-sans font-semibold cursor-pointer transition-all disabled:opacity-50" style={{ background: INK }}>
+          <button onClick={complete} disabled={completing || (paymentMethod === 'credit' && !creditCustomerId)} className="w-full flex items-center justify-center gap-2 text-white py-3 mt-3 font-sans font-semibold cursor-pointer transition-all disabled:opacity-50" style={{ background: INK }}>
             {completing ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} {completing ? t('action.saving') : t('sk.completeSaleBtn')}
           </button>
         </div>

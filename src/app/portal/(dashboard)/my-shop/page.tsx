@@ -14,7 +14,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Capacitor } from '@capacitor/core'
 import { createClient } from '@/lib/supabase/client'
-import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, PackagePlus, Wallet, UtensilsCrossed, PlusCircle, Tag, AlertTriangle, LayoutGrid, ArrowRight, ScanBarcode } from 'lucide-react'
+import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, PackagePlus, Wallet, UtensilsCrossed, PlusCircle, Tag, AlertTriangle, LayoutGrid, ArrowRight, ScanBarcode, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -645,6 +645,9 @@ function MyShopPageInner() {
               </button>
               <Link href="/portal/my-shop/purchase" className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
                 <PackagePlus size={12} /> {t('sk.purchaseEntryBtn')}
+              </Link>
+              <Link href="/portal/my-shop/customers" className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
+                <Users size={12} /> {t('sk.customersBtn')}
               </Link>
               <button onClick={() => setShowDeals(true)} className="flex items-center gap-1 px-2.5 py-1.5 border border-[#dcd8d4] font-sans text-[11px] whitespace-nowrap font-semibold cursor-pointer hover:border-[#201e1d] transition-colors" style={{ color: INK }}>
                 <Tag size={12} /> {t('sk.dealsBtn')}
