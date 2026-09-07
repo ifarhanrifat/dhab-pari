@@ -38,18 +38,32 @@ export function BarcodeScannerModal({ onDetected, onClose }: { onDetected: (code
     reader.decodeFromConstraints(
       { video: { facingMode: 'environment' } },
       videoRef.current ?? undefined,
-      (result, err, controls) => {
-        controlsRef.current = controls
-        if (cancelled) return
+      (result) => {
         // ZXing calls this callback every frame, even ones with no code
-        // found (err set to a plain "not found" — expected, not a real
-        // failure) — only a genuine `result` means an actual read.
-        if (result) {
-          controls.stop()
-          onDetected(result.getText())
-        }
+        // found (its own `err` param is just a plain "not found" on
+        // those — expected, not a real failure) — only a genuine
+        // `result` means an actual read.
+        if (cancelled || !result) return
+        controlsRef.current?.stop()
+        onDetected(result.getText())
       }
-    ).catch((err) => {
+    ).then((controls) => {
+      controlsRef.current = controls
+      // A real leak found live: closing this modal before the very
+      // first per-frame callback had fired left controlsRef.current
+      // still null, so the cleanup below's `?.stop()` was a no-op —
+      // getUserMedia's camera stream was never released. On Android
+      // that's a real hardware lock: the OS camera can only be held by
+      // one client, so the NEXT thing that tried to use it (the AI
+      // photo-scan buttons' native camera intent) silently couldn't
+      // open at all, for the rest of the session, not just this modal.
+      // The resolved promise here fires as soon as the stream itself is
+      // attached — well before any per-frame decode result — so it's
+      // the one place guaranteed to eventually hold a real controls
+      // reference; if the modal was already closed by the time this
+      // resolves, stop it immediately instead of leaving it dangling.
+      if (cancelled) controls.stop()
+    }).catch((err) => {
       if (cancelled) return
       // The one real failure mode worth naming specifically: camera
       // permission refused. Everything else (no camera at all, etc.)
