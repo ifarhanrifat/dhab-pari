@@ -6,9 +6,14 @@
 // supplier, a search over the shop's own existing products, ± steppers,
 // an editable unit-cost field per line (prices from the supplier drift),
 // and a running total at cost. Committing calls record_shop_purchase
-// (migration 434), which increments quantity_on_hand and rolls
-// cost_price_pkr forward to the new buying price — sale price is never
-// touched here, repricing to the customer stays a separate decision.
+// (migration 434, weighted-average costing added in 451), which
+// increments quantity_on_hand and blends this purchase's cost into the
+// existing stock's own average cost — buying 3 more dozen bananas at a
+// different price than the 2 dozen already on the shelf doesn't just
+// discard the old batch's cost, it weights both together. Sale price is
+// never touched here, repricing to the customer stays a separate
+// decision. Each line shows that resulting average live, before
+// committing, so it's never a surprise.
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -19,19 +24,24 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { MarqueeText } from '@/components/shared/MarqueeText'
 
 const INK = '#201e1d'
 const ACCENT = '#ec3013'
 
 interface Shop { id: string; name: string; name_ur: string | null }
-interface Product { id: string; name: string; name_ur: string | null; company: string | null; flavor: string | null; flavor_ur: string | null; cost_price_pkr: number }
+interface Product { id: string; name: string; name_ur: string | null; company: string | null; flavor: string | null; flavor_ur: string | null; cost_price_pkr: number; quantity_on_hand: number }
 
 function displayName(p: { name: string; name_ur: string | null; flavor: string | null; flavor_ur: string | null }, isUrdu: boolean) {
   const name = isUrdu && p.name_ur ? p.name_ur : p.name
   const flavor = isUrdu ? (p.flavor_ur || p.flavor) : p.flavor
   return flavor ? `${name} (${flavor})` : name
 }
-interface Line { product_id: string; name: string; unit_cost_pkr: number; quantity: number }
+// existingQty/existingCost snapshot what's already on the shelf at the
+// moment this line was added — used only to preview the resulting
+// weighted-average cost live; the actual average is always recomputed
+// server-side by record_shop_purchase itself, this is purely a preview.
+interface Line { product_id: string; name: string; unit_cost_pkr: number; quantity: number; existingQty: number; existingCost: number }
 
 function fmt(n: number) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -56,7 +66,7 @@ export default function PurchaseEntryPage() {
     supabase.from('shops').select('id, name, name_ur').eq('portal_user_id', user.id).maybeSingle().then(({ data }) => {
       setShop(data)
       if (data) {
-        supabase.from('shop_products').select('id, name, name_ur, company, flavor, flavor_ur, cost_price_pkr')
+        supabase.from('shop_products').select('id, name, name_ur, company, flavor, flavor_ur, cost_price_pkr, quantity_on_hand')
           .eq('shop_id', data.id).eq('is_active', true).order('name')
           .then(({ data: p }) => { setProducts(p ?? []); setLoading(false) })
       } else setLoading(false)
@@ -67,10 +77,19 @@ export default function PurchaseEntryPage() {
     setLines((rows) => {
       const existing = rows.find((r) => r.product_id === p.id)
       if (existing) return rows.map((r) => r.product_id === p.id ? { ...r, quantity: r.quantity + 1 } : r)
-      return [...rows, { product_id: p.id, name: displayName(p, isUrdu), unit_cost_pkr: p.cost_price_pkr, quantity: 1 }]
+      return [...rows, { product_id: p.id, name: displayName(p, isUrdu), unit_cost_pkr: p.cost_price_pkr, quantity: 1, existingQty: p.quantity_on_hand, existingCost: p.cost_price_pkr }]
     })
     setShowSearch(false)
     setSearch('')
+  }
+  // Preview only — record_shop_purchase (451) computes the real average
+  // itself, server-side, from whatever quantity_on_hand/cost_price_pkr
+  // actually are at commit time.
+  const previewAvgCost = (r: Line) => {
+    const oldQty = Math.max(r.existingQty, 0)
+    const denom = oldQty + r.quantity
+    if (denom <= 0) return r.unit_cost_pkr
+    return Math.round(((oldQty * r.existingCost + r.quantity * r.unit_cost_pkr) / denom) * 100) / 100
   }
   const setQty = (productId: string, qty: number) => {
     setLines((rows) => rows.map((r) => r.product_id === productId ? { ...r, quantity: Math.max(1, qty) } : r))
@@ -92,7 +111,7 @@ export default function PurchaseEntryPage() {
     toast.success(t('sk.purchaseCompletedToast'))
     setLines([])
     setSupplier('')
-    supabase.from('shop_products').select('id, name, name_ur, company, flavor, flavor_ur, cost_price_pkr')
+    supabase.from('shop_products').select('id, name, name_ur, company, flavor, flavor_ur, cost_price_pkr, quantity_on_hand')
       .eq('shop_id', shop!.id).eq('is_active', true).order('name').then(({ data }) => setProducts(data ?? []))
   }
 
@@ -123,9 +142,10 @@ export default function PurchaseEntryPage() {
           {lines.map((r) => (
             <div key={r.product_id} className="bg-white border border-[#dcd8d4] p-3">
               <div className="flex items-center justify-between gap-2 mb-2">
-                <p className="font-sans text-[13.5px] font-semibold truncate" style={{ color: INK }}>{r.name}</p>
+                <MarqueeText text={r.name} className="font-sans text-[13.5px] font-semibold" style={{ color: INK }} />
                 <button onClick={() => removeLine(r.product_id)} className="p-1 cursor-pointer shrink-0" style={{ color: ACCENT }}><Trash2 size={14} /></button>
               </div>
+              {r.existingQty > 0 && <p className="font-sans text-[10.5px] text-[#7a736d] mb-1.5">{t('sk.currentlyOnHandLabel').replace('{qty}', fmt(r.existingQty)).replace('{cost}', fmt(r.existingCost))}</p>}
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1.5">
                   <span className="font-sans text-[11.5px] text-[#7a736d]">{t('sk.costPriceLabel')}</span>
@@ -138,7 +158,10 @@ export default function PurchaseEntryPage() {
                   <button onClick={() => setQty(r.product_id, r.quantity + 1)} className="w-8 h-8 border border-[#dcd8d4] flex items-center justify-center cursor-pointer hover:border-[#201e1d] transition-colors"><Plus size={14} /></button>
                 </div>
               </div>
-              <p className="font-sans text-[12px] text-[#7a736d] text-end mt-1.5">{t('sk.lineTotalLabel')} <span className="font-bold ltr-num" style={{ color: INK }}>{fmt(r.unit_cost_pkr * r.quantity)}</span></p>
+              <div className="flex items-center justify-between mt-1.5">
+                <p className="font-sans text-[11px] text-[#7a736d]">{t('sk.newAvgCostLabel')} <span className="font-bold ltr-num" style={{ color: INK }}>{fmt(previewAvgCost(r))}</span></p>
+                <p className="font-sans text-[12px] text-[#7a736d]">{t('sk.lineTotalLabel')} <span className="font-bold ltr-num" style={{ color: INK }}>{fmt(r.unit_cost_pkr * r.quantity)}</span></p>
+              </div>
             </div>
           ))}
         </div>
@@ -163,7 +186,7 @@ export default function PurchaseEntryPage() {
             <div className="space-y-1">
               {filtered.map((p) => (
                 <button key={p.id} onClick={() => addLine(p)} className="w-full text-start flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-[#f7f6f5] cursor-pointer">
-                  <span className="min-w-0 truncate font-sans text-[13.5px]" style={{ color: INK }}>{displayName(p, isUrdu)}</span>
+                  <MarqueeText text={displayName(p, isUrdu)} className="min-w-0 flex-1 font-sans text-[13.5px]" style={{ color: INK }} />
                   <span className="shrink-0 font-sans text-[12.5px] font-bold" style={{ color: '#ae1800' }}>{fmt(p.cost_price_pkr)}</span>
                 </button>
               ))}
