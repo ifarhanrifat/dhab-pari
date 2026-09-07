@@ -33,7 +33,7 @@
 // only their *props* change between renders, so React just re-renders
 // the existing DOM nodes and focus/typing works normally.
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { ArrowRight, Check, LayoutGrid, Tags, Sparkles, PackagePlus, Search, Camera, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -136,6 +136,15 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
   const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const [committingKeys, setCommittingKeys] = useState<Set<string>>(new Set())
+  // Real duplicate-row bug found live (migration 448's own header has the
+  // full story): a double-tap on "tick whole brand" fired commitEntries
+  // twice before the first insert's React state update had landed, so
+  // both calls computed "not yet owned" from the same stale `products`
+  // snapshot and inserted the exact same batch twice. `committingKeys`
+  // (state) can't close that race — state updates aren't synchronous, so
+  // a second synchronous call in the same tick still reads the old set.
+  // A plain ref IS synchronous, so it actually blocks the second call.
+  const pendingKeysRef = useRef<Set<string>>(new Set())
   // Pre-commit price/unit edits key off catalog key (selection.rows,
   // useCatalogSelection); once a row is owned, edits key off the real
   // product id instead — a totally different identity, so a separate map.
@@ -299,24 +308,44 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
   // statement-size failure that would silently lose the whole batch.
   const COMMIT_CHUNK = 200
   const commitEntries = async (entries: CatalogEntry[]) => {
-    const todo = entries.filter(availableForPick)
+    // pendingKeysRef, not just availableForPick (which reads the `products`
+    // prop — only updated once onBrandSubmitted's reload actually lands),
+    // is what stops a double-tap from re-submitting the same batch before
+    // that reload catches up. See the ref's own comment above.
+    const todo = entries.filter(availableForPick).filter((e) => !pendingKeysRef.current.has(e.key))
     if (todo.length === 0) return
     const rows = todo.map((e) => ({ e, payload: buildInsertPayload(e) })).filter((r): r is { e: CatalogEntry; payload: NonNullable<ReturnType<typeof buildInsertPayload>> } => !!r.payload)
     if (rows.length === 0) return
+    rows.forEach((r) => pendingKeysRef.current.add(r.e.key))
     setCommittingKeys((s) => new Set([...s, ...rows.map((r) => r.e.key)]))
-    for (let i = 0; i < rows.length; i += COMMIT_CHUNK) {
-      const chunk = rows.slice(i, i + COMMIT_CHUNK)
-      const { error } = await supabase.from('shop_products').insert(chunk.map((r) => r.payload))
-      if (error) {
-        toast.error(friendlyError(error))
-        setCommittingKeys((s) => { const n = new Set(s); rows.forEach((r) => n.delete(r.e.key)); return n })
-        onBrandSubmitted()
-        return
+    try {
+      for (let i = 0; i < rows.length; i += COMMIT_CHUNK) {
+        const chunk = rows.slice(i, i + COMMIT_CHUNK)
+        const { error } = await supabase.from('shop_products').insert(chunk.map((r) => r.payload))
+        if (error) {
+          // shop_products_dedupe_idx (migration 448): something in this
+          // chunk already exists for this shop — a second tab, a retried
+          // request, or the exact race the ref-guard above exists to
+          // close. Retry the chunk one row at a time so only the actual
+          // collision(s) get skipped instead of silently dropping every
+          // other genuinely-new item that happened to share this chunk.
+          if (error.code === '23505') {
+            for (const r of chunk) {
+              const { error: rowError } = await supabase.from('shop_products').insert(r.payload)
+              if (rowError && rowError.code !== '23505') toast.error(friendlyError(rowError))
+            }
+            continue
+          }
+          toast.error(friendlyError(error))
+          return
+        }
       }
+      selection.deselectMany(rows.map((r) => r.e.key))
+    } finally {
+      setCommittingKeys((s) => { const n = new Set(s); rows.forEach((r) => n.delete(r.e.key)); return n })
+      rows.forEach((r) => pendingKeysRef.current.delete(r.e.key))
+      onBrandSubmitted()
     }
-    setCommittingKeys((s) => { const n = new Set(s); rows.forEach((r) => n.delete(r.e.key)); return n })
-    selection.deselectMany(rows.map((r) => r.e.key))
-    onBrandSubmitted()
   }
   const uncommitEntries = async (entries: CatalogEntry[]) => {
     const todo = entries.filter((e) => !availableForPick(e))
@@ -418,8 +447,12 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
             </div>
             {catalog.length > 0 && (
               <div className="flex items-center gap-3">
-                <button onClick={takeStarterSet} className="flex items-center gap-1 font-sans text-[10px] font-semibold text-dp-secondary hover:underline cursor-pointer"><Sparkles size={12} /> {t('bs.tickStandardStockBtn').replace('{n}', String(starterSet.length))}</button>
-                <button onClick={takeEverything} className="font-sans text-[10px] font-semibold text-dp-secondary hover:underline cursor-pointer">{t('bs.selectEverythingBtn').replace('{n}', String(catalog.length))}</button>
+                {/* Disabled while anything is mid-commit — these two act on
+                    hundreds of rows at once, so a double-tap here was the
+                    worst-case version of the race migration 448 fixes at
+                    the DB level; this is the belt to that braces. */}
+                <button onClick={takeStarterSet} disabled={committingKeys.size > 0} className="flex items-center gap-1 font-sans text-[10px] font-semibold text-dp-secondary hover:underline cursor-pointer disabled:opacity-60 disabled:cursor-wait disabled:no-underline"><Sparkles size={12} /> {t('bs.tickStandardStockBtn').replace('{n}', String(starterSet.length))}</button>
+                <button onClick={takeEverything} disabled={committingKeys.size > 0} className="font-sans text-[10px] font-semibold text-dp-secondary hover:underline cursor-pointer disabled:opacity-60 disabled:cursor-wait disabled:no-underline">{t('bs.selectEverythingBtn').replace('{n}', String(catalog.length))}</button>
               </div>
             )}
           </div>
@@ -534,6 +567,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                       const selHere = ownedCount(b.entries)
                       const fullySelected = selHere === b.entries.length
                       const catSlug = b.entries[0]?.item.category
+                      const brandBusy = b.entries.some((e) => committingKeys.has(e.key))
                       return (
                         <div key={b.brandSlug} className="bg-white border border-dp-outline-variant rounded-lg p-3 flex flex-col">
                           <div className="flex items-start gap-2">
@@ -547,9 +581,9 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                             {catSlug ? getCategoryLabel(catSlug, isUrdu) : ''} · {b.entries.length} {t('mk.productsCount')}
                           </p>
                           <div className="flex items-center gap-1.5 mt-2">
-                            <button type="button" onClick={() => toggleWholeBrand(b.entries)}
-                              className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg font-sans text-[9px] font-bold cursor-pointer border ${fullySelected ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>
-                              {fullySelected && <Check size={12} strokeWidth={3} />} {fullySelected ? t('bs.tickedBtn') : t('bs.tickBtn')}
+                            <button type="button" disabled={brandBusy} onClick={() => toggleWholeBrand(b.entries)}
+                              className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg font-sans text-[9px] font-bold cursor-pointer border disabled:opacity-60 disabled:cursor-wait ${fullySelected ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>
+                              {brandBusy ? <Loader2 size={12} className="animate-spin" /> : fullySelected && <Check size={12} strokeWidth={3} />} {fullySelected ? t('bs.tickedBtn') : t('bs.tickBtn')}
                             </button>
                             <button type="button" onClick={() => setOpenBrandSlug(b.brandSlug)}
                               className="shrink-0 px-2.5 py-1.5 border border-dp-outline-variant rounded-lg font-sans text-[9px] font-semibold text-dp-on-surface-variant cursor-pointer hover:bg-dp-surface-container">

@@ -1,0 +1,22 @@
+-- Real duplicate-row bug found live: BrandItemPicker's "tick whole brand"
+-- button (commitEntries) had no re-entrancy guard, so a double-tap (or
+-- any near-simultaneous second click before the first insert's React
+-- state update landed) computed "not yet owned" from the same stale
+-- `products` snapshot twice and inserted the exact same batch of items
+-- twice. Found live: a shop had 12 LU/Continental Biscuits items each
+-- duplicated (Prince, Oreo, TUC, Candi, Cadbury Biscuits, Zeera Plus,
+-- Gala, Bakeri x2, Wheatable, Milcolu), all created ~1 second apart,
+-- all qty/cost/sale still 0 (untouched drafts) — confirmed zero
+-- references in shop_kit_items/shop_deal_items/shop_sale_items/
+-- shop_order_items before deleting the 12 orphan dupes by hand.
+--
+-- This index makes that class of bug structurally impossible going
+-- forward, independent of whatever UI race causes the double-submit
+-- (a second browser tab, a slow network retry, a future bug in some
+-- other caller) — the database itself now refuses a second row for the
+-- same (shop, name, flavor, company) combination. lower()+coalesce()
+-- so "Lays"/"lays" aren't treated as different, and so two rows that
+-- both have no flavor/company (loose goods, single-variant items like
+-- TUC) still collide instead of comparing unequal NULLs.
+create unique index if not exists shop_products_dedupe_idx
+  on shop_products (shop_id, lower(name), lower(coalesce(flavor, '')), lower(coalesce(company, '')));
