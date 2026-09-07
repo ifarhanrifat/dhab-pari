@@ -49,6 +49,7 @@ interface Product {
 // exact same list, not a second copy.
 
 interface Pack { id: string; label: string; label_ur: string | null; pack_qty: number; pack_price_pkr: number; is_active: boolean }
+interface SaleRow { id: string; quantity: number; unit_price_pkr: number; line_total_pkr: number; created_at: string; pack_label_snapshot: string | null }
 
 const emptyProduct = {
   name: '', name_ur: '', description: '', company: '', category: 'other' as string, flavor: '', flavor_ur: '',
@@ -187,6 +188,12 @@ function MyShopPageInner() {
   const [productPacks, setProductPacks] = useState<Pack[]>([])
   const [packForm, setPackForm] = useState({ label: '', label_ur: '', pack_qty: '', pack_price_pkr: '' })
   const [savingPack, setSavingPack] = useState(false)
+  // Per-product sales history + profit (what got asked for alongside
+  // restocking: "this section will have that product's full profit and
+  // details, like what time it's sold, what price") — loaded fresh each
+  // time the edit form opens for a product, most recent first.
+  const [productSales, setProductSales] = useState<SaleRow[]>([])
+  const [loadingSales, setLoadingSales] = useState(false)
   // Same "bought at a lump sum, not a per-unit rate" calculator LooseRow
   // has for the Loose Goods tab (e.g. sugar), but here on the product
   // form itself so it also covers things like Fresh Produce's Banana —
@@ -282,6 +289,7 @@ function MyShopPageInner() {
     setProductPacks([])
     setPackForm({ label: '', label_ur: '', pack_qty: '', pack_price_pkr: '' })
     setShowCostCalc(false); setCostCalcQty(''); setCostCalcTotal('')
+    setProductSales([])
     setShowForm(true)
   }
   const openEdit = (p: Product) => {
@@ -298,12 +306,31 @@ function MyShopPageInner() {
     setPackForm({ label: '', label_ur: '', pack_qty: '', pack_price_pkr: '' })
     setShowCostCalc(false); setCostCalcQty(''); setCostCalcTotal('')
     loadPacks(p.id)
+    loadProductSales(p.id)
     setShowForm(true)
   }
 
   const loadPacks = async (productId: string) => {
     const { data } = await supabase.from('shop_product_packs').select('*').eq('shop_product_id', productId).order('pack_qty')
     setProductPacks((data ?? []) as Pack[])
+  }
+
+  const loadProductSales = async (productId: string) => {
+    setLoadingSales(true)
+    // shop_sale_items itself has no created_at — shop_sales does, hence
+    // the embedded select. Most recent 25 — this is a quick "what's been
+    // happening with this item" glance, not a full export.
+    const { data } = await supabase.from('shop_sale_items')
+      .select('id, quantity, unit_price_pkr, line_total_pkr, pack_label_snapshot, shop_sales!inner(created_at)')
+      .eq('product_id', productId).order('created_at', { referencedTable: 'shop_sales', ascending: false }).limit(25)
+    const rows = ((data ?? []) as unknown as (SaleRow & { shop_sales: { created_at: string } | { created_at: string }[] })[]).map((r) => ({
+      id: r.id, quantity: r.quantity, unit_price_pkr: r.unit_price_pkr, line_total_pkr: r.line_total_pkr,
+      pack_label_snapshot: r.pack_label_snapshot,
+      created_at: Array.isArray(r.shop_sales) ? r.shop_sales[0]?.created_at : r.shop_sales.created_at,
+    }))
+    rows.sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+    setProductSales(rows)
+    setLoadingSales(false)
   }
   const addPack = async () => {
     if (!editing) return
@@ -904,6 +931,56 @@ function MyShopPageInner() {
                     </div>
                     <button type="button" onClick={addPack} disabled={savingPack} className="w-full py-2 border font-sans text-[12.5px] font-semibold cursor-pointer disabled:opacity-60" style={{ borderColor: ACCENT, color: ACCENT }}>{savingPack ? t('action.saving') : t('sk.addPackBtn')}</button>
                   </div>
+                </div>
+              )}
+
+              {editing && (
+                <div className="border-t pt-3 mt-1" style={{ borderColor: '#e2ded9' }}>
+                  <p className="font-sans text-[12.5px] font-bold mb-0.5" style={{ color: INK }}>{t('sk.salesHistoryHeading')}</p>
+                  <p className="font-sans text-[11px] text-[#7a736d] mb-2">{t('sk.salesHistoryHint')}</p>
+                  {loadingSales ? (
+                    <div className="py-4 text-center"><LoadingDots /></div>
+                  ) : productSales.length === 0 ? (
+                    <p className="font-sans text-[11.5px] text-[#7a736d] text-center py-3 border border-[#e2ded9]">{t('sk.noSalesYetHint')}</p>
+                  ) : (
+                    <>
+                      {(() => {
+                        const totalQty = productSales.reduce((s, r) => s + r.quantity, 0)
+                        const totalRevenue = productSales.reduce((s, r) => s + r.line_total_pkr, 0)
+                        const totalProfit = productSales.reduce((s, r) => s + (r.line_total_pkr - editing.cost_price_pkr * r.quantity), 0)
+                        return (
+                          <div className="grid grid-cols-3 gap-2 mb-2.5">
+                            <div className="border border-[#e2ded9] p-2 text-center">
+                              <p className="font-sans text-[9.5px] text-[#7a736d]">{t('sk.unitsSoldLabel')}</p>
+                              <p className="font-sans text-[15px] font-bold ltr-num" style={{ color: INK }}>{fmt(totalQty)}</p>
+                            </div>
+                            <div className="border border-[#e2ded9] p-2 text-center">
+                              <p className="font-sans text-[9.5px] text-[#7a736d]">{t('sk.revenueLabel')}</p>
+                              <p className="font-sans text-[15px] font-bold ltr-num" style={{ color: INK }}>{fmt(totalRevenue)}</p>
+                            </div>
+                            <div className="border border-[#e2ded9] p-2 text-center">
+                              <p className="font-sans text-[9.5px] text-[#7a736d]">{t('sk.approxProfitLabel')}</p>
+                              <p className="font-sans text-[15px] font-bold ltr-num" style={{ color: totalProfit >= 0 ? '#1a7a4c' : ACCENT_DARK }}>{fmt(totalProfit)}</p>
+                            </div>
+                          </div>
+                        )
+                      })()}
+                      <p className="font-sans text-[9.5px] text-[#7a736d] mb-2">{t('sk.approxProfitHint')}</p>
+                      <div className="space-y-1 max-h-56 overflow-y-auto">
+                        {productSales.map((r) => (
+                          <div key={r.id} className="flex items-center justify-between gap-2 px-2.5 py-1.5 border border-[#e2ded9] bg-white">
+                            <div className="min-w-0">
+                              <p className="font-sans text-[11.5px] font-semibold ltr-num" style={{ color: INK }}>
+                                {new Date(r.created_at).toLocaleString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                              {r.pack_label_snapshot && <p className="font-sans text-[10px] text-[#7a736d] truncate">{r.pack_label_snapshot}</p>}
+                            </div>
+                            <p className="font-sans text-[11.5px] text-[#7a736d] shrink-0 ltr-num">{fmt(r.quantity)} × {fmt(r.unit_price_pkr)} = <span className="font-bold" style={{ color: INK }}>{fmt(r.line_total_pkr)}</span></p>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
