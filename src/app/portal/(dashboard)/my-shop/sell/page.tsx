@@ -19,6 +19,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Capacitor } from '@capacitor/core'
 import { createClient } from '@/lib/supabase/client'
+import { resolveMyShop } from '@/lib/shop'
 import { ArrowLeft, Camera, Loader2, Minus, Plus, Trash2, Search, ShoppingCart, CheckCircle2, ScanBarcode } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
@@ -114,7 +115,7 @@ export default function SellPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('shops').select('id, name, name_ur').eq('portal_user_id', user.id).maybeSingle().then(({ data }) => {
+    resolveMyShop<Shop>(supabase, user.id, 'id, name, name_ur').then(({ data }) => {
       setShop(data)
       if (data) {
         loadProducts(data.id).then(() => setLoading(false))

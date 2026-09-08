@@ -18,6 +18,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { resolveMyShop } from '@/lib/shop'
 import { ArrowLeft, PackagePlus, Loader2, Minus, Plus, Trash2, Search, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
@@ -146,7 +147,7 @@ export default function PurchaseEntryPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('shops').select('id, name, name_ur').eq('portal_user_id', user.id).maybeSingle().then(({ data }) => {
+    resolveMyShop<Shop>(supabase, user.id, 'id, name, name_ur').then(({ data }) => {
       setShop(data)
       if (data) {
         supabase.from('shop_products').select('id, name, name_ur, company, flavor, flavor_ur, cost_price_pkr, quantity_on_hand, unit')

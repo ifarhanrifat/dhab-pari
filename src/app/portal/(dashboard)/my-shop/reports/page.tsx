@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { resolveMyShop } from '@/lib/shop'
 import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Clock, Package, PackageX, PackagePlus, CheckCircle2, XCircle, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
@@ -81,7 +82,7 @@ export default function ShopReportsPage() {
 
  useEffect(() => {
  if (!user) return
- supabase.from('shops').select('id, name, name_ur, commission_mode').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
+ resolveMyShop<Shop>(supabase, user.id, 'id, name, name_ur, commission_mode').then(async ({ data }) => {
  setShop(data)
  if (!data) { setLoading(false); return }
 

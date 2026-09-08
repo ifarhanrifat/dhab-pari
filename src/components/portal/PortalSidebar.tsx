@@ -82,10 +82,21 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   // they'd already opened the portal in that tab would never see "My
   // Shop" appear without a full reload, however long they kept clicking
   // around.
+  //
+  // Real gap found live: this only ever checked shops.portal_user_id —
+  // the ORIGINAL owner. A second account added via shop_staff (458, the
+  // multi-owner/staff feature) has full access to the shop once inside
+  // it, but with no shop row of their own this tab never appeared for
+  // them at all, so they had no way to even find /portal/my-shop from
+  // their own sidebar short of someone giving them the raw URL. Checked
+  // alongside the direct-ownership query now, same OR shape
+  // user_manages_shop() itself uses server-side.
   useEffect(() => {
     if (!user) return
-    supabase.from('shops').select('id').eq('portal_user_id', user.id).limit(1)
-      .then(({ data }) => setHasShop((data?.length ?? 0) > 0))
+    Promise.all([
+      supabase.from('shops').select('id').eq('portal_user_id', user.id).limit(1),
+      supabase.from('shop_staff').select('id').eq('portal_user_id', user.id).limit(1),
+    ]).then(([owned, staff]) => setHasShop((owned.data?.length ?? 0) > 0 || (staff.data?.length ?? 0) > 0))
     supabase.from('vehicles').select('id').eq('portal_user_id', user.id).limit(1)
       .then(({ data }) => setHasVehicle((data?.length ?? 0) > 0))
   }, [supabase, user, pathname])
