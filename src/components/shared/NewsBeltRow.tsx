@@ -26,8 +26,19 @@
 // item's default min-width is its content size, so it just grew to fit
 // everything instead of ever overflowing, which is also exactly why the
 // auto-scroll never did anything: half > clientWidth was never true.
-// flex-1 min-w-0 at that call site is what actually fixes the second
-// half of that; this file only handles the first.
+// flex-1 min-w-0 at that call site fixes that half of it.
+//
+// A third, deeper bug shipped even after both of those were fixed: the
+// step below used to read el.scrollLeft back and increment THAT every
+// frame. Most browsers round scrollLeft to a whole pixel on write —
+// writing 0.5 reads back as 0 — so accumulating 0.5px/frame off the
+// DOM's own rounded value never went anywhere; every frame started over
+// from the same truncated 0 and the belt visibly never moved at all.
+// posRef now tracks the true (fractional) position entirely in JS and
+// only ever writes it out to scrollLeft — the DOM can round the display
+// however it likes, the accumulation itself never round-trips through
+// it, so real pixel-by-pixel movement shows up once posRef has actually
+// advanced far enough, same as it would in a canvas or CSS transform.
 //
 // Auto-scroll pauses the instant a drag starts and does NOT resume until
 // the user interacts somewhere else on the page — a plain tap moves the
@@ -38,7 +49,7 @@
 import { useEffect, useRef } from 'react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
-const SPEED_PX_PER_FRAME = 0.5
+const SPEED_PX_PER_FRAME = 0.8
 const DRAG_THRESHOLD_PX = 6
 
 export function NewsBeltRow({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -46,6 +57,7 @@ export function NewsBeltRow({ children, className }: { children: React.ReactNode
   const trackRef = useRef<HTMLDivElement>(null)
   const pausedRef = useRef(false)
   const initedRef = useRef(false)
+  const posRef = useRef(0)
 
   const draggingRef = useRef(false)
   const draggedRef = useRef(false)
@@ -65,14 +77,21 @@ export function NewsBeltRow({ children, className }: { children: React.ReactNode
         // immediately, mirroring English's forward start at 0 — set
         // once the real (post-layout) scrollWidth is known, not before.
         if (!initedRef.current) {
-          if (isUrdu) el.scrollLeft = half
+          posRef.current = isUrdu ? half : 0
+          el.scrollLeft = posRef.current
           initedRef.current = true
         }
-        if (!pausedRef.current) {
+        // A manual drag (see onPointerMove) moves scrollLeft directly —
+        // resync our own tracked position to it so auto-scroll picks up
+        // exactly where the drag left off instead of snapping back.
+        if (draggingRef.current) {
+          posRef.current = el.scrollLeft
+        } else if (!pausedRef.current) {
           const dir = isUrdu ? -1 : 1
-          let next = el.scrollLeft + dir * SPEED_PX_PER_FRAME
+          let next = posRef.current + dir * SPEED_PX_PER_FRAME
           if (next >= half) next -= half
           if (next < 0) next += half
+          posRef.current = next
           el.scrollLeft = next
         }
       }
