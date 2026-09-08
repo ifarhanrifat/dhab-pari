@@ -47,6 +47,7 @@ interface Product {
   category: string | null; company: string | null; unit_price_pkr: number; quantity_on_hand: number; is_active: boolean
   unit: string; is_quick_food: boolean
 }
+interface Village { id: string; name: string; name_ur: string | null; delivery_fee_pkr: number; is_home_village: boolean }
 interface Kit {
   id: string; name: string; name_ur: string | null; sub: string | null; sub_ur: string | null
   tint: 'accent' | 'ink' | 'photo'; photo_url: string | null
@@ -137,7 +138,13 @@ export default function ShopDetailPage() {
   const [bookable, setBookable] = useState(true)
   const [activeDept, setActiveDept] = useState<string | null>(null)
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
-  const [deliveryFeePkr, setDeliveryFeePkr] = useState(0)
+  // Villages rate card (471) replaces the old single flat fee — Dhab
+  // Pari (is_home_village) pre-selected by default, matching what was
+  // asked for directly. Self-pickup (472) skips both the village and
+  // the fee entirely.
+  const [villages, setVillages] = useState<Village[]>([])
+  const [villageId, setVillageId] = useState<string | null>(null)
+  const [fulfillmentMode, setFulfillmentMode] = useState<'delivery' | 'pickup'>('delivery')
   const [search, setSearch] = useState('')
   const [brandFilter, setBrandFilter] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'name' | 'cheap' | 'expensive'>('name')
@@ -155,12 +162,13 @@ export default function ShopDetailPage() {
       supabase.from('shops').select('*').eq('id', shopId).single(),
       supabase.from('shop_products').select('*').eq('shop_id', shopId).eq('is_active', true).order('name'),
       supabase.rpc('shop_bookable', { p_shop_id: shopId }),
-      supabase.from('site_settings').select('value').eq('key', 'village_delivery_flat_fee_pkr').maybeSingle(),
-    ]).then(([{ data: s }, { data: p }, { data: bk }, { data: fee }]) => {
+      supabase.from('villages').select('id, name, name_ur, delivery_fee_pkr, is_home_village').order('display_order'),
+    ]).then(([{ data: s }, { data: p }, { data: bk }, { data: vl }]) => {
       setShop(s)
       setProducts(p ?? [])
       setBookable(bk !== false)
-      setDeliveryFeePkr(fee?.value ? Number(fee.value) : 0)
+      setVillages((vl ?? []) as Village[])
+      setVillageId((vl ?? []).find((v) => v.is_home_village)?.id ?? (vl ?? [])[0]?.id ?? null)
       setLoading(false)
       if (p && p.length > 0) {
         supabase.from('product_media').select('product_id, url').eq('is_cover', true).in('product_id', p.map((x) => x.id))
@@ -196,6 +204,7 @@ export default function ShopDetailPage() {
 
   const cartItems = products.filter((p) => cart[p.id] > 0)
   const cartTotal = cartItems.reduce((s, p) => s + p.unit_price_pkr * cart[p.id], 0)
+  const deliveryFeePkr = fulfillmentMode === 'pickup' ? 0 : (villages.find((v) => v.id === villageId)?.delivery_fee_pkr ?? 0)
 
   const isPerOrder = shop?.commission_mode === 'per_order'
 
@@ -324,13 +333,15 @@ export default function ShopDetailPage() {
 
   const submit = async () => {
     if (cartItems.length === 0) { toast.error(t('mp.cartEmpty')); return }
-    if (!deliveryAddress.trim()) { toast.error(t('mp.deliveryAddressRequired')); return }
+    if (fulfillmentMode === 'delivery' && !deliveryAddress.trim()) { toast.error(t('mp.deliveryAddressRequired')); return }
     if (!isPerOrder && !proofPath) { toast.error(t('g.uploadPaymentScreenshot')); return }
     setSubmitting(true)
     const items = cartItems.map((p) => ({ product_id: p.id, quantity: cart[p.id] }))
     const { error } = await supabase.rpc('place_shop_order', {
       p_shop_id: shop!.id, p_items: items, p_method: isPerOrder ? 'direct' : method, p_proof_url: isPerOrder ? null : proofPath,
-      p_delivery_address: deliveryAddress.trim(),
+      p_fulfillment_mode: fulfillmentMode,
+      p_delivery_address: fulfillmentMode === 'delivery' ? deliveryAddress.trim() : null,
+      p_village_id: fulfillmentMode === 'delivery' ? villageId : null,
     })
     setSubmitting(false)
     if (error) { toast.error(friendlyError(error)); return }
@@ -623,12 +634,46 @@ export default function ShopDetailPage() {
             <p className="font-heading text-[19px] font-bold" style={{ color: ACCENT }}>{fmt(cartTotal + deliveryFeePkr)}</p>
           </div>
 
+          {/* Pickup skips the village + address + fee entirely — a real,
+              specific request: not every buyer needs delivery, and
+              forcing the fee on everyone who'd rather collect it
+              themselves was never actually necessary. */}
           <div className="mt-4">
-            <label className="block font-sans text-[13px] font-semibold text-[#5b544f] mb-1.5">{t('mp.deliveryAddressLabel')}</label>
-            <textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={2}
-              placeholder={t('mp.deliveryAddressPlaceholder')} className="w-full border border-[#dcd8d4] p-2.5 font-sans text-[13.5px] resize-none focus:ring-0" style={{ borderColor: '#dcd8d4' }} onFocus={(e) => (e.currentTarget.style.borderColor = INK)} onBlur={(e) => (e.currentTarget.style.borderColor = '#dcd8d4')} />
-            {user?.mobile && <p className="font-sans text-[11.5px] text-[#7a736d] mt-1.5">{t('mp.deliveryContactNote')} <span className="font-semibold ltr-num">{user.mobile}</span></p>}
+            <label className="block font-sans text-[13px] font-semibold text-[#5b544f] mb-1.5">{t('mp.fulfillmentModeLabel')}</label>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setFulfillmentMode('delivery')}
+                className="flex-1 py-2.5 border font-sans text-[13px] font-semibold cursor-pointer"
+                style={fulfillmentMode === 'delivery' ? { background: ACCENT, borderColor: ACCENT, color: '#fff' } : { borderColor: '#dcd8d4', color: INK }}>
+                {t('mp.deliveryModeBtn')}
+              </button>
+              <button type="button" onClick={() => setFulfillmentMode('pickup')}
+                className="flex-1 py-2.5 border font-sans text-[13px] font-semibold cursor-pointer"
+                style={fulfillmentMode === 'pickup' ? { background: ACCENT, borderColor: ACCENT, color: '#fff' } : { borderColor: '#dcd8d4', color: INK }}>
+                {t('mp.pickupModeBtn')}
+              </button>
+            </div>
           </div>
+
+          {fulfillmentMode === 'delivery' ? (
+            <>
+              <div className="mt-3">
+                <label className="block font-sans text-[13px] font-semibold text-[#5b544f] mb-1.5">{t('mp.villageLabel')}</label>
+                <select value={villageId ?? ''} onChange={(e) => setVillageId(e.target.value)} className="w-full border border-[#dcd8d4] p-2.5 font-sans text-[13.5px]" style={{ color: INK }}>
+                  {villages.map((v) => (
+                    <option key={v.id} value={v.id}>{(isUrdu && v.name_ur ? v.name_ur : v.name)}{v.is_home_village ? '' : ` — ${fmt(v.delivery_fee_pkr)}`}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="mt-3">
+                <label className="block font-sans text-[13px] font-semibold text-[#5b544f] mb-1.5">{t('mp.deliveryAddressLabel')}</label>
+                <textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={2}
+                  placeholder={t('mp.deliveryAddressPlaceholder')} className="w-full border border-[#dcd8d4] p-2.5 font-sans text-[13.5px] resize-none focus:ring-0" style={{ borderColor: '#dcd8d4' }} onFocus={(e) => (e.currentTarget.style.borderColor = INK)} onBlur={(e) => (e.currentTarget.style.borderColor = '#dcd8d4')} />
+                {user?.mobile && <p className="font-sans text-[11.5px] text-[#7a736d] mt-1.5">{t('mp.deliveryContactNote')} <span className="font-semibold ltr-num">{user.mobile}</span></p>}
+              </div>
+            </>
+          ) : (
+            <p className="font-sans text-[12.5px] px-3 py-2.5 mt-3 border" style={{ background: '#eeece9', borderColor: '#dcd8d4', color: INK }}>{t('mp.pickupNote')}</p>
+          )}
 
           {isPerOrder ? (
             <p className="font-sans text-[12.5px] px-3 py-2.5 mt-4 border" style={{ background: '#fce3dc', borderColor: '#f4a68f', color: ACCENT_DARK }}>{t('cm.payDirectlyNote')}</p>

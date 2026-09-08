@@ -15,7 +15,7 @@ import { useSearchParams } from 'next/navigation'
 import { Capacitor } from '@capacitor/core'
 import { createClient } from '@/lib/supabase/client'
 import { resolveMyShop } from '@/lib/shop'
-import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, PackagePlus, Wallet, UtensilsCrossed, PlusCircle, Tag, AlertTriangle, LayoutGrid, ArrowRight, ScanBarcode, Users, UserPlus } from 'lucide-react'
+import { Store, X, Pencil, Trash2, Camera, Loader2, KeyRound, ShoppingCart, PackageX, PackagePlus, Wallet, UtensilsCrossed, PlusCircle, Tag, AlertTriangle, LayoutGrid, ArrowRight, ScanBarcode, Users, UserPlus, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -34,7 +34,7 @@ import { BarcodeScannerModal } from '@/components/shared/BarcodeScannerModal'
 import { WebCameraCaptureModal } from '@/components/shared/WebCameraCaptureModal'
 import { MarqueeText } from '@/components/shared/MarqueeText'
 
-interface Shop { id: string; name: string; name_ur: string | null; delivery_enabled: boolean; commission_mode: string; primary_type: string }
+interface Shop { id: string; name: string; name_ur: string | null; delivery_enabled: boolean; commission_mode: string; primary_type: string; opens_at: string | null; closes_at: string | null }
 interface Product {
   id: string; name: string; name_ur: string | null; description: string | null
   company: string | null; category: string | null; flavor: string | null; flavor_ur: string | null
@@ -178,6 +178,14 @@ function MyShopPageInner() {
 
   const [showTopup, setShowTopup] = useState(false)
   const [showAiSettings, setShowAiSettings] = useState(false)
+  // Opening/closing hours (471) — a shopkeeper's own business hours, not
+  // a committee-wide setting (unlike an adda's), so it's editable right
+  // here. NULL/NULL (both fields blank) means always open, same as
+  // every shop that hasn't touched this yet.
+  const [showHours, setShowHours] = useState(false)
+  const [opensAt, setOpensAt] = useState('')
+  const [closesAt, setClosesAt] = useState('')
+  const [savingHours, setSavingHours] = useState(false)
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
   const [showWebCamera, setShowWebCamera] = useState(false)
   const [changingCategory, setChangingCategory] = useState(false)
@@ -237,7 +245,7 @@ function MyShopPageInner() {
 
   useEffect(() => {
     if (!user) return
-    resolveMyShop<Shop>(supabase, user.id, 'id, name, name_ur, delivery_enabled, commission_mode, primary_type')
+    resolveMyShop<Shop>(supabase, user.id, 'id, name, name_ur, delivery_enabled, commission_mode, primary_type, opens_at, closes_at')
       .then(({ data }) => { setShop(data); setShopLoading(false) })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -493,6 +501,30 @@ function MyShopPageInner() {
     setKeySaved(!!geminiKey.trim())
     toast.success(t('sk.keySaved'))
     setShowAiSettings(false)
+  }
+
+  const openHours = () => {
+    if (!shop) return
+    // Postgres time comes back as "HH:MM:SS" — <input type="time"> wants
+    // "HH:MM".
+    setOpensAt(shop.opens_at ? shop.opens_at.slice(0, 5) : '')
+    setClosesAt(shop.closes_at ? shop.closes_at.slice(0, 5) : '')
+    setShowHours(true)
+  }
+
+  const saveHours = async () => {
+    if (!shop) return
+    if ((opensAt && !closesAt) || (!opensAt && closesAt)) {
+      toast.error(t('sk.hoursNeedBothHint'))
+      return
+    }
+    setSavingHours(true)
+    const { error } = await supabase.from('shops').update({ opens_at: opensAt || null, closes_at: closesAt || null }).eq('id', shop.id)
+    setSavingHours(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    setShop((s) => s ? { ...s, opens_at: opensAt || null, closes_at: closesAt || null } : s)
+    toast.success(t('sk.hoursSavedToast'))
+    setShowHours(false)
   }
 
   const openNewKit = () => {
@@ -829,6 +861,21 @@ function MyShopPageInner() {
             <ArrowRight size={15} className="rotate-180 rtl:rotate-0 text-[#7a736d]" />
           </Link>
 
+          {/* Opening/closing hours (471) — no online orders go through
+              once closed (shop_bookable checks this server-side too),
+              so it needs to be at least as easy to find as Staff/
+              Customers above, not buried in a settings menu. */}
+          <button onClick={openHours} className="w-full mt-2 flex items-center gap-2.5 px-3.5 py-3.5 bg-white border border-[#dcd8d4] cursor-pointer text-start" style={{ borderInlineStart: `3px solid ${INK}` }}>
+            <Clock size={18} style={{ color: INK }} />
+            <span className="flex-1">
+              <span className="block font-sans text-[13px]" style={{ color: INK }}>{t('sk.shopHoursBtn')}</span>
+              <span className="block font-sans text-[10.5px] text-[#7a736d] mt-0.5">
+                {shop.opens_at && shop.closes_at ? `${shop.opens_at.slice(0, 5)} – ${shop.closes_at.slice(0, 5)}` : t('sk.shopHoursAlwaysOpen')}
+              </span>
+            </span>
+            <ArrowRight size={15} className="rotate-180 rtl:rotate-0 text-[#7a736d]" />
+          </button>
+
           {dashLowStock > 0 && (
             <div className="border-2 p-3 mt-3 flex items-center gap-2" style={{ borderColor: ACCENT, background: '#fce3dc' }}>
               <AlertTriangle size={16} style={{ color: ACCENT_DARK }} />
@@ -1043,6 +1090,36 @@ function MyShopPageInner() {
           onCaptured={(file) => { setShowWebCamera(false); runScan(file) }}
           onUseGalleryInstead={() => { setShowWebCamera(false); scanChooserInputRef.current?.click() }}
         />
+      )}
+
+      {showHours && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowHours(false)}>
+          <div className="bg-white p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-heading text-[18px] font-bold flex items-center gap-1.5" style={{ color: INK }}><Clock size={18} /> {t('sk.shopHoursBtn')}</h2>
+              <button onClick={() => setShowHours(false)} className="cursor-pointer"><X size={20} /></button>
+            </div>
+            <p className="font-sans text-[12px] text-[#7a736d] mb-3">{t('sk.shopHoursHint')}</p>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <label className="block font-sans text-[11px] text-[#7a736d] mb-1">{t('sk.opensAtLabel')}</label>
+                <input type="time" value={opensAt} onChange={(e) => setOpensAt(e.target.value)} className="input-field ltr-num" dir="ltr" />
+              </div>
+              <div className="flex-1">
+                <label className="block font-sans text-[11px] text-[#7a736d] mb-1">{t('sk.closesAtLabel')}</label>
+                <input type="time" value={closesAt} onChange={(e) => setClosesAt(e.target.value)} className="input-field ltr-num" dir="ltr" />
+              </div>
+            </div>
+            {(opensAt || closesAt) && (
+              <button onClick={() => { setOpensAt(''); setClosesAt('') }} className="mt-2 font-sans text-[11.5px] font-semibold underline cursor-pointer" style={{ color: ACCENT }}>
+                {t('sk.clearHoursBtn')}
+              </button>
+            )}
+            <button onClick={saveHours} disabled={savingHours} className="w-full mt-4 text-white py-3 font-sans font-semibold cursor-pointer disabled:opacity-50" style={{ background: ACCENT }}>
+              {savingHours ? t('action.saving') : t('g.saveChanges')}
+            </button>
+          </div>
+        </div>
       )}
 
       {showAiSettings && (

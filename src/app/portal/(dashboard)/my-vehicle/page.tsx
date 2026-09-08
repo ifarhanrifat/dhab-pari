@@ -460,6 +460,11 @@ export default function MyVehiclePage() {
       <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
         <h1 className="font-heading text-[26px] font-bold leading-[34px] text-dp-primary flex items-center gap-2"><Bus size={22} /> {vehicle.owner_name}</h1>
         <div className="flex items-center gap-2">
+          {vehicle.delivers && (
+            <Link href="/portal/my-vehicle/deliveries" className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+              <Truck size={14} /> {t('mv.deliveriesBtn')}
+            </Link>
+          )}
           <button onClick={() => setShowPostTrip(true)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
             <PlusCircle size={14} /> {t('cm.postTripBtn')}
           </button>
