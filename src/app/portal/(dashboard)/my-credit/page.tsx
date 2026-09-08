@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Wallet, X, ChevronDown, ChevronUp, Loader2, KeyRound, Receipt } from 'lucide-react'
+import { Wallet, X, ChevronDown, ChevronUp, Loader2, KeyRound, Receipt, Users, Link2Off } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -28,6 +28,11 @@ const INK = '#201e1d'
 interface Account { customer_id: string; shop_id: string; shop_name: string; shop_name_ur: string | null; balance: number; linked_count: number }
 interface StatementRow { entry_id: string; entry_type: 'sale' | 'payment' | 'invoice'; entry_at: string; description: string; debit: number; credit: number; running_balance: number }
 interface SaleItem { id: string; product_id: string; product_name_snapshot: string; quantity: number; unit_price_pkr: number; line_total_pkr: number; pack_id: string | null; pack_label_snapshot: string | null }
+// Unlike the shopkeeper's own anonymized "User N" view, a linked
+// household member sees the OTHER real people who share this account —
+// they already chose to give each other access by handing round a code,
+// so real names/numbers here are the point, not a leak.
+interface SharedLink { link_id: string; full_name: string; mobile: string; linked_at: string; is_me: boolean }
 
 function fmt(n: number) {
   return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -52,6 +57,11 @@ export default function MyCreditPage() {
   const [saleItemsCache, setSaleItemsCache] = useState<Record<string, SaleItem[]>>({})
   const [loadingSaleId, setLoadingSaleId] = useState<string | null>(null)
 
+  const [showSharedLinks, setShowSharedLinks] = useState(false)
+  const [sharedLinks, setSharedLinks] = useState<SharedLink[]>([])
+  const [loadingSharedLinks, setLoadingSharedLinks] = useState(false)
+  const [removingLinkId, setRemovingLinkId] = useState<string | null>(null)
+
   const loadAccounts = () => supabase.rpc('my_credit_accounts').then(({ data }) => setAccounts((data ?? []) as Account[]))
 
   useEffect(() => {
@@ -75,11 +85,49 @@ export default function MyCreditPage() {
 
   const openStatement = async (a: Account) => {
     setOpen(a)
+    setShowSharedLinks(false); setSharedLinks([])
     setLoadingStatement(true)
     const { data, error } = await supabase.rpc('shop_customer_statement', { p_customer_id: a.customer_id })
     setLoadingStatement(false)
     if (error) { toast.error(friendlyError(error)); return }
     setStatement((data ?? []) as StatementRow[])
+  }
+
+  const loadSharedLinks = async (customerId: string) => {
+    setLoadingSharedLinks(true)
+    const { data, error } = await supabase.rpc('list_shared_customer_links', { p_customer_id: customerId })
+    setLoadingSharedLinks(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    setSharedLinks((data ?? []) as SharedLink[])
+  }
+
+  const toggleSharedLinks = () => {
+    if (!open) return
+    if (!showSharedLinks) loadSharedLinks(open.customer_id)
+    setShowSharedLinks((v) => !v)
+  }
+
+  // Any linked household member can remove any link on this account,
+  // including their own — the same way any of them could already just
+  // ask the shopkeeper to. Removing yourself closes the statement and
+  // drops the account from the list, since access is gone the moment
+  // this returns.
+  const removeSharedLink = async (row: SharedLink) => {
+    if (!open) return
+    const confirmMsg = row.is_me ? t('sk.confirmRemoveSelfLink') : t('sk.confirmRemovePeerLink').replace('{name}', row.full_name)
+    if (!confirm(confirmMsg)) return
+    setRemovingLinkId(row.link_id)
+    const { error } = await supabase.rpc('unlink_shared_customer_link', { p_link_id: row.link_id })
+    setRemovingLinkId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('sk.linkRemovedToast'))
+    if (row.is_me) {
+      setOpen(null)
+      loadAccounts()
+    } else {
+      setSharedLinks((rows) => rows.filter((r) => r.link_id !== row.link_id))
+      setOpen((a) => a ? { ...a, linked_count: Math.max(1, a.linked_count - 1) } : a)
+    }
   }
 
   const loadSaleItems = async (saleId: string) => {
@@ -164,8 +212,29 @@ export default function MyCreditPage() {
               <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant">{t('sk.currentBalanceLabel')}</p>
               <p className="font-heading text-[24px] font-bold ltr-num" style={{ color: open.balance > 0 ? ACCENT_DARK : INK }}>{fmt(open.balance)}</p>
               <p className="font-sans text-[10.5px] text-dp-on-surface-variant mt-1">{t('sk.viewOnlyStatementHint')}</p>
-              {open.linked_count > 1 && (
-                <p className="font-sans text-[10.5px] text-dp-on-surface-variant mt-1">{t('sk.sharedAccountHint').replace('{n}', String(open.linked_count - 1))}</p>
+
+              <button onClick={toggleSharedLinks} className="w-full flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-dp-outline-variant cursor-pointer">
+                <span className="flex items-center gap-1.5 font-sans text-[11.5px] font-semibold text-dp-secondary">
+                  <Users size={13} /> {t('sk.linkedCountLabel').replace('{n}', String(open.linked_count))}
+                </span>
+                {showSharedLinks ? <ChevronUp size={14} className="text-dp-secondary" /> : <ChevronDown size={14} className="text-dp-secondary" />}
+              </button>
+              {showSharedLinks && (
+                <div className="mt-2 space-y-1">
+                  {loadingSharedLinks ? (
+                    <div className="py-2 text-center"><LoadingDots /></div>
+                  ) : sharedLinks.map((row) => (
+                    <div key={row.link_id} className="flex items-center justify-between gap-2 px-2.5 py-2 bg-white border border-dp-outline-variant rounded-lg">
+                      <div className="min-w-0">
+                        <p className="font-sans text-[12.5px] font-semibold" style={{ color: INK }}>{row.is_me ? t('sk.youLabel') : row.full_name}</p>
+                        <p className="font-sans text-[10.5px] text-dp-on-surface-variant ltr-num">{row.mobile}</p>
+                      </div>
+                      <button onClick={() => removeSharedLink(row)} disabled={removingLinkId === row.link_id} className="shrink-0 flex items-center gap-1 font-sans text-[10.5px] font-semibold underline cursor-pointer disabled:opacity-50" style={{ color: ACCENT_DARK }}>
+                        {removingLinkId === row.link_id ? <Loader2 size={11} className="animate-spin" /> : <Link2Off size={11} />} {t('sk.unlinkBtn')}
+                      </button>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
             <div className="flex-1 overflow-y-auto p-4">
