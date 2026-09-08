@@ -22,7 +22,10 @@ const ACCENT = '#ec3013'
 const ACCENT_DARK = '#ae1800'
 const INK = '#201e1d'
 
-interface Account { customer_id: string; shop_id: string; shop_name: string; shop_name_ur: string | null; balance: number }
+// linked_count includes the viewer themselves — several household members
+// (migration 466) can share one account, so this is just enough for basic
+// transparency ("this isn't only yours"), never who else it is.
+interface Account { customer_id: string; shop_id: string; shop_name: string; shop_name_ur: string | null; balance: number; linked_count: number }
 interface StatementRow { entry_id: string; entry_type: 'sale' | 'payment' | 'invoice'; entry_at: string; description: string; debit: number; credit: number; running_balance: number }
 interface SaleItem { id: string; product_id: string; product_name_snapshot: string; quantity: number; unit_price_pkr: number; line_total_pkr: number; pack_id: string | null; pack_label_snapshot: string | null }
 
@@ -161,6 +164,9 @@ export default function MyCreditPage() {
               <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant">{t('sk.currentBalanceLabel')}</p>
               <p className="font-heading text-[24px] font-bold ltr-num" style={{ color: open.balance > 0 ? ACCENT_DARK : INK }}>{fmt(open.balance)}</p>
               <p className="font-sans text-[10.5px] text-dp-on-surface-variant mt-1">{t('sk.viewOnlyStatementHint')}</p>
+              {open.linked_count > 1 && (
+                <p className="font-sans text-[10.5px] text-dp-on-surface-variant mt-1">{t('sk.sharedAccountHint').replace('{n}', String(open.linked_count - 1))}</p>
+              )}
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               {loadingStatement ? (

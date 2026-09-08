@@ -28,7 +28,12 @@ const ACCENT = '#ec3013'
 const ACCENT_DARK = '#ae1800'
 
 interface Shop { id: string; name: string; name_ur: string | null }
-interface Customer { id: string; name: string; name_ur: string | null; phone: string | null; is_active: boolean; balance: number; linked_portal_user_id: string | null; linked_full_name: string | null }
+interface Customer { id: string; name: string; name_ur: string | null; phone: string | null; is_active: boolean; balance: number; linked_count: number }
+// The shopkeeper's own view of who's linked — a label ("User 1"/"User 2")
+// and nothing else. Migration 466's whole point: portal_user_id/name
+// never reach this screen at all, not even in a field the UI ignores.
+interface LinkedUser { link_id: string; label: string; linked_at: string }
+const LINK_CAP = 6
 // entry_type 'invoice' rows carry no debit/credit of their own (a real
 // invoice is just a formal snapshot of sales already recorded, not a
 // new charge) — they exist in the timeline purely so a shopkeeper can
@@ -101,9 +106,15 @@ export default function CustomersPage() {
   // Linking a registered customer's own portal account so they can view
   // this same statement themselves — a one-time code, not an automatic
   // match on phone number (see migration 463's own header for why).
+  // Several household members can link the same account (migration 466);
+  // the shopkeeper only ever sees anonymized "User 1"/"User 2" labels for
+  // them, never a real name.
   const [generatingCode, setGeneratingCode] = useState(false)
   const [linkCode, setLinkCode] = useState<string | null>(null)
-  const [unlinking, setUnlinking] = useState(false)
+  const [showLinkedList, setShowLinkedList] = useState(false)
+  const [linkedUsers, setLinkedUsers] = useState<LinkedUser[]>([])
+  const [loadingLinkedUsers, setLoadingLinkedUsers] = useState(false)
+  const [removingLinkId, setRemovingLinkId] = useState<string | null>(null)
 
   const loadCustomers = (shopId: string) =>
     supabase.rpc('shop_customers_with_balance', { p_shop_id: shopId }).then(({ data }) => setCustomers((data ?? []) as Customer[]))
@@ -133,6 +144,7 @@ export default function CustomersPage() {
   const openStatement = async (c: Customer) => {
     setOpenCustomer(c)
     setPaymentAmount(''); setPaymentNote(''); setLinkCode(null)
+    setShowLinkedList(false); setLinkedUsers([])
     setLoadingStatement(true)
     const { data, error } = await supabase.rpc('shop_customer_statement', { p_customer_id: c.id })
     setLoadingStatement(false)
@@ -226,14 +238,32 @@ export default function CustomersPage() {
     window.open(`https://wa.me/${intl}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank')
   }
 
-  const unlinkCustomer = async () => {
-    if (!openCustomer || !confirm(t('sk.confirmUnlinkCustomer').replace('{name}', openCustomer.name))) return
-    setUnlinking(true)
-    const { error } = await supabase.rpc('unlink_customer_portal', { p_customer_id: openCustomer.id })
-    setUnlinking(false)
+  const loadLinkedUsers = async (customerId: string) => {
+    setLoadingLinkedUsers(true)
+    const { data, error } = await supabase.rpc('list_customer_links', { p_customer_id: customerId })
+    setLoadingLinkedUsers(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('sk.unlinkedToast'))
-    setOpenCustomer((c) => c ? { ...c, linked_portal_user_id: null, linked_full_name: null } : c)
+    setLinkedUsers((data ?? []) as LinkedUser[])
+  }
+
+  const toggleLinkedList = () => {
+    if (!openCustomer) return
+    if (!showLinkedList) loadLinkedUsers(openCustomer.id)
+    setShowLinkedList((v) => !v)
+  }
+
+  // Shopkeeper-side removal, by the anonymized link's own id — the
+  // shopkeeper is never shown (and this call never needs) who a "User N"
+  // actually is.
+  const removeLinkedUser = async (row: LinkedUser) => {
+    if (!openCustomer || !confirm(t('sk.confirmRemoveLink').replace('{label}', row.label))) return
+    setRemovingLinkId(row.link_id)
+    const { error } = await supabase.rpc('shop_remove_customer_link', { p_link_id: row.link_id })
+    setRemovingLinkId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('sk.linkRemovedToast'))
+    setLinkedUsers((rows) => rows.filter((r) => r.link_id !== row.link_id))
+    setOpenCustomer((c) => c ? { ...c, linked_count: Math.max(0, c.linked_count - 1) } : c)
     if (shop) loadCustomers(shop.id)
   }
 
@@ -393,17 +423,38 @@ export default function CustomersPage() {
               <button onClick={() => setOpenCustomer(null)} className="cursor-pointer shrink-0"><X size={20} /></button>
             </div>
 
-            <div className="px-4 pt-3">
-              {openCustomer.linked_portal_user_id ? (
-                <div className="flex items-center justify-between gap-2 px-2.5 py-2 border" style={{ borderColor: '#bfe0c8', background: '#e9f7ec' }}>
-                  <span className="min-w-0 flex-1 font-sans text-[11.5px] font-semibold truncate flex items-center gap-1.5" style={{ color: '#1a6b34' }}>
-                    <Link2 size={13} className="shrink-0" /> {t('sk.linkedToLabel')} {openCustomer.linked_full_name}
-                  </span>
-                  <button onClick={unlinkCustomer} disabled={unlinking} className="shrink-0 flex items-center gap-1 font-sans text-[11px] font-semibold underline cursor-pointer disabled:opacity-50" style={{ color: ACCENT_DARK }}>
-                    {unlinking ? <Loader2 size={12} className="animate-spin" /> : <Link2Off size={12} />} {t('sk.unlinkBtn')}
+            <div className="px-4 pt-3 space-y-2">
+              {/* Anonymized — this is the whole point. Several household
+                  members (husband, wife, an aunt living together) can all
+                  link the same account; the shopkeeper only ever sees how
+                  MANY are linked and a bare "User N" label each, never a
+                  real name or which portal account it is. */}
+              {openCustomer.linked_count > 0 && (
+                <div className="border" style={{ borderColor: '#bfe0c8', background: '#e9f7ec' }}>
+                  <button onClick={toggleLinkedList} className="w-full flex items-center justify-between gap-2 px-2.5 py-2 cursor-pointer">
+                    <span className="flex items-center gap-1.5 font-sans text-[11.5px] font-semibold" style={{ color: '#1a6b34' }}>
+                      <Link2 size={13} className="shrink-0" /> {t('sk.linkedCountLabel').replace('{n}', String(openCustomer.linked_count))}
+                    </span>
+                    {showLinkedList ? <ChevronUp size={14} style={{ color: '#1a6b34' }} /> : <ChevronDown size={14} style={{ color: '#1a6b34' }} />}
                   </button>
+                  {showLinkedList && (
+                    <div className="px-2.5 pb-2.5 space-y-1">
+                      {loadingLinkedUsers ? (
+                        <div className="py-2 text-center"><LoadingDots /></div>
+                      ) : linkedUsers.map((row) => (
+                        <div key={row.link_id} className="flex items-center justify-between gap-2 px-2 py-1.5 bg-white border" style={{ borderColor: '#bfe0c8' }}>
+                          <span className="font-sans text-[12px] font-semibold" style={{ color: INK }}>{row.label}</span>
+                          <button onClick={() => removeLinkedUser(row)} disabled={removingLinkId === row.link_id} className="shrink-0 flex items-center gap-1 font-sans text-[10.5px] font-semibold underline cursor-pointer disabled:opacity-50" style={{ color: ACCENT_DARK }}>
+                            {removingLinkId === row.link_id ? <Loader2 size={11} className="animate-spin" /> : <Link2Off size={11} />} {t('sk.unlinkBtn')}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ) : linkCode ? (
+              )}
+
+              {linkCode ? (
                 <div className="px-2.5 py-2.5 border" style={{ borderColor: '#f4a68f', background: '#fce3dc' }}>
                   <p className="font-sans text-[11px] mb-1.5" style={{ color: ACCENT_DARK }}>{t('sk.linkCodeHint').replace('{name}', openCustomer.name_ur || openCustomer.name)}</p>
                   <p className="font-heading text-[26px] font-bold text-center tracking-[0.15em] ltr-num mb-1" style={{ color: ACCENT_DARK }}>{linkCode}</p>
@@ -412,9 +463,11 @@ export default function CustomersPage() {
                     <MessageCircle size={13} /> {t('sk.sendCodeWhatsappBtn')}
                   </button>
                 </div>
+              ) : openCustomer.linked_count >= LINK_CAP ? (
+                <p className="font-sans text-[10.5px] text-center text-[#7a736d]">{t('sk.linkCapReachedHint')}</p>
               ) : (
                 <button onClick={generateLinkCode} disabled={generatingCode} className="w-full flex items-center justify-center gap-1.5 py-2 border font-sans text-[12px] font-semibold cursor-pointer disabled:opacity-50" style={{ borderColor: ACCENT, color: ACCENT }}>
-                  {generatingCode ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={13} />} {t('sk.linkToPortalBtn')}
+                  {generatingCode ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={13} />} {t(openCustomer.linked_count > 0 ? 'sk.linkAnotherBtn' : 'sk.linkToPortalBtn')}
                 </button>
               )}
             </div>
