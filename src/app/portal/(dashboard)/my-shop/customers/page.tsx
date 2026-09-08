@@ -12,7 +12,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Users, Search, X, Plus, Loader2, Wallet, ChevronDown, ChevronUp, Pencil, Trash2, FileText, MessageCircle, Receipt } from 'lucide-react'
+import { ArrowLeft, Users, Search, X, Plus, Loader2, Wallet, ChevronDown, ChevronUp, Pencil, Trash2, FileText, MessageCircle, Receipt, Link2, Link2Off } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { normalizePakPhone } from '@/lib/receiptExport'
@@ -26,7 +26,7 @@ const ACCENT = '#ec3013'
 const ACCENT_DARK = '#ae1800'
 
 interface Shop { id: string; name: string; name_ur: string | null }
-interface Customer { id: string; name: string; name_ur: string | null; phone: string | null; is_active: boolean; balance: number }
+interface Customer { id: string; name: string; name_ur: string | null; phone: string | null; is_active: boolean; balance: number; linked_portal_user_id: string | null; linked_full_name: string | null }
 // entry_type 'invoice' rows carry no debit/credit of their own (a real
 // invoice is just a formal snapshot of sales already recorded, not a
 // new charge) — they exist in the timeline purely so a shopkeeper can
@@ -90,6 +90,13 @@ export default function CustomersPage() {
   const [viewingInvoice, setViewingInvoice] = useState<InvoiceDetail | null>(null)
   const [loadingInvoice, setLoadingInvoice] = useState(false)
 
+  // Linking a registered customer's own portal account so they can view
+  // this same statement themselves — a one-time code, not an automatic
+  // match on phone number (see migration 463's own header for why).
+  const [generatingCode, setGeneratingCode] = useState(false)
+  const [linkCode, setLinkCode] = useState<string | null>(null)
+  const [unlinking, setUnlinking] = useState(false)
+
   const loadCustomers = (shopId: string) =>
     supabase.rpc('shop_customers_with_balance', { p_shop_id: shopId }).then(({ data }) => setCustomers((data ?? []) as Customer[]))
 
@@ -117,7 +124,7 @@ export default function CustomersPage() {
 
   const openStatement = async (c: Customer) => {
     setOpenCustomer(c)
-    setPaymentAmount(''); setPaymentNote('')
+    setPaymentAmount(''); setPaymentNote(''); setLinkCode(null)
     setLoadingStatement(true)
     const { data, error } = await supabase.rpc('shop_customer_statement', { p_customer_id: c.id })
     setLoadingStatement(false)
@@ -184,6 +191,41 @@ export default function CustomersPage() {
     setSaleItemsCache((c) => { const n = { ...c }; delete n[editingSaleId]; return n })
     setEditingSaleId(null)
     if (openCustomer) openStatement(openCustomer)
+    if (shop) loadCustomers(shop.id)
+  }
+
+  const generateLinkCode = async () => {
+    if (!openCustomer) return
+    setGeneratingCode(true)
+    const { data, error } = await supabase.rpc('generate_customer_link_code', { p_customer_id: openCustomer.id })
+    setGeneratingCode(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('sk.linkCodeGeneratedToast'))
+    setLinkCode(data as string)
+  }
+
+  const sendCodeOnWhatsApp = () => {
+    if (!openCustomer || !linkCode) return
+    const intl = normalizePakPhone(openCustomer.phone ?? '')
+    if (!intl) { toast.error(t('sk.noPhoneForWhatsappHint')); return }
+    const name = openCustomer.name_ur || openCustomer.name
+    const shopName = isUrdu && shop?.name_ur ? shop.name_ur : shop?.name
+    const lines = [
+      `السلام علیکم ${name}،`, '',
+      `${shopName} پر اپنا کھاتہ خود دیکھنے کے لیے، اپنے پورٹل اکاؤنٹ میں "شاپ ادھار" میں یہ کوڈ درج کریں:`,
+      '', linkCode, '', 'یہ کوڈ 30 منٹ کے لیے درست ہے۔',
+    ]
+    window.open(`https://wa.me/${intl}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank')
+  }
+
+  const unlinkCustomer = async () => {
+    if (!openCustomer || !confirm(t('sk.confirmUnlinkCustomer').replace('{name}', openCustomer.name))) return
+    setUnlinking(true)
+    const { error } = await supabase.rpc('unlink_customer_portal', { p_customer_id: openCustomer.id })
+    setUnlinking(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('sk.unlinkedToast'))
+    setOpenCustomer((c) => c ? { ...c, linked_portal_user_id: null, linked_full_name: null } : c)
     if (shop) loadCustomers(shop.id)
   }
 
@@ -329,6 +371,32 @@ export default function CustomersPage() {
                 {openCustomer.phone && <p className="font-sans text-[11px] text-[#7a736d] ltr-num">{openCustomer.phone}</p>}
               </div>
               <button onClick={() => setOpenCustomer(null)} className="cursor-pointer shrink-0"><X size={20} /></button>
+            </div>
+
+            <div className="px-4 pt-3">
+              {openCustomer.linked_portal_user_id ? (
+                <div className="flex items-center justify-between gap-2 px-2.5 py-2 border" style={{ borderColor: '#bfe0c8', background: '#e9f7ec' }}>
+                  <span className="min-w-0 flex-1 font-sans text-[11.5px] font-semibold truncate flex items-center gap-1.5" style={{ color: '#1a6b34' }}>
+                    <Link2 size={13} className="shrink-0" /> {t('sk.linkedToLabel')} {openCustomer.linked_full_name}
+                  </span>
+                  <button onClick={unlinkCustomer} disabled={unlinking} className="shrink-0 flex items-center gap-1 font-sans text-[11px] font-semibold underline cursor-pointer disabled:opacity-50" style={{ color: ACCENT_DARK }}>
+                    {unlinking ? <Loader2 size={12} className="animate-spin" /> : <Link2Off size={12} />} {t('sk.unlinkBtn')}
+                  </button>
+                </div>
+              ) : linkCode ? (
+                <div className="px-2.5 py-2.5 border" style={{ borderColor: '#f4a68f', background: '#fce3dc' }}>
+                  <p className="font-sans text-[11px] mb-1.5" style={{ color: ACCENT_DARK }}>{t('sk.linkCodeHint').replace('{name}', openCustomer.name_ur || openCustomer.name)}</p>
+                  <p className="font-heading text-[26px] font-bold text-center tracking-[0.15em] ltr-num mb-1" style={{ color: ACCENT_DARK }}>{linkCode}</p>
+                  <p className="font-sans text-[10px] text-center text-[#7a736d] mb-2">{t('sk.linkCodeExpiresHint')}</p>
+                  <button onClick={sendCodeOnWhatsApp} className="w-full flex items-center justify-center gap-1.5 py-2 text-white font-sans text-[12px] font-semibold cursor-pointer" style={{ background: '#25D366' }}>
+                    <MessageCircle size={13} /> {t('sk.sendCodeWhatsappBtn')}
+                  </button>
+                </div>
+              ) : (
+                <button onClick={generateLinkCode} disabled={generatingCode} className="w-full flex items-center justify-center gap-1.5 py-2 border font-sans text-[12px] font-semibold cursor-pointer disabled:opacity-50" style={{ borderColor: ACCENT, color: ACCENT }}>
+                  {generatingCode ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={13} />} {t('sk.linkToPortalBtn')}
+                </button>
+              )}
             </div>
 
             <div className="p-4 border-b" style={{ borderColor: '#e2ded9', background: '#f7f6f5' }}>

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
-import { HeartHandshake, Droplets, Repeat, ArrowRight, Layers, HandCoins, HandHeart } from 'lucide-react'
+import { HeartHandshake, Droplets, Repeat, ArrowRight, Layers, HandCoins, HandHeart, Wallet } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalBadgeCard } from '@/components/portal/PortalBadgeCard'
 import { PortalHelp } from '@/components/portal/PortalHelp'
@@ -121,6 +121,7 @@ export default function PortalDashboardPage() {
   ]
 
   const links = [
+    { href: '/portal/my-credit', label: t('sk.myCreditBtn'), icon: Wallet },
     ...(user.consumer_id ? [{ href: '/portal/water', label: t('p.waterBillsPayments'), icon: Droplets }] : []),
   ]
 
