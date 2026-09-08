@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { resolveMyShop } from '@/lib/shop'
-import { ArrowLeft, Users, Search, X, Plus, Loader2, Wallet, ChevronDown, ChevronUp, Pencil, Trash2, FileText, MessageCircle, Receipt, Link2, Link2Off, Download } from 'lucide-react'
+import { ArrowLeft, Users, Search, X, Plus, Loader2, Wallet, ChevronDown, ChevronUp, Pencil, Trash2, FileText, MessageCircle, Receipt, Link2, Link2Off, Download, Bell } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { normalizePakPhone, nodeToPngBlob, shareReceipt, downloadBlob } from '@/lib/receiptExport'
@@ -276,7 +276,14 @@ export default function CustomersPage() {
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('sk.invoiceGeneratedToast'))
     openStatement(openCustomer)
-    if (typeof data === 'string') openInvoice(data)
+    if (typeof data === 'string') {
+      openInvoice(data)
+      // A linked customer never gets their WhatsApp number handed to the
+      // shopkeeper (see sendInvoiceOnWhatsApp's own header) — this is
+      // how they find out instead. A no-op if nobody is linked (the RPC
+      // just inserts zero rows), so it's always safe to fire.
+      supabase.rpc('notify_customer_bill_ready', { p_invoice_id: data })
+    }
   }
 
   const openInvoice = async (invoiceId: string) => {
@@ -304,9 +311,21 @@ export default function CustomersPage() {
   // clipboard-copy-then-open-chat flow every other receipt in this app
   // uses (shareReceipt's own header explains why: never a generic OS
   // share sheet, since a button labelled WhatsApp should only ever open
-  // WhatsApp). Replaces the old plain-text message entirely; the
-  // shopkeeper asked for something that reads like an actual receipt,
-  // not chat text.
+  // WhatsApp).
+  //
+  // Deliberately never offered at all for a portal-linked customer (see
+  // the JSX below — this function only gets wired to a visible button
+  // when linked_count === 0) — a real, specific business concern: this
+  // app takes a fee on marketplace orders placed through it, and handing
+  // a shopkeeper a linked customer's WhatsApp number is a direct
+  // invitation to take future orders off-platform over chat instead,
+  // where that fee is never collected. A customer with NO portal account
+  // is a pure walk-in relationship the shopkeeper already has by other
+  // means (this is their own phone number they gave the shop directly),
+  // so there's nothing to protect there — WhatsApp stays exactly as it
+  // was. A linked customer instead gets a portal notification the moment
+  // the bill is generated (see generateInvoice) and reads it from their
+  // own My Credit page — no phone number changes hands either way.
   const sendInvoiceOnWhatsApp = async () => {
     if (!viewingInvoice || !openCustomer || !slipRef.current) return
     const intl = normalizePakPhone(openCustomer.phone ?? '')
@@ -639,9 +658,19 @@ export default function CustomersPage() {
                     className="shrink-0 flex items-center justify-center p-3 border font-sans font-semibold cursor-pointer disabled:opacity-50" style={{ borderColor: '#dcd8d4', color: INK }}>
                     <Download size={16} />
                   </button>
-                  <button onClick={sendInvoiceOnWhatsApp} disabled={sendingSlip} className="flex-1 flex items-center justify-center gap-2 py-3 text-white font-sans font-semibold cursor-pointer disabled:opacity-50" style={{ background: '#25D366' }}>
-                    {sendingSlip ? <Loader2 size={16} className="animate-spin" /> : <MessageCircle size={16} />} {t('sk.sendWhatsappBtn')}
-                  </button>
+                  {/* No WhatsApp for a portal-linked customer — see
+                      sendInvoiceOnWhatsApp's own header for why. They
+                      were already notified in-portal the moment this
+                      bill was generated. */}
+                  {(openCustomer?.linked_count ?? 0) > 0 ? (
+                    <p className="flex-1 flex items-center justify-center gap-1.5 py-3 border font-sans text-[12.5px] font-semibold" style={{ borderColor: '#bfe0c8', background: '#e9f7ec', color: '#1a6b34' }}>
+                      <Bell size={14} /> {t('sk.notifiedOnPortalHint')}
+                    </p>
+                  ) : (
+                    <button onClick={sendInvoiceOnWhatsApp} disabled={sendingSlip} className="flex-1 flex items-center justify-center gap-2 py-3 text-white font-sans font-semibold cursor-pointer disabled:opacity-50" style={{ background: '#25D366' }}>
+                      {sendingSlip ? <Loader2 size={16} className="animate-spin" /> : <MessageCircle size={16} />} {t('sk.sendWhatsappBtn')}
+                    </button>
+                  )}
                 </div>
               </>
             )}

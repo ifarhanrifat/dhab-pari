@@ -46,6 +46,7 @@ import {
 import { DynamicIcon } from './DynamicIcon'
 import { BrandBuilderModal } from './BrandBuilderModal'
 import { MarqueeText } from './MarqueeText'
+import { NewsBeltRow } from './NewsBeltRow'
 import type { CatalogSelection } from '@/hooks/useCatalogSelection'
 
 interface OwnedProduct {
@@ -496,11 +497,16 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                 <p className="font-sans text-[10px] text-dp-on-surface-variant leading-6 mb-3">{t('bs.catalogIntroHint')}</p>
 
                 {brandCategories.length > 0 && (
-                  <div className="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1">
+                  <div className="flex items-center gap-1.5 mb-3">
+                    {/* "All" stays pinned, outside the moving belt — always
+                        reachable without waiting for the belt to cycle
+                        back around to it. */}
                     <button onClick={() => setCatFilter(null)} className={`shrink-0 px-2.5 py-1 rounded-full text-[9.5px] font-sans font-semibold cursor-pointer border ${!catFilter ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{t('cb.allTab')}</button>
-                    {brandCategories.map((c) => (
-                      <button key={c.slug} onClick={() => setCatFilter(c.slug)} className={`shrink-0 px-2.5 py-1 rounded-full text-[9.5px] font-sans font-semibold cursor-pointer border ${catFilter === c.slug ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{isUrdu ? c.label_ur : c.label}</button>
-                    ))}
+                    <NewsBeltRow className="pb-1 min-w-0">
+                      {brandCategories.map((c) => (
+                        <button key={c.slug} onClick={() => setCatFilter(c.slug)} className={`shrink-0 px-2.5 py-1 rounded-full text-[9.5px] font-sans font-semibold cursor-pointer border ${catFilter === c.slug ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{isUrdu ? c.label_ur : c.label}</button>
+                      ))}
+                    </NewsBeltRow>
                   </div>
                 )}
 
@@ -603,11 +609,11 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                         <input value={nlName} onChange={(e) => setNlName(e.target.value)} placeholder={t('bs.looseGoodNamePlaceholder')} className="input-field flex-1 min-w-0 text-[12px] py-2.5" />
                         <span className="shrink-0 font-sans text-[10px] text-dp-on-surface-variant">{t('bs.categoryPrefixLabel').replace('{name}', nlCat ? getCategoryLabel(nlCat, isUrdu) : '—')}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto pb-1">
+                      <NewsBeltRow className="mt-2.5 pb-1">
                         {tree.flatMap((d) => d.categories).map((c) => (
                           <button key={c.slug} onClick={() => setNlCat(c.slug)} className={`shrink-0 px-2.5 py-1 rounded-full text-[9px] font-sans font-semibold cursor-pointer border ${nlCat === c.slug ? 'bg-dp-primary text-white border-dp-primary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{isUrdu ? c.label_ur : c.label}</button>
                         ))}
-                      </div>
+                      </NewsBeltRow>
                       <button onClick={submitLooseGood} disabled={addingLoose}
                         className="w-full mt-2.5 py-2.5 rounded-lg bg-dp-primary text-white font-sans text-[10.5px] cursor-pointer hover:bg-dp-secondary transition-all disabled:opacity-60 flex items-center justify-center gap-1.5">
                         {addingLoose && <Loader2 size={13} className="animate-spin" />} {t('bs.addToLooseGoodsBtn')}
