@@ -148,8 +148,19 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
   const realBrands = useMemo(() => brandsForShopType(primaryType), [primaryType])
   const starterSet = useMemo(() => starterSetEntries(primaryType), [primaryType])
   const ownedKeys = useMemo(() => new Set(ownedProducts.map((p) => ownedKey(p.name, p.flavor))), [ownedProducts])
-  const availableForPick = (e: CatalogEntry) => !ownedKeys.has(ownedKey(e.item.name, e.item.flavor))
-  const findOwned = (e: CatalogEntry) => ownedProducts.find((p) => ownedKey(p.name, p.flavor) === ownedKey(e.item.name, e.item.flavor))
+  // Real bug found live: a loose good's catalog entry carries its default
+  // UNIT in item.flavor (e.g. 'کلو') for display purposes only —
+  // buildInsertPayload below deliberately saves that as flavor: null,
+  // since a loose good has no real flavor. Comparing ownership with the
+  // raw unit-hint instead of that same null meant a loose good, once
+  // added, could never be recognized as owned — its row never showed
+  // ticked, and tapping it again just tried (and silently failed, on a
+  // dedupe conflict) to insert the same item a second time. Mirrors
+  // buildInsertPayload's own `e.brandSlug === 'loose' ? null : ...` check
+  // exactly, so "is this owned" and "what got saved" always agree.
+  const catalogFlavorForOwnership = (e: CatalogEntry) => (e.brandSlug === 'loose' ? null : e.item.flavor)
+  const availableForPick = (e: CatalogEntry) => !ownedKeys.has(ownedKey(e.item.name, catalogFlavorForOwnership(e)))
+  const findOwned = (e: CatalogEntry) => ownedProducts.find((p) => ownedKey(p.name, p.flavor) === ownedKey(e.item.name, catalogFlavorForOwnership(e)))
 
   const [lens, setLens] = useState<'brands' | 'departments'>(realBrands.length > 0 ? 'brands' : 'departments')
   const [catFilter, setCatFilter] = useState<string | null>(null)

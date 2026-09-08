@@ -20,6 +20,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MarqueeText } from '@/components/shared/MarqueeText'
+import { ShopBottomNav } from '@/components/portal/ShopBottomNav'
 
 const INK = '#201e1d'
 const ACCENT = '#ec3013'
@@ -577,6 +578,8 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
+
+      <ShopBottomNav />
     </div>
   )
 }

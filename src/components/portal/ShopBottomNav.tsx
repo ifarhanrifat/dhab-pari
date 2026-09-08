@@ -16,7 +16,7 @@
 
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { LayoutGrid, ShoppingCart, Package, Tags, BarChart3 } from 'lucide-react'
+import { LayoutGrid, ShoppingCart, Package, Tags, Users, BarChart3 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 const ACCENT = '#ec3013'
@@ -28,9 +28,17 @@ export function ShopBottomNav() {
   const view = params.get('view')
   const isMyShopBase = pathname === '/portal/my-shop'
 
+  // Customers/Udhar ("گاہک") added here (2026-09-08) — a real complaint:
+  // the bar was scoped to just Dashboard/Counter/Reports, so leaving to
+  // Customers, Staff, or Purchase (none of which rendered it) dropped
+  // the nav entirely, reading as "the whole nav disappeared." Purchase
+  // and Staff stay off the bar itself (used far less often, and 8 tabs
+  // doesn't fit a phone width) but now render this same component too,
+  // so leaving one still lands on a working nav, not a bare back-arrow.
   const tabs = [
     { key: 'dashboard', href: '/portal/my-shop', icon: LayoutGrid, label: t('sk.navDashboard'), active: isMyShopBase && !view },
     { key: 'counter', href: '/portal/my-shop/sell', icon: ShoppingCart, label: t('sk.navCounter'), active: pathname === '/portal/my-shop/sell' },
+    { key: 'customers', href: '/portal/my-shop/customers', icon: Users, label: t('sk.navCustomers'), active: pathname === '/portal/my-shop/customers' },
     { key: 'stock', href: '/portal/my-shop?view=stock', icon: Package, label: t('sk.navStock'), active: isMyShopBase && view === 'stock' },
     { key: 'catalog', href: '/portal/my-shop?view=catalog', icon: Tags, label: t('sk.navCatalog'), active: isMyShopBase && view === 'catalog' },
     { key: 'reports', href: '/portal/my-shop/reports', icon: BarChart3, label: t('sk.navReports'), active: pathname === '/portal/my-shop/reports' },
@@ -38,7 +46,7 @@ export function ShopBottomNav() {
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40">
-      <div className="max-w-md mx-auto grid grid-cols-5 bg-[#201e1d] border-t-2" style={{ borderTopColor: ACCENT }}>
+      <div className="max-w-md mx-auto grid grid-cols-6 bg-[#201e1d] border-t-2" style={{ borderTopColor: ACCENT }}>
         {tabs.map((tab) => {
           const Icon = tab.icon
           return (
