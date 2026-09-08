@@ -814,6 +814,21 @@ function MyShopPageInner() {
             <ArrowRight size={15} className="rotate-180 rtl:rotate-0 text-[#7a736d]" />
           </Link>
 
+          {/* Real gap found live: this card never existed anywhere on the
+              actual Dashboard tab — Staff only ever appeared as a tiny
+              11px button in the Stock/Catalog sub-views' own header row,
+              so a shopkeeper landing on the plain Dashboard (the default
+              screen) had no way to find it at all. Same treatment as
+              Customers/Deals/Kits above. */}
+          <Link href="/portal/my-shop/staff" className="w-full mt-2 flex items-center gap-2.5 px-3.5 py-3.5 bg-white border border-[#dcd8d4] cursor-pointer text-start" style={{ borderInlineStart: `3px solid ${INK}` }}>
+            <UserPlus size={18} style={{ color: INK }} />
+            <span className="flex-1">
+              <span className="block font-sans text-[13px]" style={{ color: INK }}>{t('sk.staffBtn')}</span>
+              <span className="block font-sans text-[10.5px] text-[#7a736d] mt-0.5">{t('sk.dashStaffSub')}</span>
+            </span>
+            <ArrowRight size={15} className="rotate-180 rtl:rotate-0 text-[#7a736d]" />
+          </Link>
+
           {dashLowStock > 0 && (
             <div className="border-2 p-3 mt-3 flex items-center gap-2" style={{ borderColor: ACCENT, background: '#fce3dc' }}>
               <AlertTriangle size={16} style={{ color: ACCENT_DARK }} />
