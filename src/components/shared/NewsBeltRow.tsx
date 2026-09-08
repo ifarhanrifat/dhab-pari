@@ -14,28 +14,43 @@
 // apply directly — the row's own content is rendered TWICE back-to-back
 // and the scroll position silently wraps by exactly one copy's width
 // once it's scrolled a full copy, the standard seamless-loop technique.
-// Both copies carry the exact same onClick handlers, so tapping either
-// one behaves identically; only one of the pair is ever visible at a
-// given moment past the initial position anyway.
 //
-// Auto-scroll pauses the instant the user touches the row and does NOT
-// resume until they interact somewhere else on the page — a plain tap
-// on a chip fires pointerdown (pause) immediately followed by its own
-// click (resume) with no visible effect, but an actual drag/scroll
-// gesture never fires a click afterward, so the pause sticks until the
-// next distinct tap or vertical page scroll — exactly "let me actually
-// pick one, then start moving again" rather than fighting the user's
-// own scroll mid-gesture.
+// Dragging is handled entirely by hand via Pointer Events (mouse, touch,
+// and pen all fire the same events) rather than leaning on the browser's
+// native touch-scroll — two real bugs that shipped otherwise: (1) a
+// mouse has no native "click and drag to pan" gesture at all, so hiding
+// the scrollbar (for the belt look) left a desktop user with no way to
+// move it manually whatsoever; (2) at the first call site this sits next
+// to a pinned "All" chip in a flex row with nothing telling this element
+// it's allowed to be narrower than its own (doubled) content — a flex
+// item's default min-width is its content size, so it just grew to fit
+// everything instead of ever overflowing, which is also exactly why the
+// auto-scroll never did anything: half > clientWidth was never true.
+// flex-1 min-w-0 at that call site is what actually fixes the second
+// half of that; this file only handles the first.
+//
+// Auto-scroll pauses the instant a drag starts and does NOT resume until
+// the user interacts somewhere else on the page — a plain tap moves the
+// pointer less than the click threshold below, so its own trailing click
+// still fires and un-pauses immediately with no visible effect, but a
+// real drag suppresses that click entirely (see onClickCapture), so the
+// pause sticks until the next distinct tap or vertical page scroll.
 import { useEffect, useRef } from 'react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 const SPEED_PX_PER_FRAME = 0.5
+const DRAG_THRESHOLD_PX = 6
 
 export function NewsBeltRow({ children, className }: { children: React.ReactNode; className?: string }) {
   const { isUrdu } = useLocale()
   const trackRef = useRef<HTMLDivElement>(null)
   const pausedRef = useRef(false)
   const initedRef = useRef(false)
+
+  const draggingRef = useRef(false)
+  const draggedRef = useRef(false)
+  const dragStartXRef = useRef(0)
+  const dragStartScrollRef = useRef(0)
 
   useEffect(() => {
     const el = trackRef.current
@@ -80,9 +95,32 @@ export function NewsBeltRow({ children, className }: { children: React.ReactNode
   return (
     <div
       ref={trackRef}
-      onPointerDown={() => { pausedRef.current = true }}
-      className={`flex items-center overflow-x-auto ${className ?? ''}`}
-      style={{ scrollbarWidth: 'none' }}
+      onPointerDown={(e) => {
+        pausedRef.current = true
+        draggingRef.current = true
+        draggedRef.current = false
+        dragStartXRef.current = e.clientX
+        dragStartScrollRef.current = trackRef.current?.scrollLeft ?? 0
+        e.currentTarget.setPointerCapture(e.pointerId)
+      }}
+      onPointerMove={(e) => {
+        if (!draggingRef.current || !trackRef.current) return
+        const dx = e.clientX - dragStartXRef.current
+        if (Math.abs(dx) > DRAG_THRESHOLD_PX) draggedRef.current = true
+        // Content follows the pointer, same as a native touch-scroll.
+        trackRef.current.scrollLeft = dragStartScrollRef.current - dx
+      }}
+      onPointerUp={() => { draggingRef.current = false }}
+      onPointerCancel={() => { draggingRef.current = false }}
+      onClickCapture={(e) => {
+        // A real drag's own trailing click is swallowed here — before it
+        // can either select a chip it was never meant to select, or
+        // bubble to the window listener above and immediately cancel the
+        // pause this same drag just earned.
+        if (draggedRef.current) { e.preventDefault(); e.stopPropagation() }
+      }}
+      className={`flex items-center overflow-x-auto cursor-grab active:cursor-grabbing select-none ${className ?? ''}`}
+      style={{ scrollbarWidth: 'none', touchAction: 'none' }}
     >
       {/* Both copies are fully live buttons, not decoration — aria-hidden
           would be a lie here, since either one is clickable at any given

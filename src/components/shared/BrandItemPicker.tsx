@@ -502,7 +502,7 @@ export function BrandItemPicker({ shopId, primaryType, ownedProducts, selection,
                         reachable without waiting for the belt to cycle
                         back around to it. */}
                     <button onClick={() => setCatFilter(null)} className={`shrink-0 px-2.5 py-1 rounded-full text-[9.5px] font-sans font-semibold cursor-pointer border ${!catFilter ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{t('cb.allTab')}</button>
-                    <NewsBeltRow className="pb-1 min-w-0">
+                    <NewsBeltRow className="pb-1 flex-1 min-w-0">
                       {brandCategories.map((c) => (
                         <button key={c.slug} onClick={() => setCatFilter(c.slug)} className={`shrink-0 px-2.5 py-1 rounded-full text-[9.5px] font-sans font-semibold cursor-pointer border ${catFilter === c.slug ? 'bg-dp-secondary text-white border-dp-secondary' : 'bg-white text-dp-on-surface-variant border-dp-outline-variant'}`}>{isUrdu ? c.label_ur : c.label}</button>
                       ))}
