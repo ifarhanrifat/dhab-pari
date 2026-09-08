@@ -77,29 +77,39 @@ function ProductCard({ p, isUrdu, cover, qty, max, canBuy, onQty, t }: {
   p: Product; isUrdu: boolean; cover?: string; qty: number; max: number; canBuy: boolean
   onQty: (productId: string, qty: number, max: number) => void; t: (k: string) => string
 }) {
+  // Every card is the same fixed footprint regardless of how much text is
+  // in it — a real, specific complaint: with no fixed height, a card
+  // whose product had a company name (or a longer flavor) grew a line
+  // taller than its neighbours, so a row of cards read as a ragged,
+  // uneven grid instead of a clean one. Name/company/price stay anchored
+  // to the top (each capped at one line via truncate, so a long name
+  // still can't grow the card), and the buy controls / out-of-stock line
+  // are pinned to the bottom with mt-auto — so the controls line up
+  // across every card in the row even when the text above them doesn't
+  // fill the same space.
   return (
-    <div className="bg-white border border-[#dcd8d4] overflow-hidden">
-      <div className="h-24 bg-[#eeece9]">
+    <div className="bg-white border border-[#dcd8d4] overflow-hidden h-[212px] flex flex-col">
+      <div className="h-24 shrink-0 bg-[#eeece9]">
         {cover && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={cover} alt="" className="w-full h-full object-cover" />
         )}
       </div>
-      <div className="p-2.5">
+      <div className="p-2.5 flex-1 flex flex-col min-w-0">
         <p className="font-sans text-[12.5px] font-semibold truncate" style={{ color: INK }}>
           {isUrdu && p.name_ur ? p.name_ur : p.name}
           {(isUrdu ? (p.flavor_ur || p.flavor) : p.flavor) && <span className="font-normal text-[#7a736d]"> ({isUrdu ? (p.flavor_ur || p.flavor) : p.flavor})</span>}
         </p>
         {p.company && <p className="font-sans text-[10.5px] text-[#7a736d] truncate">{p.company}</p>}
-        <p className="font-sans text-[13.5px] font-bold mt-0.5" style={{ color: INK }}>{fmt(p.unit_price_pkr)}{p.unit && p.unit !== 'عدد' && <span className="font-normal text-[10.5px] text-[#7a736d]"> {t('mp.perUnitPrefix')} {p.unit}</span>}</p>
+        <p className="font-sans text-[13.5px] font-bold mt-0.5 truncate" style={{ color: INK }}>{fmt(p.unit_price_pkr)}{p.unit && p.unit !== 'عدد' && <span className="font-normal text-[10.5px] text-[#7a736d]"> {t('mp.perUnitPrefix')} {p.unit}</span>}</p>
         {canBuy && (
           p.quantity_on_hand <= 0 ? (
-            <p className="font-sans text-[11px] mt-1.5" style={{ color: ACCENT_DARK }}>{t('mp.outOfStock')}</p>
+            <p className="font-sans text-[11px] mt-auto pt-1.5" style={{ color: ACCENT_DARK }}>{t('mp.outOfStock')}</p>
           ) : (
-            <div className="flex items-center justify-between gap-1 mt-1.5">
-              <button onClick={() => onQty(p.id, qty - 1, max)} className="w-6 h-6 border border-[#dcd8d4] flex items-center justify-center cursor-pointer hover:border-[#201e1d] transition-colors"><Minus size={12} /></button>
+            <div className="flex items-center justify-between gap-1 mt-auto pt-1.5">
+              <button onClick={() => onQty(p.id, qty - 1, max)} className="w-6 h-6 shrink-0 border border-[#dcd8d4] flex items-center justify-center cursor-pointer hover:border-[#201e1d] transition-colors"><Minus size={12} /></button>
               <span className="font-sans text-[13px] font-bold ltr-num" style={{ color: INK }}>{qty}</span>
-              <button onClick={() => onQty(p.id, qty + 1, max)} className="w-6 h-6 text-white flex items-center justify-center cursor-pointer transition-colors" style={{ background: ACCENT }} onMouseEnter={(e) => (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}><Plus size={12} /></button>
+              <button onClick={() => onQty(p.id, qty + 1, max)} className="w-6 h-6 shrink-0 text-white flex items-center justify-center cursor-pointer transition-colors" style={{ background: ACCENT }} onMouseEnter={(e) => (e.currentTarget.style.background = ACCENT_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = ACCENT)}><Plus size={12} /></button>
             </div>
           )
         )}
