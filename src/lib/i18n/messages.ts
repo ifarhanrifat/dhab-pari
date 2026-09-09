@@ -97,7 +97,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'nav.portalAccounts': 'Portal Accounts',
     'nav.mentorChats': 'Mentor Chats',
     'nav.institutes': 'Institutes', 'nav.trainingPrograms': 'Training Programs', 'nav.academyFees': 'Academy Fees', 'nav.academyNonPayment': 'Academy Non-Payment', 'nav.talentShowcase': 'Talent Showcase', 'nav.achievements': 'Achievements', 'nav.importLegacy': 'Import Legacy Data',
-    'nav.shops': 'Shops', 'nav.vehicles': 'Vehicles', 'nav.shadiBookings': 'Shadi Bookings',
+    'nav.shops': 'Shops', 'nav.vehicles': 'Vehicles', 'nav.shadiBookings': 'Shadi Bookings', 'nav.marketplaceReference': 'Marketplace Reference',
     'af.pageTitle': 'Academy Fees', 'af.noAcademies': 'No sports/training academies yet — create one from Projects with category Sports or Training.',
     'af.overdueLabel': 'overdue', 'af.fillRateLabel': 'Slots filled', 'af.feesCollectedLabel': 'Fees collected',
     'af.salaryFundingLabel': 'Salary funding', 'af.perMonthShort': '/mo',
@@ -2365,6 +2365,9 @@ export const messages: Record<Locale, Record<string, string>> = {
 
     // Marketplace — portal browse/checkout (phase 4)
     'mp.pageTitle': 'Marketplace', 'mp.pageSubtitle': 'Order from local shops, or book a seat on a ride — pay the same way you always do here.',
+    'ot.orderNotFound': 'Order not found.', 'ot.orderCancelledHint': 'This order was cancelled.',
+    'ot.readyForPickupHint': 'Ready — come collect it from the shop.', 'ot.readyAndCollectedHint': 'Collected — thanks!',
+    'ot.deliveringToLabel': 'Delivering to', 'ot.deliveryFeeLabel': 'Delivery fee', 'ot.deliveryPersonLabel': 'Delivery',
     'mp.searchPlaceholder': 'Search for a product...', 'mp.searchResultsHeading': 'Search results', 'mp.noResults': 'Nothing matched that search.',
     'mp.visitStoreNote': 'visit this store to buy', 'mp.myOrdersHeading': 'My orders & bookings',
     'mp.confirmedStatus': 'Confirmed', 'mp.rejectedStatus': 'Could not be confirmed', 'mp.awaitingStatus': 'Awaiting confirmation',
@@ -4684,6 +4687,18 @@ export const messages: Record<Locale, Record<string, string>> = {
     'sb.historyHeading': 'History', 'sb.noHistoryYet': 'No confirmed or cancelled bookings yet.',
     'sb.confirmedLabel': 'Confirmed', 'sb.cancelledLabel': 'Cancelled',
     'sb.allReleasedLabel': 'All advances released to vehicles', 'sb.releasedOfTotalSuffix': 'released',
+
+    'mr.pageTitle': 'Marketplace Reference', 'mr.pageSubtitle': 'Cities, Pro/Loading service classes, and village delivery fees — the reference data every fare formula reads from.',
+    'mr.noAccessMessage': "You don't have access to this page.",
+    'mr.citiesTab': 'Cities', 'mr.servicesTab': 'Service Classes', 'mr.villagesTab': 'Villages',
+    'mr.addNewBtn': 'Add New', 'mr.editTitle': 'Edit', 'mr.addTitle': 'Add New',
+    'mr.deactivateBtn': 'Deactivate', 'mr.activateBtn': 'Activate', 'mr.homeBadge': 'Home',
+    'mr.namePlaceholder': 'Name (English)', 'mr.distanceKmPlaceholder': 'Distance from village (km)',
+    'mr.isHomeCityLabel': 'This is the home city (pre-selected by default)',
+    'mr.passengerOption': 'Passenger', 'mr.loadingOption': 'Loading',
+    'mr.capacityLabelPlaceholder': 'Capacity (e.g. 4 passengers)',
+    'mr.baseFarePlaceholder': 'Base fare (Rs)', 'mr.perKmPlaceholder': 'Rs per km',
+    'mr.deliveryFeePlaceholder': 'Delivery fee (Rs)', 'mr.isHomeVillageLabel': 'This is the home village (pre-selected by default)',
   },
 
   ur: {
@@ -4766,7 +4781,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'nav.portalAccounts': 'پورٹل اکاؤنٹس',
     'nav.mentorChats': 'رہنما بات چیت',
     'nav.institutes': 'ادارے', 'nav.trainingPrograms': 'تربیتی پروگرامز', 'nav.academyFees': 'اکیڈمی فیس', 'nav.academyNonPayment': 'اکیڈمی عدم ادائیگی', 'nav.talentShowcase': 'ٹیلنٹ شو کیس', 'nav.achievements': 'کامیابیاں', 'nav.importLegacy': 'پرانا ڈیٹا درآمد کریں',
-    'nav.shops': 'دکانیں', 'nav.vehicles': 'گاڑیاں', 'nav.shadiBookings': 'شادی بکنگز',
+    'nav.shops': 'دکانیں', 'nav.vehicles': 'گاڑیاں', 'nav.shadiBookings': 'شادی بکنگز', 'nav.marketplaceReference': 'مارکیٹ پلیس ریفرنس',
     'af.pageTitle': 'اکیڈمی فیس', 'af.noAcademies': 'ابھی تک کوئی سپورٹس/تربیتی اکیڈمی نہیں — پراجیکٹس میں سے کیٹیگری سپورٹس یا ٹریننگ کے ساتھ ایک بنائیں۔',
     'af.overdueLabel': 'واجب الادا', 'af.fillRateLabel': 'بھری ہوئی نشستیں', 'af.feesCollectedLabel': 'وصول شدہ فیس',
     'af.salaryFundingLabel': 'تنخواہ کی فنڈنگ', 'af.perMonthShort': '/ماہ',
@@ -7029,6 +7044,9 @@ export const messages: Record<Locale, Record<string, string>> = {
 
     // Marketplace — portal browse/checkout (phase 4)
     'mp.pageTitle': 'مارکیٹ پلیس', 'mp.pageSubtitle': 'گاؤں کی دکانوں سے چیزیں منگوائیں، یا کسی گاڑی میں نشست بک کروائیں — ادائیگی اسی طریقے سے جیسے ہمیشہ کرتے ہیں۔',
+    'ot.orderNotFound': 'آرڈر نہیں ملا۔', 'ot.orderCancelledHint': 'یہ آرڈر منسوخ کر دیا گیا تھا۔',
+    'ot.readyForPickupHint': 'تیار ہے — دکان سے لے لیں۔', 'ot.readyAndCollectedHint': 'لے لیا گیا — شکریہ!',
+    'ot.deliveringToLabel': 'ڈیلیوری کہاں', 'ot.deliveryFeeLabel': 'ڈیلیوری فیس', 'ot.deliveryPersonLabel': 'ڈیلیوری',
     'mp.searchPlaceholder': 'کوئی چیز تلاش کریں...', 'mp.searchResultsHeading': 'تلاش کے نتائج', 'mp.noResults': 'اس تلاش سے کچھ نہیں ملا۔',
     'mp.visitStoreNote': 'خریدنے کے لیے دکان پر جائیں', 'mp.myOrdersHeading': 'میرے آرڈرز اور بکنگز',
     'mp.confirmedStatus': 'تصدیق شدہ', 'mp.rejectedStatus': 'تصدیق نہیں ہو سکی', 'mp.awaitingStatus': 'تصدیق کا انتظار',
@@ -9340,6 +9358,18 @@ export const messages: Record<Locale, Record<string, string>> = {
     'sb.historyHeading': 'ماضی کا ریکارڈ', 'sb.noHistoryYet': 'ابھی کوئی تصدیق شدہ یا منسوخ بکنگ نہیں۔',
     'sb.confirmedLabel': 'تصدیق شدہ', 'sb.cancelledLabel': 'منسوخ',
     'sb.allReleasedLabel': 'تمام ایڈوانس گاڑیوں کو جاری کر دیے گئے', 'sb.releasedOfTotalSuffix': 'جاری شدہ',
+
+    'mr.pageTitle': 'مارکیٹ پلیس ریفرنس', 'mr.pageSubtitle': 'شہر، پرو/لوڈنگ سروس کلاسز، اور گاؤں کی ڈیلیوری فیس — وہ ریفرنس ڈیٹا جس پر ہر کرایہ فارمولا انحصار کرتا ہے۔',
+    'mr.noAccessMessage': 'آپ کو اس صفحے تک رسائی نہیں ہے۔',
+    'mr.citiesTab': 'شہر', 'mr.servicesTab': 'سروس کلاسز', 'mr.villagesTab': 'گاؤں',
+    'mr.addNewBtn': 'نیا شامل کریں', 'mr.editTitle': 'ترمیم کریں', 'mr.addTitle': 'نیا شامل کریں',
+    'mr.deactivateBtn': 'غیر فعال کریں', 'mr.activateBtn': 'فعال کریں', 'mr.homeBadge': 'ہوم',
+    'mr.namePlaceholder': 'نام (انگریزی)', 'mr.distanceKmPlaceholder': 'گاؤں سے فاصلہ (کلومیٹر)',
+    'mr.isHomeCityLabel': 'یہ ہوم سٹی ہے (پہلے سے منتخب)',
+    'mr.passengerOption': 'مسافر', 'mr.loadingOption': 'لوڈنگ',
+    'mr.capacityLabelPlaceholder': 'گنجائش (مثلاً 4 مسافر)',
+    'mr.baseFarePlaceholder': 'بیس فیئر (روپے)', 'mr.perKmPlaceholder': 'روپے فی کلومیٹر',
+    'mr.deliveryFeePlaceholder': 'ڈیلیوری فیس (روپے)', 'mr.isHomeVillageLabel': 'یہ ہوم ویلیج ہے (پہلے سے منتخب)',
   },
 }
 

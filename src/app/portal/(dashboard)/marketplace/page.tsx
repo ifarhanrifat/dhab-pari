@@ -147,7 +147,7 @@ export default function PortalMarketplacePage() {
           <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('mp.myOrdersHeading')}</p>
           <div className="space-y-2">
             {orders.map((o) => (
-              <div key={o.id} className="flex items-center justify-between gap-3 bg-white border border-dp-outline-variant rounded-lg p-3">
+              <Link key={o.id} href={`/portal/marketplace/order/${o.id}`} className="flex items-center justify-between gap-3 bg-white border border-dp-outline-variant rounded-lg p-3 hover:border-dp-secondary transition-colors">
                 <div className="min-w-0">
                   <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface truncate">{isUrdu && o.shops?.name_ur ? o.shops.name_ur : o.shops?.name ?? '—'}</p>
                   <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{new Date(o.created_at).toLocaleDateString('en-GB')}</p>
@@ -159,7 +159,7 @@ export default function PortalMarketplacePage() {
                     <p className="font-sans text-[10.5px] font-semibold text-dp-on-surface-variant mt-0.5">{t(`of.status.${o.fulfillment_status}`)}</p>
                   )}
                 </div>
-              </div>
+              </Link>
             ))}
             {bookings.map((b) => (
               <div key={b.id} className="bg-white border border-dp-outline-variant rounded-lg p-3">
