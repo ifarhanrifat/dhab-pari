@@ -4666,6 +4666,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.myShadiRequestsHeading': 'Wedding Bookings', 'vp.myShadiRequestsSubtitle': 'Wedding-day requests for your vehicle — accept, decline, and track.',
     'vp.upcomingWeddingsHeading': 'Upcoming Weddings', 'vp.noShadiRequestsYetHint': 'No wedding requests yet.',
     'vp.collectFromCustomerLabel': 'Collect from customer on the day', 'vp.awaitingAdvanceHint': "Waiting on the customer's advance to be confirmed.",
+    'vp.advanceHeldHint': 'Rs {amount} advance is held for you and will be released to your account after the wedding date.',
+    'vp.advanceReleasedLabel': 'Advance released to your account', 'vp.advanceStillHeldHint': 'Advance held — will be released shortly.',
 
     'sb.pageTitle': 'Shadi Bookings', 'sb.pageSubtitle': "Confirm or reject a booker's wedding-day advance payment.",
     'sb.noAccessMessage': "You don't have access to this page.",
@@ -4675,6 +4677,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'sb.rejectReasonPrompt': 'Reason for rejecting this payment (optional):',
     'sb.historyHeading': 'History', 'sb.noHistoryYet': 'No confirmed or cancelled bookings yet.',
     'sb.confirmedLabel': 'Confirmed', 'sb.cancelledLabel': 'Cancelled',
+    'sb.allReleasedLabel': 'All advances released to vehicles', 'sb.releasedOfTotalSuffix': 'released',
   },
 
   ur: {
@@ -9313,6 +9316,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.myShadiRequestsHeading': 'شادی بکنگز', 'vp.myShadiRequestsSubtitle': 'آپ کی گاڑی کے لیے شادی کے دن کی درخواستیں — قبول، مسترد اور ٹریک کریں۔',
     'vp.upcomingWeddingsHeading': 'آنے والی شادیاں', 'vp.noShadiRequestsYetHint': 'ابھی کوئی شادی کی درخواست نہیں۔',
     'vp.collectFromCustomerLabel': 'دن کو گاہک سے وصول کریں', 'vp.awaitingAdvanceHint': 'گاہک کے ایڈوانس کی تصدیق کا انتظار ہے۔',
+    'vp.advanceHeldHint': 'روپے {amount} ایڈوانس آپ کے لیے روکا گیا ہے اور شادی کی تاریخ کے بعد آپ کے اکاؤنٹ میں جاری کیا جائے گا۔',
+    'vp.advanceReleasedLabel': 'ایڈوانس آپ کے اکاؤنٹ میں جاری کر دیا گیا', 'vp.advanceStillHeldHint': 'ایڈوانس روکا گیا ہے — جلد جاری ہو گا۔',
 
     'sb.pageTitle': 'شادی بکنگز', 'sb.pageSubtitle': 'بکنگ کرنے والے کی شادی کے دن کی ایڈوانس ادائیگی کی تصدیق یا مستردی کریں۔',
     'sb.noAccessMessage': 'آپ کو اس صفحے تک رسائی نہیں ہے۔',
@@ -9322,6 +9327,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'sb.rejectReasonPrompt': 'اس ادائیگی کو مسترد کرنے کی وجہ (اختیاری):',
     'sb.historyHeading': 'ماضی کا ریکارڈ', 'sb.noHistoryYet': 'ابھی کوئی تصدیق شدہ یا منسوخ بکنگ نہیں۔',
     'sb.confirmedLabel': 'تصدیق شدہ', 'sb.cancelledLabel': 'منسوخ',
+    'sb.allReleasedLabel': 'تمام ایڈوانس گاڑیوں کو جاری کر دیے گئے', 'sb.releasedOfTotalSuffix': 'جاری شدہ',
   },
 }
 

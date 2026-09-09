@@ -16,7 +16,7 @@ import { CheckCircle, XCircle, Users2, CalendarDays, MapPin } from 'lucide-react
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
-interface Request { id: string; status: string; full_day_rate_pkr: number; vehicles: { owner_name: string } | null }
+interface Request { id: string; status: string; full_day_rate_pkr: number; advance_share_pkr: number | null; paid_out_at: string | null; vehicles: { owner_name: string } | null }
 interface Event {
   id: string; event_date: string; venue_address: string; distance_km: number; status: string
   advance_pct: number | null; advance_amount_pkr: number | null; advance_method: string | null; advance_proof_url: string | null
@@ -40,7 +40,11 @@ export default function AdminShadiBookingsPage() {
   const supabase = createClient()
 
   const load = async () => {
-    const cols = 'id, event_date, venue_address, distance_km, status, advance_pct, advance_amount_pkr, advance_method, advance_proof_url, advance_announced_at, created_at, portal_users(full_name, mobile), shadi_vehicle_requests(id, status, full_day_rate_pkr, vehicles(owner_name))'
+    // Deterministic, no-op-if-nothing-due — releasing an accepted
+    // vehicle's advance share once its wedding date has passed happens
+    // incidentally whenever this queue is opened, not on a schedule.
+    await supabase.rpc('sweep_due_shadi_advances')
+    const cols = 'id, event_date, venue_address, distance_km, status, advance_pct, advance_amount_pkr, advance_method, advance_proof_url, advance_announced_at, created_at, portal_users(full_name, mobile), shadi_vehicle_requests(id, status, full_day_rate_pkr, advance_share_pkr, paid_out_at, vehicles(owner_name))'
     const [{ data: p }, { data: h }] = await Promise.all([
       supabase.from('shadi_events').select(cols).eq('status', 'advance_announced').order('advance_announced_at', { ascending: true }),
       supabase.from('shadi_events').select(cols).in('status', ['confirmed', 'cancelled']).order('created_at', { ascending: false }).limit(30),
@@ -148,18 +152,27 @@ export default function AdminShadiBookingsPage() {
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant">{t('sb.noHistoryYet')}</p>
       ) : (
         <div className="space-y-2">
-          {history.map((e) => (
-            <div key={e.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex items-center justify-between gap-3">
-              <div>
-                <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{e.portal_users?.full_name ?? '—'} — {new Date(e.event_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{e.venue_address}</p>
+          {history.map((e) => {
+            const accepted = e.shadi_vehicle_requests.filter((r) => r.status === 'accepted')
+            const released = accepted.filter((r) => r.paid_out_at)
+            return (
+              <div key={e.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{e.portal_users?.full_name ?? '—'} — {new Date(e.event_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                  <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{e.venue_address}</p>
+                  {e.status === 'confirmed' && accepted.length > 0 && (
+                    <p className="font-sans text-[11px] mt-0.5" style={{ color: released.length === accepted.length ? '#0f7a4d' : '#9a5714' }}>
+                      {released.length === accepted.length ? t('sb.allReleasedLabel') : `${released.length}/${accepted.length} ${t('sb.releasedOfTotalSuffix')}`}
+                    </p>
+                  )}
+                </div>
+                <div className="text-end shrink-0">
+                  <p className="font-sans text-[10.5px] font-bold" style={{ color: e.status === 'confirmed' ? '#0f7a4d' : '#6b6560' }}>{e.status === 'confirmed' ? t('sb.confirmedLabel') : t('sb.cancelledLabel')}</p>
+                  {e.status === 'confirmed' && <p className="font-heading text-[14px] font-bold text-dp-secondary ltr-num">{fmt(e.advance_amount_pkr ?? 0)}</p>}
+                </div>
               </div>
-              <div className="text-end shrink-0">
-                <p className="font-sans text-[10.5px] font-bold" style={{ color: e.status === 'confirmed' ? '#0f7a4d' : '#6b6560' }}>{e.status === 'confirmed' ? t('sb.confirmedLabel') : t('sb.cancelledLabel')}</p>
-                {e.status === 'confirmed' && <p className="font-heading text-[14px] font-bold text-dp-secondary ltr-num">{fmt(e.advance_amount_pkr ?? 0)}</p>}
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

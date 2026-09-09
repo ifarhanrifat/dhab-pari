@@ -22,7 +22,7 @@ interface Vehicle { id: string; owner_name: string }
 interface Request {
   id: string; status: string; decline_reason: string | null; full_day_rate_pkr: number; advance_share_pkr: number | null
   event_id: string; event_date: string; venue_address: string; distance_km: number; notes: string | null; event_status: string
-  customer_name: string; customer_mobile: string | null
+  customer_name: string; customer_mobile: string | null; paid_out_at: string | null
 }
 
 function fmt(n: number) {
@@ -47,7 +47,14 @@ export default function MyShadiRequestsPage() {
     if (!user) return
     supabase.from('vehicles').select('id, owner_name').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
       setVehicle(data)
-      if (data) await load(data.id)
+      if (data) {
+        // Deterministic, no-op-if-nothing-due sweep — releasing any advance
+        // share whose wedding date has now passed happens incidentally on
+        // this visit, not on a schedule. Run before loading so a just-
+        // released payout already shows up.
+        await supabase.rpc('sweep_due_shadi_advances')
+        await load(data.id)
+      }
       setLoading(false)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -116,10 +123,13 @@ export default function MyShadiRequestsPage() {
               <RequestHeader r={r} />
               <div className="mt-2 pt-2 border-t border-dp-outline-variant">
                 {r.event_status === 'confirmed' && r.advance_share_pkr != null ? (
-                  <div className="flex items-center justify-between">
-                    <span className="font-sans text-[12px] text-dp-on-surface-variant">{t('vp.collectFromCustomerLabel')}</span>
-                    <span className="font-heading text-[15px] font-bold ltr-num" style={{ color: '#0f7a4d' }}>{fmt(r.full_day_rate_pkr - r.advance_share_pkr)}</span>
-                  </div>
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="font-sans text-[12px] text-dp-on-surface-variant">{t('vp.collectFromCustomerLabel')}</span>
+                      <span className="font-heading text-[15px] font-bold ltr-num" style={{ color: '#0f7a4d' }}>{fmt(r.full_day_rate_pkr - r.advance_share_pkr)}</span>
+                    </div>
+                    <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('vp.advanceHeldHint').replace('{amount}', fmt(r.advance_share_pkr))}</p>
+                  </>
                 ) : (
                   <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('vp.awaitingAdvanceHint')}</p>
                 )}
@@ -143,6 +153,13 @@ export default function MyShadiRequestsPage() {
               </div>
               {r.status === 'declined' && r.decline_reason && (
                 <p className="flex items-center gap-1.5 font-sans text-[11px] mt-1" style={{ color: '#b3261e' }}><AlertCircle size={10} /> {r.decline_reason}</p>
+              )}
+              {r.status === 'accepted' && r.event_status === 'confirmed' && r.advance_share_pkr != null && (
+                <p className="font-sans text-[11px] mt-1" style={{ color: r.paid_out_at ? '#0f7a4d' : undefined }}>
+                  {r.paid_out_at
+                    ? `${t('vp.advanceReleasedLabel')}: ${fmt(r.advance_share_pkr)}`
+                    : t('vp.advanceStillHeldHint')}
+                </p>
               )}
             </div>
           ))}
