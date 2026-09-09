@@ -23,6 +23,7 @@ interface Vehicle {
   id: string; owner_name: string; color: string | null; model: string | null; has_ac: boolean
   offers_hourly: boolean; offers_shadi: boolean
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null
+  shadi_full_day_rate_pkr: number | null
 }
 interface Photo { id: string; url: string; is_cover: boolean }
 
@@ -54,7 +55,7 @@ export default function MyVehicleCatalogPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, owner_name, color, model, has_ac, offers_hourly, offers_shadi, hourly_rate_pkr, hourly_included_km, hourly_overage_per_km_pkr')
+    supabase.from('vehicles').select('id, owner_name, color, model, has_ac, offers_hourly, offers_shadi, hourly_rate_pkr, hourly_included_km, hourly_overage_per_km_pkr, shadi_full_day_rate_pkr')
       .eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
         setVehicle(data)
         if (data) {
@@ -118,7 +119,8 @@ export default function MyVehicleCatalogPage() {
   if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!vehicle) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('cm.noVehicleLinked')}</div>
 
-  const hasRate = vehicle.hourly_rate_pkr != null
+  const hasHourlyRate = vehicle.hourly_rate_pkr != null
+  const hasShadiRate = vehicle.shadi_full_day_rate_pkr != null
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
@@ -174,9 +176,9 @@ export default function MyVehicleCatalogPage() {
         </label>
       </div>
 
-      {/* Hourly / Shadi opt-in — rate is read-only here, committee-set */}
+      {/* Hourly opt-in — rate is read-only here, committee-set */}
       <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-4">
-        {hasRate ? (
+        {hasHourlyRate ? (
           <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-dp-outline-variant">
             <span className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('mv.yourRateLabel')}</span>
             <span className="font-heading text-[16px] font-bold text-dp-secondary ltr-num">
@@ -187,13 +189,25 @@ export default function MyVehicleCatalogPage() {
         ) : (
           <p className="font-sans text-[12.5px] mb-3 pb-3 border-b border-dp-outline-variant" style={{ color: '#ae1800' }}>{t('mv.noRateSetHint')}</p>
         )}
-        <label className={`flex items-center gap-2 mb-2.5 ${hasRate ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
-          <input type="checkbox" checked={offersHourly} disabled={!hasRate} onChange={(e) => setOffersHourly(e.target.checked)} className="accent-dp-secondary" />
+        <label className={`flex items-center gap-2 ${hasHourlyRate ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
+          <input type="checkbox" checked={offersHourly} disabled={!hasHourlyRate} onChange={(e) => setOffersHourly(e.target.checked)} className="accent-dp-secondary" />
           <Clock3 size={15} className="text-dp-on-surface-variant" />
           <span className="font-sans text-[13.5px] text-dp-on-surface">{t('mv.offersHourlyLabel')}</span>
         </label>
-        <label className={`flex items-center gap-2 ${hasRate ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
-          <input type="checkbox" checked={offersShadi} disabled={!hasRate} onChange={(e) => setOffersShadi(e.target.checked)} className="accent-dp-secondary" />
+      </div>
+
+      {/* Shadi (wedding) opt-in — its own rate, its own gate */}
+      <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-4">
+        {hasShadiRate ? (
+          <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-dp-outline-variant">
+            <span className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('mv.yourShadiRateLabel')}</span>
+            <span className="font-heading text-[16px] font-bold text-dp-secondary ltr-num">{fmt(vehicle.shadi_full_day_rate_pkr!)}/{t('mv.perDayShort')}</span>
+          </div>
+        ) : (
+          <p className="font-sans text-[12.5px] mb-3 pb-3 border-b border-dp-outline-variant" style={{ color: '#ae1800' }}>{t('mv.noShadiRateSetHint')}</p>
+        )}
+        <label className={`flex items-center gap-2 ${hasShadiRate ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
+          <input type="checkbox" checked={offersShadi} disabled={!hasShadiRate} onChange={(e) => setOffersShadi(e.target.checked)} className="accent-dp-secondary" />
           <Users2 size={15} className="text-dp-on-surface-variant" />
           <span className="font-sans text-[13.5px] text-dp-on-surface">{t('mv.offersShadiLabel')}</span>
         </label>

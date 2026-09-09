@@ -33,6 +33,7 @@ interface Vehicle {
   portal_user_id: string | null; commission_mode: string; lumpsum_fee_pkr: number | null; night_booking_enabled: boolean
   allows_out_of_city: boolean; per_km_pkr: number | null
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null
+  shadi_full_day_rate_pkr: number | null
 }
 interface Route {
   id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
@@ -64,6 +65,7 @@ const emptyVehicle = {
   portal_user_id: null as string | null, commission_mode: 'per_order' as string, lumpsum_fee_pkr: 0, night_booking_enabled: false,
   allows_out_of_city: true, per_km_pkr: null as number | null,
   hourly_rate_pkr: null as number | null, hourly_included_km: null as number | null, hourly_overage_per_km_pkr: null as number | null,
+  shadi_full_day_rate_pkr: null as number | null,
 }
 const emptyRoute = {
   origin: '', origin_ur: '', destination: '', destination_ur: '', classification: 'intercity',
@@ -404,6 +406,7 @@ function AdminVehiclesInner() {
       portal_user_id: v.portal_user_id, commission_mode: v.commission_mode, lumpsum_fee_pkr: v.lumpsum_fee_pkr ?? 0,
       night_booking_enabled: v.night_booking_enabled, allows_out_of_city: v.allows_out_of_city, per_km_pkr: v.per_km_pkr,
       hourly_rate_pkr: v.hourly_rate_pkr, hourly_included_km: v.hourly_included_km, hourly_overage_per_km_pkr: v.hourly_overage_per_km_pkr,
+      shadi_full_day_rate_pkr: v.shadi_full_day_rate_pkr,
     })
     setKeeperMobile('')
     if (v.portal_user_id) {
@@ -796,6 +799,12 @@ function AdminVehiclesInner() {
                   </div>
                 </div>
                 <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('mk.hourlyRateHint')}</p>
+              </div>
+
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.shadiRateLabel')}</label>
+                <input type="number" value={vehicleForm.shadi_full_day_rate_pkr ?? ''} onChange={(e) => setVehicleForm({ ...vehicleForm, shadi_full_day_rate_pkr: e.target.value === '' ? null : +e.target.value })} className="input-field" placeholder={t('mk.shadiRatePlaceholder')} />
+                <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('mk.shadiRateHint')}</p>
               </div>
 
               <div className="pt-2 border-t border-dp-outline-variant/60">
