@@ -20,6 +20,7 @@ import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload
 interface Request {
   id: string; vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null; color: string | null
   full_day_rate_pkr: number; status: string; decline_reason: string | null; advance_share_pkr: number | null
+  withdrawn_at: string | null; replaces_request_id: string | null
 }
 interface ShadiEvent {
   id: string; event_date: string; venue_address: string; distance_km: number; notes: string | null
@@ -34,7 +35,7 @@ function fmt(n: number) {
   return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
-const REQ_STATUS_COLOR: Record<string, string> = { requested: '#9a5714', accepted: '#0f7a4d', declined: '#b3261e', cancelled: '#6b6560' }
+const REQ_STATUS_COLOR: Record<string, string> = { requested: '#9a5714', accepted: '#0f7a4d', declined: '#b3261e', cancelled: '#6b6560', withdrawn: '#b3261e' }
 
 export default function ShadiEventDetailPage() {
   const { t, isUrdu } = useLocale()
@@ -49,6 +50,11 @@ export default function ShadiEventDetailPage() {
   const [showInvite, setShowInvite] = useState(false)
   const [candidates, setCandidates] = useState<CandidateVehicle[]>([])
   const [inviting, setInviting] = useState<string | null>(null)
+  // Set when inviting specifically to fill a withdrawn vehicle's slot —
+  // routes the pick through invite_shadi_replacement instead of
+  // add_shadi_vehicle_request, so the slot's reserved advance share
+  // transfers to whoever accepts.
+  const [replacingRequestId, setReplacingRequestId] = useState<string | null>(null)
 
   const [showAdvance, setShowAdvance] = useState(false)
   const [method, setMethod] = useState('cash')
@@ -63,11 +69,14 @@ export default function ShadiEventDetailPage() {
 
   useEffect(() => { if (user) load() }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const openInvite = () => {
+  const openInvite = (replacingId: string | null = null) => {
     if (!event) return
-    const requestedIds = new Set(event.requests.map((r) => r.vehicle_id))
+    // Live (not declined/withdrawn/cancelled) requests still occupy their
+    // vehicle — never worth offering as a candidate again for this event.
+    const takenIds = new Set(event.requests.filter((r) => !['declined', 'withdrawn', 'cancelled'].includes(r.status)).map((r) => r.vehicle_id))
+    setReplacingRequestId(replacingId)
     supabase.rpc('shadi_bookable_vehicles').then(({ data }) => {
-      setCandidates(((data ?? []) as CandidateVehicle[]).filter((v) => !requestedIds.has(v.id)))
+      setCandidates(((data ?? []) as CandidateVehicle[]).filter((v) => !takenIds.has(v.id)))
       setShowInvite(true)
     })
   }
@@ -75,7 +84,9 @@ export default function ShadiEventDetailPage() {
   const invite = async (vehicleId: string) => {
     if (!event) return
     setInviting(vehicleId)
-    const { error } = await supabase.rpc('add_shadi_vehicle_request', { p_event_id: event.id, p_vehicle_id: vehicleId })
+    const { error } = replacingRequestId
+      ? await supabase.rpc('invite_shadi_replacement', { p_event_id: event.id, p_withdrawn_request_id: replacingRequestId, p_vehicle_id: vehicleId })
+      : await supabase.rpc('add_shadi_vehicle_request', { p_event_id: event.id, p_vehicle_id: vehicleId })
     setInviting(null)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('vp.shadiRequestsSentToast'))
@@ -136,34 +147,51 @@ export default function ShadiEventDetailPage() {
 
       <p className="font-sans text-[12px] font-bold uppercase tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('vp.requestedVehiclesHeading')}</p>
       <div className="space-y-2.5 mb-4">
-        {event.requests.map((r) => (
-          <div key={r.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex items-center gap-2">
-                <Car size={16} className="text-dp-on-surface-variant shrink-0" />
-                <div className="min-w-0">
-                  <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface truncate">{r.model || r.vehicle_type} — {r.owner_name}</p>
-                  {r.color && <p className="font-sans text-[11px] text-dp-on-surface-variant">{r.color}</p>}
+        {event.requests.map((r) => {
+          const hasLiveReplacement = event.requests.some((other) => other.replaces_request_id === r.id && ['requested', 'accepted'].includes(other.status))
+          return (
+            <div key={r.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex items-center gap-2">
+                  <Car size={16} className="text-dp-on-surface-variant shrink-0" />
+                  <div className="min-w-0">
+                    <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface truncate">{r.model || r.vehicle_type} — {r.owner_name}</p>
+                    {r.color && <p className="font-sans text-[11px] text-dp-on-surface-variant">{r.color}</p>}
+                    {r.replaces_request_id && <p className="font-sans text-[10.5px] text-dp-on-surface-variant italic">{t('vp.replacementVehicleLabel')}</p>}
+                  </div>
                 </div>
+                <span className="shrink-0 font-sans text-[10px] font-bold px-2 py-1 rounded-full" style={{ background: `${REQ_STATUS_COLOR[r.status]}1a`, color: REQ_STATUS_COLOR[r.status] }}>{t(`vp.shadiReqStatus.${r.status}`)}</span>
               </div>
-              <span className="shrink-0 font-sans text-[10px] font-bold px-2 py-1 rounded-full" style={{ background: `${REQ_STATUS_COLOR[r.status]}1a`, color: REQ_STATUS_COLOR[r.status] }}>{t(`vp.shadiReqStatus.${r.status}`)}</span>
+              <div className="mt-2 pt-2 border-t border-dp-outline-variant flex items-center justify-between">
+                <span className="font-sans text-[12px] text-dp-on-surface-variant">{t('vp.fullDayRateLabel')}</span>
+                <span className="font-heading text-[14px] font-bold text-dp-secondary ltr-num">{fmt(r.full_day_rate_pkr)}</span>
+              </div>
+              {r.status === 'declined' && r.decline_reason && (
+                <p className="flex items-center gap-1.5 font-sans text-[11.5px] mt-1.5" style={{ color: '#b3261e' }}><AlertCircle size={11} /> {r.decline_reason}</p>
+              )}
+              {r.status === 'withdrawn' && (
+                <>
+                  {r.decline_reason && (
+                    <p className="flex items-center gap-1.5 font-sans text-[11.5px] mt-1.5" style={{ color: '#b3261e' }}><AlertCircle size={11} /> {r.decline_reason}</p>
+                  )}
+                  {event.status === 'confirmed' && r.advance_share_pkr != null && !hasLiveReplacement && (
+                    <button onClick={() => openInvite(r.id)} className="w-full flex items-center justify-center gap-1.5 py-2 mt-1.5 border border-dp-outline-variant rounded-lg font-sans text-[12px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+                      <Plus size={12} /> {t('vp.inviteReplacementBtn')}
+                    </button>
+                  )}
+                  {hasLiveReplacement && <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1.5">{t('vp.replacementPendingHint')}</p>}
+                </>
+              )}
+              {event.status === 'confirmed' && r.status === 'accepted' && r.advance_share_pkr != null && (
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5 ltr-num">{t('vp.balanceDueLabel')}: <span className="font-bold text-dp-on-surface">{fmt(r.full_day_rate_pkr - r.advance_share_pkr)}</span></p>
+              )}
             </div>
-            <div className="mt-2 pt-2 border-t border-dp-outline-variant flex items-center justify-between">
-              <span className="font-sans text-[12px] text-dp-on-surface-variant">{t('vp.fullDayRateLabel')}</span>
-              <span className="font-heading text-[14px] font-bold text-dp-secondary ltr-num">{fmt(r.full_day_rate_pkr)}</span>
-            </div>
-            {r.status === 'declined' && r.decline_reason && (
-              <p className="flex items-center gap-1.5 font-sans text-[11.5px] mt-1.5" style={{ color: '#b3261e' }}><AlertCircle size={11} /> {r.decline_reason}</p>
-            )}
-            {event.status === 'confirmed' && r.status === 'accepted' && r.advance_share_pkr != null && (
-              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5 ltr-num">{t('vp.balanceDueLabel')}: <span className="font-bold text-dp-on-surface">{fmt(r.full_day_rate_pkr - r.advance_share_pkr)}</span></p>
-            )}
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {event.status === 'collecting' && (
-        <button onClick={openInvite} className="w-full flex items-center justify-center gap-1.5 py-2.5 mb-4 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+        <button onClick={() => openInvite()} className="w-full flex items-center justify-center gap-1.5 py-2.5 mb-4 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
           <Plus size={14} /> {t('vp.inviteAnotherVehicleBtn')}
         </button>
       )}
@@ -199,7 +227,7 @@ export default function ShadiEventDetailPage() {
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowInvite(false)}>
           <div className="bg-white w-full sm:max-w-sm rounded-t-lg sm:rounded-lg p-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <p className="font-heading text-[16px] font-bold text-dp-on-surface">{t('vp.inviteAnotherVehicleBtn')}</p>
+              <p className="font-heading text-[16px] font-bold text-dp-on-surface">{replacingRequestId ? t('vp.inviteReplacementBtn') : t('vp.inviteAnotherVehicleBtn')}</p>
               <button onClick={() => setShowInvite(false)} className="cursor-pointer"><X size={18} /></button>
             </div>
             {candidates.length === 0 ? (

@@ -40,6 +40,8 @@ export default function MyShadiRequestsPage() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [decliningId, setDecliningId] = useState<string | null>(null)
   const [declineReason, setDeclineReason] = useState('')
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null)
+  const [withdrawReason, setWithdrawReason] = useState('')
 
   const load = (vehicleId: string) => supabase.rpc('vehicle_shadi_requests', { p_vehicle_id: vehicleId }).then(({ data }) => setRequests((data ?? []) as Request[]))
 
@@ -70,13 +72,24 @@ export default function MyShadiRequestsPage() {
     load(vehicle.id)
   }
 
+  const withdraw = async (requestId: string, reason?: string) => {
+    if (!vehicle) return
+    setBusyId(requestId)
+    const { error } = await supabase.rpc('withdraw_shadi_request', { p_request_id: requestId, p_reason: reason ?? null })
+    setBusyId(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    setWithdrawingId(null); setWithdrawReason('')
+    toast.success(t('vp.withdrawnToast'))
+    load(vehicle.id)
+  }
+
   if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!vehicle) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('cm.noVehicleLinked')}</div>
 
   const today = new Date().toISOString().slice(0, 10)
   const pending = requests.filter((r) => r.status === 'requested')
   const upcoming = requests.filter((r) => r.status === 'accepted' && r.event_date >= today)
-  const past = requests.filter((r) => (r.status === 'accepted' && r.event_date < today) || r.status === 'declined' || r.status === 'cancelled')
+  const past = requests.filter((r) => (r.status === 'accepted' && r.event_date < today) || r.status === 'declined' || r.status === 'cancelled' || r.status === 'withdrawn')
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
@@ -134,6 +147,22 @@ export default function MyShadiRequestsPage() {
                   <p className="font-sans text-[11.5px] text-dp-on-surface-variant">{t('vp.awaitingAdvanceHint')}</p>
                 )}
               </div>
+              {withdrawingId === r.id ? (
+                <div className="mt-2 pt-2 border-t border-dp-outline-variant">
+                  <input value={withdrawReason} onChange={(e) => setWithdrawReason(e.target.value)} placeholder={t('vp.withdrawReasonPlaceholder')}
+                    className="w-full border border-dp-outline-variant rounded-lg p-2 font-sans text-[12.5px] mb-2" />
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setWithdrawingId(null)} className="flex-1 py-2 border border-dp-outline-variant rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer">{t('action.cancel')}</button>
+                    <button onClick={() => withdraw(r.id, withdrawReason.trim() || undefined)} disabled={busyId === r.id}
+                      className="flex-1 py-2 rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer text-white disabled:opacity-50" style={{ background: '#b3261e' }}>{t('vp.confirmWithdrawBtn')}</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setWithdrawingId(r.id)} disabled={busyId === r.id}
+                  className="w-full mt-2 pt-2 border-t border-dp-outline-variant font-sans text-[11.5px] font-semibold cursor-pointer disabled:opacity-50 text-center" style={{ color: '#b3261e' }}>
+                  {t('vp.withdrawBtn')}
+                </button>
+              )}
             </div>
           ))}
         </Section>
@@ -149,9 +178,9 @@ export default function MyShadiRequestsPage() {
             <div key={r.id} className="bg-white border border-dp-outline-variant rounded-lg p-3 opacity-70">
               <div className="flex items-center justify-between gap-2">
                 <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface truncate">{r.customer_name} — {new Date(r.event_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                <span className="font-sans text-[10px] font-bold" style={{ color: r.status === 'declined' ? '#b3261e' : r.status === 'cancelled' ? '#6b6560' : '#0f7a4d' }}>{t(`vp.shadiReqStatus.${r.status === 'accepted' ? 'accepted' : r.status}`)}</span>
+                <span className="font-sans text-[10px] font-bold" style={{ color: r.status === 'declined' || r.status === 'withdrawn' ? '#b3261e' : r.status === 'cancelled' ? '#6b6560' : '#0f7a4d' }}>{t(`vp.shadiReqStatus.${r.status === 'accepted' ? 'accepted' : r.status}`)}</span>
               </div>
-              {r.status === 'declined' && r.decline_reason && (
+              {(r.status === 'declined' || r.status === 'withdrawn') && r.decline_reason && (
                 <p className="flex items-center gap-1.5 font-sans text-[11px] mt-1" style={{ color: '#b3261e' }}><AlertCircle size={10} /> {r.decline_reason}</p>
               )}
               {r.status === 'accepted' && r.event_status === 'confirmed' && r.advance_share_pkr != null && (

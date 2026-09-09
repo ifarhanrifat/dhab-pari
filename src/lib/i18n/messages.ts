@@ -4650,7 +4650,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.shadiStatus.collecting': 'Collecting responses', 'vp.shadiStatus.advance_announced': 'Advance submitted',
     'vp.shadiStatus.confirmed': 'Confirmed', 'vp.shadiStatus.cancelled': 'Cancelled',
     'vp.shadiReqStatus.requested': 'Waiting', 'vp.shadiReqStatus.accepted': 'Accepted',
-    'vp.shadiReqStatus.declined': 'Declined', 'vp.shadiReqStatus.cancelled': 'Cancelled',
+    'vp.shadiReqStatus.declined': 'Declined', 'vp.shadiReqStatus.cancelled': 'Cancelled', 'vp.shadiReqStatus.withdrawn': 'Withdrawn',
 
     'vp.shadiEventNotFound': 'Booking not found.', 'vp.requestedVehiclesHeading': 'Requested Vehicles',
     'vp.fullDayRateLabel': 'Full-day rate', 'vp.balanceDueLabel': 'Balance due on the day',
@@ -4668,6 +4668,12 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.collectFromCustomerLabel': 'Collect from customer on the day', 'vp.awaitingAdvanceHint': "Waiting on the customer's advance to be confirmed.",
     'vp.advanceHeldHint': 'Rs {amount} advance is held for you and will be released to your account after the wedding date.',
     'vp.advanceReleasedLabel': 'Advance released to your account', 'vp.advanceStillHeldHint': 'Advance held — will be released shortly.',
+    'vp.withdrawBtn': 'Withdraw from this booking', 'vp.confirmWithdrawBtn': 'Confirm Withdraw',
+    'vp.withdrawReasonPlaceholder': 'Reason (optional) — e.g. vehicle broke down',
+    'vp.withdrawnToast': "You've withdrawn from this booking.",
+    'vp.replacementVehicleLabel': '(replacing another vehicle)',
+    'vp.inviteReplacementBtn': 'Invite a replacement vehicle',
+    'vp.replacementPendingHint': 'A replacement has already been invited for this slot.',
 
     'sb.pageTitle': 'Shadi Bookings', 'sb.pageSubtitle': "Confirm or reject a booker's wedding-day advance payment.",
     'sb.noAccessMessage': "You don't have access to this page.",
@@ -9300,7 +9306,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.shadiStatus.collecting': 'جوابات کا انتظار', 'vp.shadiStatus.advance_announced': 'ایڈوانس جمع کرایا گیا',
     'vp.shadiStatus.confirmed': 'تصدیق شدہ', 'vp.shadiStatus.cancelled': 'منسوخ',
     'vp.shadiReqStatus.requested': 'انتظار', 'vp.shadiReqStatus.accepted': 'قبول',
-    'vp.shadiReqStatus.declined': 'مسترد', 'vp.shadiReqStatus.cancelled': 'منسوخ',
+    'vp.shadiReqStatus.declined': 'مسترد', 'vp.shadiReqStatus.cancelled': 'منسوخ', 'vp.shadiReqStatus.withdrawn': 'دستبردار',
 
     'vp.shadiEventNotFound': 'بکنگ نہیں ملی۔', 'vp.requestedVehiclesHeading': 'درخواست شدہ گاڑیاں',
     'vp.fullDayRateLabel': 'فل ڈے ریٹ', 'vp.balanceDueLabel': 'دن کو باقی رقم',
@@ -9318,6 +9324,12 @@ export const messages: Record<Locale, Record<string, string>> = {
     'vp.collectFromCustomerLabel': 'دن کو گاہک سے وصول کریں', 'vp.awaitingAdvanceHint': 'گاہک کے ایڈوانس کی تصدیق کا انتظار ہے۔',
     'vp.advanceHeldHint': 'روپے {amount} ایڈوانس آپ کے لیے روکا گیا ہے اور شادی کی تاریخ کے بعد آپ کے اکاؤنٹ میں جاری کیا جائے گا۔',
     'vp.advanceReleasedLabel': 'ایڈوانس آپ کے اکاؤنٹ میں جاری کر دیا گیا', 'vp.advanceStillHeldHint': 'ایڈوانس روکا گیا ہے — جلد جاری ہو گا۔',
+    'vp.withdrawBtn': 'اس بکنگ سے دستبردار ہوں', 'vp.confirmWithdrawBtn': 'دستبرداری کی تصدیق',
+    'vp.withdrawReasonPlaceholder': 'وجہ (اختیاری) — مثلاً گاڑی خراب ہو گئی',
+    'vp.withdrawnToast': 'آپ اس بکنگ سے دستبردار ہو گئے۔',
+    'vp.replacementVehicleLabel': '(دوسری گاڑی کی جگہ)',
+    'vp.inviteReplacementBtn': 'متبادل گاڑی کو دعوت دیں',
+    'vp.replacementPendingHint': 'اس جگہ کے لیے پہلے ہی ایک متبادل کو دعوت دی جا چکی ہے۔',
 
     'sb.pageTitle': 'شادی بکنگز', 'sb.pageSubtitle': 'بکنگ کرنے والے کی شادی کے دن کی ایڈوانس ادائیگی کی تصدیق یا مستردی کریں۔',
     'sb.noAccessMessage': 'آپ کو اس صفحے تک رسائی نہیں ہے۔',
