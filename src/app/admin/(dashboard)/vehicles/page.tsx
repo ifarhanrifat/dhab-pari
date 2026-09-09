@@ -32,6 +32,7 @@ interface Vehicle {
   vehicle_type: string; vehicle_number: string | null; total_seats: number; is_active: boolean
   portal_user_id: string | null; commission_mode: string; lumpsum_fee_pkr: number | null; night_booking_enabled: boolean
   allows_out_of_city: boolean; per_km_pkr: number | null
+  hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null
 }
 interface Route {
   id: string; vehicle_id: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
@@ -62,6 +63,7 @@ const emptyVehicle = {
   owner_name: '', owner_mobile: '', owner_whatsapp: '', vehicle_type: '', vehicle_number: '', total_seats: 4, is_active: true,
   portal_user_id: null as string | null, commission_mode: 'per_order' as string, lumpsum_fee_pkr: 0, night_booking_enabled: false,
   allows_out_of_city: true, per_km_pkr: null as number | null,
+  hourly_rate_pkr: null as number | null, hourly_included_km: null as number | null, hourly_overage_per_km_pkr: null as number | null,
 }
 const emptyRoute = {
   origin: '', origin_ur: '', destination: '', destination_ur: '', classification: 'intercity',
@@ -401,6 +403,7 @@ function AdminVehiclesInner() {
       vehicle_type: v.vehicle_type, vehicle_number: v.vehicle_number ?? '', total_seats: v.total_seats, is_active: v.is_active,
       portal_user_id: v.portal_user_id, commission_mode: v.commission_mode, lumpsum_fee_pkr: v.lumpsum_fee_pkr ?? 0,
       night_booking_enabled: v.night_booking_enabled, allows_out_of_city: v.allows_out_of_city, per_km_pkr: v.per_km_pkr,
+      hourly_rate_pkr: v.hourly_rate_pkr, hourly_included_km: v.hourly_included_km, hourly_overage_per_km_pkr: v.hourly_overage_per_km_pkr,
     })
     setKeeperMobile('')
     if (v.portal_user_id) {
@@ -774,6 +777,25 @@ function AdminVehiclesInner() {
                 <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.perKmRateLabel')}</label>
                 <input type="number" value={vehicleForm.per_km_pkr ?? ''} onChange={(e) => setVehicleForm({ ...vehicleForm, per_km_pkr: e.target.value === '' ? null : +e.target.value })} className="input-field" placeholder="0" />
                 <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('mk.perKmRateHint')}</p>
+              </div>
+
+              {/* Hourly rental / shadi rates — deliberately admin-only,
+                  unlike per_km_pkr above: a bigger, less-frequent
+                  transaction worth more oversight, confirmed directly. */}
+              <div className="pt-2 border-t border-dp-outline-variant/60">
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.hourlyRateLabel')}</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <input type="number" value={vehicleForm.hourly_rate_pkr ?? ''} onChange={(e) => setVehicleForm({ ...vehicleForm, hourly_rate_pkr: e.target.value === '' ? null : +e.target.value })} className="input-field" placeholder={t('mk.hourlyRatePlaceholder')} />
+                  </div>
+                  <div>
+                    <input type="number" value={vehicleForm.hourly_included_km ?? ''} onChange={(e) => setVehicleForm({ ...vehicleForm, hourly_included_km: e.target.value === '' ? null : +e.target.value })} className="input-field" placeholder={t('mk.includedKmPlaceholder')} />
+                  </div>
+                  <div>
+                    <input type="number" value={vehicleForm.hourly_overage_per_km_pkr ?? ''} onChange={(e) => setVehicleForm({ ...vehicleForm, hourly_overage_per_km_pkr: e.target.value === '' ? null : +e.target.value })} className="input-field" placeholder={t('mk.overageRatePlaceholder')} />
+                  </div>
+                </div>
+                <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('mk.hourlyRateHint')}</p>
               </div>
 
               <div className="pt-2 border-t border-dp-outline-variant/60">
