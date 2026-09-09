@@ -13,7 +13,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
-import { Signpost, Home, Navigation, Truck, CalendarClock, Bus, MapPin } from 'lucide-react'
+import { Signpost, Home, Navigation, Truck, CalendarClock, Bus, MapPin, Clock3 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
@@ -83,6 +83,10 @@ export default function MarketplaceTravelPage() {
         <Link href="/portal/marketplace/commute" className="flex items-center gap-2.5 bg-white border border-dp-outline-variant rounded-lg p-3.5 hover:border-dp-secondary transition-colors">
           <div className="w-10 h-10 rounded-lg bg-violet-600 flex items-center justify-center shrink-0"><CalendarClock size={18} className="text-white" /></div>
           <div><p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('vp.commutePageTitle')}</p><p className="font-sans text-[12px] text-dp-on-surface-variant">{t('vp.commuteCardHint')}</p></div>
+        </Link>
+        <Link href="/portal/marketplace/hourly" className="flex items-center gap-2.5 bg-white border border-dp-outline-variant rounded-lg p-3.5 hover:border-dp-secondary transition-colors">
+          <div className="w-10 h-10 rounded-lg bg-amber-600 flex items-center justify-center shrink-0"><Clock3 size={18} className="text-white" /></div>
+          <div><p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('vp.hourlyPageTitle')}</p><p className="font-sans text-[12px] text-dp-on-surface-variant">{t('vp.hourlyPageSubtitle')}</p></div>
         </Link>
         <Link href="/portal/marketplace/nearby" className="flex items-center gap-2.5 bg-white border border-dp-outline-variant rounded-lg p-3.5 hover:border-dp-secondary transition-colors">
           <div className="w-10 h-10 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0"><Home size={18} className="text-white" /></div>

@@ -11,7 +11,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bus, Wallet, TrendingUp, Clock, CheckCircle2, XCircle, MapPin, PlusCircle, X, Navigation, Signpost, LogOut, SkipForward, Timer, Trophy, Pencil, Truck, Package, MessageCircle, CalendarClock, Trash2, Ban, Camera } from 'lucide-react'
+import { Bus, Wallet, TrendingUp, Clock, CheckCircle2, XCircle, MapPin, PlusCircle, X, Navigation, Signpost, LogOut, SkipForward, Timer, Trophy, Pencil, Truck, Package, MessageCircle, CalendarClock, Trash2, Ban, Camera, Clock3 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -23,7 +23,7 @@ import { getCurrentPositionOnce, classifyLocationError, type LocationErrorReason
 import { LocationSettingsModal } from '@/components/portal/LocationSettingsModal'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
-interface Vehicle { id: string; owner_name: string; vehicle_type: string; commission_mode: string; delivers: boolean; per_km_pkr: number | null }
+interface Vehicle { id: string; owner_name: string; vehicle_type: string; commission_mode: string; delivers: boolean; per_km_pkr: number | null; offers_hourly: boolean }
 interface TripOffer {
   id: string; trip_type: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   classification: string; travel_date: string; seats_available: number; listed_fare_per_seat_pkr: number; status: string
@@ -117,7 +117,7 @@ export default function MyVehiclePage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, owner_name, vehicle_type, commission_mode, delivers, per_km_pkr').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
+    supabase.from('vehicles').select('id, owner_name, vehicle_type, commission_mode, delivers, per_km_pkr, offers_hourly').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
       setVehicle(data)
       if (data) await reload(data.id)
       setLoading(false)
@@ -468,6 +468,11 @@ export default function MyVehiclePage() {
           <Link href="/portal/my-vehicle/catalog" className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
             <Camera size={14} /> {t('mv.catalogBtn')}
           </Link>
+          {vehicle.offers_hourly && (
+            <Link href="/portal/my-vehicle/hourly" className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+              <Clock3 size={14} /> {t('vp.myHourlyBookingsHeading')}
+            </Link>
+          )}
           <button onClick={() => setShowPostTrip(true)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
             <PlusCircle size={14} /> {t('cm.postTripBtn')}
           </button>
