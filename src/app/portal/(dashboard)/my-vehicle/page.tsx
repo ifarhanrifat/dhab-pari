@@ -11,7 +11,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bus, Wallet, Clock, CheckCircle2, XCircle, MapPin, PlusCircle, X, Navigation, Signpost, LogOut, SkipForward, Timer, Trophy, Pencil, Truck, Package, MessageCircle, CalendarClock, Trash2, Ban, Camera, Clock3, Users2 } from 'lucide-react'
+import { Bus, Wallet, Clock, CheckCircle2, XCircle, MapPin, PlusCircle, X, Navigation, Signpost, LogOut, SkipForward, Timer, Trophy, Pencil, Truck, Package, MessageCircle, CalendarClock, Trash2, Ban, Camera, Clock3, Users2, ShoppingBag } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -218,16 +218,18 @@ export default function MyVehiclePage() {
   const [weekendForm, setWeekendForm] = useState({ city_id: '', direction: 'to_village', day_of_week: 6, seats_total: 1, fare_per_seat_pkr: 0 })
   const [negotiationInbox, setNegotiationInbox] = useState<{ id: string; kind: string; status: string; item: string | null; last_message: string | null; as_role: string }[]>([])
   const [dispatchInvites, setDispatchInvites] = useState<{ call_id: string; item: string; address: string; goods_budget_pkr: number; tier: number; shop_name: string; city_name: string; customer_trust: Trust | null }[]>([])
+  const [cityPurchaseInvites, setCityPurchaseInvites] = useState<{ request_id: string; item: string; goods_budget_pkr: number; pickup_label: string | null; source: string; reference_destination: string | null; city_name: string; city_name_ur: string | null }[]>([])
   const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 
   const reloadVillagePortal = async (vehicleId: string) => {
-    const [{ data: p }, { data: sc }, { data: offers }, { data: wo }, { data: inbox }, { data: invites }] = await Promise.all([
+    const [{ data: p }, { data: sc }, { data: offers }, { data: wo }, { data: inbox }, { data: invites }, { data: cpInvites }] = await Promise.all([
       supabase.from('vehicle_city_presence').select('city_id, expected_return_at, cities(name)').eq('vehicle_id', vehicleId).eq('is_active', true).maybeSingle(),
       supabase.from('service_classes').select('id, name, name_ur, delivery_eligible, ride_eligible').eq('is_active', true).order('display_order'),
       supabase.from('vehicle_service_offers').select('service_class_id').eq('vehicle_id', vehicleId).eq('is_active', true),
       supabase.rpc('my_weekend_share_offers', { p_vehicle_id: vehicleId }),
       supabase.rpc('my_negotiation_threads'),
       supabase.rpc('my_dispatch_invitations', { p_vehicle_id: vehicleId }),
+      supabase.rpc('my_city_purchase_invitations', { p_vehicle_id: vehicleId }),
     ])
     setPresence(p ? { city_id: p.city_id, city_name: (p.cities as unknown as { name: string })?.name ?? '', expected_return_at: p.expected_return_at } : null)
     setServiceClasses(sc ?? [])
@@ -235,6 +237,7 @@ export default function MyVehiclePage() {
     setWeekendOffers((wo ?? []) as typeof weekendOffers)
     setNegotiationInbox(((inbox ?? []) as typeof negotiationInbox).filter((th) => th.as_role === 'driver'))
     setDispatchInvites((invites ?? []) as typeof dispatchInvites)
+    setCityPurchaseInvites((cpInvites ?? []) as typeof cityPurchaseInvites)
   }
   useEffect(() => {
     supabase.from('cities').select('id, name, name_ur').eq('is_active', true).order('display_order').then(({ data }) => setCities(data ?? []))
@@ -758,6 +761,21 @@ export default function MyVehiclePage() {
                   <button onClick={() => respondDispatchInvite(c.call_id, 'accept')} disabled={vpSaving} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer bg-dp-secondary text-white hover:bg-dp-primary disabled:opacity-50">{t('vp.acceptDeliveryBtn')}</button>
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {cityPurchaseInvites.length > 0 && (
+        <div className="mb-8">
+          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><ShoppingBag size={13} /> {t('vp.incomingCityPurchaseHeading')}</p>
+          <div className="space-y-2">
+            {cityPurchaseInvites.map((r) => (
+              <Link key={r.request_id} href={`/portal/marketplace/city-purchase/${r.request_id}`} className="block bg-amber-50 border border-amber-200 rounded-lg p-3.5 hover:border-amber-400 transition-colors">
+                <p className="font-sans text-[13px] font-semibold text-dp-on-surface">{r.item}</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{isUrdu && r.city_name_ur ? r.city_name_ur : r.city_name}{r.pickup_label ? ` · ${r.pickup_label}` : ''}</p>
+                <p className="font-sans text-[12px] text-dp-secondary font-semibold mt-1">{t('vp.tapToRespondHint')}</p>
+              </Link>
             ))}
           </div>
         </div>

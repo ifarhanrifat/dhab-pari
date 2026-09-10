@@ -18,7 +18,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 interface Props {
   onUpload: (path: string) => void
   label?: string
-  bucket?: 'donation_receipts' | 'bill_payment_proofs' | 'wazifa_agreement_documents' | 'vehicle_registration_documents'
+  bucket?: 'donation_receipts' | 'bill_payment_proofs' | 'wazifa_agreement_documents' | 'vehicle_registration_documents' | 'city_purchase_attachments'
 }
 
 const MAX_SIZE = 5 * 1024 * 1024

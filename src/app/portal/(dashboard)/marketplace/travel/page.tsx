@@ -109,6 +109,7 @@ export default function MarketplaceTravelPage() {
           <div className="pe-3.5 shrink-0"><PriceTag model="fixed" /></div>
         </a>
         <TravelTile href="/portal/marketplace/order-city" model="negotiated" title={t('vp.dispatchPageTitle')} subtitle={t('vp.orderCityCardHint')} />
+        <TravelTile href="/portal/marketplace/city-purchase" model="negotiated" title={t('vp.cityPurchasePageTitle')} subtitle={t('vp.cityPurchaseCardHint')} />
         <TravelTile href="/portal/marketplace/pro" model="formula" title={t('vp.proPageTitle')} subtitle={t('vp.proCardHint')} />
         <TravelTile href="/portal/marketplace/commute" model="negotiated" title={t('vp.commutePageTitle')} subtitle={t('vp.commuteCardHint')} />
         <TravelTile href="/portal/marketplace/trips" model="negotiated" title={t('cm.tripsPageTitle')} subtitle={t('cm.tripsCardHint')} />
