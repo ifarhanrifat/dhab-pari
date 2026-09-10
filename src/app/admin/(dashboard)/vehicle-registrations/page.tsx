@@ -22,9 +22,11 @@ interface Request {
   vehicle_type: string; vehicle_number: string | null; model: string | null; color: string | null; total_seats: number
   owner_id_card_url: string; license_url: string; vehicle_doc_url: string; driver_photo_url: string
   wants_delivers: boolean; wants_hourly: boolean; wants_shadi: boolean; wants_out_of_city: boolean; wants_night_booking: boolean
+  wants_service_class_ids: string[]
   status: 'pending' | 'approved' | 'rejected'; is_village_resident: boolean | null; rejection_reason: string | null
   created_at: string; reviewed_at: string | null; submitter_name: string; submitter_mobile: string | null
 }
+interface ServiceClass { id: string; name: string; name_ur: string | null }
 
 const DOC_FIELDS = [
   ['owner_id_card', 'vr.ownerIdCardLabel'], ['license', 'vr.licenseLabel'],
@@ -46,6 +48,12 @@ export default function AdminVehicleRegistrationsPage() {
   const [rejectReason, setRejectReason] = useState('')
   const [rejectingId, setRejectingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [serviceClasses, setServiceClasses] = useState<ServiceClass[]>([])
+  const [confirmedClassIds, setConfirmedClassIds] = useState<string[]>([])
+
+  useEffect(() => {
+    supabase.from('service_classes').select('id, name, name_ur').eq('is_active', true).order('display_order').then(({ data }) => setServiceClasses(data ?? []))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = async (status: typeof tab) => {
     setLoading(true)
@@ -59,6 +67,7 @@ export default function AdminVehicleRegistrationsPage() {
   const expand = async (r: Request) => {
     if (expandedId === r.id) { setExpandedId(null); return }
     setExpandedId(r.id); setIsVillageResident(true); setPerKm(''); setHourlyRate(''); setHourlyKm(''); setHourlyOverage(''); setShadiRate(''); setRejectingId(null)
+    setConfirmedClassIds(r.wants_service_class_ids ?? [])
     const urls: Record<string, string> = {}
     await Promise.all(DOC_FIELDS.map(async ([which]) => {
       const { data: path } = await supabase.rpc('admin_vehicle_registration_document_path', { p_request_id: r.id, p_which: which })
@@ -79,6 +88,7 @@ export default function AdminVehicleRegistrationsPage() {
       p_hourly_included_km: r.wants_hourly ? Number(hourlyKm) : null,
       p_hourly_overage_per_km_pkr: r.wants_hourly ? Number(hourlyOverage) : null,
       p_shadi_full_day_rate_pkr: r.wants_shadi ? Number(shadiRate) : null,
+      p_service_class_ids: confirmedClassIds,
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -180,6 +190,27 @@ export default function AdminVehicleRegistrationsPage() {
                     )}
                     {r.wants_shadi && (
                       <input type="number" value={shadiRate} onChange={(e) => setShadiRate(e.target.value)} placeholder={t('mk.shadiRatePlaceholder')} className="input-field" />
+                    )}
+
+                    {serviceClasses.length > 0 && (
+                      <div>
+                        <p className="font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1.5">{t('vreg.confirmServiceClassesLabel')}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {serviceClasses.map((sc) => {
+                            const on = confirmedClassIds.includes(sc.id)
+                            const wasRequested = r.wants_service_class_ids?.includes(sc.id)
+                            return (
+                              <button key={sc.id} type="button"
+                                onClick={() => setConfirmedClassIds((ids) => ids.includes(sc.id) ? ids.filter((x) => x !== sc.id) : [...ids, sc.id])}
+                                className={`px-2.5 py-1.5 rounded-full text-[12px] font-sans font-semibold cursor-pointer transition-colors ${on ? 'bg-dp-secondary text-white' : 'bg-dp-surface-container text-dp-on-surface-variant border border-dp-outline-variant'}`}
+                                title={wasRequested ? t('vreg.driverRequestedThisNote') : undefined}>
+                                {isUrdu && sc.name_ur ? sc.name_ur : sc.name}{wasRequested && !on ? ' *' : ''}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <p className="font-sans text-[10.5px] text-dp-on-surface-variant mt-1">{t('vreg.serviceClassesConfirmHint')}</p>
+                      </div>
                     )}
 
                     <div className="flex gap-2">

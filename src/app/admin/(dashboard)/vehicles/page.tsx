@@ -111,6 +111,11 @@ function AdminVehiclesInner() {
   const [showVehicleForm, setShowVehicleForm] = useState(false)
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null)
   const [vehicleForm, setVehicleForm] = useState(emptyVehicle)
+  const [serviceClasses, setServiceClasses] = useState<{ id: string; name: string; name_ur: string | null }[]>([])
+  const [vehicleClassIds, setVehicleClassIds] = useState<string[]>([])
+  useEffect(() => {
+    supabase.from('service_classes').select('id, name, name_ur').eq('is_active', true).order('display_order').then(({ data }) => setServiceClasses(data ?? []))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [rates, setRates] = useState<TypeRate[]>([])
   const [showRates, setShowRates] = useState(false)
@@ -411,7 +416,7 @@ function AdminVehiclesInner() {
     if (selected) loadBookings(selected.id)
   }
 
-  const openNewVehicle = () => { setEditingVehicle(null); setVehicleForm(emptyVehicle); setShowVehicleForm(true) }
+  const openNewVehicle = () => { setEditingVehicle(null); setVehicleForm(emptyVehicle); setVehicleClassIds([]); setShowVehicleForm(true) }
   const openEditVehicle = (v: Vehicle) => {
     setEditingVehicle(v)
     setVehicleForm({
@@ -427,6 +432,7 @@ function AdminVehiclesInner() {
       supabase.from('portal_users').select('full_name, mobile').eq('id', v.portal_user_id).maybeSingle()
         .then(({ data }) => setKeeperName(data ? `${data.full_name} (${data.mobile})` : null))
     } else setKeeperName(null)
+    supabase.from('vehicle_service_offers').select('service_class_id').eq('vehicle_id', v.id).then(({ data }) => setVehicleClassIds((data ?? []).map((o) => o.service_class_id)))
     setShowVehicleForm(true)
   }
 
@@ -437,11 +443,26 @@ function AdminVehiclesInner() {
       ...vehicleForm, owner_mobile: vehicleForm.owner_mobile || null, owner_whatsapp: vehicleForm.owner_whatsapp || null, vehicle_number: vehicleForm.vehicle_number || null,
       lumpsum_fee_pkr: vehicleForm.commission_mode === 'monthly_lumpsum' ? vehicleForm.lumpsum_fee_pkr : null,
     }
-    const { error } = editingVehicle
-      ? await supabase.from('vehicles').update(payload).eq('id', editingVehicle.id)
-      : await supabase.from('vehicles').insert(payload)
+    let vehicleId = editingVehicle?.id ?? null
+    if (editingVehicle) {
+      const { error } = await supabase.from('vehicles').update(payload).eq('id', editingVehicle.id)
+      if (error) { setSaving(false); toast.error(friendlyError(error, undefined, isUrdu)); return }
+    } else {
+      const { data, error } = await supabase.from('vehicles').insert(payload).select('id').single()
+      if (error) { setSaving(false); toast.error(friendlyError(error, undefined, isUrdu)); return }
+      vehicleId = data.id
+    }
+    // sync service-class assignment (admin-only per migration 492) to match the checklist
+    if (vehicleId) {
+      const { data: existing } = await supabase.from('vehicle_service_offers').select('service_class_id').eq('vehicle_id', vehicleId)
+      const existingIds = new Set((existing ?? []).map((o) => o.service_class_id))
+      const wantedIds = new Set(vehicleClassIds)
+      const toAdd = vehicleClassIds.filter((id) => !existingIds.has(id))
+      const toRemove = [...existingIds].filter((id) => !wantedIds.has(id))
+      if (toAdd.length > 0) await supabase.from('vehicle_service_offers').insert(toAdd.map((service_class_id) => ({ vehicle_id: vehicleId, service_class_id })))
+      if (toRemove.length > 0) await supabase.from('vehicle_service_offers').delete().eq('vehicle_id', vehicleId).in('service_class_id', toRemove)
+    }
     setSaving(false)
-    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('mk.vehicleSaved'))
     setShowVehicleForm(false)
     load()
@@ -800,6 +821,24 @@ function AdminVehiclesInner() {
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={vehicleForm.night_booking_enabled} onChange={(e) => setVehicleForm({ ...vehicleForm, night_booking_enabled: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('af.nightBookingLabel')}</span></label>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={vehicleForm.allows_out_of_city} onChange={(e) => setVehicleForm({ ...vehicleForm, allows_out_of_city: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('mk.allowsOutOfCityLabel')}</span></label>
               <p className="font-sans text-[11px] text-dp-on-surface-variant -mt-1.5">{t('mk.allowsOutOfCityHint')}</p>
+              {serviceClasses.length > 0 && (
+                <div>
+                  <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('mk.serviceClassesLabel')}</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {serviceClasses.map((sc) => {
+                      const on = vehicleClassIds.includes(sc.id)
+                      return (
+                        <button key={sc.id} type="button"
+                          onClick={() => setVehicleClassIds((ids) => ids.includes(sc.id) ? ids.filter((x) => x !== sc.id) : [...ids, sc.id])}
+                          className={`px-2.5 py-1.5 rounded-full text-[12px] font-sans font-semibold cursor-pointer transition-colors ${on ? 'bg-dp-secondary text-white' : 'bg-dp-surface-container text-dp-on-surface-variant border border-dp-outline-variant'}`}>
+                          {isUrdu && sc.name_ur ? sc.name_ur : sc.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('mk.serviceClassesHint')}</p>
+                </div>
+              )}
               <div>
                 <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.perKmRateLabel')}</label>
                 <input type="number" value={vehicleForm.per_km_pkr ?? ''} onChange={(e) => setVehicleForm({ ...vehicleForm, per_km_pkr: e.target.value === '' ? null : +e.target.value })} className="input-field" placeholder="0" />

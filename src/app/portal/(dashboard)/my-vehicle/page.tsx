@@ -298,12 +298,6 @@ export default function MyVehiclePage() {
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     reloadVillagePortal(vehicle.id)
   }
-  const toggleServiceOffer = async (serviceClassId: string, offering: boolean) => {
-    if (!vehicle) return
-    if (offering) await supabase.from('vehicle_service_offers').delete().eq('vehicle_id', vehicle.id).eq('service_class_id', serviceClassId)
-    else await supabase.from('vehicle_service_offers').insert({ vehicle_id: vehicle.id, service_class_id: serviceClassId })
-    reloadVillagePortal(vehicle.id)
-  }
   const addWeekendOffer = async () => {
     if (!vehicle || !weekendForm.city_id || !weekendForm.fare_per_seat_pkr) { toast.error(t('vp.fillWeekendFormError')); return }
     setVpSaving(true)
@@ -791,19 +785,21 @@ export default function MyVehiclePage() {
         </div>
       </div>
 
-      <div className="mb-8">
-        <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><Truck size={13} /> {t('vp.serviceOffersHeading')}</p>
-        <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex flex-wrap gap-1.5">
-          {serviceClasses.map((sc) => {
-            const on = myServiceOfferIds.has(sc.id)
-            return (
-              <button key={sc.id} onClick={() => toggleServiceOffer(sc.id, on)} className={`px-2.5 py-1.5 rounded-full text-[12px] font-sans font-semibold cursor-pointer transition-colors ${on ? 'bg-dp-secondary text-white' : 'bg-dp-surface-container text-dp-on-surface-variant border border-dp-outline-variant'}`}>
-                {isUrdu && sc.name_ur ? sc.name_ur : sc.name}
-              </button>
-            )
-          })}
+      {myServiceOfferIds.size > 0 && (
+        <div className="mb-8">
+          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><Truck size={13} /> {t('vp.serviceOffersHeading')}</p>
+          <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+            <div className="flex flex-wrap gap-1.5">
+              {serviceClasses.filter((sc) => myServiceOfferIds.has(sc.id)).map((sc) => (
+                <span key={sc.id} className="px-2.5 py-1.5 rounded-full text-[12px] font-sans font-semibold bg-dp-secondary text-white">
+                  {isUrdu && sc.name_ur ? sc.name_ur : sc.name}
+                </span>
+              ))}
+            </div>
+            <p className="font-sans text-[11px] text-dp-on-surface-variant mt-2">{t('vp.serviceOffersCommitteeNote')}</p>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2.5">

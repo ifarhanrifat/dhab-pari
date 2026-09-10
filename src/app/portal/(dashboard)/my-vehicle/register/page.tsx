@@ -23,12 +23,14 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 
 interface RegStatus { id: string; status: 'pending' | 'approved' | 'rejected'; rejection_reason: string | null; created_at: string }
+interface ServiceClass { id: string; name: string; name_ur: string | null; category: string }
 
 const emptyForm = {
   owner_name: '', cnic_number: '', father_husband_name: '', address: '',
   vehicle_type: '', vehicle_number: '', model: '', color: '', total_seats: 4,
   owner_id_card_url: '', license_url: '', vehicle_doc_url: '', driver_photo_url: '',
   wants_delivers: false, wants_hourly: false, wants_shadi: false, wants_out_of_city: false, wants_night_booking: false,
+  wants_service_class_ids: [] as string[],
 }
 
 export default function VehicleRegisterPage() {
@@ -40,11 +42,17 @@ export default function VehicleRegisterPage() {
   const [status, setStatus] = useState<RegStatus | null | undefined>(undefined)
   const [form, setForm] = useState(emptyForm)
   const [submitting, setSubmitting] = useState(false)
+  const [serviceClasses, setServiceClasses] = useState<ServiceClass[]>([])
 
   useEffect(() => {
     if (!user) return
     supabase.rpc('my_vehicle_registration_status').then(({ data }) => setStatus(data ?? null))
+    supabase.from('service_classes').select('id, name, name_ur, category').eq('is_active', true).order('display_order').then(({ data }) => setServiceClasses(data ?? []))
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleServiceClass = (id: string) => {
+    setForm((f) => ({ ...f, wants_service_class_ids: f.wants_service_class_ids.includes(id) ? f.wants_service_class_ids.filter((x) => x !== id) : [...f.wants_service_class_ids, id] }))
+  }
 
   const submit = async () => {
     if (!form.owner_name.trim() || !form.cnic_number.trim() || !form.address.trim() || !form.vehicle_type.trim()) {
@@ -59,6 +67,7 @@ export default function VehicleRegisterPage() {
       p_vehicle_type: form.vehicle_type, p_vehicle_number: form.vehicle_number || null, p_model: form.model || null, p_color: form.color || null, p_total_seats: form.total_seats,
       p_owner_id_card_url: form.owner_id_card_url, p_license_url: form.license_url, p_vehicle_doc_url: form.vehicle_doc_url, p_driver_photo_url: form.driver_photo_url,
       p_wants_delivers: form.wants_delivers, p_wants_hourly: form.wants_hourly, p_wants_shadi: form.wants_shadi, p_wants_out_of_city: form.wants_out_of_city, p_wants_night_booking: form.wants_night_booking,
+      p_wants_service_class_ids: form.wants_service_class_ids,
     })
     setSubmitting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -142,6 +151,25 @@ export default function VehicleRegisterPage() {
           </label>
         ))}
       </div>
+
+      {serviceClasses.length > 0 && (
+        <>
+          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('vr.serviceClassesHeading')}</p>
+          <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-6">
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2.5">{t('vr.serviceClassesHint')}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {serviceClasses.map((sc) => {
+                const on = form.wants_service_class_ids.includes(sc.id)
+                return (
+                  <button key={sc.id} type="button" onClick={() => toggleServiceClass(sc.id)} className={`px-2.5 py-1.5 rounded-full text-[12px] font-sans font-semibold cursor-pointer transition-colors ${on ? 'bg-dp-secondary text-white' : 'bg-dp-surface-container text-dp-on-surface-variant border border-dp-outline-variant'}`}>
+                    {isUrdu && sc.name_ur ? sc.name_ur : sc.name}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </>
+      )}
 
       <button onClick={submit} disabled={submitting} className="w-full flex items-center justify-center gap-1.5 py-3 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
         <CheckCircle2 size={16} /> {submitting ? t('action.saving') : t('vr.submitBtn')}
