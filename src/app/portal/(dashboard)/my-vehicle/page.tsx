@@ -11,7 +11,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bus, Wallet, TrendingUp, Clock, CheckCircle2, XCircle, MapPin, PlusCircle, X, Navigation, Signpost, LogOut, SkipForward, Timer, Trophy, Pencil, Truck, Package, MessageCircle, CalendarClock, Trash2, Ban, Camera, Clock3, Users2 } from 'lucide-react'
+import { Bus, Wallet, Clock, CheckCircle2, XCircle, MapPin, PlusCircle, X, Navigation, Signpost, LogOut, SkipForward, Timer, Trophy, Pencil, Truck, Package, MessageCircle, CalendarClock, Trash2, Ban, Camera, Clock3, Users2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -44,9 +44,10 @@ const emptyTripOffer = {
 }
 interface Summary {
   balance_pkr: number; commission_mode: string; lumpsum_fee_pkr: number | null
-  today_earnings_pkr: number; month_earnings_pkr: number; pending_bookings_count: number
+  today_earnings_pkr: number; month_earnings_pkr: number; today_jobs_count: number; month_jobs_count: number; pending_bookings_count: number
   last_settlement_date: string | null; last_settlement_amount: number | null
 }
+interface LedgerRow { kind: string; label: string; amount: number; at: string }
 interface Booking {
   id: string; status: string; total_amount_pkr: number; seats: number; travel_date: string; rejected_reason: string | null
   vehicle_routes: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null
@@ -88,9 +89,10 @@ export default function MyVehiclePage() {
   const [counterAmount, setCounterAmount] = useState<Record<string, number>>({})
   const [bandByTrip, setBandByTrip] = useState<Record<string, { min: number; max: number; fair: number }>>({})
   const [trustByFareOffer, setTrustByFareOffer] = useState<Record<string, Trust>>({})
+  const [ledger, setLedger] = useState<LedgerRow[]>([])
 
   const reload = async (vehicleId: string) => {
-    const [{ data: s }, { data: b }, { data: trips }, { data: tripB }, { data: rts }] = await Promise.all([
+    const [{ data: s }, { data: b }, { data: trips }, { data: tripB }, { data: rts }, { data: led }] = await Promise.all([
       supabase.rpc('vehicle_dashboard_summary', { p_vehicle_id: vehicleId }),
       supabase.from('ride_bookings').select('id, status, total_amount_pkr, seats, travel_date, rejected_reason, vehicle_routes!inner(vehicle_id, origin, origin_ur, destination, destination_ur)')
         .eq('vehicle_routes.vehicle_id', vehicleId).order('created_at', { ascending: false }).limit(20),
@@ -99,8 +101,10 @@ export default function MyVehiclePage() {
         .eq('vehicle_id', vehicleId).order('created_at', { ascending: false }).limit(20),
       supabase.from('vehicle_routes').select('id, origin, origin_ur, destination, destination_ur, fare_mode, fare_per_seat_pkr, total_fare_pkr, is_active')
         .eq('vehicle_id', vehicleId).order('created_at', { ascending: false }),
+      supabase.rpc('vehicle_today_ledger', { p_vehicle_id: vehicleId }),
     ])
     setSummary(s as unknown as Summary)
+    setLedger((led ?? []) as LedgerRow[])
     setBookings((b ?? []) as unknown as Booking[])
     setTripOffers(trips ?? [])
     setTripBookings((tripB ?? []) as unknown as TripBooking[])
@@ -517,23 +521,38 @@ export default function MyVehiclePage() {
       </div>
       <p className="font-sans text-[13px] text-dp-on-surface-variant mb-5">{vehicle.vehicle_type}</p>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
-          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant flex items-center gap-1"><Wallet size={12} /> {t('cm.balanceLabel')}</p>
-          <p className="font-heading text-[19px] font-bold text-dp-primary mt-1">{fmt(summary?.balance_pkr ?? 0)}</p>
+      <div className="flex items-center gap-1 bg-white border border-dp-outline-variant rounded-lg p-1 mb-3 w-fit">
+        <span className={`px-3 py-1.5 rounded-md text-[12px] font-sans font-semibold ${summary?.commission_mode === 'monthly_lumpsum' ? 'bg-dp-primary text-white' : 'text-dp-on-surface-variant'}`}>{t('mv.lumpsumModeLabel')}</span>
+        <span className={`px-3 py-1.5 rounded-md text-[12px] font-sans font-semibold ${summary?.commission_mode === 'per_order' ? 'bg-dp-primary text-white' : 'text-dp-on-surface-variant'}`}>{t('mv.perOrderModeLabel')}</span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div className="bg-dp-secondary rounded-lg p-4">
+          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-white/75">{t('mv.thisMonthLabel')}</p>
+          <p className="font-heading text-[24px] font-bold text-white mt-1 ltr-num">{fmt(summary?.month_earnings_pkr ?? 0)}</p>
+          <p className="font-sans text-[11.5px] text-white/75 mt-0.5 ltr-num">{summary?.month_jobs_count ?? 0} {t('mv.jobsSuffix')}</p>
         </div>
-        <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
-          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant flex items-center gap-1"><TrendingUp size={12} /> {t('cm.todayEarningsLabel')}</p>
-          <p className="font-heading text-[19px] font-bold text-dp-secondary mt-1">{fmt(summary?.today_earnings_pkr ?? 0)}</p>
+        <div className="bg-dp-primary rounded-lg p-4">
+          <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.06em] text-white/75">{t('mv.todayLabel')}</p>
+          <p className="font-heading text-[24px] font-bold text-white mt-1 ltr-num">{fmt(summary?.today_earnings_pkr ?? 0)}</p>
+          <p className="font-sans text-[11.5px] text-white/75 mt-0.5 ltr-num">{summary?.today_jobs_count ?? 0} {t('mv.jobsSuffix')}</p>
         </div>
-        <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
-          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant">{t('cm.monthEarningsLabel')}</p>
-          <p className="font-heading text-[19px] font-bold text-dp-secondary mt-1">{fmt(summary?.month_earnings_pkr ?? 0)}</p>
+      </div>
+
+      <div className={`rounded-lg p-3.5 mb-3 border ${(summary?.balance_pkr ?? 0) < 0 ? 'bg-amber-50 border-amber-300' : 'bg-white border-dp-outline-variant'}`}>
+        <div className="flex items-center justify-between gap-2">
+          {(summary?.balance_pkr ?? 0) < 0 && <span className="font-sans text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200 text-amber-900">{summary?.pending_bookings_count ?? 0} {t('cm.pendingOrdersTag')}</span>}
+          <p className="font-sans text-[11px] font-bold uppercase tracking-[0.06em] text-dp-on-surface-variant ms-auto">{t('cm.balanceLabel')}</p>
         </div>
-        <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
-          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant flex items-center gap-1"><Clock size={12} /> {t('cm.pendingOrdersTag')}</p>
-          <p className="font-heading text-[19px] font-bold text-amber-700 mt-1">{summary?.pending_bookings_count ?? 0}</p>
-        </div>
+        <p className={`font-heading text-[26px] font-bold mt-1 ltr-num ${(summary?.balance_pkr ?? 0) < 0 ? 'text-amber-700' : 'text-dp-primary'}`}>{fmt(summary?.balance_pkr ?? 0)}</p>
+        {summary?.commission_mode === 'per_order' && (summary?.balance_pkr ?? 0) < 0 && (
+          <>
+            <p className="font-sans text-[12px] text-amber-800 mt-1.5">{t('mv.negativeBalanceNote')}</p>
+            <button onClick={() => setShowTopup(true)} className="w-full mt-2.5 flex items-center justify-center gap-1.5 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
+              <Wallet size={14} /> {t('cm.topupWalletBtn')}
+            </button>
+          </>
+        )}
       </div>
 
       {summary?.commission_mode === 'monthly_lumpsum' && (
@@ -544,6 +563,28 @@ export default function MyVehiclePage() {
 
       {summary?.last_settlement_date && (
         <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-6">{t('cm.lastSettlementLabel')} <span className="font-semibold text-dp-on-surface">{fmt(summary.last_settlement_amount ?? 0)}</span> — {new Date(summary.last_settlement_date).toLocaleDateString('en-GB')}</p>
+      )}
+
+      {ledger.length > 0 && (
+        <div className="mb-8">
+          <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('mv.todaysLedgerHeading')}</p>
+          <div className="bg-white border border-dp-outline-variant rounded-lg divide-y divide-dp-outline-variant/60">
+            {ledger.map((row, i) => (
+              <div key={i} className="flex items-center justify-between gap-3 p-3">
+                <div className="min-w-0">
+                  <p className="font-sans text-[13px] font-semibold text-dp-on-surface truncate">{row.label}</p>
+                  <p className="font-sans text-[11px] text-dp-on-surface-variant mt-0.5">{t(`mv.ledgerKind.${row.kind}`)} · {new Date(row.at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</p>
+                </div>
+                <p className="font-sans text-[13.5px] font-bold text-dp-on-surface shrink-0 ltr-num">{fmt(row.amount)}</p>
+              </div>
+            ))}
+            <div className="flex items-center justify-between gap-3 p-3 bg-dp-surface-container/60">
+              <p className="font-sans text-[13px] font-bold text-dp-on-surface">{t('mv.totalReceivedLabel')}</p>
+              <p className="font-sans text-[14px] font-bold text-dp-secondary ltr-num">{fmt(ledger.reduce((sum, r) => sum + Number(r.amount || 0), 0))}</p>
+            </div>
+          </div>
+          <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1.5 leading-[1.7]">{t('mv.ledgerFootnote')}</p>
+        </div>
       )}
 
       <div className="mb-8">
