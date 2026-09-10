@@ -18,8 +18,10 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 interface TripOffer {
   id: string; trip_type: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   classification: string; travel_date: string; departure_time_estimate: string | null; seats_available: number; listed_fare_per_seat_pkr: number
+  distance_km: number | null
   vehicles: { owner_name: string; vehicle_type: string } | null
 }
+interface FareBand { min: number; max: number; fair: number }
 interface MyFareOffer {
   id: string; trip_offer_id: string; seats_requested: number; proposed_fare_per_seat_pkr: number; counter_fare_per_seat_pkr: number | null; status: string
   vehicle_trip_offers: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null
@@ -46,6 +48,7 @@ export default function TripsPage() {
   const [seatsForm, setSeatsForm] = useState<Record<string, number>>({})
   const [fareForm, setFareForm] = useState<Record<string, number>>({})
   const [actionId, setActionId] = useState<string | null>(null)
+  const [bandByTrip, setBandByTrip] = useState<Record<string, FareBand>>({})
 
   const reload = async () => {
     const [{ data: o }, { data: mo }, { data: mb }] = await Promise.all([
@@ -71,6 +74,17 @@ export default function TripsPage() {
     setLoading(false)
   }
   useEffect(() => { if (user) reload() }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A suggested band ("no floor/ceiling" was the actual reported
+  // problem) only exists once a trip carries a driver-entered distance —
+  // older/legacy trips without one stay exactly as freeform as before.
+  useEffect(() => {
+    const withDistance = offers.filter((o) => o.distance_km != null && !(o.id in bandByTrip))
+    if (withDistance.length === 0) return
+    Promise.all(withDistance.map((o) => supabase.rpc('fare_band_for', { p_flow: 'trip_share', p_km: o.distance_km }).then(({ data }) => [o.id, data] as const)))
+      .then((pairs) => setBandByTrip((prev) => ({ ...prev, ...Object.fromEntries(pairs) })))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offers])
 
   const propose = async (tripId: string) => {
     const seats = seatsForm[tripId] ?? 1
@@ -167,6 +181,11 @@ export default function TripsPage() {
               <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{o.vehicles?.owner_name} · {o.vehicles?.vehicle_type} · {new Date(o.travel_date).toLocaleDateString('en-GB')}{o.departure_time_estimate ? ` · ${o.departure_time_estimate.slice(0, 5)}` : ''}</p>
               <p className="font-sans text-[13.5px] font-bold text-dp-secondary mt-1">{fmt(o.listed_fare_per_seat_pkr)} <span className="font-normal text-dp-on-surface-variant text-[11.5px]">{t('cm.askingPerSeat')}</span> · <span className="font-normal text-dp-on-surface-variant text-[11.5px] ltr-num">{o.seats_available} {t('mk.seatsLabel')}</span></p>
 
+              {bandByTrip[o.id] && (
+                <p className="font-sans text-[11px] text-dp-secondary mt-2 ltr-num">
+                  {t('cm.suggestedBandHint').replace('{min}', fmt(bandByTrip[o.id].min)).replace('{max}', fmt(bandByTrip[o.id].max)).replace('{fair}', fmt(bandByTrip[o.id].fair))}
+                </p>
+              )}
               <div className="flex items-center gap-2 mt-3 pt-3 border-t border-dp-outline-variant/60">
                 <input type="number" min={1} max={o.seats_available} value={seatsForm[o.id] ?? 1} onChange={(e) => setSeatsForm({ ...seatsForm, [o.id]: +e.target.value })} className="input-field w-16 !py-2 !text-[13px]" />
                 <input type="number" value={fareForm[o.id] ?? ''} onChange={(e) => setFareForm({ ...fareForm, [o.id]: +e.target.value })} placeholder={t('cm.yourFareOfferPlaceholder')} className="input-field flex-1 !py-2 !text-[13px]" />

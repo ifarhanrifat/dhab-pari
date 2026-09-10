@@ -27,7 +27,7 @@ interface Vehicle { id: string; owner_name: string; vehicle_type: string; commis
 interface TripOffer {
   id: string; trip_type: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   classification: string; travel_date: string; seats_available: number; listed_fare_per_seat_pkr: number; status: string
-  share_live_location: boolean
+  share_live_location: boolean; distance_km: number | null
 }
 interface FareOffer {
   id: string; trip_offer_id: string; seats_requested: number; proposed_fare_per_seat_pkr: number
@@ -39,7 +39,7 @@ interface TripBooking {
 }
 const emptyTripOffer = {
   trip_type: 'oneway' as string, origin: '', origin_ur: '', destination: '', destination_ur: '', classification: 'intercity',
-  travel_date: '', departure_time_estimate: '', seats_available: 1, listed_fare_per_seat_pkr: 0,
+  travel_date: '', departure_time_estimate: '', seats_available: 1, listed_fare_per_seat_pkr: 0, distance_km: '' as string,
 }
 interface Summary {
   balance_pkr: number; commission_mode: string; lumpsum_fee_pkr: number | null
@@ -85,6 +85,7 @@ export default function MyVehiclePage() {
   const [tripForm, setTripForm] = useState(emptyTripOffer)
   const [posting, setPosting] = useState(false)
   const [counterAmount, setCounterAmount] = useState<Record<string, number>>({})
+  const [bandByTrip, setBandByTrip] = useState<Record<string, { min: number; max: number; fair: number }>>({})
 
   const reload = async (vehicleId: string) => {
     const [{ data: s }, { data: b }, { data: trips }, { data: tripB }, { data: rts }] = await Promise.all([
@@ -114,6 +115,17 @@ export default function MyVehiclePage() {
       setFareOffersByTrip(grouped)
     } else setFareOffersByTrip({})
   }
+
+  // Same suggested band the rider sees when proposing — the driver's own
+  // counter control reads the identical fare_band_for() so neither side
+  // ever sees a different number for the same trip.
+  useEffect(() => {
+    const withDistance = tripOffers.filter((o) => o.distance_km != null && !(o.id in bandByTrip))
+    if (withDistance.length === 0) return
+    Promise.all(withDistance.map((o) => supabase.rpc('fare_band_for', { p_flow: 'trip_share', p_km: o.distance_km }).then(({ data }) => [o.id, data] as const)))
+      .then((pairs) => setBandByTrip((prev) => ({ ...prev, ...Object.fromEntries(pairs) })))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripOffers])
 
   useEffect(() => {
     if (!user) return
@@ -378,6 +390,7 @@ export default function MyVehiclePage() {
       p_classification: tripForm.classification, p_travel_date: tripForm.travel_date,
       p_departure_time_estimate: tripForm.departure_time_estimate || null,
       p_seats_available: tripForm.seats_available, p_listed_fare_per_seat_pkr: tripForm.listed_fare_per_seat_pkr,
+      p_distance_km: tripForm.distance_km ? Number(tripForm.distance_km) : null,
     })
     setPosting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -795,6 +808,11 @@ export default function MyVehiclePage() {
                       {fo.portal_users?.full_name ?? '—'} — <span className="font-bold text-dp-secondary">{fmt(fo.proposed_fare_per_seat_pkr)}</span>/{t('mk.seatsLabel')} × <span className="ltr-num">{fo.seats_requested}</span>
                       {fo.status === 'countered' && <span className="text-amber-700 font-semibold"> ({t('cm.youCountered')} {fmt(fo.counter_fare_per_seat_pkr ?? 0)})</span>}
                     </p>
+                    {fo.status === 'pending' && bandByTrip[tr.id] && (
+                      <p className="font-sans text-[10.5px] text-dp-secondary mt-1 ltr-num">
+                        {t('cm.suggestedBandHint').replace('{min}', fmt(bandByTrip[tr.id].min)).replace('{max}', fmt(bandByTrip[tr.id].max)).replace('{fair}', fmt(bandByTrip[tr.id].fair))}
+                      </p>
+                    )}
                     {fo.status === 'pending' && (
                       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                         <button onClick={() => respondFare(fo.id, 'reject')} disabled={actionId === fo.id} className="px-2.5 py-1 rounded text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container disabled:opacity-50">{t('mp.rejectBtn')}</button>
@@ -885,6 +903,11 @@ export default function MyVehiclePage() {
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('mk.totalSeatsLabel')}</label><input type="number" value={tripForm.seats_available || ''} onChange={(e) => setTripForm({ ...tripForm, seats_available: +e.target.value })} className="input-field" placeholder="1" /></div>
                 <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.listedFareLabel')}</label><input type="number" value={tripForm.listed_fare_per_seat_pkr || ''} onChange={(e) => setTripForm({ ...tripForm, listed_fare_per_seat_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>
+              </div>
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.distanceKmOptionalLabel')}</label>
+                <input type="number" value={tripForm.distance_km} onChange={(e) => setTripForm({ ...tripForm, distance_km: e.target.value })} className="input-field" placeholder={t('cm.distanceKmPlaceholder')} />
+                <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('cm.distanceKmHint')}</p>
               </div>
               <button onClick={postTripOffer} disabled={posting} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{posting ? t('action.saving') : t('cm.postTripBtn')}</button>
             </div>
