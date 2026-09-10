@@ -55,9 +55,9 @@ export default function NegotiationsInboxPage() {
                 </div>
               </div>
               <div className="shrink-0">
-                {th.status === 'agreed' && <span className="inline-flex items-center gap-1 text-emerald-700 text-[11px] font-bold"><CheckCircle2 size={11} /> {t('vp.agreedStatusLabel')}</span>}
-                {th.status === 'open' && <span className="inline-flex items-center gap-1 text-amber-700 text-[11px] font-bold"><Clock size={11} /> {t('vp.openStatusLabel')}</span>}
-                {(th.status === 'declined' || th.status === 'cancelled') && <span className="inline-flex items-center gap-1 text-dp-on-surface-variant text-[11px] font-bold"><XCircle size={11} /> {t('vp.closedStatusLabel')}</span>}
+                {th.status === 'agreed' && <span className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-1 rounded-full" style={{ background: '#e9f7ef', color: '#0f7a4d' }}><CheckCircle2 size={11} /> {t('vp.agreedStatusLabel')}</span>}
+                {th.status === 'open' && <span className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-1 rounded-full" style={{ background: '#fdf0e2', color: '#9a5714' }}><Clock size={11} /> {t('vp.openStatusLabel')}</span>}
+                {(th.status === 'declined' || th.status === 'cancelled') && <span className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-1 rounded-full" style={{ background: '#f0eded', color: '#6b6560' }}><XCircle size={11} /> {t('vp.closedStatusLabel')}</span>}
               </div>
             </Link>
           )

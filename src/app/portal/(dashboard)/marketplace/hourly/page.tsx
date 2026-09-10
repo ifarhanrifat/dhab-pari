@@ -14,6 +14,7 @@
 // one shows the final breakdown.
 
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { ArrowLeft, Car, Snowflake, MapPin, X, Clock3, Loader2, AlertCircle, CheckCircle2, Ban } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -24,6 +25,8 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
+
+const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 interface Vehicle {
   id: string; owner_name: string; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean
@@ -78,6 +81,29 @@ export default function HourlyRentalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, bookings])
 
+  // Live position — the driver's own device pings hourly_booking_locations
+  // while the job is in_progress (ping_hourly_trip_location, 475/476);
+  // same polling cadence as the one-off-trip tracking page reads it.
+  const [livePos, setLivePos] = useState<Record<string, { lat: number; lng: number }>>({})
+  useEffect(() => {
+    const active = bookings.filter((b) => b.status === 'in_progress')
+    if (tab !== 'mine' || active.length === 0) return
+    const poll = () => {
+      Promise.all(active.map((b) =>
+        supabase.from('hourly_booking_locations').select('lat, lng').eq('booking_id', b.id).order('recorded_at', { ascending: false }).limit(1).maybeSingle()
+          .then(({ data }) => [b.id, data] as const)))
+        .then((pairs) => setLivePos((prev) => {
+          const next = { ...prev }
+          for (const [id, data] of pairs) if (data) next[id] = { lat: Number(data.lat), lng: Number(data.lng) }
+          return next
+        }))
+    }
+    poll()
+    const id = setInterval(poll, 12000)
+    return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, bookings])
+
   const openBooking = (v: Vehicle) => { setOpenVehicle(v); setHours(1); setAddress('') }
 
   const submitRequest = async () => {
@@ -122,36 +148,41 @@ export default function HourlyRentalPage() {
       </div>
 
       {tab === 'browse' ? (
-        vehicles.length === 0 ? (
-          <p className="text-center py-10 text-dp-on-surface-variant font-sans text-[14px]">{t('vp.noHourlyVehiclesHint')}</p>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {vehicles.map((v) => (
-              <button key={v.id} onClick={() => openBooking(v)}
-                className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden text-start cursor-pointer hover:border-dp-secondary hover:shadow-sm transition-all flex flex-col">
-                <div className="h-28 bg-dp-surface-container-low shrink-0 flex items-center justify-center">
-                  {v.cover_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={v.cover_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <Car size={28} className="text-dp-on-surface-variant/40" />
-                  )}
-                </div>
-                <div className="p-2.5 flex-1 flex flex-col">
-                  <p className="font-sans text-[13px] font-bold text-dp-on-surface truncate">{v.model || v.vehicle_type}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    {v.color && <span className="font-sans text-[10px] text-dp-on-surface-variant">{v.color}</span>}
-                    {v.has_ac && <span className="flex items-center gap-0.5 font-sans text-[9.5px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700"><Snowflake size={9} /> {t('mv.hasAcLabel')}</span>}
-                  </div>
-                  <div className="mt-auto pt-1.5">
-                    <p className="font-heading text-[15px] font-bold text-dp-secondary ltr-num">{fmt(v.hourly_rate_pkr)}<span className="font-sans text-[10px] font-normal text-dp-on-surface-variant">/{t('mv.perHourShort')}</span></p>
-                    {v.hourly_included_km != null && <p className="font-sans text-[9.5px] text-dp-on-surface-variant ltr-num">{fmt(v.hourly_included_km)}km/{t('mv.perHourShort')} {t('mv.includedShort')}</p>}
-                  </div>
-                </div>
-              </button>
-            ))}
+        <>
+          <div className="bg-dp-primary rounded-lg p-3 mb-3">
+            <p className="font-sans text-[10.5px] font-bold uppercase tracking-[0.05em] text-white/75">{t('vp.committeeRateHeading')}</p>
+            <p className="font-sans text-[12.5px] text-white/90 mt-1 leading-[1.6]">{t('vp.hourlyFormulaNote')}</p>
           </div>
-        )
+          {vehicles.length === 0 ? (
+            <p className="text-center py-10 text-dp-on-surface-variant font-sans text-[14px]">{t('vp.noHourlyVehiclesHint')}</p>
+          ) : (
+            <div className="space-y-2">
+              {vehicles.map((v) => (
+                <button key={v.id} onClick={() => openBooking(v)}
+                  className="w-full flex items-center gap-3 bg-white border border-dp-outline-variant rounded-lg overflow-hidden text-start cursor-pointer hover:border-dp-secondary transition-colors">
+                  <div className="w-16 h-16 bg-dp-surface-container-low shrink-0 flex items-center justify-center overflow-hidden">
+                    {v.cover_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={v.cover_url} alt="" className="w-full h-full object-cover" />
+                    ) : <Car size={22} className="text-dp-on-surface-variant/40" />}
+                  </div>
+                  <div className="py-2.5 pe-1 shrink-0 min-w-[72px]">
+                    <p className="font-heading text-[16px] font-bold text-dp-secondary ltr-num leading-tight">{fmt(v.hourly_rate_pkr)}</p>
+                    <p className="font-sans text-[10px] font-bold uppercase tracking-[0.04em] text-dp-on-surface-variant">{t('mv.perHourLabel')}</p>
+                  </div>
+                  <div className="flex-1 min-w-0 py-2.5 pe-3 border-s border-dp-outline-variant/60 ps-3">
+                    <p className="font-sans text-[13.5px] font-bold text-dp-on-surface truncate">{v.model || v.vehicle_type}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      {v.color && <span className="font-sans text-[11px] text-dp-on-surface-variant">{v.color}</span>}
+                      {v.has_ac && <span className="flex items-center gap-0.5 font-sans text-[9.5px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700"><Snowflake size={9} /> {t('mv.hasAcLabel')}</span>}
+                    </div>
+                    {v.hourly_included_km != null && <p className="font-sans text-[10.5px] text-dp-on-surface-variant mt-0.5 ltr-num">{fmt(v.hourly_included_km)}km {t('mv.includedShort')}</p>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       ) : (
         bookings.length === 0 ? (
           <p className="text-center py-10 text-dp-on-surface-variant font-sans text-[14px]">{t('vp.noHourlyBookingsHint')}</p>
@@ -172,9 +203,14 @@ export default function HourlyRentalPage() {
                   <p className="flex items-center gap-1.5 font-sans text-[12px] mt-2 pt-2 border-t border-dp-outline-variant" style={{ color: '#b3261e' }}><AlertCircle size={12} /> {b.decline_reason}</p>
                 )}
                 {b.status === 'in_progress' && (
-                  <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-dp-outline-variant">
-                    <Loader2 size={12} className="animate-spin text-dp-secondary" />
-                    <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('vp.tripInProgressHint')} <span className="font-bold text-dp-secondary ltr-num">{fmt(b.distance_km)}km</span></p>
+                  <div className="mt-2 pt-2 border-t border-dp-outline-variant">
+                    <div className="flex items-center gap-1.5">
+                      <Loader2 size={12} className="animate-spin text-dp-secondary" />
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('vp.tripInProgressHint')} <span className="font-bold text-dp-secondary ltr-num">{fmt(b.distance_km)}km</span></p>
+                    </div>
+                    {livePos[b.id] && (
+                      <LeafletMap pins={[{ lat: livePos[b.id].lat, lng: livePos[b.id].lng, label: b.owner_name, emoji: '🚐' }]} height={160} className="rounded-lg mt-2" />
+                    )}
                   </div>
                 )}
                 {b.status === 'completed' && (

@@ -152,11 +152,22 @@ export default function NegotiationThreadPage() {
         {messages.map((m) => {
           if (m.kind === 'system') return <p key={m.id} className="text-center font-sans text-[11.5px] text-dp-on-surface-variant italic py-1">{m.body}{m.amount_pkr != null ? ` — Rs ${fmt(m.amount_pkr)}` : ''}</p>
           const mine = m.sender_role === myRole
+          // Mine always sits on the physical right, matching every real
+          // chat app's convention (WhatsApp/iMessage/Telegram all keep
+          // sent bubbles on the same physical side regardless of RTL) —
+          // confirmed against the prototype's own chat screen, which
+          // does exactly this rather than flipping with text direction.
+          // justify-end/-start are logical (they flip with dir="rtl"),
+          // so the sense has to invert here specifically for Urdu mode.
+          const alignEnd = isUrdu ? !mine : mine
           return (
-            <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[78%] rounded-lg px-3 py-2 ${m.kind === 'offer' ? (mine ? 'bg-dp-primary text-white' : 'bg-amber-100 text-amber-900 border border-amber-300') : mine ? 'bg-dp-secondary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface'}`}>
+            <div key={m.id} className={`flex ${alignEnd ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[78%] rounded-lg px-3 py-2 ${m.kind === 'offer' ? (mine ? 'bg-dp-secondary text-white' : 'bg-white border-2 border-dp-secondary text-dp-secondary') : mine ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface'}`}>
                 {m.kind === 'offer' ? (
-                  <p className="font-sans text-[13.5px] font-bold flex items-center gap-1.5"><HandCoins size={13} /> {t('vp.offeredLabel')} <span className="ltr-num">{fmt(m.amount_pkr ?? 0)}</span></p>
+                  <div>
+                    <p className={`font-sans text-[9.5px] font-bold uppercase tracking-[0.06em] flex items-center gap-1 ${mine ? 'text-white/75' : 'text-dp-secondary/75'}`}><HandCoins size={10} /> {t('vp.offerLabelShort')}</p>
+                    <p className="font-heading text-[19px] font-bold mt-0.5 ltr-num">{fmt(m.amount_pkr ?? 0)}</p>
+                  </div>
                 ) : (
                   <p className="font-sans text-[13.5px]">{m.body}</p>
                 )}
