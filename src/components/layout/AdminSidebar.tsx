@@ -141,6 +141,7 @@ const menuItems: {
   { href: '/admin/shops', label: 'Shops', tKey: 'nav.shops', icon: Store, system: 'donors_projects' },
   { href: '/admin/vehicles', label: 'Vehicles', tKey: 'nav.vehicles', icon: Bus, system: 'donors_projects' },
   { href: '/admin/shadi-bookings', label: 'Shadi Bookings', tKey: 'nav.shadiBookings', icon: Users2, system: 'donors_projects' },
+  { href: '/admin/marketplace-overview', label: 'Overview & Fleet Map', tKey: 'nav.marketplaceOverview', icon: LayoutDashboard, system: 'donors_projects' },
   { href: '/admin/marketplace-reference', label: 'Marketplace Reference', tKey: 'nav.marketplaceReference', icon: MapPin, system: 'donors_projects' },
   { href: '/admin/user-verification', label: 'User Verification', tKey: 'nav.userVerification', icon: ShieldCheck, system: 'donors_projects' },
   { href: '/admin/disputes', label: 'Disputes', tKey: 'nav.disputes', icon: Scale, system: 'donors_projects' },
