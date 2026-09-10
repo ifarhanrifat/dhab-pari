@@ -21,6 +21,7 @@ import { ArrowLeft, Navigation, AlertTriangle } from 'lucide-react'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -102,7 +103,7 @@ export default function TripTrackingPage() {
   ]
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme pb-16">
       <button onClick={() => router.back()} className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[13.5px] font-semibold hover:underline cursor-pointer mb-4">
         <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('mp.backToMarketplace')}
       </button>
@@ -128,6 +129,7 @@ export default function TripTrackingPage() {
           )}
         </>
       )}
+      <MarketplaceBottomNav />
     </div>
   )
 }

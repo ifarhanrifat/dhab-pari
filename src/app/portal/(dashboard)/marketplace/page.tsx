@@ -20,6 +20,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 
 interface SearchResult {
   product_id: string; product_name: string; product_name_ur: string | null; flavor: string | null; flavor_ur: string | null; unit_price_pkr: number
@@ -109,10 +110,13 @@ export default function PortalMarketplacePage() {
   if (!user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('p.couldNotLoad')}</div>
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme pb-16">
       <div className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Store size={22} className="text-dp-secondary" /> {t('mp.pageTitle')} <PortalHelp pageKey="marketplace" /></h1>
-        <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('mp.pageSubtitle')}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="font-sans text-[11px] font-bold uppercase tracking-[0.06em] text-dp-on-surface-variant">{t('mp.pageTitle')}</p>
+          <PortalHelp pageKey="marketplace" />
+        </div>
+        <h1 className="font-heading text-[30px] leading-[1.25] font-bold text-dp-primary mt-1" style={{ textWrap: 'balance' }}>{t('mp.heroHeadline')}</h1>
       </div>
 
       <div className="relative mb-6">
@@ -193,19 +197,20 @@ export default function PortalMarketplacePage() {
         </div>
       )}
 
+      <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('mp.twoPillarsHeading')}</p>
       <div className="flex flex-col gap-3 mb-6">
-        <Link href="/portal/marketplace/shops" className="flex items-center gap-3.5 bg-dp-secondary-container/60 border border-dp-secondary/25 rounded-xl p-5 hover:border-dp-secondary transition-colors">
-          <div className="w-12 h-12 rounded-xl bg-white/50 flex items-center justify-center shrink-0"><Store size={22} className="text-dp-on-secondary-container" /></div>
+        <Link href="/portal/marketplace/shops" className="flex items-center gap-3.5 bg-white border border-dp-outline-variant rounded-lg p-5 hover:border-dp-secondary transition-colors">
+          <div className="w-12 h-12 rounded-lg bg-dp-surface-container flex items-center justify-center shrink-0"><Store size={22} className="text-dp-secondary" /></div>
           <div>
-            <p className="font-heading text-[18px] font-bold text-dp-on-secondary-container">{t('mp.shopsPillarTitle')}</p>
-            <p className="font-sans text-[12.5px] text-dp-on-secondary-container/80 mt-0.5">{t('mp.shopsPillarHint')}</p>
+            <p className="font-heading text-[19px] font-bold text-dp-on-surface">{t('mp.shopsPillarTitle')}</p>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">{t('mp.shopsPillarHint')}</p>
           </div>
         </Link>
-        <Link href="/portal/marketplace/travel" className="flex items-center gap-3.5 bg-dp-primary rounded-xl p-5 hover:opacity-90 transition-opacity">
-          <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center shrink-0"><MapPinIcon /></div>
+        <Link href="/portal/marketplace/travel" className="flex items-center gap-3.5 bg-dp-secondary rounded-lg p-5 hover:opacity-90 transition-opacity">
+          <div className="w-12 h-12 rounded-lg bg-white/15 flex items-center justify-center shrink-0"><MapPinIcon /></div>
           <div>
-            <p className="font-heading text-[18px] font-bold text-white">{t('mp.travelPillarTitle')}</p>
-            <p className="font-sans text-[12.5px] text-white/75 mt-0.5">{t('mp.travelPillarHint')}</p>
+            <p className="font-heading text-[19px] font-bold text-white">{t('mp.travelPillarTitle')}</p>
+            <p className="font-sans text-[12.5px] text-white/80 mt-0.5">{t('mp.travelPillarHint')}</p>
           </div>
         </Link>
       </div>
@@ -217,6 +222,7 @@ export default function PortalMarketplacePage() {
           <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('vp.conversationsCardHint')}</p>
         </div>
       </Link>
+      <MarketplaceBottomNav />
     </div>
   )
 }

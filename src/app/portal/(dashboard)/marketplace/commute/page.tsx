@@ -15,6 +15,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 
 interface City { id: string; name: string; name_ur: string | null }
 interface MatchOffer { offer_id: string; vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; vehicle_number: string | null; depart_time: string | null; seats_free: number; fare_per_seat_pkr: number; day_of_week: number }
@@ -93,7 +94,7 @@ export default function CommutePage() {
   )
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme max-w-lg mx-auto">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme pb-16 max-w-lg mx-auto">
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><CalendarClock size={22} className="text-dp-secondary" /> {t('vp.commutePageTitle')}</h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('vp.commutePageSubtitle')}</p>
@@ -145,6 +146,7 @@ export default function CommutePage() {
           </div>
         </>
       )}
+      <MarketplaceBottomNav />
     </div>
   )
 }

@@ -17,6 +17,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
@@ -115,7 +116,7 @@ export default function RouteDetailPage() {
   if (!route) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('mp.routeNotFound')}</div>
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme pb-16">
       <button onClick={() => router.push('/portal/marketplace')} className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[13.5px] font-semibold hover:underline cursor-pointer mb-4">
         <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('mp.backToMarketplace')}
       </button>
@@ -213,6 +214,7 @@ export default function RouteDetailPage() {
         )}
       </div>
       )}
+      <MarketplaceBottomNav />
     </div>
   )
 }

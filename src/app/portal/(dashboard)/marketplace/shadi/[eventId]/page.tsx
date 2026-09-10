@@ -15,6 +15,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
 
@@ -124,7 +125,7 @@ export default function ShadiEventDetailPage() {
   const estimatedPct = 20 // shown only as a rough label before the server computes the real figure; actual pct comes from confirm_shadi_advance's own settings read
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme pb-16">
       <Link href="/portal/marketplace/shadi" className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline mb-3">
         <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('vp.shadiPageTitle')}
       </Link>
@@ -284,6 +285,7 @@ export default function ShadiEventDetailPage() {
           </div>
         </div>
       )}
+      <MarketplaceBottomNav />
     </div>
   )
 }

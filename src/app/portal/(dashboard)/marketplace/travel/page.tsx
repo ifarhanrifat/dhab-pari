@@ -13,9 +13,10 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
-import { Signpost, Home, Navigation, Truck, CalendarClock, Bus, MapPin, Clock3, Users2 } from 'lucide-react'
+import { Bus, MapPin } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
 
 const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
@@ -34,14 +35,28 @@ function fmt(n: number) { return Number(n).toLocaleString(undefined, { maximumFr
 // real back-and-forth (amber, same "pending/effort" amber already used
 // throughout this app for anything mid-negotiation).
 type PriceModel = 'fixed' | 'formula' | 'negotiated'
-const PRICE_TAG: Record<PriceModel, { label: string; bg: string; fg: string }> = {
-  fixed: { label: 'مقررہ', bg: '#e9f7ef', fg: '#0f7a4d' },
-  formula: { label: 'فارمولا', bg: '#eef1f5', fg: '#3f4c5c' },
-  negotiated: { label: 'سودا', bg: '#fdf0e2', fg: '#9a5714' },
+const PRICE_TAG: Record<PriceModel, { label: string; bg: string; fg: string; accent: string }> = {
+  fixed: { label: 'مقررہ', bg: '#e9f7ef', fg: '#0f7a4d', accent: '#0f7a4d' },
+  formula: { label: 'فارمولا', bg: '#eef1f5', fg: '#3f4c5c', accent: '#201e1d' },
+  negotiated: { label: 'سودا', bg: '#fdf0e2', fg: '#9a5714', accent: '#ec3013' },
 }
 function PriceTag({ model }: { model: PriceModel }) {
   const p = PRICE_TAG[model]
   return <span className="shrink-0 font-sans text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: p.bg, color: p.fg }}>{p.label}</span>
+}
+// Left accent bar + no icon box — the design's own travel-hub card
+// shape (a colored border reading the price model at a glance), not
+// the rainbow icon-box list this page used to be.
+function TravelTile({ href, model, title, subtitle }: { href: string; model: PriceModel; title: string; subtitle: string }) {
+  return (
+    <Link href={href} className="flex items-center gap-3 bg-white border border-dp-outline-variant rounded-lg overflow-hidden hover:border-dp-secondary transition-colors" style={{ borderInlineStartWidth: 4, borderInlineStartColor: PRICE_TAG[model].accent }}>
+      <div className="flex-1 min-w-0 py-3 ps-3.5 pe-2">
+        <p className="font-sans text-[14px] font-bold text-dp-on-surface">{title}</p>
+        <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{subtitle}</p>
+      </div>
+      <div className="pe-3.5 shrink-0"><PriceTag model={model} /></div>
+    </Link>
+  )
 }
 
 export default function MarketplaceTravelPage() {
@@ -73,7 +88,7 @@ export default function MarketplaceTravelPage() {
   }
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme pb-16">
       <div className="mb-5">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('vp.travelPageTitle')}</h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('vp.travelPageSubtitle')}</p>
@@ -83,49 +98,35 @@ export default function MarketplaceTravelPage() {
         ? <LeafletMap pins={pins} height={220} className="mb-5 rounded-lg" />
         : <div className="h-[220px] mb-5 rounded-lg bg-dp-surface-container flex items-center justify-center"><LoadingDots /></div>}
 
-      <div className="space-y-2.5 mb-8">
-        <Link href="/portal/marketplace/adda" className="flex items-center gap-2.5 bg-white border border-dp-outline-variant rounded-lg p-3.5 hover:border-dp-secondary transition-colors">
-          <div className="w-10 h-10 rounded-lg bg-dp-primary flex items-center justify-center shrink-0"><Signpost size={18} className="text-white" /></div>
-          <div className="flex-1 min-w-0"><p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('af.addaBoardPageTitle')}</p><p className="font-sans text-[12px] text-dp-on-surface-variant">{t('af.addaBoardCardHint')}</p></div>
-          <PriceTag model="fixed" />
-        </Link>
-        <Link href="/portal/marketplace/order-city" className="flex items-center gap-2.5 bg-white border border-dp-outline-variant rounded-lg p-3.5 hover:border-dp-secondary transition-colors">
-          <div className="w-10 h-10 rounded-lg bg-rose-600 flex items-center justify-center shrink-0"><Truck size={18} className="text-white" /></div>
-          <div className="flex-1 min-w-0"><p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('vp.dispatchPageTitle')}</p><p className="font-sans text-[12px] text-dp-on-surface-variant">{t('vp.orderCityCardHint')}</p></div>
-          <PriceTag model="negotiated" />
-        </Link>
-        <Link href="/portal/marketplace/pro" className="flex items-center gap-2.5 bg-white border border-dp-outline-variant rounded-lg p-3.5 hover:border-dp-secondary transition-colors">
-          <div className="w-10 h-10 rounded-lg bg-sky-600 flex items-center justify-center shrink-0"><Truck size={18} className="text-white" /></div>
-          <div className="flex-1 min-w-0"><p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('vp.proPageTitle')}</p><p className="font-sans text-[12px] text-dp-on-surface-variant">{t('vp.proCardHint')}</p></div>
-          <PriceTag model="formula" />
-        </Link>
-        <Link href="/portal/marketplace/commute" className="flex items-center gap-2.5 bg-white border border-dp-outline-variant rounded-lg p-3.5 hover:border-dp-secondary transition-colors">
-          <div className="w-10 h-10 rounded-lg bg-violet-600 flex items-center justify-center shrink-0"><CalendarClock size={18} className="text-white" /></div>
-          <div className="flex-1 min-w-0"><p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('vp.commutePageTitle')}</p><p className="font-sans text-[12px] text-dp-on-surface-variant">{t('vp.commuteCardHint')}</p></div>
-          <PriceTag model="negotiated" />
-        </Link>
-        <Link href="/portal/marketplace/hourly" className="flex items-center gap-2.5 bg-white border border-dp-outline-variant rounded-lg p-3.5 hover:border-dp-secondary transition-colors">
-          <div className="w-10 h-10 rounded-lg bg-amber-600 flex items-center justify-center shrink-0"><Clock3 size={18} className="text-white" /></div>
-          <div className="flex-1 min-w-0"><p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('vp.hourlyPageTitle')}</p><p className="font-sans text-[12px] text-dp-on-surface-variant">{t('vp.hourlyPageSubtitle')}</p></div>
-          <PriceTag model="formula" />
-        </Link>
-        <Link href="/portal/marketplace/shadi" className="flex items-center gap-2.5 bg-white border border-dp-outline-variant rounded-lg p-3.5 hover:border-dp-secondary transition-colors">
-          <div className="w-10 h-10 rounded-lg bg-pink-600 flex items-center justify-center shrink-0"><Users2 size={18} className="text-white" /></div>
-          <div className="flex-1 min-w-0"><p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('vp.shadiPageTitle')}</p><p className="font-sans text-[12px] text-dp-on-surface-variant">{t('vp.shadiPageSubtitle')}</p></div>
-          <PriceTag model="fixed" />
-        </Link>
-        <Link href="/portal/marketplace/nearby" className="flex items-center gap-2.5 bg-white border border-dp-outline-variant rounded-lg p-3.5 hover:border-dp-secondary transition-colors">
-          <div className="w-10 h-10 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0"><Home size={18} className="text-white" /></div>
-          <div className="flex-1 min-w-0"><p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('af.nearbyPageTitle')}</p><p className="font-sans text-[12px] text-dp-on-surface-variant">{t('af.nearbyCardHint')}</p></div>
-        </Link>
-        <Link href="/portal/marketplace/trips" className="flex items-center gap-2.5 bg-white border border-dp-outline-variant rounded-lg p-3.5 hover:border-dp-secondary transition-colors">
-          <div className="w-10 h-10 rounded-lg bg-dp-primary-container flex items-center justify-center shrink-0"><Navigation size={18} className="text-dp-primary" /></div>
-          <div className="flex-1 min-w-0"><p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('cm.tripsPageTitle')}</p><p className="font-sans text-[12px] text-dp-on-surface-variant">{t('cm.tripsCardHint')}</p></div>
-          <PriceTag model="negotiated" />
+      <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5">{t('vp.everyWayHeading')}</p>
+      <div className="space-y-2 mb-4">
+        <TravelTile href="/portal/marketplace/adda" model="fixed" title={t('af.addaBoardPageTitle')} subtitle={t('af.addaBoardCardHint')} />
+        <a href="#routes" className="flex items-center gap-3 bg-white border border-dp-outline-variant rounded-lg overflow-hidden hover:border-dp-secondary transition-colors" style={{ borderInlineStartWidth: 4, borderInlineStartColor: PRICE_TAG.fixed.accent }}>
+          <div className="flex-1 min-w-0 py-3 ps-3.5 pe-2">
+            <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('mp.routesHeading')}</p>
+            <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{t('vp.fixedRouteCardHint')}</p>
+          </div>
+          <div className="pe-3.5 shrink-0"><PriceTag model="fixed" /></div>
+        </a>
+        <TravelTile href="/portal/marketplace/order-city" model="negotiated" title={t('vp.dispatchPageTitle')} subtitle={t('vp.orderCityCardHint')} />
+        <TravelTile href="/portal/marketplace/pro" model="formula" title={t('vp.proPageTitle')} subtitle={t('vp.proCardHint')} />
+        <TravelTile href="/portal/marketplace/commute" model="negotiated" title={t('vp.commutePageTitle')} subtitle={t('vp.commuteCardHint')} />
+        <TravelTile href="/portal/marketplace/trips" model="negotiated" title={t('cm.tripsPageTitle')} subtitle={t('cm.tripsCardHint')} />
+        <TravelTile href="/portal/marketplace/hourly" model="formula" title={t('vp.hourlyPageTitle')} subtitle={t('vp.hourlyPageSubtitle')} />
+        <TravelTile href="/portal/marketplace/shadi" model="fixed" title={t('vp.shadiPageTitle')} subtitle={t('vp.shadiPageSubtitle')} />
+        <Link href="/portal/marketplace/nearby" className="flex items-center gap-3 bg-white border border-dp-outline-variant rounded-lg overflow-hidden hover:border-dp-secondary transition-colors" style={{ borderInlineStartWidth: 4, borderInlineStartColor: '#bfc9c4' }}>
+          <div className="flex-1 min-w-0 py-3 ps-3.5 pe-2">
+            <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('af.nearbyPageTitle')}</p>
+            <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{t('af.nearbyCardHint')}</p>
+          </div>
         </Link>
       </div>
 
-      <div>
+      <div className="bg-dp-surface-container/60 border border-dashed border-dp-outline-variant rounded-lg p-3 mb-8">
+        <p className="font-sans text-[11px] text-dp-on-surface-variant leading-[1.7]">{t('vp.priceLegendNote')}</p>
+      </div>
+
+      <div id="routes">
         <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><Bus size={13} /> {t('mp.routesHeading')}</p>
         {routes.length === 0 && <p className="font-sans text-[13.5px] text-dp-on-surface-variant">{t('mp.noRoutesListed')}</p>}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -141,6 +142,7 @@ export default function MarketplaceTravelPage() {
           ))}
         </div>
       </div>
+      <MarketplaceBottomNav />
     </div>
   )
 }

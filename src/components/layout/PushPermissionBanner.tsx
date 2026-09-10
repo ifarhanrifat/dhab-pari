@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Bell, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -20,6 +21,14 @@ export function PushPermissionBanner({ owner }: { owner: { adminUserId?: string;
   const { t, isUrdu } = useLocale()
   const { permission, subscribe, subscribing, isStandalone, isIos } = usePushNotifications(owner)
   const [dismissed, setDismissed] = useState(false)
+  // Both my-shop and marketplace/my-vehicle render their own fixed
+  // bottom tab bar (ShopBottomNav / MarketplaceBottomNav) on mobile —
+  // this banner's default bottom-3 sits directly on top of it (z-85
+  // over the bar's z-40), making the whole bar untappable for as long
+  // as the banner is showing. Lifted to bottom-20 there, matching the
+  // clearance FloatingWhatsAppButton already uses for the same reason.
+  const pathname = usePathname()
+  const clearsBottomBar = pathname?.startsWith('/portal/marketplace') || pathname?.startsWith('/portal/my-vehicle') || pathname?.startsWith('/portal/my-shop')
 
   // A little delay so this never fights the install-prompt banner (or
   // anything else) for the very first paint — both are informational, not
@@ -46,7 +55,7 @@ export function PushPermissionBanner({ owner }: { owner: { adminUserId?: string;
   const deniedBody = isIos ? t('g.pushDeniedBodyIos') : /Android/.test(navigator.userAgent) ? t('g.pushDeniedBodyAndroid') : t('g.pushDeniedBodyDesktop')
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="fixed inset-x-3 bottom-3 md:inset-x-auto md:right-6 md:bottom-6 md:w-[360px] z-[85] print:hidden">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className={`fixed inset-x-3 ${clearsBottomBar ? 'bottom-20' : 'bottom-3'} md:inset-x-auto md:right-6 md:bottom-6 md:w-[360px] z-[85] print:hidden`}>
       <div className="bg-white border border-dp-outline-variant rounded-xl shadow-2xl p-4 flex items-start gap-3">
         <div className="w-9 h-9 rounded-full bg-dp-secondary/10 flex items-center justify-center shrink-0">
           <Bell size={16} className="text-dp-secondary" />

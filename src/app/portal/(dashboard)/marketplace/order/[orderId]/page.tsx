@@ -17,6 +17,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
 
 interface Order {
@@ -70,7 +71,7 @@ export default function OrderTrackingPage() {
   const stepDates: Record<string, string | null> = { accepted: order.accepted_at, out_for_delivery: order.out_for_delivery_at, delivered: order.delivered_at }
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme max-w-lg mx-auto">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme pb-16 max-w-lg mx-auto">
       <Link href="/portal/marketplace" className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline mb-3">
         <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('mp.pageTitle')}
       </Link>
@@ -147,6 +148,7 @@ export default function OrderTrackingPage() {
           <ReportProblemButton refType="shop_order" refId={order.id} kindOptions={['damaged_goods', 'no_show']} />
         </div>
       )}
+      <MarketplaceBottomNav />
     </div>
   )
 }

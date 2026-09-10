@@ -22,6 +22,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
 
 interface Vehicle {
@@ -105,7 +106,7 @@ export default function HourlyRentalPage() {
   if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme pb-16">
       <Link href="/portal/marketplace/travel" className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline mb-3">
         <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('vp.travelPageTitle')}
       </Link>
@@ -244,6 +245,7 @@ export default function HourlyRentalPage() {
           </div>
         </div>
       )}
+      <MarketplaceBottomNav />
     </div>
   )
 }

@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/client'
 import { MapPin } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 
 interface Shop { id: string; name: string; name_ur: string | null; location: string | null; location_ur: string | null; delivery_enabled: boolean }
 
@@ -31,7 +32,7 @@ export default function MarketplaceShopsPage() {
   const ACCENT = '#ec3013'
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme pb-16">
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold" style={{ color: INK }}>{t('mp.shopsHeading')}</h1>
       </div>
@@ -48,6 +49,7 @@ export default function MarketplaceShopsPage() {
           </Link>
         ))}
       </div>
+      <MarketplaceBottomNav />
     </div>
   )
 }

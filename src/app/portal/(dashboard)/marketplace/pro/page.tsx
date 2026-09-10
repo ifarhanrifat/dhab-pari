@@ -17,6 +17,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 
 interface City { id: string; name: string; name_ur: string | null; distance_km: number; is_home_city: boolean }
 interface ServiceClass {
@@ -76,7 +77,7 @@ export default function ProServicePage() {
 
   if (selectedClass) {
     return (
-      <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme max-w-lg mx-auto">
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme pb-16 max-w-lg mx-auto">
         <button onClick={() => setSelectedClass(null)} className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-on-surface-variant hover:text-dp-secondary mb-3 cursor-pointer">
           <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('vp.backToServices')}
         </button>
@@ -122,13 +123,14 @@ export default function ProServicePage() {
             </div>
           )})}
         </div>
+        <MarketplaceBottomNav />
       </div>
     )
   }
 
   const visible = classes.filter((c) => c.category === tab)
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme max-w-lg mx-auto">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme pb-16 max-w-lg mx-auto">
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Truck size={22} className="text-dp-secondary" /> {t('vp.proPageTitle')}</h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('vp.proPageSubtitle')}</p>
@@ -153,6 +155,7 @@ export default function ProServicePage() {
           </button>
         ))}
       </div>
+      <MarketplaceBottomNav />
     </div>
   )
 }

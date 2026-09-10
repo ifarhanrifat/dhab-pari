@@ -18,6 +18,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 
 interface CallDetail {
@@ -114,7 +115,7 @@ export default function DispatchCallDetailPage() {
   const ringingTier2 = invitations.filter((i) => i.tier === 2)
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme max-w-lg mx-auto">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme pb-16 max-w-lg mx-auto">
       <button onClick={() => router.push('/portal/marketplace/order-city')} className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-on-surface-variant hover:text-dp-secondary mb-3 cursor-pointer">
         <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('vp.backToDispatch')}
       </button>
@@ -202,6 +203,7 @@ export default function DispatchCallDetailPage() {
       {(call.status === 'tier1' || call.status === 'tier2' || call.status === 'priced') && (
         <button onClick={cancel} disabled={busy} className="font-sans text-[12px] text-dp-on-surface-variant hover:text-dp-error cursor-pointer disabled:opacity-50">{t('vp.cancelCallBtn')}</button>
       )}
+      <MarketplaceBottomNav />
     </div>
   )
 }
