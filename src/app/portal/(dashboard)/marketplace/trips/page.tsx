@@ -14,6 +14,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { SITE } from '@/lib/constants'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
 
 interface TripOffer {
   id: string; trip_type: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
@@ -27,7 +28,7 @@ interface MyFareOffer {
   vehicle_trip_offers: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null
 }
 interface MyTripBooking {
-  id: string; seats: number; total_amount_pkr: number; status: string
+  id: string; trip_offer_id: string; seats: number; total_amount_pkr: number; status: string
   vehicle_trip_offers: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null; travel_date: string } | null
 }
 
@@ -55,7 +56,7 @@ export default function TripsPage() {
       supabase.from('vehicle_trip_offers').select('*, vehicles(owner_name, vehicle_type)').eq('status', 'open').order('travel_date'),
       supabase.from('vehicle_trip_fare_offers').select('id, trip_offer_id, seats_requested, proposed_fare_per_seat_pkr, counter_fare_per_seat_pkr, status, vehicle_trip_offers(origin, origin_ur, destination, destination_ur)')
         .in('status', ['pending', 'countered']).order('created_at', { ascending: false }),
-      supabase.from('vehicle_trip_bookings').select('id, seats, total_amount_pkr, status, vehicle_trip_offers(origin, origin_ur, destination, destination_ur, travel_date)')
+      supabase.from('vehicle_trip_bookings').select('id, trip_offer_id, seats, total_amount_pkr, status, vehicle_trip_offers(origin, origin_ur, destination, destination_ur, travel_date)')
         .order('created_at', { ascending: false }).limit(20),
     ])
     // The whole point of this feature is a driver heading BACK to the
@@ -158,6 +159,9 @@ export default function TripsPage() {
                     <Link href={`/portal/marketplace/trip/${tb.id}`} className="inline-flex items-center gap-1 text-dp-secondary text-[12px] font-semibold hover:underline"><Navigation size={12} /> {t('cm.trackLocationBtn')}</Link>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-dp-error text-[11px] font-bold"><XCircle size={11} /> {tb.status}</span>
+                  )}
+                  {(tb.status === 'completed' || tb.status === 'confirmed') && (
+                    <ReportProblemButton refType="trip_offer" refId={tb.trip_offer_id} kindOptions={['fare_dispute', 'no_show']} />
                   )}
                 </div>
               </div>

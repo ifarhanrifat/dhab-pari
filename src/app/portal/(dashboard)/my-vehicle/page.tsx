@@ -22,6 +22,7 @@ import { TripLiveShareToggle } from '@/components/portal/TripLiveShareToggle'
 import { getCurrentPositionOnce, classifyLocationError, type LocationErrorReason } from '@/hooks/useLiveLocation'
 import { LocationSettingsModal } from '@/components/portal/LocationSettingsModal'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 
 interface Vehicle { id: string; owner_name: string; vehicle_type: string; commission_mode: string; delivers: boolean; per_km_pkr: number | null; offers_hourly: boolean; offers_shadi: boolean }
 interface TripOffer {
@@ -31,7 +32,7 @@ interface TripOffer {
 }
 interface FareOffer {
   id: string; trip_offer_id: string; seats_requested: number; proposed_fare_per_seat_pkr: number
-  counter_fare_per_seat_pkr: number | null; status: string; portal_users: { full_name: string; mobile: string } | null
+  counter_fare_per_seat_pkr: number | null; status: string; portal_user_id: string; portal_users: { full_name: string; mobile: string } | null
 }
 interface TripBooking {
   id: string; seats: number; agreed_fare_per_seat_pkr: number; total_amount_pkr: number; status: string
@@ -86,6 +87,7 @@ export default function MyVehiclePage() {
   const [posting, setPosting] = useState(false)
   const [counterAmount, setCounterAmount] = useState<Record<string, number>>({})
   const [bandByTrip, setBandByTrip] = useState<Record<string, { min: number; max: number; fair: number }>>({})
+  const [trustByFareOffer, setTrustByFareOffer] = useState<Record<string, Trust>>({})
 
   const reload = async (vehicleId: string) => {
     const [{ data: s }, { data: b }, { data: trips }, { data: tripB }, { data: rts }] = await Promise.all([
@@ -106,7 +108,7 @@ export default function MyVehiclePage() {
 
     if (trips && trips.length > 0) {
       const { data: fareOffers } = await supabase.from('vehicle_trip_fare_offers')
-        .select('id, trip_offer_id, seats_requested, proposed_fare_per_seat_pkr, counter_fare_per_seat_pkr, status, portal_users(full_name, mobile)')
+        .select('id, trip_offer_id, seats_requested, proposed_fare_per_seat_pkr, counter_fare_per_seat_pkr, status, portal_user_id, portal_users(full_name, mobile)')
         .in('trip_offer_id', trips.map((tr) => tr.id)).in('status', ['pending', 'countered']).order('created_at', { ascending: false })
       const grouped: Record<string, FareOffer[]> = {}
       for (const fo of (fareOffers ?? []) as unknown as FareOffer[]) {
@@ -126,6 +128,18 @@ export default function MyVehiclePage() {
       .then((pairs) => setBandByTrip((prev) => ({ ...prev, ...Object.fromEntries(pairs) })))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripOffers])
+
+  // Trust for whoever is proposing a fare — the decision moment before
+  // accepting/countering a stranger's seat request, same pattern as
+  // hourly/shadi (483).
+  useEffect(() => {
+    const allOffers = Object.values(fareOffersByTrip).flat()
+    const uncached = [...new Set(allOffers.map((fo) => fo.portal_user_id))].filter((id) => id && !(id in trustByFareOffer))
+    if (uncached.length === 0) return
+    Promise.all(uncached.map((id) => supabase.rpc('portal_user_trust', { p_portal_user_id: id }).then(({ data }) => [id, data] as const)))
+      .then((pairs) => setTrustByFareOffer((prev) => ({ ...prev, ...Object.fromEntries(pairs) })))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fareOffersByTrip])
 
   useEffect(() => {
     if (!user) return
@@ -194,7 +208,7 @@ export default function MyVehiclePage() {
   const [showAddWeekendOffer, setShowAddWeekendOffer] = useState(false)
   const [weekendForm, setWeekendForm] = useState({ city_id: '', direction: 'to_village', day_of_week: 6, seats_total: 1, fare_per_seat_pkr: 0 })
   const [negotiationInbox, setNegotiationInbox] = useState<{ id: string; kind: string; status: string; item: string | null; last_message: string | null; as_role: string }[]>([])
-  const [dispatchInvites, setDispatchInvites] = useState<{ call_id: string; item: string; address: string; goods_budget_pkr: number; tier: number; shop_name: string; city_name: string }[]>([])
+  const [dispatchInvites, setDispatchInvites] = useState<{ call_id: string; item: string; address: string; goods_budget_pkr: number; tier: number; shop_name: string; city_name: string; customer_trust: Trust | null }[]>([])
   const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 
   const reloadVillagePortal = async (vehicleId: string) => {
@@ -618,7 +632,10 @@ export default function MyVehiclePage() {
           <div className="space-y-2">
             {dispatchInvites.map((c) => (
               <div key={c.call_id} className="bg-amber-50 border border-amber-200 rounded-lg p-3.5">
-                <p className="font-sans text-[13px] font-semibold text-dp-on-surface">{c.item}</p>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <p className="font-sans text-[13px] font-semibold text-dp-on-surface">{c.item}</p>
+                  <TrustPill trust={c.customer_trust} />
+                </div>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{c.shop_name} · {c.city_name} · {t('vp.tierLabel')} {c.tier}</p>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5 flex items-center gap-1"><MapPin size={11} /> {c.address}</p>
                 <div className="flex items-center gap-1.5 mt-2">
@@ -804,8 +821,8 @@ export default function MyVehiclePage() {
                 </div>
                 {(fareOffersByTrip[tr.id] ?? []).map((fo) => (
                   <div key={fo.id} className="mt-2.5 pt-2.5 border-t border-dp-outline-variant/60">
-                    <p className="font-sans text-[12.5px] text-dp-on-surface">
-                      {fo.portal_users?.full_name ?? '—'} — <span className="font-bold text-dp-secondary">{fmt(fo.proposed_fare_per_seat_pkr)}</span>/{t('mk.seatsLabel')} × <span className="ltr-num">{fo.seats_requested}</span>
+                    <p className="font-sans text-[12.5px] text-dp-on-surface flex items-center gap-1.5 flex-wrap">
+                      {fo.portal_users?.full_name ?? '—'} {trustByFareOffer[fo.portal_user_id] && <TrustPill trust={trustByFareOffer[fo.portal_user_id]} />} — <span className="font-bold text-dp-secondary">{fmt(fo.proposed_fare_per_seat_pkr)}</span>/{t('mk.seatsLabel')} × <span className="ltr-num">{fo.seats_requested}</span>
                       {fo.status === 'countered' && <span className="text-amber-700 font-semibold"> ({t('cm.youCountered')} {fmt(fo.counter_fare_per_seat_pkr ?? 0)})</span>}
                     </p>
                     {fo.status === 'pending' && bandByTrip[tr.id] && (

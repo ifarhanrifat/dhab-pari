@@ -46,6 +46,7 @@ export default function NegotiationThreadPage() {
   const [offerAmount, setOfferAmount] = useState('')
   const [showOfferBox, setShowOfferBox] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [fareBand, setFareBand] = useState<{ min: number; max: number; fair: number } | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const myRole = thread?.is_mine_as_user ? 'user' : 'driver'
@@ -66,6 +67,15 @@ export default function NegotiationThreadPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages.length])
+
+  // City-fetch is the one negotiated flow this thread can carry (484) —
+  // fetched once the thread's kind is known, not on every 4s poll, since
+  // the underlying distance never changes for an existing thread.
+  useEffect(() => {
+    if (thread?.kind !== 'fetch' || fareBand) return
+    supabase.rpc('negotiation_fare_band', { p_thread_id: threadId }).then(({ data }) => { if (data) setFareBand(data) })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [thread?.kind])
 
   const sendText = async () => {
     if (!text.trim()) return
@@ -159,9 +169,16 @@ export default function NegotiationThreadPage() {
       {isOpen ? (
         <div className="space-y-2">
           {showOfferBox && (
-            <div className="flex items-center gap-1.5">
-              <input type="number" value={offerAmount} onChange={(e) => setOfferAmount(e.target.value)} placeholder={t('vp.offerAmountPlaceholder')} className="input-field !py-2 !text-[13px]" autoFocus />
-              <button onClick={sendOffer} disabled={busy} className="px-3 py-2 bg-dp-primary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:opacity-90 disabled:opacity-50 shrink-0">{t('vp.sendOfferBtn')}</button>
+            <div className="space-y-1">
+              {fareBand && (
+                <p className="font-sans text-[10.5px] text-dp-secondary ltr-num">
+                  {t('cm.suggestedBandHint').replace('{min}', fmt(fareBand.min)).replace('{max}', fmt(fareBand.max)).replace('{fair}', fmt(fareBand.fair))}
+                </p>
+              )}
+              <div className="flex items-center gap-1.5">
+                <input type="number" value={offerAmount} onChange={(e) => setOfferAmount(e.target.value)} placeholder={t('vp.offerAmountPlaceholder')} className="input-field !py-2 !text-[13px]" autoFocus />
+                <button onClick={sendOffer} disabled={busy} className="px-3 py-2 bg-dp-primary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:opacity-90 disabled:opacity-50 shrink-0">{t('vp.sendOfferBtn')}</button>
+              </div>
             </div>
           )}
           <div className="flex items-center gap-1.5">

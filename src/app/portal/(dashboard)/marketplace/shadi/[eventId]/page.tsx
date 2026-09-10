@@ -16,6 +16,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
+import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
 
 interface Request {
   id: string; vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; model: string | null; color: string | null
@@ -183,7 +184,12 @@ export default function ShadiEventDetailPage() {
                 </>
               )}
               {event.status === 'confirmed' && r.status === 'accepted' && r.advance_share_pkr != null && (
-                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5 ltr-num">{t('vp.balanceDueLabel')}: <span className="font-bold text-dp-on-surface">{fmt(r.full_day_rate_pkr - r.advance_share_pkr)}</span></p>
+                <>
+                  <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5 ltr-num">{t('vp.balanceDueLabel')}: <span className="font-bold text-dp-on-surface">{fmt(r.full_day_rate_pkr - r.advance_share_pkr)}</span></p>
+                  <div className="flex justify-end mt-1">
+                    <ReportProblemButton refType="shadi_request" refId={r.id} kindOptions={['shadi_withdrawal', 'fare_dispute']} />
+                  </div>
+                </>
               )}
             </div>
           )

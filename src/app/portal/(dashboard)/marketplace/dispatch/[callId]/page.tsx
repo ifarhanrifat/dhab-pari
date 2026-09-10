@@ -18,6 +18,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 
 interface CallDetail {
   id: string; item: string; address: string; goods_budget_pkr: number; status: string
@@ -25,6 +26,7 @@ interface CallDetail {
   purchase_fee_pkr: number | null; accepted_tier: number | null; total_pkr: number | null
   shop_name: string; shop_name_ur: string | null; shop_is_general: boolean; city_name: string; city_km: number
   accepted_vehicle_id: string | null; accepted_owner_name: string | null; accepted_owner_mobile: string | null; accepted_vehicle_type: string | null
+  customer_trust: Trust | null
 }
 interface Invitation { vehicle_id: string; owner_name: string; tier: number; status: string; invited_at: string; responded_at: string | null }
 interface MyVehicleLite { id: string; owner_name: string }
@@ -118,9 +120,12 @@ export default function DispatchCallDetailPage() {
       </button>
 
       <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5 mb-4">
-        <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-1.5">
-          <Store size={14} className="text-dp-secondary" /> {call.shop_is_general ? call.city_name : `${isUrdu && call.shop_name_ur ? call.shop_name_ur : call.shop_name} — ${call.city_name}`}
-        </p>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <p className="font-sans text-[14px] font-bold text-dp-on-surface flex items-center gap-1.5">
+            <Store size={14} className="text-dp-secondary" /> {call.shop_is_general ? call.city_name : `${isUrdu && call.shop_name_ur ? call.shop_name_ur : call.shop_name} — ${call.city_name}`}
+          </p>
+          {myVehicle && <TrustPill trust={call.customer_trust} />}
+        </div>
         <p className="font-sans text-[13px] text-dp-on-surface mt-1.5">{call.item}</p>
         <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1 flex items-center gap-1"><MapPin size={11} /> {call.address}</p>
       </div>

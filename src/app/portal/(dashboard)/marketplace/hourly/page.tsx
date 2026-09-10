@@ -22,6 +22,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
 
 interface Vehicle {
   id: string; owner_name: string; vehicle_type: string; color: string | null; model: string | null; has_ac: boolean
@@ -176,10 +177,15 @@ export default function HourlyRentalPage() {
                   </div>
                 )}
                 {b.status === 'completed' && (
-                  <div className="mt-2 pt-2 border-t border-dp-outline-variant flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 font-sans text-[12px] text-dp-on-surface-variant"><CheckCircle2 size={12} className="text-emerald-600" /> {fmt(b.distance_km)}km {t('vp.travelledLabel')}</span>
-                    <span className="font-heading text-[16px] font-bold text-dp-primary ltr-num">{fmt(b.total_amount_pkr ?? b.base_amount_pkr)}</span>
-                  </div>
+                  <>
+                    <div className="mt-2 pt-2 border-t border-dp-outline-variant flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 font-sans text-[12px] text-dp-on-surface-variant"><CheckCircle2 size={12} className="text-emerald-600" /> {fmt(b.distance_km)}km {t('vp.travelledLabel')}</span>
+                      <span className="font-heading text-[16px] font-bold text-dp-primary ltr-num">{fmt(b.total_amount_pkr ?? b.base_amount_pkr)}</span>
+                    </div>
+                    <div className="mt-1.5 flex justify-end">
+                      <ReportProblemButton refType="hourly_booking" refId={b.id} kindOptions={['hourly_overage', 'no_show']} />
+                    </div>
+                  </>
                 )}
                 {(b.status === 'requested' || b.status === 'accepted') && (
                   <button onClick={() => cancelBooking(b.id)} className="flex items-center gap-1.5 font-sans text-[11.5px] font-semibold mt-2 pt-2 border-t border-dp-outline-variant cursor-pointer" style={{ color: '#b3261e' }}>
