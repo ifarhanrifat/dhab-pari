@@ -31,7 +31,7 @@ interface Vehicle {
   id: string; owner_name: string; owner_mobile: string | null; owner_whatsapp: string | null
   vehicle_type: string; vehicle_number: string | null; total_seats: number; is_active: boolean
   portal_user_id: string | null; commission_mode: string; lumpsum_fee_pkr: number | null; night_booking_enabled: boolean
-  allows_out_of_city: boolean; per_km_pkr: number | null
+  allows_out_of_city: boolean; per_km_pkr: number | null; is_online: boolean
   hourly_rate_pkr: number | null; hourly_included_km: number | null; hourly_overage_per_km_pkr: number | null
   shadi_full_day_rate_pkr: number | null
 }
@@ -676,6 +676,7 @@ function AdminVehiclesInner() {
                   <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-surface-container-high text-dp-on-surface-variant">{v.total_seats} {t('mk.seatsLabel')}</span>
                   <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-surface-container-high text-dp-on-surface-variant">{routeCountByVehicle[v.id] ?? 0} {t('mk.routesCount')}</span>
                   {v.commission_mode === 'monthly_lumpsum' && <span className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">{t('cm.lumpsumBadge')}</span>}
+                  {v.is_online && <span className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700"><span className="w-1.5 h-1.5 rounded-full bg-emerald-600" /> {t('mk.onlineBadge')}</span>}
                   <span
                     role="button" tabIndex={0}
                     onClick={(e) => { e.stopPropagation(); toggleVehicleActive(v) }}

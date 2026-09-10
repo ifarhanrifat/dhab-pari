@@ -27,7 +27,7 @@ import { FareBandPicker, type FareBand } from '@/components/shared/FareBandPicke
 
 interface Vehicle {
   id: string; owner_name: string; vehicle_type: string; commission_mode: string; delivers: boolean; per_km_pkr: number | null; offers_hourly: boolean; offers_shadi: boolean
-  night_booking_enabled: boolean; allows_out_of_city: boolean
+  night_booking_enabled: boolean; allows_out_of_city: boolean; is_online: boolean
 }
 interface TripOffer {
   id: string; trip_type: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
@@ -152,7 +152,7 @@ export default function MyVehiclePage() {
   const [regStatus, setRegStatus] = useState<{ status: string; rejection_reason: string | null } | null>(null)
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, owner_name, vehicle_type, commission_mode, delivers, per_km_pkr, offers_hourly, offers_shadi, night_booking_enabled, allows_out_of_city').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
+    supabase.from('vehicles').select('id, owner_name, vehicle_type, commission_mode, delivers, per_km_pkr, offers_hourly, offers_shadi, night_booking_enabled, allows_out_of_city, is_online').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
       setVehicle(data)
       if (data) await reload(data.id)
       else supabase.rpc('my_vehicle_registration_status').then(({ data: rs }) => setRegStatus(rs ?? null))
@@ -211,7 +211,7 @@ export default function MyVehiclePage() {
   const [presence, setPresence] = useState<{ city_id: string; city_name: string; expected_return_at: string | null } | null>(null)
   const [checkInCityId, setCheckInCityId] = useState('')
   const [vpSaving, setVpSaving] = useState(false)
-  const [serviceClasses, setServiceClasses] = useState<{ id: string; name: string; name_ur: string | null }[]>([])
+  const [serviceClasses, setServiceClasses] = useState<{ id: string; name: string; name_ur: string | null; delivery_eligible: boolean; ride_eligible: boolean }[]>([])
   const [myServiceOfferIds, setMyServiceOfferIds] = useState<Set<string>>(new Set())
   const [weekendOffers, setWeekendOffers] = useState<{ id: string; city_name: string; city_name_ur: string | null; direction: string; day_of_week: number; seats_total: number; seats_taken: number; fare_per_seat_pkr: number; is_active: boolean }[]>([])
   const [showAddWeekendOffer, setShowAddWeekendOffer] = useState(false)
@@ -223,7 +223,7 @@ export default function MyVehiclePage() {
   const reloadVillagePortal = async (vehicleId: string) => {
     const [{ data: p }, { data: sc }, { data: offers }, { data: wo }, { data: inbox }, { data: invites }] = await Promise.all([
       supabase.from('vehicle_city_presence').select('city_id, expected_return_at, cities(name)').eq('vehicle_id', vehicleId).eq('is_active', true).maybeSingle(),
-      supabase.from('service_classes').select('id, name, name_ur').eq('is_active', true).order('display_order'),
+      supabase.from('service_classes').select('id, name, name_ur, delivery_eligible, ride_eligible').eq('is_active', true).order('display_order'),
       supabase.from('vehicle_service_offers').select('service_class_id').eq('vehicle_id', vehicleId).eq('is_active', true),
       supabase.rpc('my_weekend_share_offers', { p_vehicle_id: vehicleId }),
       supabase.rpc('my_negotiation_threads'),
@@ -247,6 +247,13 @@ export default function MyVehiclePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vehicle])
 
+  // A vehicle with zero assigned service classes is grandfathered as
+  // unrestricted (494) — only a vehicle that HAS assigned classes, none
+  // of which carry the flag, is actually blocked.
+  const myClasses = serviceClasses.filter((sc) => myServiceOfferIds.has(sc.id))
+  const deliveryEligible = myClasses.length === 0 || myClasses.some((sc) => sc.delivery_eligible)
+  const rideEligible = myClasses.length === 0 || myClasses.some((sc) => sc.ride_eligible)
+
   const toggleDelivers = async () => {
     if (!vehicle) return
     setVpSaving(true)
@@ -254,6 +261,15 @@ export default function MyVehiclePage() {
     setVpSaving(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     setVehicle({ ...vehicle, delivers: !vehicle.delivers })
+  }
+  const toggleOnline = async () => {
+    if (!vehicle) return
+    setVpSaving(true)
+    const { error } = await supabase.rpc('set_vehicle_online_status', { p_vehicle_id: vehicle.id, p_is_online: !vehicle.is_online })
+    setVpSaving(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    setVehicle({ ...vehicle, is_online: !vehicle.is_online })
+    toast.success(vehicle.is_online ? t('vp.wentOfflineToast') : t('vp.wentOnlineToast'))
   }
   const toggleNightBooking = async () => {
     if (!vehicle) return
@@ -529,6 +545,10 @@ export default function MyVehiclePage() {
       <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
         <h1 className="font-heading text-[26px] font-bold leading-[34px] text-dp-primary flex items-center gap-2"><Bus size={22} /> {vehicle.owner_name}</h1>
         <div className="flex items-center gap-2">
+          <button onClick={toggleOnline} disabled={vpSaving} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer border transition-colors disabled:opacity-50 ${vehicle.is_online ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700' : 'border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container'}`}>
+            <span className={`w-2 h-2 rounded-full ${vehicle.is_online ? 'bg-white' : 'bg-dp-on-surface-variant'}`} />
+            {vehicle.is_online ? t('vp.onlineLabel') : t('vp.offlineLabel')}
+          </button>
           {vehicle.delivers && (
             <Link href="/portal/my-vehicle/deliveries" className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
               <Truck size={14} /> {t('mv.deliveriesBtn')}
@@ -547,7 +567,13 @@ export default function MyVehiclePage() {
               <Users2 size={14} /> {t('vp.myShadiRequestsHeading')}
             </Link>
           )}
-          <button onClick={() => setShowPostTrip(true)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+          <button
+            onClick={() => {
+              if (!rideEligible) { toast.error(t('vp.rideNotAllowedMessage')); return }
+              if (!vehicle.is_online) { toast.error(t('vp.goOnlineToPostTripHint')); return }
+              setShowPostTrip(true)
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
             <PlusCircle size={14} /> {t('cm.postTripBtn')}
           </button>
           {vehicle.commission_mode === 'per_order' && (
@@ -557,7 +583,8 @@ export default function MyVehiclePage() {
           )}
         </div>
       </div>
-      <p className="font-sans text-[13px] text-dp-on-surface-variant mb-5">{vehicle.vehicle_type}</p>
+      <p className={`font-sans text-[13px] text-dp-on-surface-variant ${vehicle.is_online ? 'mb-5' : 'mb-1'}`}>{vehicle.vehicle_type}</p>
+      {!vehicle.is_online && <p className="font-sans text-[12px] text-amber-700 mb-5">{t('vp.offlineHint')}</p>}
 
       <div className="flex items-center gap-1 bg-white border border-dp-outline-variant rounded-lg p-1 mb-3 w-fit">
         <span className={`px-3 py-1.5 rounded-md text-[12px] font-sans font-semibold ${summary?.commission_mode === 'monthly_lumpsum' ? 'bg-dp-primary text-white' : 'text-dp-on-surface-variant'}`}>{t('mv.lumpsumModeLabel')}</span>
@@ -627,7 +654,16 @@ export default function MyVehiclePage() {
 
       <div className="mb-8">
         <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><Signpost size={13} /> {t('af.atTheAddaHeading')}</p>
-        {!myEntry ? (
+        {!myEntry && !rideEligible ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3.5">
+            <p className="font-sans text-[13px] text-amber-800">{t('vp.rideNotAllowedMessage')}</p>
+          </div>
+        ) : !myEntry && !vehicle.is_online ? (
+          <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+            <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('vp.goOnlineToCheckInHint')}</p>
+            <button onClick={toggleOnline} disabled={vpSaving} className="mt-2 px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">{t('vp.onlineLabel')}</button>
+          </div>
+        ) : !myEntry ? (
           <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-2.5">{t('af.checkInHint')}</p>
             <div className="flex flex-wrap items-center gap-1.5">
@@ -730,15 +766,19 @@ export default function MyVehiclePage() {
       <div className="mb-8">
         <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-2.5 flex items-center gap-1.5"><Package size={13} /> {t('vp.deliverySettingsHeading')}</p>
         <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{t('vp.deliversToggleLabel')}</p>
-              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">{t('vp.deliversToggleHint')}</p>
+          {!deliveryEligible ? (
+            <p className="font-sans text-[13px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5">{t('vp.deliveryNotAllowedMessage')}</p>
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{t('vp.deliversToggleLabel')}</p>
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">{t('vp.deliversToggleHint')}</p>
+              </div>
+              <button onClick={toggleDelivers} disabled={vpSaving} className={`shrink-0 relative w-11 h-6 rounded-full transition-colors cursor-pointer disabled:opacity-50 ${vehicle.delivers ? 'bg-dp-secondary' : 'bg-dp-surface-container-high'}`}>
+                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${vehicle.delivers ? (isUrdu ? '-translate-x-5 right-0.5' : 'translate-x-5 left-0.5') : 'left-0.5'}`} />
+              </button>
             </div>
-            <button onClick={toggleDelivers} disabled={vpSaving} className={`shrink-0 relative w-11 h-6 rounded-full transition-colors cursor-pointer disabled:opacity-50 ${vehicle.delivers ? 'bg-dp-secondary' : 'bg-dp-surface-container-high'}`}>
-              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${vehicle.delivers ? (isUrdu ? '-translate-x-5 right-0.5' : 'translate-x-5 left-0.5') : 'left-0.5'}`} />
-            </button>
-          </div>
+          )}
           <div className="flex items-center justify-between gap-1.5 mt-3 pt-3 border-t border-dp-outline-variant/60">
             <span className="font-sans text-[12.5px] text-dp-on-surface-variant shrink-0">{t('vp.perKmRateLabel')}</span>
             <span className="font-sans text-[13px] font-bold text-dp-on-surface ltr-num">{vehicle.per_km_pkr != null ? fmt(vehicle.per_km_pkr) : t('vp.perKmRateNotSetYet')}</span>

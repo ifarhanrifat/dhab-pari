@@ -158,6 +158,10 @@ const ADDA_EXACT: Record<string, string> = {
   'This trip is not awaiting completion.': 'یہ سفر تکمیل کا منتظر نہیں ہے۔',
   'This trip is not active.': 'یہ سفر فعال نہیں ہے۔',
   'You are not part of this trip.': 'آپ اس سفر کا حصہ نہیں ہیں۔',
+  "Go online first — you can't check in to the queue while offline.": 'پہلے آن لائن ہوں — آف لائن ہوتے ہوئے آپ قطار میں چیک ان نہیں کر سکتے۔',
+  "Go online first — you can't post a new trip while offline.": 'پہلے آن لائن ہوں — آف لائن ہوتے ہوئے آپ نیا سفر پوسٹ نہیں کر سکتے۔',
+  "Your vehicle's class is not enabled for rides — ask the committee.": 'آپ کی گاڑی کی قسم کو سواری کے لیے اجازت نہیں — کمیٹی سے پوچھیں۔',
+  "Your vehicle's class is not enabled for intercity delivery — ask the committee.": 'آپ کی گاڑی کی قسم کو انٹرسٹی ڈیلیوری کے لیے اجازت نہیں — کمیٹی سے پوچھیں۔',
 }
 
 const ADDA_PATTERNS: Array<{ re: RegExp; ur: (m: RegExpMatchArray) => string }> = [

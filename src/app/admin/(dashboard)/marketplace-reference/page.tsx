@@ -21,12 +21,13 @@ interface City { id: string; name: string; name_ur: string | null; distance_km: 
 interface ServiceClass {
   id: string; name: string; name_ur: string | null; category: string; capacity_label: string | null; capacity_label_ur: string | null
   note: string | null; note_ur: string | null; base_fare_pkr: number; per_km_pkr: number; is_active: boolean; display_order: number
+  delivery_eligible: boolean; ride_eligible: boolean
 }
 interface Village { id: string; name: string; name_ur: string | null; delivery_fee_pkr: number; is_home_village: boolean; is_active: boolean; display_order: number }
 interface FareBand { flow: 'trip_share' | 'city_fetch'; base_pkr: number; per_km_pkr: number; spread: number }
 
 const emptyCity = { name: '', name_ur: '', distance_km: 0, is_home_city: false, display_order: 0 }
-const emptyServiceClass = { name: '', name_ur: '', category: 'passenger', capacity_label: '', capacity_label_ur: '', note: '', note_ur: '', base_fare_pkr: 0, per_km_pkr: 0, display_order: 0 }
+const emptyServiceClass = { name: '', name_ur: '', category: 'passenger', capacity_label: '', capacity_label_ur: '', note: '', note_ur: '', base_fare_pkr: 0, per_km_pkr: 0, display_order: 0, delivery_eligible: true, ride_eligible: true }
 const emptyVillage = { name: '', name_ur: '', delivery_fee_pkr: 0, is_home_village: false, display_order: 0 }
 const emptyFareBand = { base_pkr: 0, per_km_pkr: 0, spread: 0.28 }
 
@@ -141,7 +142,11 @@ export default function MarketplaceReferencePage() {
           {services.map((s) => (
             <div key={s.id} className={`bg-white border border-dp-outline-variant rounded-lg p-3.5 flex items-center justify-between gap-3 ${!s.is_active ? 'opacity-50' : ''}`}>
               <div>
-                <p className="font-sans text-[14px] font-semibold text-dp-on-surface">{s.name} <span className="font-normal text-[11px] text-dp-on-surface-variant">· {s.category}</span></p>
+                <p className="font-sans text-[14px] font-semibold text-dp-on-surface flex items-center gap-1.5 flex-wrap">
+                  {s.name} <span className="font-normal text-[11px] text-dp-on-surface-variant">· {s.category}</span>
+                  {s.delivery_eligible && <span className="font-sans text-[10px] font-bold px-2 py-0.5 rounded-full bg-dp-secondary-container text-dp-on-secondary-container">{t('mr.deliveryEligibleBadge')}</span>}
+                  {s.ride_eligible && <span className="font-sans text-[10px] font-bold px-2 py-0.5 rounded-full bg-dp-secondary-container text-dp-on-secondary-container">{t('mr.rideEligibleBadge')}</span>}
+                </p>
                 <p className="font-sans text-[12px] text-dp-on-surface-variant ltr-num">{fmt(s.base_fare_pkr)} base + {fmt(s.per_km_pkr)}/km · {s.capacity_label}</p>
               </div>
               <div className="flex items-center gap-1.5">
@@ -211,6 +216,11 @@ export default function MarketplaceReferencePage() {
                 <div className="grid grid-cols-2 gap-2.5">
                   <input type="number" value={serviceForm.base_fare_pkr || ''} onChange={(e) => setServiceForm({ ...serviceForm, base_fare_pkr: +e.target.value })} placeholder={t('mr.baseFarePlaceholder')} className="input-field" />
                   <input type="number" value={serviceForm.per_km_pkr || ''} onChange={(e) => setServiceForm({ ...serviceForm, per_km_pkr: +e.target.value })} placeholder={t('mr.perKmPlaceholder')} className="input-field" />
+                </div>
+                <div className="pt-1 space-y-1.5">
+                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={serviceForm.delivery_eligible} onChange={(e) => setServiceForm({ ...serviceForm, delivery_eligible: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[13px]">{t('mr.deliveryEligibleLabel')}</span></label>
+                  <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={serviceForm.ride_eligible} onChange={(e) => setServiceForm({ ...serviceForm, ride_eligible: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[13px]">{t('mr.rideEligibleLabel')}</span></label>
+                  <p className="font-sans text-[11px] text-dp-on-surface-variant">{t('mr.eligibilityHint')}</p>
                 </div>
               </div>
             )}
