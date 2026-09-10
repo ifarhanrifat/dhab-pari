@@ -17,6 +17,7 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { FareBandPicker, type FareBand } from '@/components/shared/FareBandPicker'
 import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 
 interface ThreadInfo {
@@ -47,7 +48,7 @@ export default function NegotiationThreadPage() {
   const [offerAmount, setOfferAmount] = useState('')
   const [showOfferBox, setShowOfferBox] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [fareBand, setFareBand] = useState<{ min: number; max: number; fair: number } | null>(null)
+  const [fareBand, setFareBand] = useState<FareBand | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const myRole = thread?.is_mine_as_user ? 'user' : 'driver'
@@ -172,9 +173,7 @@ export default function NegotiationThreadPage() {
           {showOfferBox && (
             <div className="space-y-1">
               {fareBand && (
-                <p className="font-sans text-[10.5px] text-dp-secondary ltr-num">
-                  {t('cm.suggestedBandHint').replace('{min}', fmt(fareBand.min)).replace('{max}', fmt(fareBand.max)).replace('{fair}', fmt(fareBand.fair))}
-                </p>
+                <FareBandPicker band={fareBand} value={offerAmount === '' ? '' : Number(offerAmount)} onChange={(v) => setOfferAmount(String(v))} ownerLabel={t('cm.yourFareLabel')} />
               )}
               <div className="flex items-center gap-1.5">
                 <input type="number" value={offerAmount} onChange={(e) => setOfferAmount(e.target.value)} placeholder={t('vp.offerAmountPlaceholder')} className="input-field !py-2 !text-[13px]" autoFocus />

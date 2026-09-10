@@ -13,7 +13,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Search, Store, Clock, CheckCircle2, XCircle, MessageCircle, Ban } from 'lucide-react'
+import { Search, Store, Clock, CheckCircle2, XCircle, MessageCircle, Ban, Bell } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -112,9 +112,14 @@ export default function PortalMarketplacePage() {
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme pb-16">
       <div className="mb-6">
-        <div className="flex items-center gap-1.5">
-          <p className="font-sans text-[11px] font-bold uppercase tracking-[0.06em] text-dp-on-surface-variant">{t('mp.pageTitle')}</p>
-          <PortalHelp pageKey="marketplace" />
+        <div className="flex items-center justify-between gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <p className="font-sans text-[11px] font-bold uppercase tracking-[0.06em] text-dp-on-surface-variant">{t('mp.pageTitle')}</p>
+            <PortalHelp pageKey="marketplace" />
+          </div>
+          <Link href="/portal/marketplace/notifications" className="flex items-center justify-center w-9 h-9 rounded-full border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-secondary hover:text-dp-secondary transition-colors shrink-0">
+            <Bell size={16} />
+          </Link>
         </div>
         <h1 className="font-heading text-[30px] leading-[1.25] font-bold text-dp-primary mt-1" style={{ textWrap: 'balance' }}>{t('mp.heroHeadline')}</h1>
       </div>

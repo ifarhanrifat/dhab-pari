@@ -16,6 +16,7 @@ import { SITE } from '@/lib/constants'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
+import { FareBandPicker, type FareBand } from '@/components/shared/FareBandPicker'
 
 interface TripOffer {
   id: string; trip_type: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
@@ -23,7 +24,6 @@ interface TripOffer {
   distance_km: number | null
   vehicles: { owner_name: string; vehicle_type: string } | null
 }
-interface FareBand { min: number; max: number; fair: number }
 interface MyFareOffer {
   id: string; trip_offer_id: string; seats_requested: number; proposed_fare_per_seat_pkr: number; counter_fare_per_seat_pkr: number | null; status: string
   vehicle_trip_offers: { origin: string; origin_ur: string | null; destination: string; destination_ur: string | null } | null
@@ -187,9 +187,7 @@ export default function TripsPage() {
               <p className="font-sans text-[13.5px] font-bold text-dp-secondary mt-1">{fmt(o.listed_fare_per_seat_pkr)} <span className="font-normal text-dp-on-surface-variant text-[11.5px]">{t('cm.askingPerSeat')}</span> · <span className="font-normal text-dp-on-surface-variant text-[11.5px] ltr-num">{o.seats_available} {t('mk.seatsLabel')}</span></p>
 
               {bandByTrip[o.id] && (
-                <p className="font-sans text-[11px] text-dp-secondary mt-2 ltr-num">
-                  {t('cm.suggestedBandHint').replace('{min}', fmt(bandByTrip[o.id].min)).replace('{max}', fmt(bandByTrip[o.id].max)).replace('{fair}', fmt(bandByTrip[o.id].fair))}
-                </p>
+                <FareBandPicker band={bandByTrip[o.id]} value={fareForm[o.id] ?? ''} onChange={(v) => setFareForm({ ...fareForm, [o.id]: v })} ownerLabel={t('cm.yourFareLabel')} />
               )}
               <div className="flex items-center gap-2 mt-3 pt-3 border-t border-dp-outline-variant/60">
                 <input type="number" min={1} max={o.seats_available} value={seatsForm[o.id] ?? 1} onChange={(e) => setSeatsForm({ ...seatsForm, [o.id]: +e.target.value })} className="input-field w-16 !py-2 !text-[13px]" />

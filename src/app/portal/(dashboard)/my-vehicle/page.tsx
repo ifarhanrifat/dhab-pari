@@ -23,6 +23,7 @@ import { getCurrentPositionOnce, classifyLocationError, type LocationErrorReason
 import { LocationSettingsModal } from '@/components/portal/LocationSettingsModal'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
+import { FareBandPicker, type FareBand } from '@/components/shared/FareBandPicker'
 
 interface Vehicle { id: string; owner_name: string; vehicle_type: string; commission_mode: string; delivers: boolean; per_km_pkr: number | null; offers_hourly: boolean; offers_shadi: boolean }
 interface TripOffer {
@@ -87,7 +88,7 @@ export default function MyVehiclePage() {
   const [tripForm, setTripForm] = useState(emptyTripOffer)
   const [posting, setPosting] = useState(false)
   const [counterAmount, setCounterAmount] = useState<Record<string, number>>({})
-  const [bandByTrip, setBandByTrip] = useState<Record<string, { min: number; max: number; fair: number }>>({})
+  const [bandByTrip, setBandByTrip] = useState<Record<string, FareBand>>({})
   const [trustByFareOffer, setTrustByFareOffer] = useState<Record<string, Trust>>({})
   const [ledger, setLedger] = useState<LedgerRow[]>([])
 
@@ -867,9 +868,7 @@ export default function MyVehiclePage() {
                       {fo.status === 'countered' && <span className="text-amber-700 font-semibold"> ({t('cm.youCountered')} {fmt(fo.counter_fare_per_seat_pkr ?? 0)})</span>}
                     </p>
                     {fo.status === 'pending' && bandByTrip[tr.id] && (
-                      <p className="font-sans text-[10.5px] text-dp-secondary mt-1 ltr-num">
-                        {t('cm.suggestedBandHint').replace('{min}', fmt(bandByTrip[tr.id].min)).replace('{max}', fmt(bandByTrip[tr.id].max)).replace('{fair}', fmt(bandByTrip[tr.id].fair))}
-                      </p>
+                      <FareBandPicker band={bandByTrip[tr.id]} value={counterAmount[fo.id] ?? ''} onChange={(v) => setCounterAmount({ ...counterAmount, [fo.id]: v })} ownerLabel={t('cm.yourCounterLabel')} />
                     )}
                     {fo.status === 'pending' && (
                       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
