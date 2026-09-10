@@ -17,7 +17,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
-import { Bus, PlusCircle, X, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Clock, Percent, Signpost, ChevronRight, LogOut, SkipForward, Timer } from 'lucide-react'
+import { Bus, PlusCircle, X, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Clock, Percent, Signpost, ChevronRight, LogOut, SkipForward, Timer, Ban } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -319,6 +319,20 @@ function AdminVehiclesInner() {
   }
 
   const openVehicle = (v: Vehicle) => { setSelected(v); loadRoutes(v.id); loadBookings(v.id); loadCharges(v.id); loadTopups(v.id) }
+
+  // Blocking a vehicle already stops it everywhere that checks is_active
+  // (adda check-in 409/410, dispatch invitations 423, hourly/shadi/pro
+  // 475/478/426, out-of-city/negotiation gates 421/422/429) — the real
+  // gap was just that reaching the toggle meant opening the full edit
+  // form. One click here does the same thing the checkbox in that form
+  // already did.
+  const toggleVehicleActive = async (v: Vehicle) => {
+    const { error } = await supabase.from('vehicles').update({ is_active: !v.is_active }).eq('id', v.id)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    toast.success(v.is_active ? t('mk.vehicleBlockedToast') : t('mk.vehicleUnblockedToast'))
+    setSelected((s) => (s && s.id === v.id ? { ...s, is_active: !v.is_active } : s))
+    load()
+  }
 
   const confirmTopup = async (id: string) => {
     setTopupActionId(id)
@@ -641,6 +655,13 @@ function AdminVehiclesInner() {
                   <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-surface-container-high text-dp-on-surface-variant">{v.total_seats} {t('mk.seatsLabel')}</span>
                   <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-surface-container-high text-dp-on-surface-variant">{routeCountByVehicle[v.id] ?? 0} {t('mk.routesCount')}</span>
                   {v.commission_mode === 'monthly_lumpsum' && <span className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">{t('cm.lumpsumBadge')}</span>}
+                  <span
+                    role="button" tabIndex={0}
+                    onClick={(e) => { e.stopPropagation(); toggleVehicleActive(v) }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); toggleVehicleActive(v) } }}
+                    className={`ms-auto text-[10.5px] font-bold px-2.5 py-1 rounded-full cursor-pointer ${v.is_active ? 'border border-dp-error text-dp-error hover:bg-red-50' : 'bg-dp-secondary text-white hover:bg-dp-primary'}`}>
+                    {v.is_active ? t('mk.blockVehicleBtn') : t('mk.unblockVehicleBtn')}
+                  </span>
                 </div>
               </button>
             ))}
@@ -654,6 +675,9 @@ function AdminVehiclesInner() {
               <h1 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary">{selected.owner_name}</h1>
             </div>
             <div className="flex items-center gap-2">
+              <button onClick={() => toggleVehicleActive(selected)} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer ${selected.is_active ? 'border border-dp-error text-dp-error hover:bg-red-50' : 'bg-dp-secondary text-white hover:bg-dp-primary'}`}>
+                {selected.is_active ? <><Ban size={14} /> {t('mk.blockVehicleBtn')}</> : <><CheckCircle2 size={14} /> {t('mk.unblockVehicleBtn')}</>}
+              </button>
               <button onClick={() => openEditVehicle(selected)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Pencil size={14} /> {t('mk.editVehicleBtn')}</button>
               <button onClick={openNewRoute} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('mk.newRouteBtn')}</button>
             </div>

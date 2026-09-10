@@ -25,7 +25,10 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 import { FareBandPicker, type FareBand } from '@/components/shared/FareBandPicker'
 
-interface Vehicle { id: string; owner_name: string; vehicle_type: string; commission_mode: string; delivers: boolean; per_km_pkr: number | null; offers_hourly: boolean; offers_shadi: boolean }
+interface Vehicle {
+  id: string; owner_name: string; vehicle_type: string; commission_mode: string; delivers: boolean; per_km_pkr: number | null; offers_hourly: boolean; offers_shadi: boolean
+  night_booking_enabled: boolean; allows_out_of_city: boolean
+}
 interface TripOffer {
   id: string; trip_type: string; origin: string; origin_ur: string | null; destination: string; destination_ur: string | null
   classification: string; travel_date: string; seats_available: number; listed_fare_per_seat_pkr: number; status: string
@@ -148,7 +151,7 @@ export default function MyVehiclePage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('vehicles').select('id, owner_name, vehicle_type, commission_mode, delivers, per_km_pkr, offers_hourly, offers_shadi').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
+    supabase.from('vehicles').select('id, owner_name, vehicle_type, commission_mode, delivers, per_km_pkr, offers_hourly, offers_shadi, night_booking_enabled, allows_out_of_city').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
       setVehicle(data)
       if (data) await reload(data.id)
       setLoading(false)
@@ -205,7 +208,6 @@ export default function MyVehiclePage() {
   const [cities, setCities] = useState<{ id: string; name: string; name_ur: string | null }[]>([])
   const [presence, setPresence] = useState<{ city_id: string; city_name: string; expected_return_at: string | null } | null>(null)
   const [checkInCityId, setCheckInCityId] = useState('')
-  const [perKmInput, setPerKmInput] = useState('')
   const [vpSaving, setVpSaving] = useState(false)
   const [serviceClasses, setServiceClasses] = useState<{ id: string; name: string; name_ur: string | null }[]>([])
   const [myServiceOfferIds, setMyServiceOfferIds] = useState<Set<string>>(new Set())
@@ -235,7 +237,7 @@ export default function MyVehiclePage() {
   useEffect(() => {
     supabase.from('cities').select('id, name, name_ur').eq('is_active', true).order('display_order').then(({ data }) => setCities(data ?? []))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (vehicle) { setPerKmInput(vehicle.per_km_pkr != null ? String(vehicle.per_km_pkr) : ''); reloadVillagePortal(vehicle.id) } }, [vehicle]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (vehicle) reloadVillagePortal(vehicle.id) }, [vehicle]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!vehicle) return
     const iv = setInterval(() => reloadVillagePortal(vehicle.id), 15000)
@@ -251,14 +253,32 @@ export default function MyVehiclePage() {
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     setVehicle({ ...vehicle, delivers: !vehicle.delivers })
   }
-  const savePerKm = async () => {
-    if (!vehicle || !perKmInput) return
+  const toggleNightBooking = async () => {
+    if (!vehicle) return
     setVpSaving(true)
-    const { error } = await supabase.rpc('set_vehicle_delivery_prefs', { p_vehicle_id: vehicle.id, p_delivers: vehicle.delivers, p_per_km_pkr: Number(perKmInput) })
+    const { error } = await supabase.rpc('set_vehicle_capability_prefs', { p_vehicle_id: vehicle.id, p_night_booking_enabled: !vehicle.night_booking_enabled, p_allows_out_of_city: vehicle.allows_out_of_city })
     setVpSaving(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
-    setVehicle({ ...vehicle, per_km_pkr: Number(perKmInput) })
-    toast.success(t('vp.rateSavedToast'))
+    setVehicle({ ...vehicle, night_booking_enabled: !vehicle.night_booking_enabled })
+  }
+  // close_trip_offer has existed since 400 but was never wired up
+  // anywhere — a driver could post a one-off intercity/out-of-city trip
+  // and had no way at all to take it back down once posted.
+  const cancelTripOffer = async (tripOfferId: string) => {
+    if (!window.confirm(t('cm.confirmCancelTrip'))) return
+    setActionId(tripOfferId)
+    const { error } = await supabase.rpc('close_trip_offer', { p_trip_offer_id: tripOfferId })
+    setActionId(null)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    setTripOffers((rows) => rows.map((r) => r.id === tripOfferId ? { ...r, status: 'closed' } : r))
+  }
+  const toggleOutOfCity = async () => {
+    if (!vehicle) return
+    setVpSaving(true)
+    const { error } = await supabase.rpc('set_vehicle_capability_prefs', { p_vehicle_id: vehicle.id, p_night_booking_enabled: vehicle.night_booking_enabled, p_allows_out_of_city: !vehicle.allows_out_of_city })
+    setVpSaving(false)
+    if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
+    setVehicle({ ...vehicle, allows_out_of_city: !vehicle.allows_out_of_city })
   }
   const doCheckIn = async () => {
     if (!vehicle || !checkInCityId) return
@@ -702,10 +722,30 @@ export default function MyVehiclePage() {
               <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${vehicle.delivers ? (isUrdu ? '-translate-x-5 right-0.5' : 'translate-x-5 left-0.5') : 'left-0.5'}`} />
             </button>
           </div>
-          <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-dp-outline-variant/60">
+          <div className="flex items-center justify-between gap-1.5 mt-3 pt-3 border-t border-dp-outline-variant/60">
             <span className="font-sans text-[12.5px] text-dp-on-surface-variant shrink-0">{t('vp.perKmRateLabel')}</span>
-            <input type="number" value={perKmInput} onChange={(e) => setPerKmInput(e.target.value)} placeholder={t('vp.perKmRatePlaceholder')} className="input-field !py-1.5 !text-[13px] !w-28" />
-            <button onClick={savePerKm} disabled={vpSaving} className="px-2.5 py-1.5 bg-dp-secondary text-white rounded-md text-[12px] font-sans font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">{t('action.save')}</button>
+            <span className="font-sans text-[13px] font-bold text-dp-on-surface ltr-num">{vehicle.per_km_pkr != null ? fmt(vehicle.per_km_pkr) : t('vp.perKmRateNotSetYet')}</span>
+          </div>
+          <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('vp.perKmRateCommitteeNote')}</p>
+
+          <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-dp-outline-variant/60">
+            <div>
+              <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{t('vp.nightBookingToggleLabel')}</p>
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">{t('vp.nightBookingToggleHint')}</p>
+            </div>
+            <button onClick={toggleNightBooking} disabled={vpSaving} className={`shrink-0 relative w-11 h-6 rounded-full transition-colors cursor-pointer disabled:opacity-50 ${vehicle.night_booking_enabled ? 'bg-dp-secondary' : 'bg-dp-surface-container-high'}`}>
+              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${vehicle.night_booking_enabled ? (isUrdu ? '-translate-x-5 right-0.5' : 'translate-x-5 left-0.5') : 'left-0.5'}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-dp-outline-variant/60">
+            <div>
+              <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{t('vp.outOfCityToggleLabel')}</p>
+              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">{t('vp.outOfCityToggleHint')}</p>
+            </div>
+            <button onClick={toggleOutOfCity} disabled={vpSaving} className={`shrink-0 relative w-11 h-6 rounded-full transition-colors cursor-pointer disabled:opacity-50 ${vehicle.allows_out_of_city ? 'bg-dp-secondary' : 'bg-dp-surface-container-high'}`}>
+              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${vehicle.allows_out_of_city ? (isUrdu ? '-translate-x-5 right-0.5' : 'translate-x-5 left-0.5') : 'left-0.5'}`} />
+            </button>
           </div>
 
           <div className="mt-3 pt-3 border-t border-dp-outline-variant/60">
@@ -881,11 +921,16 @@ export default function MyVehiclePage() {
                   </div>
                 ))}
                 {tr.status === 'open' && (
-                  <TripLiveShareToggle
-                    tripOfferId={tr.id}
-                    sharing={tr.share_live_location}
-                    onSharingChange={(on) => setTripOffers((rows) => rows.map((r) => r.id === tr.id ? { ...r, share_live_location: on } : r))}
-                  />
+                  <>
+                    <TripLiveShareToggle
+                      tripOfferId={tr.id}
+                      sharing={tr.share_live_location}
+                      onSharingChange={(on) => setTripOffers((rows) => rows.map((r) => r.id === tr.id ? { ...r, share_live_location: on } : r))}
+                    />
+                    <button onClick={() => cancelTripOffer(tr.id)} disabled={actionId === tr.id} className="flex items-center gap-1 font-sans text-[11.5px] font-semibold mt-2 pt-2 border-t border-dp-outline-variant cursor-pointer disabled:opacity-50" style={{ color: '#b3261e' }}>
+                      <Ban size={12} /> {t('cm.cancelTripBtn')}
+                    </button>
+                  </>
                 )}
               </div>
             ))}
