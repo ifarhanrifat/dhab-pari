@@ -140,6 +140,7 @@ const menuItems: {
   { href: '/admin/reports/academy-non-payment', label: 'Academy Non-Payment', tKey: 'nav.academyNonPayment', icon: AlertTriangle, system: 'donors_projects' },
   { href: '/admin/shops', label: 'Shops', tKey: 'nav.shops', icon: Store, system: 'donors_projects' },
   { href: '/admin/vehicles', label: 'Vehicles', tKey: 'nav.vehicles', icon: Bus, system: 'donors_projects' },
+  { href: '/admin/vehicle-registrations', label: 'Vehicle Registrations', tKey: 'nav.vehicleRegistrations', icon: UserPlus, system: 'donors_projects' },
   { href: '/admin/shadi-bookings', label: 'Shadi Bookings', tKey: 'nav.shadiBookings', icon: Users2, system: 'donors_projects' },
   { href: '/admin/marketplace-overview', label: 'Overview & Fleet Map', tKey: 'nav.marketplaceOverview', icon: LayoutDashboard, system: 'donors_projects' },
   { href: '/admin/marketplace-reference', label: 'Marketplace Reference', tKey: 'nav.marketplaceReference', icon: MapPin, system: 'donors_projects' },

@@ -149,11 +149,13 @@ export default function MyVehiclePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fareOffersByTrip])
 
+  const [regStatus, setRegStatus] = useState<{ status: string; rejection_reason: string | null } | null>(null)
   useEffect(() => {
     if (!user) return
     supabase.from('vehicles').select('id, owner_name, vehicle_type, commission_mode, delivers, per_km_pkr, offers_hourly, offers_shadi, night_booking_enabled, allows_out_of_city').eq('portal_user_id', user.id).maybeSingle().then(async ({ data }) => {
       setVehicle(data)
       if (data) await reload(data.id)
+      else supabase.rpc('my_vehicle_registration_status').then(({ data: rs }) => setRegStatus(rs ?? null))
       setLoading(false)
     })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -505,7 +507,28 @@ export default function MyVehiclePage() {
   }
 
   if (userLoading || loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
-  if (!vehicle) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('cm.noVehicleLinked')}</div>
+  if (!vehicle) {
+    if (regStatus?.status === 'pending') {
+      return (
+        <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme text-center py-12 max-w-md mx-auto">
+          <Clock3 size={28} className="text-amber-600 mx-auto mb-2" />
+          <p className="font-sans text-[14px] font-bold text-dp-on-surface">{t('vr.pendingTitle')}</p>
+          <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">{t('vr.pendingBody')}</p>
+        </div>
+      )
+    }
+    return (
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme text-center py-12 max-w-md mx-auto">
+        {regStatus?.status === 'rejected' && (
+          <p className="font-sans text-[12.5px] text-dp-error mb-3">{t('vr.previouslyRejectedTitle')}: {regStatus.rejection_reason}</p>
+        )}
+        <p className="font-sans text-[13.5px] text-dp-on-surface-variant mb-3">{t('cm.noVehicleLinked')}</p>
+        <Link href="/portal/my-vehicle/register" className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all">
+          <PlusCircle size={15} /> {t('vr.registerBtn')}
+        </Link>
+      </div>
+    )
+  }
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
