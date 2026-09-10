@@ -17,6 +17,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
 
 interface Order {
   id: string; status: string; total_amount_pkr: number; rejected_reason: string | null; created_at: string
@@ -138,6 +139,12 @@ export default function OrderTrackingPage() {
               <Phone size={16} />
             </a>
           )}
+        </div>
+      )}
+
+      {['out_for_delivery', 'delivered', 'cancelled'].includes(order.fulfillment_status) && (
+        <div className="flex justify-center mt-4">
+          <ReportProblemButton refType="shop_order" refId={order.id} kindOptions={['damaged_goods', 'no_show']} />
         </div>
       )}
     </div>

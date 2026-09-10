@@ -13,7 +13,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
-import { Pencil, Plus, MapPin, Truck, Home } from 'lucide-react'
+import { Pencil, Plus, MapPin, Truck, Home, Gauge } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
@@ -23,10 +23,12 @@ interface ServiceClass {
   note: string | null; note_ur: string | null; base_fare_pkr: number; per_km_pkr: number; is_active: boolean; display_order: number
 }
 interface Village { id: string; name: string; name_ur: string | null; delivery_fee_pkr: number; is_home_village: boolean; is_active: boolean; display_order: number }
+interface FareBand { flow: 'trip_share' | 'city_fetch'; base_pkr: number; per_km_pkr: number; spread: number }
 
 const emptyCity = { name: '', name_ur: '', distance_km: 0, is_home_city: false, display_order: 0 }
 const emptyServiceClass = { name: '', name_ur: '', category: 'passenger', capacity_label: '', capacity_label_ur: '', note: '', note_ur: '', base_fare_pkr: 0, per_km_pkr: 0, display_order: 0 }
 const emptyVillage = { name: '', name_ur: '', delivery_fee_pkr: 0, is_home_village: false, display_order: 0 }
+const emptyFareBand = { base_pkr: 0, per_km_pkr: 0, spread: 0.28 }
 
 function fmt(n: number) { return Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }) }
 
@@ -35,26 +37,30 @@ export default function MarketplaceReferencePage() {
   const access = useSystemAccess()
   const supabase = createClient()
 
-  const [tab, setTab] = useState<'cities' | 'services' | 'villages'>('cities')
+  const [tab, setTab] = useState<'cities' | 'services' | 'villages' | 'fareBands'>('cities')
   const [cities, setCities] = useState<City[]>([])
   const [services, setServices] = useState<ServiceClass[]>([])
   const [villages, setVillages] = useState<Village[]>([])
+  const [fareBands, setFareBands] = useState<FareBand[]>([])
   const [loading, setLoading] = useState(true)
 
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingFlow, setEditingFlow] = useState<'trip_share' | 'city_fetch' | null>(null)
   const [cityForm, setCityForm] = useState(emptyCity)
   const [serviceForm, setServiceForm] = useState(emptyServiceClass)
   const [villageForm, setVillageForm] = useState(emptyVillage)
+  const [fareBandForm, setFareBandForm] = useState(emptyFareBand)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const load = async () => {
-    const [{ data: c }, { data: s }, { data: v }] = await Promise.all([
+    const [{ data: c }, { data: s }, { data: v }, { data: fb }] = await Promise.all([
       supabase.from('cities').select('*').order('display_order'),
       supabase.from('service_classes').select('*').order('display_order'),
       supabase.from('villages').select('*').order('display_order'),
+      supabase.from('fare_bands').select('*').order('flow'),
     ])
-    setCities((c ?? []) as City[]); setServices((s ?? []) as ServiceClass[]); setVillages((v ?? []) as Village[])
+    setCities((c ?? []) as City[]); setServices((s ?? []) as ServiceClass[]); setVillages((v ?? []) as Village[]); setFareBands((fb ?? []) as FareBand[])
     setLoading(false)
   }
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -69,13 +75,15 @@ export default function MarketplaceReferencePage() {
   const openEditCity = (c: City) => { setEditingId(c.id); setCityForm({ ...c, name_ur: c.name_ur ?? '' }); setShowForm(true) }
   const openEditService = (s: ServiceClass) => { setEditingId(s.id); setServiceForm({ ...s, name_ur: s.name_ur ?? '', capacity_label: s.capacity_label ?? '', capacity_label_ur: s.capacity_label_ur ?? '', note: s.note ?? '', note_ur: s.note_ur ?? '' }); setShowForm(true) }
   const openEditVillage = (v: Village) => { setEditingId(v.id); setVillageForm({ ...v, name_ur: v.name_ur ?? '' }); setShowForm(true) }
+  const openEditFareBand = (fb: FareBand) => { setEditingFlow(fb.flow); setFareBandForm({ base_pkr: fb.base_pkr, per_km_pkr: fb.per_km_pkr, spread: fb.spread }); setShowForm(true) }
 
   const save = async () => {
     setSaving(true)
     const { error } =
       tab === 'cities' ? (editingId ? await supabase.from('cities').update(cityForm).eq('id', editingId) : await supabase.from('cities').insert(cityForm))
       : tab === 'services' ? (editingId ? await supabase.from('service_classes').update(serviceForm).eq('id', editingId) : await supabase.from('service_classes').insert(serviceForm))
-      : (editingId ? await supabase.from('villages').update(villageForm).eq('id', editingId) : await supabase.from('villages').insert(villageForm))
+      : tab === 'villages' ? (editingId ? await supabase.from('villages').update(villageForm).eq('id', editingId) : await supabase.from('villages').insert(villageForm))
+      : await supabase.from('fare_bands').update(fareBandForm).eq('flow', editingFlow)
     setSaving(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
     toast.success(t('g.saveChanges'))
@@ -104,9 +112,12 @@ export default function MarketplaceReferencePage() {
         <button onClick={() => { setTab('cities'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'cities' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><MapPin size={14} /> {t('mr.citiesTab')}</button>
         <button onClick={() => { setTab('services'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'services' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><Truck size={14} /> {t('mr.servicesTab')}</button>
         <button onClick={() => { setTab('villages'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'villages' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><Home size={14} /> {t('mr.villagesTab')}</button>
+        <button onClick={() => { setTab('fareBands'); setShowForm(false) }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[13px] font-sans font-semibold cursor-pointer transition-all ${tab === 'fareBands' ? 'bg-white text-dp-primary shadow-sm' : 'text-dp-on-surface-variant'}`}><Gauge size={14} /> {t('mr.fareBandsTab')}</button>
       </div>
 
-      <button onClick={openNew} className="flex items-center gap-1.5 px-3 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all mb-4"><Plus size={14} /> {t('mr.addNewBtn')}</button>
+      {tab !== 'fareBands' && (
+        <button onClick={openNew} className="flex items-center gap-1.5 px-3 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all mb-4"><Plus size={14} /> {t('mr.addNewBtn')}</button>
+      )}
 
       {tab === 'cities' && (
         <div className="space-y-2">
@@ -159,10 +170,25 @@ export default function MarketplaceReferencePage() {
         </div>
       )}
 
+      {tab === 'fareBands' && (
+        <div className="space-y-2">
+          <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-2">{t('mr.fareBandsHint')}</p>
+          {fareBands.map((fb) => (
+            <div key={fb.flow} className="bg-white border border-dp-outline-variant rounded-lg p-3.5 flex items-center justify-between gap-3">
+              <div>
+                <p className="font-sans text-[14px] font-semibold text-dp-on-surface">{fb.flow === 'trip_share' ? t('mr.flowTripShare') : t('mr.flowCityFetch')}</p>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant ltr-num">{fmt(fb.base_pkr)} base + {fmt(fb.per_km_pkr)}/km · ±{Math.round(fb.spread * 100)}%</p>
+              </div>
+              <button onClick={() => openEditFareBand(fb)} className="p-2 rounded text-dp-secondary hover:bg-dp-surface-container cursor-pointer"><Pencil size={14} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-5 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-3">{editingId ? t('mr.editTitle') : t('mr.addTitle')}</h2>
+            <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-3">{tab === 'fareBands' ? (editingFlow === 'trip_share' ? t('mr.flowTripShare') : t('mr.flowCityFetch')) : editingId ? t('mr.editTitle') : t('mr.addTitle')}</h2>
 
             {tab === 'cities' && (
               <div className="space-y-2.5">
@@ -195,6 +221,16 @@ export default function MarketplaceReferencePage() {
                 <input value={villageForm.name_ur} onChange={(e) => setVillageForm({ ...villageForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" dir="rtl" />
                 <input type="number" value={villageForm.delivery_fee_pkr || ''} onChange={(e) => setVillageForm({ ...villageForm, delivery_fee_pkr: +e.target.value })} placeholder={t('mr.deliveryFeePlaceholder')} className="input-field" />
                 <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={villageForm.is_home_village} onChange={(e) => setVillageForm({ ...villageForm, is_home_village: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[13px]">{t('mr.isHomeVillageLabel')}</span></label>
+              </div>
+            )}
+
+            {tab === 'fareBands' && (
+              <div className="space-y-2.5">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <input type="number" value={fareBandForm.base_pkr || ''} onChange={(e) => setFareBandForm({ ...fareBandForm, base_pkr: +e.target.value })} placeholder={t('mr.basePkrPlaceholder')} className="input-field" />
+                  <input type="number" value={fareBandForm.per_km_pkr || ''} onChange={(e) => setFareBandForm({ ...fareBandForm, per_km_pkr: +e.target.value })} placeholder={t('mr.perKmPkrPlaceholder')} className="input-field" />
+                </div>
+                <input type="number" step="0.01" min="0.01" max="0.99" value={fareBandForm.spread || ''} onChange={(e) => setFareBandForm({ ...fareBandForm, spread: +e.target.value })} placeholder={t('mr.spreadPlaceholder')} className="input-field" />
               </div>
             )}
 
