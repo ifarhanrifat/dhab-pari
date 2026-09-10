@@ -4689,6 +4689,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'sb.allReleasedLabel': 'All advances released to vehicles', 'sb.releasedOfTotalSuffix': 'released',
 
     'mr.pageTitle': 'Marketplace Reference', 'mr.pageSubtitle': 'Cities, Pro/Loading service classes, and village delivery fees — the reference data every fare formula reads from.',
+    'tr.tier.verified': 'Verified', 'tr.tier.partial': 'Partial', 'tr.tier.outsider': 'Unverified', 'tr.trustLabel': 'Trust',
     'mr.noAccessMessage': "You don't have access to this page.",
     'mr.citiesTab': 'Cities', 'mr.servicesTab': 'Service Classes', 'mr.villagesTab': 'Villages',
     'mr.addNewBtn': 'Add New', 'mr.editTitle': 'Edit', 'mr.addTitle': 'Add New',
@@ -9360,6 +9361,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'sb.allReleasedLabel': 'تمام ایڈوانس گاڑیوں کو جاری کر دیے گئے', 'sb.releasedOfTotalSuffix': 'جاری شدہ',
 
     'mr.pageTitle': 'مارکیٹ پلیس ریفرنس', 'mr.pageSubtitle': 'شہر، پرو/لوڈنگ سروس کلاسز، اور گاؤں کی ڈیلیوری فیس — وہ ریفرنس ڈیٹا جس پر ہر کرایہ فارمولا انحصار کرتا ہے۔',
+    'tr.tier.verified': 'تصدیق شدہ', 'tr.tier.partial': 'جزوی تصدیق', 'tr.tier.outsider': 'غیر تصدیق شدہ', 'tr.trustLabel': 'اعتماد',
     'mr.noAccessMessage': 'آپ کو اس صفحے تک رسائی نہیں ہے۔',
     'mr.citiesTab': 'شہر', 'mr.servicesTab': 'سروس کلاسز', 'mr.villagesTab': 'گاؤں',
     'mr.addNewBtn': 'نیا شامل کریں', 'mr.editTitle': 'ترمیم کریں', 'mr.addTitle': 'نیا شامل کریں',

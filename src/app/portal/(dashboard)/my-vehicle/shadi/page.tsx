@@ -17,12 +17,13 @@ import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { TrustPill, TrustStrip, type Trust } from '@/components/shared/TrustBadge'
 
 interface Vehicle { id: string; owner_name: string }
 interface Request {
   id: string; status: string; decline_reason: string | null; full_day_rate_pkr: number; advance_share_pkr: number | null
   event_id: string; event_date: string; venue_address: string; distance_km: number; notes: string | null; event_status: string
-  customer_name: string; customer_mobile: string | null; paid_out_at: string | null
+  customer_name: string; customer_mobile: string | null; paid_out_at: string | null; customer_trust: Trust | null
 }
 
 function fmt(n: number) {
@@ -103,6 +104,7 @@ export default function MyShadiRequestsPage() {
         <Section title={t('vp.newRequestsHeading')}>
           {pending.map((r) => (
             <div key={r.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+              <TrustStrip trust={r.customer_trust} />
               <RequestHeader r={r} />
               {decliningId === r.id ? (
                 <div className="mt-2 pt-2 border-t border-dp-outline-variant">
@@ -212,7 +214,7 @@ function RequestHeader({ r }: { r: Request }) {
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
         <p className="font-sans text-[14px] font-semibold text-dp-on-surface flex items-center gap-1.5"><CalendarDays size={13} className="text-dp-secondary shrink-0" /> {new Date(r.event_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-        <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{r.customer_name}{r.customer_mobile ? ` · ${r.customer_mobile}` : ''}</p>
+        <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5 flex items-center gap-1.5">{r.customer_name}{r.customer_mobile ? ` · ${r.customer_mobile}` : ''} <TrustPill trust={r.customer_trust} /></p>
         <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5" /> {r.venue_address}</p>
         <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5 flex items-center gap-1 ltr-num"><Ruler size={11} /> {r.distance_km}km</p>
         {r.notes && <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">{r.notes}</p>}

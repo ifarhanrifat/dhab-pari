@@ -22,6 +22,7 @@ import { OrderFulfillmentPanel } from '@/components/shared/OrderFulfillmentPanel
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { ShopBottomNav } from '@/components/portal/ShopBottomNav'
 import { MarqueeText } from '@/components/shared/MarqueeText'
+import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 
 interface Shop { id: string; name: string; name_ur: string | null; commission_mode: string }
 interface Summary {
@@ -35,7 +36,7 @@ interface DayEarning { date: string; walkin_pkr: number; marketplace_pkr: number
 interface BestSeller { product_id: string; name: string; quantity: number; revenue_pkr: number }
 interface ShopOrder {
  id: string; status: string; total_amount_pkr: number; created_at: string; rejected_reason: string | null
- fulfillment_status: string; delivery_address: string | null; buyer_mobile: string | null
+ fulfillment_status: string; delivery_address: string | null; buyer_mobile: string | null; portal_user_id: string
  shop_order_items: { quantity: number; shop_products: { name: string; name_ur: string | null } | null }[]
  vehicles: { owner_name: string; owner_mobile: string | null } | null
 }
@@ -62,6 +63,7 @@ export default function ShopReportsPage() {
  const [daily, setDaily] = useState<DayEarning[]>([])
  const [bestSellers, setBestSellers] = useState<BestSeller[]>([])
  const [orders, setOrders] = useState<ShopOrder[]>([])
+ const [customerTrust, setCustomerTrust] = useState<Record<string, Trust>>({})
  const [sales, setSales] = useState<WalkinSale[]>([])
  const [demand, setDemand] = useState<{ matched: DemandRow[]; unmatched: DemandRow[] } | null>(null)
  const [orderActionId, setOrderActionId] = useState<string | null>(null)
@@ -71,10 +73,24 @@ export default function ShopReportsPage() {
  const [periodPurchases, setPeriodPurchases] = useState<PeriodPurchaseRow[]>([])
  const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([])
 
+ // Trust for a pending order's buyer — the shopkeeper's own decision
+ // moment (per the v2 design audit, this surface should judge a
+ // customer by the identical rule a driver uses). No batching RPC
+ // exists yet, so this fetches one at a time for whichever orders are
+ // still awaiting a decision, skipping anyone already cached.
+ useEffect(() => {
+ const pendingIds = orders.filter((o) => o.status === 'announced').map((o) => o.portal_user_id)
+ const missing = [...new Set(pendingIds)].filter((id) => !(id in customerTrust))
+ if (missing.length === 0) return
+ Promise.all(missing.map((id) => supabase.rpc('portal_user_trust', { p_portal_user_id: id }).then(({ data }) => [id, data] as const)))
+ .then((pairs) => setCustomerTrust((prev) => ({ ...prev, ...Object.fromEntries(pairs) })))
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [orders])
+
  const reloadOrders = async (shopId: string) => {
  const [{ data: s }, { data: o }] = await Promise.all([
  supabase.rpc('shop_dashboard_summary', { p_shop_id: shopId }),
- supabase.from('shop_orders').select('id, status, total_amount_pkr, created_at, rejected_reason, fulfillment_status, delivery_address, buyer_mobile, shop_order_items(quantity, shop_products(name, name_ur)), vehicles!delivery_vehicle_id(owner_name, owner_mobile)')
+ supabase.from('shop_orders').select('id, status, total_amount_pkr, created_at, rejected_reason, fulfillment_status, delivery_address, buyer_mobile, portal_user_id, shop_order_items(quantity, shop_products(name, name_ur)), vehicles!delivery_vehicle_id(owner_name, owner_mobile)')
  .eq('shop_id', shopId).order('created_at', { ascending: false }).limit(20),
  ])
  setSummary(s as unknown as Summary)
@@ -92,7 +108,7 @@ export default function ShopReportsPage() {
  supabase.rpc('shop_dashboard_summary', { p_shop_id: data.id }),
  supabase.rpc('shop_daily_earnings', { p_shop_id: data.id, p_days: 14 }),
  supabase.rpc('shop_best_sellers', { p_shop_id: data.id, p_days: 1 }),
- supabase.from('shop_orders').select('id, status, total_amount_pkr, created_at, rejected_reason, fulfillment_status, delivery_address, buyer_mobile, shop_order_items(quantity, shop_products(name, name_ur)), vehicles!delivery_vehicle_id(owner_name, owner_mobile)')
+ supabase.from('shop_orders').select('id, status, total_amount_pkr, created_at, rejected_reason, fulfillment_status, delivery_address, buyer_mobile, portal_user_id, shop_order_items(quantity, shop_products(name, name_ur)), vehicles!delivery_vehicle_id(owner_name, owner_mobile)')
  .eq('shop_id', data.id).order('created_at', { ascending: false }).limit(20),
  supabase.from('shop_sales').select('id, total_amount_pkr, created_at, shop_sale_items(product_name_snapshot, quantity)')
  .eq('shop_id', data.id).order('created_at', { ascending: false }).limit(20),
@@ -418,6 +434,9 @@ export default function ShopReportsPage() {
  <div className="space-y-2">
  {orders.map((o) => (
  <div key={o.id} className="bg-white border border-[#dcd8d4] p-3.5">
+ {o.status === 'announced' && customerTrust[o.portal_user_id] && (
+ <div className="mb-2"><TrustPill trust={customerTrust[o.portal_user_id]} /></div>
+ )}
  <div className="flex items-start justify-between gap-3">
  <div className="min-w-0">
  {o.shop_order_items.map((it, i) => (

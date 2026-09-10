@@ -23,6 +23,7 @@ import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useLiveLocation } from '@/hooks/useLiveLocation'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { TrustPill, TrustStrip, type Trust } from '@/components/shared/TrustBadge'
 
 interface Vehicle { id: string; owner_name: string; commission_mode: string }
 interface Booking {
@@ -30,7 +31,7 @@ interface Booking {
   base_amount_pkr: number; total_amount_pkr: number | null; distance_km: number
   included_km: number; overage_km: number | null; overage_amount_pkr: number | null
   requested_at: string; started_at: string | null; ended_at: string | null; status_confirmed: boolean
-  customer_name: string; customer_mobile: string | null
+  customer_name: string; customer_mobile: string | null; customer_trust: Trust | null
 }
 
 function fmt(n: number) {
@@ -157,6 +158,7 @@ export default function MyHourlyBookingsPage() {
         <Section title={t('vp.newRequestsHeading')}>
           {requested.map((b) => (
             <div key={b.id} className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
+              <TrustStrip trust={b.customer_trust} />
               <BookingHeader b={b} />
               {decliningId === b.id ? (
                 <div className="mt-2 pt-2 border-t border-dp-outline-variant">
@@ -273,7 +275,7 @@ function BookingHeader({ b }: { b: Booking }) {
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="font-sans text-[14px] font-semibold text-dp-on-surface">{b.customer_name}</p>
+        <p className="font-sans text-[14px] font-semibold text-dp-on-surface flex items-center gap-1.5">{b.customer_name} <TrustPill trust={b.customer_trust} /></p>
         {b.customer_mobile && <p className="font-sans text-[11.5px] text-dp-on-surface-variant ltr-num">{b.customer_mobile}</p>}
         <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5 flex items-start gap-1"><MapPin size={11} className="shrink-0 mt-0.5" /> {b.pickup_address}</p>
       </div>
