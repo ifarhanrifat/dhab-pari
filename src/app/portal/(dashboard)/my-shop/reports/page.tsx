@@ -37,6 +37,7 @@ interface ShopOrder {
  id: string; status: string; total_amount_pkr: number; created_at: string; rejected_reason: string | null
  fulfillment_status: string; delivery_address: string | null; buyer_mobile: string | null
  shop_order_items: { quantity: number; shop_products: { name: string; name_ur: string | null } | null }[]
+ vehicles: { owner_name: string; owner_mobile: string | null } | null
 }
 interface WalkinSale { id: string; total_amount_pkr: number; created_at: string; shop_sale_items: { product_name_snapshot: string; quantity: number }[] }
 interface DemandRow { query: string; searches: number }
@@ -73,7 +74,7 @@ export default function ShopReportsPage() {
  const reloadOrders = async (shopId: string) => {
  const [{ data: s }, { data: o }] = await Promise.all([
  supabase.rpc('shop_dashboard_summary', { p_shop_id: shopId }),
- supabase.from('shop_orders').select('id, status, total_amount_pkr, created_at, rejected_reason, fulfillment_status, delivery_address, buyer_mobile, shop_order_items(quantity, shop_products(name, name_ur))')
+ supabase.from('shop_orders').select('id, status, total_amount_pkr, created_at, rejected_reason, fulfillment_status, delivery_address, buyer_mobile, shop_order_items(quantity, shop_products(name, name_ur)), vehicles!delivery_vehicle_id(owner_name, owner_mobile)')
  .eq('shop_id', shopId).order('created_at', { ascending: false }).limit(20),
  ])
  setSummary(s as unknown as Summary)
@@ -91,7 +92,7 @@ export default function ShopReportsPage() {
  supabase.rpc('shop_dashboard_summary', { p_shop_id: data.id }),
  supabase.rpc('shop_daily_earnings', { p_shop_id: data.id, p_days: 14 }),
  supabase.rpc('shop_best_sellers', { p_shop_id: data.id, p_days: 1 }),
- supabase.from('shop_orders').select('id, status, total_amount_pkr, created_at, rejected_reason, fulfillment_status, delivery_address, buyer_mobile, shop_order_items(quantity, shop_products(name, name_ur))')
+ supabase.from('shop_orders').select('id, status, total_amount_pkr, created_at, rejected_reason, fulfillment_status, delivery_address, buyer_mobile, shop_order_items(quantity, shop_products(name, name_ur)), vehicles!delivery_vehicle_id(owner_name, owner_mobile)')
  .eq('shop_id', data.id).order('created_at', { ascending: false }).limit(20),
  supabase.from('shop_sales').select('id, total_amount_pkr, created_at, shop_sale_items(product_name_snapshot, quantity)')
  .eq('shop_id', data.id).order('created_at', { ascending: false }).limit(20),
@@ -442,7 +443,7 @@ export default function ShopReportsPage() {
  </div>
  </div>
  )}
- <OrderFulfillmentPanel order={o} onChanged={() => shop && reloadOrders(shop.id)} />
+ <OrderFulfillmentPanel order={{ ...o, carrier_name: o.vehicles?.owner_name ?? null, carrier_mobile: o.vehicles?.owner_mobile ?? null }} onChanged={() => shop && reloadOrders(shop.id)} />
  </div>
  ))}
  </div>

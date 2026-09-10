@@ -48,6 +48,7 @@ interface Order {
   id: string; status: string; total_amount_pkr: number; announced_method: string | null; announced_at: string | null; rejected_reason: string | null
   fulfillment_status: string; delivery_address: string | null; buyer_mobile: string | null
   shop_order_items: { quantity: number; shop_products: { name: string; name_ur: string | null; flavor: string | null; flavor_ur: string | null } | null }[]
+  vehicles: { owner_name: string; owner_mobile: string | null } | null
 }
 
 const emptyShop = {
@@ -162,7 +163,7 @@ function AdminShopsInner() {
 
   const loadOrders = async (shopId: string) => {
     const { data } = await supabase.from('shop_orders')
-      .select('id, status, total_amount_pkr, announced_method, announced_at, rejected_reason, fulfillment_status, delivery_address, buyer_mobile, shop_order_items(quantity, shop_products(name, name_ur, flavor, flavor_ur))')
+      .select('id, status, total_amount_pkr, announced_method, announced_at, rejected_reason, fulfillment_status, delivery_address, buyer_mobile, shop_order_items(quantity, shop_products(name, name_ur, flavor, flavor_ur)), vehicles!delivery_vehicle_id(owner_name, owner_mobile)')
       .eq('shop_id', shopId).order('created_at', { ascending: false })
     setOrders((data ?? []) as unknown as Order[])
   }
@@ -585,7 +586,7 @@ function AdminShopsInner() {
                         </div>
                       )}
                     </div>
-                    <OrderFulfillmentPanel order={o} onChanged={() => loadOrders(selected.id)} />
+                    <OrderFulfillmentPanel order={{ ...o, carrier_name: o.vehicles?.owner_name ?? null, carrier_mobile: o.vehicles?.owner_mobile ?? null }} onChanged={() => loadOrders(selected.id)} />
                   </div>
                 ))}
               </div>

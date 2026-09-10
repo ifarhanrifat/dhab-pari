@@ -9,7 +9,7 @@
 // migration 405), which authorize either caller server-side.
 
 import { useState } from 'react'
-import { MapPin, Phone, PackageCheck, ChefHat, Truck, CheckCircle2, XCircle } from 'lucide-react'
+import { MapPin, Phone, PackageCheck, ChefHat, Truck, CheckCircle2, XCircle, Bike } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
@@ -20,6 +20,13 @@ export interface FulfillableOrder {
   fulfillment_status: string
   delivery_address: string | null
   buyer_mobile: string | null
+  // The one gap found auditing this flow against the design handoff: the
+  // shop was told a biker had accepted, but never which one. Both callers
+  // (admin/shops, my-shop/reports) join delivery_vehicle_id's owner_name/
+  // owner_mobile — optional so a pickup order (never rung) just renders
+  // without this block.
+  carrier_name?: string | null
+  carrier_mobile?: string | null
 }
 
 const STEP_ICON: Record<string, React.ElementType> = {
@@ -70,6 +77,11 @@ export function OrderFulfillmentPanel({ order, onChanged }: { order: Fulfillable
           {order.delivery_address && <p className="font-sans text-[12px] text-dp-on-surface-variant flex items-start gap-1.5"><MapPin size={12} className="shrink-0 mt-0.5" /> {order.delivery_address}</p>}
           {order.buyer_mobile && <p className="font-sans text-[12px] text-dp-on-surface-variant flex items-center gap-1.5"><Phone size={12} className="shrink-0" /> <span className="ltr-num">{order.buyer_mobile}</span></p>}
         </div>
+      )}
+      {order.carrier_name && (
+        <p className="mb-2 font-sans text-[12px] font-semibold text-dp-secondary flex items-center gap-1.5">
+          <Bike size={12} className="shrink-0" /> {order.carrier_name}{order.carrier_mobile ? <span className="font-normal text-dp-on-surface-variant ltr-num"> · {order.carrier_mobile}</span> : null}
+        </p>
       )}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full bg-dp-secondary-container/50 text-dp-secondary">
