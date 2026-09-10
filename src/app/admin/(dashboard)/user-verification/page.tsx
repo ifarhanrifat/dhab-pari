@@ -62,7 +62,7 @@ export default function AdminUserVerificationPage() {
   }
 
   return (
-    <div>
+    <div className="shop-ink-theme">
       <div className="mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('uv.pageTitle')}</h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('uv.pageSubtitle')}</p>

@@ -102,7 +102,7 @@ export default function TripTrackingPage() {
   ]
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'}>
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
       <button onClick={() => router.back()} className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[13.5px] font-semibold hover:underline cursor-pointer mb-4">
         <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('mp.backToMarketplace')}
       </button>

@@ -130,7 +130,7 @@ function AddaBoardPageInner() {
   ] : []
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'}>
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
       <Link href="/portal/marketplace" className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline mb-3"><ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('mp.backToMarketplace')}</Link>
       <h1 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mb-1 flex items-center gap-2">{t('af.addaBoardPageTitle')}</h1>
       <p className="font-sans text-[13px] text-dp-on-surface-variant mb-5">{t('af.addaBoardHint')}</p>

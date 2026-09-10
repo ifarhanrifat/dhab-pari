@@ -73,7 +73,7 @@ export default function MarketplaceTravelPage() {
   }
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'}>
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
       <div className="mb-5">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary">{t('vp.travelPageTitle')}</h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('vp.travelPageSubtitle')}</p>

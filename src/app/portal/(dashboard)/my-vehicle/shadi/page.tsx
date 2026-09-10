@@ -93,7 +93,7 @@ export default function MyShadiRequestsPage() {
   const past = requests.filter((r) => (r.status === 'accepted' && r.event_date < today) || r.status === 'declined' || r.status === 'cancelled' || r.status === 'withdrawn')
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'}>
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
       <Link href="/portal/my-vehicle" className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline mb-3">
         <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {vehicle.owner_name}
       </Link>

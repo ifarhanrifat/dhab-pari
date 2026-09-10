@@ -483,7 +483,7 @@ export default function MyVehiclePage() {
   if (!vehicle) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('cm.noVehicleLinked')}</div>
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'}>
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
       <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
         <h1 className="font-heading text-[26px] font-bold leading-[34px] text-dp-primary flex items-center gap-2"><Bus size={22} /> {vehicle.owner_name}</h1>
         <div className="flex items-center gap-2">

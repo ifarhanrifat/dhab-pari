@@ -391,7 +391,7 @@ export default function NearbyOpenTripsPage() {
   )
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="-m-6 md:-m-10">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme -m-6 md:-m-10">
       <div className="relative lg:flex h-[calc(100dvh-160px)] min-h-[420px] lg:h-[calc(100dvh-100px)] lg:min-h-0">
 
         {/* Desktop: a static sidebar in normal flex flow, right next to the
@@ -412,7 +412,7 @@ export default function NearbyOpenTripsPage() {
             `dir` has to be set explicitly here — a portaled node is a
             child of <body>, not of this page's own dir="rtl" wrapper. */}
         {mounted && createPortal(
-          <div dir={isUrdu ? 'rtl' : 'ltr'}>
+          <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
             {panelOpen && <div onClick={() => setPanelOpen(false)} className="lg:hidden fixed inset-0 z-[9998] bg-black/40" />}
             <div className={`lg:hidden fixed inset-y-0 start-0 z-[9999] w-[86%] max-w-[380px] h-full bg-white shadow-2xl transition-transform duration-300 ease-out flex flex-col ${panelOpen ? 'translate-x-0' : isUrdu ? 'translate-x-full' : '-translate-x-full'}`}>
               {panelInner}

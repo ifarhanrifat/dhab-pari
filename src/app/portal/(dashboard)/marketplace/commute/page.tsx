@@ -93,7 +93,7 @@ export default function CommutePage() {
   )
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="max-w-lg mx-auto">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme max-w-lg mx-auto">
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><CalendarClock size={22} className="text-dp-secondary" /> {t('vp.commutePageTitle')}</h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('vp.commutePageSubtitle')}</p>

@@ -102,7 +102,7 @@ export default function MarketplaceReferencePage() {
   }
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'}>
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
       <div className="mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('mr.pageTitle')}</h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('mr.pageSubtitle')}</p>

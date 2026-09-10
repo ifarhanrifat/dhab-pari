@@ -114,7 +114,7 @@ export default function DispatchCallDetailPage() {
   const ringingTier2 = invitations.filter((i) => i.tier === 2)
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="max-w-lg mx-auto">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme max-w-lg mx-auto">
       <button onClick={() => router.push('/portal/marketplace/order-city')} className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-on-surface-variant hover:text-dp-secondary mb-3 cursor-pointer">
         <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('vp.backToDispatch')}
       </button>

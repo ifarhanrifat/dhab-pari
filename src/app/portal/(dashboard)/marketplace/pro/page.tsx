@@ -76,7 +76,7 @@ export default function ProServicePage() {
 
   if (selectedClass) {
     return (
-      <div dir={isUrdu ? 'rtl' : 'ltr'} className="max-w-lg mx-auto">
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme max-w-lg mx-auto">
         <button onClick={() => setSelectedClass(null)} className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-on-surface-variant hover:text-dp-secondary mb-3 cursor-pointer">
           <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('vp.backToServices')}
         </button>
@@ -128,7 +128,7 @@ export default function ProServicePage() {
 
   const visible = classes.filter((c) => c.category === tab)
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="max-w-lg mx-auto">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme max-w-lg mx-auto">
       <div className="mb-6">
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Truck size={22} className="text-dp-secondary" /> {t('vp.proPageTitle')}</h1>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('vp.proPageSubtitle')}</p>

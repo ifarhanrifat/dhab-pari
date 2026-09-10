@@ -507,7 +507,7 @@ function AdminVehiclesInner() {
   }
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'}>
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
       {!selected ? (
         <>
           <div className="flex items-center justify-between gap-3 flex-wrap mb-6">

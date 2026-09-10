@@ -124,7 +124,7 @@ export default function ShadiEventDetailPage() {
   const estimatedPct = 20 // shown only as a rough label before the server computes the real figure; actual pct comes from confirm_shadi_advance's own settings read
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'}>
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
       <Link href="/portal/marketplace/shadi" className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline mb-3">
         <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('vp.shadiPageTitle')}
       </Link>
