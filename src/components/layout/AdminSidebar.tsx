@@ -141,6 +141,7 @@ const menuItems: {
   { href: '/admin/vehicles', label: 'Vehicles', tKey: 'nav.vehicles', icon: Bus, system: 'donors_projects' },
   { href: '/admin/shadi-bookings', label: 'Shadi Bookings', tKey: 'nav.shadiBookings', icon: Users2, system: 'donors_projects' },
   { href: '/admin/marketplace-reference', label: 'Marketplace Reference', tKey: 'nav.marketplaceReference', icon: MapPin, system: 'donors_projects' },
+  { href: '/admin/user-verification', label: 'User Verification', tKey: 'nav.userVerification', icon: ShieldCheck, system: 'donors_projects' },
   { href: '/admin/talent-showcase', label: 'Talent Showcase', tKey: 'nav.talentShowcase', icon: Sparkles, adminAndAbove: true },
   { href: '/admin/achievements', label: 'Achievements', tKey: 'nav.achievements', icon: Trophy, adminAndAbove: true },
   { href: '/admin/audit-log', label: 'Audit Log', tKey: 'nav.auditLog', icon: History, adminAndAbove: true },
