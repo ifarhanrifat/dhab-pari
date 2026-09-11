@@ -550,49 +550,59 @@ export default function MyVehiclePage() {
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
-      <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
-        <h1 className="font-heading text-[26px] font-bold leading-[34px] text-dp-primary flex items-center gap-2"><Bus size={22} /> {vehicle.owner_name}</h1>
-        <div className="flex items-center gap-2">
-          <button onClick={toggleOnline} disabled={vpSaving} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer border transition-colors disabled:opacity-50 ${vehicle.is_online ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700' : 'border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container'}`}>
-            <span className={`w-2 h-2 rounded-full ${vehicle.is_online ? 'bg-white' : 'bg-dp-on-surface-variant'}`} />
-            {vehicle.is_online ? t('vp.onlineLabel') : t('vp.offlineLabel')}
-          </button>
-          {vehicle.delivers && (
-            <Link href="/portal/my-vehicle/deliveries" className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
-              <Truck size={14} /> {t('mv.deliveriesBtn')}
-            </Link>
-          )}
-          <Link href="/portal/my-vehicle/catalog" className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
-            <Camera size={14} /> {t('mv.catalogBtn')}
-          </Link>
-          {vehicle.offers_hourly && (
-            <Link href="/portal/my-vehicle/hourly" className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
-              <Clock3 size={14} /> {t('vp.myHourlyBookingsHeading')}
-            </Link>
-          )}
-          {vehicle.offers_shadi && (
-            <Link href="/portal/my-vehicle/shadi" className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
-              <Users2 size={14} /> {t('vp.myShadiRequestsHeading')}
-            </Link>
-          )}
-          <button
-            onClick={() => {
-              if (!rideEligible) { toast.error(t('vp.rideNotAllowedMessage')); return }
-              if (!vehicle.is_online) { toast.error(t('vp.goOnlineToPostTripHint')); return }
-              setShowPostTrip(true)
-            }}
-            className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
-            <PlusCircle size={14} /> {t('cm.postTripBtn')}
-          </button>
-          {vehicle.commission_mode === 'per_order' && (
-            <button onClick={() => setShowTopup(true)} className="flex items-center gap-1.5 px-3 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
-              <Wallet size={14} /> {t('cm.topupWalletBtn')}
-            </button>
-          )}
-        </div>
+      <div className="flex items-center gap-2 flex-wrap mb-1">
+        <h1 className="font-heading text-[26px] font-bold leading-[34px] text-dp-primary flex items-center gap-2 min-w-0 flex-1">
+          <Bus size={22} className="shrink-0" /> <span className="truncate">{vehicle.owner_name}</span>
+        </h1>
+        <button onClick={toggleOnline} disabled={vpSaving} className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer border transition-colors disabled:opacity-50 whitespace-nowrap ${vehicle.is_online ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700' : 'border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container'}`}>
+          <span className={`w-2 h-2 rounded-full shrink-0 ${vehicle.is_online ? 'bg-white' : 'bg-dp-on-surface-variant'}`} />
+          {vehicle.is_online ? t('vp.onlineLabel') : t('vp.offlineLabel')}
+        </button>
       </div>
-      <p className={`font-sans text-[13px] text-dp-on-surface-variant ${vehicle.is_online ? 'mb-5' : 'mb-1'}`}>{vehicle.vehicle_type}</p>
-      {!vehicle.is_online && <p className="font-sans text-[12px] text-amber-700 mb-5">{t('vp.offlineHint')}</p>}
+      <p className={`font-sans text-[13px] text-dp-on-surface-variant ${vehicle.is_online ? 'mb-3' : 'mb-1'}`}>{vehicle.vehicle_type}</p>
+      {!vehicle.is_online && <p className="font-sans text-[12px] text-amber-700 mb-3">{t('vp.offlineHint')}</p>}
+
+      {/* Action row — deliberately a single horizontally-scrolling strip
+          (not flex-wrap) so it never breaks into 2-3 rows on a narrow
+          phone, which was especially bad in Urdu where every label runs
+          longer than its English equivalent. Same overflow-x-auto strip
+          pattern already used on the shop/nearby pages; `shrink-0` +
+          `whitespace-nowrap` on every child so a button can never itself
+          get squeezed into wrapping its own label mid-word. */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 mb-3 -mx-0.5 px-0.5">
+        {vehicle.delivers && (
+          <Link href="/portal/my-vehicle/deliveries" className="shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+            <Truck size={14} /> {t('mv.deliveriesBtn')}
+          </Link>
+        )}
+        <Link href="/portal/my-vehicle/catalog" className="shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+          <Camera size={14} /> {t('mv.catalogBtn')}
+        </Link>
+        {vehicle.offers_hourly && (
+          <Link href="/portal/my-vehicle/hourly" className="shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+            <Clock3 size={14} /> {t('vp.myHourlyBookingsHeading')}
+          </Link>
+        )}
+        {vehicle.offers_shadi && (
+          <Link href="/portal/my-vehicle/shadi" className="shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+            <Users2 size={14} /> {t('vp.myShadiRequestsHeading')}
+          </Link>
+        )}
+        <button
+          onClick={() => {
+            if (!rideEligible) { toast.error(t('vp.rideNotAllowedMessage')); return }
+            if (!vehicle.is_online) { toast.error(t('vp.goOnlineToPostTripHint')); return }
+            setShowPostTrip(true)
+          }}
+          className="shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container">
+          <PlusCircle size={14} /> {t('cm.postTripBtn')}
+        </button>
+        {vehicle.commission_mode === 'per_order' && (
+          <button onClick={() => setShowTopup(true)} className="shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
+            <Wallet size={14} /> {t('cm.topupWalletBtn')}
+          </button>
+        )}
+      </div>
 
       <div className="flex items-center gap-1 bg-white border border-dp-outline-variant rounded-lg p-1 mb-3 w-fit">
         <span className={`px-3 py-1.5 rounded-md text-[12px] font-sans font-semibold ${summary?.commission_mode === 'monthly_lumpsum' ? 'bg-dp-primary text-white' : 'text-dp-on-surface-variant'}`}>{t('mv.lumpsumModeLabel')}</span>
@@ -674,19 +684,29 @@ export default function MyVehiclePage() {
         ) : !myEntry ? (
           <div className="bg-white border border-dp-outline-variant rounded-lg p-3.5">
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-2.5">{t('af.checkInHint')}</p>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <select value={checkInAddaId} onChange={(e) => setCheckInAddaId(e.target.value)} className="input-field !w-auto flex-1 min-w-[140px]">
-                <option value="">{t('af.pickAddaOption')}</option>
-                {addas.map((a) => <option key={a.id} value={a.id}>{isUrdu && a.name_ur ? a.name_ur : a.name}</option>)}
-              </select>
-              <select value={checkInFareMode} onChange={(e) => setCheckInFareMode(e.target.value)} className="input-field !w-auto">
-                <option value="fixed">{t('af.fixedFareOption')}</option>
-                <option value="request">{t('af.rideRequestOption')}</option>
-              </select>
-              <input type="number" value={checkInSeats || ''} onChange={(e) => setCheckInSeats(+e.target.value)} placeholder={t('af.seatsAvailablePlaceholder')} className="input-field !w-28" />
-              <button onClick={doAddaCheckIn} disabled={addaActionLoading || checkingLocation} className="px-3 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">
-                {checkingLocation ? t('af.confirmingLocationBtn') : t('af.checkInBtn')}
-              </button>
+            {/* Stacked rows instead of one flex-wrap row of four controls —
+                that wrapped unpredictably on a narrow phone, especially
+                with longer Urdu adda names/labels pushing the button onto
+                its own line. Two selects share a row (each can ellipsis
+                its own text if long), seats+button share the next row with
+                the button always fully visible instead of wrapping away. */}
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-1.5">
+                <select value={checkInAddaId} onChange={(e) => setCheckInAddaId(e.target.value)} className="input-field">
+                  <option value="">{t('af.pickAddaOption')}</option>
+                  {addas.map((a) => <option key={a.id} value={a.id}>{isUrdu && a.name_ur ? a.name_ur : a.name}</option>)}
+                </select>
+                <select value={checkInFareMode} onChange={(e) => setCheckInFareMode(e.target.value)} className="input-field">
+                  <option value="fixed">{t('af.fixedFareOption')}</option>
+                  <option value="request">{t('af.rideRequestOption')}</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <input type="number" value={checkInSeats || ''} onChange={(e) => setCheckInSeats(+e.target.value)} placeholder={t('af.seatsAvailablePlaceholder')} className="input-field flex-1 min-w-0" />
+                <button onClick={doAddaCheckIn} disabled={addaActionLoading || checkingLocation} className="shrink-0 whitespace-nowrap px-3 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">
+                  {checkingLocation ? t('af.confirmingLocationBtn') : t('af.checkInBtn')}
+                </button>
+              </div>
             </div>
             {checkInFareMode === 'fixed' && checkInAddaId && (() => {
               const picked = addas.find((a) => a.id === checkInAddaId)
