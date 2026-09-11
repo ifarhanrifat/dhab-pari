@@ -20,6 +20,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
+import { RateAndReport } from '@/components/portal/RateAndReport'
 
 interface CallDetail {
   id: string; item: string; address: string; goods_budget_pkr: number; status: string
@@ -27,6 +28,7 @@ interface CallDetail {
   purchase_fee_pkr: number | null; accepted_tier: number | null; total_pkr: number | null
   shop_name: string; shop_name_ur: string | null; shop_is_general: boolean; city_name: string; city_km: number
   accepted_vehicle_id: string | null; accepted_owner_name: string | null; accepted_owner_mobile: string | null; accepted_vehicle_type: string | null
+  initiator_portal_user_id: string
   customer_trust: Trust | null
 }
 interface Invitation { vehicle_id: string; owner_name: string; tier: number; status: string; invited_at: string; responded_at: string | null }
@@ -198,6 +200,14 @@ export default function DispatchCallDetailPage() {
             <p className="mt-3 font-sans text-[12.5px] text-emerald-700 font-bold flex items-center gap-1"><CheckCircle2 size={13} /> {t('vp.deliveredNote')}</p>
           )}
         </div>
+      )}
+
+      {call.status === 'completed' && call.accepted_vehicle_id && (
+        <RateAndReport
+          refType="dispatch_call" refId={callId}
+          againstPartyType={myVehicle && myVehicle.id === call.accepted_vehicle_id ? 'portal_user' : 'vehicle'}
+          againstPartyId={myVehicle && myVehicle.id === call.accepted_vehicle_id ? call.initiator_portal_user_id : call.accepted_vehicle_id}
+        />
       )}
 
       {(call.status === 'tier1' || call.status === 'tier2' || call.status === 'priced') && (

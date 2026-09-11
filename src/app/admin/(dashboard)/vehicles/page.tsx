@@ -17,7 +17,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
-import { Bus, PlusCircle, X, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Clock, Percent, Signpost, ChevronRight, LogOut, SkipForward, Timer, Ban } from 'lucide-react'
+import { Bus, PlusCircle, X, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Clock, Percent, Signpost, ChevronRight, LogOut, SkipForward, Timer, Ban, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -96,6 +96,7 @@ function AdminVehiclesInner() {
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [routeCountByVehicle, setRouteCountByVehicle] = useState<Record<string, number>>({})
+  const [trustByVehicle, setTrustByVehicle] = useState<Record<string, { score: number; tier: string; avg_stars: number; rating_count: number; complaints: number; urgent_upheld: number }>>({})
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Vehicle | null>(null)
   const [routes, setRoutes] = useState<Route[]>([])
@@ -137,6 +138,7 @@ function AdminVehiclesInner() {
       const counts: Record<string, number> = {}
       for (const r of allRoutes ?? []) counts[r.vehicle_id] = (counts[r.vehicle_id] ?? 0) + 1
       setRouteCountByVehicle(counts)
+      supabase.rpc('vehicle_trust_bulk', { p_vehicle_ids: data.map((v) => v.id) }).then(({ data: trust }) => setTrustByVehicle(trust ?? {}))
     }
     setLoading(false)
   }
@@ -677,6 +679,15 @@ function AdminVehiclesInner() {
                   <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-surface-container-high text-dp-on-surface-variant">{routeCountByVehicle[v.id] ?? 0} {t('mk.routesCount')}</span>
                   {v.commission_mode === 'monthly_lumpsum' && <span className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">{t('cm.lumpsumBadge')}</span>}
                   {v.is_online && <span className="inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700"><span className="w-1.5 h-1.5 rounded-full bg-emerald-600" /> {t('mk.onlineBadge')}</span>}
+                  {trustByVehicle[v.id] && (() => {
+                    const tr = trustByVehicle[v.id]
+                    const style = tr.tier === 'trusted' ? 'bg-emerald-100 text-emerald-700' : tr.tier === 'low' ? 'bg-red-100 text-dp-error' : 'bg-dp-surface-container-high text-dp-on-surface-variant'
+                    return (
+                      <span className={`inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full ${style}`} title={`${t('mk.trustComplaintsLabel')}: ${tr.complaints}${tr.urgent_upheld ? ` (${tr.urgent_upheld} ${t('mk.trustUrgentLabel')})` : ''}`}>
+                        <Star size={10} className="fill-current" /> {tr.rating_count > 0 ? tr.avg_stars.toFixed(1) : '—'} <span className="ltr-num opacity-70">({tr.rating_count})</span>
+                      </span>
+                    )
+                  })()}
                   <span
                     role="button" tabIndex={0}
                     onClick={(e) => { e.stopPropagation(); toggleVehicleActive(v) }}
@@ -694,7 +705,19 @@ function AdminVehiclesInner() {
           <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
             <div>
               <button onClick={() => setSelected(null)} className="font-sans text-[13px] font-semibold text-dp-secondary hover:underline cursor-pointer mb-1">{t('mk.backToVehicles')}</button>
-              <h1 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary">{selected.owner_name}</h1>
+              <h1 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary flex items-center gap-2">
+                {selected.owner_name}
+                {trustByVehicle[selected.id] && (() => {
+                  const tr = trustByVehicle[selected.id]
+                  const style = tr.tier === 'trusted' ? 'bg-emerald-100 text-emerald-700' : tr.tier === 'low' ? 'bg-red-100 text-dp-error' : 'bg-dp-surface-container-high text-dp-on-surface-variant'
+                  return (
+                    <span className={`inline-flex items-center gap-1 text-[12px] font-bold px-2 py-1 rounded-full ${style}`}>
+                      <Star size={12} className="fill-current" /> {tr.rating_count > 0 ? tr.avg_stars.toFixed(1) : '—'} <span className="ltr-num opacity-70">({tr.rating_count})</span>
+                      {tr.complaints > 0 && <span className="ltr-num">· {tr.complaints} {t('mk.trustComplaintsLabel')}</span>}
+                    </span>
+                  )
+                })()}
+              </h1>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => toggleVehicleActive(selected)} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer ${selected.is_active ? 'border border-dp-error text-dp-error hover:bg-red-50' : 'bg-dp-secondary text-white hover:bg-dp-primary'}`}>

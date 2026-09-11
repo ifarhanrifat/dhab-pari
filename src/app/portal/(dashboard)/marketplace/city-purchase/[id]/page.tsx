@@ -18,6 +18,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
+import { RateAndReport } from '@/components/portal/RateAndReport'
 
 interface RequestDetail {
   id: string; item: string; has_item_attachment: boolean; pickup_label: string | null
@@ -26,6 +27,7 @@ interface RequestDetail {
   actual_goods_cost_pkr: number | null; has_bill_attachment: boolean
   city_name: string; city_name_ur: string | null; city_km: number
   accepted_vehicle_id: string | null; accepted_owner_name: string | null; accepted_owner_mobile: string | null; accepted_vehicle_type: string | null
+  initiator_portal_user_id: string
   created_at: string
 }
 interface Invitation { vehicle_id: string; owner_name: string; source: string; reference_destination: string | null; status: string; invited_at: string; responded_at: string | null }
@@ -249,6 +251,14 @@ export default function CityPurchaseDetailPage() {
             <p className="mt-3 font-sans text-[12.5px] text-emerald-700 font-bold flex items-center gap-1"><CheckCircle2 size={13} /> {t('vp.deliveredNote')}</p>
           )}
         </div>
+      )}
+
+      {request.status === 'completed' && request.accepted_vehicle_id && (
+        <RateAndReport
+          refType="city_purchase_request" refId={requestId}
+          againstPartyType={isAcceptedDriver ? 'portal_user' : 'vehicle'}
+          againstPartyId={isAcceptedDriver ? request.initiator_portal_user_id : request.accepted_vehicle_id}
+        />
       )}
 
       {!isAcceptedDriver && ['ringing', 'priced'].includes(request.status) && (
