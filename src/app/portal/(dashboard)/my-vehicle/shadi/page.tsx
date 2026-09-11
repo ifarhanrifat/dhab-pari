@@ -9,8 +9,7 @@
 // purely a display distinction (history), not a status change.
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { ArrowLeft, Users2, CalendarDays, MapPin, Ruler, Check, X, Loader2, AlertCircle } from 'lucide-react'
+import { Users2, CalendarDays, MapPin, Ruler, Check, X, Loader2, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -94,9 +93,6 @@ export default function MyShadiRequestsPage() {
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
-      <Link href="/portal/my-vehicle" className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline mb-3">
-        <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {vehicle.owner_name}
-      </Link>
       <h1 className="font-heading text-[24px] font-bold text-dp-primary flex items-center gap-2 mb-1"><Users2 size={22} /> {t('vp.myShadiRequestsHeading')}</h1>
       <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{t('vp.myShadiRequestsSubtitle')}</p>
 

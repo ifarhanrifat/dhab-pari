@@ -742,3 +742,27 @@ html[lang='ur'] .section-title {
 @media (prefers-reduced-motion: reduce) {
   .marquee-text-scroll { animation: none !important; }
 }
+
+/* --- Scroll-hint nudge ---
+   A one-shot "this row scrolls" cue for a horizontally-scrolling button
+   strip — not a marquee (nothing loops, nothing runs continuously): the
+   row nudges over just far enough to reveal the next hidden button, sits
+   for a beat, then settles back. Meant to run once on mount via a class
+   toggle from JS (add the class after a short delay so it doesn't fire
+   before the driver has even looked at the screen, then leave it — the
+   animation itself doesn't repeat). Positive translateX, not negative:
+   in this app's RTL layout the first-listed items render at the right
+   edge and later ones are clipped off to the left, so nudging the whole
+   row rightward is what brings a left-clipped button into view. */
+@keyframes scroll-hint-nudge {
+  0%, 12% { transform: translateX(0); }
+  50% { transform: translateX(30px); }
+  78% { transform: translateX(30px); }
+  100% { transform: translateX(0); }
+}
+.scroll-hint-nudge {
+  animation: scroll-hint-nudge 1.3s ease-in-out 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scroll-hint-nudge { animation: none !important; }
+}

@@ -14,8 +14,7 @@
 // booking while one is already running.
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { ArrowLeft, Clock3, MapPin, Check, X, Play, Square, Loader2, AlertCircle, CheckCircle2, Wallet, Radio } from 'lucide-react'
+import { Clock3, MapPin, Check, X, Play, Square, Loader2, AlertCircle, CheckCircle2, Wallet, Radio } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -141,9 +140,6 @@ export default function MyHourlyBookingsPage() {
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
-      <Link href="/portal/my-vehicle" className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline mb-3">
-        <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {vehicle.owner_name}
-      </Link>
       <h1 className="font-heading text-[24px] font-bold text-dp-primary flex items-center gap-2 mb-1"><Clock3 size={22} /> {t('vp.myHourlyBookingsHeading')}</h1>
       <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{t('vp.myHourlyBookingsSubtitle')}</p>
 

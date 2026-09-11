@@ -7,8 +7,7 @@
 // start_shop_delivery_ring) already pointed here.
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { Truck, MapPin, ArrowLeft, Check, X, Loader2, RefreshCw } from 'lucide-react'
+import { Truck, MapPin, Check, X, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -85,9 +84,6 @@ export default function MyDeliveriesPage() {
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
-      <Link href="/portal/my-vehicle" className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline mb-3">
-        <ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {vehicle.owner_name}
-      </Link>
       <div className="flex items-center justify-between gap-3 mb-1">
         <h1 className="font-heading text-[24px] font-bold text-dp-primary flex items-center gap-2"><Truck size={22} /> {t('mv.deliveriesHeading')}</h1>
         <button onClick={() => loadInvitations(vehicle.id)} className="p-2 rounded-lg border border-dp-outline-variant text-dp-on-surface-variant cursor-pointer hover:bg-dp-surface-container-low">
