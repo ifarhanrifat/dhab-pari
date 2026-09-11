@@ -47,6 +47,17 @@ interface Props {
   // directly underneath the results bottom sheet, which then visibly
   // intercepted the click.
   extraPadding?: { top?: number; right?: number; bottom?: number; left?: number }
+  // Where to open the view when `pins` is empty and there's nothing to
+  // fitBounds against — e.g. a city's own lat/lng, so a "tap to mark a
+  // spot" map opens already looking at the right city instead of all
+  // of Pakistan. Ignored once there's at least one real pin.
+  center?: [number, number]
+  // Turns the map into a point-picker: a click/tap anywhere reports the
+  // lat/lng back to the caller, which is expected to re-render with that
+  // point added to `pins` (a plain read-only display otherwise stays
+  // read-only — every pre-existing caller passes neither of these two
+  // props and is completely unaffected).
+  onMapClick?: (lat: number, lng: number) => void
 }
 
 // Leaflet's default marker icon references image paths relative to its
@@ -76,10 +87,15 @@ function coloredIcon(L: typeof import('leaflet'), color?: string) {
   })
 }
 
-const LeafletMap = forwardRef<LeafletMapHandle, Props>(function LeafletMap({ pins, height = 220, zoom = 12, className = '', extraPadding }, ref) {
+const LeafletMap = forwardRef<LeafletMapHandle, Props>(function LeafletMap({ pins, height = 220, zoom = 12, className = '', extraPadding, center, onMapClick }, ref) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<LeafletMapType | null>(null)
   const markersRef = useRef<Marker[]>([])
+  // Always-current ref so the click listener (bound once, at map
+  // creation) never goes stale when the caller passes a fresh closure
+  // each render — the map itself is only ever built once per mount.
+  const onMapClickRef = useRef(onMapClick)
+  useEffect(() => { onMapClickRef.current = onMapClick })
 
   useImperativeHandle(ref, () => ({
     focusPin: (index, focusZoom) => {
@@ -100,12 +116,13 @@ const LeafletMap = forwardRef<LeafletMapHandle, Props>(function LeafletMap({ pin
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 19, attribution: '© OpenStreetMap contributors',
         }).addTo(mapRef.current)
+        mapRef.current.on('click', (e) => onMapClickRef.current?.(e.latlng.lat, e.latlng.lng))
       }
       const map = mapRef.current
       markersRef.current.forEach((m) => m.remove())
       markersRef.current = []
 
-      if (pins.length === 0) { map.setView([30.3753, 69.3451], 5); return } // Pakistan-wide fallback
+      if (pins.length === 0) { map.setView(center ?? [30.3753, 69.3451], center ? zoom : 5); return } // Pakistan-wide fallback, or a given center
       pins.forEach((p) => {
         const marker = L.marker([p.lat, p.lng], { icon: p.emoji ? emojiIcon(L, p.emoji, p.color) : coloredIcon(L, p.color) }).addTo(map)
         if (p.popupHtml) marker.bindPopup(p.popupHtml, { minWidth: 180 })

@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { Bus, Wallet, Clock, CheckCircle2, XCircle, MapPin, PlusCircle, X, Navigation, Signpost, LogOut, SkipForward, Timer, Trophy, Pencil, Truck, Package, MessageCircle, CalendarClock, Trash2, Ban, Camera, Clock3, Users2, ShoppingBag } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -24,6 +25,8 @@ import { LocationSettingsModal } from '@/components/portal/LocationSettingsModal
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { TrustPill, type Trust } from '@/components/shared/TrustBadge'
 import { FareBandPicker, type FareBand } from '@/components/shared/FareBandPicker'
+
+const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
 
 interface Vehicle {
   id: string; owner_name: string; vehicle_type: string; commission_mode: string; delivers: boolean; per_km_pkr: number | null; offers_hourly: boolean; offers_shadi: boolean
@@ -45,6 +48,7 @@ interface TripBooking {
 const emptyTripOffer = {
   trip_type: 'oneway' as string, origin: '', origin_ur: '', destination: '', destination_ur: '', classification: 'intercity',
   travel_date: '', departure_time_estimate: '', seats_available: 1, listed_fare_per_seat_pkr: 0, distance_km: '' as string,
+  dest_lat: null as number | null, dest_lng: null as number | null,
 }
 interface Summary {
   balance_pkr: number; commission_mode: string; lumpsum_fee_pkr: number | null
@@ -445,6 +449,7 @@ export default function MyVehiclePage() {
       p_departure_time_estimate: tripForm.departure_time_estimate || null,
       p_seats_available: tripForm.seats_available, p_listed_fare_per_seat_pkr: tripForm.listed_fare_per_seat_pkr,
       p_distance_km: tripForm.distance_km ? Number(tripForm.distance_km) : null,
+      p_dest_lat: tripForm.dest_lat, p_dest_lng: tripForm.dest_lng,
     })
     setPosting(false)
     if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
@@ -1087,6 +1092,20 @@ export default function MyVehiclePage() {
                 <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.distanceKmOptionalLabel')}</label>
                 <input type="number" value={tripForm.distance_km} onChange={(e) => setTripForm({ ...tripForm, distance_km: e.target.value })} className="input-field" placeholder={t('cm.distanceKmPlaceholder')} />
                 <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('cm.distanceKmHint')}</p>
+              </div>
+              <div>
+                <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.destPinLabel')}</label>
+                <p className="font-sans text-[11px] text-dp-on-surface-variant mb-1.5">{t('cm.destPinHint')}</p>
+                <LeafletMap
+                  pins={tripForm.dest_lat != null && tripForm.dest_lng != null ? [{ lat: tripForm.dest_lat, lng: tripForm.dest_lng, color: '#dc2626' }] : []}
+                  height={180} zoom={12} className="rounded-lg border border-dp-outline-variant"
+                  onMapClick={(lat, lng) => setTripForm({ ...tripForm, dest_lat: lat, dest_lng: lng })}
+                />
+                {tripForm.dest_lat != null && (
+                  <button onClick={() => setTripForm({ ...tripForm, dest_lat: null, dest_lng: null })} type="button" className="mt-1.5 flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-on-surface-variant hover:text-dp-error cursor-pointer">
+                    <X size={12} /> {t('vp.clearPickupPinBtn')}
+                  </button>
+                )}
               </div>
               <button onClick={postTripOffer} disabled={posting} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{posting ? t('action.saving') : t('cm.postTripBtn')}</button>
             </div>

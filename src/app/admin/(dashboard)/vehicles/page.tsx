@@ -701,6 +701,10 @@ function AdminVehiclesInner() {
                 {selected.is_active ? <><Ban size={14} /> {t('mk.blockVehicleBtn')}</> : <><CheckCircle2 size={14} /> {t('mk.unblockVehicleBtn')}</>}
               </button>
               <button onClick={() => openEditVehicle(selected)} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-surface-container"><Pencil size={14} /> {t('mk.editVehicleBtn')}</button>
+              {/* Temporary — for cleaning up test vehicles during development.
+                  Remove this button once real vehicles are live (deleting a
+                  real vehicle should go through blocking, not a hard delete). */}
+              <button onClick={() => deleteVehicle(selected)} title={t('mk.deleteVehicleTempNote')} className="flex items-center gap-1.5 px-3 py-2 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-red-50 hover:text-dp-error hover:border-dp-error"><Trash2 size={14} /> {t('mk.deleteVehicleBtn')}</button>
               <button onClick={openNewRoute} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('mk.newRouteBtn')}</button>
             </div>
           </div>

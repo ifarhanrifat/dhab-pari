@@ -12,7 +12,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ShoppingBag, MapPin, Navigation, Clock, ChevronRight } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { ShoppingBag, MapPin, Navigation, Clock, ChevronRight, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { friendlyError } from '@/lib/errors'
@@ -23,12 +24,15 @@ import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { getCurrentPositionOnce, classifyLocationError, type LocationErrorReason } from '@/hooks/useLiveLocation'
 import { LocationSettingsModal } from '@/components/portal/LocationSettingsModal'
+import type { MapPin as LeafletPin } from '@/components/shared/LeafletMap'
 
-interface City { id: string; name: string; name_ur: string | null }
-interface Candidate { vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; source: string; reference_destination: string | null }
+const LeafletMap = dynamic(() => import('@/components/shared/LeafletMap'), { ssr: false })
+
+interface City { id: string; name: string; name_ur: string | null; lat: number | null; lng: number | null }
+interface Candidate { vehicle_id: string; owner_name: string; owner_mobile: string | null; vehicle_type: string; source: string; reference_destination: string | null; distance_km: number | null }
 interface MyRequest { id: string; item: string; status: string; total_fare_pkr: number | null; created_at: string; city_name: string; city_name_ur: string | null; as_role: string }
 
-const SOURCE_ORDER: Record<string, number> = { route: 0, trip_offer: 1, presence: 2 }
+function fmtKm(km: number) { return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km` }
 
 export default function CityPurchasePage() {
   const { t, isUrdu } = useLocale()
@@ -51,7 +55,7 @@ export default function CityPurchasePage() {
   const [myRequests, setMyRequests] = useState<MyRequest[]>([])
 
   useEffect(() => {
-    supabase.from('cities').select('id, name, name_ur').eq('is_active', true).order('display_order').then(({ data }) => setCities(data ?? []))
+    supabase.from('cities').select('id, name, name_ur, lat, lng').eq('is_active', true).order('display_order').then(({ data }) => setCities(data ?? []))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadMyRequests = () => supabase.rpc('my_city_purchase_requests').then(({ data }) => setMyRequests((data ?? []) as MyRequest[]))
@@ -60,8 +64,11 @@ export default function CityPurchasePage() {
   useEffect(() => {
     if (!cityId) { setCandidates(null); return }
     setCandidates(null)
-    supabase.rpc('city_purchase_candidates', { p_city_id: cityId }).then(({ data }) => setCandidates((data ?? []) as Candidate[]))
-  }, [cityId]) // eslint-disable-line react-hooks/exhaustive-deps
+    supabase.rpc('city_purchase_candidates', { p_city_id: cityId, p_pickup_lat: pickupLat, p_pickup_lng: pickupLng }).then(({ data }) => setCandidates((data ?? []) as Candidate[]))
+    // Re-runs whenever the pickup pin changes too, so distances update the
+    // moment the villager taps the map — not just when the city changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cityId, pickupLat, pickupLng])
 
   const useMyLocation = async () => {
     setCheckingLocation(true)
@@ -99,7 +106,17 @@ export default function CityPurchasePage() {
   if (userLoading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
   if (!user) return <div className="text-center py-12 text-dp-on-surface-variant font-sans">{t('p.couldNotLoad')}</div>
 
-  const sortedCandidates = [...(candidates ?? [])].sort((a, b) => (SOURCE_ORDER[a.source] ?? 9) - (SOURCE_ORDER[b.source] ?? 9))
+  const pickedCity = cities.find((c) => c.id === cityId)
+  const pickupPins: LeafletPin[] = pickupLat != null && pickupLng != null ? [{ lat: pickupLat, lng: pickupLng, color: '#dc2626' }] : []
+  // Nearest-first, distance-unknown candidates last — the RPC already
+  // sorts this way; re-sorting client-side too so it stays correct if a
+  // stale response ever lands out of order during rapid pin changes.
+  const sortedCandidates = [...(candidates ?? [])].sort((a, b) => {
+    if (a.distance_km == null && b.distance_km == null) return 0
+    if (a.distance_km == null) return 1
+    if (b.distance_km == null) return -1
+    return a.distance_km - b.distance_km
+  })
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme pb-16 max-w-lg mx-auto">
@@ -116,9 +133,26 @@ export default function CityPurchasePage() {
         <textarea value={item} onChange={(e) => setItem(e.target.value)} placeholder={t('vp.cityPurchaseItemPlaceholder')} rows={2} className="input-field resize-none" />
         <DonationReceiptUpload bucket="city_purchase_attachments" label={t('vp.attachItemPhotoLabel')} onUpload={setAttachmentPath} />
         <input value={pickupLabel} onChange={(e) => setPickupLabel(e.target.value)} placeholder={t('vp.pickupLabelPlaceholder')} className="input-field" />
-        <button onClick={useMyLocation} disabled={checkingLocation} type="button" className="flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline cursor-pointer disabled:opacity-50">
-          <Navigation size={13} /> {checkingLocation ? t('af.confirmingLocationBtn') : (pickupLat != null ? t('vp.locationAttachedNote') : t('vp.useMyLocationBtn'))}
-        </button>
+        {cityId && (
+          <div>
+            <p className="font-sans text-[12px] text-dp-on-surface-variant mb-1.5">{t('vp.tapMapForPickupHint')}</p>
+            <LeafletMap
+              pins={pickupPins} height={180} zoom={13} className="rounded-lg border border-dp-outline-variant"
+              center={pickedCity?.lat != null && pickedCity?.lng != null ? [pickedCity.lat, pickedCity.lng] : undefined}
+              onMapClick={(lat, lng) => { setPickupLat(lat); setPickupLng(lng) }}
+            />
+            <div className="flex items-center gap-3 mt-1.5">
+              {pickupLat != null && (
+                <button onClick={() => { setPickupLat(null); setPickupLng(null) }} type="button" className="flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-on-surface-variant hover:text-dp-error cursor-pointer">
+                  <X size={12} /> {t('vp.clearPickupPinBtn')}
+                </button>
+              )}
+              <button onClick={useMyLocation} disabled={checkingLocation} type="button" className="flex items-center gap-1.5 font-sans text-[12px] font-semibold text-dp-secondary hover:underline cursor-pointer disabled:opacity-50">
+                <Navigation size={12} /> {checkingLocation ? t('af.confirmingLocationBtn') : t('vp.useMyLocationBtn')}
+              </button>
+            </div>
+          </div>
+        )}
         <input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder={t('vp.goodsBudgetPlaceholder')} className="input-field" />
         <button onClick={() => post(null)} disabled={posting !== null} className="w-full bg-dp-primary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer hover:opacity-90 disabled:opacity-50">
           {posting === 'all' ? t('action.saving') : t('vp.askEveryoneBtn')}
@@ -143,6 +177,11 @@ export default function CityPurchasePage() {
                 {c.reference_destination && (
                   <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1 flex items-center gap-1"><MapPin size={11} /> {c.reference_destination}</p>
                 )}
+                <p className="font-sans text-[11.5px] mt-0.5 flex items-center gap-1 ltr-num">
+                  {c.distance_km != null
+                    ? <span className="text-dp-secondary font-semibold">≈ {fmtKm(c.distance_km)} {t('vp.fromPickupSpotLabel')}</span>
+                    : <span className="text-dp-on-surface-variant opacity-70">{t('vp.distanceUnknownNote')}</span>}
+                </p>
                 <button onClick={() => post(c.vehicle_id)} disabled={posting !== null} className="mt-2 px-3 py-1.5 rounded-lg text-[12px] font-sans font-semibold cursor-pointer border border-dp-outline-variant text-dp-secondary hover:bg-dp-surface-container disabled:opacity-50">
                   {posting === c.vehicle_id ? t('action.saving') : t('vp.messageThisOneBtn')}
                 </button>
