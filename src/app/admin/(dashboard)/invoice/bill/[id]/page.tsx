@@ -12,7 +12,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { fetchBrandingSettings, type BrandingSettings } from '@/lib/branding'
 import {
   getPreferredFormat, setPreferredFormat, nodeToPdfBlob, nodeToPngBlob,
-  downloadBlob, shareReceipt, printBlob, normalizePakPhone, type ReceiptFormat, lastRenderTiming,
+  downloadBlob, shareReceipt, printBlob, normalizePakPhone, type ReceiptFormat, lastRenderTiming, preloadJsPdf,
 } from '@/lib/receiptExport'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
@@ -110,6 +110,11 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
   }, [id, supabase])
 
   useEffect(() => { load() }, [load])
+  // See ReceiptModal.tsx's identical note -- the jsPDF chunk fetch used to
+  // hide inside "post-processing" time at share/print/download click,
+  // sometimes taking 10+ real seconds on a slow connection. Fired here so
+  // it's already resident by the time any of those buttons run.
+  useEffect(() => { preloadJsPdf() }, [])
 
   if (loading) return <div className="text-center py-16 text-dp-on-surface-variant font-sans">{t('y.loadingInvoice')}</div>
   if (notFound || !bill) return (

@@ -82,10 +82,26 @@ export type PdfPageSize = 'a4' | 'content'
 const A4_W_MM = 210
 const A4_H_MM = 297
 
+// Real cause found (2026-09-22), not the logo: a report of "post 13041ms"
+// vs an earlier "post 229ms" for the exact same work is the signature of a
+// network fetch, not processing -- `await import('jspdf')` used to sit
+// *inside* the timed postProcess window, so its dynamic-import chunk fetch
+// (over whatever mobile connection this session's real numbers make plain
+// is not fast or consistent) was masquerading as "PDF building is slow."
+// Called eagerly, fire-and-forget, as soon as a page/modal that might
+// export a PDF mounts -- by the time someone actually taps Share, this
+// chunk is already resident and the real await below resolves instantly
+// from the module cache instead of hitting the network on the critical path.
+let jsPdfPreload: Promise<typeof import('jspdf')> | null = null
+export function preloadJsPdf() {
+  if (!jsPdfPreload) jsPdfPreload = import('jspdf')
+}
+
 export async function nodeToPdfBlob(node: HTMLElement, page: PdfPageSize = 'content'): Promise<Blob> {
   const canvas = await renderNodeToCanvas(node)
   const postProcessStart = performance.now()
-  const { jsPDF } = await import('jspdf')
+  preloadJsPdf()
+  const { jsPDF } = await jsPdfPreload!
   const imgData = canvas.toDataURL('image/png')
   const pxToMm = 25.4 / 96
   // renderNodeToCanvas rasterizes at scale 2, so halve back to CSS pixels

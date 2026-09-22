@@ -10,7 +10,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   getPreferredFormat, setPreferredFormat, nodeToPdfBlob, nodeToPngBlob,
   downloadBlob, shareReceipt, printBlob, type ReceiptFormat,
-  getPreferredSlipTarget, setPreferredSlipTarget, lastRenderTiming,
+  getPreferredSlipTarget, setPreferredSlipTarget, lastRenderTiming, preloadJsPdf,
 } from '@/lib/receiptExport'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
@@ -49,6 +49,11 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
       setSlipFormat(getPreferredSlipTarget() ?? b.slipFormat)
       setBranding(b)
     })
+    // Fire the second the modal opens, not when Share/Print/Download is
+    // tapped -- the whole point is that the network fetch for this chunk
+    // has already finished (or is well underway) by the time any of those
+    // buttons actually run nodeToPdfBlob().
+    preloadJsPdf()
   }, [system])
 
   const chooseSlipFormat = (t: SlipFormat) => {
