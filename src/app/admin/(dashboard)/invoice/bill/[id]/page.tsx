@@ -154,12 +154,14 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
   // This screen never offers the thermal target — the document below is
   // always rendered at sheet width — so its PDF always gets a real A4 page
   // rather than one cut to the height of the invoice.
-  const buildBlob = async () => {
-    if (blobCacheRef.current?.format === format) return blobCacheRef.current.blob
+  const buildBlob = async (): Promise<{ blob: Blob; renderMs: number }> => {
+    if (blobCacheRef.current?.format === format) return { blob: blobCacheRef.current.blob, renderMs: 0 }
     if (!nodeRef.current) throw new Error('Invoice not ready')
+    const start = performance.now()
     const blob = format === 'pdf' ? await nodeToPdfBlob(nodeRef.current, 'a4') : await nodeToPngBlob(nodeRef.current)
+    const renderMs = Math.round(performance.now() - start)
     blobCacheRef.current = { format, blob }
-    return blob
+    return { blob, renderMs }
   }
   const filename = () => `invoice-${data.receiptNo}.${format === 'pdf' ? 'pdf' : 'png'}`
 
@@ -170,7 +172,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
       // can't just call buildBlob() -- but it should still populate/reuse
       // the PDF slot of the cache when the toggle happens to already be on
       // PDF, instead of silently bypassing it every time.
-      const blob = format === 'pdf' ? await buildBlob() : await nodeToPdfBlob(nodeRef.current!, 'a4')
+      const blob = format === 'pdf' ? (await buildBlob()).blob : await nodeToPdfBlob(nodeRef.current!, 'a4')
       printBlob(blob)
     } catch {
       toast.error('Could not prepare the invoice for printing')
@@ -182,7 +184,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
   const handleDownload = async () => {
     setBusy(true)
     try {
-      const blob = await buildBlob()
+      const { blob } = await buildBlob()
       downloadBlob(blob, filename())
       toast.success(`Downloaded ${format.toUpperCase()}`)
     } catch {
@@ -195,14 +197,18 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
   const handleWhatsApp = async () => {
     setBusy(true)
     try {
-      const blob = await buildBlob()
+      const { blob, renderMs } = await buildBlob()
       const mime = format === 'pdf' ? 'application/pdf' : 'image/png'
       const result = await shareReceipt({
         blob, filename: filename(), mime, phone: whatsappPhone, contactName: data.accountName,
         message: `Water bill ${data.receiptNo} — ${netAmount.toLocaleString()}`,
       })
+      // See ReceiptModal.tsx's identical note -- real timing after a
+      // "takes too long" report, diagnosable from the toast alone.
+      const t = result.nativeTimingMs
+      const timingNote = t ? ` [render ${renderMs}ms, encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB]` : ''
       toast.success(
-        result.outcome === 'attached-direct'
+        (result.outcome === 'attached-direct'
           ? 'WhatsApp opened straight to their chat, file attached'
           : result.outcome === 'attached'
           ? `WhatsApp opened with the file attached — pick who to send it to${result.jidSkipReason ? ` (${result.jidSkipReason})` : ''}`
@@ -210,7 +216,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
           ? 'Image copied — press Ctrl+V (⌘V) in the WhatsApp chat to attach it'
           : whatsappPhone
             ? 'Downloaded — WhatsApp opened, attach the file to send'
-            : 'Downloaded — pick the chat in WhatsApp, then attach the file'
+            : 'Downloaded — pick the chat in WhatsApp, then attach the file') + timingNote
       )
     } catch {
       toast.error('Could not share the invoice')
@@ -222,7 +228,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
   const handleEmail = async () => {
     setBusy(true)
     try {
-      const blob = await buildBlob()
+      const { blob } = await buildBlob()
       downloadBlob(blob, filename())
       const subject = encodeURIComponent(`Water Bill ${data.receiptNo}`)
       const body = encodeURIComponent(`Please find attached water bill ${data.receiptNo} for ${netAmount.toLocaleString()}.\n\n(The invoice file was just downloaded — please attach it to this email before sending.)`)

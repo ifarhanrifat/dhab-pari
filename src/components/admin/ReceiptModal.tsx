@@ -77,13 +77,19 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
   const blobCacheRef = useRef<{ key: string; blob: Blob } | null>(null)
   const cacheKey = () => `${format}:${format === 'pdf' ? pdfPage() : ''}`
 
-  const buildBlob = async () => {
+  // renderMs is 0 on a cache hit -- kept alongside the blob (rather than a
+  // separate call) so a slow-share report's toast can say whether the render
+  // itself was the cost or not, without a second measurement point drifting
+  // out of sync with what buildBlob() actually did.
+  const buildBlob = async (): Promise<{ blob: Blob; renderMs: number }> => {
     const key = cacheKey()
-    if (blobCacheRef.current?.key === key) return blobCacheRef.current.blob
+    if (blobCacheRef.current?.key === key) return { blob: blobCacheRef.current.blob, renderMs: 0 }
     if (!nodeRef.current) throw new Error('Receipt not ready')
+    const start = performance.now()
     const blob = format === 'pdf' ? await nodeToPdfBlob(nodeRef.current, pdfPage()) : await nodeToPngBlob(nodeRef.current)
+    const renderMs = Math.round(performance.now() - start)
     blobCacheRef.current = { key, blob }
-    return blob
+    return { blob, renderMs }
   }
 
   const filename = () => `receipt-${data.receiptNo}.${format === 'pdf' ? 'pdf' : 'png'}`
@@ -93,7 +99,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
     try {
       // Print the generated PDF in its own blob document, never the live admin page —
       // printing the page itself would leak the internal admin URL into the printout.
-      const blob = format === 'pdf' ? await buildBlob() : await nodeToPdfBlob(nodeRef.current!, pdfPage())
+      const blob = format === 'pdf' ? (await buildBlob()).blob : await nodeToPdfBlob(nodeRef.current!, pdfPage())
       printBlob(blob)
     } catch {
       toast.error('Could not prepare the document for printing')
@@ -105,7 +111,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
   const handleDownload = async () => {
     setBusy(true)
     try {
-      const blob = await buildBlob()
+      const { blob } = await buildBlob()
       downloadBlob(blob, filename())
       toast.success(`Downloaded ${format.toUpperCase()}`)
     } catch {
@@ -118,7 +124,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
   const handleShare = async () => {
     setBusy(true)
     try {
-      const blob = await buildBlob()
+      const { blob, renderMs } = await buildBlob()
       const mime = format === 'pdf' ? 'application/pdf' : 'image/png'
       // A PDF cannot be pasted into a chat, so the clipboard always gets a
       // PNG — but only actually rendered if shareReceipt() ends up needing
@@ -131,14 +137,23 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
         blob, filename: filename(), mime, phone, contactName: data.accountName, getClipboardBlob,
         message: `Receipt ${data.receiptNo} — ${data.amount.toLocaleString()}`,
       })
+      // Real timing breakdown after a "takes too long to get to WhatsApp"
+      // report -- render (html2canvas, 0 on a cache hit) + base64 encode +
+      // the JS<->native bridge transfer, so a slow report is diagnosable
+      // from the toast text alone, no connected device needed. Native
+      // launching WhatsApp itself isn't measurable from here -- if this
+      // total reads low but the wait still feels long, that's the next
+      // place to look, not this app's own code.
+      const t = result.nativeTimingMs
+      const timingNote = t ? ` [render ${renderMs}ms, encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB]` : ''
       toast.success(
-        result.outcome === 'attached-direct'
+        (result.outcome === 'attached-direct'
           ? 'WhatsApp opened straight to their chat, file attached'
           : result.outcome === 'attached'
           ? `WhatsApp opened with the file attached — pick who to send it to${result.jidSkipReason ? ` (${result.jidSkipReason})` : ''}`
           : result.outcome === 'copied'
           ? 'Image copied — press Ctrl+V (⌘V) in the WhatsApp chat to attach it'
-          : 'Downloaded — attach it in the chat that just opened'
+          : 'Downloaded — attach it in the chat that just opened') + timingNote
       )
     } catch {
       toast.error('Could not share the receipt')

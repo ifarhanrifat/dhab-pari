@@ -109,13 +109,15 @@ export default function CustomersPage() {
   // again." Cached per invoice id so only the first action on a given
   // invoice pays that cost.
   const slipBlobCacheRef = useRef<{ invoiceId: string; blob: Blob } | null>(null)
-  const buildSlipBlob = async () => {
+  const buildSlipBlob = async (): Promise<{ blob: Blob; renderMs: number }> => {
     if (!slipRef.current) throw new Error('Invoice not ready')
     const cached = slipBlobCacheRef.current
-    if (cached && cached.invoiceId === viewingInvoice?.id) return cached.blob
+    if (cached && cached.invoiceId === viewingInvoice?.id) return { blob: cached.blob, renderMs: 0 }
+    const start = performance.now()
     const blob = await nodeToPngBlob(slipRef.current)
+    const renderMs = Math.round(performance.now() - start)
     if (viewingInvoice) slipBlobCacheRef.current = { invoiceId: viewingInvoice.id, blob }
-    return blob
+    return { blob, renderMs }
   }
 
   // Linking a registered customer's own portal account so they can view
@@ -346,18 +348,21 @@ export default function CustomersPage() {
     if (!intl) { toast.error(t('sk.noPhoneForWhatsappHint')); return }
     setSendingSlip(true)
     try {
-      const blob = await buildSlipBlob()
+      const { blob, renderMs } = await buildSlipBlob()
       const name = openCustomer.name_ur || openCustomer.name
       const result = await shareReceipt({
         blob, filename: invoiceFilename(), mime: 'image/png', phone: openCustomer.phone, contactName: openCustomer.name,
         getClipboardBlob: async () => blob,
         message: isUrdu ? `${name} کا بل نمبر ${viewingInvoice.invoice_number}` : `Bill #${viewingInvoice.invoice_number} for ${name}`,
       })
+      // Real timing after a "takes too long" report -- see ReceiptModal.tsx's identical note.
+      const t2 = result.nativeTimingMs
+      const timingNote = t2 ? ` [${renderMs + t2.base64Encode + t2.nativeBridgeCall}ms]` : ''
       toast.success(
-        result.outcome === 'attached-direct' ? t('sk.slipAttachedDirectToast')
+        (result.outcome === 'attached-direct' ? t('sk.slipAttachedDirectToast')
           : result.outcome === 'attached' ? t('sk.slipAttachedToast')
           : result.outcome === 'copied' ? t('sk.slipCopiedToast')
-          : t('sk.slipDownloadedToast')
+          : t('sk.slipDownloadedToast')) + timingNote
       )
     } catch {
       toast.error(t('sk.slipShareFailedHint'))
@@ -370,7 +375,7 @@ export default function CustomersPage() {
     if (!slipRef.current) return
     setSendingSlip(true)
     try {
-      const blob = await buildSlipBlob()
+      const { blob } = await buildSlipBlob()
       downloadBlob(blob, invoiceFilename())
     } catch {
       toast.error(t('sk.slipShareFailedHint'))

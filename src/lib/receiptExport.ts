@@ -279,13 +279,15 @@ export interface ShareResult {
   outcome: 'attached-direct' | 'attached' | 'copied' | 'downloaded'
   /** Only set when a phone was given but jid wasn't attempted -- straight from the plugin, so this is diagnosable from the toast alone. */
   jidSkipReason?: string
+  /** Only set on a native attach -- the encode+bridge time from shareFileToWhatsApp(), passed through so a slow-share report can be diagnosed from the toast text alone. */
+  nativeTimingMs?: { base64Encode: number; nativeBridgeCall: number; total: number; blobBytes: number }
 }
 
 export async function shareReceipt({ blob, filename, mime, phone, contactName, message, getClipboardBlob }: ShareOptions): Promise<ShareResult> {
   const { shareFileToWhatsApp } = await import('./nativeWhatsApp')
-  const native = await shareFileToWhatsApp(blob, filename, mime, phone, contactName).catch(() => ({ attached: false, triedJid: false, jidSkipReason: undefined }))
+  const native = await shareFileToWhatsApp(blob, filename, mime, phone, contactName).catch(() => ({ attached: false, triedJid: false, jidSkipReason: undefined, timingMs: undefined }))
   if (native.attached) {
-    return { outcome: native.triedJid ? 'attached-direct' : 'attached', jidSkipReason: native.jidSkipReason }
+    return { outcome: native.triedJid ? 'attached-direct' : 'attached', jidSkipReason: native.jidSkipReason, nativeTimingMs: native.timingMs }
   }
 
   const clipboardBlob = getClipboardBlob ? await getClipboardBlob() : null
