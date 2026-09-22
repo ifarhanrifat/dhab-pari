@@ -423,7 +423,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
           <div className="flex justify-between items-end mt-4">
             <div>
               <p className="text-[11px] uppercase tracking-widest opacity-70">{title}</p>
-              <p className="text-[16px] font-bold">{data.receiptNo}</p>
+              <p className="text-[16px] font-bold"><Ltr>{data.receiptNo}</Ltr></p>
             </div>
             <div className="text-end">
               <p className="text-[12px] opacity-80">{fmtDate(data.date)}</p>
@@ -499,7 +499,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
             <p className="text-[13px] tracking-[0.2em] uppercase text-dp-on-surface-variant">{companyNameEn} · {data.systemLabel}</p>
           </LogoGutter>
         </div>
-        <p className="text-[26px] font-bold mb-8 text-center">{title} <span className="text-dp-on-surface-variant text-[15px] font-normal">{data.receiptNo}</span></p>
+        <p className="text-[26px] font-bold mb-8 text-center">{title} <span className="text-dp-on-surface-variant text-[15px] font-normal"><Ltr>{data.receiptNo}</Ltr></span></p>
         <div className="grid grid-cols-2 gap-6 mb-6 text-[13px]">
           <div>
             <p className="text-dp-on-surface-variant mb-0.5">{fromLabel}</p>
@@ -564,7 +564,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
         <div className="flex justify-between text-[13px] border-y border-dp-outline-variant py-2 mb-4">
           <div>
             <p className="font-bold">{title} {dt(lang, 'noSuffix')}</p>
-            <p>{data.receiptNo}</p>
+            <p><Ltr>{data.receiptNo}</Ltr></p>
           </div>
           <div className="text-center">
             <p className="font-bold">{partyLabelFull}</p>
@@ -657,7 +657,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
             <p className="text-[10px]">{data.systemLabel}</p>
           </LogoGutter>
         </div>
-        <p className="text-center border-t border-b border-dashed border-dp-outline-variant py-1 my-1">{title} #{data.receiptNo}</p>
+        <p className="text-center border-t border-b border-dashed border-dp-outline-variant py-1 my-1">{title} #<Ltr>{data.receiptNo}</Ltr></p>
         <p>{dt(lang, 'dateColon')}{fmtDate(data.date)}</p>
         {data.dueDate && <p>{dt(lang, 'dueColon')}{fmtDate(data.dueDate)}</p>}
         {isBill && data.billingPeriod && <p>{dt(lang, 'periodColon')}{data.billingPeriod}</p>}
@@ -726,7 +726,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
           </div>
           <div className="text-end">
             <p className="text-[10px] uppercase tracking-[0.15em] text-dp-on-surface-variant">{title}</p>
-            <p className="text-[20px] font-bold" style={{ color: accent }}>{data.receiptNo}</p>
+            <p className="text-[20px] font-bold" style={{ color: accent }}><Ltr>{data.receiptNo}</Ltr></p>
             <p className="text-[12px] text-dp-on-surface-variant mt-0.5">{fmtDate(data.date)}</p>
             {data.dueDate && <p className="text-[11px] text-dp-on-surface-variant">{dt(lang, 'due')}{fmtDate(data.dueDate)}</p>}
           </div>
@@ -820,7 +820,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
             {showUrdu && <p className="text-[13px] text-dp-on-surface-variant" style={{ fontFamily: 'var(--font-urdu), serif' }}>{companyNameUr}</p>}
             <p className="text-[11px] text-dp-on-surface-variant">{data.systemLabel}</p>
           </div>
-          <div className="text-white rounded-full px-4 py-1.5 text-[12px] font-bold shrink-0" style={{ backgroundColor: accent }}>{data.receiptNo}</div>
+          <div className="text-white rounded-full px-4 py-1.5 text-[12px] font-bold shrink-0" style={{ backgroundColor: accent }}><Ltr>{data.receiptNo}</Ltr></div>
         </div>
 
         <div className="bg-white rounded-2xl px-5 py-4 shadow-sm grid grid-cols-2 gap-4 text-[13px]">
@@ -894,7 +894,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
           </div>
           <div className="text-end">
             <p className="text-[11px] uppercase tracking-[0.1em] opacity-80">{title}</p>
-            <p className="text-[20px] font-bold">{data.receiptNo}</p>
+            <p className="text-[20px] font-bold"><Ltr>{data.receiptNo}</Ltr></p>
             <p className="text-[12px] opacity-85 mt-0.5">{fmtDate(data.date)}</p>
           </div>
         </div>
@@ -982,7 +982,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-[0.08em] text-dp-on-surface-variant">{title} No.</p>
-            <p className="font-bold text-[16px]" style={{ color: accent }}>{data.receiptNo}</p>
+            <p className="font-bold text-[16px]" style={{ color: accent }}><Ltr>{data.receiptNo}</Ltr></p>
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-[0.08em] text-dp-on-surface-variant">{dt(lang, 'date')}</p>
@@ -1067,7 +1067,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
             {showUrdu && <p className="text-[11px] text-dp-on-surface-variant" style={{ fontFamily: 'var(--font-urdu), serif' }}>{companyNameUr}</p>}
           </div>
           <div className="text-end text-[11px] text-dp-on-surface-variant">
-            <p>{title} No. <span className="font-bold text-dp-on-surface">{data.receiptNo}</span></p>
+            <p>{title} No. <span className="font-bold text-dp-on-surface"><Ltr>{data.receiptNo}</Ltr></span></p>
             <p>{fmtDate(data.date)}{data.billingPeriod ? ` · ${data.billingPeriod}` : ''}</p>
           </div>
         </div>
@@ -1164,7 +1164,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
 
       <div className="border-t border-b border-dp-outline-variant py-2 text-center mb-3">
         <h2 className="text-[18px] font-bold">{title}</h2>
-        <p className="text-[12px] text-dp-on-surface-variant">{data.receiptNo}</p>
+        <p className="text-[12px] text-dp-on-surface-variant"><Ltr>{data.receiptNo}</Ltr></p>
       </div>
 
       <div className="flex justify-between border border-dp-outline-variant text-[13px] mb-4">
@@ -1176,7 +1176,7 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
           {data.accountPhone && <p><Ltr>{data.accountPhone}</Ltr></p>}
         </div>
         <div className="p-2.5 text-end">
-          <p>{dt(lang, 'receiptNoDot')}{data.receiptNo}</p>
+          <p>{dt(lang, 'receiptNoDot')}<Ltr>{data.receiptNo}</Ltr></p>
           <p>{dt(lang, 'dated')}{fmtDate(data.date)}</p>
           {data.dueDate && <p>{dt(lang, 'dueColon')}{fmtDate(data.dueDate)}</p>}
         </div>
