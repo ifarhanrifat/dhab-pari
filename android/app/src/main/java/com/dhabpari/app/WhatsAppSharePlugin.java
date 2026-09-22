@@ -64,14 +64,19 @@ public class WhatsAppSharePlugin extends Plugin {
     private static final String TAG = "WhatsAppShare";
 
     // A real committee phone is just as likely to carry WhatsApp Business
-    // (com.whatsapp.w4b) as regular WhatsApp, or both -- the first version
-    // of this plugin only ever checked/targeted "com.whatsapp", so on a
-    // Business-only device isAvailable() always came back false and every
-    // share silently fell back to the old download+wa.me flow with no
-    // visible error at all (shareReceipt()'s native attempt is wrapped in
-    // .catch(() => false), by design, so it degrades quietly -- which is
-    // exactly why this looked like "nothing changed" instead of an error).
-    private static final String[] WHATSAPP_PACKAGES = { "com.whatsapp", "com.whatsapp.w4b" };
+    // (com.whatsapp.w4b) as regular WhatsApp, or both. An earlier version
+    // only ever checked/targeted "com.whatsapp", so on a Business-only
+    // device isAvailable() always came back false and every share silently
+    // fell back to the old download+wa.me flow with no visible error at all
+    // (shareReceipt()'s native attempt is wrapped in .catch(() => false),
+    // by design, so it degrades quietly). Fixed to check both -- but with
+    // "com.whatsapp" listed first, which meant regular WhatsApp always won
+    // on a device carrying both, even though this is a committee/business
+    // phone where donor communication should go out the Business account.
+    // Business now listed first: it wins whenever it's installed, which is
+    // the case that actually matters here; still falls back to regular
+    // WhatsApp on a device that only has that one.
+    private static final String[] WHATSAPP_PACKAGES = { "com.whatsapp.w4b", "com.whatsapp" };
 
     @PluginMethod
     public void isAvailable(PluginCall call) {
