@@ -19,7 +19,18 @@
 
 interface WhatsAppSharePlugin {
   isAvailable(): Promise<{ available: boolean }>
-  shareFile(options: { base64Data: string; mimeType: string; filename: string }): Promise<{ status: boolean }>
+  shareFile(options: { base64Data: string; mimeType: string; filename: string; phone?: string }): Promise<{ status: boolean; triedJid: boolean }>
+}
+
+// Duplicated from receiptExport.ts's normalizePakPhone rather than imported --
+// that file dynamically imports this one mid-function, and this one-liner
+// isn't worth the circular-import subtlety of importing back.
+function normalizePhone(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '')
+  if (!digits) return null
+  if (digits.startsWith('92')) return digits
+  if (digits.startsWith('0')) return '92' + digits.slice(1)
+  return digits
 }
 
 async function blobToBase64(blob: Blob): Promise<string> {
@@ -35,7 +46,7 @@ async function blobToBase64(blob: Blob): Promise<string> {
   })
 }
 
-export async function shareFileToWhatsApp(blob: Blob, filename: string, mimeType: string): Promise<boolean> {
+export async function shareFileToWhatsApp(blob: Blob, filename: string, mimeType: string, phone?: string | null): Promise<boolean> {
   const { Capacitor, registerPlugin } = await import('@capacitor/core')
   if (!Capacitor.isNativePlatform()) return false
 
@@ -52,7 +63,15 @@ export async function shareFileToWhatsApp(blob: Blob, filename: string, mimeType
 
   try {
     const base64Data = await blobToBase64(blob)
-    await WhatsAppShare.shareFile({ base64Data, mimeType, filename })
+    // jid is undocumented and known-unreliable (WhatsApp broke this for many
+    // users around 2023) -- WhatsAppSharePlugin tries it when a phone is
+    // given, but there's no way to detect an in-WhatsApp rejection from
+    // here, so this is genuinely experimental per-device, not a confirmed
+    // capability. Logged either way so the outcome is checkable on a real
+    // device instead of guessed at.
+    const normalized = phone ? normalizePhone(phone) : null
+    const result = await WhatsAppShare.shareFile({ base64Data, mimeType, filename, phone: normalized ?? undefined })
+    console.info('[WhatsAppShare] native share fired', result)
     return true
   } catch (err) {
     // A real failure (bridge error, file write, intent rejected) -- distinct

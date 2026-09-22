@@ -275,7 +275,7 @@ interface ShareOptions {
  */
 export async function shareReceipt({ blob, filename, mime, phone, message, getClipboardBlob }: ShareOptions): Promise<'attached' | 'copied' | 'downloaded'> {
   const { shareFileToWhatsApp } = await import('./nativeWhatsApp')
-  const attached = await shareFileToWhatsApp(blob, filename, mime).catch(() => false)
+  const attached = await shareFileToWhatsApp(blob, filename, mime, phone).catch(() => false)
   if (attached) return 'attached'
 
   const clipboardBlob = getClipboardBlob ? await getClipboardBlob() : null

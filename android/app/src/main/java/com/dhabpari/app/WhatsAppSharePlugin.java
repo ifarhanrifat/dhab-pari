@@ -54,6 +54,16 @@ public class WhatsAppSharePlugin extends Plugin {
         String base64Data = call.getString("base64Data");
         String mimeType = call.getString("mimeType");
         String filename = call.getString("filename");
+        // Undocumented, unreliable, opt-in-by-caller only: some devices'
+        // WhatsApp builds read a "jid" extra on an ACTION_SEND intent and
+        // land directly in that contact's chat instead of showing the
+        // picker -- WhatsApp broke this for many users around 2023 and it
+        // is NOT a supported API, so this is tried first and, if WhatsApp
+        // itself doesn't error, kept; there is no reliable way to detect
+        // an in-WhatsApp rejection from here, so this is a real gamble,
+        // not a confirmed capability -- only exists to let rizwan verify
+        // once on his own device whether it still works there.
+        String phone = call.getString("phone");
 
         if (base64Data == null || mimeType == null || filename == null) {
             call.reject("base64Data, mimeType and filename are all required");
@@ -87,6 +97,9 @@ public class WhatsAppSharePlugin extends Plugin {
             intent.setPackage(targetPackage);
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            if (phone != null && !phone.isEmpty()) {
+                intent.putExtra("jid", phone + "@s.whatsapp.net");
+            }
 
             if (intent.resolveActivity(getContext().getPackageManager()) == null) {
                 call.reject("WhatsApp did not accept the share intent");
@@ -96,6 +109,7 @@ public class WhatsAppSharePlugin extends Plugin {
             getActivity().startActivity(intent);
             JSObject ret = new JSObject();
             ret.put("status", true);
+            ret.put("triedJid", phone != null && !phone.isEmpty());
             call.resolve(ret);
         } catch (Exception e) {
             call.reject("Could not share to WhatsApp: " + e.getMessage(), e);
