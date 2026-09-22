@@ -17,6 +17,7 @@ import { FilterSheet, FilterSheetSection, DateRangePillGroup } from '@/component
 import { presetRange, detectPreset, formatRangeLabel, presetLabelKey, PRESET_ORDER, type DateRangePreset } from '@/lib/dateRangePresets'
 import { FileAttachment } from '@/components/admin/FileAttachment'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
+import { AddDonorModal, type CreatedDonor } from '@/components/admin/AddDonorModal'
 import { donorReceiptTotals } from '@/lib/donorReceiptTotals'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { billBadge, billBadgeClass, receivableBadge, type BillBadgeTone } from '@/lib/billStatus'
@@ -75,6 +76,14 @@ interface TxnCard {
   waivedAt?: string | null
 }
 interface PendingApproval { id: string; kind: string; particular: string; amount_pkr: number; created_at: string }
+// Profile columns added on accounts (migration 502) so a donor created via
+// AddDonorModal -- no donation row at all yet -- still has something for
+// pickExistingDonor() to fall back to, instead of only ever finding these
+// fields on a donor's most recent donation row (which won't exist yet).
+interface DonorAccountRow {
+  donor_key: string; name: string; donor_account_no: string | null
+  name_ur: string | null; phone: string | null; donor_type: string | null; donor_location: string | null
+}
 interface InventoryItemOpt { id: string; name: string; unit_price: number; unit_cost: number; unit: string }
 interface ServiceItemOpt { id: string; name: string; charge_amount: number }
 interface TemplateItemRow { item_type: 'inventory' | 'service'; inventory_item_id: string | null; service_item_id: string | null; quantity: number }
@@ -265,7 +274,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   // than retyped. A donor's ledger account is keyed on phone-else-name, so a
   // name typed with different spacing or spelling silently opens a *second*
   // account for the same person and splits their history in two.
-  const [donorAccounts, setDonorAccounts] = useState<{ donor_key: string; name: string; donor_account_no: string | null }[]>([])
+  const [donorAccounts, setDonorAccounts] = useState<DonorAccountRow[]>([])
   const [selectedDonorKey, setSelectedDonorKey] = useState('')
   const [confirmDeleteVoucherId, setConfirmDeleteVoucherId] = useState<string | null>(null)
   const [waiving, setWaiving] = useState<{ id: string; kind: WaiverKind; label: string } | null>(null)
@@ -1552,33 +1561,29 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setSaving(false)
   }
 
+  // Used to filter out any account with no donation row behind it, on the
+  // theory that ensure_donor_account() only ever ran as a side effect of a
+  // real donation, so a donation-less account could only be a leftover
+  // from a deleted/test entry. That's no longer true: create_donor_account()
+  // (migration 502) deliberately creates an account with zero donations,
+  // exactly the case rizwan asked for ("add the account now, record the
+  // donation later from here"). That filter would have hidden every donor
+  // added the new way from this exact picker -- the one place they're
+  // supposed to show up. Also now selects the new profile columns, so
+  // pickExistingDonor() has something to fall back to for a donor who has
+  // no donation row to read those fields from yet.
+  const reloadDonorAccounts = async () => {
+    const { data: accountRows } = await supabase.from('accounts')
+      .select('donor_key, name, donor_account_no, name_ur, phone, donor_type, donor_location')
+      .eq('system', 'donors_projects').eq('type', 'donor')
+      .not('donor_key', 'is', null).order('name')
+    setDonorAccounts((accountRows ?? []) as DonorAccountRow[])
+  }
+
   useEffect(() => {
     if (activeType !== 'donation' || system !== 'donors_projects') return
-    ;(async () => {
-      const [{ data: accountRows }, { data: donationRows }] = await Promise.all([
-        supabase.from('accounts')
-          .select('donor_key, name, donor_account_no')
-          .eq('system', 'donors_projects').eq('type', 'donor')
-          .not('donor_key', 'is', null).order('name'),
-        supabase.from('donors').select('name, phone'),
-      ])
-      // A donor account only ever comes into existence because a donation
-      // created it (ensure_donor_account, called from the ledger trigger), so
-      // an account with no donation behind it is a leftover — a deleted or
-      // test donation whose account was never cleaned up. Listing those would
-      // put dozens of people who never gave anything in front of the
-      // accountant, and picking one would prefill nothing.
-      const liveKeys = new Set(
-        (donationRows ?? []).map((d) => {
-          const phone = (d.phone ?? '').trim()
-          return (phone !== '' ? phone : (d.name ?? '').trim()).toLowerCase()
-        })
-      )
-      setDonorAccounts(
-        ((accountRows ?? []) as { donor_key: string; name: string; donor_account_no: string | null }[])
-          .filter((a) => liveKeys.has(a.donor_key))
-      )
-    })()
+    reloadDonorAccounts()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeType, system, supabase])
 
   const pickExistingDonor = async (key: string) => {
@@ -1596,19 +1601,42 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       .select('name, name_ur, phone, donor_type, donor_location')
       .or(`phone.eq.${quoted},name.ilike.${quoted}`)
       .order('created_at', { ascending: false }).limit(1).maybeSingle()
+    // No donation exists yet for a donor created via AddDonorModal, so the
+    // query above finds nothing -- fall back to the profile the account
+    // itself already carries (migration 502) instead of leaving these
+    // blank and making staff retype what was just entered when the
+    // account was created.
     setDonationForm({
       ...donationForm,
       name: data?.name ?? account.name,
-      name_ur: data?.name_ur ?? '',
-      phone: data?.phone ?? '',
-      donor_type: data?.donor_type ?? 'villager',
-      donor_location: data?.donor_location ?? '',
+      name_ur: data?.name_ur ?? account.name_ur ?? '',
+      phone: data?.phone ?? account.phone ?? '',
+      donor_type: data?.donor_type ?? account.donor_type ?? 'villager',
+      donor_location: data?.donor_location ?? account.donor_location ?? '',
     })
   }
 
-  const startNewDonor = () => {
-    setSelectedDonorKey('')
-    setDonationForm({ ...donationForm, name: '', name_ur: '', phone: '', donor_type: 'villager', donor_location: '' })
+  // Used to just blank the donation form's identity fields inline -- so
+  // "New Donor" looked like it led somewhere, but there was no actual
+  // account-creation step at all: the only thing that ever created a donor
+  // account (ensure_donor_account) was called as a side effect of the
+  // donation itself, so a real account only existed once amount/cash-or-
+  // bank had already been filled in and saved. Rizwan: "the new account
+  // should be separate function and has nothing to do with transaction."
+  // Now opens AddDonorModal (create_donor_account, migration 502) instead,
+  // which creates a real account with zero donations -- the donation form
+  // below is filled with whatever was just entered there, ready for the
+  // separate step of actually recording their first gift.
+  const [showAddDonor, setShowAddDonor] = useState(false)
+  const startNewDonor = () => setShowAddDonor(true)
+  const handleDonorCreated = (donor: CreatedDonor) => {
+    setShowAddDonor(false)
+    reloadDonorAccounts()
+    setSelectedDonorKey(donor.donorKey)
+    setDonationForm({
+      ...donationForm, name: donor.name, name_ur: donor.nameUr, phone: donor.phone,
+      donor_type: donor.donorType, donor_location: donor.donorLocation,
+    })
   }
 
   const saveDonation = async () => {
@@ -3212,6 +3240,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       )}
 
       {viewReceipt && <ReceiptModal data={viewReceipt} phone={viewReceiptPhone} system={system} onClose={() => { setViewReceipt(null); setViewReceiptPhone(null) }} />}
+      {showAddDonor && <AddDonorModal onClose={() => setShowAddDonor(false)} onCreated={handleDonorCreated} />}
       {quickAddFor && (
         <QuickAddAccountModal
           system={system} allowedTypes={quickAddFor.types}

@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { BulkActionsBar } from '@/components/admin/BulkActionsBar'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
+import { AddDonorModal } from '@/components/admin/AddDonorModal'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { normalizePakPhone } from '@/lib/receiptExport'
 import { renderTemplate } from '@/lib/messageTemplates'
@@ -102,7 +103,6 @@ function AdminDonorsPageInner() {
   const [accountNoByKey, setAccountNoByKey] = useState<Map<string, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState(empty)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editTarget, setEditTarget] = useState<Donor | null>(null)
@@ -163,18 +163,6 @@ function AdminDonorsPageInner() {
   const projectTitle = (id: string | null) => {
     const p = projects.find((p) => p.id === id)
     return p ? (p.display_name || p.title) : null
-  }
-
-  const save = async () => {
-    if (!form.name.trim()) { toast.error(t('dn.nameRequired')); return }
-    const payload = { ...form, name_ur: form.name_ur || null, project_id: form.project_id || null, notes: form.notes || null, phone: form.phone || null, father_husband_name: form.father_husband_name || null, whatsapp_number: form.whatsapp_number || null }
-    const { data, error } = await supabase.from('donors').insert({ ...payload, is_verified: true, submitted_via: 'staff' }).select('id').single()
-    if (error) { toast.error(friendlyError(error)); return }
-    // Staff-entered donations post to the ledger immediately (is_verified is
-    // already true above) but, unlike confirm_donation()'s flow, never got a
-    // voucher_no/donor_account_no on their own — assign them now the same way.
-    if (data) await supabase.rpc('assign_donor_numbers', { p_donor_id: data.id })
-    toast.success(t('dn.donorAdded')); setShowForm(false); setForm(empty); load()
   }
 
   const unverify = async (id: string) => {
@@ -409,7 +397,7 @@ function AdminDonorsPageInner() {
             </p>
           )}
         </div>
-        <button onClick={() => { setForm(empty); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('dn.addDonor')}</button>
+        <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('dn.addDonor')}</button>
       </div>
 
       {/* ── Combined payments ─────────────────────────────────────────────
@@ -648,44 +636,7 @@ function AdminDonorsPageInner() {
       />
 
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">{t('dn.addDonor')}</h2><button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button></div>
-            <div className="space-y-4">
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.name')}</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" /></div>
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('g.nameUrdu')}</label><input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder="اردو میں نام" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.phone')}</label><input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0300-1234567" className="input-field" /></div>
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('f.donorType')}</label><select value={form.donor_type} onChange={(e) => setForm({ ...form, donor_type: e.target.value, donor_location: e.target.value === 'villager' ? '' : form.donor_location })} className="input-field"><option value="villager">{t('f.villager')}</option><option value="city">{t('dn.cityInPakistan')}</option><option value="overseas">{t('g.overseas')}</option></select></div>
-                {/* Where they are, in their own words. It is what the public
-                    thank-you says — "from Lahore", "from Dubai" — and most of
-                    the people who give left the village years ago, so calling
-                    them either local or foreign was wrong either way. */}
-                {form.donor_type !== 'villager' && (
-                  <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{form.donor_type === 'overseas' ? t('dn.country') : t('dn.city')}</label><input type="text" value={form.donor_location} onChange={(e) => setForm({ ...form, donor_location: e.target.value })} placeholder={form.donor_type === 'overseas' ? t('dn.countryPlaceholder') : t('dn.cityPlaceholder')} className="input-field" /></div>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.amountPkr')}</label><input type="number" value={form.amount_pkr || ''} onChange={(e) => setForm({ ...form, amount_pkr: +e.target.value })} className="input-field" /></div>
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.date')}</label><input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="input-field" /></div>
-              </div>
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.paymentMethod')}</label><select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })} className="input-field"><option value="cash">{t('w.cash')}</option><option value="jazzcash">{t('w.jazzcash')}</option><option value="easypaisa">{t('w.easypaisa')}</option><option value="bank">{t('a.bank')}</option></select></div>
-              <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('dn.selectProject')}</label>
-                <select value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })} className="input-field">
-                  <option value="">{t('a.noProject')}</option>
-                  {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.notesOptional')}</label>
-                <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} placeholder={t('dn.notesPlaceholder')} className="input-field resize-none" />
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.is_anonymous} onChange={(e) => setForm({ ...form, is_anonymous: e.target.checked })} className="accent-dp-secondary" /><span className="font-sans text-[14px]">{t('f.anonymousDonor')}</span></label>
-              <button onClick={save} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{t('dn.addDonor')}</button>
-            </div>
-          </div>
-        </div>
+        <AddDonorModal onClose={() => setShowForm(false)} onCreated={() => setShowForm(false)} />
       )}
 
       {editTarget && (
