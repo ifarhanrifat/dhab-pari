@@ -159,20 +159,20 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
   // This screen never offers the thermal target — the document below is
   // always rendered at sheet width — so its PDF always gets a real A4 page
   // rather than one cut to the height of the invoice.
-  const buildBlob = async (): Promise<{ blob: Blob; renderMs: number; html2canvasMs: number; postProcessMs: number; pdfBreakdown: string }> => {
-    if (blobCacheRef.current?.format === format) return { blob: blobCacheRef.current.blob, renderMs: 0, html2canvasMs: 0, postProcessMs: 0, pdfBreakdown: '' }
+  const buildBlob = async (): Promise<{ blob: Blob; renderMs: number; html2canvasMs: number; postProcessMs: number; postBreakdown: string }> => {
+    if (blobCacheRef.current?.format === format) return { blob: blobCacheRef.current.blob, renderMs: 0, html2canvasMs: 0, postProcessMs: 0, postBreakdown: '' }
     if (!nodeRef.current) throw new Error('Invoice not ready')
     const start = performance.now()
     const blob = format === 'pdf' ? await nodeToPdfBlob(nodeRef.current, 'a4') : await nodeToPngBlob(nodeRef.current)
     const renderMs = Math.round(performance.now() - start)
     blobCacheRef.current = { format, blob }
-    // See ReceiptModal.tsx's identical note -- pinpoints whether toDataURL,
-    // jsPDF's own addImage (PNG decode in pure JS), or output('blob') owns
-    // the "post" time, since preloading jsPDF's import left it unchanged.
-    const pdfBreakdown = format === 'pdf'
+    // See ReceiptModal.tsx's identical note -- PDF pinpoints toDataURL vs
+    // jsPDF's addImage vs output('blob'); PNG pinpoints toDataURL vs the
+    // fetch()-based blobify that replaced the slow canvas.toBlob() path.
+    const postBreakdown = format === 'pdf'
       ? ` [dataUrl ${lastRenderTiming?.toDataUrlMs ?? 0}ms, addImage ${lastRenderTiming?.addImageMs ?? 0}ms, output ${lastRenderTiming?.outputMs ?? 0}ms]`
-      : ''
-    return { blob, renderMs, html2canvasMs: lastRenderTiming?.html2canvasMs ?? 0, postProcessMs: lastRenderTiming?.postProcessMs ?? 0, pdfBreakdown }
+      : ` [dataUrl ${lastRenderTiming?.toDataUrlMs ?? 0}ms, blobify ${lastRenderTiming?.blobFromDataUrlMs ?? 0}ms]`
+    return { blob, renderMs, html2canvasMs: lastRenderTiming?.html2canvasMs ?? 0, postProcessMs: lastRenderTiming?.postProcessMs ?? 0, postBreakdown }
   }
   const filename = () => `invoice-${data.receiptNo}.${format === 'pdf' ? 'pdf' : 'png'}`
 
@@ -208,7 +208,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
   const handleWhatsApp = async () => {
     setBusy(true)
     try {
-      const { blob, renderMs, html2canvasMs, postProcessMs, pdfBreakdown } = await buildBlob()
+      const { blob, renderMs, html2canvasMs, postProcessMs, postBreakdown } = await buildBlob()
       const mime = format === 'pdf' ? 'application/pdf' : 'image/png'
       const result = await shareReceipt({
         blob, filename: filename(), mime, phone: whatsappPhone, contactName: data.accountName,
@@ -218,7 +218,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
       // "takes too long" report, diagnosable from the toast alone.
       const t = result.nativeTimingMs
       const logoKind = data.logoUrl ? (data.logoUrl.startsWith('data:') ? 'data:' : 'url') : 'none'
-      const timingNote = t ? ` [render ${renderMs}ms (canvas ${html2canvasMs}ms + post ${postProcessMs}ms), encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB, logo=${logoKind}]${pdfBreakdown}` : ''
+      const timingNote = t ? ` [render ${renderMs}ms (canvas ${html2canvasMs}ms + post ${postProcessMs}ms), encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB, logo=${logoKind}]${postBreakdown}` : ''
       toast.success(
         (result.outcome === 'attached-direct'
           ? 'WhatsApp opened straight to their chat, file attached'

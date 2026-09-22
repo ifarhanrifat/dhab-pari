@@ -54,6 +54,11 @@ export let lastRenderTiming: {
   toDataUrlMs?: number
   addImageMs?: number
   outputMs?: number
+  // PNG-only, added 2026-09-23: the real culprit, found by contrast -- a
+  // PDF share's toDataUrlMs on an equivalent canvas was 31ms, but a PNG
+  // share's canvas.toBlob() was 13026ms for the same PNG encoding. See
+  // nodeToPngBlob()'s comment for why toBlob() itself was the slow part.
+  blobFromDataUrlMs?: number
 } | null = null
 
 async function renderNodeToCanvas(node: HTMLElement): Promise<HTMLCanvasElement> {
@@ -69,10 +74,25 @@ async function renderNodeToCanvas(node: HTMLElement): Promise<HTMLCanvasElement>
 export async function nodeToPngBlob(node: HTMLElement): Promise<Blob> {
   const canvas = await renderNodeToCanvas(node)
   const start = performance.now()
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Failed to render PNG'))), 'image/png')
-  })
-  if (lastRenderTiming) lastRenderTiming.postProcessMs = Math.round(performance.now() - start)
+  // Real report (2026-09-23): canvas.toBlob('image/png') measured 13026ms
+  // on a share, while canvas.toDataURL('image/png') on an equivalent
+  // html2canvas render (same node, same scale, same device) measured 31ms
+  // in the PDF path right next to it. That gap is too big to be PNG
+  // encoding cost -- it's toBlob() itself hitting a slow implementation
+  // path (some Android WebViews fall back to a manual JS base64-decode
+  // polyfill for toBlob() instead of a native fast path). Route through
+  // the proven-fast toDataURL() and let fetch() turn the data: URL into a
+  // real Blob -- fetch's data: URL handling uses a native decoder, not a
+  // JS atob loop.
+  const dataUrl = canvas.toDataURL('image/png')
+  const toDataUrlMs = Math.round(performance.now() - start)
+  const fetchStart = performance.now()
+  const blob = await (await fetch(dataUrl)).blob()
+  if (lastRenderTiming) {
+    lastRenderTiming.toDataUrlMs = toDataUrlMs
+    lastRenderTiming.blobFromDataUrlMs = Math.round(performance.now() - fetchStart)
+    lastRenderTiming.postProcessMs = Math.round(performance.now() - start)
+  }
   return blob
 }
 
