@@ -339,7 +339,12 @@ export default function CustomersPage() {
         getClipboardBlob: async () => blob,
         message: isUrdu ? `${name} کا بل نمبر ${viewingInvoice.invoice_number}` : `Bill #${viewingInvoice.invoice_number} for ${name}`,
       })
-      toast.success(result === 'attached' ? t('sk.slipAttachedToast') : result === 'copied' ? t('sk.slipCopiedToast') : t('sk.slipDownloadedToast'))
+      toast.success(
+        result.outcome === 'attached-direct' ? t('sk.slipAttachedDirectToast')
+          : result.outcome === 'attached' ? t('sk.slipAttachedToast')
+          : result.outcome === 'copied' ? t('sk.slipCopiedToast')
+          : t('sk.slipDownloadedToast')
+      )
     } catch {
       toast.error(t('sk.slipShareFailedHint'))
     } finally {

@@ -35,6 +35,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.RemoteException;
 import android.provider.ContactsContract;
+import android.util.Log;
 import androidx.core.content.FileProvider;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -55,6 +56,12 @@ import java.util.ArrayList;
     }
 )
 public class WhatsAppSharePlugin extends Plugin {
+
+    // Logged at every decision point in the contact-save/jid path (not just
+    // caught-and-swallowed) after a real report of "permission granted,
+    // still not landing on the contact" with no way to tell which step
+    // actually failed -- filter logcat on this tag instead of guessing.
+    private static final String TAG = "WhatsAppShare";
 
     // A real committee phone is just as likely to carry WhatsApp Business
     // (com.whatsapp.w4b) as regular WhatsApp, or both -- the first version
@@ -137,12 +144,22 @@ public class WhatsAppSharePlugin extends Plugin {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
             boolean triedJid = false;
-            if (phone != null && !phone.isEmpty() && getPermissionState("contacts") == com.getcapacitor.PermissionState.GRANTED) {
-                if (ensureContactSaved(phone, contactName)) {
+            String jidSkipReason = null;
+            if (phone == null || phone.isEmpty()) {
+                jidSkipReason = "no phone number available for this receipt";
+            } else if (getPermissionState("contacts") != com.getcapacitor.PermissionState.GRANTED) {
+                jidSkipReason = "Contacts permission not granted";
+            } else {
+                String failure = ensureContactSaved(phone, contactName);
+                if (failure == null) {
                     intent.putExtra("jid", phone + "@s.whatsapp.net");
                     triedJid = true;
+                    Log.i(TAG, "jid attempt: phone=" + phone + " contactName=" + contactName);
+                } else {
+                    jidSkipReason = failure;
                 }
             }
+            if (jidSkipReason != null) Log.w(TAG, "skipping jid: " + jidSkipReason);
 
             if (intent.resolveActivity(getContext().getPackageManager()) == null) {
                 call.reject("WhatsApp did not accept the share intent");
@@ -153,6 +170,7 @@ public class WhatsAppSharePlugin extends Plugin {
             JSObject ret = new JSObject();
             ret.put("status", true);
             ret.put("triedJid", triedJid);
+            if (jidSkipReason != null) ret.put("jidSkipReason", jidSkipReason);
             call.resolve(ret);
         } catch (Exception e) {
             call.reject("Could not share to WhatsApp: " + e.getMessage(), e);
@@ -160,18 +178,35 @@ public class WhatsAppSharePlugin extends Plugin {
     }
 
     /**
-     * True once `phone` is confirmed present in this phone's own Contacts
-     * app -- already there, or just added. False on any failure (permission
-     * refused at the provider level despite the manifest grant, malformed
-     * number, provider error): the caller treats false as "don't bother
-     * with jid," never as a reason to fail the whole share.
+     * Null once `phone` is confirmed present in this phone's own Contacts
+     * app -- already there, or just added. A non-null string names what
+     * went wrong, surfaced all the way up to the share result and logged --
+     * the caller treats any non-null return as "don't bother with jid,"
+     * never as a reason to fail the whole share.
      */
-    private boolean ensureContactSaved(String phone, String contactName) {
+    private String ensureContactSaved(String phone, String contactName) {
         try {
-            if (contactExists(phone)) return true;
-            return insertMinimalContact(phone, contactName != null && !contactName.isEmpty() ? contactName : phone);
+            if (contactExists(phone)) {
+                Log.i(TAG, "contact already exists for " + phone);
+                return null;
+            }
+            String name = (contactName != null && !contactName.isEmpty()) ? contactName : phone;
+            String insertFailure = insertMinimalContact(phone, name);
+            if (insertFailure != null) return insertFailure;
+            Log.i(TAG, "saved new contact \"" + name + "\" for " + phone);
+            // Real, unconfirmed risk (not yet proven, only suspected): a
+            // contact inserted this same instant may not be visible to
+            // WhatsApp's own jid-matching yet if it keeps a synced copy of
+            // Contacts rather than querying live -- if jid keeps getting
+            // ignored specifically on a donor/customer's *first ever*
+            // share (but works on repeat shares to someone already in
+            // Contacts, like the adb-tested "amir meera"), this timing gap
+            // is the next thing to test, not another permissions dead end.
+            return null;
         } catch (Exception e) {
-            return false;
+            String msg = "ensureContactSaved threw: " + e;
+            Log.e(TAG, msg, e);
+            return msg;
         }
     }
 
@@ -184,8 +219,8 @@ public class WhatsAppSharePlugin extends Plugin {
         }
     }
 
-    /** Standard three-row RawContacts/StructuredName/Phone batch insert, applied atomically. */
-    private boolean insertMinimalContact(String phone, String name) {
+    /** Standard three-row RawContacts/StructuredName/Phone batch insert, applied atomically. Null on success. */
+    private String insertMinimalContact(String phone, String name) {
         ArrayList<ContentProviderOperation> ops = new ArrayList<>();
         ops.add(ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
             .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, null)
@@ -204,9 +239,11 @@ public class WhatsAppSharePlugin extends Plugin {
             .build());
         try {
             getContext().getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
-            return true;
+            return null;
         } catch (RemoteException | OperationApplicationException e) {
-            return false;
+            String msg = "applyBatch failed: " + e;
+            Log.e(TAG, msg, e);
+            return msg;
         }
     }
 

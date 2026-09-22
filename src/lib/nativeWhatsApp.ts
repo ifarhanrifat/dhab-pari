@@ -26,7 +26,15 @@
 
 interface WhatsAppSharePlugin {
   isAvailable(): Promise<{ available: boolean }>
-  shareFile(options: { base64Data: string; mimeType: string; filename: string; phone?: string; contactName?: string }): Promise<{ status: boolean; triedJid: boolean }>
+  shareFile(options: { base64Data: string; mimeType: string; filename: string; phone?: string; contactName?: string }): Promise<{ status: boolean; triedJid: boolean; jidSkipReason?: string }>
+}
+
+export interface NativeShareResult {
+  attached: boolean
+  /** true only when the jid attempt was actually made (contact confirmed/saved) -- WhatsApp opened straight to that chat, not its own picker. */
+  triedJid: boolean
+  /** Set when triedJid is false and a phone number was given -- why jid wasn't attempted, straight from the plugin. Surfaced in the toast so this is diagnosable without a connected device. */
+  jidSkipReason?: string
 }
 
 // Duplicated from receiptExport.ts's normalizePakPhone rather than imported --
@@ -53,9 +61,10 @@ async function blobToBase64(blob: Blob): Promise<string> {
   })
 }
 
-export async function shareFileToWhatsApp(blob: Blob, filename: string, mimeType: string, phone?: string | null, contactName?: string | null): Promise<boolean> {
+export async function shareFileToWhatsApp(blob: Blob, filename: string, mimeType: string, phone?: string | null, contactName?: string | null): Promise<NativeShareResult> {
+  const notAttached: NativeShareResult = { attached: false, triedJid: false }
   const { Capacitor, registerPlugin } = await import('@capacitor/core')
-  if (!Capacitor.isNativePlatform()) return false
+  if (!Capacitor.isNativePlatform()) return notAttached
 
   const WhatsAppShare = registerPlugin<WhatsAppSharePlugin>('WhatsAppShare')
   const { available } = await WhatsAppShare.isAvailable()
@@ -65,7 +74,7 @@ export async function shareFileToWhatsApp(blob: Blob, filename: string, mimeType
     // design, but this line makes that an intentional, visible skip in
     // logcat/remote-debug rather than indistinguishable from a real failure.
     console.warn('[WhatsAppShare] neither WhatsApp nor WhatsApp Business found; falling back to web share')
-    return false
+    return notAttached
   }
 
   try {
@@ -77,12 +86,12 @@ export async function shareFileToWhatsApp(blob: Blob, filename: string, mimeType
       contactName: contactName ?? undefined,
     })
     console.info('[WhatsAppShare] native share fired', result)
-    return true
+    return { attached: true, triedJid: result.triedJid, jidSkipReason: result.jidSkipReason }
   } catch (err) {
     // A real failure (bridge error, file write, intent rejected) -- distinct
     // from "not available" above. Logged so a report of "still falling back"
     // is diagnosable from a connected device instead of another guess.
     console.error('[WhatsAppShare] native share failed, falling back to web share:', err)
-    return false
+    return notAttached
   }
 }

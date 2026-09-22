@@ -275,10 +275,18 @@ interface ShareOptions {
  * they drive the OS, not a sandboxed page — which is exactly what step 1
  * does once this runs as a real Android app instead.
  */
-export async function shareReceipt({ blob, filename, mime, phone, contactName, message, getClipboardBlob }: ShareOptions): Promise<'attached' | 'copied' | 'downloaded'> {
+export interface ShareResult {
+  outcome: 'attached-direct' | 'attached' | 'copied' | 'downloaded'
+  /** Only set when a phone was given but jid wasn't attempted -- straight from the plugin, so this is diagnosable from the toast alone. */
+  jidSkipReason?: string
+}
+
+export async function shareReceipt({ blob, filename, mime, phone, contactName, message, getClipboardBlob }: ShareOptions): Promise<ShareResult> {
   const { shareFileToWhatsApp } = await import('./nativeWhatsApp')
-  const attached = await shareFileToWhatsApp(blob, filename, mime, phone, contactName).catch(() => false)
-  if (attached) return 'attached'
+  const native = await shareFileToWhatsApp(blob, filename, mime, phone, contactName).catch(() => ({ attached: false, triedJid: false, jidSkipReason: undefined }))
+  if (native.attached) {
+    return { outcome: native.triedJid ? 'attached-direct' : 'attached', jidSkipReason: native.jidSkipReason }
+  }
 
   const clipboardBlob = getClipboardBlob ? await getClipboardBlob() : null
   const copied = clipboardBlob ? await copyImageToClipboard(clipboardBlob) : false
@@ -294,5 +302,5 @@ export async function shareReceipt({ blob, filename, mime, phone, contactName, m
   const intl = phone ? normalizePakPhone(phone) : null
   window.open(intl ? `https://wa.me/${intl}?text=${text}` : `https://wa.me/?text=${text}`, '_blank')
 
-  return copied ? 'copied' : 'downloaded'
+  return { outcome: copied ? 'copied' : 'downloaded' }
 }

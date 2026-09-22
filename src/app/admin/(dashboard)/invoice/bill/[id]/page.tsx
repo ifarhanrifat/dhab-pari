@@ -186,9 +186,11 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
         message: `Water bill ${data.receiptNo} — ${netAmount.toLocaleString()}`,
       })
       toast.success(
-        result === 'attached'
-          ? 'WhatsApp opened — pick who to send it to (or straight to their chat, if already a saved contact)'
-          : result === 'copied'
+        result.outcome === 'attached-direct'
+          ? 'WhatsApp opened straight to their chat, file attached'
+          : result.outcome === 'attached'
+          ? `WhatsApp opened with the file attached — pick who to send it to${result.jidSkipReason ? ` (${result.jidSkipReason})` : ''}`
+          : result.outcome === 'copied'
           ? 'Image copied — press Ctrl+V (⌘V) in the WhatsApp chat to attach it'
           : whatsappPhone
             ? 'Downloaded — WhatsApp opened, attach the file to send'
