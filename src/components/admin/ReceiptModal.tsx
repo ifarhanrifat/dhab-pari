@@ -155,7 +155,14 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
       // back to the slow remote-fetch path for this exact share, which is
       // now the single highest-value bit to confirm before chasing
       // anything else about html2canvas's own 7+ second cost.
-      const logoKind = data.logoUrl ? (data.logoUrl.startsWith('data:') ? 'data:' : 'url') : 'none'
+      // BUG FIX, same day: this used to read data.logoUrl (the parent-
+      // supplied prop), which is never actually what gets rendered --
+      // <ReceiptDocument> below is given {...data, ...branding}, with
+      // this component's OWN fetchBrandingSettings() result in `branding`
+      // winning. Checking the wrong object always read "none" regardless
+      // of the real logo, which is exactly what the last report showed.
+      const renderedLogoUrl = branding.logoUrl ?? data.logoUrl
+      const logoKind = renderedLogoUrl ? (renderedLogoUrl.startsWith('data:') ? 'data:' : 'url') : 'none'
       const timingNote = t ? ` [render ${renderMs}ms (canvas ${html2canvasMs}ms + post ${postProcessMs}ms), encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB, logo=${logoKind}]` : ''
       toast.success(
         (result.outcome === 'attached-direct'
