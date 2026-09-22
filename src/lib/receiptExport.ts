@@ -43,7 +43,18 @@ export function setPreferredSlipTarget(target: SlipPrintTarget) {
 // temporary diagnostic instrumentation, not permanent plumbing; the
 // caller reads it immediately after its own nodeToPngBlob/nodeToPdfBlob
 // call resolves, before anything else can overwrite it.
-export let lastRenderTiming: { html2canvasMs: number; postProcessMs: number } | null = null
+export let lastRenderTiming: {
+  html2canvasMs: number
+  postProcessMs: number
+  // PDF-only breakdown of postProcessMs, added 2026-09-23 after a report
+  // (post 13027ms) came back essentially unchanged despite the jsPDF
+  // preload fix -- proof the import was never the real cost. These pin
+  // down which specific step inside "post" actually owns the time instead
+  // of guessing again.
+  toDataUrlMs?: number
+  addImageMs?: number
+  outputMs?: number
+} | null = null
 
 async function renderNodeToCanvas(node: HTMLElement): Promise<HTMLCanvasElement> {
   // html2canvas-pro (not the original html2canvas) — the original can't parse the
@@ -102,7 +113,9 @@ export async function nodeToPdfBlob(node: HTMLElement, page: PdfPageSize = 'cont
   const postProcessStart = performance.now()
   preloadJsPdf()
   const { jsPDF } = await jsPdfPreload!
+  const toDataUrlStart = performance.now()
   const imgData = canvas.toDataURL('image/png')
+  const toDataUrlMs = Math.round(performance.now() - toDataUrlStart)
   const pxToMm = 25.4 / 96
   // renderNodeToCanvas rasterizes at scale 2, so halve back to CSS pixels
   // before converting — these are the node's own on-screen millimetres.
@@ -152,10 +165,12 @@ export async function nodeToPdfBlob(node: HTMLElement, page: PdfPageSize = 'cont
   // shifted up by a whole page, so each sheet shows its own band of it — the
   // standard way to paginate a raster, and the only one available here since
   // html2canvas has already flattened the document.
+  const addImageStart = performance.now()
   for (let i = 0; i < pageCount; i++) {
     if (i > 0) pdf.addPage([pageW, pageH], pageW > pageH ? 'landscape' : 'portrait')
     pdf.addImage(imgData, 'PNG', offsetX, -i * pageH, drawW, drawH)
   }
+  const addImageMs = Math.round(performance.now() - addImageStart)
 
   // html2canvas flattens the document to pixels, which kills every hyperlink —
   // the Facebook/WhatsApp/Donate row and the helpline numbers all came out dead
@@ -184,8 +199,15 @@ export async function nodeToPdfBlob(node: HTMLElement, page: PdfPageSize = 'cont
     })
   }
 
-  if (lastRenderTiming) lastRenderTiming.postProcessMs = Math.round(performance.now() - postProcessStart)
-  return pdf.output('blob')
+  if (lastRenderTiming) {
+    lastRenderTiming.postProcessMs = Math.round(performance.now() - postProcessStart)
+    lastRenderTiming.toDataUrlMs = toDataUrlMs
+    lastRenderTiming.addImageMs = addImageMs
+  }
+  const outputStart = performance.now()
+  const result = pdf.output('blob')
+  if (lastRenderTiming) lastRenderTiming.outputMs = Math.round(performance.now() - outputStart)
+  return result
 }
 
 /** Puts a PNG on the clipboard so it can be pasted straight into a chat.

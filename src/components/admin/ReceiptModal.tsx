@@ -91,15 +91,23 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
   // right after a fix meant to bring it down -- proof the earlier single
   // "render Xms" number wasn't enough to tell whether html2canvas itself is
   // the cost, or something in the PDF/PNG post-processing around it.
-  const buildBlob = async (): Promise<{ blob: Blob; renderMs: number; html2canvasMs: number; postProcessMs: number }> => {
+  const buildBlob = async (): Promise<{ blob: Blob; renderMs: number; html2canvasMs: number; postProcessMs: number; pdfBreakdown: string }> => {
     const key = cacheKey()
-    if (blobCacheRef.current?.key === key) return { blob: blobCacheRef.current.blob, renderMs: 0, html2canvasMs: 0, postProcessMs: 0 }
+    if (blobCacheRef.current?.key === key) return { blob: blobCacheRef.current.blob, renderMs: 0, html2canvasMs: 0, postProcessMs: 0, pdfBreakdown: '' }
     if (!nodeRef.current) throw new Error('Receipt not ready')
     const start = performance.now()
     const blob = format === 'pdf' ? await nodeToPdfBlob(nodeRef.current, pdfPage()) : await nodeToPngBlob(nodeRef.current)
     const renderMs = Math.round(performance.now() - start)
     blobCacheRef.current = { key, blob }
-    return { blob, renderMs, html2canvasMs: lastRenderTiming?.html2canvasMs ?? 0, postProcessMs: lastRenderTiming?.postProcessMs ?? 0 }
+    // PDF-only sub-breakdown of postProcessMs -- added after a report showed
+    // "post" unchanged at 13027ms despite the jsPDF preload fix, proving the
+    // import was never the real cost. Pins down toDataURL vs jsPDF's own
+    // addImage (which does its own PNG decode in pure JS -- a known slow
+    // path) vs pdf.output('blob') itself.
+    const pdfBreakdown = format === 'pdf'
+      ? ` [dataUrl ${lastRenderTiming?.toDataUrlMs ?? 0}ms, addImage ${lastRenderTiming?.addImageMs ?? 0}ms, output ${lastRenderTiming?.outputMs ?? 0}ms]`
+      : ''
+    return { blob, renderMs, html2canvasMs: lastRenderTiming?.html2canvasMs ?? 0, postProcessMs: lastRenderTiming?.postProcessMs ?? 0, pdfBreakdown }
   }
 
   const filename = () => `receipt-${data.receiptNo}.${format === 'pdf' ? 'pdf' : 'png'}`
@@ -134,7 +142,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
   const handleShare = async () => {
     setBusy(true)
     try {
-      const { blob, renderMs, html2canvasMs, postProcessMs } = await buildBlob()
+      const { blob, renderMs, html2canvasMs, postProcessMs, pdfBreakdown } = await buildBlob()
       const mime = format === 'pdf' ? 'application/pdf' : 'image/png'
       // A PDF cannot be pasted into a chat, so the clipboard always gets a
       // PNG — but only actually rendered if shareReceipt() ends up needing
@@ -168,7 +176,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
       // of the real logo, which is exactly what the last report showed.
       const renderedLogoUrl = branding.logoUrl ?? data.logoUrl
       const logoKind = renderedLogoUrl ? (renderedLogoUrl.startsWith('data:') ? 'data:' : 'url') : 'none'
-      const timingNote = t ? ` [render ${renderMs}ms (canvas ${html2canvasMs}ms + post ${postProcessMs}ms), encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB, logo=${logoKind}]` : ''
+      const timingNote = t ? ` [render ${renderMs}ms (canvas ${html2canvasMs}ms + post ${postProcessMs}ms), encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB, logo=${logoKind}]${pdfBreakdown}` : ''
       toast.success(
         (result.outcome === 'attached-direct'
           ? 'WhatsApp opened straight to their chat, file attached'
