@@ -57,6 +57,15 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
   const [format, setFormat] = useState<ReceiptFormat>(getPreferredFormat())
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // The preview on screen is a live DOM render -- instant, and not a file at
+  // all. Every action (Print/Download/WhatsApp/Email) used to re-rasterize
+  // that same DOM from scratch on every click, which is real, perceptible
+  // work (html2canvas + jsPDF for a PDF) that looked to rizwan like "why is
+  // it downloading again, it's already right there on screen." Cached per
+  // format so the first click after a page load or format switch pays that
+  // cost once, and every action after it (on an unchanged invoice) reuses
+  // the same blob instantly.
+  const blobCacheRef = useRef<{ format: ReceiptFormat; blob: Blob } | null>(null)
 
   const load = useCallback(async () => {
     const { data: billRow } = await supabase.from('bills')
@@ -146,15 +155,22 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
   // always rendered at sheet width — so its PDF always gets a real A4 page
   // rather than one cut to the height of the invoice.
   const buildBlob = async () => {
+    if (blobCacheRef.current?.format === format) return blobCacheRef.current.blob
     if (!nodeRef.current) throw new Error('Invoice not ready')
-    return format === 'pdf' ? nodeToPdfBlob(nodeRef.current, 'a4') : nodeToPngBlob(nodeRef.current)
+    const blob = format === 'pdf' ? await nodeToPdfBlob(nodeRef.current, 'a4') : await nodeToPngBlob(nodeRef.current)
+    blobCacheRef.current = { format, blob }
+    return blob
   }
   const filename = () => `invoice-${data.receiptNo}.${format === 'pdf' ? 'pdf' : 'png'}`
 
   const handlePrint = async () => {
     setBusy(true)
     try {
-      const blob = await nodeToPdfBlob(nodeRef.current!, 'a4')
+      // Print always wants a PDF regardless of the format toggle, so it
+      // can't just call buildBlob() -- but it should still populate/reuse
+      // the PDF slot of the cache when the toggle happens to already be on
+      // PDF, instead of silently bypassing it every time.
+      const blob = format === 'pdf' ? await buildBlob() : await nodeToPdfBlob(nodeRef.current!, 'a4')
       printBlob(blob)
     } catch {
       toast.error('Could not prepare the invoice for printing')

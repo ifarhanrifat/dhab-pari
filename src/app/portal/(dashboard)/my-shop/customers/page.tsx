@@ -103,6 +103,20 @@ export default function CustomersPage() {
   // captured is exactly what the shopkeeper already sees on screen.
   const slipRef = useRef<HTMLDivElement>(null)
   const [sendingSlip, setSendingSlip] = useState(false)
+  // Send and Download both used to re-rasterize the same on-screen slip
+  // from scratch -- real, perceptible work for what looks, to a
+  // shopkeeper, like "it's already right there, why does it download
+  // again." Cached per invoice id so only the first action on a given
+  // invoice pays that cost.
+  const slipBlobCacheRef = useRef<{ invoiceId: string; blob: Blob } | null>(null)
+  const buildSlipBlob = async () => {
+    if (!slipRef.current) throw new Error('Invoice not ready')
+    const cached = slipBlobCacheRef.current
+    if (cached && cached.invoiceId === viewingInvoice?.id) return cached.blob
+    const blob = await nodeToPngBlob(slipRef.current)
+    if (viewingInvoice) slipBlobCacheRef.current = { invoiceId: viewingInvoice.id, blob }
+    return blob
+  }
 
   // Linking a registered customer's own portal account so they can view
   // this same statement themselves — a one-time code, not an automatic
@@ -332,7 +346,7 @@ export default function CustomersPage() {
     if (!intl) { toast.error(t('sk.noPhoneForWhatsappHint')); return }
     setSendingSlip(true)
     try {
-      const blob = await nodeToPngBlob(slipRef.current)
+      const blob = await buildSlipBlob()
       const name = openCustomer.name_ur || openCustomer.name
       const result = await shareReceipt({
         blob, filename: invoiceFilename(), mime: 'image/png', phone: openCustomer.phone, contactName: openCustomer.name,
@@ -356,7 +370,7 @@ export default function CustomersPage() {
     if (!slipRef.current) return
     setSendingSlip(true)
     try {
-      const blob = await nodeToPngBlob(slipRef.current)
+      const blob = await buildSlipBlob()
       downloadBlob(blob, invoiceFilename())
     } catch {
       toast.error(t('sk.slipShareFailedHint'))

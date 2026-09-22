@@ -68,9 +68,22 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
   // print dialog then rescaled onto the actual sheet.
   const pdfPage = () => (slipFormat === 'thermal' ? 'content' : 'a4')
 
+  // The preview on screen is a live DOM render, not a file — every action
+  // (Print/Download/WhatsApp) used to re-rasterize that same DOM from
+  // scratch on every click, which is real, perceptible work that looked
+  // like "why is it downloading again, it's already right there." Cached
+  // per (format, pdfPage) pair — a PDF's page sizing depends on the A4/
+  // thermal toggle too, so the key has to include both, not just format.
+  const blobCacheRef = useRef<{ key: string; blob: Blob } | null>(null)
+  const cacheKey = () => `${format}:${format === 'pdf' ? pdfPage() : ''}`
+
   const buildBlob = async () => {
+    const key = cacheKey()
+    if (blobCacheRef.current?.key === key) return blobCacheRef.current.blob
     if (!nodeRef.current) throw new Error('Receipt not ready')
-    return format === 'pdf' ? nodeToPdfBlob(nodeRef.current, pdfPage()) : nodeToPngBlob(nodeRef.current)
+    const blob = format === 'pdf' ? await nodeToPdfBlob(nodeRef.current, pdfPage()) : await nodeToPngBlob(nodeRef.current)
+    blobCacheRef.current = { key, blob }
+    return blob
   }
 
   const filename = () => `receipt-${data.receiptNo}.${format === 'pdf' ? 'pdf' : 'png'}`
@@ -80,7 +93,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
     try {
       // Print the generated PDF in its own blob document, never the live admin page —
       // printing the page itself would leak the internal admin URL into the printout.
-      const blob = await nodeToPdfBlob(nodeRef.current!, pdfPage())
+      const blob = format === 'pdf' ? await buildBlob() : await nodeToPdfBlob(nodeRef.current!, pdfPage())
       printBlob(blob)
     } catch {
       toast.error('Could not prepare the document for printing')
