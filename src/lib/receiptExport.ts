@@ -240,22 +240,38 @@ interface ShareOptions {
  * Puts the document in front of a WhatsApp chat. Every button that calls this
  * is labelled WhatsApp, so this goes to WhatsApp and nowhere else:
  *
- *  1. Clipboard — copy the PNG, open the chat, user presses Ctrl/Cmd+V.
- *     WhatsApp Web accepts a pasted image, so this is one keystroke from done.
- *  2. Download + open the chat, and tell them to attach it.
+ *  1. Native (Android app only) — WhatsAppSharePlugin fires an
+ *     explicit-package ACTION_SEND intent, so WhatsApp opens with the file
+ *     *already attached* and its own contact picker showing. Works for PDF
+ *     exactly like PNG. See nativeWhatsApp.ts for why this only exists in
+ *     the native shell, not a browser tab.
+ *  2. Clipboard (web fallback) — copy the PNG, open the chat, user presses
+ *     Ctrl/Cmd+V. WhatsApp Web accepts a pasted image, so this is one
+ *     keystroke from done. PDF can't be clipboard-pasted at all, so this
+ *     step only ever applies to PNG.
+ *  3. Download + open the chat, and tell them to attach it.
  *
  * This used to lead with the OS share sheet (`navigator.share({ files })`),
  * which does hand WhatsApp the real file on a phone — but it is a *chooser*:
  * it offers every app on the device, so a button that reads "Share via
  * WhatsApp" could just as easily end in Gmail or Drive, and on a shared
  * committee phone the wrong app is a real way to leak a consumer's receipt.
- * A button has to do what it says, so the sheet is gone.
+ * A button has to do what it says, so the sheet went away in favour of step 2
+ * — step 1's explicit-package intent doesn't have that problem (the target
+ * is pinned to WhatsApp, never a chooser), which is what makes it safe to
+ * bring back natively.
  *
- * There is deliberately no third option: wa.me/api.whatsapp.com accept text
- * only, and no browser API can push a file into another site's composer. Native
- * desktop apps manage it because they drive the OS, not a sandboxed page.
+ * On the web there is deliberately no way to attach a file directly:
+ * wa.me/api.whatsapp.com accept text only, and no browser API can push a
+ * file into another site's composer. Native desktop apps manage it because
+ * they drive the OS, not a sandboxed page — which is exactly what step 1
+ * does once this runs as a real Android app instead.
  */
-export async function shareReceipt({ blob, filename, phone, message, clipboardBlob }: ShareOptions): Promise<'copied' | 'downloaded'> {
+export async function shareReceipt({ blob, filename, mime, phone, message, clipboardBlob }: ShareOptions): Promise<'attached' | 'copied' | 'downloaded'> {
+  const { shareFileToWhatsApp } = await import('./nativeWhatsApp')
+  const attached = await shareFileToWhatsApp(blob, filename, mime).catch(() => false)
+  if (attached) return 'attached'
+
   const copied = clipboardBlob ? await copyImageToClipboard(clipboardBlob) : false
   if (!copied) downloadBlob(blob, filename)
 

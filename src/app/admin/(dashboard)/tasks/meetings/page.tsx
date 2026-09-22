@@ -629,7 +629,7 @@ export default function MeetingsAgendaPage() {
     // fights it flipping as a whole, including the modals and the full-
     // screen expanded-meeting panel nested inside this same root.
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
-      <div className="flex items-center justify-between gap-3 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-[26px] sm:text-[32px] font-bold text-dp-primary flex items-center gap-2.5">
           <CalendarClock size={28} /> {t('mt.title')}
         </h1>

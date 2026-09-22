@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
         // Explicit registration — see AppSettingsPlugin's own header comment
         // for why this replaced capacitor-native-settings's auto-discovery.
         registerPlugin(AppSettingsPlugin.class);
+        registerPlugin(WhatsAppSharePlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

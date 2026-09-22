@@ -230,6 +230,31 @@
   .admin-shell .text-\[14px\] { font-size: 16.5px !important; }
 }
 
+/* --- Admin panel: buttons must not wrap their own label on phones ---
+   The block above is right for paragraph text, but most buttons/pills
+   across the admin panel were built for desktop widths with no
+   whitespace-nowrap or flex-shrink:0 — so the same upscale that makes body
+   copy easier to read also pushes button/toggle labels (e.g. "Daily
+   Register", the Water Supply / Donors & Projects tab toggle) past their
+   flex item's shrunk width, wrapping the label onto a second line inside
+   the button and, for a header row with a button beside it, pushing the
+   heading down with it. This is the same fix already applied one-off in
+   ReceiptModal's share row (whitespace-nowrap + shrink-0 + horizontal
+   scroll on the row) — applied here for every button/pill in the main
+   content area instead of case by case. Scoped to `main` only (not the
+   sidebar/header, which already fit their fixed-width columns fine). A
+   button that still doesn't fit its row after this holds its one-line
+   shape and slightly overflows rather than wrapping — visually contained,
+   unlike a button silently growing to two lines and shoving the rest of
+   the page down. */
+@media (max-width: 767px) {
+  .admin-shell main button,
+  .admin-shell main a[class*="items-center"][class*="flex"] {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
 /* --- ...but the top of that table overshoots in Urdu ---
    The block above is language-blind and predates the Urdu work. It is right
    for English and is left untouched there. In Urdu it stacks on a typeface

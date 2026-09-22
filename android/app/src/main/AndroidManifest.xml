@@ -50,6 +50,12 @@
         <intent>
             <action android:name="android.media.action.IMAGE_CAPTURE" />
         </intent>
+        <!-- Same package-visibility gotcha as the camera query above: without
+             this, PackageManager can't see WhatsApp is installed (API 30+),
+             so WhatsAppSharePlugin's install check and its explicit-package
+             ACTION_SEND intent would silently fail to resolve. -->
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
     </queries>
 
     <!-- Permissions -->

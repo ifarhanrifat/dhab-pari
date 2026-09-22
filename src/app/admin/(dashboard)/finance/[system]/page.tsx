@@ -43,6 +43,7 @@ interface TxnCard {
   note: string | null; created_at: string
   billId?: string; paymentId?: string; voucherId?: string; donationId?: string; purchaseId?: string
   donationVerified?: boolean; donationVoucherNo?: string | null; donationNameUr?: string | null
+  donationPhone?: string | null; donationWhatsapp?: string | null
   billOutstanding?: number; billConsumerId?: string
   paymentBillOutstandingNow?: number; paymentReceiptNo?: string | null
   paymentConsumerId?: string; paymentMethod?: string; paymentNote?: string | null
@@ -219,6 +220,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
   const [confirmDeletePaymentId, setConfirmDeletePaymentId] = useState<string | null>(null)
   const [receivePaymentTarget, setReceivePaymentTarget] = useState<{ billId: string; billNumber: string | null; consumerId: string; outstanding: number } | null>(null)
   const [viewReceipt, setViewReceipt] = useState<ReceiptData | null>(null)
+  const [viewReceiptPhone, setViewReceiptPhone] = useState<string | null>(null)
   const [editPaymentTarget, setEditPaymentTarget] = useState<{ id: string; billId: string | null; consumerId: string; receiptNo: string | null } | null>(null)
   const [editPaymentForm, setEditPaymentForm] = useState({ amount: 0, method: 'cash' as 'cash' | 'jazzcash' | 'easypaisa' | 'bank', date: today(), note: '' })
   const [editPaymentSaving, setEditPaymentSaving] = useState(false)
@@ -357,7 +359,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     const billsRes = { data: (docs.bills ?? []) as { id: string; bill_number: string | null; consumer_id: string; month: number; year: number; amount_pkr: number; discount_amount: number | null; paid_amount: number | null; due_date: string | null; description: string | null; created_at: string; security_deposit_amount: number | null; security_deposit_voucher_id: string | null; recurring_schedule_id: string | null; status: string | null; waived_reason: string | null; waived_at: string | null }[] }
     const paymentsRes = { data: (docs.payments ?? []) as { id: string; bill_id: string; consumer_id: string; amount_pkr: number; method: string | null; paid_date: string; receipt_no: string | null; note: string | null; created_at: string }[] }
     const vouchersRes = { data: (docs.vouchers ?? []) as { id: string; voucher_type: string; voucher_no: string | null; receipt_no: string | null; voucher_date: string; particular: string; amount_pkr: number; party_name: string | null; from_account_id: string | null; to_account_id: string | null; bill_id: string | null; created_at: string; recurring_schedule_id: string | null }[] }
-    const donationsRes = { data: (docs.donations ?? []) as { id: string; name: string; name_ur: string | null; amount_pkr: number; date: string; payment_method: string | null; notes: string | null; is_anonymous: boolean; is_verified: boolean; voucher_no: string | null; created_at: string; recurring_schedule_id: string | null; payment_status: string | null }[] }
+    const donationsRes = { data: (docs.donations ?? []) as { id: string; name: string; name_ur: string | null; amount_pkr: number; date: string; payment_method: string | null; notes: string | null; is_anonymous: boolean; is_verified: boolean; voucher_no: string | null; created_at: string; recurring_schedule_id: string | null; payment_status: string | null; phone: string | null; whatsapp_number: string | null }[] }
     const purchasesRes = { data: (docs.purchases ?? []) as { id: string; vendor: string | null; purchase_date: string; method: string; note: string | null; attachment_url: string | null; purchase_number: string | null; created_at: string }[] }
     const autoPostedRes = { data: (docs.approval_statuses ?? []) as { reference_id: string; auto_posted: boolean }[] }
     const autoPostedIds = new Set((autoPostedRes.data ?? []).filter((r) => r.auto_posted).map((r) => r.reference_id))
@@ -562,6 +564,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         badge: (() => { const b = donationBadge(d); return { textKey: b.key, tone: b.tone } })(),
         note: null, created_at: d.created_at, donationId: d.id,
         donationVerified: d.is_verified, donationVoucherNo: d.voucher_no, donationNameUr: d.name_ur,
+        donationPhone: d.phone, donationWhatsapp: d.whatsapp_number,
       })
     }
 
@@ -823,6 +826,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       // ordinary single-leg voucher, same as purchases.
       lineItems: card.voucherLineItems,
     })
+    setViewReceiptPhone(null)
   }
 
   const openPurchaseReceipt = (card: TxnCard) => {
@@ -838,6 +842,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       balanceAfter: 0,
       lineItems: card.purchaseLineItems,
     })
+    setViewReceiptPhone(null)
   }
 
   const openDonationReceipt = async (card: TxnCard) => {
@@ -860,6 +865,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       projectName: totals.projectName,
       isConfirmed: totals.isConfirmed,
     })
+    setViewReceiptPhone(card.donationWhatsapp || card.donationPhone || null)
   }
 
   const openQuickReceivePayment = (card: TxnCard) => {
@@ -1624,6 +1630,34 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('fw.donationRecorded'))
+
+    // Real gap found+fixed 2026-09-22: saving a donation for an existing
+    // account only showed a toast -- no invoice appeared, so staff had to dig
+    // it back out of the transaction log to print/send it. Auto-open the same
+    // receipt view the log's "View receipt" button uses, right after save.
+    // assign_donor_numbers() returns void, so the voucher_no it just assigned
+    // has to be re-fetched rather than read off the insert response.
+    if (inserted) {
+      const { data: savedDonor } = await supabase.from('donors')
+        .select('voucher_no, whatsapp_number').eq('id', inserted.id).single()
+      const totals = await donorReceiptTotals(inserted.id)
+      setViewReceipt({
+        kind: 'donation',
+        receiptNo: savedDonor?.voucher_no || '—',
+        date: donationForm.date,
+        systemLabel: systemLabels[system],
+        accountName: donationForm.name,
+        accountNameUr: donationForm.name_ur || undefined,
+        particular: t('tx.donationReceived'),
+        amount: donationForm.amount_pkr,
+        balanceAfter: totals.totalContributed,
+        announcedRemaining: totals.announcedRemaining,
+        projectName: totals.projectName,
+        isConfirmed: totals.isConfirmed,
+      })
+      setViewReceiptPhone(savedDonor?.whatsapp_number || donationForm.phone || null)
+    }
+
     setDonationForm(emptyDonationForm)
     setSelectedDonorKey('')
     load()
@@ -3177,7 +3211,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
         </div>
       )}
 
-      {viewReceipt && <ReceiptModal data={viewReceipt} system={system} onClose={() => setViewReceipt(null)} />}
+      {viewReceipt && <ReceiptModal data={viewReceipt} phone={viewReceiptPhone} system={system} onClose={() => { setViewReceipt(null); setViewReceiptPhone(null) }} />}
       {quickAddFor && (
         <QuickAddAccountModal
           system={system} allowedTypes={quickAddFor.types}

@@ -117,7 +117,9 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
         message: `Receipt ${data.receiptNo} — ${data.amount.toLocaleString()}`,
       })
       toast.success(
-        result === 'copied'
+        result === 'attached'
+          ? 'WhatsApp opened with the file attached — just pick who to send it to'
+          : result === 'copied'
           ? 'Image copied — press Ctrl+V (⌘V) in the WhatsApp chat to attach it'
           : 'Downloaded — attach it in the chat that just opened'
       )

@@ -170,7 +170,7 @@ export default function AdvancesPage() {
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
-      <div className="flex items-center justify-between gap-3 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-[26px] sm:text-[32px] font-bold text-dp-primary flex items-center gap-2.5">
           <HandCoins size={28} /> {t('tx.advancePayments')}
         </h1>
