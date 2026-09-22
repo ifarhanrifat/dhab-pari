@@ -3,36 +3,49 @@ import type { InvoiceTemplate } from '@/components/admin/ReceiptDocument'
 import type { SlipLang } from '@/lib/docTranslations'
 import { SITE } from '@/lib/constants'
 
-// Real, measured cause of "WhatsApp takes 7 seconds to open" (2026-09-22):
-// the logo/signature <img> tags render normally on screen (no `crossorigin`
+// Theorized cause of "WhatsApp takes 7 seconds to open" (2026-09-22): the
+// logo/signature <img> tags render normally on screen (no `crossorigin`
 // attribute), but html2canvas-pro's `useCORS: true` option fetches every
 // image again itself with `crossOrigin = 'anonymous'` set -- browsers cache
 // a CORS-mode fetch of a URL separately from a plain one, so that second
-// fetch is a real, full network round-trip every single time a receipt is
-// rendered, even though the "same" image is already loaded and visible.
-// Converting to a data: URI once, cached module-wide by source URL, means
-// every later render (this session, any page, any receipt using the same
-// branding) hands html2canvas an already-inline image with nothing to fetch
-// at all -- confirmed against a real device: render dropped from ~7000ms to
-// near-zero once this replaced the module's very first branding fetch.
+// fetch could be a real network round-trip every single render.
+//
+// CORRECTION, same day: NOT actually confirmed on a real device before
+// shipping -- a follow-up report showed render time going UP (7s -> 19.9s)
+// on the same device after this landed, which this theory does not
+// explain on its own (the real logo file is 26KB and fetches in ~0.3s from
+// a plain curl test). Either this fix isn't taking effect for some reason
+// (network/CORS failure inside toDataUri() itself, silently falling back
+// to the plain URL -- logged below specifically to catch that), or the
+// real bottleneck is elsewhere in the render pipeline entirely. Don't
+// trust the "confirmed" framing this comment used to have; treat this as
+// still-open until a real device report shows toDataUriMs (logged) staying
+// low AND html2canvasMs (see receiptExport.ts's lastRenderTiming) actually
+// dropping.
 const dataUriCache = new Map<string, Promise<string>>()
 async function toDataUri(url: string): Promise<string> {
   const cached = dataUriCache.get(url)
   if (cached) return cached
   const promise = (async () => {
+    const start = typeof performance !== 'undefined' ? performance.now() : 0
     try {
       const res = await fetch(url, { mode: 'cors' })
       const blob = await res.blob()
-      return await new Promise<string>((resolve, reject) => {
+      const dataUri = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onloadend = () => resolve(reader.result as string)
         reader.onerror = () => reject(reader.error)
         reader.readAsDataURL(blob)
       })
-    } catch {
+      console.info(`[branding] logo converted to data URI in ${Math.round(performance.now() - start)}ms (${blob.size} bytes)`)
+      return dataUri
+    } catch (err) {
       // Offline, blocked, or the file's gone -- the remote URL is still a
-      // valid <img src>, so the live preview keeps working either way. The
-      // only thing lost is this render's speed-up, not correctness.
+      // valid <img src>, so the live preview keeps working either way, but
+      // html2canvas is back to fetching it itself on every render. Logged
+      // as an error (not silently swallowed) so this is diagnosable from a
+      // "still slow" report without needing a connected device.
+      console.error(`[branding] logo data-URI conversion FAILED after ${Math.round(performance.now() - start)}ms, falling back to remote URL every render:`, err)
       return url
     }
   })()

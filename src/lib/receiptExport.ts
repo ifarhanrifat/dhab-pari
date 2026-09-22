@@ -33,18 +33,36 @@ export function setPreferredSlipTarget(target: SlipPrintTarget) {
   window.localStorage.setItem(SLIP_TARGET_KEY, target)
 }
 
+// Real report (2026-09-22): render went from 7s to 19.9s on the SAME
+// device after the logo data-URI fix that was supposed to bring it down --
+// the earlier "render Xms" toast number was html2canvas() and everything
+// around it lumped into one bucket, so there was no way to tell whether
+// the logo theory ever actually held, or something else entirely is slow.
+// Module-level rather than threaded through every buildBlob() call site
+// (ReceiptModal, the bill invoice page, my-shop/customers) -- this is
+// temporary diagnostic instrumentation, not permanent plumbing; the
+// caller reads it immediately after its own nodeToPngBlob/nodeToPdfBlob
+// call resolves, before anything else can overwrite it.
+export let lastRenderTiming: { html2canvasMs: number; postProcessMs: number } | null = null
+
 async function renderNodeToCanvas(node: HTMLElement): Promise<HTMLCanvasElement> {
   // html2canvas-pro (not the original html2canvas) — the original can't parse the
   // oklch()/lab() color functions Tailwind's theme emits and throws on every render.
   const { default: html2canvas } = await import('html2canvas-pro')
-  return html2canvas(node, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
+  const start = performance.now()
+  const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
+  lastRenderTiming = { html2canvasMs: Math.round(performance.now() - start), postProcessMs: 0 }
+  return canvas
 }
 
 export async function nodeToPngBlob(node: HTMLElement): Promise<Blob> {
   const canvas = await renderNodeToCanvas(node)
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Failed to render PNG'))), 'image/png')
+  const start = performance.now()
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Failed to render PNG'))), 'image/png')
   })
+  if (lastRenderTiming) lastRenderTiming.postProcessMs = Math.round(performance.now() - start)
+  return blob
 }
 
 /**
@@ -66,6 +84,7 @@ const A4_H_MM = 297
 
 export async function nodeToPdfBlob(node: HTMLElement, page: PdfPageSize = 'content'): Promise<Blob> {
   const canvas = await renderNodeToCanvas(node)
+  const postProcessStart = performance.now()
   const { jsPDF } = await import('jspdf')
   const imgData = canvas.toDataURL('image/png')
   const pxToMm = 25.4 / 96
@@ -149,6 +168,7 @@ export async function nodeToPdfBlob(node: HTMLElement, page: PdfPageSize = 'cont
     })
   }
 
+  if (lastRenderTiming) lastRenderTiming.postProcessMs = Math.round(performance.now() - postProcessStart)
   return pdf.output('blob')
 }
 

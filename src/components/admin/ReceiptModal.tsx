@@ -10,7 +10,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   getPreferredFormat, setPreferredFormat, nodeToPdfBlob, nodeToPngBlob,
   downloadBlob, shareReceipt, printBlob, type ReceiptFormat,
-  getPreferredSlipTarget, setPreferredSlipTarget,
+  getPreferredSlipTarget, setPreferredSlipTarget, lastRenderTiming,
 } from '@/lib/receiptExport'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
@@ -80,16 +80,21 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
   // renderMs is 0 on a cache hit -- kept alongside the blob (rather than a
   // separate call) so a slow-share report's toast can say whether the render
   // itself was the cost or not, without a second measurement point drifting
-  // out of sync with what buildBlob() actually did.
-  const buildBlob = async (): Promise<{ blob: Blob; renderMs: number }> => {
+  // out of sync with what buildBlob() actually did. html2canvasMs/
+  // postProcessMs split that further after a real report (2026-09-22) where
+  // the total render time nearly TRIPLED (7s -> 19.9s) on the same device
+  // right after a fix meant to bring it down -- proof the earlier single
+  // "render Xms" number wasn't enough to tell whether html2canvas itself is
+  // the cost, or something in the PDF/PNG post-processing around it.
+  const buildBlob = async (): Promise<{ blob: Blob; renderMs: number; html2canvasMs: number; postProcessMs: number }> => {
     const key = cacheKey()
-    if (blobCacheRef.current?.key === key) return { blob: blobCacheRef.current.blob, renderMs: 0 }
+    if (blobCacheRef.current?.key === key) return { blob: blobCacheRef.current.blob, renderMs: 0, html2canvasMs: 0, postProcessMs: 0 }
     if (!nodeRef.current) throw new Error('Receipt not ready')
     const start = performance.now()
     const blob = format === 'pdf' ? await nodeToPdfBlob(nodeRef.current, pdfPage()) : await nodeToPngBlob(nodeRef.current)
     const renderMs = Math.round(performance.now() - start)
     blobCacheRef.current = { key, blob }
-    return { blob, renderMs }
+    return { blob, renderMs, html2canvasMs: lastRenderTiming?.html2canvasMs ?? 0, postProcessMs: lastRenderTiming?.postProcessMs ?? 0 }
   }
 
   const filename = () => `receipt-${data.receiptNo}.${format === 'pdf' ? 'pdf' : 'png'}`
@@ -124,7 +129,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
   const handleShare = async () => {
     setBusy(true)
     try {
-      const { blob, renderMs } = await buildBlob()
+      const { blob, renderMs, html2canvasMs, postProcessMs } = await buildBlob()
       const mime = format === 'pdf' ? 'application/pdf' : 'image/png'
       // A PDF cannot be pasted into a chat, so the clipboard always gets a
       // PNG — but only actually rendered if shareReceipt() ends up needing
@@ -145,7 +150,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
       // total reads low but the wait still feels long, that's the next
       // place to look, not this app's own code.
       const t = result.nativeTimingMs
-      const timingNote = t ? ` [render ${renderMs}ms, encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB]` : ''
+      const timingNote = t ? ` [render ${renderMs}ms (canvas ${html2canvasMs}ms + post ${postProcessMs}ms), encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB]` : ''
       toast.success(
         (result.outcome === 'attached-direct'
           ? 'WhatsApp opened straight to their chat, file attached'

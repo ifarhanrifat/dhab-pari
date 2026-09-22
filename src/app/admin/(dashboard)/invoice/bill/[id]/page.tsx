@@ -12,7 +12,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { fetchBrandingSettings, type BrandingSettings } from '@/lib/branding'
 import {
   getPreferredFormat, setPreferredFormat, nodeToPdfBlob, nodeToPngBlob,
-  downloadBlob, shareReceipt, printBlob, normalizePakPhone, type ReceiptFormat,
+  downloadBlob, shareReceipt, printBlob, normalizePakPhone, type ReceiptFormat, lastRenderTiming,
 } from '@/lib/receiptExport'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
@@ -154,14 +154,14 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
   // This screen never offers the thermal target — the document below is
   // always rendered at sheet width — so its PDF always gets a real A4 page
   // rather than one cut to the height of the invoice.
-  const buildBlob = async (): Promise<{ blob: Blob; renderMs: number }> => {
-    if (blobCacheRef.current?.format === format) return { blob: blobCacheRef.current.blob, renderMs: 0 }
+  const buildBlob = async (): Promise<{ blob: Blob; renderMs: number; html2canvasMs: number; postProcessMs: number }> => {
+    if (blobCacheRef.current?.format === format) return { blob: blobCacheRef.current.blob, renderMs: 0, html2canvasMs: 0, postProcessMs: 0 }
     if (!nodeRef.current) throw new Error('Invoice not ready')
     const start = performance.now()
     const blob = format === 'pdf' ? await nodeToPdfBlob(nodeRef.current, 'a4') : await nodeToPngBlob(nodeRef.current)
     const renderMs = Math.round(performance.now() - start)
     blobCacheRef.current = { format, blob }
-    return { blob, renderMs }
+    return { blob, renderMs, html2canvasMs: lastRenderTiming?.html2canvasMs ?? 0, postProcessMs: lastRenderTiming?.postProcessMs ?? 0 }
   }
   const filename = () => `invoice-${data.receiptNo}.${format === 'pdf' ? 'pdf' : 'png'}`
 
@@ -197,7 +197,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
   const handleWhatsApp = async () => {
     setBusy(true)
     try {
-      const { blob, renderMs } = await buildBlob()
+      const { blob, renderMs, html2canvasMs, postProcessMs } = await buildBlob()
       const mime = format === 'pdf' ? 'application/pdf' : 'image/png'
       const result = await shareReceipt({
         blob, filename: filename(), mime, phone: whatsappPhone, contactName: data.accountName,
@@ -206,7 +206,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
       // See ReceiptModal.tsx's identical note -- real timing after a
       // "takes too long" report, diagnosable from the toast alone.
       const t = result.nativeTimingMs
-      const timingNote = t ? ` [render ${renderMs}ms, encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB]` : ''
+      const timingNote = t ? ` [render ${renderMs}ms (canvas ${html2canvasMs}ms + post ${postProcessMs}ms), encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB]` : ''
       toast.success(
         (result.outcome === 'attached-direct'
           ? 'WhatsApp opened straight to their chat, file attached'
