@@ -25,5 +25,5 @@
 // android/app/build.gradle's versionCode/versionName on every rebuild —
 // bump all three together, and upload the new build to the new
 // `app/dhab-pari-v${N}.apk` path rather than overwriting the old one.
-const APK_VERSION = 12
+const APK_VERSION = 13
 export const APK_DOWNLOAD_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/attachments/app/dhab-pari-v${APK_VERSION}.apk`
