@@ -206,7 +206,8 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
       // See ReceiptModal.tsx's identical note -- real timing after a
       // "takes too long" report, diagnosable from the toast alone.
       const t = result.nativeTimingMs
-      const timingNote = t ? ` [render ${renderMs}ms (canvas ${html2canvasMs}ms + post ${postProcessMs}ms), encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB]` : ''
+      const logoKind = data.logoUrl ? (data.logoUrl.startsWith('data:') ? 'data:' : 'url') : 'none'
+      const timingNote = t ? ` [render ${renderMs}ms (canvas ${html2canvasMs}ms + post ${postProcessMs}ms), encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB, logo=${logoKind}]` : ''
       toast.success(
         (result.outcome === 'attached-direct'
           ? 'WhatsApp opened straight to their chat, file attached'

@@ -150,7 +150,13 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
       // total reads low but the wait still feels long, that's the next
       // place to look, not this app's own code.
       const t = result.nativeTimingMs
-      const timingNote = t ? ` [render ${renderMs}ms (canvas ${html2canvasMs}ms + post ${postProcessMs}ms), encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB]` : ''
+      // Direct check of what html2canvas was actually handed -- if this
+      // reads "url" (not "data:"), the branding.ts logo fix silently fell
+      // back to the slow remote-fetch path for this exact share, which is
+      // now the single highest-value bit to confirm before chasing
+      // anything else about html2canvas's own 7+ second cost.
+      const logoKind = data.logoUrl ? (data.logoUrl.startsWith('data:') ? 'data:' : 'url') : 'none'
+      const timingNote = t ? ` [render ${renderMs}ms (canvas ${html2canvasMs}ms + post ${postProcessMs}ms), encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB, logo=${logoKind}]` : ''
       toast.success(
         (result.outcome === 'attached-direct'
           ? 'WhatsApp opened straight to their chat, file attached'
