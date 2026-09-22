@@ -232,8 +232,14 @@ interface ShareOptions {
   mime: string
   phone?: string | null
   message?: string
-  /** PNG used for the clipboard fallback when the OS share sheet isn't available. */
-  clipboardBlob?: Blob | null
+  /**
+   * PNG used for the clipboard fallback when native attach isn't available.
+   * Lazy: a PDF share has to render this as a *separate* html2canvas pass
+   * from the PDF itself, which is real, measurable time (the "WhatsApp
+   * button takes forever" report) that's pure waste whenever native attach
+   * succeeds and this never gets used at all. Only called if actually needed.
+   */
+  getClipboardBlob?: () => Promise<Blob | null>
 }
 
 /**
@@ -267,11 +273,12 @@ interface ShareOptions {
  * they drive the OS, not a sandboxed page — which is exactly what step 1
  * does once this runs as a real Android app instead.
  */
-export async function shareReceipt({ blob, filename, mime, phone, message, clipboardBlob }: ShareOptions): Promise<'attached' | 'copied' | 'downloaded'> {
+export async function shareReceipt({ blob, filename, mime, phone, message, getClipboardBlob }: ShareOptions): Promise<'attached' | 'copied' | 'downloaded'> {
   const { shareFileToWhatsApp } = await import('./nativeWhatsApp')
   const attached = await shareFileToWhatsApp(blob, filename, mime).catch(() => false)
   if (attached) return 'attached'
 
+  const clipboardBlob = getClipboardBlob ? await getClipboardBlob() : null
   const copied = clipboardBlob ? await copyImageToClipboard(clipboardBlob) : false
   if (!copied) downloadBlob(blob, filename)
 

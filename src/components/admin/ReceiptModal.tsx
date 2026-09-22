@@ -108,12 +108,14 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
       const blob = await buildBlob()
       const mime = format === 'pdf' ? 'application/pdf' : 'image/png'
       // A PDF cannot be pasted into a chat, so the clipboard always gets a
-      // PNG. It is rendered unconditionally now: the OS share sheet used to
-      // cover most cases, and with that gone the clipboard IS the good path.
-      const clipboardBlob = format === 'png' ? blob : await nodeToPngBlob(nodeRef.current!)
+      // PNG — but only actually rendered if shareReceipt() ends up needing
+      // it (native attach succeeding is the common case now, and skips
+      // this entirely; a PDF's separate html2canvas pass for the clipboard
+      // copy was real, measurable time wasted on every share before this).
+      const getClipboardBlob = async () => (format === 'png' ? blob : await nodeToPngBlob(nodeRef.current!))
 
       const result = await shareReceipt({
-        blob, filename: filename(), mime, phone, clipboardBlob,
+        blob, filename: filename(), mime, phone, getClipboardBlob,
         message: `Receipt ${data.receiptNo} — ${data.amount.toLocaleString()}`,
       })
       toast.success(

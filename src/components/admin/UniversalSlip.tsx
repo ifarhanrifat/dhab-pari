@@ -51,7 +51,7 @@ function L({ data, k, className = '', style, stack = false, phrase = false }: { 
     return (
       <span className={className} style={{ display: 'inline-block', ...style }}>
         <span style={{ display: 'block', lineHeight: 1.25 }}>{en.trim().replace(/:$/, '')}</span>
-        <span style={{ display: 'block', fontFamily: 'var(--font-urdu), serif', fontSize: '0.82em', lineHeight: 1.95 }}>{ur.trim().replace(/:$/, '')}</span>
+        <span style={{ display: 'block', fontFamily: 'var(--font-urdu), serif', fontSize: '0.82em', lineHeight: 1.95, letterSpacing: 'normal' }}>{ur.trim().replace(/:$/, '')}</span>
       </span>
     )
   }
@@ -78,8 +78,15 @@ function L({ data, k, className = '', style, stack = false, phrase = false }: { 
           pixel size — sized down (em, so it scales with whatever this
           label's own size is) rather than up, so a bilingual pair like
           "Paid To / ادائیگی بنام" doesn't read as the Urdu half shouting
-          over the English half. */}
-      {ur && <span style={{ fontFamily: 'var(--font-urdu), serif', fontSize: '0.82em', ...(phrase ? { whiteSpace: 'nowrap' } : null) }}>{ur.trim().replace(/:$/, '')}</span>}
+          over the English half.
+          letterSpacing: 'normal' resets whatever tracking the caller (e.g.
+          the type badge's uppercase-tracked pill) put on this element —
+          real bug, found and confirmed with html2canvas-pro directly: any
+          positive letter-spacing on this cursive Nastaliq run breaks its
+          letter-joining specifically during rasterization (renders fine
+          live in a browser, comes out as unconnected/garbled glyphs in the
+          exported PNG/PDF). Latin tracking is fine; Urdu never wants it. */}
+      {ur && <span style={{ fontFamily: 'var(--font-urdu), serif', fontSize: '0.82em', letterSpacing: 'normal', ...(phrase ? { whiteSpace: 'nowrap' } : null) }}>{ur.trim().replace(/:$/, '')}</span>}
     </span>
   )
 }
