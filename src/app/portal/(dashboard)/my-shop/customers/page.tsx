@@ -362,7 +362,10 @@ export default function CustomersPage() {
         (result.outcome === 'attached-direct' ? t('sk.slipAttachedDirectToast')
           : result.outcome === 'attached' ? t('sk.slipAttachedToast')
           : result.outcome === 'copied' ? t('sk.slipCopiedToast')
-          : t('sk.slipDownloadedToast')) + timingNote
+          : t('sk.slipDownloadedToast')) + timingNote,
+        // See ReceiptModal.tsx's identical note -- default duration is too
+        // short to read a timing breakdown before it vanishes.
+        timingNote ? { duration: 15000 } : undefined
       )
     } catch {
       toast.error(t('sk.slipShareFailedHint'))

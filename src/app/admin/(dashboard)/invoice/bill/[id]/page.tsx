@@ -216,7 +216,10 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
           ? 'Image copied — press Ctrl+V (⌘V) in the WhatsApp chat to attach it'
           : whatsappPhone
             ? 'Downloaded — WhatsApp opened, attach the file to send'
-            : 'Downloaded — pick the chat in WhatsApp, then attach the file') + timingNote
+            : 'Downloaded — pick the chat in WhatsApp, then attach the file') + timingNote,
+        // See ReceiptModal.tsx's identical note -- default duration is too
+        // short to read a timing breakdown before it vanishes.
+        timingNote ? { duration: 15000 } : undefined
       )
     } catch {
       toast.error('Could not share the invoice')

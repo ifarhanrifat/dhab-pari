@@ -153,7 +153,12 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
           ? `WhatsApp opened with the file attached — pick who to send it to${result.jidSkipReason ? ` (${result.jidSkipReason})` : ''}`
           : result.outcome === 'copied'
           ? 'Image copied — press Ctrl+V (⌘V) in the WhatsApp chat to attach it'
-          : 'Downloaded — attach it in the chat that just opened') + timingNote
+          : 'Downloaded — attach it in the chat that just opened') + timingNote,
+        // Default duration is too short to read a timing breakdown before it
+        // vanishes (real report: "I can only read 1726ms" before it's gone).
+        // Long enough to actually read + copy the numbers back, not so long
+        // it lingers awkwardly once WhatsApp is already on screen.
+        timingNote ? { duration: 15000 } : undefined
       )
     } catch {
       toast.error('Could not share the receipt')
