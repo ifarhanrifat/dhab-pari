@@ -7,9 +7,16 @@
 // clipboard-copy + deep link (and why a PDF, which can't even be
 // clipboard-pasted, always had to be "downloaded, please attach manually").
 // WhatsAppSharePlugin fires an explicit-package ACTION_SEND intent instead,
-// so WhatsApp opens with the file *already attached* and its own contact
-// picker showing -- the same "Share to WhatsApp" pattern most native apps
-// use, and it works for PDF exactly the same as PNG.
+// so WhatsApp opens with the file *already attached*, and it works for PDF
+// exactly the same as PNG.
+//
+// Landing directly in the right contact's chat (not WhatsApp's own picker)
+// is a bonus on top of that, real device-confirmed on 2026-09-22: WhatsApp's
+// undocumented "jid" extra only works when that number is already saved in
+// this phone's own Contacts app, so the plugin checks/adds it first (a real
+// Contacts-app permission and side effect, approved before building). When
+// that isn't possible -- permission refused, or number can't be resolved --
+// it still falls back to plain attach + WhatsApp's own picker.
 //
 // This requires a rebuilt, reinstalled APK (native Java code, not something
 // the live website can push on its own -- see capacitor.config.ts's own
@@ -19,7 +26,18 @@
 
 interface WhatsAppSharePlugin {
   isAvailable(): Promise<{ available: boolean }>
-  shareFile(options: { base64Data: string; mimeType: string; filename: string }): Promise<{ status: boolean }>
+  shareFile(options: { base64Data: string; mimeType: string; filename: string; phone?: string; contactName?: string }): Promise<{ status: boolean; triedJid: boolean }>
+}
+
+// Duplicated from receiptExport.ts's normalizePakPhone rather than imported --
+// that file dynamically imports this one mid-function, and this one-liner
+// isn't worth the circular-import subtlety of importing back.
+function normalizePhone(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '')
+  if (!digits) return null
+  if (digits.startsWith('92')) return digits
+  if (digits.startsWith('0')) return '92' + digits.slice(1)
+  return digits
 }
 
 async function blobToBase64(blob: Blob): Promise<string> {
@@ -35,7 +53,7 @@ async function blobToBase64(blob: Blob): Promise<string> {
   })
 }
 
-export async function shareFileToWhatsApp(blob: Blob, filename: string, mimeType: string): Promise<boolean> {
+export async function shareFileToWhatsApp(blob: Blob, filename: string, mimeType: string, phone?: string | null, contactName?: string | null): Promise<boolean> {
   const { Capacitor, registerPlugin } = await import('@capacitor/core')
   if (!Capacitor.isNativePlatform()) return false
 
@@ -52,7 +70,13 @@ export async function shareFileToWhatsApp(blob: Blob, filename: string, mimeType
 
   try {
     const base64Data = await blobToBase64(blob)
-    await WhatsAppShare.shareFile({ base64Data, mimeType, filename })
+    const normalized = phone ? normalizePhone(phone) : null
+    const result = await WhatsAppShare.shareFile({
+      base64Data, mimeType, filename,
+      phone: normalized ?? undefined,
+      contactName: contactName ?? undefined,
+    })
+    console.info('[WhatsAppShare] native share fired', result)
     return true
   } catch (err) {
     // A real failure (bridge error, file write, intent rejected) -- distinct

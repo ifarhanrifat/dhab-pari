@@ -6,30 +6,54 @@ package com.dhabpari.app;
 // clipboard-pasted) always had to be "downloaded, please attach manually."
 // Running inside a real Android app instead of a browser tab removes that
 // ceiling: an explicit-package ACTION_SEND intent hands WhatsApp the actual
-// file, already attached, and opens straight to its own contact picker --
-// the same "Share to WhatsApp" pattern most apps with a share button use.
-// setPackage("com.whatsapp") means this never shows a generic chooser (the
-// same shared-committee-phone leak concern that removed navigator.share()
-// from the web flow doesn't apply here, since the target is pinned).
+// file, already attached. setPackage("com.whatsapp") means this never
+// shows a generic chooser (the same shared-committee-phone leak concern
+// that removed navigator.share() from the web flow doesn't apply here,
+// since the target is pinned).
+//
+// Landing directly in one contact's chat (not WhatsApp's own picker) uses
+// an undocumented "jid" extra -- real device-confirmed on 2026-09-22 via a
+// direct adb test: it is IGNORED (picker shown, same as no jid at all)
+// unless that phone number already exists in this phone's own Contacts
+// app, in which case it works. So this ensures the contact exists first
+// (READ_CONTACTS to check, WRITE_CONTACTS to add it if missing -- rizwan
+// explicitly approved this real Contacts-app side effect before it was
+// built) and only then attempts jid; if contacts permission is denied, or
+// the number can't be resolved, this still falls back to the plain
+// attach-then-WhatsApp's-own-picker flow that already worked.
 //
 // Registered explicitly in MainActivity -- see AppSettingsPlugin's header
 // comment for why this project doesn't rely on Capacitor's plugin
 // auto-discovery.
 
+import android.Manifest;
+import android.content.ContentProviderOperation;
 import android.content.Intent;
+import android.content.OperationApplicationException;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.net.Uri;
+import android.os.RemoteException;
+import android.provider.ContactsContract;
 import androidx.core.content.FileProvider;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.util.ArrayList;
 
-@CapacitorPlugin(name = "WhatsAppShare")
+@CapacitorPlugin(
+    name = "WhatsAppShare",
+    permissions = {
+        @Permission(strings = { Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS }, alias = "contacts")
+    }
+)
 public class WhatsAppSharePlugin extends Plugin {
 
     // A real committee phone is just as likely to carry WhatsApp Business
@@ -51,9 +75,33 @@ public class WhatsAppSharePlugin extends Plugin {
 
     @PluginMethod
     public void shareFile(PluginCall call) {
+        String phone = call.getString("phone");
+        // Only the contact-lookup/creation step needs the permission; a
+        // share with no phone (or one already covered) never prompts for it.
+        boolean needsContacts = phone != null && !phone.isEmpty();
+        if (needsContacts && getPermissionState("contacts") != com.getcapacitor.PermissionState.GRANTED) {
+            requestPermissionForAlias("contacts", call, "contactsPermsCallback");
+            return;
+        }
+        doShareFile(call);
+    }
+
+    @PermissionCallback
+    private void contactsPermsCallback(PluginCall call) {
+        // Denied is a real, expected outcome (this asks for real Contacts
+        // access) -- doShareFile()'s own ensureContactSaved() already
+        // treats "can't confirm/save the contact" as "skip jid, use the
+        // plain attach flow", so a denial here degrades the same way, not
+        // as a hard failure.
+        doShareFile(call);
+    }
+
+    private void doShareFile(PluginCall call) {
         String base64Data = call.getString("base64Data");
         String mimeType = call.getString("mimeType");
         String filename = call.getString("filename");
+        String phone = call.getString("phone");
+        String contactName = call.getString("contactName");
 
         if (base64Data == null || mimeType == null || filename == null) {
             call.reject("base64Data, mimeType and filename are all required");
@@ -88,6 +136,14 @@ public class WhatsAppSharePlugin extends Plugin {
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
+            boolean triedJid = false;
+            if (phone != null && !phone.isEmpty() && getPermissionState("contacts") == com.getcapacitor.PermissionState.GRANTED) {
+                if (ensureContactSaved(phone, contactName)) {
+                    intent.putExtra("jid", phone + "@s.whatsapp.net");
+                    triedJid = true;
+                }
+            }
+
             if (intent.resolveActivity(getContext().getPackageManager()) == null) {
                 call.reject("WhatsApp did not accept the share intent");
                 return;
@@ -96,9 +152,61 @@ public class WhatsAppSharePlugin extends Plugin {
             getActivity().startActivity(intent);
             JSObject ret = new JSObject();
             ret.put("status", true);
+            ret.put("triedJid", triedJid);
             call.resolve(ret);
         } catch (Exception e) {
             call.reject("Could not share to WhatsApp: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * True once `phone` is confirmed present in this phone's own Contacts
+     * app -- already there, or just added. False on any failure (permission
+     * refused at the provider level despite the manifest grant, malformed
+     * number, provider error): the caller treats false as "don't bother
+     * with jid," never as a reason to fail the whole share.
+     */
+    private boolean ensureContactSaved(String phone, String contactName) {
+        try {
+            if (contactExists(phone)) return true;
+            return insertMinimalContact(phone, contactName != null && !contactName.isEmpty() ? contactName : phone);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean contactExists(String phone) {
+        Uri lookupUri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(phone));
+        try (Cursor cursor = getContext().getContentResolver().query(
+            lookupUri, new String[]{ ContactsContract.PhoneLookup._ID }, null, null, null
+        )) {
+            return cursor != null && cursor.getCount() > 0;
+        }
+    }
+
+    /** Standard three-row RawContacts/StructuredName/Phone batch insert, applied atomically. */
+    private boolean insertMinimalContact(String phone, String name) {
+        ArrayList<ContentProviderOperation> ops = new ArrayList<>();
+        ops.add(ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
+            .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, null)
+            .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null)
+            .build());
+        ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+            .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+            .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+            .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, name)
+            .build());
+        ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+            .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+            .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+            .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phone)
+            .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)
+            .build());
+        try {
+            getContext().getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
+            return true;
+        } catch (RemoteException | OperationApplicationException e) {
+            return false;
         }
     }
 

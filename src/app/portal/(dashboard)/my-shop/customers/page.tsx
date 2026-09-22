@@ -335,7 +335,7 @@ export default function CustomersPage() {
       const blob = await nodeToPngBlob(slipRef.current)
       const name = openCustomer.name_ur || openCustomer.name
       const result = await shareReceipt({
-        blob, filename: invoiceFilename(), mime: 'image/png', phone: openCustomer.phone,
+        blob, filename: invoiceFilename(), mime: 'image/png', phone: openCustomer.phone, contactName: openCustomer.name,
         getClipboardBlob: async () => blob,
         message: isUrdu ? `${name} کا بل نمبر ${viewingInvoice.invoice_number}` : `Bill #${viewingInvoice.invoice_number} for ${name}`,
       })

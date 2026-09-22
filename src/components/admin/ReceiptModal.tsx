@@ -115,12 +115,12 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
       const getClipboardBlob = async () => (format === 'png' ? blob : await nodeToPngBlob(nodeRef.current!))
 
       const result = await shareReceipt({
-        blob, filename: filename(), mime, phone, getClipboardBlob,
+        blob, filename: filename(), mime, phone, contactName: data.accountName, getClipboardBlob,
         message: `Receipt ${data.receiptNo} — ${data.amount.toLocaleString()}`,
       })
       toast.success(
         result === 'attached'
-          ? 'WhatsApp opened with the file attached — just pick who to send it to'
+          ? 'WhatsApp opened — pick who to send it to (or straight to their chat, if already a saved contact)'
           : result === 'copied'
           ? 'Image copied — press Ctrl+V (⌘V) in the WhatsApp chat to attach it'
           : 'Downloaded — attach it in the chat that just opened'

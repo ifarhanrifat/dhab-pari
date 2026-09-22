@@ -182,12 +182,12 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
       const blob = await buildBlob()
       const mime = format === 'pdf' ? 'application/pdf' : 'image/png'
       const result = await shareReceipt({
-        blob, filename: filename(), mime, phone: whatsappPhone,
+        blob, filename: filename(), mime, phone: whatsappPhone, contactName: data.accountName,
         message: `Water bill ${data.receiptNo} — ${netAmount.toLocaleString()}`,
       })
       toast.success(
         result === 'attached'
-          ? 'WhatsApp opened with the file attached — just pick who to send it to'
+          ? 'WhatsApp opened — pick who to send it to (or straight to their chat, if already a saved contact)'
           : result === 'copied'
           ? 'Image copied — press Ctrl+V (⌘V) in the WhatsApp chat to attach it'
           : whatsappPhone

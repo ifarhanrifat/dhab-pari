@@ -84,4 +84,16 @@
          browser tab: the AI product-photo scan (shops) and any future
          QR/barcode scan. -->
     <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- WhatsAppSharePlugin: real device-confirmed finding (2026-09-22):
+         WhatsApp's undocumented "jid" extra (jump straight into a specific
+         chat with a file already attached, instead of showing its own
+         contact picker) only works when that phone number already exists
+         in this phone's own Contacts app. Read to check first, write to
+         save the donor/customer automatically when it's missing, so this
+         works the first time a receipt goes to them, not only the second.
+         Rizwan explicitly approved this (real Contacts-app side effect,
+         asked before building it), see AndroidManifest/plugin history. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
 </manifest>
