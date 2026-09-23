@@ -23,6 +23,15 @@ interface Account {
   consumer_id: string | null
   donor_key: string | null
   parent_account_id: string | null
+  // Donor profile columns (migration 502) -- these were only ever writable
+  // from AddDonorModal at creation time. This edit form never picked them
+  // up, so there was no way to fix a donor's phone/WhatsApp/country after
+  // the fact once they had an account.
+  phone: string | null
+  whatsapp_number: string | null
+  donor_type: string | null
+  donor_location: string | null
+  father_husband_name: string | null
 }
 
 interface AccountHeader {
@@ -56,6 +65,11 @@ const emptyAccount = {
   description: '',
   opening_balance: 0,
   is_active: true,
+  phone: '',
+  whatsapp_number: '',
+  father_husband_name: '',
+  donor_type: 'villager',
+  donor_location: '',
 }
 
 const emptyHeaderForm = { label: '', label_ur: '', code: '', code_prefix: '' }
@@ -91,6 +105,11 @@ export default function AccountsPage() {
   }, [access.loading, access.canWaterSupply, access.canDonorsProjects, tab])
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
+  // Only 'donor' shows the profile fields below (phone/WhatsApp/type/
+  // location/father-husband) -- every other account type (cash, expense,
+  // income...) has no use for them, and this modal doubles as both the
+  // generic add-account form and the donor edit form.
+  const [editingType, setEditingType] = useState<string | null>(null)
   const [form, setForm] = useState({ ...emptyAccount, system: 'water_supply' as SystemTab })
   const [showHeaderForm, setShowHeaderForm] = useState(false)
   const [headerForm, setHeaderForm] = useState(emptyHeaderForm)
@@ -256,6 +275,7 @@ export default function AccountsPage() {
 
   const openAdd = () => {
     setEditId(null)
+    setEditingType(null)
     const firstHeader = headers.find((h) => h.system === tab && h.code !== partyType)
     setForm({ ...emptyAccount, system: tab, headerId: firstHeader?.id ?? '' })
     setShowForm(true)
@@ -268,7 +288,13 @@ export default function AccountsPage() {
     // general chart-of-accounts case.
     const header = headers.find((h) => h.system === a.system && h.code === a.type)
     setEditId(a.id)
-    setForm({ name: a.name, name_ur: a.name_ur ?? '', headerId: header?.id ?? '', system: a.system as SystemTab, description: a.description ?? '', opening_balance: a.opening_balance, is_active: a.is_active })
+    setEditingType(a.type)
+    setForm({
+      name: a.name, name_ur: a.name_ur ?? '', headerId: header?.id ?? '', system: a.system as SystemTab,
+      description: a.description ?? '', opening_balance: a.opening_balance, is_active: a.is_active,
+      phone: a.phone ?? '', whatsapp_number: a.whatsapp_number ?? '', father_husband_name: a.father_husband_name ?? '',
+      donor_type: a.donor_type ?? 'villager', donor_location: a.donor_location ?? '',
+    })
     setShowForm(true)
   }
 
@@ -287,6 +313,16 @@ export default function AccountsPage() {
       const { error } = await supabase.from('accounts').update({
         name: form.name, name_ur: form.name_ur || null, type: header.code, system: form.system,
         description: form.description || null, opening_balance: form.opening_balance, is_active: form.is_active,
+        // Only a donor account carries these -- writing them for any other
+        // type would just be silently-unused noise, since nothing reads
+        // phone/donor_type/etc. off a cash or expense account.
+        ...(editingType === 'donor' ? {
+          phone: form.phone || null,
+          whatsapp_number: form.whatsapp_number || null,
+          father_husband_name: form.father_husband_name || null,
+          donor_type: form.donor_type || null,
+          donor_location: form.donor_location || null,
+        } : {}),
       }).eq('id', editId)
       if (error) { toast.error(friendlyError(error)); return }
       toast.success(t('ac.accountUpdated'))
@@ -576,8 +612,14 @@ export default function AccountsPage() {
 
       {/* Add/Edit generic account Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        // items-start (not items-center) + overflow-y-auto on the backdrop,
+        // and max-h-[calc(100vh-2rem)] on the card -- the same fix
+        // AddDonorModal needed: a vertically-centred, non-scrolling card
+        // taller than the visible viewport (phone keyboard open) puts the
+        // title bar and Save button both off-screen. This modal grew a new
+        // donor-fields section, making that cutoff more likely here too.
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-start sm:items-center justify-center p-4 overflow-y-auto" onClick={() => setShowForm(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg my-4 sm:my-0 max-h-[calc(100vh-2rem)] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-heading text-[24px] font-bold text-dp-primary">{editId ? t('ac.editAccountTitle') : t('ac.newAccountTitle')}</h2>
               <button onClick={() => setShowForm(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
@@ -627,6 +669,49 @@ export default function AccountsPage() {
                   <p className="text-[12px] font-sans text-amber-700 mt-1.5">{t('ac.noUrduNameNote')}</p>
                 )}
               </div>
+              {editingType === 'donor' && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.phone')}</label>
+                      <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0300-1234567" className="input-field" />
+                    </div>
+                    <div>
+                      <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.whatsapp')}</label>
+                      <input type="tel" value={form.whatsapp_number} onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })} placeholder="0300-1234567" className="input-field" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.fatherHusband')}</label>
+                    <input value={form.father_husband_name} onChange={(e) => setForm({ ...form, father_husband_name: e.target.value })} className="input-field" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('f.donorType')}</label>
+                      <select
+                        value={form.donor_type}
+                        onChange={(e) => setForm({ ...form, donor_type: e.target.value, donor_location: e.target.value === 'villager' ? '' : form.donor_location })}
+                        className="input-field"
+                      >
+                        <option value="villager">{t('f.villager')}</option>
+                        <option value="city">{t('dn.cityInPakistan')}</option>
+                        <option value="overseas">{t('g.overseas')}</option>
+                      </select>
+                    </div>
+                    {form.donor_type !== 'villager' && (
+                      <div>
+                        <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">
+                          {form.donor_type === 'overseas' ? t('dn.country') : t('dn.city')}
+                        </label>
+                        <input
+                          type="text" value={form.donor_location} onChange={(e) => setForm({ ...form, donor_location: e.target.value })}
+                          placeholder={form.donor_type === 'overseas' ? t('dn.countryPlaceholder') : t('dn.cityPlaceholder')} className="input-field"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
               <div>
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ac.openingBalance')}</label>
                 <input type="number" value={form.opening_balance || ''} onChange={(e) => setForm({ ...form, opening_balance: +e.target.value })} className="input-field" />
