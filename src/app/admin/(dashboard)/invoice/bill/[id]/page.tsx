@@ -12,7 +12,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { fetchBrandingSettings, type BrandingSettings } from '@/lib/branding'
 import {
   getPreferredFormat, setPreferredFormat, nodeToPdfBlob, nodeToPngBlob,
-  downloadBlob, shareReceipt, printBlob, normalizePakPhone, type ReceiptFormat, lastRenderTiming, preloadJsPdf,
+  downloadBlob, shareReceipt, printBlob, normalizePakPhone, type ReceiptFormat, preloadJsPdf,
 } from '@/lib/receiptExport'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
@@ -159,20 +159,12 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
   // This screen never offers the thermal target — the document below is
   // always rendered at sheet width — so its PDF always gets a real A4 page
   // rather than one cut to the height of the invoice.
-  const buildBlob = async (): Promise<{ blob: Blob; renderMs: number; html2canvasMs: number; postProcessMs: number; postBreakdown: string }> => {
-    if (blobCacheRef.current?.format === format) return { blob: blobCacheRef.current.blob, renderMs: 0, html2canvasMs: 0, postProcessMs: 0, postBreakdown: '' }
+  const buildBlob = async (): Promise<{ blob: Blob }> => {
+    if (blobCacheRef.current?.format === format) return { blob: blobCacheRef.current.blob }
     if (!nodeRef.current) throw new Error('Invoice not ready')
-    const start = performance.now()
     const blob = format === 'pdf' ? await nodeToPdfBlob(nodeRef.current, 'a4') : await nodeToPngBlob(nodeRef.current)
-    const renderMs = Math.round(performance.now() - start)
     blobCacheRef.current = { format, blob }
-    // See ReceiptModal.tsx's identical note -- PDF pinpoints toDataURL vs
-    // jsPDF's addImage vs output('blob'); PNG pinpoints toDataURL vs the
-    // fetch()-based blobify that replaced the slow canvas.toBlob() path.
-    const postBreakdown = format === 'pdf'
-      ? ` [dataUrl ${lastRenderTiming?.toDataUrlMs ?? 0}ms, addImage ${lastRenderTiming?.addImageMs ?? 0}ms, output ${lastRenderTiming?.outputMs ?? 0}ms]`
-      : ` [dataUrl ${lastRenderTiming?.toDataUrlMs ?? 0}ms, blobify ${lastRenderTiming?.blobFromDataUrlMs ?? 0}ms]`
-    return { blob, renderMs, html2canvasMs: lastRenderTiming?.html2canvasMs ?? 0, postProcessMs: lastRenderTiming?.postProcessMs ?? 0, postBreakdown }
+    return { blob }
   }
   const filename = () => `invoice-${data.receiptNo}.${format === 'pdf' ? 'pdf' : 'png'}`
 
@@ -208,19 +200,14 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
   const handleWhatsApp = async () => {
     setBusy(true)
     try {
-      const { blob, renderMs, html2canvasMs, postProcessMs, postBreakdown } = await buildBlob()
+      const { blob } = await buildBlob()
       const mime = format === 'pdf' ? 'application/pdf' : 'image/png'
       const result = await shareReceipt({
         blob, filename: filename(), mime, phone: whatsappPhone, contactName: data.accountName,
         message: `Water bill ${data.receiptNo} — ${netAmount.toLocaleString()}`,
       })
-      // See ReceiptModal.tsx's identical note -- real timing after a
-      // "takes too long" report, diagnosable from the toast alone.
-      const t = result.nativeTimingMs
-      const logoKind = data.logoUrl ? (data.logoUrl.startsWith('data:') ? 'data:' : 'url') : 'none'
-      const timingNote = t ? ` [render ${renderMs}ms (canvas ${html2canvasMs}ms + post ${postProcessMs}ms), encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB, logo=${logoKind}]${postBreakdown}` : ''
       toast.success(
-        (result.outcome === 'attached-direct'
+        result.outcome === 'attached-direct'
           ? 'WhatsApp opened straight to their chat, file attached'
           : result.outcome === 'attached'
           ? `WhatsApp opened with the file attached — pick who to send it to${result.jidSkipReason ? ` (${result.jidSkipReason})` : ''}`
@@ -228,10 +215,7 @@ export default function BillInvoicePage({ params }: { params: Promise<{ id: stri
           ? 'Image copied — press Ctrl+V (⌘V) in the WhatsApp chat to attach it'
           : whatsappPhone
             ? 'Downloaded — WhatsApp opened, attach the file to send'
-            : 'Downloaded — pick the chat in WhatsApp, then attach the file') + timingNote,
-        // See ReceiptModal.tsx's identical note -- default duration is too
-        // short to read a timing breakdown before it vanishes.
-        timingNote ? { duration: 15000 } : undefined
+            : 'Downloaded — pick the chat in WhatsApp, then attach the file'
       )
     } catch {
       toast.error('Could not share the invoice')

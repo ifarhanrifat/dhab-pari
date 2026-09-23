@@ -10,7 +10,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 import {
   getPreferredFormat, setPreferredFormat, nodeToPdfBlob, nodeToPngBlob,
   downloadBlob, shareReceipt, printBlob, type ReceiptFormat,
-  getPreferredSlipTarget, setPreferredSlipTarget, lastRenderTiming, preloadJsPdf,
+  getPreferredSlipTarget, setPreferredSlipTarget, preloadJsPdf,
 } from '@/lib/receiptExport'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
@@ -82,32 +82,13 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
   const blobCacheRef = useRef<{ key: string; blob: Blob } | null>(null)
   const cacheKey = () => `${format}:${format === 'pdf' ? pdfPage() : ''}`
 
-  // renderMs is 0 on a cache hit -- kept alongside the blob (rather than a
-  // separate call) so a slow-share report's toast can say whether the render
-  // itself was the cost or not, without a second measurement point drifting
-  // out of sync with what buildBlob() actually did. html2canvasMs/
-  // postProcessMs split that further after a real report (2026-09-22) where
-  // the total render time nearly TRIPLED (7s -> 19.9s) on the same device
-  // right after a fix meant to bring it down -- proof the earlier single
-  // "render Xms" number wasn't enough to tell whether html2canvas itself is
-  // the cost, or something in the PDF/PNG post-processing around it.
-  const buildBlob = async (): Promise<{ blob: Blob; renderMs: number; html2canvasMs: number; postProcessMs: number; postBreakdown: string }> => {
+  const buildBlob = async (): Promise<{ blob: Blob }> => {
     const key = cacheKey()
-    if (blobCacheRef.current?.key === key) return { blob: blobCacheRef.current.blob, renderMs: 0, html2canvasMs: 0, postProcessMs: 0, postBreakdown: '' }
+    if (blobCacheRef.current?.key === key) return { blob: blobCacheRef.current.blob }
     if (!nodeRef.current) throw new Error('Receipt not ready')
-    const start = performance.now()
     const blob = format === 'pdf' ? await nodeToPdfBlob(nodeRef.current, pdfPage()) : await nodeToPngBlob(nodeRef.current)
-    const renderMs = Math.round(performance.now() - start)
     blobCacheRef.current = { key, blob }
-    // Sub-breakdown of postProcessMs -- added after a report showed "post"
-    // unchanged at 13027ms despite the jsPDF preload fix, proving the
-    // import was never the real cost for PDF. A same-batch PNG report then
-    // showed toBlob() itself as the real 13s culprit for PNG (see
-    // nodeToPngBlob's comment) -- both branches now break down separately.
-    const postBreakdown = format === 'pdf'
-      ? ` [dataUrl ${lastRenderTiming?.toDataUrlMs ?? 0}ms, addImage ${lastRenderTiming?.addImageMs ?? 0}ms, output ${lastRenderTiming?.outputMs ?? 0}ms]`
-      : ` [dataUrl ${lastRenderTiming?.toDataUrlMs ?? 0}ms, blobify ${lastRenderTiming?.blobFromDataUrlMs ?? 0}ms]`
-    return { blob, renderMs, html2canvasMs: lastRenderTiming?.html2canvasMs ?? 0, postProcessMs: lastRenderTiming?.postProcessMs ?? 0, postBreakdown }
+    return { blob }
   }
 
   const filename = () => `receipt-${data.receiptNo}.${format === 'pdf' ? 'pdf' : 'png'}`
@@ -142,7 +123,7 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
   const handleShare = async () => {
     setBusy(true)
     try {
-      const { blob, renderMs, html2canvasMs, postProcessMs, postBreakdown } = await buildBlob()
+      const { blob } = await buildBlob()
       const mime = format === 'pdf' ? 'application/pdf' : 'image/png'
       // A PDF cannot be pasted into a chat, so the clipboard always gets a
       // PNG — but only actually rendered if shareReceipt() ends up needing
@@ -155,41 +136,14 @@ export function ReceiptModal({ data, phone, onClose, system }: ReceiptModalProps
         blob, filename: filename(), mime, phone, contactName: data.accountName, getClipboardBlob,
         message: `Receipt ${data.receiptNo} — ${data.amount.toLocaleString()}`,
       })
-      // Real timing breakdown after a "takes too long to get to WhatsApp"
-      // report -- render (html2canvas, 0 on a cache hit) + base64 encode +
-      // the JS<->native bridge transfer, so a slow report is diagnosable
-      // from the toast text alone, no connected device needed. Native
-      // launching WhatsApp itself isn't measurable from here -- if this
-      // total reads low but the wait still feels long, that's the next
-      // place to look, not this app's own code.
-      const t = result.nativeTimingMs
-      // Direct check of what html2canvas was actually handed -- if this
-      // reads "url" (not "data:"), the branding.ts logo fix silently fell
-      // back to the slow remote-fetch path for this exact share, which is
-      // now the single highest-value bit to confirm before chasing
-      // anything else about html2canvas's own 7+ second cost.
-      // BUG FIX, same day: this used to read data.logoUrl (the parent-
-      // supplied prop), which is never actually what gets rendered --
-      // <ReceiptDocument> below is given {...data, ...branding}, with
-      // this component's OWN fetchBrandingSettings() result in `branding`
-      // winning. Checking the wrong object always read "none" regardless
-      // of the real logo, which is exactly what the last report showed.
-      const renderedLogoUrl = branding.logoUrl ?? data.logoUrl
-      const logoKind = renderedLogoUrl ? (renderedLogoUrl.startsWith('data:') ? 'data:' : 'url') : 'none'
-      const timingNote = t ? ` [render ${renderMs}ms (canvas ${html2canvasMs}ms + post ${postProcessMs}ms), encode ${t.base64Encode}ms, bridge ${t.nativeBridgeCall}ms, ${(t.blobBytes / 1024).toFixed(0)}KB, logo=${logoKind}]${postBreakdown}` : ''
       toast.success(
-        (result.outcome === 'attached-direct'
+        result.outcome === 'attached-direct'
           ? 'WhatsApp opened straight to their chat, file attached'
           : result.outcome === 'attached'
           ? `WhatsApp opened with the file attached — pick who to send it to${result.jidSkipReason ? ` (${result.jidSkipReason})` : ''}`
           : result.outcome === 'copied'
           ? 'Image copied — press Ctrl+V (⌘V) in the WhatsApp chat to attach it'
-          : 'Downloaded — attach it in the chat that just opened') + timingNote,
-        // Default duration is too short to read a timing breakdown before it
-        // vanishes (real report: "I can only read 1726ms" before it's gone).
-        // Long enough to actually read + copy the numbers back, not so long
-        // it lingers awkwardly once WhatsApp is already on screen.
-        timingNote ? { duration: 15000 } : undefined
+          : 'Downloaded — attach it in the chat that just opened'
       )
     } catch {
       toast.error('Could not share the receipt')

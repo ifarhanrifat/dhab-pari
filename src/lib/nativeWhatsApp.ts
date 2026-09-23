@@ -35,16 +35,6 @@ export interface NativeShareResult {
   triedJid: boolean
   /** Set when triedJid is false and a phone number was given -- why jid wasn't attempted, straight from the plugin. Surfaced in the toast so this is diagnosable without a connected device. */
   jidSkipReason?: string
-  /**
-   * Real timing breakdown (ms), added after a report of "takes too long to
-   * get to WhatsApp" with no way to tell whether that's the render, the
-   * base64 encode, the JS<->native bridge transfer of a (possibly multi-MB)
-   * base64 string, or the native side's own contact lookup/insert -- rather
-   * than guess which one to optimize, measure all of them and surface the
-   * total in the toast so this is diagnosable from the reported number
-   * alone, no connected device required.
-   */
-  timingMs?: { base64Encode: number; nativeBridgeCall: number; total: number; blobBytes: number }
 }
 
 // Duplicated from receiptExport.ts's normalizePakPhone rather than imported --
@@ -88,24 +78,14 @@ export async function shareFileToWhatsApp(blob: Blob, filename: string, mimeType
   }
 
   try {
-    const start = performance.now()
     const base64Data = await blobToBase64(blob)
-    const afterEncode = performance.now()
     const normalized = phone ? normalizePhone(phone) : null
     const result = await WhatsAppShare.shareFile({
       base64Data, mimeType, filename,
       phone: normalized ?? undefined,
       contactName: contactName ?? undefined,
     })
-    const afterBridge = performance.now()
-    const timingMs = {
-      base64Encode: Math.round(afterEncode - start),
-      nativeBridgeCall: Math.round(afterBridge - afterEncode),
-      total: Math.round(afterBridge - start),
-      blobBytes: blob.size,
-    }
-    console.info('[WhatsAppShare] native share fired', result, timingMs)
-    return { attached: true, triedJid: result.triedJid, jidSkipReason: result.jidSkipReason, timingMs }
+    return { attached: true, triedJid: result.triedJid, jidSkipReason: result.jidSkipReason }
   } catch (err) {
     // A real failure (bridge error, file write, intent rejected) -- distinct
     // from "not available" above. Logged so a report of "still falling back"

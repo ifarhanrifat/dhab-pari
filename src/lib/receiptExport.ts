@@ -33,67 +33,21 @@ export function setPreferredSlipTarget(target: SlipPrintTarget) {
   window.localStorage.setItem(SLIP_TARGET_KEY, target)
 }
 
-// Real report (2026-09-22): render went from 7s to 19.9s on the SAME
-// device after the logo data-URI fix that was supposed to bring it down --
-// the earlier "render Xms" toast number was html2canvas() and everything
-// around it lumped into one bucket, so there was no way to tell whether
-// the logo theory ever actually held, or something else entirely is slow.
-// Module-level rather than threaded through every buildBlob() call site
-// (ReceiptModal, the bill invoice page, my-shop/customers) -- this is
-// temporary diagnostic instrumentation, not permanent plumbing; the
-// caller reads it immediately after its own nodeToPngBlob/nodeToPdfBlob
-// call resolves, before anything else can overwrite it.
-export let lastRenderTiming: {
-  html2canvasMs: number
-  postProcessMs: number
-  // PDF-only breakdown of postProcessMs, added 2026-09-23 after a report
-  // (post 13027ms) came back essentially unchanged despite the jsPDF
-  // preload fix -- proof the import was never the real cost. These pin
-  // down which specific step inside "post" actually owns the time instead
-  // of guessing again.
-  toDataUrlMs?: number
-  addImageMs?: number
-  outputMs?: number
-  // PNG-only, added 2026-09-23: the real culprit, found by contrast -- a
-  // PDF share's toDataUrlMs on an equivalent canvas was 31ms, but a PNG
-  // share's canvas.toBlob() was 13026ms for the same PNG encoding. See
-  // nodeToPngBlob()'s comment for why toBlob() itself was the slow part.
-  blobFromDataUrlMs?: number
-} | null = null
-
 async function renderNodeToCanvas(node: HTMLElement): Promise<HTMLCanvasElement> {
   // html2canvas-pro (not the original html2canvas) — the original can't parse the
   // oklch()/lab() color functions Tailwind's theme emits and throws on every render.
   const { default: html2canvas } = await import('html2canvas-pro')
-  const start = performance.now()
-  const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
-  lastRenderTiming = { html2canvasMs: Math.round(performance.now() - start), postProcessMs: 0 }
-  return canvas
+  return html2canvas(node, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
 }
 
 export async function nodeToPngBlob(node: HTMLElement): Promise<Blob> {
   const canvas = await renderNodeToCanvas(node)
-  const start = performance.now()
-  // Real report (2026-09-23): canvas.toBlob('image/png') measured 13026ms
-  // on a share, while canvas.toDataURL('image/png') on an equivalent
-  // html2canvas render (same node, same scale, same device) measured 31ms
-  // in the PDF path right next to it. That gap is too big to be PNG
-  // encoding cost -- it's toBlob() itself hitting a slow implementation
-  // path (some Android WebViews fall back to a manual JS base64-decode
-  // polyfill for toBlob() instead of a native fast path). Route through
-  // the proven-fast toDataURL() and let fetch() turn the data: URL into a
-  // real Blob -- fetch's data: URL handling uses a native decoder, not a
-  // JS atob loop.
+  // canvas.toBlob('image/png') hits a slow implementation path on some
+  // Android WebViews (a manual JS base64-decode polyfill instead of a
+  // native fast path) -- toDataURL() + fetch() on the resulting data: URL
+  // uses a native decoder and is dramatically faster on that hardware.
   const dataUrl = canvas.toDataURL('image/png')
-  const toDataUrlMs = Math.round(performance.now() - start)
-  const fetchStart = performance.now()
-  const blob = await (await fetch(dataUrl)).blob()
-  if (lastRenderTiming) {
-    lastRenderTiming.toDataUrlMs = toDataUrlMs
-    lastRenderTiming.blobFromDataUrlMs = Math.round(performance.now() - fetchStart)
-    lastRenderTiming.postProcessMs = Math.round(performance.now() - start)
-  }
-  return blob
+  return (await fetch(dataUrl)).blob()
 }
 
 /**
@@ -113,16 +67,10 @@ export type PdfPageSize = 'a4' | 'content'
 const A4_W_MM = 210
 const A4_H_MM = 297
 
-// Real cause found (2026-09-22), not the logo: a report of "post 13041ms"
-// vs an earlier "post 229ms" for the exact same work is the signature of a
-// network fetch, not processing -- `await import('jspdf')` used to sit
-// *inside* the timed postProcess window, so its dynamic-import chunk fetch
-// (over whatever mobile connection this session's real numbers make plain
-// is not fast or consistent) was masquerading as "PDF building is slow."
-// Called eagerly, fire-and-forget, as soon as a page/modal that might
+// Fetched eagerly, fire-and-forget, as soon as a page/modal that might
 // export a PDF mounts -- by the time someone actually taps Share, this
-// chunk is already resident and the real await below resolves instantly
-// from the module cache instead of hitting the network on the critical path.
+// chunk is already resident and the await below resolves instantly from
+// the module cache instead of hitting the network on the critical path.
 let jsPdfPreload: Promise<typeof import('jspdf')> | null = null
 export function preloadJsPdf() {
   if (!jsPdfPreload) jsPdfPreload = import('jspdf')
@@ -130,12 +78,9 @@ export function preloadJsPdf() {
 
 export async function nodeToPdfBlob(node: HTMLElement, page: PdfPageSize = 'content'): Promise<Blob> {
   const canvas = await renderNodeToCanvas(node)
-  const postProcessStart = performance.now()
   preloadJsPdf()
   const { jsPDF } = await jsPdfPreload!
-  const toDataUrlStart = performance.now()
   const imgData = canvas.toDataURL('image/png')
-  const toDataUrlMs = Math.round(performance.now() - toDataUrlStart)
   const pxToMm = 25.4 / 96
   // renderNodeToCanvas rasterizes at scale 2, so halve back to CSS pixels
   // before converting — these are the node's own on-screen millimetres.
@@ -185,12 +130,10 @@ export async function nodeToPdfBlob(node: HTMLElement, page: PdfPageSize = 'cont
   // shifted up by a whole page, so each sheet shows its own band of it — the
   // standard way to paginate a raster, and the only one available here since
   // html2canvas has already flattened the document.
-  const addImageStart = performance.now()
   for (let i = 0; i < pageCount; i++) {
     if (i > 0) pdf.addPage([pageW, pageH], pageW > pageH ? 'landscape' : 'portrait')
     pdf.addImage(imgData, 'PNG', offsetX, -i * pageH, drawW, drawH)
   }
-  const addImageMs = Math.round(performance.now() - addImageStart)
 
   // html2canvas flattens the document to pixels, which kills every hyperlink —
   // the Facebook/WhatsApp/Donate row and the helpline numbers all came out dead
@@ -219,15 +162,7 @@ export async function nodeToPdfBlob(node: HTMLElement, page: PdfPageSize = 'cont
     })
   }
 
-  if (lastRenderTiming) {
-    lastRenderTiming.postProcessMs = Math.round(performance.now() - postProcessStart)
-    lastRenderTiming.toDataUrlMs = toDataUrlMs
-    lastRenderTiming.addImageMs = addImageMs
-  }
-  const outputStart = performance.now()
-  const result = pdf.output('blob')
-  if (lastRenderTiming) lastRenderTiming.outputMs = Math.round(performance.now() - outputStart)
-  return result
+  return pdf.output('blob')
 }
 
 /** Puts a PNG on the clipboard so it can be pasted straight into a chat.
@@ -357,15 +292,13 @@ export interface ShareResult {
   outcome: 'attached-direct' | 'attached' | 'copied' | 'downloaded'
   /** Only set when a phone was given but jid wasn't attempted -- straight from the plugin, so this is diagnosable from the toast alone. */
   jidSkipReason?: string
-  /** Only set on a native attach -- the encode+bridge time from shareFileToWhatsApp(), passed through so a slow-share report can be diagnosed from the toast text alone. */
-  nativeTimingMs?: { base64Encode: number; nativeBridgeCall: number; total: number; blobBytes: number }
 }
 
 export async function shareReceipt({ blob, filename, mime, phone, contactName, message, getClipboardBlob }: ShareOptions): Promise<ShareResult> {
   const { shareFileToWhatsApp } = await import('./nativeWhatsApp')
-  const native = await shareFileToWhatsApp(blob, filename, mime, phone, contactName).catch(() => ({ attached: false, triedJid: false, jidSkipReason: undefined, timingMs: undefined }))
+  const native = await shareFileToWhatsApp(blob, filename, mime, phone, contactName).catch(() => ({ attached: false, triedJid: false, jidSkipReason: undefined }))
   if (native.attached) {
-    return { outcome: native.triedJid ? 'attached-direct' : 'attached', jidSkipReason: native.jidSkipReason, nativeTimingMs: native.timingMs }
+    return { outcome: native.triedJid ? 'attached-direct' : 'attached', jidSkipReason: native.jidSkipReason }
   }
 
   const clipboardBlob = getClipboardBlob ? await getClipboardBlob() : null

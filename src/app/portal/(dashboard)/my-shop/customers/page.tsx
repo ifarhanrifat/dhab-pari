@@ -16,7 +16,7 @@ import { resolveMyShop } from '@/lib/shop'
 import { ArrowLeft, Users, Search, X, Plus, Loader2, Wallet, ChevronDown, ChevronUp, Pencil, Trash2, FileText, MessageCircle, Receipt, Link2, Link2Off, Download, Bell } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { normalizePakPhone, nodeToPngBlob, shareReceipt, downloadBlob, lastRenderTiming } from '@/lib/receiptExport'
+import { normalizePakPhone, nodeToPngBlob, shareReceipt, downloadBlob } from '@/lib/receiptExport'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
@@ -109,15 +109,13 @@ export default function CustomersPage() {
   // again." Cached per invoice id so only the first action on a given
   // invoice pays that cost.
   const slipBlobCacheRef = useRef<{ invoiceId: string; blob: Blob } | null>(null)
-  const buildSlipBlob = async (): Promise<{ blob: Blob; renderMs: number; html2canvasMs: number; postProcessMs: number }> => {
+  const buildSlipBlob = async (): Promise<{ blob: Blob }> => {
     if (!slipRef.current) throw new Error('Invoice not ready')
     const cached = slipBlobCacheRef.current
-    if (cached && cached.invoiceId === viewingInvoice?.id) return { blob: cached.blob, renderMs: 0, html2canvasMs: 0, postProcessMs: 0 }
-    const start = performance.now()
+    if (cached && cached.invoiceId === viewingInvoice?.id) return { blob: cached.blob }
     const blob = await nodeToPngBlob(slipRef.current)
-    const renderMs = Math.round(performance.now() - start)
     if (viewingInvoice) slipBlobCacheRef.current = { invoiceId: viewingInvoice.id, blob }
-    return { blob, renderMs, html2canvasMs: lastRenderTiming?.html2canvasMs ?? 0, postProcessMs: lastRenderTiming?.postProcessMs ?? 0 }
+    return { blob }
   }
 
   // Linking a registered customer's own portal account so they can view
@@ -348,24 +346,18 @@ export default function CustomersPage() {
     if (!intl) { toast.error(t('sk.noPhoneForWhatsappHint')); return }
     setSendingSlip(true)
     try {
-      const { blob, renderMs, html2canvasMs, postProcessMs } = await buildSlipBlob()
+      const { blob } = await buildSlipBlob()
       const name = openCustomer.name_ur || openCustomer.name
       const result = await shareReceipt({
         blob, filename: invoiceFilename(), mime: 'image/png', phone: openCustomer.phone, contactName: openCustomer.name,
         getClipboardBlob: async () => blob,
         message: isUrdu ? `${name} کا بل نمبر ${viewingInvoice.invoice_number}` : `Bill #${viewingInvoice.invoice_number} for ${name}`,
       })
-      // Real timing after a "takes too long" report -- see ReceiptModal.tsx's identical note.
-      const t2 = result.nativeTimingMs
-      const timingNote = t2 ? ` [render ${renderMs}ms (canvas ${html2canvasMs}ms + post ${postProcessMs}ms), encode ${t2.base64Encode}ms, bridge ${t2.nativeBridgeCall}ms]` : ''
       toast.success(
-        (result.outcome === 'attached-direct' ? t('sk.slipAttachedDirectToast')
+        result.outcome === 'attached-direct' ? t('sk.slipAttachedDirectToast')
           : result.outcome === 'attached' ? t('sk.slipAttachedToast')
           : result.outcome === 'copied' ? t('sk.slipCopiedToast')
-          : t('sk.slipDownloadedToast')) + timingNote,
-        // See ReceiptModal.tsx's identical note -- default duration is too
-        // short to read a timing breakdown before it vanishes.
-        timingNote ? { duration: 15000 } : undefined
+          : t('sk.slipDownloadedToast')
       )
     } catch {
       toast.error(t('sk.slipShareFailedHint'))
