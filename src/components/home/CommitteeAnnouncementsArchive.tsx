@@ -22,7 +22,7 @@ export function CommitteeAnnouncementsArchive({ notes }: { notes: CommitteeNote[
   const { t, isUrdu } = useLocale()
 
   const body = (n: CommitteeNote) => (isUrdu ? (n.body_ur || n.body_en) : (n.body_en || n.body_ur))
-  const urduStyle = isUrdu ? { fontFamily: 'var(--font-urdu), serif' } as const : undefined
+  const urduStyle = isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } as const : undefined
   // Same "project first, else the generic link_url/label pair" resolution as
   // the homepage card's LinkFooter — a note is about a project (its own
   // foreign key) or a site feature/custom link (migration 306), never both.

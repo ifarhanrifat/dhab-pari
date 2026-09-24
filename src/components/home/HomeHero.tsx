@@ -29,17 +29,17 @@ export function HomeHero() {
             <p dir="rtl" className="text-white text-[24px] lg:text-[29px] font-bold leading-[1.9]" style={{ fontFamily: 'var(--font-quran), serif' }}>
               ﴿وَيَسْأَلُونَكَ مَاذَا يُنفِقُونَ قُلِ الْعَفْوَ ۗ كَذَٰلِكَ يُبَيِّنُ اللَّهُ لَكُمُ الْآيَاتِ لَعَلَّكُمْ تَتَفَكَّرُونَ﴾
             </p>
-            <p dir="rtl" className="text-dp-on-primary-container text-[15px] lg:text-[17px] mt-3 leading-[2]" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+            <p dir="rtl" className="text-dp-on-primary-container text-[15px] lg:text-[17px] mt-3 leading-[2]" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
               اور آپ سے پوچھتے ہیں کہ کیا خرچ کریں؟ کہہ دیجیے: جو ضرورت سے زائد ہو (عفو)۔ اللہ اسی طرح تمہارے لیے احکام کھول کر بیان کرتا ہے تاکہ تم غور و فکر کرو۔
             </p>
-            <p dir="rtl" className="text-white/60 text-[13px] mt-2" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+            <p dir="rtl" className="text-white/60 text-[13px] mt-2" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
               (سورۃ البقرہ، آیت 219)
             </p>
           </div>
           <h1
             dir="rtl"
             className="font-bold text-white drop-shadow-xl leading-tight text-[26px] lg:text-[31px] animate-in fade-in slide-in-from-top-3 duration-700 [animation-delay:200ms] [animation-fill-mode:both]"
-            style={{ fontFamily: 'var(--font-urdu), serif' }}
+            style={{ fontFamily: 'var(--font-urdu-ui)' }}
           >
             {SITE.committeeUrdu}
           </h1>
@@ -54,7 +54,7 @@ export function HomeHero() {
           </p>
           <p
             className="text-dp-on-primary-container text-[18px] mb-8 leading-relaxed"
-            style={{ fontFamily: 'var(--font-urdu), serif', lineHeight: '2.5' }}
+            style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2.5' }}
           >
             {SITE.taglineUrdu}
           </p>
@@ -81,7 +81,7 @@ export function HomeHero() {
           <p dir="rtl" className="text-white text-[18px] font-bold leading-[1.9]" style={{ fontFamily: 'var(--font-quran), serif' }}>
             ﴿وَيَسْأَلُونَكَ مَاذَا يُنفِقُونَ قُلِ الْعَفْوَ ۗ كَذَٰلِكَ يُبَيِّنُ اللَّهُ لَكُمُ الْآيَاتِ لَعَلَّكُمْ تَتَفَكَّرُونَ﴾
           </p>
-          <p dir="rtl" className="text-dp-on-primary-container text-[14px] mt-2.5 leading-[2]" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+          <p dir="rtl" className="text-dp-on-primary-container text-[14px] mt-2.5 leading-[2]" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
             اور آپ سے پوچھتے ہیں کہ کیا خرچ کریں؟ کہہ دیجیے: جو ضرورت سے زائد ہو (عفو)۔ اللہ اسی طرح تمہارے لیے احکام کھول کر بیان کرتا ہے تاکہ تم غور و فکر کرو۔
           </p>
         </div>

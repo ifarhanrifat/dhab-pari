@@ -468,12 +468,17 @@ export default function PortalEsalESawabPage() {
                     <Icon size={16} className="text-dp-secondary" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-heading text-[14px] font-bold text-dp-primary mb-1">{guideQ(k)}</h3>
+                    {/* guideQ/guideAnswer follow the site's display_language
+                        toggle (unlike guideUrduLine/guidePromiseUrduLine
+                        below, which are always Urdu) -- they were missing
+                        the dir/alignment those always-Urdu lines already
+                        had. Real report, 2026-09-24. */}
+                    <h3 className={`font-heading text-[14px] font-bold text-dp-primary mb-1${isUrdu ? ' text-right' : ''}`} dir={isUrdu ? 'rtl' : 'ltr'}>{guideQ(k)}</h3>
                     <p className="font-sans text-[15px] leading-[2] text-dp-on-surface mb-1"
-                      style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                      dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl', textAlign: 'right' }}>
                       {guideUrduLine(k)}
                     </p>
-                    <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{guideAnswer(k)}</p>
+                    <p className={`font-sans text-[13px] text-dp-on-surface-variant leading-relaxed${isUrdu ? ' text-right' : ''}`} dir={isUrdu ? 'rtl' : 'ltr'}>{guideAnswer(k)}</p>
                   </div>
                 </div>
               ))}
@@ -482,10 +487,10 @@ export default function PortalEsalESawabPage() {
               <ShieldCheck size={17} className="text-dp-secondary shrink-0 mt-0.5" />
               <div>
                 <p className="font-sans text-[15px] leading-[2] text-dp-on-surface font-bold"
-                  style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                  dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl', textAlign: 'right' }}>
                   {guidePromiseUrduLine}
                 </p>
-                <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{guidePromise}</p>
+                <p className={`font-sans text-[13px] text-dp-on-surface-variant leading-relaxed${isUrdu ? ' text-right' : ''}`} dir={isUrdu ? 'rtl' : 'ltr'}>{guidePromise}</p>
               </div>
             </div>
           </section>
@@ -591,7 +596,7 @@ export default function PortalEsalESawabPage() {
         <Info size={17} className="text-dp-secondary shrink-0 mt-0.5" />
         <div>
           <p className="font-sans text-[15px] leading-[2] text-dp-on-surface font-bold"
-            style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+            style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }}>
             {t('pes.priceNoteUr')}
           </p>
           <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed mt-1">
@@ -608,7 +613,7 @@ export default function PortalEsalESawabPage() {
             <button key={c.id} onClick={() => pick(c.id)}
               className={`text-start px-3.5 py-3 rounded-lg border-2 transition-all cursor-pointer ${form.catalogue_id === c.id ? 'border-dp-secondary bg-dp-secondary/5' : 'border-dp-outline-variant hover:border-dp-secondary/40'}`}>
               <p className="font-sans text-[14px] font-bold text-dp-on-surface">{c.name}</p>
-              {c.name_ur && <p className="font-sans text-[13px] text-dp-on-surface-variant" style={{ fontFamily: 'var(--font-urdu), serif' }}>{c.name_ur}</p>}
+              {c.name_ur && <p className="font-sans text-[13px] text-dp-on-surface-variant" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{c.name_ur}</p>}
               <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">
                 {fmt(c.capital_cost_pkr)}
                 {c.annual_running_cost_pkr > 0 && (
@@ -639,7 +644,7 @@ export default function PortalEsalESawabPage() {
           <div>
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.nameUrdu')}</label>
             <input value={form.dedicated_to_ur} onChange={(e) => setForm({ ...form, dedicated_to_ur: e.target.value })}
-              className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+              className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
           </div>
           <div>
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('pes.f.relationship')}</label>

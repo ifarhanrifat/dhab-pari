@@ -281,10 +281,10 @@ export default function ProjectsPage() {
     <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="mb-12">
-        <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-on-surface" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+        <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-on-surface" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
           {dt('pageTitle')}
         </h2>
-        <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px] max-w-2xl mt-2" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+        <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px] max-w-2xl mt-2" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
           {dt('pageSubtitle')}
         </p>
       </div>
@@ -296,10 +296,10 @@ export default function ProjectsPage() {
         <div className="flex items-start gap-3 bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-5 py-4 mb-8 max-w-2xl" dir={isUrdu ? 'rtl' : 'ltr'}>
           <Lock size={17} className="text-dp-on-surface-variant shrink-0 mt-0.5" />
           <div>
-            <p className="font-sans text-[15px] font-bold text-dp-on-surface" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+            <p className="font-sans text-[15px] font-bold text-dp-on-surface" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
               {dt('privateTotalLabel')}: {fmtFull(privateTotal)}
             </p>
-            <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5 leading-relaxed" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5 leading-relaxed" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
               {dt('privateTotalNote')}
             </p>
           </div>
@@ -317,13 +317,13 @@ export default function ProjectsPage() {
                 ? 'bg-dp-primary text-white shadow-sm'
                 : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-primary hover:text-dp-primary'
             }`}
-            style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
+            style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
           >
             {dt(filterKeys[f])}
           </button>
         ))}
         <div className="ms-auto hidden md:flex items-center gap-2 text-dp-on-surface-variant">
-          <span className="font-sans text-[14px] font-semibold tracking-[0.05em] uppercase" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+          <span className="font-sans text-[14px] font-semibold tracking-[0.05em] uppercase" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
             {dt('sortByDate')}
           </span>
         </div>
@@ -342,7 +342,7 @@ export default function ProjectsPage() {
                 ? 'bg-dp-secondary text-white shadow-sm'
                 : 'bg-dp-surface-container-low text-dp-on-surface-variant hover:bg-dp-surface-container'
             }`}
-            style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
+            style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
           >
             {dt('filterAll')} ({categoryCounts.All ?? 0})
           </button>
@@ -355,7 +355,7 @@ export default function ProjectsPage() {
                   ? 'bg-dp-secondary text-white shadow-sm'
                   : 'bg-dp-surface-container-low text-dp-on-surface-variant hover:bg-dp-surface-container'
               }`}
-              style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
+              style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
             >
               {categoryLabel(c, isUrdu)} ({categoryCounts[c] ?? 0})
             </button>
@@ -387,7 +387,7 @@ export default function ProjectsPage() {
           })}
 
           {filtered.length === 0 && !loading && (
-            <div className="text-center py-16 text-dp-on-surface-variant font-sans text-[16px]" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+            <div className="text-center py-16 text-dp-on-surface-variant font-sans text-[16px]" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
               {dt('noProjects')}
             </div>
           )}
@@ -397,24 +397,24 @@ export default function ProjectsPage() {
       {/* Bottom CTA */}
       <div className="mt-20 bg-dp-primary-container text-white p-12 rounded-2xl text-center relative overflow-hidden">
         <div className="relative z-10">
-          <h3 className="font-heading text-[32px] font-bold leading-[40px] mb-4" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+          <h3 className="font-heading text-[32px] font-bold leading-[40px] mb-4" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
             {dt('ctaTitle')}
           </h3>
-          <p className="font-sans text-[18px] leading-[28px] mb-8 max-w-xl mx-auto opacity-90" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+          <p className="font-sans text-[18px] leading-[28px] mb-8 max-w-xl mx-auto opacity-90" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
             {dt('ctaBody')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/portal/propose-project"
               className="inline-flex items-center justify-center gap-2 font-sans text-[14px] font-semibold tracking-[0.05em] rounded transition-all active:scale-[0.98] cursor-pointer px-8 py-3 bg-dp-secondary text-white hover:bg-dp-primary"
-              style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
+              style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
             >
               {dt('submitProposal')}
             </Link>
             <button
               onClick={() => setActiveFilter('Upcoming')}
               className="inline-flex items-center justify-center gap-2 font-sans text-[14px] font-semibold tracking-[0.05em] rounded transition-all active:scale-[0.98] cursor-pointer px-8 py-3 bg-transparent border-2 border-white text-white hover:bg-white/10"
-              style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
+              style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
             >
               {dt('browseProposals')}
             </button>
@@ -439,7 +439,7 @@ function HotBadge() {
   )
 }
 
-const urduStyle = { fontFamily: 'var(--font-urdu), serif' } as const
+const urduStyle = { fontFamily: 'var(--font-urdu-ui)' } as const
 
 function OngoingCard({ project, isHot, commentCount, expense, fee, dt, isUrdu }: { project: Project; isHot: boolean; commentCount: number; expense: number; fee: FeeSummary | undefined; dt: Dt; isUrdu: boolean }) {
   const { t: tr } = useLocale()

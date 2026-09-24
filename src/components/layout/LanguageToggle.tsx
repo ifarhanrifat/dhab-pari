@@ -54,7 +54,7 @@ export function LanguageToggle({ compact = false }: { compact?: boolean }) {
         className={`px-2.5 h-full flex items-center text-[11px] font-semibold cursor-pointer transition-colors leading-none ${
           locale === 'ur' ? 'bg-dp-secondary text-white' : 'text-dp-on-surface-variant hover:bg-dp-surface-container-low'
         }`}
-        style={{ fontFamily: 'var(--font-urdu), serif' }}
+        style={{ fontFamily: 'var(--font-urdu-ui)' }}
       >
         اردو
       </button>

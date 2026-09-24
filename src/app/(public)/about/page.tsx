@@ -80,7 +80,7 @@ export default async function AboutPage() {
         </h1>
         <p
           className="text-dp-on-surface-variant text-[20px] mb-2"
-          style={{ fontFamily: 'var(--font-urdu), serif', lineHeight: '2.5' }}
+          style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2.5' }}
         >
           {SITE.committeeUrdu}
         </p>
@@ -181,14 +181,14 @@ export default async function AboutPage() {
                 {member.name_ur && (
                   <p
                     className="text-dp-on-surface-variant text-[16px] mt-1"
-                    style={{ fontFamily: 'var(--font-urdu), serif', lineHeight: '2' }}
+                    style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2' }}
                   >
                     {member.name_ur}
                   </p>
                 )}
                 <p
                   className="text-dp-secondary font-sans text-[14px] font-semibold tracking-[0.05em] mt-2"
-                  style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
+                  style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
                 >
                   {isUrdu ? (member.position_ur || member.position) : member.position}
                 </p>
@@ -205,7 +205,7 @@ export default async function AboutPage() {
                   <p
                     className="text-dp-on-surface-variant text-[14px] font-sans mt-3 line-clamp-2"
                     dir={isUrdu ? 'rtl' : undefined}
-                    style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
+                    style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
                   >
                     {isUrdu ? (member.bio_ur || member.bio) : member.bio}
                   </p>

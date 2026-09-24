@@ -339,12 +339,17 @@ export default function PortalKafalatPage() {
                   <Icon size={16} className="text-dp-secondary" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-heading text-[14px] font-bold text-dp-primary mb-1">{guideQ(k)}</h3>
+                  {/* guideQ/guideAnswer follow the site's display_language
+                      toggle (unlike guideUrduLine/guidePromiseUrduLine
+                      below, which are always Urdu) -- they were missing
+                      the dir/alignment those always-Urdu lines already
+                      had. Real report, 2026-09-24. */}
+                  <h3 className={`font-heading text-[14px] font-bold text-dp-primary mb-1${isUrdu ? ' text-right' : ''}`} dir={isUrdu ? 'rtl' : 'ltr'}>{guideQ(k)}</h3>
                   <p className="font-sans text-[15px] leading-[2] text-dp-on-surface mb-1"
-                    style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                    dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl', textAlign: 'right' }}>
                     {guideUrduLine(k)}
                   </p>
-                  <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{guideAnswer(k)}</p>
+                  <p className={`font-sans text-[13px] text-dp-on-surface-variant leading-relaxed${isUrdu ? ' text-right' : ''}`} dir={isUrdu ? 'rtl' : 'ltr'}>{guideAnswer(k)}</p>
                 </div>
               </div>
             ))}
@@ -353,10 +358,10 @@ export default function PortalKafalatPage() {
             <ShieldCheck size={17} className="text-dp-secondary shrink-0 mt-0.5" />
             <div>
               <p className="font-sans text-[15px] leading-[2] text-dp-on-surface font-bold"
-                style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl', textAlign: 'right' }}>
                 {guidePromiseUrduLine}
               </p>
-              <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{guidePromise}</p>
+              <p className={`font-sans text-[13px] text-dp-on-surface-variant leading-relaxed${isUrdu ? ' text-right' : ''}`} dir={isUrdu ? 'rtl' : 'ltr'}>{guidePromise}</p>
             </div>
           </div>
         </section>

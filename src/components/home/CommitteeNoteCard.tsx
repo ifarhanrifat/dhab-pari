@@ -47,7 +47,7 @@ export function CommitteeNoteCard({ latest, archive }: { latest: CommitteeNote |
   if (!latest) return null
 
   const body = (n: CommitteeNote) => (isUrdu ? (n.body_ur || n.body_en) : (n.body_en || n.body_ur))
-  const urduStyle = isUrdu ? { fontFamily: 'var(--font-urdu), serif' } as const : undefined
+  const urduStyle = isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } as const : undefined
 
   // A note's own related link (a project, or a site feature/custom URL) plus
   // a way to actually pass it on — this is what "share this announcement"

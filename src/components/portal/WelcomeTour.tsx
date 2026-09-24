@@ -29,7 +29,7 @@ export function WelcomeTour() {
     <div className="fixed inset-0 bg-black/60 z-[210] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={close}>
       <div
         dir="rtl"
-        style={{ fontFamily: 'var(--font-urdu), serif' }}
+        style={{ fontFamily: 'var(--font-urdu-ui)' }}
         className="bg-white w-full sm:max-w-[600px] sm:rounded-lg rounded-t-2xl max-h-[88vh] overflow-y-auto shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >

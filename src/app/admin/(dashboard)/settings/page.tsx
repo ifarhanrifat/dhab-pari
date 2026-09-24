@@ -866,7 +866,7 @@ export default function AdminSettingsPage() {
                     <input
                       type="text" dir="rtl" value={values.company_name_ur ?? ''}
                       onChange={(e) => setValues({ ...values, company_name_ur: e.target.value })}
-                      style={{ fontFamily: 'var(--font-urdu), serif', textAlign: 'right' }}
+                      style={{ fontFamily: 'var(--font-urdu-ui)', textAlign: 'right' }}
                       className="input-field"
                     />
                   </div>
@@ -903,7 +903,7 @@ export default function AdminSettingsPage() {
                         className="absolute left-4 top-4 object-contain"
                       />
                       {values.display_language === 'ur' && (
-                        <p className="text-[16px] font-bold mb-1.5" style={{ fontFamily: 'var(--font-urdu), serif' }}>واٹر اینڈ ویلفئیر کمیٹی</p>
+                        <p className="text-[16px] font-bold mb-1.5" style={{ fontFamily: 'var(--font-urdu-ui)' }}>واٹر اینڈ ویلفئیر کمیٹی</p>
                       )}
                       <p className="text-[13px] font-bold text-dp-on-surface-variant">{SITE.name}</p>
                     </div>

@@ -952,8 +952,8 @@ function AdminVehiclesInner() {
                 <input value={routeForm.destination} onChange={(e) => setRouteForm({ ...routeForm, destination: e.target.value })} placeholder={t('mk.destinationPlaceholder')} className="input-field" />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <input value={routeForm.origin_ur} onChange={(e) => setRouteForm({ ...routeForm, origin_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
-                <input value={routeForm.destination_ur} onChange={(e) => setRouteForm({ ...routeForm, destination_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+                <input value={routeForm.origin_ur} onChange={(e) => setRouteForm({ ...routeForm, origin_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
+                <input value={routeForm.destination_ur} onChange={(e) => setRouteForm({ ...routeForm, destination_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
               </div>
               <select value={routeForm.classification} onChange={(e) => setRouteForm({ ...routeForm, classification: e.target.value })} className="input-field">
                 <option value="intercity">{t('mk.intercity')}</option>
@@ -1021,7 +1021,7 @@ function AdminVehiclesInner() {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <input value={addaForm.name} onChange={(e) => setAddaForm({ ...addaForm, name: e.target.value })} placeholder={t('af.addaNamePlaceholder')} className="input-field" />
-                <input value={addaForm.name_ur} onChange={(e) => setAddaForm({ ...addaForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+                <input value={addaForm.name_ur} onChange={(e) => setAddaForm({ ...addaForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
               </div>
               <select value={addaForm.pair_adda_id ?? ''} onChange={(e) => setAddaForm({ ...addaForm, pair_adda_id: e.target.value || null })} className="input-field">
                 <option value="">{t('af.noPairOption')}</option>

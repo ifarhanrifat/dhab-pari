@@ -117,7 +117,7 @@ export default function NonPaymentReportPage() {
   }
 
   return (
-    <div ref={printRef} dir={lang === 'ur' ? 'rtl' : 'ltr'} style={lang === 'ur' ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+    <div ref={printRef} dir={lang === 'ur' ? 'rtl' : 'ltr'} style={lang === 'ur' ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <DocumentHeader title={`${dt(lang, 'reportNonPayment')} — ${dt(lang, 'waterSupplySystem')}`} className="hidden print:block" />
       <div className="flex items-center justify-between mb-6 print:hidden gap-4 flex-wrap">
         <div>

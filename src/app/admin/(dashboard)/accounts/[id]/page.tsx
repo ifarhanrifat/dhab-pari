@@ -552,7 +552,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
-      <div ref={statementRef} dir={lang === 'ur' ? 'rtl' : 'ltr'} style={lang === 'ur' ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+      <div ref={statementRef} dir={lang === 'ur' ? 'rtl' : 'ltr'} style={lang === 'ur' ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="bg-white rounded-lg border border-dp-outline-variant p-6 mb-4">
         <DocumentHeader title={dt(lang, account.system === 'donors_projects' ? 'donorsProjectsSystem' : 'waterSupplySystem')} />
         <div className="flex flex-wrap items-start justify-between gap-4">

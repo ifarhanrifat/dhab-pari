@@ -118,7 +118,7 @@ export function CareerCards({ mentorsAvailable, institutes, trainingProgramsOpen
 
             <div className="p-5">
               <p className="font-sans text-[18px] leading-[2] text-dp-primary font-bold mb-1"
-                style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+                style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }}>
                 {c.mottoUr}
               </p>
               <p className="font-heading text-[16px] font-bold text-dp-secondary leading-snug mb-3">

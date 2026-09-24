@@ -185,7 +185,7 @@ export function LanguageSettings() {
                           onChange={(e) => setDirtyTerms({ ...dirtyTerms, [r.id]: { ...patch, label_ur: e.target.value, label_en: patch.label_en ?? r.label_en } })}
                           className="input-field !py-2 text-[14px]"
                           dir="rtl"
-                          style={{ fontFamily: 'var(--font-urdu), serif' }}
+                          style={{ fontFamily: 'var(--font-urdu-ui)' }}
                         />
                       </div>
                     )
@@ -219,7 +219,7 @@ export function LanguageSettings() {
                   <span className="font-mono text-[11px] text-dp-outline truncate" title={key}>{key}</span>
                   <span className="font-sans text-[13px] text-dp-on-surface-variant truncate"
                     dir={locale === 'ur' ? 'rtl' : 'ltr'}
-                    style={locale === 'ur' ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
+                    style={locale === 'ur' ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
                     title={shipped}>
                     {shipped}
                   </span>
@@ -230,7 +230,7 @@ export function LanguageSettings() {
                       placeholder={t('settings.wording.shippedDefault')}
                       className="input-field !py-2 text-[13.5px] flex-1"
                       dir={locale === 'ur' ? 'rtl' : 'ltr'}
-                      style={locale === 'ur' ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
+                      style={locale === 'ur' ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
                     />
                     {(stored || dirtyWords[key]) && (
                       <button

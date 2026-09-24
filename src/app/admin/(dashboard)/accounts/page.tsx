@@ -403,7 +403,7 @@ export default function AccountsPage() {
             individual name's own script) fixes that regardless of which
             accounts happen to have a translation yet. */}
         <div className="min-w-0 flex-1" dir={isUrdu ? 'rtl' : 'ltr'}>
-          <p className={`font-sans font-semibold text-dp-on-surface ${isUrduLine ? 'text-[13px]' : 'text-[13.5px]'}`} style={isUrduLine ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+          <p className={`font-sans font-semibold text-dp-on-surface ${isUrduLine ? 'text-[13px]' : 'text-[13.5px]'}`} style={isUrduLine ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
             {indented && <span className="text-dp-on-surface-variant font-normal">↳ </span>}{primary}
           </p>
           {a.type === 'consumer' && a.consumer_id && consumers[a.consumer_id] && (
@@ -544,7 +544,7 @@ export default function AccountsPage() {
                   onClick={() => toggleGroup(h.code)}
                   className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-dp-surface-container-low/60 hover:bg-dp-surface-container-low cursor-pointer transition-colors rounded-t-lg"
                 >
-                  <span className="font-sans text-[13.5px] font-bold text-dp-on-surface" style={lang === 'ur' && h.label_ur ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{displayName(h.label, h.label_ur)}</span>
+                  <span className="font-sans text-[13.5px] font-bold text-dp-on-surface" style={lang === 'ur' && h.label_ur ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{displayName(h.label, h.label_ur)}</span>
                   <span className="flex items-center gap-1 shrink-0">
                     <span className="font-sans text-[13.5px] font-bold text-dp-secondary w-24 sm:w-32 text-end tabular-nums ltr-num">{fmtAmount(headerTotals[h.code] ?? 0)}</span>
                     <span className="w-6 flex justify-center">
@@ -674,7 +674,7 @@ export default function AccountsPage() {
               </div>
               <div>
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ac.nameUr')}</label>
-                <input value={form.name_ur ?? ''} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder="اردو میں نام" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+                <input value={form.name_ur ?? ''} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder="اردو میں نام" className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
                 {!form.name_ur?.trim() && (
                   <p className="text-[12px] font-sans text-amber-700 mt-1.5">{t('ac.noUrduNameNote')}</p>
                 )}
@@ -753,7 +753,7 @@ export default function AccountsPage() {
               </div>
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ac.labelUr')}</label>
-                <input value={headerForm.label_ur} onChange={(e) => setHeaderForm({ ...headerForm, label_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+                <input value={headerForm.label_ur} onChange={(e) => setHeaderForm({ ...headerForm, label_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
               </div>
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ac.shortCode')}</label>

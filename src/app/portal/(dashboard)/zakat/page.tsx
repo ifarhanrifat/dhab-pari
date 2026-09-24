@@ -80,7 +80,7 @@ export default function PortalZakatPage() {
       {/* ── Why you do not pick a recipient ─────────────────────────────── */}
       <div className="bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3.5 mb-5">
         <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mb-1.5"
-          style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+          style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }}>
           {guideWhyUrdu}
         </p>
         <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{guideWhyEnglish}</p>

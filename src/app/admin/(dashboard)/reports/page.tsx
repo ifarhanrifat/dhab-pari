@@ -417,7 +417,7 @@ function ReportsPageInner() {
       {loading ? (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans"><LoadingDots /></div>
       ) : (
-        <div ref={printRef} dir={lang === 'ur' ? 'rtl' : 'ltr'} style={lang === 'ur' ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+        <div ref={printRef} dir={lang === 'ur' ? 'rtl' : 'ltr'} style={lang === 'ur' ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
           <DocumentHeader title={`${dt(lang, reportTypeDocKeys[reportType])} — ${dt(lang, systemLabelKeys[system])}`} className="hidden print:block" />
 
           {reportType === 'trial_balance' && (

@@ -110,9 +110,9 @@ export default function SubmitBlogPage() {
 
       <div className="bg-white border border-dp-outline-variant rounded-lg p-6 space-y-4">
         <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('sb.titleEn')}</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" /></div>
-        <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('sb.titleUr')}</label><input value={form.title_ur} onChange={(e) => setForm({ ...form, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
+        <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('sb.titleUr')}</label><input value={form.title_ur} onChange={(e) => setForm({ ...form, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} /></div>
         <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('sb.contentEn')}</label><textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} rows={6} className="input-field resize-none" /></div>
-        <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('sb.contentUr')}</label><textarea value={form.content_ur} onChange={(e) => setForm({ ...form, content_ur: e.target.value })} rows={6} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
+        <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('sb.contentUr')}</label><textarea value={form.content_ur} onChange={(e) => setForm({ ...form, content_ur: e.target.value })} rows={6} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} /></div>
         <div>
           <ImageUpload bucket="images" currentUrl={form.cover_image_url} onUpload={(url) => setForm({ ...form, cover_image_url: url })} label={t('sb.coverImage')} />
         </div>

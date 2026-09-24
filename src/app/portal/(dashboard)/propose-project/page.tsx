@@ -253,7 +253,7 @@ export default function ProposeProjectPage() {
 
   if (tier === null) {
     return (
-      <div className="max-w-lg" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+      <div className="max-w-lg" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
         <div className="bg-white border border-dp-outline-variant rounded-lg p-8 text-center">
           <Lock size={28} className="text-dp-on-surface-variant mx-auto mb-3" />
           <h1 className="font-heading text-[20px] font-bold text-dp-primary mb-2">{dt('badgeRequiredTitle')}</h1>
@@ -268,7 +268,7 @@ export default function ProposeProjectPage() {
 
   return (
     <div>
-      <div className="mb-6" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+      <div className="mb-6" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
         <h1 className="font-heading text-[26px] font-bold text-dp-primary flex items-center gap-2"><Vote size={22} className="text-dp-secondary" /> {dt('heading')} <PortalHelp pageKey="proposeProject" /></h1>
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{dt('subtitle')}</p>
         <div className="mt-2 flex items-center gap-2">
@@ -277,13 +277,13 @@ export default function ProposeProjectPage() {
       </div>
 
       {canFastTrack(tier) && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3.5 mb-4 max-w-lg flex items-start gap-2.5" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3.5 mb-4 max-w-lg flex items-start gap-2.5" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
           <Zap size={16} className="text-indigo-700 shrink-0 mt-0.5" />
           <p className="font-sans text-[12.5px] text-indigo-900 leading-relaxed">{dt('fastTrackNote')}</p>
         </div>
       )}
 
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 max-w-lg" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 max-w-lg" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
         <div className="flex gap-3 mb-2">
           <ListChecks size={18} className="text-amber-700 shrink-0 mt-0.5" />
           <strong className="font-sans text-[13.5px] text-amber-900">{dt('conditionsTitle')}</strong>
@@ -300,13 +300,13 @@ export default function ProposeProjectPage() {
 
       <div className="bg-white border border-dp-outline-variant rounded-lg p-6 max-w-lg space-y-4">
         <div dir={isUrdu ? 'rtl' : 'ltr'}>
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('titleLabel')} *</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('titleLabel')} *</label>
           <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" />
         </div>
         <div dir={isUrdu ? 'rtl' : 'ltr'}>
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('descLabel')} *</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('descLabel')} *</label>
           <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} className="input-field resize-none" />
-          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5 leading-[17px]" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif', direction: 'rtl' } : undefined}>{dt('descGuide')}</p>
+          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5 leading-[17px]" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' } : undefined}>{dt('descGuide')}</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -323,7 +323,7 @@ export default function ProposeProjectPage() {
 
         <div>
           <ImageUpload bucket="images" label={dt('imageLabel')} currentUrl={form.image_url} onUpload={(url) => setForm({ ...form, image_url: url })} />
-          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif', direction: 'rtl' } : undefined}>{dt('imageGuide')}</p>
+          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' } : undefined}>{dt('imageGuide')}</p>
         </div>
 
         {/* AI cost estimate */}
@@ -430,7 +430,7 @@ export default function ProposeProjectPage() {
 
       {showConfirm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowConfirm(false)}>
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()} dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()} dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
             <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-3">{dt('confirmTitle')}</h2>
             <p className="font-sans text-[13.5px] text-dp-on-surface mb-2">
               {dt('confirmBody')} <strong>{form.self_commitment_amount_pkr.toLocaleString()}</strong> ({form.self_commitment_type === 'one_time' ? dt('oneTime') : dt('monthly')}).

@@ -3113,7 +3113,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 mt-3">{t('wz.d.reasonUr')}</label>
             <textarea value={dForm.reason_ur} onChange={(e) => setDForm({ ...dForm, reason_ur: e.target.value })}
               rows={2} className="input-field resize-none mb-1.5"
-              style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+              style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('wz.d.reason')}</label>
             <textarea value={dForm.reason} onChange={(e) => setDForm({ ...dForm, reason: e.target.value })}
               rows={2} className="input-field resize-none mb-1.5" />
@@ -3225,7 +3225,7 @@ const open = applications.filter((a) => ['submitted', 'screening', 'verified', '
                 <div>
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.nameUrdu')}</label>
                   <input value={form.full_name_ur} onChange={(e) => setForm({ ...form, full_name_ur: e.target.value })}
-                    className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+                    className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
                 </div>
                 <div>
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('nr.f.fatherHusband')}</label>

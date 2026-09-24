@@ -887,7 +887,7 @@ export default function ConnectionsPage() {
                   <div className="flex justify-between font-bold text-[15px] border-t border-dp-outline-variant pt-2 mt-2"><span>{t('a.total')}</span><span>{fmtAmount(total)}</span></div>
                 </div>
 
-                <div className="border-t border-dp-outline-variant pt-4 mt-4" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', textAlign: 'right' }}>
+                <div className="border-t border-dp-outline-variant pt-4 mt-4" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)', textAlign: 'right' }}>
                   <p className="text-[14px] font-bold mb-1.5">ہدایات</p>
                   <ul className="text-[13px] leading-relaxed list-disc list-inside space-y-1">
                     <li>یہ کنکشن 3 کام کے دنوں کے اندر نصب کر دیا جائے گا۔</li>

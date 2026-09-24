@@ -93,7 +93,7 @@ function ExpenseTable({ lines }: { lines: ExpenseLine[] }) {
 // report, never the live dashboard, so there's no separate on-screen size to preserve.
 function UrduExpenseTable({ lines }: { lines: ExpenseLine[] }) {
   return (
-    <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden w-fit" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+    <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden w-fit" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
       <table className="text-end">
         <thead>
           <tr className="text-dp-on-surface-variant text-[9.5px] font-sans font-bold border-b border-dp-outline-variant bg-dp-surface-container-low/60">
@@ -131,7 +131,7 @@ function UrduExpenseTable({ lines }: { lines: ExpenseLine[] }) {
 function PrintTableBlock({ heading, children }: { heading: string; children: React.ReactNode }) {
   return (
     <div className="mt-3 flex flex-col items-center">
-      <p dir="rtl" className="font-sans text-[10px] font-bold text-dp-primary mb-1" style={{ fontFamily: 'var(--font-urdu), serif' }}>{heading}</p>
+      <p dir="rtl" className="font-sans text-[10px] font-bold text-dp-primary mb-1" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{heading}</p>
       {children}
     </div>
   )
@@ -142,7 +142,7 @@ function PrintTableBlock({ heading, children }: { heading: string; children: Rea
 function UrduDiscountTable({ lines }: { lines: { consumer_name: string; amount: number }[] }) {
   if (lines.length === 0) return null
   return (
-    <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden w-fit" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+    <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden w-fit" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
       <table className="text-end">
         <thead>
           <tr className="text-dp-on-surface-variant text-[9.5px] font-sans font-bold border-b border-dp-outline-variant bg-dp-surface-container-low/60">
@@ -169,7 +169,7 @@ function UrduPendingBillsBySectorTable({ consumers }: { consumers: PendingBillCo
   if (consumers.length === 0) return null
   const sectors = Array.from(new Set(consumers.map((c) => c.sector))).sort()
   return (
-    <div dir="rtl" className="w-fit" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+    <div dir="rtl" className="w-fit" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
       {sectors.map((sector) => {
         const rows = consumers.filter((c) => c.sector === sector)
         const total = rows.reduce((s, r) => s + Number(r.amount), 0)
@@ -201,7 +201,7 @@ function UrduPendingBillsBySectorTable({ consumers }: { consumers: PendingBillCo
 function UrduTwoMonthDefaultersTable({ defaulters }: { defaulters: TwoMonthDefaulter[] }) {
   if (defaulters.length === 0) return null
   return (
-    <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden w-fit" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+    <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden w-fit" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
       <table className="text-end">
         <thead>
           <tr className="text-dp-on-surface-variant text-[9.5px] font-sans font-bold border-b border-dp-outline-variant bg-dp-surface-container-low/60">
@@ -230,7 +230,7 @@ function UrduTwoMonthDefaultersTable({ defaulters }: { defaulters: TwoMonthDefau
 function UrduNonPayersDueToComplaintTable({ entries, opinions }: { entries: NonPayerDueToComplaint[]; opinions: NonPayerOpinion[] }) {
   if (entries.length === 0) return null
   return (
-    <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden w-fit" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+    <div dir="rtl" className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden w-fit" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
       <table className="text-end">
         <thead>
           <tr className="text-dp-on-surface-variant text-[9.5px] font-sans font-bold border-b border-dp-outline-variant bg-dp-surface-container-low/60">
@@ -729,7 +729,7 @@ export default function RunningCapitalPage() {
                     const narrative = system === 'water_supply' ? buildClosingNarrative(viewTarget, 'واٹر سپلائی') : buildDonorClosingNarrative(viewTarget)
                     return (
                       <>
-                        <p dir="rtl" className="font-sans text-[11px] leading-[1.55] text-dp-on-surface whitespace-pre-wrap" style={{ fontFamily: 'var(--font-urdu), serif', textAlign: 'right' }}>
+                        <p dir="rtl" className="font-sans text-[11px] leading-[1.55] text-dp-on-surface whitespace-pre-wrap" style={{ fontFamily: 'var(--font-urdu-ui)', textAlign: 'right' }}>
                           {narrative.before}
                         </p>
 
@@ -747,7 +747,7 @@ export default function RunningCapitalPage() {
                           <PrintTableBlock heading="شکایت کی وجہ سے عدم ادائیگی"><UrduNonPayersDueToComplaintTable entries={viewTarget.non_payers_due_to_complaint} opinions={viewTarget.non_payer_opinions} /></PrintTableBlock>
                         )}
 
-                        <p dir="rtl" className="font-sans text-[11px] leading-[1.55] text-dp-on-surface whitespace-pre-wrap mt-3" style={{ fontFamily: 'var(--font-urdu), serif', textAlign: 'right' }}>
+                        <p dir="rtl" className="font-sans text-[11px] leading-[1.55] text-dp-on-surface whitespace-pre-wrap mt-3" style={{ fontFamily: 'var(--font-urdu-ui)', textAlign: 'right' }}>
                           {narrative.after}
                         </p>
                       </>

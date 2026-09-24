@@ -87,7 +87,7 @@ export function AddDonorModal({ onClose, onCreated }: AddDonorModalProps) {
           </div>
           <div>
             <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('g.nameUrdu')}</label>
-            <input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder="اردو میں نام" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+            <input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder="اردو میں نام" className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

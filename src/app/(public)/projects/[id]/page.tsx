@@ -352,7 +352,14 @@ export default function ProjectDetailPage() {
   const galleryStartIndex = (project.before_image_url ? 1 : 0) + (project.after_image_url ? 1 : 0)
 
   return (
-    <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-10 min-h-screen">
+    // Real report (2026-09-24): this page's own title/description/category
+    // badge/stat cards read left-aligned even under Urdu -- only a handful
+    // of inner sections opted into dir="rtl" piecemeal, the page itself
+    // never did. Unlike most of the app (see LocaleProvider's RTL_READY
+    // note), this page was already built entirely on logical properties
+    // (ps-/pe-/ms-/me-/border-s-, no ml-/pl-/left-/text-left anywhere), so
+    // it's safe to flip as a whole rather than one more scattered dir prop.
+    <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'}>
       <Link href="/projects" className="inline-flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold hover:underline mb-6"><ArrowLeft size={16} /> {tr('x.allProjects')}</Link>
 
       <div className="mb-8">
@@ -440,7 +447,7 @@ export default function ProjectDetailPage() {
 
       {channels.length > 0 && (
         <div className="mb-8" dir={isUrdu ? 'rtl' : 'ltr'}>
-          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide mb-1.5" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('receivedVia')}</p>
+          <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide mb-1.5" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('receivedVia')}</p>
           <div className="flex flex-wrap gap-x-5 gap-y-1">
             {channels.map((c) => (
               <p key={c.payment_method} className="font-sans text-[13.5px] text-dp-on-surface-variant">
@@ -623,9 +630,9 @@ export default function ProjectDetailPage() {
           display_language setting. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div dir={isUrdu ? 'rtl' : 'ltr'}>
-          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('announcedSub')}</p>
+          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('announcedSub')}</p>
           <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
-            {announced.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('noAnnounced')}</p>}
+            {announced.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('noAnnounced')}</p>}
             {announced.map((d) => (
               <div key={d.id} className="flex items-center justify-between px-5 py-3.5">
                 <div>
@@ -638,9 +645,9 @@ export default function ProjectDetailPage() {
           </div>
         </div>
         <div dir={isUrdu ? 'rtl' : 'ltr'}>
-          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('confirmedSub')}</p>
+          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('confirmedSub')}</p>
           <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
-            {verified.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant" style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('noConfirmed')}</p>}
+            {verified.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('noConfirmed')}</p>}
             {verified.map((d) => (
               <div key={d.id} className="flex items-center justify-between px-5 py-3.5">
                 <span className="font-sans text-[14px] font-semibold flex items-center gap-2"><CheckCircle size={14} className="text-dp-secondary" /> {d.name}</span>
@@ -652,9 +659,9 @@ export default function ProjectDetailPage() {
       </div>
 
       <div className="mb-8">
-        <p className="font-sans text-[14px] font-bold text-dp-on-surface mb-2" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('expensesHeading')}</p>
+        <p className="font-sans text-[14px] font-bold text-dp-on-surface mb-2" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('expensesHeading')}</p>
         <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
-          {expenses.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('noExpenses')}</p>}
+          {expenses.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('noExpenses')}</p>}
           {expenses.map((e) => (
             <div key={e.id} className="flex items-center justify-between px-5 py-3.5">
               <span className="font-sans text-[14px] flex items-center gap-2"><Receipt size={14} className="text-dp-error" /> {e.particular}</span>
@@ -669,7 +676,7 @@ export default function ProjectDetailPage() {
 
       {/* Discussion — always visible, per your ask (no tab to switch to). */}
       <div>
-        <p className="font-sans text-[14px] font-bold text-dp-on-surface mb-2" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>{dt('discussionHeading')}</p>
+        <p className="font-sans text-[14px] font-bold text-dp-on-surface mb-2" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('discussionHeading')}</p>
         <div className="bg-white border border-dp-outline-variant rounded-lg p-4 mb-4">
           <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} rows={2}
             placeholder={staffUser ? `Commenting as ${staffUser.full_name} (${STAFF_ROLE_LABEL[staffUser.role] ?? staffUser.role})` : portalUser ? 'Share your thoughts...' : 'Log in to join the discussion'}

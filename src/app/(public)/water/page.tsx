@@ -111,7 +111,7 @@ export default function WaterBillPage() {
             Water Bill Lookup ·{' '}
             <span
               className="text-[24px]"
-              style={{ fontFamily: 'var(--font-urdu), serif', lineHeight: '2.5' }}
+              style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2.5' }}
             >
               پانی کا بل چیک کریں
             </span>
@@ -152,7 +152,7 @@ export default function WaterBillPage() {
             <div>
               <label htmlFor="verify" className="block font-sans text-[16px] font-semibold text-dp-on-surface mb-2">
                 {t('x.lastFourDigits')}
-                <span className="block font-normal text-[14px] text-dp-on-surface-variant" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+                <span className="block font-normal text-[14px] text-dp-on-surface-variant" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
                   اپنے موبائل نمبر کے آخری 4 ہندسے، یا اپنا مکان نمبر
                 </span>
               </label>
@@ -214,7 +214,7 @@ export default function WaterBillPage() {
                   {latestBill.status === 'paid' && (
                     <div className="flex items-center gap-2 bg-dp-primary text-white px-6 py-3 rounded-full font-bold font-sans text-[14px]">
                       PAID ✓{' '}
-                      <span style={{ fontFamily: 'var(--font-urdu), serif' }}>
+                      <span style={{ fontFamily: 'var(--font-urdu-ui)' }}>
                         ادا شدہ
                       </span>
                     </div>
@@ -222,7 +222,7 @@ export default function WaterBillPage() {
                   {(latestBill.status === 'unpaid' || latestBill.status === 'late') && (
                     <div className="flex items-center gap-2 bg-dp-error text-white px-6 py-3 rounded-full font-bold font-sans text-[14px]">
                       UNPAID{' '}
-                      <span style={{ fontFamily: 'var(--font-urdu), serif' }}>
+                      <span style={{ fontFamily: 'var(--font-urdu-ui)' }}>
                         غیر ادا شدہ
                       </span>
                     </div>
@@ -230,7 +230,7 @@ export default function WaterBillPage() {
                   {latestBill.status === 'pending' && (
                     <div className="flex items-center gap-2 bg-amber-100 text-amber-800 px-6 py-3 rounded-full font-bold font-sans text-[14px]">
                       PENDING{' '}
-                      <span style={{ fontFamily: 'var(--font-urdu), serif' }}>
+                      <span style={{ fontFamily: 'var(--font-urdu-ui)' }}>
                         زیر التواء
                       </span>
                     </div>
@@ -299,7 +299,7 @@ export default function WaterBillPage() {
             <div className="space-y-4">
               <h3 className="font-sans text-[20px] font-semibold leading-[28px] text-dp-primary">
                 Billing History /{' '}
-                <span style={{ fontFamily: 'var(--font-urdu), serif' }}>
+                <span style={{ fontFamily: 'var(--font-urdu-ui)' }}>
                   بل کی تاریخ
                 </span>
               </h3>

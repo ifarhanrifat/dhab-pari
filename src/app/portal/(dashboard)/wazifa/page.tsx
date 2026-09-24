@@ -724,7 +724,7 @@ export default function PortalWazifaPage() {
           <h2 className={heading}>{title}</h2>
           {urdu && (
             <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mt-1 text-right"
-              style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>{urdu}</p>
+              style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }}>{urdu}</p>
           )}
           {help && <p className={`font-sans text-[12.5px] text-dp-on-surface-variant mt-1 leading-relaxed${isUrdu ? ' text-right' : ''}`}>{help}</p>}
         </div>
@@ -820,7 +820,7 @@ export default function PortalWazifaPage() {
         return (
           <div className={`${tone} text-white rounded-lg px-5 py-4 mb-6 print:hidden`}>
             <p className="font-sans text-[17px] leading-[2] font-bold"
-              dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }}>
+              dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl', textAlign: 'right' }}>
               {mottoUr}
             </p>
             <p className="font-sans text-[13.5px] leading-relaxed opacity-90 mt-1">{motto}</p>
@@ -936,12 +936,19 @@ export default function PortalWazifaPage() {
                     <Icon size={16} className="text-dp-secondary" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-heading text-[14px] font-bold text-dp-primary mb-1">{guideQ(k)}</h3>
+                    {/* guideQ/guideAnswer follow the site's display_language
+                        toggle (unlike guideUrduLine/guidePromiseUrduLine
+                        below, which are always Urdu) -- they were missing
+                        the dir/alignment those always-Urdu lines already
+                        had, so an Urdu answer here read left-aligned
+                        underneath a correctly right-aligned Urdu line right
+                        above it. Real report, 2026-09-24. */}
+                    <h3 className={`font-heading text-[14px] font-bold text-dp-primary mb-1${isUrdu ? ' text-right' : ''}`} dir={isUrdu ? 'rtl' : 'ltr'}>{guideQ(k)}</h3>
                     <p className="font-sans text-[15px] leading-[2] text-dp-on-surface mb-1"
-                      dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }}>
+                      dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl', textAlign: 'right' }}>
                       {guideUrduLine(k)}
                     </p>
-                    <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{guideAnswer(k)}</p>
+                    <p className={`font-sans text-[13px] text-dp-on-surface-variant leading-relaxed${isUrdu ? ' text-right' : ''}`} dir={isUrdu ? 'rtl' : 'ltr'}>{guideAnswer(k)}</p>
                   </div>
                 </div>
               ))}
@@ -950,10 +957,10 @@ export default function PortalWazifaPage() {
               <ShieldCheck size={17} className="text-dp-secondary shrink-0 mt-0.5" />
               <div>
                 <p className="font-sans text-[15px] leading-[2] text-dp-on-surface font-bold"
-                  dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }}>
+                  dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl', textAlign: 'right' }}>
                   {guidePromiseUrduLine}
                 </p>
-                <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed">{guidePromise}</p>
+                <p className={`font-sans text-[13px] text-dp-on-surface-variant leading-relaxed${isUrdu ? ' text-right' : ''}`} dir={isUrdu ? 'rtl' : 'ltr'}>{guidePromise}</p>
               </div>
             </div>
           </section>
@@ -1106,7 +1113,7 @@ export default function PortalWazifaPage() {
                       </p>
                       {d.reason_ur && (
                         <p className="font-sans text-[13.5px] text-dp-on-surface leading-relaxed"
-                          dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }}>
+                          dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl', textAlign: 'right' }}>
                           {d.reason_ur}
                         </p>
                       )}
@@ -1336,7 +1343,7 @@ export default function PortalWazifaPage() {
             <UserCheck size={17} className="text-dp-secondary shrink-0 mt-0.5" />
             <div className="min-w-0">
               <p className="font-sans text-[15px] leading-[2] text-dp-on-surface font-bold"
-                dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }}>
+                dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl', textAlign: 'right' }}>
                 {t('pwz.selfOnlyUr')}
               </p>
               <p className="font-sans text-[13px] text-dp-on-surface-variant leading-relaxed mt-1" dir={isUrdu ? 'rtl' : 'ltr'}>
@@ -1400,7 +1407,7 @@ export default function PortalWazifaPage() {
             <div>
               <label className={label}>{t('g.nameUrdu')}</label>
               <input value={form.student_full_name_ur} onChange={(e) => setForm({ ...form, student_full_name_ur: e.target.value })}
-                dir="rtl" className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }} />
+                dir="rtl" className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl', textAlign: 'right' }} />
             </div>
             <div>
               <label className={label}>{t('nr.f.address')}</label>
@@ -1895,7 +1902,7 @@ export default function PortalWazifaPage() {
           <div className="mt-4 border-2 border-dp-secondary/40 bg-dp-secondary/5 rounded-lg p-4">
             <p className="font-sans text-[14px] font-bold text-dp-on-surface mb-1">{t('pwz.s.share')}</p>
             <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mb-1"
-              dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }}>
+              dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl', textAlign: 'right' }}>
               {t('pwz.shareUrdu')}
             </p>
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3 leading-relaxed" dir={isUrdu ? 'rtl' : 'ltr'}>{t('pwz.shareEnglish')}</p>
@@ -2116,7 +2123,7 @@ export default function PortalWazifaPage() {
         <div className={`${section} print:break-inside-avoid`}>
           <StepHead n={11} title={t('pwz.s.declaration')} />
           <p className="font-sans text-[13px] text-dp-on-surface leading-relaxed mb-4"
-            dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }}>
+            dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl', textAlign: 'right' }}>
             {t('pwz.declarationUrdu')}
           </p>
           {/* One line per verifier this committee actually requires
@@ -2306,7 +2313,7 @@ export default function PortalWazifaPage() {
 
             {signing.terms_text_ur && (
               <p className="font-sans text-[14.5px] leading-[2] text-dp-on-surface mb-3"
-                dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl', textAlign: 'right' }}>
+                dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl', textAlign: 'right' }}>
                 {signing.terms_text_ur}
               </p>
             )}

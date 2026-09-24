@@ -524,7 +524,7 @@ export default function EsalESawabPage() {
                   <tr key={c.id} className={`${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''} ${!c.is_active ? 'opacity-50' : ''}`}>
                     <td className="p-3 border-b border-dp-outline-variant">
                       <span className="font-semibold">{c.name}</span>
-                      {c.name_ur && <span className="block text-[13px] text-dp-on-surface-variant" style={{ fontFamily: 'var(--font-urdu), serif' }}>{c.name_ur}</span>}
+                      {c.name_ur && <span className="block text-[13px] text-dp-on-surface-variant" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{c.name_ur}</span>}
                       {!c.is_active && <span className="ms-2 px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10.5px] font-bold">{t('es.retired')}</span>}
                     </td>
                     <td className="p-3 border-b border-dp-outline-variant text-end tabular-nums">{fmt(c.capital_cost_pkr)}</td>
@@ -811,7 +811,7 @@ export default function EsalESawabPage() {
             <input value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} className="input-field mb-3" />
             <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.nameUrdu')}</label>
             <input value={itemForm.name_ur} onChange={(e) => setItemForm({ ...itemForm, name_ur: e.target.value })}
-              className="input-field mb-3" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+              className="input-field mb-3" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
                 <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('es.col.capital')}</label>

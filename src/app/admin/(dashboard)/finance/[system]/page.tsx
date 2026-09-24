@@ -2586,7 +2586,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                   </div>
                   <div>
                     <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.nameUrdu')}</label>
-                    <input value={donationForm.name_ur} onChange={(e) => setDonationForm({ ...donationForm, name_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+                    <input value={donationForm.name_ur} onChange={(e) => setDonationForm({ ...donationForm, name_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">

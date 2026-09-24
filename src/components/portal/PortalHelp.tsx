@@ -60,7 +60,7 @@ export function PortalHelp({ pageKey }: { pageKey: PortalHelpKey }) {
         >
           <div
             dir="rtl"
-            style={{ fontFamily: 'var(--font-urdu), serif' }}
+            style={{ fontFamily: 'var(--font-urdu-ui)' }}
             className="bg-white w-full sm:max-w-[560px] sm:rounded-lg rounded-t-2xl max-h-[85vh] overflow-y-auto shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >

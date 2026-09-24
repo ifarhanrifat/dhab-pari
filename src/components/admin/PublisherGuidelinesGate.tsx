@@ -73,7 +73,7 @@ export function PublisherGuidelinesGate() {
 
         <div className="overflow-y-auto px-6 py-5 space-y-6">
           {textUr && (
-            <div dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }} className="font-sans text-[15px] leading-[2.1] text-dp-on-surface whitespace-pre-line">
+            <div dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }} className="font-sans text-[15px] leading-[2.1] text-dp-on-surface whitespace-pre-line">
               {textUr}
             </div>
           )}
@@ -88,7 +88,7 @@ export function PublisherGuidelinesGate() {
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="accent-dp-secondary mt-0.5 cursor-pointer" />
             <span className="font-sans text-[13.5px] text-dp-on-surface">
               I have read and understood these rules, and I will follow them.
-              <span className="block text-dp-on-surface-variant" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+              <span className="block text-dp-on-surface-variant" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
                 میں نے یہ اصول پڑھ اور سمجھ لیے ہیں اور ان پر عمل کروں گا۔
               </span>
             </span>

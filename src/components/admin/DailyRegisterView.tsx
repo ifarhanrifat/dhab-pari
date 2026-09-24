@@ -147,7 +147,7 @@ export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) 
         </button>
       </div>
 
-      <div ref={printRef} dir={lang === 'ur' ? 'rtl' : 'ltr'} style={lang === 'ur' ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+      <div ref={printRef} dir={lang === 'ur' ? 'rtl' : 'ltr'} style={lang === 'ur' ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
         <div className="bg-white rounded-lg border border-dp-outline-variant p-6 mb-4">
           <DocumentHeader
             title={`${dt(lang, 'dailyRegister')} — ${systemLabel}`}

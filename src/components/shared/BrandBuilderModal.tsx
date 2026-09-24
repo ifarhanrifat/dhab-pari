@@ -132,7 +132,7 @@ export function BrandBuilderModal({ shopId, primaryType, onClose, onSubmitted }:
 
         <div className="space-y-3 mb-4">
           <input value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder={t('bb.brandNamePlaceholder')} className="input-field" />
-          <input value={brandNameUr} onChange={(e) => setBrandNameUr(e.target.value)} placeholder={t('bb.brandNameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+          <input value={brandNameUr} onChange={(e) => setBrandNameUr(e.target.value)} placeholder={t('bb.brandNameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
           <div>
             <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('cm.categoryLabel')}</label>
             {category ? (
@@ -155,10 +155,10 @@ export function BrandBuilderModal({ shopId, primaryType, onClose, onSubmitted }:
                 {items.length > 1 && <button onClick={() => removeItem(r.key)} className="text-dp-on-surface-variant hover:text-dp-error cursor-pointer"><Trash2 size={14} /></button>}
               </div>
               <input value={r.name} onChange={(e) => setItemField(r.key, 'name', e.target.value)} placeholder={t('mk.productNamePlaceholder')} className="input-field" />
-              <input value={r.name_ur} onChange={(e) => setItemField(r.key, 'name_ur', e.target.value)} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+              <input value={r.name_ur} onChange={(e) => setItemField(r.key, 'name_ur', e.target.value)} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
               <div className="grid grid-cols-2 gap-2">
                 <input value={r.flavor} onChange={(e) => setItemField(r.key, 'flavor', e.target.value)} placeholder={t('sk.flavorPlaceholder')} className="input-field" />
-                <input value={r.flavor_ur} onChange={(e) => setItemField(r.key, 'flavor_ur', e.target.value)} placeholder={t('sk.flavorUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+                <input value={r.flavor_ur} onChange={(e) => setItemField(r.key, 'flavor_ur', e.target.value)} placeholder={t('sk.flavorUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <input type="number" value={r.cost_price_pkr} onChange={(e) => setItemField(r.key, 'cost_price_pkr', e.target.value)} placeholder={t('sk.costPriceLabel')} className="input-field" />

@@ -562,7 +562,7 @@ export default async function HomePage() {
                   {a.is_private ? (
                     <p className="text-[14px] font-sans text-dp-on-surface-variant italic"><T k="home.privateTask" /> <span className="font-semibold not-italic">{a.done_by_name ?? 'a committee member'}</span></p>
                   ) : (
-                    <p className="text-[14px] font-sans text-dp-on-surface" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{a.text_ur}</p>
+                    <p className="text-[14px] font-sans text-dp-on-surface" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{a.text_ur}</p>
                   )}
                 </div>
               ))}

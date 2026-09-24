@@ -305,7 +305,7 @@ export default function PortalRecurringPage() {
                 <div
                   dir={isUrdu ? 'rtl' : 'ltr'}
                   className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3"
-                  style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}
+                  style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
                 >
                   <p className="font-sans text-[13px] font-bold text-amber-900 mb-1.5">
                     {isUrdu ? 'اعلان کرنے سے پہلے' : 'Before you announce'}

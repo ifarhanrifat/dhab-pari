@@ -174,7 +174,7 @@ export default function PublicBloodPage() {
   )
 
   return (
-    <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+    <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="max-w-2xl mx-auto">
         <Link href="/" className={`inline-flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold tracking-[0.05em] hover:underline mb-8 ${isUrdu ? 'flex-row-reverse' : ''}`}>
           <ArrowLeft size={16} className={isUrdu ? 'rotate-180' : ''} />

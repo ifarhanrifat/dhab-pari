@@ -446,7 +446,7 @@ function AcademyFeesInner() {
             </div>
             <div>
               <label className="block font-sans text-[12px] font-semibold text-dp-on-surface-variant mb-1">{t('us.trainerBioUr')}</label>
-              <textarea value={myTrainerProfile.trainer_bio_ur} onChange={(e) => setMyTrainerProfile({ ...myTrainerProfile, trainer_bio_ur: e.target.value })} rows={3} dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }} className="input-field" />
+              <textarea value={myTrainerProfile.trainer_bio_ur} onChange={(e) => setMyTrainerProfile({ ...myTrainerProfile, trainer_bio_ur: e.target.value })} rows={3} dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }} className="input-field" />
             </div>
             <button onClick={saveMyProfile} disabled={savingProfile} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary disabled:opacity-50">
               {savingProfile ? t('af.saving') : t('af.saveChangesBtn')}
@@ -689,13 +689,13 @@ function AcademyFeesInner() {
             </div>
             <div className="space-y-3">
               <input value={batchForm.label} onChange={(e) => setBatchForm({ ...batchForm, label: e.target.value })} placeholder={t('af.batchLabelPlaceholder')} className="input-field" />
-              <input value={batchForm.label_ur} onChange={(e) => setBatchForm({ ...batchForm, label_ur: e.target.value })} placeholder={t('af.batchLabelUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+              <input value={batchForm.label_ur} onChange={(e) => setBatchForm({ ...batchForm, label_ur: e.target.value })} placeholder={t('af.batchLabelUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
               <input value={batchForm.schedule_note} onChange={(e) => setBatchForm({ ...batchForm, schedule_note: e.target.value })} placeholder={t('af.scheduleNotePlaceholder')} className="input-field" />
               {/* Optional — same fallback as label/label_ur above: a note
                   left English-only still shows fine in Urdu mode, this is
                   only for when the venue/time itself needs to read in
                   Urdu, e.g. "Village Community Hall" → "گاؤں کا کمیونٹی ہال". */}
-              <input value={batchForm.schedule_note_ur} onChange={(e) => setBatchForm({ ...batchForm, schedule_note_ur: e.target.value })} placeholder={t('af.scheduleNoteUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+              <input value={batchForm.schedule_note_ur} onChange={(e) => setBatchForm({ ...batchForm, schedule_note_ur: e.target.value })} placeholder={t('af.scheduleNoteUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
               <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('pj.batchesHint')}</p>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant mb-1">{t('pj.feeVillagerMonthly')}</label><input type="number" value={batchForm.fee_villager_monthly_pkr || ''} onChange={(e) => setBatchForm({ ...batchForm, fee_villager_monthly_pkr: +e.target.value })} className="input-field" placeholder="0" /></div>

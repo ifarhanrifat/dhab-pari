@@ -49,19 +49,19 @@ export default function EntertainmentPage() {
             >
               <h3
                 className="text-dp-primary text-[20px] font-bold mb-3"
-                style={{ fontFamily: 'var(--font-urdu), serif', lineHeight: '2', direction: 'rtl' }}
+                style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2', direction: 'rtl' }}
               >
                 {poem.title}
               </h3>
               <div
                 className="text-dp-on-surface text-[18px] mb-4 whitespace-pre-line"
-                style={{ fontFamily: 'var(--font-urdu), serif', lineHeight: '2.5', direction: 'rtl' }}
+                style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2.5', direction: 'rtl' }}
               >
                 {poem.lines}
               </div>
               <p
                 className="text-dp-on-surface-variant text-[14px] font-sans border-t border-dp-outline-variant pt-3"
-                style={{ direction: 'rtl', fontFamily: 'var(--font-urdu), serif' }}
+                style={{ direction: 'rtl', fontFamily: 'var(--font-urdu-ui)' }}
               >
                 — {poem.author}
               </p>

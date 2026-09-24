@@ -78,7 +78,7 @@ export function DonorBlogSubmissions() {
                   <DonorBadge tier={tiers[r.submitted_by_portal_user_id]} isUrdu={isUrdu} size="xs" />
                 </div>
                 <p className="font-sans text-[15px] font-bold text-dp-primary">{r.title}</p>
-                {r.title_ur && <p className="font-sans text-[14px] text-dp-on-surface-variant" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>{r.title_ur}</p>}
+                {r.title_ur && <p className="font-sans text-[14px] text-dp-on-surface-variant" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }}>{r.title_ur}</p>}
                 <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1.5 line-clamp-3">{r.content}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">

@@ -966,7 +966,7 @@ export default function MeetingsAgendaPage() {
                                   {catTasks.map((item) => (
                                     <div key={item.id} className={`border border-dp-outline-variant rounded-lg p-3 ${item.status === 'done' ? 'bg-emerald-50/40' : ''}`}>
                                       <div className="flex items-start justify-between gap-2">
-                                        <p className={`font-sans text-[14px] text-dp-on-surface flex-1 ${item.status === 'done' ? 'line-through opacity-70' : ''}`} dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{item.text_ur}</p>
+                                        <p className={`font-sans text-[14px] text-dp-on-surface flex-1 ${item.status === 'done' ? 'line-through opacity-70' : ''}`} dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{item.text_ur}</p>
                                         <div className="flex items-center gap-1.5 shrink-0">
                                           {item.carried_from_item_id ? (
                                             <span title="Carried forward from a previous meeting" className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">↻ Carried ×{item.carry_count}</span>
@@ -1040,7 +1040,7 @@ export default function MeetingsAgendaPage() {
                             const phone = s.raised_by_committee_member_id ? members.find((m) => m.id === s.raised_by_committee_member_id)?.phone : s.raised_by_mobile
                             return (
                               <div key={s.id} className="border border-dp-outline-variant rounded-lg p-3">
-                                <p className="font-sans text-[14px] text-dp-on-surface" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{s.text_ur}</p>
+                                <p className="font-sans text-[14px] text-dp-on-surface" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{s.text_ur}</p>
                                 {s.raised_by_committee_member_id ? (
                                   <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">Raised by {memberName(s.raised_by_committee_member_id)}</p>
                                 ) : s.raised_by_name ? (
@@ -1096,7 +1096,7 @@ export default function MeetingsAgendaPage() {
                           {emergencyJobs.slice().sort((a, b) => (a.status === 'done' ? 0 : 1) - (b.status === 'done' ? 0 : 1)).map((item) => (
                             <div key={item.id} className={`border border-red-200 bg-red-50/40 rounded-lg p-3 ${item.status === 'done' ? 'opacity-70' : ''}`}>
                               <div className="flex items-start justify-between gap-2">
-                                <p className={`font-sans text-[14px] text-dp-on-surface flex-1 ${item.status === 'done' ? 'line-through' : ''}`} dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{item.text_ur}</p>
+                                <p className={`font-sans text-[14px] text-dp-on-surface flex-1 ${item.status === 'done' ? 'line-through' : ''}`} dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{item.text_ur}</p>
                                 <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${statusStyles[item.status]}`}>{item.status.replace('_', ' ')}</span>
                               </div>
                               <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">Called by {adminName(item.created_by_admin_user_id) ?? 'Unknown'}</p>
@@ -1210,7 +1210,7 @@ export default function MeetingsAgendaPage() {
             <div className="p-5 space-y-4">
               <div>
                 <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.pointUr')}</label>
-                <textarea value={taskForm.text_ur} onChange={(e) => setTaskForm({ ...taskForm, text_ur: e.target.value })} rows={3} className="input-field resize-none" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }} />
+                <textarea value={taskForm.text_ur} onChange={(e) => setTaskForm({ ...taskForm, text_ur: e.target.value })} rows={3} className="input-field resize-none" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }} />
               </div>
               <div>
                 <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('w.category')}</label>
@@ -1267,7 +1267,7 @@ export default function MeetingsAgendaPage() {
             <div className="p-5 space-y-4">
               <div>
                 <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.suggestionUr')}</label>
-                <textarea value={suggestionForm.text_ur} onChange={(e) => setSuggestionForm({ ...suggestionForm, text_ur: e.target.value })} rows={3} className="input-field resize-none" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }} />
+                <textarea value={suggestionForm.text_ur} onChange={(e) => setSuggestionForm({ ...suggestionForm, text_ur: e.target.value })} rows={3} className="input-field resize-none" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }} />
               </div>
               <div>
                 <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.raisedBy')}</label>
@@ -1311,7 +1311,7 @@ export default function MeetingsAgendaPage() {
                       <p className="font-sans text-[11px] text-dp-on-surface-variant mt-2 mb-1.5">AI extraction doesn't auto-remove already-resolved points (Urdu handwriting isn't reliable enough to match automatically) — compare against this list yourself.</p>
                       <div className="space-y-1 max-h-40 overflow-y-auto">
                         {recentDonePoints.map((t, i) => (
-                          <p key={i} className="font-sans text-[13px] text-dp-on-surface-variant border-b border-dp-outline-variant/60 pb-1" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{t}</p>
+                          <p key={i} className="font-sans text-[13px] text-dp-on-surface-variant border-b border-dp-outline-variant/60 pb-1" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{t}</p>
                         ))}
                       </div>
                     </details>
@@ -1324,7 +1324,7 @@ export default function MeetingsAgendaPage() {
                       </label>
                       <textarea
                         value={p.text} onChange={(e) => updateExtracted(i, { text: e.target.value })} rows={2}
-                        className="input-field resize-none mb-2" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}
+                        className="input-field resize-none mb-2" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}
                         disabled={!p.include}
                       />
                       <select
@@ -1428,7 +1428,7 @@ export default function MeetingsAgendaPage() {
               </p>
               <div>
                 <label className="block font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.jobDescUr')}</label>
-                <textarea value={emergencyText} onChange={(e) => setEmergencyText(e.target.value)} rows={3} className="input-field resize-none" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }} autoFocus />
+                <textarea value={emergencyText} onChange={(e) => setEmergencyText(e.target.value)} rows={3} className="input-field resize-none" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }} autoFocus />
               </div>
             </div>
             <div className="flex gap-2 p-4 border-t border-dp-outline-variant">
@@ -1531,7 +1531,7 @@ export default function MeetingsAgendaPage() {
               <p className="font-sans text-[11px] font-bold text-dp-on-surface-variant uppercase tracking-[0.05em] mb-1.5">{t('mt.messagePreview')}</p>
               <pre
                 className="whitespace-pre-wrap bg-dp-surface-container-low/60 border border-dp-outline-variant rounded-lg p-3 text-[13.5px] font-sans max-h-64 overflow-y-auto"
-                dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}
+                dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}
               >
                 {buildAgendaText(noticeFor)}
               </pre>
@@ -1549,7 +1549,7 @@ export default function MeetingsAgendaPage() {
                         <Send size={11} /> {t('g.send')}
                       </button>
                     ) : (
-                      <span className="font-sans text-[11px] text-dp-on-surface-variant shrink-0" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+                      <span className="font-sans text-[11px] text-dp-on-surface-variant shrink-0" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
                         {(() => {
                           const notifier = members.find((x) => x.handles_non_whatsapp_notice)
                           return notifier ? `${notifier.name_ur || notifier.name} کو خود اطلاع دیں گے` : 'کمیٹی سیکرٹری کو خود اطلاع دیں گے'

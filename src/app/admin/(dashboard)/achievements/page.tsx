@@ -91,7 +91,7 @@ export default function AdminAchievementsPage() {
                   <p className="font-sans text-[13.5px] text-dp-on-surface-variant italic mt-1">{t('x.privateCompletedBy')} <span className="font-semibold not-italic">{a.done_by_name ?? '—'}</span></p>
                 ) : (
                   <>
-                    <p className="font-sans text-[14px] text-dp-on-surface mt-1" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{a.text_ur}</p>
+                    <p className="font-sans text-[14px] text-dp-on-surface mt-1" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{a.text_ur}</p>
                     {a.done_by_name && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{t('x.completedBy')} <span className="font-semibold">{a.done_by_name}</span></p>}
                   </>
                 )}

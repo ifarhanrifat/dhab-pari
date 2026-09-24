@@ -922,11 +922,11 @@ function MyShopPageInner() {
             <div className="space-y-3">
               <ImageUpload bucket="images" label={t('mk.productPhoto')} currentUrl={coverUrl} onUpload={setCoverUrl} />
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('mk.productNamePlaceholder')} className="input-field" />
-              <input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+              <input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
               <input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder={t('sk.companyPlaceholder')} className="input-field" />
               <div className="grid grid-cols-2 gap-3">
                 <input value={form.flavor} onChange={(e) => setForm({ ...form, flavor: e.target.value })} placeholder={t('sk.flavorPlaceholder')} className="input-field" />
-                <input value={form.flavor_ur} onChange={(e) => setForm({ ...form, flavor_ur: e.target.value })} placeholder={t('sk.flavorUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+                <input value={form.flavor_ur} onChange={(e) => setForm({ ...form, flavor_ur: e.target.value })} placeholder={t('sk.flavorUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
               </div>
               <div>
                 <label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('cm.categoryLabel')}</label>
@@ -970,7 +970,7 @@ function MyShopPageInner() {
                 <div><label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('mk.stockLabel')}</label><input type="number" value={form.quantity_on_hand || ''} onChange={(e) => setForm({ ...form, quantity_on_hand: +e.target.value })} className="input-field" placeholder="0" /></div>
                 <div>
                   <label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1">{t('sk.unitLabel')}</label>
-                  <select value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="input-field" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>
+                  <select value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="input-field" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
                     {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
@@ -1006,7 +1006,7 @@ function MyShopPageInner() {
                   <div className="space-y-2 p-2.5 border border-dashed" style={{ borderColor: '#dcd8d4' }}>
                     <div className="grid grid-cols-2 gap-2">
                       <input value={packForm.label} onChange={(e) => setPackForm({ ...packForm, label: e.target.value })} placeholder={t('sk.packLabelPlaceholder')} className="input-field" />
-                      <input value={packForm.label_ur} onChange={(e) => setPackForm({ ...packForm, label_ur: e.target.value })} placeholder={t('sk.packLabelUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+                      <input value={packForm.label_ur} onChange={(e) => setPackForm({ ...packForm, label_ur: e.target.value })} placeholder={t('sk.packLabelUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <input type="number" value={packForm.pack_qty} onChange={(e) => setPackForm({ ...packForm, pack_qty: e.target.value })} placeholder={t('sk.packQtyPlaceholder').replace('{unit}', form.unit)} className="input-field" />
@@ -1189,9 +1189,9 @@ function MyShopPageInner() {
             </div>
             <div className="space-y-3">
               <input value={kitForm.name} onChange={(e) => setKitForm({ ...kitForm, name: e.target.value })} placeholder={t('sk.kitNamePlaceholder')} className="input-field" />
-              <input value={kitForm.name_ur} onChange={(e) => setKitForm({ ...kitForm, name_ur: e.target.value })} placeholder={t('sk.kitNameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+              <input value={kitForm.name_ur} onChange={(e) => setKitForm({ ...kitForm, name_ur: e.target.value })} placeholder={t('sk.kitNameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
               <input value={kitForm.sub} onChange={(e) => setKitForm({ ...kitForm, sub: e.target.value })} placeholder={t('sk.kitSubPlaceholder')} className="input-field" />
-              <input value={kitForm.sub_ur} onChange={(e) => setKitForm({ ...kitForm, sub_ur: e.target.value })} placeholder={t('sk.kitSubUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+              <input value={kitForm.sub_ur} onChange={(e) => setKitForm({ ...kitForm, sub_ur: e.target.value })} placeholder={t('sk.kitSubUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
 
               <div>
                 <label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1.5">{t('sk.kitCardLookLabel')}</label>
@@ -1298,9 +1298,9 @@ function MyShopPageInner() {
             </div>
             <div className="space-y-3">
               <input value={dealForm.name} onChange={(e) => setDealForm({ ...dealForm, name: e.target.value })} placeholder={t('sk.dealNamePlaceholder')} className="input-field" />
-              <input value={dealForm.name_ur} onChange={(e) => setDealForm({ ...dealForm, name_ur: e.target.value })} placeholder={t('sk.dealNameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+              <input value={dealForm.name_ur} onChange={(e) => setDealForm({ ...dealForm, name_ur: e.target.value })} placeholder={t('sk.dealNameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
               <input value={dealForm.sub} onChange={(e) => setDealForm({ ...dealForm, sub: e.target.value })} placeholder={t('sk.dealSubPlaceholder')} className="input-field" />
-              <input value={dealForm.sub_ur} onChange={(e) => setDealForm({ ...dealForm, sub_ur: e.target.value })} placeholder={t('sk.dealSubUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+              <input value={dealForm.sub_ur} onChange={(e) => setDealForm({ ...dealForm, sub_ur: e.target.value })} placeholder={t('sk.dealSubUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
 
               <div>
                 <label className="block font-sans text-[12.5px] font-semibold text-[#5b544f] mb-1.5">{t('sk.kitCardLookLabel')}</label>

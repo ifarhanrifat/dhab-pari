@@ -169,7 +169,7 @@ export default function PortalMyVolunteeringPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-sans text-[14.5px] font-semibold text-dp-on-surface">{t.title}</p>
-                  {t.title_ur && <p className="font-sans text-[13px] text-dp-on-surface-variant" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{t.title_ur}</p>}
+                  {t.title_ur && <p className="font-sans text-[13px] text-dp-on-surface-variant" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{t.title_ur}</p>}
                   {t.detail && <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">{t.detail}</p>}
                   <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">
                     {projectTitle(t.project_id)}
@@ -217,7 +217,7 @@ export default function PortalMyVolunteeringPage() {
                       <input type="checkbox" checked={helpTypes.includes(h.id)} onChange={() => toggleHelp(h.id)} className="accent-dp-secondary mt-0.5 cursor-pointer" />
                       <span className="min-w-0">
                         <span className="block font-sans text-[13px] text-dp-on-surface">{h.en}</span>
-                        <span className="block font-sans text-[12px] text-dp-on-surface-variant" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{h.ur}</span>
+                        <span className="block font-sans text-[12px] text-dp-on-surface-variant" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{h.ur}</span>
                       </span>
                     </label>
                   ))}
@@ -238,7 +238,7 @@ export default function PortalMyVolunteeringPage() {
                 <input type="checkbox" checked={canTravel} onChange={(e) => setCanTravel(e.target.checked)} className="accent-dp-secondary mt-0.5 cursor-pointer" />
                 <span className="min-w-0">
                   <span className="block font-sans text-[13px] text-dp-on-surface">{tr('p.canTravelOutside')}</span>
-                  <span className="block font-sans text-[12px] text-dp-on-surface-variant" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>ضرورت پڑنے پر میں گاؤں سے باہر جا سکتا ہوں</span>
+                  <span className="block font-sans text-[12px] text-dp-on-surface-variant" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>ضرورت پڑنے پر میں گاؤں سے باہر جا سکتا ہوں</span>
                 </span>
               </label>
 

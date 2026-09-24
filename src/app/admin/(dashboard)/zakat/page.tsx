@@ -321,7 +321,7 @@ export default function ZakatPage() {
                 <div>
                   <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.nameUrdu')}</label>
                   <input value={newRound.name_ur} onChange={(e) => setNewRound({ ...newRound, name_ur: e.target.value })}
-                    className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+                    className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
                 </div>
               </div>
 

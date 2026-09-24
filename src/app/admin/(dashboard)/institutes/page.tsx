@@ -126,14 +126,14 @@ export default function InstitutesPage() {
             </div>
             <div className="space-y-3">
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('in.name')} className="input-field" />
-              <input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder={t('w.nameUrdu')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+              <input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} placeholder={t('w.nameUrdu')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">
                 {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
               <input value={form.subjects} onChange={(e) => setForm({ ...form, subjects: e.target.value })} placeholder={t('in.subjects')} className="input-field" />
-              <input value={form.subjects_ur} onChange={(e) => setForm({ ...form, subjects_ur: e.target.value })} placeholder={t('in.subjectsUr')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+              <input value={form.subjects_ur} onChange={(e) => setForm({ ...form, subjects_ur: e.target.value })} placeholder={t('in.subjectsUr')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder={t('in.description')} rows={2} className="input-field resize-none" />
-              <textarea value={form.description_ur} onChange={(e) => setForm({ ...form, description_ur: e.target.value })} placeholder={t('in.descriptionUr')} rows={2} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+              <textarea value={form.description_ur} onChange={(e) => setForm({ ...form, description_ur: e.target.value })} placeholder={t('in.descriptionUr')} rows={2} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
               <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder={t('in.address')} className="input-field" />
               <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder={t('in.phone')} className="input-field" />
               <input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder={t('in.website')} className="input-field" />

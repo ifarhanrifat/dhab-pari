@@ -84,7 +84,7 @@ export default function WelfarePage() {
           <div>
             <h2 className="font-heading text-[19px] font-bold text-dp-primary mb-1.5">{t('wf.privacy.title')}</h2>
             <p className="font-sans text-[14px] text-dp-on-surface leading-relaxed"
-              style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+              style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }}>
               {t('wf.privacy.urdu')}
             </p>
             <p className="font-sans text-[13.5px] text-dp-on-surface-variant leading-relaxed mt-2">{t('wf.privacy.english')}</p>
@@ -159,7 +159,7 @@ export default function WelfarePage() {
       <div className="bg-white border border-dp-outline-variant rounded-lg p-6">
         <h2 className="font-heading text-[22px] font-bold text-dp-primary mb-3">{t('wf.apply.title')}</h2>
         <p className="font-sans text-[14px] text-dp-on-surface leading-relaxed mb-3"
-          style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+          style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }}>
           {t('wf.apply.urdu')}
         </p>
         <p className="font-sans text-[13.5px] text-dp-on-surface-variant leading-relaxed mb-4">{t('wf.apply.english')}</p>

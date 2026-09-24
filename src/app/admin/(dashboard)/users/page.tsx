@@ -881,7 +881,7 @@ export default function AdminUsersPage() {
                           </div>
                           <div>
                             <label className="block font-sans text-[12px] font-semibold text-teal-900 mb-1">{t('us.trainerBioUr')}</label>
-                            <textarea value={collectorForm.trainer_bio_ur} onChange={(e) => setCollectorForm({ ...collectorForm, trainer_bio_ur: e.target.value })} rows={2} dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }} className="input-field" />
+                            <textarea value={collectorForm.trainer_bio_ur} onChange={(e) => setCollectorForm({ ...collectorForm, trainer_bio_ur: e.target.value })} rows={2} dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }} className="input-field" />
                           </div>
                           <p className="font-sans text-[11.5px] text-teal-800">{t('us.trainerProfileHint')}</p>
                         </div>

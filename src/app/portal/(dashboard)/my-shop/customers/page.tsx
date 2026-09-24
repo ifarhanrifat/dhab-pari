@@ -441,7 +441,7 @@ export default function CustomersPage() {
             </div>
             <div className="space-y-2.5">
               <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t('sk.customerNamePlaceholder')} className="input-field" />
-              <input value={newNameUr} onChange={(e) => setNewNameUr(e.target.value)} placeholder={t('sk.customerNameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+              <input value={newNameUr} onChange={(e) => setNewNameUr(e.target.value)} placeholder={t('sk.customerNameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
               <input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder={t('sk.customerPhonePlaceholder')} className="input-field ltr-num" dir="ltr" />
               <button onClick={addCustomer} disabled={saving} className="w-full text-white py-3 font-sans font-semibold cursor-pointer disabled:opacity-50" style={{ background: ACCENT }}>
                 {saving ? t('action.saving') : t('g.saveChanges')}

@@ -68,7 +68,7 @@ export default async function KafalatChildSharePage({ params }: { params: Promis
           )}
           <h1 className="font-heading text-[26px] font-bold mt-4">{child.first_name}</h1>
           {child.first_name_ur && (
-            <p className="text-[20px] mt-1 opacity-90" style={{ fontFamily: 'var(--font-urdu), serif' }}>{child.first_name_ur}</p>
+            <p className="text-[20px] mt-1 opacity-90" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{child.first_name_ur}</p>
           )}
           <div className="flex items-center justify-center gap-2 mt-3 flex-wrap">
             {child.is_orphan && <span className="px-2.5 py-1 rounded-full bg-sky-500/90 text-[11.5px] font-bold">یتیم · Orphan</span>}
@@ -86,7 +86,7 @@ export default async function KafalatChildSharePage({ params }: { params: Promis
         {/* ── The pitch, in Urdu first ──────────────────────────────────── */}
         <div className="px-6 py-6">
           <p className="text-[19px] leading-[2.1] text-dp-on-surface font-bold text-center"
-            style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }}>
+            style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }}>
             {isFull
               ? `${child.first_name_ur ?? child.first_name} کی اس سال کی تعلیمی ضرورت مکمل طور پر پوری ہو چکی ہے، الحمدللہ۔`
               : `${child.first_name_ur ?? child.first_name} کو اس سال تعلیم جاری رکھنے کے لیے آپ کی مدد کی ضرورت ہے۔ ایک ماہانہ حصہ، اپنے بچے کی طرح ساتھ دیں۔`}

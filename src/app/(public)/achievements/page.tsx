@@ -45,7 +45,7 @@ export default function AchievementsPage() {
                   <p className="font-sans text-[14.5px] text-dp-on-surface-variant italic">{t('x.privateCompletedBy')} <span className="font-semibold not-italic">{a.done_by_name ?? 'a committee member'}</span></p>
                 ) : (
                   <>
-                    <p className="font-sans text-[15px] text-dp-on-surface" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{a.text_ur}</p>
+                    <p className="font-sans text-[15px] text-dp-on-surface" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{a.text_ur}</p>
                     <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{t('x.completedBy')} <span className="font-semibold">{a.done_by_name ?? 'a committee member'}</span></p>
                   </>
                 )}

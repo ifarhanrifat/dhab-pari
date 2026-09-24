@@ -115,7 +115,7 @@ export default function SadqaJariyaPage() {
               {(i.plaque_text || i.plaque_text_ur) && (
                 <div className="inline-block px-4 py-2.5 rounded border-[3px] border-dp-outline bg-dp-surface-container-low mb-3">
                   <p className="font-sans text-[12.5px] font-bold tracking-[0.06em] text-center"
-                    style={isUrdu && i.plaque_text_ur ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+                    style={isUrdu && i.plaque_text_ur ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
                     {isUrdu && i.plaque_text_ur ? i.plaque_text_ur : i.plaque_text}
                   </p>
                 </div>
@@ -123,7 +123,7 @@ export default function SadqaJariyaPage() {
 
               <p className="font-sans text-[14px] text-dp-on-surface">
                 {t('es.inMemoryOf')}{' '}
-                <strong style={isUrdu && i.dedicated_to_ur ? { fontFamily: 'var(--font-urdu), serif' } : undefined}>
+                <strong style={isUrdu && i.dedicated_to_ur ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
                   {isUrdu && i.dedicated_to_ur ? i.dedicated_to_ur : i.dedicated_to}
                 </strong>
               </p>

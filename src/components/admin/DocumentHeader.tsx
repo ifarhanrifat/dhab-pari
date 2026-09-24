@@ -33,7 +33,7 @@ export function DocumentHeader({ title, subtitle, className = '' }: Props) {
         />
       )}
       {showUrdu && (
-        <p className="text-[18px] font-bold mb-1.5" style={{ fontFamily: 'var(--font-urdu), serif' }}>{companyNameUr}</p>
+        <p className="text-[18px] font-bold mb-1.5" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{companyNameUr}</p>
       )}
       <p className="text-[15px] font-bold">{companyNameEn}</p>
       <p className="text-[13px] text-dp-on-surface-variant mt-1">{title}</p>

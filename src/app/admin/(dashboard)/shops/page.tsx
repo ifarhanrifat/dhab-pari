@@ -649,9 +649,9 @@ function AdminShopsInner() {
                 <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('cm.shopTypeHint')}</p>
               </div>
               <input value={shopForm.name} onChange={(e) => setShopForm({ ...shopForm, name: e.target.value })} placeholder={t('mk.shopNamePlaceholder')} className="input-field" />
-              <input value={shopForm.name_ur} onChange={(e) => setShopForm({ ...shopForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+              <input value={shopForm.name_ur} onChange={(e) => setShopForm({ ...shopForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
               <textarea value={shopForm.description} onChange={(e) => setShopForm({ ...shopForm, description: e.target.value })} rows={2} placeholder={t('a.notesOptional')} className="input-field resize-none" />
-              <textarea value={shopForm.description_ur} onChange={(e) => setShopForm({ ...shopForm, description_ur: e.target.value })} rows={2} placeholder={t('mk.descriptionUrPlaceholder')} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+              <textarea value={shopForm.description_ur} onChange={(e) => setShopForm({ ...shopForm, description_ur: e.target.value })} rows={2} placeholder={t('mk.descriptionUrPlaceholder')} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
               <div className="grid grid-cols-2 gap-3">
                 <input value={shopForm.owner_name} onChange={(e) => setShopForm({ ...shopForm, owner_name: e.target.value })} placeholder={t('mk.ownerNamePlaceholder')} className="input-field" />
                 <input value={shopForm.owner_mobile} onChange={(e) => setShopForm({ ...shopForm, owner_mobile: e.target.value })} placeholder={t('a.phone')} className="input-field" />
@@ -659,7 +659,7 @@ function AdminShopsInner() {
               <input value={shopForm.owner_whatsapp} onChange={(e) => setShopForm({ ...shopForm, owner_whatsapp: e.target.value })} placeholder={t('w.whatsapp')} className="input-field" />
               <div className="grid grid-cols-2 gap-3">
                 <input value={shopForm.location} onChange={(e) => setShopForm({ ...shopForm, location: e.target.value })} placeholder={t('z.location')} className="input-field" />
-                <input value={shopForm.location_ur} onChange={(e) => setShopForm({ ...shopForm, location_ur: e.target.value })} placeholder={t('pj.locationUr')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+                <input value={shopForm.location_ur} onChange={(e) => setShopForm({ ...shopForm, location_ur: e.target.value })} placeholder={t('pj.locationUr')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
               </div>
               <select value={shopForm.status} onChange={(e) => setShopForm({ ...shopForm, status: e.target.value })} className="input-field">
                 <option value="active">{t('mk.active')}</option>
@@ -719,13 +719,13 @@ function AdminShopsInner() {
             <div className="space-y-3">
               <ImageUpload bucket="images" label={t('mk.productPhoto')} currentUrl={productCoverUrl} onUpload={setProductCoverUrl} />
               <input value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} placeholder={t('mk.productNamePlaceholder')} className="input-field" />
-              <input value={productForm.name_ur} onChange={(e) => setProductForm({ ...productForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+              <input value={productForm.name_ur} onChange={(e) => setProductForm({ ...productForm, name_ur: e.target.value })} placeholder={t('mk.nameUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
               <textarea value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} rows={2} placeholder={t('a.notesOptional')} className="input-field resize-none" />
               <div className="grid grid-cols-2 gap-3">
                 <input value={productForm.company} onChange={(e) => setProductForm({ ...productForm, company: e.target.value })} placeholder={t('sk.companyPlaceholder')} className="input-field" />
                 <div className="grid grid-cols-2 gap-3">
                   <input value={productForm.flavor} onChange={(e) => setProductForm({ ...productForm, flavor: e.target.value })} placeholder={t('sk.flavorPlaceholder')} className="input-field" />
-                  <input value={productForm.flavor_ur} onChange={(e) => setProductForm({ ...productForm, flavor_ur: e.target.value })} placeholder={t('sk.flavorUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif' }} dir="rtl" />
+                  <input value={productForm.flavor_ur} onChange={(e) => setProductForm({ ...productForm, flavor_ur: e.target.value })} placeholder={t('sk.flavorUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)' }} dir="rtl" />
                 </div>
               </div>
               <div>

@@ -215,7 +215,7 @@ export default function SchoolsPage() {
                     )}
                   </div>
                   {s.name_ur && (
-                    <p className="font-sans text-[13.5px] text-dp-on-surface-variant" style={{ fontFamily: 'var(--font-urdu), serif' }}>{s.name_ur}</p>
+                    <p className="font-sans text-[13.5px] text-dp-on-surface-variant" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{s.name_ur}</p>
                   )}
 
                   <p className="font-sans text-[13px] text-dp-on-surface mt-1.5">
@@ -295,7 +295,7 @@ export default function SchoolsPage() {
                 <div>
                   <label className={label}>{t('g.nameUrdu')}</label>
                   <input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })}
-                    className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+                    className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
                 </div>
               </div>
 

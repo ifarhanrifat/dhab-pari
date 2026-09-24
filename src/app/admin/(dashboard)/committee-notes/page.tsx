@@ -146,7 +146,7 @@ export default function CommitteeNotesPage() {
                 {n.is_published ? <span className="text-dp-secondary text-[10px] font-bold font-sans flex items-center gap-1"><Eye size={12} />{t('g.published')}</span> : <span className="text-dp-on-surface-variant text-[10px] font-bold font-sans flex items-center gap-1"><EyeOff size={12} />{t('y.draft')}</span>}
               </div>
               {n.body_en && <p className="font-sans text-[14px] text-dp-on-surface mb-1">{n.body_en}</p>}
-              {n.body_ur && <p className="font-sans text-[14px] text-dp-on-surface" dir="rtl" style={{ fontFamily: 'var(--font-urdu), serif' }}>{n.body_ur}</p>}
+              {n.body_ur && <p className="font-sans text-[14px] text-dp-on-surface" dir="rtl" style={{ fontFamily: 'var(--font-urdu-ui)' }}>{n.body_ur}</p>}
               {linkChip(n) && (
                 <p className="flex items-center gap-1 font-sans text-[12px] font-semibold text-dp-secondary mt-1.5">
                   {n.linked_project_id ? <FolderKanban size={12} /> : <Link2 size={12} />} {linkChip(n)}
@@ -177,7 +177,7 @@ export default function CommitteeNotesPage() {
             <div className="space-y-4">
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('cmn.releaseDate')}</label><input type="date" value={form.release_date} onChange={(e) => setForm({ ...form, release_date: e.target.value })} className="input-field" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('cmn.bodyEn')}</label><textarea value={form.body_en} onChange={(e) => setForm({ ...form, body_en: e.target.value })} rows={5} className="input-field resize-none" /></div>
-              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('cmn.bodyUr')}</label><textarea value={form.body_ur} onChange={(e) => setForm({ ...form, body_ur: e.target.value })} rows={5} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} /></div>
+              <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('cmn.bodyUr')}</label><textarea value={form.body_ur} onChange={(e) => setForm({ ...form, body_ur: e.target.value })} rows={5} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} /></div>
               <div>
                 <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('cmn.linkedProject')}</label>
                 <select value={form.linkType} onChange={(e) => setForm({ ...form, linkType: e.target.value as LinkType })} className="input-field">
@@ -205,7 +205,7 @@ export default function CommitteeNotesPage() {
                   <div className="space-y-2 mt-2">
                     <input value={form.custom_url} onChange={(e) => setForm({ ...form, custom_url: e.target.value })} placeholder={t('cmn.customUrlPlaceholder')} className="input-field" />
                     <input value={form.custom_label_en} onChange={(e) => setForm({ ...form, custom_label_en: e.target.value })} placeholder={t('cmn.customLabelEnPlaceholder')} className="input-field" />
-                    <input value={form.custom_label_ur} onChange={(e) => setForm({ ...form, custom_label_ur: e.target.value })} placeholder={t('cmn.customLabelUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu), serif', direction: 'rtl' }} />
+                    <input value={form.custom_label_ur} onChange={(e) => setForm({ ...form, custom_label_ur: e.target.value })} placeholder={t('cmn.customLabelUrPlaceholder')} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
                   </div>
                 )}
 
