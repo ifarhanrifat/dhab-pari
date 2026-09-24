@@ -113,11 +113,20 @@ export function Header() {
                 group (not a 1:1 chat) — the floating button on every page
                 is the direct "chat with us" contact instead. Sized down
                 (padding, icon, text) to give the nav row more room. */}
+            {/* h-[32px] explicit, same escape hatch LanguageToggle already
+                uses (see its own comment) and for the same reason: these
+                three sit in one row, and a plain py-1.5-driven natural
+                height drifts a couple of px under Urdu (the html[lang='ur']
+                a { line-height, padding-bottom } rule in globals.css) while
+                the toggle's fixed height never moves — real report,
+                2026-09-24, "WhatsApp/Login buttons not aligned with the
+                toggle". Explicit height on all three removes the drift
+                instead of chasing it with more line-height tuning. */}
             <a
               href={SITE.whatsappGroupLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden md:flex items-center gap-1 bg-[#25D366] text-white px-2.5 py-1.5 rounded-lg font-sans text-[12px] font-semibold tracking-[0.02em] hover:bg-[#1ebe5a] transition-all active:scale-95 whitespace-nowrap"
+              className="hidden md:flex items-center gap-1 h-[32px] bg-[#25D366] text-white px-2.5 rounded-lg font-sans text-[12px] font-semibold tracking-[0.02em] hover:bg-[#1ebe5a] transition-all active:scale-95 whitespace-nowrap"
             >
               <MessageCircle size={14} />
               {t('site.joinGroup')}
@@ -130,7 +139,7 @@ export function Header() {
             {isPortalUser ? (
               <Link
                 href="/portal"
-                className="hidden md:flex items-center gap-1 bg-amber-500 text-white px-2.5 py-1.5 rounded-lg font-sans text-[12px] font-semibold tracking-[0.02em] hover:bg-amber-600 transition-all active:scale-95 whitespace-nowrap"
+                className="hidden md:flex items-center gap-1 h-[32px] bg-amber-500 text-white px-2.5 rounded-lg font-sans text-[12px] font-semibold tracking-[0.02em] hover:bg-amber-600 transition-all active:scale-95 whitespace-nowrap"
               >
                 <UserCircle2 size={14} />
                 {t('site.myPortal')}
@@ -138,7 +147,7 @@ export function Header() {
             ) : (
               <Link
                 href="/portal/login"
-                className="hidden md:flex items-center gap-1 border border-white/40 text-white px-2.5 py-1.5 rounded-lg font-sans text-[12px] font-semibold tracking-[0.02em] hover:bg-white/10 hover:border-white/70 transition-all active:scale-95 whitespace-nowrap"
+                className="hidden md:flex items-center gap-1 h-[32px] border border-white/40 text-white px-2.5 rounded-lg font-sans text-[12px] font-semibold tracking-[0.02em] hover:bg-white/10 hover:border-white/70 transition-all active:scale-95 whitespace-nowrap"
               >
                 <UserCircle2 size={14} />
                 {t('site.login')}

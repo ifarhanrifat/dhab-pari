@@ -161,7 +161,7 @@ function DonateSubmitPageInner() {
             <HeartHandshake size={32} />
           </div>
           <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary mb-2">{dt('title')}</h1>
-          <p className="text-dp-on-surface-variant font-sans text-[16px]" style={isUrdu ? { lineHeight: '2.2' } : undefined}>
+          <p className="text-dp-on-surface-variant font-sans text-[16px]" style={isUrdu ? { lineHeight: '1.6' } : undefined}>
             {dt('subtitle')}
           </p>
         </div>
@@ -170,7 +170,7 @@ function DonateSubmitPageInner() {
           <div className="bg-white border border-dp-outline-variant rounded-lg p-12 text-center">
             <CheckCircle size={48} className="text-dp-secondary mx-auto mb-4" />
             <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mb-2">{dt('submittedTitle')}</h2>
-            <p className="text-dp-on-surface-variant font-sans text-[16px] mb-6" style={isUrdu ? { lineHeight: '2.2' } : undefined}>
+            <p className="text-dp-on-surface-variant font-sans text-[16px] mb-6" style={isUrdu ? { lineHeight: '1.6' } : undefined}>
               {dt('submittedBody')}
             </p>
             <Link href="/donate" className="inline-block bg-dp-secondary text-white px-8 py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all">

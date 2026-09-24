@@ -105,13 +105,26 @@ export default function WaterBillPage() {
       {/* ===== LEFT: Main Content ===== */}
       <div className="flex-1 space-y-8">
 
-        {/* Page Title */}
+        {/* Page Title — always bilingual regardless of the language toggle
+            (a public utility page where either script should be findable),
+            not driven by isUrdu. Real report with a screenshot, 2026-09-24:
+            the Urdu half was overlapping/wrapping into the English half on
+            a phone. Two causes, both now fixed: lineHeight: 2.5 was a
+            leftover from the Nastaliq era (see globals.css's font-urdu-ui
+            comment) — Noto Sans Arabic needs nowhere near that much room,
+            and stacking it on an h1 already carrying its own line-height
+            produced inconsistent, overlapping line boxes when the two
+            scripts wrapped together. And the two halves had no separating
+            structure at all (just an inline "·" and a space) to wrap
+            cleanly at a narrow width — a flex row with its own gap does. */}
         <div className="space-y-2">
-          <h1 className="font-heading text-[24px] md:text-[32px] font-bold leading-[32px] md:leading-[40px] text-dp-primary section-title">
-            Water Bill Lookup ·{' '}
+          <h1 className="font-heading text-[24px] md:text-[32px] font-bold text-dp-primary section-title flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span>Water Bill Lookup</span>
+            <span aria-hidden>·</span>
             <span
-              className="text-[24px]"
-              style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2.5' }}
+              className="text-[22px] md:text-[28px]"
+              dir="rtl"
+              style={{ fontFamily: 'var(--font-urdu-ui)' }}
             >
               پانی کا بل چیک کریں
             </span>

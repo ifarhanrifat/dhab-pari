@@ -76,7 +76,7 @@ export default function SuggestionsPage() {
           </p>
           <p
             className="text-dp-on-surface-variant text-[18px] mt-2"
-            style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2.5' }}
+            style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6' }}
           >
             اپنی تجاویز، شکایات یا رضاکارانہ خدمات کے لیے رابطہ کریں
           </p>
@@ -111,7 +111,7 @@ export default function SuggestionsPage() {
             </p>
             <p
               className="text-dp-on-surface-variant text-[16px] mb-6"
-              style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2.5' }}
+              style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6' }}
             >
               آپ کی {tabs.find((t) => t.key === activeTab)?.labelUr} کامیابی سے جمع ہو گئی ہے۔
             </p>

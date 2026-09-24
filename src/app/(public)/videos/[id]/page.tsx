@@ -54,7 +54,7 @@ export default async function VideoDetailPage({
           {video.title_ur && (
             <p
               className="text-dp-on-surface-variant text-[20px] mb-4"
-              style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2.5', direction: 'rtl' }}
+              style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6', direction: 'rtl' }}
             >
               {video.title_ur}
             </p>

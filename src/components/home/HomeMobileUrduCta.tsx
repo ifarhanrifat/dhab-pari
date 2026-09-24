@@ -10,13 +10,13 @@ export function HomeMobileUrduCta() {
     <section className="md:hidden mx-4 mb-6 bg-dp-primary p-6 rounded-lg text-center">
       <h3
         className="text-white text-[18px] mb-4"
-        style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2.5' }}
+        style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6' }}
       >
         کمیٹی سے رابطہ کریں۔
       </h3>
       <p
         className="text-white/80 text-[16px] leading-loose mb-6"
-        style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2.5' }}
+        style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6' }}
       >
         {SITE.fullNameUrdu} گاؤں کی ترقی اور خوشحالی کے لیے ہمہ وقت
         کوشاں ہے۔ کسی بھی شکایت یا تجویز کے لیے بٹن دبائیں۔

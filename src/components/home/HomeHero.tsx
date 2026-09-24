@@ -54,7 +54,7 @@ export function HomeHero() {
           </p>
           <p
             className="text-dp-on-primary-container text-[18px] mb-8 leading-relaxed"
-            style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2.5' }}
+            style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6' }}
           >
             {SITE.taglineUrdu}
           </p>

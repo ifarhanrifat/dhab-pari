@@ -55,7 +55,7 @@ export default function EntertainmentPage() {
               </h3>
               <div
                 className="text-dp-on-surface text-[18px] mb-4 whitespace-pre-line"
-                style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2.5', direction: 'rtl' }}
+                style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6', direction: 'rtl' }}
               >
                 {poem.lines}
               </div>

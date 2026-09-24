@@ -66,7 +66,7 @@ export default function ComplaintsPage() {
           <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px]">
             Tell us what went wrong — a committee member will be assigned to look into it.
           </p>
-          <p className="text-dp-on-surface-variant text-[18px] mt-2" style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2.5' }}>
+          <p className="text-dp-on-surface-variant text-[18px] mt-2" style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6' }}>
             اپنی شکایت درج کروائیں — کمیٹی کا ایک رکن اس پر کام کرے گا
           </p>
           <p className="font-sans text-[13px] text-dp-on-surface-variant mt-3">

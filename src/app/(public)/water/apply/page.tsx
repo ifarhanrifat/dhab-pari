@@ -125,7 +125,7 @@ export default function WaterApplyPage() {
           <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary mb-2">
             {dt('title')}
           </h1>
-          <p className="text-dp-on-surface-variant font-sans text-[16px]" style={isUrdu ? { lineHeight: '2.2' } : undefined}>
+          <p className="text-dp-on-surface-variant font-sans text-[16px]" style={isUrdu ? { lineHeight: '1.6' } : undefined}>
             {dt('subtitle')}
           </p>
         </div>
@@ -137,7 +137,7 @@ export default function WaterApplyPage() {
             <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mb-2">
               {dt('submittedTitle')}
             </h2>
-            <p className="text-dp-on-surface-variant font-sans text-[16px] mb-6" style={isUrdu ? { lineHeight: '2.2' } : undefined}>
+            <p className="text-dp-on-surface-variant font-sans text-[16px] mb-6" style={isUrdu ? { lineHeight: '1.6' } : undefined}>
               {dt('submittedBody')}
             </p>
             <Link

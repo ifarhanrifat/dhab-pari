@@ -80,7 +80,7 @@ export default async function AboutPage() {
         </h1>
         <p
           className="text-dp-on-surface-variant text-[20px] mb-2"
-          style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2.5' }}
+          style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6' }}
         >
           {SITE.committeeUrdu}
         </p>

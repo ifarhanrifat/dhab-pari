@@ -107,7 +107,7 @@ export default async function NewsDetailPage({
         {post.title_ur && (
           <p
             className="text-dp-on-surface-variant text-[22px] mb-6"
-            style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '2.5', direction: 'rtl' }}
+            style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6', direction: 'rtl' }}
           >
             {post.title_ur}
           </p>
@@ -154,7 +154,7 @@ export default async function NewsDetailPage({
                 className="text-dp-on-surface text-[18px] mb-4"
                 style={{
                   fontFamily: 'var(--font-urdu-ui)',
-                  lineHeight: '2.5',
+                  lineHeight: '1.6',
                   direction: 'rtl',
                 }}
               >
