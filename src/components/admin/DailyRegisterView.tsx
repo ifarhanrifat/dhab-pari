@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Printer } from 'lucide-react'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
+import { DocumentFooter } from '@/components/admin/DocumentFooter'
 import { entryTypeLabel } from '@/lib/ledgerLabels'
 import { dt, type Lang } from '@/lib/docTranslations'
 import { translateParticular } from '@/lib/ledgerParticular'
@@ -212,6 +213,7 @@ export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) 
             </table>
           </div>
         </div>
+        <DocumentFooter lang={lang} />
       </div>
     </>
   )

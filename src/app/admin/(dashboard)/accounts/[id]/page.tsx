@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
+import { DocumentFooter } from '@/components/admin/DocumentFooter'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { entryTypeLabel, voucherReceiptKind } from '@/lib/ledgerLabels'
@@ -668,10 +669,10 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
           <table className="w-full text-start min-w-[720px]">
             <thead>
               <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                <th className="px-4 py-2.5">{dt(lang, 'date')}</th>
-                <th className="px-4 py-2.5">{dt(lang, 'type')}</th>
+                <th className="px-4 py-2.5 w-[85px]">{dt(lang, 'date')}</th>
+                <th className="px-4 py-2.5 w-[100px]">{dt(lang, 'type')}</th>
                 <th className="px-4 py-2.5">{dt(lang, 'particular')}</th>
-                <th className="px-4 py-2.5">{dt(lang, 'billHash')}</th>
+                <th className="px-4 py-2.5 w-[110px]">{dt(lang, 'billHash')}</th>
                 {consumerInfo && <th className="px-4 py-2.5 text-center">{dt(lang, 'connections')}</th>}
                 {account.type === 'donor' ? (
                   <th className="px-4 py-2.5 text-end">{dt(lang, 'amountDonated')}</th>
@@ -783,6 +784,8 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
           </table>
         </div>
       </div>
+
+      <DocumentFooter lang={lang} />
       </div>
 
       {receipt && <ReceiptModal data={receipt} phone={consumerInfo?.mobile} system={account?.system === 'donors_projects' ? 'donors_projects' : 'water_supply'} onClose={() => setReceipt(null)} />}

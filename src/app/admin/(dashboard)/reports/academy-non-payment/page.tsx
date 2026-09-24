@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/client'
 import { AlertTriangle, Printer, Phone } from 'lucide-react'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
+import { DocumentFooter } from '@/components/admin/DocumentFooter'
 import { dt, type Lang } from '@/lib/docTranslations'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
@@ -189,6 +190,7 @@ export default function AcademyNonPaymentReportPage() {
           </div>
         </div>
       ))}
+      <DocumentFooter lang={lang} />
     </div>
   )
 }

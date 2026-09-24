@@ -17,6 +17,7 @@ import {
   type NonPayerOpinion, type PendingBillConsumer, type NonPayerDueToComplaint, type TwoMonthDefaulter,
 } from '@/lib/monthlyClosingNarrative'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
+import { DocumentFooter } from '@/components/admin/DocumentFooter'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
@@ -753,6 +754,7 @@ export default function RunningCapitalPage() {
                       </>
                     )
                   })()}
+                  <DocumentFooter lang={lang} />
                 </div>
               </div>
 

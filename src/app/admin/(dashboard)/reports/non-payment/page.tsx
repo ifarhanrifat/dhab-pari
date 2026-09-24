@@ -7,6 +7,7 @@ import { AlertTriangle, Printer, Phone } from 'lucide-react'
 import { billBadge } from '@/lib/billStatus'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
+import { DocumentFooter } from '@/components/admin/DocumentFooter'
 import { useRef } from 'react'
 import { dt, type Lang } from '@/lib/docTranslations'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -212,6 +213,7 @@ export default function NonPaymentReportPage() {
           </div>
         </div>
       ))}
+      <DocumentFooter lang={lang} />
     </div>
   )
 }

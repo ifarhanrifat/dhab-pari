@@ -177,46 +177,94 @@ export async function copyImageToClipboard(blob: Blob): Promise<boolean> {
   }
 }
 
-/**
- * Prints a blob (PDF) in an isolated, about:blank-hosted document instead of the live page.
- * Browsers inject the page's own URL into printed headers/footers — calling window.print()
- * on an actual admin route would leak internal URLs (and account UUIDs) onto anything printed
- * or handed to a consumer/donor. Printing a blob: document has no admin URL to leak.
- */
-export function printBlob(blob: Blob) {
-  const url = URL.createObjectURL(blob)
-  const win = window.open(url, '_blank')
-  if (!win) {
-    // Popup blocked — fall back to a plain download so the user can still print manually.
-    downloadBlob(blob, 'document.pdf')
-    return
+// Real report (2026-09-24): tapping Print inside the native Android shell
+// left the app unable to navigate back afterward. Both print functions used
+// to open a *real new window* (window.open) and print that -- correct in a
+// desktop/mobile browser tab, but this app also runs as a Capacitor WebView
+// (see capacitor.config.ts), which is a single window with no real
+// multi-tab/multi-window support the way a browser has. window.open() there
+// either does nothing or, worse, can navigate the one WebView itself away
+// from the live Next.js route -- which is exactly what "can't get back to
+// the page" looks like: the SPA's client-side router state is just gone.
+//
+// A hidden <iframe> never has this problem on either platform: nothing
+// navigates, no window is created, the calling page and its history are
+// completely untouched. Positioned off-screen (not zero-sized) rather than
+// display:none -- some WebViews skip layout/rendering entirely for an
+// element with no box, which would print a blank page.
+function printViaHiddenIframe(populate: (iframe: HTMLIFrameElement) => void) {
+  const iframe = document.createElement('iframe')
+  iframe.style.cssText = 'position:fixed; top:-9999px; left:-9999px; width:100%; height:100%; border:0;'
+  document.body.appendChild(iframe)
+
+  let printed = false
+  const triggerPrint = () => {
+    if (printed) return
+    printed = true
+    try {
+      iframe.contentWindow?.focus()
+      iframe.contentWindow?.print()
+    } finally {
+      setTimeout(() => iframe.remove(), 60_000)
+    }
   }
-  win.addEventListener('load', () => {
-    win.print()
-    setTimeout(() => URL.revokeObjectURL(url), 60_000)
-  })
+
+  iframe.onload = () => {
+    // Real report (2026-09-24): printed reports/statements came out with no
+    // company name, logo, or account name -- DocumentHeader is deliberately
+    // `hidden print:block` (visible on paper, not on the admin's own
+    // on-screen preview). That CSS rule only exists once the stylesheet
+    // that defines it has actually loaded in this freshly-created
+    // document, and stylesheets load asynchronously -- iframe.onload firing
+    // (DOM parsed) is not the same moment as "every <link> has applied."
+    // Printing in that gap meant `hidden` had no matching rule yet and the
+    // header/logo/footer just weren't there. Wait for every stylesheet to
+    // actually load before calling print(), with a 2s ceiling in case one
+    // never fires, instead of racing it.
+    const doc = iframe.contentDocument
+    const sheets = doc ? Array.from(doc.querySelectorAll('link[rel="stylesheet"]')) : []
+    if (sheets.length === 0) { triggerPrint(); return }
+    let remaining = sheets.length
+    sheets.forEach((link) => {
+      const settle = () => { remaining -= 1; if (remaining <= 0) triggerPrint() }
+      link.addEventListener('load', settle, { once: true })
+      link.addEventListener('error', settle, { once: true })
+    })
+    setTimeout(triggerPrint, 2000)
+  }
+
+  populate(iframe)
 }
 
 /**
- * Prints a DOM node by cloning it into a fresh about:blank popup (with the app's own
- * stylesheets attached) and printing that instead of the live page. Used for large/complex
- * regions (e.g. a full statement table) where rasterizing via html2canvas is unreliable —
- * this also solves the same URL-leak problem as printBlob(), since about:blank carries no
- * admin route or account id into the printed output.
+ * Prints a blob (PDF) without navigating anywhere. Also solves the URL-leak
+ * problem this always had: browsers inject the page's own URL into printed
+ * headers/footers, so printing the live admin route directly would leak its
+ * internal URL (and account UUID) into the printout — a blob: URL has none.
+ */
+export function printBlob(blob: Blob) {
+  const url = URL.createObjectURL(blob)
+  printViaHiddenIframe((iframe) => { iframe.src = url })
+}
+
+/**
+ * Prints a DOM node by cloning it into a hidden iframe (with the app's own
+ * stylesheets attached) instead of the live page. Used for large/complex
+ * regions (e.g. a full statement table) where rasterizing via html2canvas is
+ * unreliable — same URL-leak fix as printBlob() above, since the iframe's
+ * own document carries no admin route or account id into the printed output.
  */
 export function printNodeInPopup(node: HTMLElement, title = 'Print') {
-  const win = window.open('', '_blank')
-  if (!win) return false
-
   const styleTags = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
     .map((el) => el.outerHTML)
     .join('\n')
-
-  win.document.open()
-  win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>${styleTags}</head><body>${node.outerHTML}</body></html>`)
-  win.document.close()
-
-  win.addEventListener('load', () => win.print())
+  printViaHiddenIframe((iframe) => {
+    const doc = iframe.contentDocument
+    if (!doc) return
+    doc.open()
+    doc.write(`<!DOCTYPE html><html><head><title>${title}</title>${styleTags}</head><body>${node.outerHTML}</body></html>`)
+    doc.close()
+  })
   return true
 }
 

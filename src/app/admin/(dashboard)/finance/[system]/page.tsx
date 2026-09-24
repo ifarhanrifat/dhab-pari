@@ -2702,18 +2702,24 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                 50 rows per document type (not a real date-range query), so
                 this date range narrows what's already loaded rather than
                 fetching further back. */}
-            <div className="px-4 py-3 border-b border-dp-outline-variant flex items-center gap-2">
-              <div className="relative flex-1 min-w-0">
+            {/* Search used to share one row with the date-range button --
+                on a phone, that button's own whitespace-nowrap date text
+                (e.g. "4 Mar '26 - 24 Sept '26") ate most of the row, leaving
+                search squeezed into a sliver next to it. Same fix as the
+                Chart of Accounts toolbar: search always gets its own
+                full-width row, the button sits on its own line below it. */}
+            <div className="px-4 py-3 border-b border-dp-outline-variant space-y-2">
+              <div className="relative">
                 <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
                 <input
                   value={logSearch} onChange={(e) => setLogSearch(e.target.value)}
                   placeholder={t('tx.searchPlaceholder')}
-                  className="input-field !ps-9 text-[14px]"
+                  className="input-field !ps-9 text-[14px] w-full"
                 />
               </div>
               <button
                 onClick={() => setShowLogFilterSheet(true)}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-2.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:border-dp-primary/30 hover:text-dp-primary transition-all cursor-pointer"
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3 py-2.5 bg-white border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-on-surface hover:border-dp-primary/30 hover:text-dp-primary transition-all cursor-pointer"
               >
                 <SlidersHorizontal size={15} />
                 <span dir="ltr" className="whitespace-nowrap">{formatRangeLabel(logFrom, logTo)}</span>

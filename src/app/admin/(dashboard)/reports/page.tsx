@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Printer, ExternalLink } from 'lucide-react'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
+import { DocumentFooter } from '@/components/admin/DocumentFooter'
 import { dt, type Lang, type DocStringKey } from '@/lib/docTranslations'
 import { translateParticular } from '@/lib/ledgerParticular'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
@@ -581,15 +582,15 @@ function ReportsPageInner() {
           {reportType === 'donor_report' && (
             <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-start min-w-[600px]">
+                <table className="w-full text-start min-w-[650px]">
                   <thead>
                     <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                      <th className="px-4 py-2.5">{dt(lang, 'date')}</th>
-                      <th className="px-4 py-2.5">{dt(lang, 'receiptHash')}</th>
+                      <th className="px-4 py-2.5 w-[85px]">{dt(lang, 'date')}</th>
+                      <th className="px-4 py-2.5 w-[95px]">{dt(lang, 'receiptHash')}</th>
                       <th className="px-4 py-2.5">{dt(lang, 'donor')}</th>
                       <th className="px-4 py-2.5">{dt(lang, 'project')}</th>
-                      <th className="px-4 py-2.5">{dt(lang, 'method')}</th>
-                      <th className="px-4 py-2.5 text-end">{dt(lang, 'amount')}</th>
+                      <th className="px-4 py-2.5 w-[90px]">{dt(lang, 'method')}</th>
+                      <th className="px-4 py-2.5 text-end w-[110px]">{dt(lang, 'amount')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -624,15 +625,22 @@ function ReportsPageInner() {
                 <div className="px-4 py-12 text-center text-dp-on-surface-variant font-sans">{dt(lang, 'selectAccountToView')}</div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-start min-w-[550px]">
+                  {/* table-layout: fixed + explicit widths on every column
+                      except particular -- real report, 2026-09-24: "give
+                      width to description columns and decrease the date
+                      column lengths." auto layout was giving date and
+                      particular roughly equal room regardless of content;
+                      particular now gets whatever's left, which on a real
+                      statement is most of the row. */}
+                  <table className="w-full text-start min-w-[640px] [table-layout:fixed]">
                     <thead>
                       <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                        <th className="px-4 py-2.5">{dt(lang, 'date')}</th>
+                        <th className="px-4 py-2.5 w-[85px]">{dt(lang, 'date')}</th>
                         <th className="px-4 py-2.5">{dt(lang, 'particular')}</th>
-                        <th className="px-4 py-2.5">{dt(lang, 'billHash')}</th>
-                        <th className="px-4 py-2.5 text-end">{dt(lang, 'debit')}</th>
-                        <th className="px-4 py-2.5 text-end">{dt(lang, 'credit')}</th>
-                        <th className="px-4 py-2.5 text-end">{dt(lang, 'balance')}</th>
+                        <th className="px-4 py-2.5 w-[110px]">{dt(lang, 'billHash')}</th>
+                        <th className="px-4 py-2.5 text-end w-[100px]">{dt(lang, 'debit')}</th>
+                        <th className="px-4 py-2.5 text-end w-[100px]">{dt(lang, 'credit')}</th>
+                        <th className="px-4 py-2.5 text-end w-[110px]">{dt(lang, 'balance')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -685,6 +693,8 @@ function ReportsPageInner() {
               )}
             </div>
           )}
+
+          <DocumentFooter lang={lang} />
         </div>
       )}
     </div>
