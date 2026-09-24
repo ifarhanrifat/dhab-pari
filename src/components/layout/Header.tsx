@@ -33,6 +33,13 @@ export function Header() {
   const pathname = usePathname()
   const { open: mobileOpen, setOpen: setMobileOpen } = useMobileNav()
   const [isPortalUser, setIsPortalUser] = useState(false)
+  // Real report, 2026-09-25: a staff/admin account has no portal_users row
+  // at all, so navigating here from /admin via the sidebar's new "Back to
+  // Website" link showed the plain "Log In" button -- indistinguishable
+  // from being logged out, even though the same Supabase session is still
+  // fully active underneath. Checked separately from isPortalUser (a real
+  // person can be neither, either, or in principle both).
+  const [isStaffUser, setIsStaffUser] = useState(false)
 
   // A registered donor/consumer is a website user too — surface a single
   // "My Portal" entry point when logged in, rather than duplicating the
@@ -41,8 +48,12 @@ export function Header() {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
-      const { data } = await supabase.from('portal_users').select('id').eq('auth_user_id', user.id).eq('is_active', true).maybeSingle()
-      if (data) setIsPortalUser(true)
+      const [{ data: pu }, { data: au }] = await Promise.all([
+        supabase.from('portal_users').select('id').eq('auth_user_id', user.id).eq('is_active', true).maybeSingle(),
+        supabase.from('admin_users').select('id').eq('auth_user_id', user.id).eq('is_active', true).maybeSingle(),
+      ])
+      if (pu) setIsPortalUser(true)
+      if (au) setIsStaffUser(true)
     })
   }, [])
 
@@ -136,7 +147,15 @@ export function Header() {
                 had no handler and never switched anything. Hidden on the
                 narrowest phones, where the mobile drawer carries its own. */}
             <span className="hidden sm:block"><LanguageToggle compact /></span>
-            {isPortalUser ? (
+            {isStaffUser ? (
+              <Link
+                href="/admin"
+                className="hidden md:flex items-center gap-1 h-[32px] bg-sky-600 text-white px-2.5 rounded-lg font-sans text-[12px] font-semibold tracking-[0.02em] hover:bg-sky-700 transition-all active:scale-95 whitespace-nowrap"
+              >
+                <UserCircle2 size={14} />
+                {t('site.adminPanel')}
+              </Link>
+            ) : isPortalUser ? (
               <Link
                 href="/portal"
                 className="hidden md:flex items-center gap-1 h-[32px] bg-amber-500 text-white px-2.5 rounded-lg font-sans text-[12px] font-semibold tracking-[0.02em] hover:bg-amber-600 transition-all active:scale-95 whitespace-nowrap"
@@ -162,6 +181,7 @@ export function Header() {
         onClose={() => setMobileOpen(false)}
         navLinks={navLinks}
         isPortalUser={isPortalUser}
+        isStaffUser={isStaffUser}
       />
     </>
   )

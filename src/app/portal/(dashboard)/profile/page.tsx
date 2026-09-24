@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { UserCog, KeyRound, Droplets, CheckCircle2, Copy } from 'lucide-react'
+import { UserCog, KeyRound, Droplets, CheckCircle2, Copy, Eye, EyeOff } from 'lucide-react'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { SITE } from '@/lib/constants'
@@ -36,6 +36,15 @@ export default function PortalProfilePage() {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [changingPassword, setChangingPassword] = useState(false)
+  // Real ask, 2026-09-25: no way to see what you're typing into either
+  // password field -- both were plain type="password" with no toggle at
+  // all. What's actually stored server-side (a Supabase Auth hash) can
+  // never be shown back, by design, no matter what -- this fixes the real,
+  // buildable half of the ask: seeing your own keystrokes before you
+  // submit, so a typo in "current password" doesn't read as "wrong
+  // password" with no way to check what was actually typed.
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
 
   useEffect(() => {
     createClient().from('sectors').select('name').order('display_order').order('name').then(({ data }) => setSectors((data ?? []).map((s) => s.name)))
@@ -238,11 +247,21 @@ export default function PortalProfilePage() {
         <h2 className="font-heading text-[18px] font-bold text-dp-primary flex items-center gap-2"><KeyRound size={18} className="text-dp-secondary" /> {t('p.changePassword')}</h2>
         <div>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('p.currentPassword')}</label>
-          <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" className="input-field" />
+          <div className="relative">
+            <input type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" className="input-field pe-10" />
+            <button type="button" onClick={() => setShowCurrentPassword((v) => !v)} className="absolute inset-y-0 end-0 flex items-center px-3 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer" aria-label={showCurrentPassword ? t('p.hidePassword') : t('p.showPassword')}>
+              {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
         </div>
         <div>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('p.newPassword')}</label>
-          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" className="input-field" />
+          <div className="relative">
+            <input type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" className="input-field pe-10" />
+            <button type="button" onClick={() => setShowNewPassword((v) => !v)} className="absolute inset-y-0 end-0 flex items-center px-3 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer" aria-label={showNewPassword ? t('p.hidePassword') : t('p.showPassword')}>
+              {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
         </div>
         <button onClick={changePassword} disabled={changingPassword} className="w-full border border-dp-outline-variant text-dp-on-surface rounded-lg py-3 font-sans font-semibold cursor-pointer hover:bg-dp-surface-container transition-all disabled:opacity-50">
           {changingPassword ? t('p.changing') : t('p.changePassword')}

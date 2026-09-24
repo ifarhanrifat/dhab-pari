@@ -12,9 +12,10 @@ interface MobileNavProps {
   onClose: () => void
   navLinks: { href: string; label: string; tKey: string }[]
   isPortalUser?: boolean
+  isStaffUser?: boolean
 }
 
-export function MobileNav({ open, onClose, navLinks, isPortalUser }: MobileNavProps) {
+export function MobileNav({ open, onClose, navLinks, isPortalUser, isStaffUser }: MobileNavProps) {
   const { t } = useLocale()
   const pathname = usePathname()
 
@@ -77,15 +78,18 @@ export function MobileNav({ open, onClose, navLinks, isPortalUser }: MobileNavPr
           })}
         </nav>
 
-        {/* Portal entry point */}
+        {/* Portal/Admin entry point -- same fix as Header.tsx's desktop
+            button: a staff session has no portal_users row, so it needs
+            its own branch, not just falling through to "Log In" and
+            looking logged-out when it isn't. */}
         <div className="px-4 mb-2">
           <Link
-            href={isPortalUser ? '/portal' : '/portal/login'}
+            href={isStaffUser ? '/admin' : isPortalUser ? '/portal' : '/portal/login'}
             onClick={onClose}
-            className="flex items-center gap-2 bg-dp-secondary text-white px-4 py-2.5 rounded-lg font-sans text-[14px] font-semibold justify-center"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-sans text-[14px] font-semibold justify-center text-white ${isStaffUser ? 'bg-sky-600' : 'bg-dp-secondary'}`}
           >
             <UserCircle2 size={17} />
-            {isPortalUser ? t('site.myPortal') : t('site.login')}
+            {isStaffUser ? t('site.adminPanel') : isPortalUser ? t('site.myPortal') : t('site.login')}
           </Link>
         </div>
 

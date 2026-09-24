@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { ArrowLeft, MapPin, HeartHandshake, Megaphone, Receipt, CheckCircle, Vote, ThumbsUp, Flag, Share2, Clock, Users, HandHeart, X, ShieldCheck, Cake } from 'lucide-react'
+import { ArrowLeft, MapPin, HeartHandshake, Megaphone, Receipt, CheckCircle, Vote, ThumbsUp, Flag, Share2, Clock, Users, HandHeart, X, ShieldCheck, Cake, Award, LogIn } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { DonorBadge } from '@/components/public/DonorBadge'
 import type { DonorBadgeTier } from '@/lib/donorBadges'
@@ -21,6 +21,14 @@ interface Project {
   funding_model: string | null; monthly_operating_cost_pkr: number | null
   hide_fees: boolean; intro_video_id: string | null
   before_image_url: string | null; after_image_url: string | null
+  // Real report, 2026-09-25: "completed project has no image/video at
+  // all" -- for a project that never got formal before/after documentation
+  // (a simpler build, or one completed a while ago) and has no gallery
+  // photos in project_media either, this page's image section had nothing
+  // left to fall back to at all. The listing card already falls back to
+  // this exact field (see /projects/page.tsx's CompletedCard) for the same
+  // situation; this page just never fetched or used it.
+  proposal_image_url: string | null
 }
 interface AcademyBatch {
   id: string; project_id: string; label: string; label_ur: string | null; schedule_note: string | null; schedule_note_ur: string | null
@@ -47,6 +55,16 @@ const STAFF_ROLE_LABEL: Record<string, string> = {
   water_accountant: 'Water Accountant', donor_accountant: 'Donor Accountant',
   publisher: 'Publisher', viewer: 'Viewer',
 }
+// Real ask, 2026-09-25: committee members should get their own special
+// badge in comments, distinct from general staff. committee_members (the
+// public roster on /about) has no link to a login account at all — no
+// admin_user_id, nothing to join on — so there's no way to know THIS
+// specific commenter is also, say, the listed Treasurer without a real
+// schema change nobody's asked for yet. super_admin/admin are the two
+// account roles that actually represent the committee's own decisions
+// (vs. accountant/publisher/viewer, which are operational staff roles) --
+// the closest honest proxy available today.
+const COMMITTEE_TIER_ROLES = new Set(['super_admin', 'admin'])
 // Same category set /projects already translates (categoryLabel there) —
 // the listing page got it, this detail page never did, so a category
 // badge here showed the raw English enum value even in Urdu mode.
@@ -130,7 +148,7 @@ export default function ProjectDetailPage() {
   const load = useCallback(async () => {
     const supabase = createClient()
     const [{ data: p }, { data: v }, { data: a }, { data: expenseAcct }, { data: voteRows }, { data: commentRows }] = await Promise.all([
-      supabase.from('projects').select('id, title, display_name, description, status, budget_pkr, category, location, location_ur, vote_target, minimum_monthly_commitment_pkr, funding_model, monthly_operating_cost_pkr, hide_fees, intro_video_id, before_image_url, after_image_url').eq('id', id).single(),
+      supabase.from('projects').select('id, title, display_name, description, status, budget_pkr, category, location, location_ur, vote_target, minimum_monthly_commitment_pkr, funding_model, monthly_operating_cost_pkr, hide_fees, intro_video_id, before_image_url, after_image_url, proposal_image_url').eq('id', id).single(),
       supabase.from('donors_public').select('id, name, amount_pkr, date, is_verified, payment_status').eq('project_id', id).eq('is_verified', true).order('amount_pkr', { ascending: false }),
       supabase.from('donors_public').select('id, name, amount_pkr, date, is_verified, payment_status').eq('project_id', id).eq('is_verified', false).order('date', { ascending: false }),
       supabase.from('project_accounts_public').select('id').eq('project_id', id).maybeSingle(),
@@ -342,14 +360,22 @@ export default function ProjectDetailPage() {
   // regardless of which thumbnail was clicked first. Never populated at
   // all for health/medical (project.category === 'health' skips both the
   // fetch above and this list) — a real patient's photo is never shown.
+  // proposal_image_url only ever enters this list when there's nothing
+  // real to show otherwise -- a project with actual before/after or
+  // gallery documentation shows THAT, never the old proposal-stage photo
+  // alongside it.
+  const hasRealPhotos = !!project.before_image_url || !!project.after_image_url || galleryPhotos.length > 0
+  const showProposalFallback = !hasRealPhotos && !!project.proposal_image_url
   const allImages: { url: string; caption?: string }[] = [
     ...(project.before_image_url ? [{ url: project.before_image_url, caption: tr('pj.beforePhoto') }] : []),
     ...(project.after_image_url ? [{ url: project.after_image_url, caption: tr('pj.afterPhoto') }] : []),
     ...galleryPhotos.map((g) => ({ url: g.url, caption: g.caption ?? undefined })),
+    ...(showProposalFallback ? [{ url: project.proposal_image_url! }] : []),
   ]
   const beforeIndex = project.before_image_url ? 0 : -1
   const afterIndex = project.after_image_url ? (project.before_image_url ? 1 : 0) : -1
   const galleryStartIndex = (project.before_image_url ? 1 : 0) + (project.after_image_url ? 1 : 0)
+  const proposalIndex = showProposalFallback ? galleryStartIndex + galleryPhotos.length : -1
 
   return (
     // Real report (2026-09-24): this page's own title/description/category
@@ -412,6 +438,17 @@ export default function ProjectDetailPage() {
                 </button>
               ))}
             </div>
+          )}
+          {/* Real report, 2026-09-25: a completed project with no formal
+              before/after or gallery documentation showed no image at all
+              here, even though the listing card one page back showed
+              something (it falls back to this same field). Same fallback,
+              so the audit page never shows LESS than the card that linked
+              to it. */}
+          {showProposalFallback && (
+            <button type="button" onClick={() => setLightboxIndex(proposalIndex)} className="relative w-full h-64 rounded-lg overflow-hidden bg-dp-surface-container cursor-pointer block mb-8">
+              <Image src={project.proposal_image_url!} alt="" fill sizes="1000px" className="object-cover" />
+            </button>
           )}
         </>
       )}
@@ -681,15 +718,28 @@ export default function ProjectDetailPage() {
           <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} rows={2}
             placeholder={staffUser ? `Commenting as ${staffUser.full_name} (${STAFF_ROLE_LABEL[staffUser.role] ?? staffUser.role})` : portalUser ? 'Share your thoughts...' : 'Log in to join the discussion'}
             disabled={!portalUser && !staffUser} className="input-field resize-none mb-2" />
-          <button onClick={() => postComment()} disabled={postingComment || (!portalUser && !staffUser)} className="px-5 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-            {postingComment ? 'Posting...' : 'Post Comment'}
-          </button>
+          {portalUser || staffUser ? (
+            <button onClick={() => postComment()} disabled={postingComment} className="px-5 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+              {postingComment ? 'Posting...' : 'Post Comment'}
+            </button>
+          ) : (
+            // Real ask, 2026-09-25: only a registered member should be able
+            // to comment -- the textarea was already disabled for a logged-
+            // out visitor, but the button underneath it (and the reply box
+            // on every comment below, fixed the same way) had no matching
+            // gate at all, just relying on the RPC's own auth check to
+            // silently redirect on submit. A real button here says so
+            // upfront instead of a disabled field with no explanation.
+            <button onClick={() => router.push(`/portal/login?next=/projects/${id}`)} className="flex items-center gap-1.5 px-5 py-2 border-2 border-dp-secondary text-dp-secondary rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-secondary hover:text-white transition-all">
+              <LogIn size={14} /> {tr('x.logInToComment')}
+            </button>
+          )}
         </div>
         <div className="space-y-3">
           {comments.length === 0 && <p className="text-center font-sans text-[14px] text-dp-on-surface-variant py-6">{tr('x.noComments')}</p>}
           {comments.filter((c) => !c.parent_comment_id).map((c) => (
             <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
-              <CommentBody c={c} myLikes={myLikes} toggleLike={toggleLike} flagComment={flagComment} onReply={() => setReplyingTo(replyingTo === c.id ? null : c.id)} />
+              <CommentBody c={c} myLikes={myLikes} toggleLike={toggleLike} flagComment={flagComment} onReply={(portalUser || staffUser) ? () => setReplyingTo(replyingTo === c.id ? null : c.id) : undefined} />
               {replyingTo === c.id && (
                 <div className="mt-3 ps-11 flex gap-2">
                   <input value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Write a reply..." className="input-field flex-1" />
@@ -752,13 +802,25 @@ function CommentBody({ c, myLikes, toggleLike, flagComment, onReply }: {
       </p>
     )
   }
+  // Real ask, 2026-09-25: staff/committee comments should read as visibly
+  // official -- bold, distinct color -- not blend into ordinary donor
+  // chatter. Committee tier (super_admin/admin) gets its own badge and its
+  // own color, one step up from general staff, which is itself one step up
+  // from a regular member's comment.
+  const isStaff = c.comment_type === 'staff'
+  const isCommitteeTier = isStaff && !!c.staff_role && COMMITTEE_TIER_ROLES.has(c.staff_role)
+  const bodyColorClass = isCommitteeTier ? 'text-amber-800 font-bold' : isStaff ? 'text-dp-primary font-bold' : 'text-dp-on-surface'
   return (
     <div className="flex items-start gap-3">
       {c.avatar_url ? <Image src={c.avatar_url} alt="" width={32} height={32} className="w-8 h-8 rounded-full object-cover shrink-0" /> : <div className="w-8 h-8 rounded-full bg-dp-secondary-container flex items-center justify-center text-[12px] font-bold text-dp-on-secondary-container shrink-0">{(c.username ?? '?').charAt(0).toUpperCase()}</div>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-sans text-[13.5px] font-bold text-dp-on-surface">{c.username}</span>
-          {c.comment_type === 'staff' ? (
+          {isCommitteeTier ? (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold font-sans px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 whitespace-nowrap">
+              <Award size={10} /> {c.staff_role ? (STAFF_ROLE_LABEL[c.staff_role] ?? c.staff_role) : 'Committee'}
+            </span>
+          ) : isStaff ? (
             <span className="inline-flex items-center gap-1 text-[9px] font-bold font-sans px-1.5 py-0.5 rounded-full bg-dp-primary/10 text-dp-primary whitespace-nowrap">
               <ShieldCheck size={10} /> {c.staff_role ? (STAFF_ROLE_LABEL[c.staff_role] ?? c.staff_role) : 'Staff'}
             </span>
@@ -767,7 +829,7 @@ function CommentBody({ c, myLikes, toggleLike, flagComment, onReply }: {
           )}
           <span className="font-sans text-[11px] text-dp-on-surface-variant">{new Date(c.created_at).toLocaleDateString('en-GB')}</span>
         </div>
-        <p className="font-sans text-[14px] text-dp-on-surface mt-1">{c.content}</p>
+        <p className={`font-sans text-[14px] mt-1 ${bodyColorClass}`}>{c.content}</p>
         <div className="flex items-center gap-4 mt-2">
           <button onClick={() => toggleLike(c.id)} className={`flex items-center gap-1 text-[12px] font-sans font-semibold cursor-pointer ${myLikes.has(c.id) ? 'text-dp-secondary' : 'text-dp-on-surface-variant hover:text-dp-secondary'}`}>
             <ThumbsUp size={13} /> {c.like_count > 0 ? c.like_count : ''} Like
