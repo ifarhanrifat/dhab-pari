@@ -160,10 +160,24 @@
      Literal family names here, deliberately, NOT var(--font-source-sans):
      next/font expands that variable to `"Source Sans 3", "Source Sans 3
      Fallback", ...`, and that injected metric-fallback is a local system
-     face (Arial/Helvetica) which DOES carry Arabic — listed ahead of
-     Nastaliq it would hijack the Urdu into a flat naskh. Naming the two
-     real families directly skips both injected fallbacks. */
-  --font-urdu-ui: 'Source Sans 3', 'Noto Nastaliq Urdu', ui-sans-serif, system-ui, sans-serif;
+     face (Arial/Helvetica) which DOES carry Arabic — listed ahead of the
+     real Urdu face it would hijack real Urdu text into whatever flat
+     system font happens to be installed. Naming the real families
+     directly skips that injected fallback.
+
+     SUPERSEDES this variable's old fallback (Nastaliq): a real report
+     with screenshots (2026-09-24) showed app chrome -- headings, buttons,
+     form labels, the Chart of Accounts title -- reading as oversized,
+     unreadable calligraphy next to a plain reference app (Ola Cabs).
+     Nastaliq is a display/book script with deliberately diagonal,
+     ascending-descending strokes; no font-size number makes that compact
+     or legible as interface chrome, which is exactly why the prior
+     line-height/size tuning further down this file never fixed the
+     complaint. Noto Sans Arabic is upright and non-cursive, the same
+     choice most Urdu-language apps make for interface text — Nastaliq is
+     kept everywhere else (--font-urdu, .urdu-text, printed receipts) for
+     the contexts where its character is actually wanted. */
+  --font-urdu-ui: 'Source Sans 3', 'Noto Sans Arabic', ui-sans-serif, system-ui, sans-serif;
 
   --radius: 0.5rem;
   --background: #E1F5EE;
@@ -255,32 +269,16 @@
   }
 }
 
-/* --- ...but the top of that table overshoots in Urdu ---
-   The block above is language-blind and predates the Urdu work. It is right
-   for English and is left untouched there. In Urdu it stacks on a typeface
-   that already reads larger at the same nominal px (see the --font-urdu-ui
-   commit), and it collides with the html[lang='ur'] heading downscale table
-   further down this file — which, unlike this one, is NOT width-scoped.
-   Measured on /admin/finance/donors_projects at 390px in Urdu:
-
-     text-[13px] -> 15.5px  |  text-[14px] -> 16.5px
-     text-[15px] -> 15px    |  text-[16px] -> 16px  |  text-[18px] -> 15px
-
-   i.e. nominal-14px body text rendered LARGER than every heading size above
-   it, including the 18px dashboard stat numbers. The two tables cross over.
-
-   Only the top two rows are corrected, and only for Urdu. text-[12px] ->
-   14px is deliberately left alone: that is the "نقد" paid-from line the user
-   pointed to as the one correctly-sized piece of text on the transaction
-   card, so it is the reference the rows above are brought down to meet.
-   Rows below it (the 10/11px badges) were not flagged and are not touched.
-   text-[15px] keeps its 15px so the money amount stays the dominant datum on
-   a transaction card — the one place on that card a size step is wanted. */
-@media (max-width: 767px) {
-  html[lang='ur'] .admin-shell .text-\[13px\],
-  html[lang='ur'] .admin-shell .text-\[13\.5px\] { font-size: 14px !important; }
-  html[lang='ur'] .admin-shell .text-\[14px\] { font-size: 14.5px !important; }
-}
+/* --- ...that Urdu correction retired, 2026-09-24 ---
+   Used to bring the 13/13.5/14px rows back down for Urdu specifically,
+   because they were measured rendering LARGER than nearby heading sizes —
+   a crossover caused by Nastaliq's disproportionate visual bulk at small
+   sizes. --font-urdu-ui no longer resolves to Nastaliq (see that
+   variable's comment) — Noto Sans Arabic doesn't carry the same bulk, so
+   the old numbers (reverse-engineered for a completely different
+   typeface) no longer describe anything real. Removed rather than
+   re-guessed; if a fresh crossover shows up against the new font, correct
+   it from a new device measurement, not by reinstating these. */
 
 /* --- Urdu text utility --- */
 .urdu-text {
@@ -444,25 +442,29 @@ select.input-field {
 }
 
 /* --- Urdu as the interface language ---------------------------------------
-   Nastaliq is a calligraphic face: its baseline slopes and its descenders drop
-   far below where a Latin font would sit. At Latin metrics the bottom of every
-   Urdu line was being cut off — the reported "half the text is hidden".
+   SUPERSEDES this whole block's original reasoning below: it was written for
+   Nastaliq (calligraphic, sloped baseline, deep descenders), which is no
+   longer the UI-chrome font as of 2026-09-24 (--font-urdu-ui now resolves to
+   Noto Sans Arabic — see that variable's own comment). A plain upright sans
+   doesn't have Nastaliq's descender-clipping problem, so the generous
+   line-heights and padding-bottom compensations below are dialed back
+   toward normal values, not removed outright (Arabic-script diacritics
+   still sit a little outside a pure-Latin line box, just nowhere near as far
+   as Nastaliq's). Sizes are also brought down further, per a real report
+   (with screenshots) that app chrome still read as oversized on top of the
+   font itself feeling wrong.
 
-   Three things fix that together:
-     1. more line-height, so consecutive lines do not collide;
-     2. a slightly smaller size, because Nastaliq renders visually larger than
-        a Latin face at the same px and was overflowing fixed-height controls;
-     3. padding-bottom on the elements that clip, so the descenders have
-        somewhere to go inside their box.
-
-   Sizes are hard-coded for now and become a Settings control later.
+   Original reasoning kept for historical context on the fixed-height-box
+   clipping problem this was solving before the font swap:
+     Nastaliq is a calligraphic face: its baseline slopes and its descenders
+     drop far below where a Latin font would sit. At Latin metrics the
+     bottom of every Urdu line was being cut off.
 
    The clipping this was fighting only ever happened inside a FIXED-height
    box — a button, an input, a table row, a heading sitting on its own
-   line — and every one of those already gets its own dedicated,
-   deliberately-generous line-height below (buttons/labels/links 2.1,
-   inputs 2, table cells 2.3, h1-h3 2). This body-level rule is the
-   catch-all UNDER those — it's what a plain <p>/<div>/<span> inherits
+   line — and every one of those already gets its own dedicated
+   line-height below. This body-level rule is the catch-all UNDER those —
+   it's what a plain <p>/<div>/<span> inherits
    when nothing more specific applies, which in practice means every
    ordinary paragraph and multi-line description in the app. Free-flowing
    text like that was never actually at risk of clipping (it has no fixed
@@ -477,8 +479,8 @@ select.input-field {
    in ordinary flowing text, without the bloat. */
 html[lang='ur'] body {
   font-family: var(--font-urdu-ui);
-  font-size: 0.92em;
-  line-height: 1.65;
+  font-size: 0.85em;
+  line-height: 1.4;
 }
 
 html[lang='ur'] .font-sans,
@@ -500,69 +502,55 @@ html[lang='ur'] .font-heading {
    double their English-mode height, which is why the admin drawer showed
    only 11 of ~40 destinations and the donor list fit 3 rows a screen.
 
-   1.75 still clears Nastaliq's descenders comfortably (it is above the
-   1.65 the body settled on, and these are the shorter, tighter strings),
-   keeps the 0.15em descender pad, and leaves every control's own padding
-   to set the actual tap-target height — which is what it was written to
-   do. Nothing here is overflow:hidden, so the calligraphic ink that does
-   fall outside the line box still paints rather than clipping. */
+   Noto Sans Arabic doesn't drop descenders anywhere near as far as
+   Nastaliq did — a small pad is kept for its diacritics, not eliminated,
+   but the multiplier comes back down near a normal control line-height. */
 html[lang='ur'] button,
 html[lang='ur'] label,
 html[lang='ur'] a {
-  line-height: 1.75;
-  padding-bottom: 0.15em;
+  line-height: 1.4;
+  padding-bottom: 0.05em;
 }
 
-/* Inputs keep more room than buttons: text sits inside a hard border here,
-   so a descender crossing it reads as a rendering fault rather than as
-   ordinary overhang. 1.7 plus the existing pad still lands well inside the
-   52px .input-field / 44px .filter-field fixed heights. */
+/* Inputs keep a touch more room than buttons: text sits inside a hard
+   border here, so overhang reads as a rendering fault rather than as
+   ordinary spacing. */
 html[lang='ur'] input,
 html[lang='ur'] select,
 html[lang='ur'] textarea {
-  line-height: 1.7;
-  padding-top: 0.35em;
-  padding-bottom: 0.45em;
-}
-
-/* Table cells were the worst case: a single Urdu line in a tight row lost its
-   entire lower half — hence the deliberately generous original numbers. But
-   2.3 plus 1.1em of vertical padding put report rows at ~108px each, so a
-   trial balance that shows 8 accounts a screen in English showed 3 in Urdu.
-   A ledger is a scanning surface: how many rows land in one view is the
-   feature. 1.9 with 0.8em of padding still gives a single Urdu line more
-   room than it occupies, and keeps rows comfortably above the 44px
-   touch-target floor, while nearly halving the row height. */
-html[lang='ur'] th,
-html[lang='ur'] td {
-  line-height: 1.9;
-  padding-top: 0.35em;
-  padding-bottom: 0.45em;
-  vertical-align: middle;
-}
-
-/* Headings sit on their own line and can afford to breathe — but 2.0 was
-   breathing into the content below it, not around itself: a single-line
-   page title reserved a full blank line's worth of space under its own
-   baseline, on top of whatever margin the layout already set, which read
-   as a heading floating loose from the section it introduces. Headings are
-   also the largest type on the page, where a line-height multiplier costs
-   the most pixels. 1.5 is the conventional display-type ratio and still
-   clears Nastaliq's descenders at heading sizes; the 0.2em pad stays. */
-html[lang='ur'] h1,
-html[lang='ur'] h2,
-html[lang='ur'] h3 {
-  line-height: 1.5;
+  line-height: 1.4;
+  padding-top: 0.15em;
   padding-bottom: 0.2em;
 }
 
-/* Anything the app pins to an exact pixel height will clip Nastaliq. Let those
-   grow instead of hiding half the word. */
+/* Table cells: a ledger is a scanning surface, how many rows land in one
+   view is the feature — Noto Sans Arabic needs nowhere near Nastaliq's
+   room to stay legible at a normal row height. */
+html[lang='ur'] th,
+html[lang='ur'] td {
+  line-height: 1.5;
+  padding-top: 0.2em;
+  padding-bottom: 0.25em;
+  vertical-align: middle;
+}
+
+/* Headings sit on their own line and can afford to breathe, but not a full
+   blank line's worth on top of the layout's own margin. 1.3 is the normal
+   display-type ratio for an upright sans. */
+html[lang='ur'] h1,
+html[lang='ur'] h2,
+html[lang='ur'] h3 {
+  line-height: 1.3;
+  padding-bottom: 0.1em;
+}
+
+/* Anything the app pins to an exact pixel height could still clip a tall
+   diacritic. Let those grow instead of hiding it. */
 html[lang='ur'] .h-9,
 html[lang='ur'] .h-8,
 html[lang='ur'] .h-10 {
   height: auto;
-  min-height: 2.75rem;
+  min-height: 2.25rem;
 }
 
 /* Numbers, money, account codes, voucher numbers, phone numbers and dates stay
@@ -614,49 +602,66 @@ html[lang='ur'] .rtl-header-row {
 }
 
 /* Page and section headings set with Tailwind's arbitrary text-[Npx]
-   utilities render very large in Nastaliq — body's own 0.92em above never
-   reaches them, because an arbitrary utility sets an absolute font-size
-   that overrides inheritance rather than scaling with it. Down-scaled
-   explicitly here, same idea as .admin-shell's own up-scale table further
-   up this file, just the opposite direction and everywhere (not admin-
-   only, not mobile-only) since headings this size are the ones actually
-   reported as oversized, on every part of the site. */
-html[lang='ur'] .text-\[18px\] { font-size: 15px !important; }
-html[lang='ur'] .text-\[19px\] { font-size: 16px !important; }
-html[lang='ur'] .text-\[20px\] { font-size: 17px !important; }
-html[lang='ur'] .text-\[22px\] { font-size: 18px !important; }
-html[lang='ur'] .text-\[23px\] { font-size: 19px !important; }
-html[lang='ur'] .text-\[24px\] { font-size: 20px !important; }
-html[lang='ur'] .text-\[26px\] { font-size: 21px !important; }
-html[lang='ur'] .text-\[28px\] { font-size: 23px !important; }
-html[lang='ur'] .text-\[30px\] { font-size: 24px !important; }
-html[lang='ur'] .text-\[32px\] { font-size: 26px !important; }
-html[lang='ur'] .text-\[34px\] { font-size: 28px !important; }
-html[lang='ur'] .text-\[36px\] { font-size: 29px !important; }
-html[lang='ur'] .text-\[38px\] { font-size: 31px !important; }
-html[lang='ur'] .text-\[40px\] { font-size: 33px !important; }
-html[lang='ur'] .text-\[42px\] { font-size: 34px !important; }
-html[lang='ur'] .text-\[48px\] { font-size: 39px !important; }
+   utilities — an arbitrary utility sets an absolute font-size that
+   overrides inheritance, so body's own 0.85em above never reaches them.
+   Down-scaled explicitly here, everywhere (not admin-only, not
+   mobile-only) since headings this size are the ones actually reported as
+   oversized on every part of the site.
+
+   Real report with screenshots, 2026-09-24: even after the font swap away
+   from Nastaliq (see --font-urdu-ui), a page heading like "اکاؤنٹس کا
+   چارٹ" was still dominating a phone screen next to a clean reference app
+   (Ola Cabs — small caps labels, moderate primary text). Cut much harder
+   than the old table did (which only trimmed ~20%): roughly 55-70% of
+   nominal now, heavier at the top of the scale where the complaint was
+   loudest, lighter near reading-text sizes so body copy stays legible. */
+html[lang='ur'] .text-\[18px\] { font-size: 13px !important; }
+html[lang='ur'] .text-\[19px\] { font-size: 14px !important; }
+html[lang='ur'] .text-\[20px\] { font-size: 14px !important; }
+html[lang='ur'] .text-\[22px\] { font-size: 15px !important; }
+html[lang='ur'] .text-\[23px\] { font-size: 16px !important; }
+html[lang='ur'] .text-\[24px\] { font-size: 17px !important; }
+html[lang='ur'] .text-\[26px\] { font-size: 17px !important; }
+html[lang='ur'] .text-\[28px\] { font-size: 18px !important; }
+html[lang='ur'] .text-\[30px\] { font-size: 19px !important; }
+html[lang='ur'] .text-\[32px\] { font-size: 20px !important; }
+html[lang='ur'] .text-\[34px\] { font-size: 21px !important; }
+html[lang='ur'] .text-\[36px\] { font-size: 22px !important; }
+html[lang='ur'] .text-\[38px\] { font-size: 23px !important; }
+html[lang='ur'] .text-\[40px\] { font-size: 24px !important; }
+html[lang='ur'] .text-\[42px\] { font-size: 24px !important; }
+html[lang='ur'] .text-\[48px\] { font-size: 27px !important; }
+
+/* Everything below 18px was never covered at all — this app sets almost
+   all of its UI text (labels, buttons, badges, search inputs, table
+   amounts) via these same arbitrary text-[Npx] utilities, per the
+   .admin-shell comment above, so this was the single biggest gap: real
+   interface text just inherited body's 0.85em, or nothing. Lighter ratios
+   than the heading table (~80-90% of nominal) — this range is close
+   enough to reading-text size that cutting it as hard as a heading would
+   hurt legibility rather than fix the "too big" complaint. */
+html[lang='ur'] .text-\[10px\] { font-size: 9px !important; }
+html[lang='ur'] .text-\[10\.5px\] { font-size: 9px !important; }
+html[lang='ur'] .text-\[11px\] { font-size: 9px !important; }
+html[lang='ur'] .text-\[11\.5px\] { font-size: 10px !important; }
+html[lang='ur'] .text-\[12px\] { font-size: 10px !important; }
+html[lang='ur'] .text-\[12\.5px\] { font-size: 10.5px !important; }
+html[lang='ur'] .text-\[13px\] { font-size: 11px !important; }
+html[lang='ur'] .text-\[13\.5px\] { font-size: 11.5px !important; }
+html[lang='ur'] .text-\[14px\] { font-size: 12px !important; }
+html[lang='ur'] .text-\[15px\] { font-size: 12.5px !important; }
+html[lang='ur'] .text-\[16px\] { font-size: 13.5px !important; }
+html[lang='ur'] .text-\[17px\] { font-size: 14px !important; }
 
 /* Tailwind's leading-* utilities set line-height on the element itself, so
-   they override every Urdu rule above by inheritance — a component that
-   opts into leading-tight escapes the body/td/heading numbers entirely.
-   That is fine for the loose end of the scale (leading-relaxed lands
-   around 1.8 in practice, which measures comfortably for Nastaliq), but
-   leading-tight's 1.25 is a Latin ratio: it assumes ink stays inside the
-   em box. Nastaliq's does not — its baseline slopes and its descenders
-   drop well below — so any leading-tight text that actually WRAPS has its
-   lines physically overlapping. Audited the rendered pages rather than the
-   class list: six wrapped Urdu captions were colliding at 1.25 (home page
-   stat/scheme captions, the admin dashboard's best-seller line).
-
-   Raised only enough to separate the lines, preserving the relative
-   hierarchy tight < snug < relaxed, and left leading-relaxed/loose alone
-   since those already measured fine. Single-line uses of these utilities —
-   the large majority — only gain a couple of pixels of box height. */
-html[lang='ur'] .leading-none { line-height: 1.45 !important; }
-html[lang='ur'] .leading-tight { line-height: 1.5 !important; }
-html[lang='ur'] .leading-snug { line-height: 1.6 !important; }
+   they override every Urdu rule above by inheritance. leading-tight's 1.25
+   Latin ratio was colliding with Nastaliq's sloped baseline and deep
+   descenders on wrapped text — Noto Sans Arabic doesn't have that problem
+   (see --font-urdu-ui), so these come back down much closer to Tailwind's
+   own defaults, just a touch of headroom for Arabic-script diacritics. */
+html[lang='ur'] .leading-none { line-height: 1.15 !important; }
+html[lang='ur'] .leading-tight { line-height: 1.3 !important; }
+html[lang='ur'] .leading-snug { line-height: 1.4 !important; }
 
 /* The section-title accent bar (::before) is always first in the DOM, so
    it always rendered before the heading text — fine left-to-right,

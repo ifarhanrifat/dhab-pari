@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Source_Sans_3, Playfair_Display, Noto_Nastaliq_Urdu, Noto_Naskh_Arabic } from "next/font/google";
+import { Source_Sans_3, Playfair_Display, Noto_Nastaliq_Urdu, Noto_Naskh_Arabic, Noto_Sans_Arabic } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { FloatingWhatsAppButton } from "@/components/layout/FloatingWhatsAppButton";
@@ -33,6 +33,22 @@ const notoNaskhArabic = Noto_Naskh_Arabic({
   variable: "--font-noto-naskh",
   subsets: ["arabic"],
   weight: ["400", "700"],
+});
+
+// Real report (2026-09-24), with screenshots: Urdu buttons/headings/labels
+// across the app looked "huge" and "garbage" even after a prior session's
+// careful line-height/font-size tuning for Nastaliq. Root cause wasn't
+// primarily size -- it's that Nastaliq is a calligraphic book/display
+// script (deliberately diagonal, ascending/descending strokes) being used
+// for compact interface chrome it was never designed for; no font-size
+// number fixes that. This is a plain, upright, non-cursive Arabic-script
+// UI face (same family Google/Meta/most Pakistani fintech apps use for
+// Urdu app chrome) -- Nastaliq stays for prose/printed documents where its
+// character is wanted, this one takes over buttons/labels/nav/headings.
+const notoSansArabic = Noto_Sans_Arabic({
+  variable: "--font-noto-sans-arabic",
+  subsets: ["arabic"],
+  weight: ["400", "600", "700"],
 });
 
 const geistMono = Geist_Mono({
@@ -98,7 +114,7 @@ export default function RootLayout({
       // `dir` — an earlier build did, and a browser holding that bundle could
       // leave the shell rotated with the sidebar stranded on the right.
       dir="ltr"
-      className={`${sourceSans.variable} ${playfair.variable} ${notoNastaliq.variable} ${notoNaskhArabic.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${sourceSans.variable} ${playfair.variable} ${notoNastaliq.variable} ${notoNaskhArabic.variable} ${notoSansArabic.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {/* Wraps everything — public site, portal and admin — so a committee

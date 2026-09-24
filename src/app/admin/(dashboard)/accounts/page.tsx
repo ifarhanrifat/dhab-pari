@@ -448,7 +448,7 @@ export default function AccountsPage() {
         <p className={`font-sans text-dp-on-surface-variant mt-1 ${isUrdu ? 'text-[14px]' : 'text-[13px]'}`}>{t('ac.subtitle')}</p>
       </div>
 
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6">
         {access.canWaterSupply && <button
           onClick={() => setTab('water_supply')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-sans font-semibold transition-all cursor-pointer ${isUrdu ? 'text-[14px]' : 'text-[13px]'} ${tab === 'water_supply' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
@@ -467,33 +467,43 @@ export default function AccountsPage() {
         </button>}
       </div>
 
-      <div className="bg-white rounded-lg border border-dp-outline-variant p-3 mb-4 flex items-center gap-3">
-        <button
-          onClick={() => router.push(tab === 'donors_projects' ? '/admin/donors' : '/admin/billing')}
-          className={`shrink-0 px-4 py-2 rounded-lg bg-dp-surface-container-low text-dp-on-surface font-sans font-bold hover:bg-dp-surface-container transition-all cursor-pointer ${isUrdu ? 'text-[13.5px]' : 'text-[12.5px]'}`}
-        >
-          {tab === 'donors_projects' ? t('ac.donorBtn') : t('ac.consumerBtn')}
-        </button>
-        <div className="flex-1 relative">
+      {/* Search used to share one row with the donor/consumer button, the
+          sort toggle AND the zero-balance checkbox — four shrink-0-ish
+          elements fighting one row's width on a phone left search (the
+          only flex-1, growable element) squeezed down to a sliver, which
+          is exactly what a real report ("search system is not working")
+          turned out to be: not a broken filter, an unusable input box.
+          Search now always gets its own full-width row; the other three
+          controls share a second row that wraps freely if it doesn't fit. */}
+      <div className="bg-white rounded-lg border border-dp-outline-variant p-3 mb-4 space-y-3">
+        <div className="relative">
           <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('ac.searchPlaceholder')}
-            className={`w-full ps-9 pe-3 py-2 rounded-lg border border-dp-outline-variant font-sans focus:outline-none focus:border-dp-primary ${isUrdu ? 'text-[13.5px]' : 'text-[12.5px]'}`}
+            className={`w-full ps-9 pe-3 py-2.5 rounded-lg border border-dp-outline-variant font-sans focus:outline-none focus:border-dp-primary ${isUrdu ? 'text-[13.5px]' : 'text-[12.5px]'}`}
           />
         </div>
-        <button
-          onClick={() => setSortByBalance((s) => !s)}
-          title={sortByBalance ? t('ac.sortedByBalance') : t('ac.sortedByName')}
-          className={`shrink-0 p-2.5 rounded-lg border border-dp-outline-variant cursor-pointer transition-all ${sortByBalance ? 'bg-dp-secondary text-white border-dp-secondary' : 'text-dp-secondary hover:bg-dp-surface-container-low'}`}
-        >
-          <SlidersHorizontal size={16} />
-        </button>
-        <label className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dp-outline-variant cursor-pointer select-none font-sans text-[12.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low">
-          <input type="checkbox" checked={showZeroBalance} onChange={(e) => setShowZeroBalance(e.target.checked)} className="accent-dp-secondary" />
-          {t('ac.showZeroBalance')}
-        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => router.push(tab === 'donors_projects' ? '/admin/donors' : '/admin/billing')}
+            className={`shrink-0 px-4 py-2 rounded-lg bg-dp-surface-container-low text-dp-on-surface font-sans font-bold hover:bg-dp-surface-container transition-all cursor-pointer ${isUrdu ? 'text-[13.5px]' : 'text-[12.5px]'}`}
+          >
+            {tab === 'donors_projects' ? t('ac.donorBtn') : t('ac.consumerBtn')}
+          </button>
+          <button
+            onClick={() => setSortByBalance((s) => !s)}
+            title={sortByBalance ? t('ac.sortedByBalance') : t('ac.sortedByName')}
+            className={`shrink-0 p-2.5 rounded-lg border border-dp-outline-variant cursor-pointer transition-all ${sortByBalance ? 'bg-dp-secondary text-white border-dp-secondary' : 'text-dp-secondary hover:bg-dp-surface-container-low'}`}
+          >
+            <SlidersHorizontal size={16} />
+          </button>
+          <label className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dp-outline-variant cursor-pointer select-none font-sans text-[12.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low">
+            <input type="checkbox" checked={showZeroBalance} onChange={(e) => setShowZeroBalance(e.target.checked)} className="accent-dp-secondary" />
+            {t('ac.showZeroBalance')}
+          </label>
+        </div>
       </div>
 
       {loading ? (
