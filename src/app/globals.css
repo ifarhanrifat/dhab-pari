@@ -303,6 +303,16 @@
   animation-play-state: paused;
 }
 
+/* Real report, 2026-09-24: "the belt with Urdu news/alerts should run from
+   left to right." The keyframe itself never changed with language (a CSS
+   transform is direction-agnostic, dir="rtl" doesn't touch it) -- reversing
+   playback direction is the correct way to flip which way the belt travels:
+   same keyframe, played end-to-start, so content now enters from the left
+   and exits on the right instead of the other way round. */
+html[lang='ur'] .ticker-track {
+  animation-direction: reverse;
+}
+
 /* --- Hide scrollbar utility --- */
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

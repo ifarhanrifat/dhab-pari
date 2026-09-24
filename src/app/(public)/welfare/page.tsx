@@ -21,7 +21,7 @@ import { ZakatCalculator } from '@/components/welfare/ZakatCalculator'
 const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 
 export default function WelfarePage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [needs, setNeeds] = useState<Record<string, number>>({})
   const [kafalat, setKafalat] = useState<Record<string, number>>({})
   const [wazifa, setWazifa] = useState<Record<string, number>>({})
@@ -71,7 +71,12 @@ export default function WelfarePage() {
   ]
 
   return (
-    <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-10 min-h-screen">
+    // Real report, 2026-09-24: every heading/lead/step here already follows
+    // the language toggle via t() -- but the page itself never flipped
+    // direction, so Urdu content still read left-aligned. No physical
+    // ml-/pl-/left-/text-left classes anywhere on this page or
+    // ZakatCalculator (checked), so safe to flip as a whole.
+    <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-8">
         <h1 className="font-heading text-[32px] font-bold leading-[44px] text-dp-primary">{t('wf.title')}</h1>
         <p className="font-sans text-[15.5px] text-dp-on-surface-variant mt-2.5 leading-relaxed max-w-2xl">{t('wf.blurb')}</p>

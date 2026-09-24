@@ -15,6 +15,7 @@ export const revalidate = 300
 import { Phone, Eye, Target } from 'lucide-react'
 import { T } from '@/components/i18n/T'
 import { CommitteeAnnouncementsArchive } from '@/components/home/CommitteeAnnouncementsArchive'
+import { messages } from '@/lib/i18n/messages'
 
 const initialsColors = [
   'bg-dp-primary-container text-dp-on-primary-container',
@@ -71,6 +72,21 @@ export default async function AboutPage() {
   // etc. — admin-set site-wide toggle, not per-visitor.
   const isUrdu = settingsMap.display_language === 'ur'
 
+  // Real report, 2026-09-24: the village history paragraphs were hardcoded
+  // English prose with no Urdu counterpart at all -- not a direction bug,
+  // a genuine content gap. Added real Urdu translations as message keys
+  // (x.villageHistoryP1/P2) with {placeholder} substitution, resolved here
+  // via the same server-computed isUrdu the committee bios below already
+  // use -- not the client-side <T>/useLocale() locale, which follows each
+  // visitor's own toggle and could disagree with this page's site-wide
+  // setting, splitting the page across two languages at once.
+  const historyMsgs = messages[isUrdu ? 'ur' : 'en']
+  const villageHistoryP1 = historyMsgs['x.villageHistoryP1']
+    .replaceAll('{name}', isUrdu ? SITE.nameUrdu : SITE.name)
+    .replaceAll('{district}', SITE.district)
+    .replaceAll('{province}', SITE.province)
+  const villageHistoryP2 = historyMsgs['x.villageHistoryP2'].replaceAll('{established}', SITE.established)
+
   return (
     <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen">
       {/* Header */}
@@ -88,21 +104,16 @@ export default async function AboutPage() {
 
       {/* Village History */}
       <section className="mb-16">
-        <div className="bg-white border border-dp-outline-variant rounded-lg p-8 md:p-12">
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-8 md:p-12" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
           <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mb-6">
             <T k="x.villageHistory" />
           </h2>
           <div className="prose max-w-none">
             <p className="font-sans text-[18px] leading-[28px] text-dp-on-surface-variant mb-4">
-              {SITE.name} is a historic village located in District {SITE.district}, {SITE.province}, Pakistan.
-              Nestled in the Potohar Plateau, the village has been home to resilient communities
-              for generations, with agriculture and livestock as the backbone of its economy.
+              {villageHistoryP1}
             </p>
             <p className="font-sans text-[18px] leading-[28px] text-dp-on-surface-variant mb-4">
-              In {SITE.established}, a group of dedicated villagers established the Water & Welfare Committee
-              to address critical infrastructure needs — starting with clean water supply, street
-              lighting, and road construction. What began as a small initiative has grown into a
-              community-driven transparency portal serving hundreds of households.
+              {villageHistoryP2}
             </p>
             <p className="font-sans text-[18px] leading-[28px] text-dp-on-surface-variant">
               {settingsMap.about_text || `Dedicated to the prosperity and welfare of ${SITE.name} village through transparent management, modern water systems, and communal support.`}

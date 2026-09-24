@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Eye, Calendar, Tag } from 'lucide-react'
 import { VideoPlayer } from '@/components/VideoPlayer'
-import { T } from '@/components/i18n/T'
+import { T, LocaleDir } from '@/components/i18n/T'
 
 // A published video rarely changes and isn't per-visitor (view count here is
 // a display-only column, not incremented by this render).
@@ -39,7 +39,13 @@ export default async function VideoDetailPage({
       <div className="max-w-4xl mx-auto">
         <VideoPlayer url={video.video_url} title={video.title} />
 
-        <div className="mt-6">
+        {/* Server component (this page has `revalidate`, shared cached HTML
+            for every visitor) -- LocaleDir is the client-island seam for
+            that, same pattern <T> already uses on the same page. video.title
+            and .description have no _ur column in the DB (checked migration
+            001) -- title_ur is the only real Urdu content here, so that's
+            what actually flips; the rest is direction/label-level only. */}
+        <LocaleDir className="mt-6">
           {video.category && (
             <span className="inline-flex items-center gap-1 bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded-full text-[12px] font-bold font-sans uppercase mb-3">
               <Tag size={12} />
@@ -54,7 +60,7 @@ export default async function VideoDetailPage({
           {video.title_ur && (
             <p
               className="text-dp-on-surface-variant text-[20px] mb-4"
-              style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6', direction: 'rtl' }}
+              style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6' }}
             >
               {video.title_ur}
             </p>
@@ -63,11 +69,11 @@ export default async function VideoDetailPage({
           <div className="flex items-center gap-4 text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em] mb-6 pb-6 border-b border-dp-outline-variant">
             <span className="flex items-center gap-1">
               <Eye size={14} />
-              {video.views.toLocaleString()} views
+              <span className="ltr-num">{video.views.toLocaleString()}</span> <T k="x.views" />
             </span>
             <span className="flex items-center gap-1">
               <Calendar size={14} />
-              {new Date(video.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              <span className="ltr-num">{new Date(video.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
             </span>
           </div>
 
@@ -76,7 +82,7 @@ export default async function VideoDetailPage({
               {video.description}
             </p>
           )}
-        </div>
+        </LocaleDir>
       </div>
     </div>
   )
