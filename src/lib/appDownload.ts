@@ -25,5 +25,10 @@
 // android/app/build.gradle's versionCode/versionName on every rebuild —
 // bump all three together, and upload the new build to the new
 // `app/dhab-pari-v${N}.apk` path rather than overwriting the old one.
-const APK_VERSION = 14
+// Exported (not just used locally) so AppUpdateRequiredModal.tsx can compare
+// it against the currently-running native app's own build number
+// (@capacitor/app's App.getInfo().build, the Android versionCode) — the
+// only reliable "is this install out of date" signal there is, since a
+// website has no access to installed-package info from outside the app.
+export const APK_VERSION = 14
 export const APK_DOWNLOAD_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/attachments/app/dhab-pari-v${APK_VERSION}.apk`

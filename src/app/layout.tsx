@@ -4,6 +4,7 @@ import { Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { FloatingWhatsAppButton } from "@/components/layout/FloatingWhatsAppButton";
 import { PwaProvider } from "@/components/layout/PwaProvider";
+import { AppUpdateRequiredModal } from "@/components/layout/AppUpdateRequiredModal";
 import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
 import { SITE } from "@/lib/constants";
 import "./globals.css";
@@ -126,6 +127,7 @@ export default function RootLayout({
         </LocaleProvider>
         <PwaProvider />
         <FloatingWhatsAppButton />
+        <AppUpdateRequiredModal />
         <Toaster
           position="top-center"
           richColors
