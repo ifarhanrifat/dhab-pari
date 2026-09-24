@@ -64,7 +64,7 @@ export default async function AboutPage() {
   const { data: settings } = await supabase
     .from('site_settings')
     .select('key, value')
-    .in('key', ['about_text', 'vision', 'mission', 'display_language'])
+    .in('key', ['about_text', 'about_text_ur', 'vision', 'vision_ur', 'mission', 'mission_ur', 'display_language'])
 
   const settingsMap: Record<string, string> = {}
   settings?.forEach((s) => { settingsMap[s.key] = s.value ?? '' })
@@ -86,13 +86,34 @@ export default async function AboutPage() {
     .replaceAll('{district}', SITE.district)
     .replaceAll('{province}', SITE.province)
   const villageHistoryP2 = historyMsgs['x.villageHistoryP2'].replaceAll('{established}', SITE.established)
+  const aboutHeading = historyMsgs['x.aboutHeading'].replaceAll('{name}', isUrdu ? SITE.nameUrdu : SITE.name)
+
+  // Migration 508 added the _ur counterparts these three never had. Falls
+  // back to the English value (never to a hardcoded literal — an admin who
+  // edits about_text should see that change reflected even before they've
+  // filled in the Urdu version) when the Urdu setting is blank, same
+  // fallback convention as everywhere else in this app. isEnglishFallback
+  // tracks whether that fallback actually fired, so the JSX below can wrap
+  // ONLY that case in dir="ltr" -- plain English content sitting unguarded
+  // in this page's RTL paragraph context bidi-reorders its own trailing
+  // punctuation (a report with a screenshot: a stray "." rendered BEFORE
+  // the sentence instead of after it).
+  const aboutTextEn = settingsMap.about_text || 'Dedicated to the prosperity and welfare of Dhab Pari village through transparent management, modern water systems, and communal support.'
+  const visionEn = settingsMap.vision || 'A self-sustaining village with clean water, quality education, and modern infrastructure for every household.'
+  const missionEn = settingsMap.mission || 'To provide transparent governance, efficient water management, and community-driven development through collective effort.'
+  const aboutText = isUrdu ? (settingsMap.about_text_ur || aboutTextEn) : aboutTextEn
+  const vision = isUrdu ? (settingsMap.vision_ur || visionEn) : visionEn
+  const mission = isUrdu ? (settingsMap.mission_ur || missionEn) : missionEn
+  const aboutTextIsEnglishFallback = isUrdu && !settingsMap.about_text_ur
+  const visionIsEnglishFallback = isUrdu && !settingsMap.vision_ur
+  const missionIsEnglishFallback = isUrdu && !settingsMap.mission_ur
 
   return (
     <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen">
       {/* Header */}
       <div className="mb-12 text-center max-w-3xl mx-auto">
         <h1 className="font-heading text-[32px] md:text-[40px] font-bold leading-[40px] md:leading-[48px] text-dp-primary mb-4">
-          About {SITE.name}
+          {aboutHeading}
         </h1>
         <p
           className="text-dp-on-surface-variant text-[20px] mb-2"
@@ -115,15 +136,20 @@ export default async function AboutPage() {
             <p className="font-sans text-[18px] leading-[28px] text-dp-on-surface-variant mb-4">
               {villageHistoryP2}
             </p>
-            <p className="font-sans text-[18px] leading-[28px] text-dp-on-surface-variant">
-              {settingsMap.about_text || `Dedicated to the prosperity and welfare of ${SITE.name} village through transparent management, modern water systems, and communal support.`}
+            <p className="font-sans text-[18px] leading-[28px] text-dp-on-surface-variant" dir={aboutTextIsEnglishFallback ? 'ltr' : undefined}>
+              {aboutText}
             </p>
           </div>
         </div>
       </section>
 
-      {/* Vision + Mission */}
-      <section className="mb-16 grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Vision + Mission.
+          dir added here (was missing entirely before -- this section never
+          flipped, unlike Village History above it), and each body paragraph
+          gets its own dir="ltr" guard for the same reason as about_text:
+          only when it's actually showing the English fallback, so a filled-
+          in Urdu translation still reads correctly RTL. */}
+      <section className="mb-16 grid grid-cols-1 md:grid-cols-2 gap-6" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
         <div className="bg-dp-primary text-white rounded-lg p-8 relative overflow-hidden">
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-4">
@@ -132,8 +158,8 @@ export default async function AboutPage() {
                 <T k="x.ourVision" />
               </h2>
             </div>
-            <p className="font-sans text-[18px] leading-[28px] opacity-90">
-              {settingsMap.vision || 'A self-sustaining village with clean water, quality education, and modern infrastructure for every household.'}
+            <p className="font-sans text-[18px] leading-[28px] opacity-90" dir={visionIsEnglishFallback ? 'ltr' : undefined}>
+              {vision}
             </p>
           </div>
           <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-white/5 rounded-full blur-2xl" />
@@ -147,8 +173,8 @@ export default async function AboutPage() {
                 <T k="x.ourMission" />
               </h2>
             </div>
-            <p className="font-sans text-[18px] leading-[28px] text-dp-on-surface-variant">
-              {settingsMap.mission || 'To provide transparent governance, efficient water management, and community-driven development through collective effort.'}
+            <p className="font-sans text-[18px] leading-[28px] text-dp-on-surface-variant" dir={missionIsEnglishFallback ? 'ltr' : undefined}>
+              {mission}
             </p>
           </div>
         </div>

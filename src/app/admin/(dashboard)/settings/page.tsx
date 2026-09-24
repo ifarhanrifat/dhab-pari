@@ -197,7 +197,13 @@ const settingGroups: { labelKey: string; description?: string; keys: string[]; c
     ],
     category: 'documents',
   },
-  { labelKey: 'st.grp.about', keys: ['about_text', 'vision', 'mission'], category: 'general' },
+  // Real report, 2026-09-25: the public About page's history paragraphs got
+  // real Urdu translations, but about_text/vision/mission never had an _ur
+  // counterpart at all -- so a site set to Urdu still showed these three in
+  // plain English, with the trailing English punctuation visibly
+  // bidi-reordered inside the page's RTL paragraph context (a stray "."
+  // appearing before the sentence instead of after it).
+  { labelKey: 'st.grp.about', keys: ['about_text', 'about_text_ur', 'vision', 'vision_ur', 'mission', 'mission_ur'], category: 'general' },
   // Migration 307 — every word on the four homepage welfare cards. One
   // group per card so each opens/collapses on its own rather than one
   // 60-field wall; fieldsFor(card) keeps the four in the same order the
@@ -238,6 +244,13 @@ const settingGroups: { labelKey: string; description?: string; keys: string[]; c
 // printer fields, named the way the person changing them would describe
 // them; everything else still falls back to the key.
 const FIELD_LABELS: Record<string, string> = {
+  about_text: 'About paragraph (English) — public About page',
+  about_text_ur: 'About paragraph (Urdu) — public About page',
+  vision: 'Vision statement (English)',
+  vision_ur: 'Vision statement (Urdu)',
+  mission: 'Mission statement (English)',
+  mission_ur: 'Mission statement (Urdu)',
+
   slip_display_mode: 'Label language on receipts',
   slip_font_heading: 'Heading size',
   slip_font_body: 'Body size',
@@ -660,7 +673,7 @@ export default function AdminSettingsPage() {
           <div className="space-y-4">
             {group.keys.map((key) => {
               const setting = settings.find((s) => s.key === key)
-              const isLong = ['about_text', 'vision', 'mission', 'invoice_instructions', 'donor_invoice_instructions', 'receipt_fund_note', 'donor_receipt_fund_note', 'publisher_guidelines_ur', 'publisher_guidelines_en', 'recurring_policy_ur', 'recurring_policy_en'].includes(key) || WELFARE_LONG_FIELDS.includes(key) || PORTAL_GUIDE_LONG_FIELDS.includes(key) || ADMIN_GUIDE_LONG_FIELDS.includes(key)
+              const isLong = ['about_text', 'about_text_ur', 'vision', 'vision_ur', 'mission', 'mission_ur', 'invoice_instructions', 'donor_invoice_instructions', 'receipt_fund_note', 'donor_receipt_fund_note', 'publisher_guidelines_ur', 'publisher_guidelines_en', 'recurring_policy_ur', 'recurring_policy_en'].includes(key) || WELFARE_LONG_FIELDS.includes(key) || PORTAL_GUIDE_LONG_FIELDS.includes(key) || ADMIN_GUIDE_LONG_FIELDS.includes(key)
               return (
                 <div key={key}>
                   <label className="block font-sans mb-2">
