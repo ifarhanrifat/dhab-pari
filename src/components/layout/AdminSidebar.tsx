@@ -13,6 +13,7 @@ import {
   FileText,
   Settings,
   LogOut,
+  ArrowLeftCircle,
   MessageSquare,
   Newspaper,
   Video,
@@ -340,6 +341,16 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
           )
         })}
       </nav>
+
+      {/* Real report, 2026-09-25: no way to reach the public website from an
+          admin account at all -- the portal sidebar already has exactly
+          this link (same href="/", same session underneath, staying logged
+          in the whole time), just never existed on the admin side. */}
+      <div className="px-2 pt-2 shrink-0" dir={rowDir}>
+        <a href="/" className="flex items-center px-2 py-2.5 rounded-lg text-white/70 hover:bg-dp-primary-container hover:text-white transition-all text-[13.5px] font-sans">
+          <ArrowLeftCircle size={17} className="me-3 shrink-0" /> {t('nav.backToWebsite')}
+        </a>
+      </div>
 
       {/* Logout */}
       <div className="px-4 pt-4 mt-auto border-t border-white/10 shrink-0">
