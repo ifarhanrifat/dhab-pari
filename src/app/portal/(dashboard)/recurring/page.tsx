@@ -16,7 +16,7 @@ interface Schedule {
   id: string; amount_pkr: number; frequency: string; next_run_date: string; is_active: boolean
   project_id: string | null; payment_method: string | null; particular: string | null
 }
-interface Project { id: string; title: string }
+interface Project { id: string; title: string; display_name: string | null }
 // A standing Kafalat/Wazifa/Sadqa share, read the same way a project
 // recurring schedule is — one list, one place a donor manages what repeats.
 interface PoolLine { id: string; source: 'pool'; amount_pkr: number; is_active: boolean; particular: string; pool_code: string }
@@ -42,7 +42,12 @@ export default function PortalRecurringPage() {
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [poolLines, setPoolLines] = useState<PoolLine[]>([])
   const [wazifaLines, setWazifaLines] = useState<WazifaLine[]>([])
+  // Eligible-for-a-new-schedule list (the dropdown) vs. every project (for
+  // naming an EXISTING schedule correctly even if its project has since
+  // completed and dropped out of the eligible list) are deliberately two
+  // different sets -- see the fetch below.
   const [projects, setProjects] = useState<Project[]>([])
+  const [allProjectsById, setAllProjectsById] = useState<Record<string, Project>>({})
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(empty)
@@ -57,16 +62,34 @@ export default function PortalRecurringPage() {
   const load = async () => {
     if (!user) return
     const supabase = createClient()
-    const [{ data: sched }, { data: proj }, { data: pol }, { data: pool }, { data: wazifa }] = await Promise.all([
+    const [{ data: sched }, { data: proj }, { data: pol }, { data: pool }, { data: wazifa }, { data: allProj }] = await Promise.all([
       supabase.from('recurring_schedules').select('id, amount_pkr, frequency, next_run_date, is_active, project_id, payment_method, particular')
         .eq('created_by_portal_user_id', user.id).order('next_run_date', { ascending: true }),
-      supabase.from('projects').select('id, title').neq('status', 'upcoming').order('title'),
+      // Real report, 2026-09-25: this was select('id, title') filtered only
+      // by neq('status', 'upcoming') -- completed projects (no longer
+      // accepting new money) still showed up, and the raw `title` leaked a
+      // sensitive project's real name (e.g. a patient) straight to donors,
+      // bypassing the anonymized display_name every other project picker in
+      // the app already uses (portal dashboard, public /donate). Matches
+      // the dashboard's own recurring-eligible query: ongoing, or a
+      // recurring_support project regardless of status (a teacher's salary
+      // etc. isn't "completed" the way a one-off build is).
+      supabase.from('projects').select('id, title, display_name')
+        .or('status.eq.ongoing,funding_model.eq.recurring_support').order('title'),
       supabase.from('site_settings').select('key, value').in('key', ['recurring_policy_en', 'recurring_policy_ur']),
       supabase.rpc('my_pool_recurring_lines'),
       supabase.rpc('my_wazifa_installments'),
+      // Unfiltered, for naming an existing schedule's project even once
+      // it's dropped out of the eligible-for-new-schedules list above
+      // (completed since the schedule was created) -- without this a
+      // schedule silently relabels itself "General Fund" the moment its
+      // project finishes, which is wrong: the schedule is still real and
+      // still needs its actual project name shown.
+      supabase.from('projects').select('id, title, display_name'),
     ])
     setSchedules(sched ?? [])
     setProjects(proj ?? [])
+    setAllProjectsById(Object.fromEntries(((allProj ?? []) as Project[]).map((p) => [p.id, p])))
     setPoolLines((pool ?? []) as PoolLine[])
     setWazifaLines((wazifa ?? []) as WazifaLine[])
     const v = Object.fromEntries((pol ?? []).map((x) => [x.key, x.value ?? '']))
@@ -165,7 +188,7 @@ export default function PortalRecurringPage() {
                 <div>
                   <p className="font-sans text-[15px] font-bold text-dp-on-surface">{fmt(s.amount_pkr)} · <span className="capitalize">{s.frequency}</span></p>
                   <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">
-                    {projects.find((p) => p.id === s.project_id)?.title ?? t('w.generalFund')} · {isUrdu ? 'اگلی' : 'Next:'} {new Date(s.next_run_date).toLocaleDateString('en-GB')}
+                    {(s.project_id && allProjectsById[s.project_id]) ? (allProjectsById[s.project_id].display_name || allProjectsById[s.project_id].title) : t('w.generalFund')} · {isUrdu ? 'اگلی' : 'Next:'} {new Date(s.next_run_date).toLocaleDateString('en-GB')}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -260,8 +283,16 @@ export default function PortalRecurringPage() {
       )}
 
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        // Real report, 2026-09-25: "top and bottom part hidden" on a
+        // phone -- same root cause as AddDonorModal/the Chart of Accounts
+        // Edit modal earlier: a vertically-centred, non-scrolling card
+        // taller than the visible viewport (phone keyboard open, or just
+        // this form's real height with the policy block showing) puts its
+        // own title bar and Save button both off-screen. items-start (not
+        // items-center) + overflow-y-auto on the backdrop, max-h-[calc(100vh-2rem)]
+        // + overflow-y-auto on the card is the same established fix.
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-start sm:items-center justify-center p-4 overflow-y-auto" onClick={() => setShowForm(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md my-4 sm:my-0 max-h-[calc(100vh-2rem)] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[22px] font-bold text-dp-primary">{t('p.newRecurring')}</h2><button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
               <div>
@@ -287,7 +318,7 @@ export default function PortalRecurringPage() {
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.project')}</label>
                 <select value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })} className="input-field">
                   <option value="">{t('w.generalFund')}</option>
-                  {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                  {projects.map((p) => <option key={p.id} value={p.id}>{p.display_name || p.title}</option>)}
                 </select>
               </div>
               <div>
