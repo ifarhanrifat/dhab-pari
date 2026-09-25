@@ -30,25 +30,29 @@ export default async function DonatePage() {
   // anonymous donors and exposes is_verified so "Announced" (pending
   // accountant verification) donations can be shown separately from the
   // honor wall.
-  const [{ data: donors }, { data: announced }, { data: projectRows }, account, { data: allVerifiedAmounts }] = await Promise.all([
-    supabase.from('donors_public').select('id, name, amount_pkr, date, project_id')
-      .eq('is_verified', true).order('amount_pkr', { ascending: false }).limit(10),
+  const [{ data: donorTotals }, { data: announced }, { data: projectRows }, account] = await Promise.all([
+    // Real ask, 2026-09-25: "total donation of those users, ever" — the
+    // honor wall used to list individual donations, so a repeat donor
+    // showed up as several separate rows instead of ranked by lifetime
+    // giving. donors_public_totals() (migration 511) groups by the same
+    // donor identity ensure_donor_account() uses everywhere else
+    // (ledger-derived account, falling back to name+phone) — a plain
+    // name-text match would wrongly merge two different people who share
+    // a name. It also doubles as the real "Total Raised"/donor-count
+    // source, replacing the hardcoded placeholders this page used to ship.
+    supabase.rpc('donors_public_totals'),
     supabase.from('donors_public').select('id, name, amount_pkr, date, project_id')
       .eq('is_verified', false).order('date', { ascending: false }).limit(10),
     supabase.from('projects').select('id, title, display_name'),
     getPaymentAccount(supabase, 'donors_projects'),
-    // The honor wall table itself only ever shows the top 10 — this is the
-    // real total across every verified donor, for the "Total Raised" badge
-    // and the "View All N Donors" link's count, neither of which was ever
-    // wired to real data before (both were hardcoded placeholders).
-    supabase.from('donors_public').select('amount_pkr').eq('is_verified', true),
   ])
 
   const projectTitleById = new Map((projectRows ?? []).map((p) => [p.id, p.display_name || p.title]))
-  const allDonors = donors ?? []
   const announcedDonors = announced ?? []
-  const totalRaised = (allVerifiedAmounts ?? []).reduce((sum, d) => sum + Number(d.amount_pkr), 0)
-  const totalDonorCount = (allVerifiedAmounts ?? []).length
+  const sortedTotals = [...(donorTotals ?? [])].sort((a, b) => b.total_pkr - a.total_pkr)
+  const allDonors = sortedTotals.slice(0, 10)
+  const totalRaised = sortedTotals.reduce((sum, d) => sum + Number(d.total_pkr), 0)
+  const totalDonorCount = sortedTotals.length
 
   const rankBadges: Record<number, string> = {
     0: 'bg-amber-400',
@@ -192,49 +196,38 @@ export default async function DonatePage() {
                 <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="x.rank" /></th>
                 <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="x.name" /></th>
                 <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="w.amountPkr" /></th>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="w.date" /></th>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="w.project" /></th>
+                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="x.donationsCount" /></th>
+                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase"><T k="x.lastDonation" /></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-dp-outline-variant">
-              {allDonors.map((donor, i) => {
-                const project = donor.project_id ? { title: projectTitleById.get(donor.project_id) } : null
-                return (
-                  <tr key={donor.id} className="hover:bg-dp-surface-container transition-colors">
-                    <td className="px-6 py-4">
-                      {i < 3 ? (
-                        <span className={`w-8 h-8 flex items-center justify-center ${rankBadges[i]} text-white rounded-full font-bold font-sans text-[14px]`}>
-                          {i + 1}
-                        </span>
-                      ) : (
-                        <span className="w-8 h-8 flex items-center justify-center text-dp-on-surface-variant font-bold font-sans text-[14px]">
-                          {i + 1}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 font-bold text-dp-primary font-sans">
-                      {donor.name}
-                    </td>
-                    <td className="px-6 py-4 font-bold font-sans">
-                      {Number(donor.amount_pkr).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 text-dp-on-surface-variant font-sans">
-                      {formatDate(donor.date)}
-                    </td>
-                    <td className="px-6 py-4">
-                      {project?.title ? (
-                        <span className="bg-dp-secondary-container/50 text-dp-on-secondary-container px-3 py-1 rounded text-[14px] font-sans font-bold tracking-[0.05em]">
-                          {project.title}
-                        </span>
-                      ) : (
-                        <span className="bg-dp-surface-container px-3 py-1 rounded text-[14px] font-sans text-dp-on-surface-variant">
-                          <T k="w.generalFund" />
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
+              {allDonors.map((donor, i) => (
+                <tr key={`${donor.name}-${i}`} className="hover:bg-dp-surface-container transition-colors">
+                  <td className="px-6 py-4">
+                    {i < 3 ? (
+                      <span className={`w-8 h-8 flex items-center justify-center ${rankBadges[i]} text-white rounded-full font-bold font-sans text-[14px]`}>
+                        {i + 1}
+                      </span>
+                    ) : (
+                      <span className="w-8 h-8 flex items-center justify-center text-dp-on-surface-variant font-bold font-sans text-[14px]">
+                        {i + 1}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 font-bold text-dp-primary font-sans">
+                    {donor.name}
+                  </td>
+                  <td className="px-6 py-4 font-bold font-sans">
+                    {Number(donor.total_pkr).toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 text-dp-on-surface-variant font-sans">
+                    {donor.donation_count}
+                  </td>
+                  <td className="px-6 py-4 text-dp-on-surface-variant font-sans">
+                    {formatDate(donor.last_date)}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

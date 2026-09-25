@@ -15,27 +15,23 @@ export const revalidate = 300
 
 export default async function AllDonorsPage() {
   const supabase = await createClient()
-  const [{ data: donors }, { data: projectRows }] = await Promise.all([
-    // donors_public (migration 116/361) already resolves `name` to the
-    // literal 'Anonymous'/'Confidential' string server-side when the donor
-    // chose anonymity or the project hides donor names — there's no
-    // separate is_anonymous column to select (a real bug, found while
-    // building this page: selecting it made the WHOLE query fail silently,
-    // same pre-existing bug the /donate honor wall's top-10 table had).
-    supabase.from('donors_public').select('id, name, amount_pkr, date, project_id')
-      .eq('is_verified', true).order('amount_pkr', { ascending: false }),
-    supabase.from('projects').select('id, title, display_name'),
+  const [{ data: donorTotals }, { data: settings }] = await Promise.all([
+    // donors_public_totals() (migration 511) — real lifetime total per
+    // donor identity, not one row per donation. See donate/page.tsx's own
+    // copy of this same reasoning.
+    supabase.rpc('donors_public_totals'),
+    // Same site-wide "Accounts Display Language" convention every other
+    // bilingual public page reads (site_settings.display_language) — this
+    // page has no signed-in user to read a per-user preference from.
+    supabase.from('site_settings').select('key, value').eq('key', 'display_language').maybeSingle(),
   ])
 
-  const projectTitleById = new Map((projectRows ?? []).map((p) => [p.id, p.display_name || p.title]))
-  const rows = (donors ?? []).map((d) => ({
-    ...d,
-    projectTitle: d.project_id ? (projectTitleById.get(d.project_id) ?? null) : null,
-  }))
-  const totalRaised = rows.reduce((sum, d) => sum + Number(d.amount_pkr), 0)
+  const isUrdu = settings?.value === 'ur'
+  const rows = [...(donorTotals ?? [])].sort((a, b) => b.total_pkr - a.total_pkr)
+  const totalRaised = rows.reduce((sum, d) => sum + Number(d.total_pkr), 0)
 
   return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-10 py-8">
+    <div className="max-w-[1200px] mx-auto px-4 md:px-10 py-8" dir={isUrdu ? 'rtl' : 'ltr'}>
       <Link href="/donate" className="inline-flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold hover:underline mb-6">
         <ArrowLeft size={16} /> <T k="x.backToDonate" />
       </Link>
@@ -45,7 +41,7 @@ export default async function AllDonorsPage() {
           <div className="inline-flex items-center justify-center p-3 bg-dp-secondary-container rounded-full text-dp-on-secondary-container">
             <Heart size={24} />
           </div>
-          <div>
+          <div style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
             <h1 className="font-heading text-[24px] md:text-[28px] font-bold leading-[32px] text-dp-primary section-title">
               <T k="x.allDonorsTitle" />
             </h1>
@@ -55,11 +51,11 @@ export default async function AllDonorsPage() {
           </div>
         </div>
         <span className="px-4 py-1 bg-dp-secondary-container text-dp-on-secondary-container rounded-full text-[14px] font-sans font-bold tracking-[0.05em] shrink-0">
-          <T k="x.totalRaisedLabel" />: {Math.round(totalRaised).toLocaleString()} ({rows.length})
+          <T k="x.totalRaisedLabel" />: <span dir="ltr" className="inline-block">{Math.round(totalRaised).toLocaleString()} ({rows.length})</span>
         </span>
       </div>
 
-      <AllDonorsTable donors={rows} />
+      <AllDonorsTable donors={rows} isUrdu={isUrdu} />
     </div>
   )
 }
