@@ -526,21 +526,29 @@ export default function AccountsPage() {
           {partyAccounts.length > 0 && (
             <div className="bg-white rounded-lg border border-dp-outline-variant">
               <div className="flex items-center justify-between px-4 py-3 bg-dp-surface-container-low/60 rounded-t-lg">
-                {/* Real ask, 2026-09-25: this total sat in its own ms-auto
-                    span, not the same fixed-width column every row's own
-                    amount uses (w-24 sm:w-32 text-end, see renderRow's own
-                    comment on why) -- the other header groups below this
-                    one (Bank Accounts, Expenses...) already get this right;
-                    this was the one section that never matched. */}
+                {/* Real ask, 2026-09-25: putting ms-auto directly on the
+                    .ltr-num amount span looked right but silently broke
+                    under RTL -- .ltr-num sets direction:ltr on that span
+                    itself, and a logical property like margin-inline-start
+                    resolves against the ELEMENT'S OWN direction, not its
+                    RTL ancestor's. So ms-auto became margin-left:auto
+                    instead of margin-right:auto and pushed the amount the
+                    wrong way (confirmed by rendering the real compiled CSS
+                    headless). Matching the other header groups' structure
+                    below instead: justify-between at the button level, with
+                    amount+chevron grouped in one normal-direction wrapper
+                    so nothing needs its own auto margin. */}
                 <button
                   onClick={() => toggleGroup(partyType)}
-                  className="flex-1 flex items-center gap-2 cursor-pointer min-w-0"
+                  className="flex-1 flex items-center justify-between gap-2 cursor-pointer min-w-0"
                 >
                   <span className="font-sans text-[13.5px] font-bold text-dp-on-surface truncate">{partyLabel}</span>
-                  <span className="font-sans text-[13.5px] font-bold text-dp-secondary ms-auto w-24 sm:w-32 text-end tabular-nums ltr-num">{fmtAmount(partyTotal)}</span>
-                  <div className="w-6 flex justify-center shrink-0">
-                    {collapsed[partyType] ? <ChevronDown size={16} className="text-dp-on-surface-variant" /> : <ChevronUp size={16} className="text-dp-on-surface-variant" />}
-                  </div>
+                  <span className="flex items-center gap-1 shrink-0">
+                    <span className="font-sans text-[13.5px] font-bold text-dp-secondary w-24 sm:w-32 text-end tabular-nums ltr-num">{fmtAmount(partyTotal)}</span>
+                    <span className="w-6 flex justify-center">
+                      {collapsed[partyType] ? <ChevronDown size={16} className="text-dp-on-surface-variant" /> : <ChevronUp size={16} className="text-dp-on-surface-variant" />}
+                    </span>
+                  </span>
                 </button>
                 {partyType === 'consumer' && (
                   <button
