@@ -13,12 +13,12 @@ import {
   MessageSquare,
   Flame,
   Lock,
-  Share2,
   Eye,
   HandHeart,
 } from 'lucide-react'
 import { SITE } from '@/lib/constants'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { ProjectShareCard } from '@/components/public/ProjectShareCard'
 
 interface Project {
   id: string
@@ -80,6 +80,13 @@ const isHealthCategory = (category: string | null) => category === 'health'
 // label (see migration 364) over the real title — for a medical project
 // whose real title is a patient's name, this is the whole point.
 const displayTitle = (project: Project) => project.display_name || project.title
+// Same fallback chain each card already uses for its own hero photo — reused
+// here so a share card's preview image always matches what the card itself
+// shows. Health stays on the fixed placeholder for the same privacy reason
+// the card enforces it: never a real patient's photo.
+const shareImage = (project: Project) =>
+  isHealthCategory(project.category) ? HEALTH_COVER_IMAGE
+    : project.cover_photo_url ?? project.after_image_url ?? project.proposal_image_url ?? project.before_image_url ?? null
 
 // Same site-wide "Accounts Display Language" toggle every other bilingual
 // page here already respects (site_settings.display_language).
@@ -543,11 +550,14 @@ function OngoingCard({ project, isHot, commentCount, expense, fee, dt, isUrdu }:
 
         {/* Actions */}
         <div className="flex items-center justify-between">
-          {commentCount > 0 ? (
-            <Link href={`/projects/${project.id}`} className="flex items-center gap-1.5 text-dp-on-surface-variant font-sans text-[13px] hover:text-dp-secondary transition-colors">
-              <MessageSquare size={15} /> {commentCount} {commentCount === 1 ? 'comment' : 'comments'}
-            </Link>
-          ) : <span />}
+          <div className="flex items-center gap-4">
+            {commentCount > 0 ? (
+              <Link href={`/projects/${project.id}`} className="flex items-center gap-1.5 text-dp-on-surface-variant font-sans text-[13px] hover:text-dp-secondary transition-colors">
+                <MessageSquare size={15} /> {commentCount} {commentCount === 1 ? 'comment' : 'comments'}
+              </Link>
+            ) : <span />}
+            <ProjectShareCard projectId={project.id} title={displayTitle(project)} imageUrl={shareImage(project)} isUrdu={isUrdu} />
+          </div>
           <div className="flex gap-2">
             <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
               <Link href={`/projects/${project.id}`} className="flex items-center gap-1.5 px-4 py-2 border-2 border-dp-primary text-dp-primary font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg hover:bg-dp-primary hover:text-white transition-colors" style={isUrdu ? urduStyle : undefined}>
@@ -668,11 +678,14 @@ function CompletedCard({ project, isHot, dt, isUrdu, received, expense }: { proj
 
         {/* Bottom */}
         <div className="flex items-center justify-between">
-          {project.end_date ? (
-            <p className="text-dp-on-surface-variant font-sans text-[14px] border-s-4 border-dp-secondary-fixed ps-3" style={isUrdu ? urduStyle : undefined}>
-              {dt('completedOn')} {new Date(project.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
-          ) : <span />}
+          <div className="flex items-center gap-4">
+            {project.end_date ? (
+              <p className="text-dp-on-surface-variant font-sans text-[14px] border-s-4 border-dp-secondary-fixed ps-3" style={isUrdu ? urduStyle : undefined}>
+                {dt('completedOn')} {new Date(project.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            ) : <span />}
+            <ProjectShareCard projectId={project.id} title={displayTitle(project)} imageUrl={shareImage(project)} isUrdu={isUrdu} />
+          </div>
           <div className="flex items-center gap-2">
             {/* A one-time build is done once it's completed — but a
                 recurring_support project (a salary, a monthly running
@@ -700,14 +713,6 @@ function CompletedCard({ project, isHot, dt, isUrdu, received, expense }: { proj
 /* ========== UPCOMING CARD ========== */
 function UpcomingCard({ project, voteCount, isHot, dt, isUrdu }: { project: Project; voteCount: number; isHot: boolean; dt: Dt; isUrdu: boolean }) {
   const { t: tr } = useLocale()
-  const share = async () => {
-    const url = typeof window !== 'undefined' ? `${window.location.origin}/projects/${project.id}` : ''
-    const text = `${displayTitle(project)} — ${url}`
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try { await navigator.share({ title: displayTitle(project), text, url }); return } catch { return }
-    }
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
-  }
 
   return (
     <div className="relative bg-white border-2 border-dashed border-blue-200 rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm">
@@ -793,14 +798,13 @@ function UpcomingCard({ project, voteCount, isHot, dt, isUrdu }: { project: Proj
               {dt('viewAndVote')}
             </Link>
           </motion.div>
-          <motion.button
-            whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}
-            onClick={share}
-            title={dt('shareToVote')}
-            className="px-4 py-3 border-2 border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
-          >
-            <Share2 size={16} />
-          </motion.button>
+          <motion.div whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}>
+            <ProjectShareCard
+              projectId={project.id} title={displayTitle(project)} imageUrl={shareImage(project)}
+              isVotingOpen isUrdu={isUrdu}
+              className="flex items-center justify-center px-4 py-3 border-2 border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer h-full"
+            />
+          </motion.div>
           <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
             <Link
               href="/suggestions"

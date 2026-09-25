@@ -7,12 +7,13 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { ArrowLeft, MapPin, HeartHandshake, Megaphone, Receipt, CheckCircle, Vote, ThumbsUp, Flag, Share2, Clock, Users, HandHeart, X, ShieldCheck, Cake, Award, LogIn } from 'lucide-react'
+import { ArrowLeft, MapPin, HeartHandshake, Megaphone, Receipt, CheckCircle, Vote, ThumbsUp, Flag, Clock, Users, HandHeart, X, ShieldCheck, Cake, Award, LogIn } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { DonorBadge } from '@/components/public/DonorBadge'
 import type { DonorBadgeTier } from '@/lib/donorBadges'
 import { VideoPlayer } from '@/components/VideoPlayer'
 import { Lightbox } from '@/components/public/Lightbox'
+import { ProjectShareCard } from '@/components/public/ProjectShareCard'
 
 interface Project {
   id: string; title: string; display_name: string | null; description: string | null; status: string
@@ -328,19 +329,6 @@ export default function ProjectDetailPage() {
     load()
   }
 
-  // Web Share API where supported (mobile browsers), falling back to the
-  // same wa.me deep-link pattern already used throughout admin (collect,
-  // donors, reminders pages) — no recipient number, just opens WhatsApp's
-  // own share-to-any-chat picker.
-  const shareProject = async () => {
-    const url = typeof window !== 'undefined' ? window.location.href : ''
-    const text = `Vote for "${project?.display_name || project?.title}" — help it reach ${project?.vote_target ?? 'the'} votes! ${url}`
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try { await navigator.share({ title: (project?.display_name || project?.title) ?? 'Vote for this project', text, url }); return } catch { /* user cancelled */ return }
-    }
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
-  }
-
   const flagComment = async (commentId: string) => {
     if (!portalUser) { router.push(`/portal/login?next=/projects/${id}`); return }
     const reason = window.prompt('Why are you flagging this comment? (sent to the committee for review)')
@@ -389,7 +377,14 @@ export default function ProjectDetailPage() {
       <Link href="/projects" className="inline-flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold hover:underline mb-6"><ArrowLeft size={16} /> {tr('x.allProjects')}</Link>
 
       <div className="mb-8">
-        <span className="bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded font-sans text-[12px] font-semibold uppercase tracking-[0.05em]">{isUrdu ? (CATEGORY_LABEL_UR[project.category ?? 'other'] ?? project.category) : project.category}</span>
+        <div className="flex items-start justify-between gap-3">
+          <span className="bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded font-sans text-[12px] font-semibold uppercase tracking-[0.05em]">{isUrdu ? (CATEGORY_LABEL_UR[project.category ?? 'other'] ?? project.category) : project.category}</span>
+          <ProjectShareCard
+            projectId={project.id} title={project.display_name || project.title}
+            imageUrl={project.category === 'health' ? '/images/health-project-cover.jpg' : (project.after_image_url ?? project.proposal_image_url ?? project.before_image_url)}
+            isVotingOpen={project.status === 'upcoming'} isUrdu={isUrdu} variant="button"
+          />
+        </div>
         <h1 className="font-heading text-[28px] md:text-[32px] font-bold text-dp-primary mt-3">{project.display_name || project.title}</h1>
         {project.location && <p className="flex items-center gap-1 text-dp-on-surface-variant font-sans text-[15px] mt-1"><MapPin size={15} /> {isUrdu ? (project.location_ur || project.location) : project.location}</p>}
         <p className="font-sans text-[16px] text-dp-on-surface-variant mt-4 leading-[26px]">{project.description}</p>
@@ -515,9 +510,13 @@ export default function ProjectDetailPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={shareProject} className="flex items-center gap-2 border-2 border-blue-600 text-blue-700 px-4 py-3 rounded-lg font-sans font-semibold hover:bg-blue-600 hover:text-white transition-all cursor-pointer">
-                <Share2 size={16} /> {tr('x.shareForVotes')}
-              </button>
+              <ProjectShareCard
+                projectId={project.id} title={project.display_name || project.title}
+                imageUrl={project.after_image_url ?? project.proposal_image_url ?? project.before_image_url}
+                isVotingOpen isUrdu={isUrdu}
+                variant="button" label={tr('x.shareForVotes')}
+                className="flex items-center gap-2 border-2 border-blue-600 text-blue-700 px-4 py-3 rounded-lg font-sans font-semibold hover:bg-blue-600 hover:text-white transition-all cursor-pointer"
+              />
               <button onClick={castVote} disabled={voting || !!myVoteId} className={`flex items-center gap-2 px-6 py-3 rounded-lg font-sans font-semibold transition-all disabled:opacity-100 ${myVoteId ? 'bg-blue-100 text-blue-700 border-2 border-blue-600 cursor-default' : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer disabled:opacity-50'}`}>
                 <Vote size={16} /> {myVoteId ? '✓ Voted' : 'Vote for Project'}
               </button>

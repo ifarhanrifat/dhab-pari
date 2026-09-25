@@ -19,6 +19,7 @@ import {
 import { DonateCTAButton } from '@/components/public/DonateCTAButton'
 import { BankAccountCard } from '@/components/public/BankAccountCard'
 import { T } from '@/components/i18n/T'
+import { TotalRaisedBadge, ViewAllDonorsLink } from '@/components/public/DonorsHonorWallFooter'
 
 export default async function DonatePage() {
   const supabase = await createClient()
@@ -29,18 +30,25 @@ export default async function DonatePage() {
   // anonymous donors and exposes is_verified so "Announced" (pending
   // accountant verification) donations can be shown separately from the
   // honor wall.
-  const [{ data: donors }, { data: announced }, { data: projectRows }, account] = await Promise.all([
+  const [{ data: donors }, { data: announced }, { data: projectRows }, account, { data: allVerifiedAmounts }] = await Promise.all([
     supabase.from('donors_public').select('id, name, amount_pkr, date, is_anonymous, project_id')
       .eq('is_verified', true).order('amount_pkr', { ascending: false }).limit(10),
     supabase.from('donors_public').select('id, name, amount_pkr, date, is_anonymous, project_id')
       .eq('is_verified', false).order('date', { ascending: false }).limit(10),
     supabase.from('projects').select('id, title, display_name'),
     getPaymentAccount(supabase, 'donors_projects'),
+    // The honor wall table itself only ever shows the top 10 — this is the
+    // real total across every verified donor, for the "Total Raised" badge
+    // and the "View All N Donors" link's count, neither of which was ever
+    // wired to real data before (both were hardcoded placeholders).
+    supabase.from('donors_public').select('amount_pkr').eq('is_verified', true),
   ])
 
   const projectTitleById = new Map((projectRows ?? []).map((p) => [p.id, p.display_name || p.title]))
   const allDonors = donors ?? []
   const announcedDonors = announced ?? []
+  const totalRaised = (allVerifiedAmounts ?? []).reduce((sum, d) => sum + Number(d.amount_pkr), 0)
+  const totalDonorCount = (allVerifiedAmounts ?? []).length
 
   const rankBadges: Record<number, string> = {
     0: 'bg-amber-400',
@@ -174,9 +182,7 @@ export default async function DonatePage() {
               <T k="x.transparentRecord" />
             </p>
           </div>
-          <span className="px-4 py-1 bg-dp-secondary-container text-dp-on-secondary-container rounded-full text-[14px] font-sans font-bold tracking-[0.05em] shrink-0">
-            Total Raised: 1.2M
-          </span>
+          <TotalRaisedBadge amount={totalRaised} />
         </div>
 
         <div className="overflow-x-auto rounded-lg border border-dp-outline-variant bg-white">
@@ -233,9 +239,7 @@ export default async function DonatePage() {
           </table>
         </div>
         <div className="mt-4 text-center">
-          <button className="text-dp-secondary font-bold hover:underline font-sans cursor-pointer">
-            View All 150+ Donors
-          </button>
+          <ViewAllDonorsLink count={totalDonorCount} />
         </div>
       </section>
 
