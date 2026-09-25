@@ -448,22 +448,27 @@ export default function AccountsPage() {
         <p className={`font-sans text-dp-on-surface-variant mt-1 ${isUrdu ? 'text-[14px]' : 'text-[13px]'}`}>{t('ac.subtitle')}</p>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6">
+      {/* Real ask, 2026-09-25: force these two onto one row instead of
+          wrapping to two on a phone -- flex-1/min-w-0/truncate on each
+          button, tighter padding and a smaller badge, so both always share
+          one row's width evenly rather than the second one dropping below
+          the first. */}
+      <div className="flex gap-2 mb-6">
         {access.canWaterSupply && <button
           onClick={() => setTab('water_supply')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-sans font-semibold transition-all cursor-pointer ${isUrdu ? 'text-[14px]' : 'text-[13px]'} ${tab === 'water_supply' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
+          className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg font-sans font-semibold transition-all cursor-pointer ${isUrdu ? 'text-[12.5px]' : 'text-[12px]'} ${tab === 'water_supply' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
         >
-          <Droplets size={16} />
-          {t('a.waterSupplySystem')}
-          <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${tab === 'water_supply' ? 'bg-white/20 text-white' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>{waterCount}</span>
+          <Droplets size={15} className="shrink-0" />
+          <span className="truncate">{t('a.waterSupplySystem')}</span>
+          <span className={`shrink-0 text-[10.5px] px-1.5 py-0.5 rounded-full ${tab === 'water_supply' ? 'bg-white/20 text-white' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>{waterCount}</span>
         </button>}
         {access.canDonorsProjects && <button
           onClick={() => setTab('donors_projects')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-sans font-semibold transition-all cursor-pointer ${isUrdu ? 'text-[14px]' : 'text-[13px]'} ${tab === 'donors_projects' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
+          className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg font-sans font-semibold transition-all cursor-pointer ${isUrdu ? 'text-[12.5px]' : 'text-[12px]'} ${tab === 'donors_projects' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
         >
-          <Heart size={16} />
-          {t('a.donorsProjects')}
-          <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${tab === 'donors_projects' ? 'bg-white/20 text-white' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>{donorCount}</span>
+          <Heart size={15} className="shrink-0" />
+          <span className="truncate">{t('a.donorsProjects')}</span>
+          <span className={`shrink-0 text-[10.5px] px-1.5 py-0.5 rounded-full ${tab === 'donors_projects' ? 'bg-white/20 text-white' : 'bg-dp-surface-container text-dp-on-surface-variant'}`}>{donorCount}</span>
         </button>}
       </div>
 
@@ -513,13 +518,21 @@ export default function AccountsPage() {
           {partyAccounts.length > 0 && (
             <div className="bg-white rounded-lg border border-dp-outline-variant">
               <div className="flex items-center justify-between px-4 py-3 bg-dp-surface-container-low/60 rounded-t-lg">
+                {/* Real ask, 2026-09-25: this total sat in its own ms-auto
+                    span, not the same fixed-width column every row's own
+                    amount uses (w-24 sm:w-32 text-end, see renderRow's own
+                    comment on why) -- the other header groups below this
+                    one (Bank Accounts, Expenses...) already get this right;
+                    this was the one section that never matched. */}
                 <button
                   onClick={() => toggleGroup(partyType)}
-                  className="flex-1 flex items-center gap-2 cursor-pointer"
+                  className="flex-1 flex items-center gap-2 cursor-pointer min-w-0"
                 >
-                  <span className="font-sans text-[13.5px] font-bold text-dp-on-surface">{partyLabel}</span>
-                  <span className="font-sans text-[12.5px] font-bold text-dp-secondary ms-auto pe-2 ltr-num">{fmtAmount(partyTotal)}</span>
-                  {collapsed[partyType] ? <ChevronDown size={16} className="text-dp-on-surface-variant" /> : <ChevronUp size={16} className="text-dp-on-surface-variant" />}
+                  <span className="font-sans text-[13.5px] font-bold text-dp-on-surface truncate">{partyLabel}</span>
+                  <span className="font-sans text-[13.5px] font-bold text-dp-secondary ms-auto w-24 sm:w-32 text-end tabular-nums ltr-num">{fmtAmount(partyTotal)}</span>
+                  <div className="w-6 flex justify-center shrink-0">
+                    {collapsed[partyType] ? <ChevronDown size={16} className="text-dp-on-surface-variant" /> : <ChevronUp size={16} className="text-dp-on-surface-variant" />}
+                  </div>
                 </button>
                 {partyType === 'consumer' && (
                   <button
