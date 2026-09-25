@@ -498,7 +498,7 @@ export default function AccountsPage() {
             className={`w-full ps-9 pe-3 py-2.5 rounded-lg border border-dp-outline-variant font-sans focus:outline-none focus:border-dp-primary ${isUrdu ? 'text-[13.5px]' : 'text-[12.5px]'}`}
           />
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => router.push(tab === 'donors_projects' ? '/admin/donors' : '/admin/billing')}
             className={`shrink-0 px-4 py-2 rounded-lg bg-dp-surface-container-low text-dp-on-surface font-sans font-bold hover:bg-dp-surface-container transition-all cursor-pointer ${isUrdu ? 'text-[13.5px]' : 'text-[12.5px]'}`}
@@ -512,9 +512,9 @@ export default function AccountsPage() {
           >
             <SlidersHorizontal size={16} />
           </button>
-          <label className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dp-outline-variant cursor-pointer select-none font-sans text-[12.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low">
-            <input type="checkbox" checked={showZeroBalance} onChange={(e) => setShowZeroBalance(e.target.checked)} className="accent-dp-secondary" />
-            {t('ac.showZeroBalance')}
+          <label className="min-w-0 flex-1 flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dp-outline-variant cursor-pointer select-none font-sans text-[12.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low">
+            <input type="checkbox" checked={showZeroBalance} onChange={(e) => setShowZeroBalance(e.target.checked)} className="shrink-0 accent-dp-secondary" />
+            <span className="truncate">{t('ac.showZeroBalance')}</span>
           </label>
         </div>
       </div>
