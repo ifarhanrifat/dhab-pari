@@ -31,9 +31,9 @@ export default async function DonatePage() {
   // accountant verification) donations can be shown separately from the
   // honor wall.
   const [{ data: donors }, { data: announced }, { data: projectRows }, account, { data: allVerifiedAmounts }] = await Promise.all([
-    supabase.from('donors_public').select('id, name, amount_pkr, date, is_anonymous, project_id')
+    supabase.from('donors_public').select('id, name, amount_pkr, date, project_id')
       .eq('is_verified', true).order('amount_pkr', { ascending: false }).limit(10),
-    supabase.from('donors_public').select('id, name, amount_pkr, date, is_anonymous, project_id')
+    supabase.from('donors_public').select('id, name, amount_pkr, date, project_id')
       .eq('is_verified', false).order('date', { ascending: false }).limit(10),
     supabase.from('projects').select('id, title, display_name'),
     getPaymentAccount(supabase, 'donors_projects'),
@@ -213,7 +213,7 @@ export default async function DonatePage() {
                       )}
                     </td>
                     <td className="px-6 py-4 font-bold text-dp-primary font-sans">
-                      {donor.is_anonymous ? 'Anonymous Donor' : donor.name}
+                      {donor.name}
                     </td>
                     <td className="px-6 py-4 font-bold font-sans">
                       {Number(donor.amount_pkr).toLocaleString()}
@@ -267,7 +267,7 @@ export default async function DonatePage() {
               <tbody className="divide-y divide-dp-outline-variant">
                 {announcedDonors.map((donor) => (
                   <tr key={donor.id}>
-                    <td className="px-6 py-4 font-bold text-dp-primary font-sans">{donor.is_anonymous ? 'Anonymous Donor' : donor.name}</td>
+                    <td className="px-6 py-4 font-bold text-dp-primary font-sans">{donor.name}</td>
                     <td className="px-6 py-4 font-bold font-sans">{Number(donor.amount_pkr).toLocaleString()}</td>
                     <td className="px-6 py-4 font-sans text-dp-on-surface-variant">{donor.project_id ? (projectTitleById.get(donor.project_id) ?? 'Project') : 'General Fund'}</td>
                     <td className="px-6 py-4">

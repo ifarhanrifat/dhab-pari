@@ -16,7 +16,13 @@ export const revalidate = 300
 export default async function AllDonorsPage() {
   const supabase = await createClient()
   const [{ data: donors }, { data: projectRows }] = await Promise.all([
-    supabase.from('donors_public').select('id, name, amount_pkr, date, is_anonymous, project_id')
+    // donors_public (migration 116/361) already resolves `name` to the
+    // literal 'Anonymous'/'Confidential' string server-side when the donor
+    // chose anonymity or the project hides donor names — there's no
+    // separate is_anonymous column to select (a real bug, found while
+    // building this page: selecting it made the WHOLE query fail silently,
+    // same pre-existing bug the /donate honor wall's top-10 table had).
+    supabase.from('donors_public').select('id, name, amount_pkr, date, project_id')
       .eq('is_verified', true).order('amount_pkr', { ascending: false }),
     supabase.from('projects').select('id, title, display_name'),
   ])

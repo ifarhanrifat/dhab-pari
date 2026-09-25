@@ -9,7 +9,6 @@ interface DonorRow {
   name: string | null
   amount_pkr: number
   date: string
-  is_anonymous: boolean
   projectTitle: string | null
 }
 
@@ -27,7 +26,7 @@ export function AllDonorsTable({ donors }: { donors: DonorRow[] }) {
     const q = search.trim().toLowerCase()
     if (!q) return donors
     return donors.filter((d) =>
-      (!d.is_anonymous && (d.name ?? '').toLowerCase().includes(q)) ||
+      (d.name ?? '').toLowerCase().includes(q) ||
       (d.projectTitle ?? '').toLowerCase().includes(q)
     )
   }, [donors, search])
@@ -71,7 +70,7 @@ export function AllDonorsTable({ donors }: { donors: DonorRow[] }) {
                       <span className="w-8 h-8 flex items-center justify-center text-dp-on-surface-variant font-bold font-sans text-[14px]">{i + 1}</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 font-bold text-dp-primary font-sans">{donor.is_anonymous ? 'Anonymous Donor' : donor.name}</td>
+                  <td className="px-6 py-4 font-bold text-dp-primary font-sans">{donor.name}</td>
                   <td className="px-6 py-4 font-bold font-sans">{Number(donor.amount_pkr).toLocaleString()}</td>
                   <td className="px-6 py-4 text-dp-on-surface-variant font-sans">{formatDate(donor.date)}</td>
                   <td className="px-6 py-4">

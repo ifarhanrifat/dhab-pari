@@ -2,6 +2,7 @@ import { ImageResponse } from 'next/og'
 import { createClient } from '@/lib/supabase/server'
 import { SITE } from '@/lib/constants'
 import { T } from '@/components/i18n/T'
+import { shapeUrduLines } from '@/lib/ogArabicShape'
 
 export const alt = `${SITE.name} Project`
 export const size = { width: 1200, height: 630 }
@@ -27,7 +28,21 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   // This PNG is exactly what shows up as the link preview on WhatsApp/
   // Facebook — arguably the single most-seen surface a shared link has,
   // so it gets the same display_name (364) preference as everything else.
-  const title = project?.display_name || project?.title || 'Village Project'
+  //
+  // Real report, 2026-09-25: an Urdu title rendered as disconnected,
+  // reordered letters — Satori draws text exactly as given, with no
+  // Arabic joining or bidi reordering of its own (see ogArabicShape.ts).
+  // A single shapeUrdu() call fixed letter-joining but a LONG title that
+  // wraps onto 2 lines still came out scrambled: reversing one long string
+  // for RTL display only reads correctly on one line — Satori's own
+  // (left-to-right) wrapping then breaks that already-reversed string at
+  // the wrong point and the line ORDER ends up wrong too. shapeUrduLines()
+  // wraps by word first, then shapes+reverses each line on its own, and
+  // each line renders as its own row below. An already-Latin title passes
+  // through as a single line, untouched.
+  const rawTitle = project?.display_name || project?.title || 'Village Project'
+  const isUrduTitle = /[؀-ۿ]/.test(rawTitle)
+  const titleLines = isUrduTitle ? shapeUrduLines(rawTitle, 26) : [rawTitle]
   const category = (project?.category ?? 'project').toUpperCase()
   const budget = project?.budget_pkr ? `${Number(project.budget_pkr).toLocaleString()}` : null
   const statusLabel = STATUS_LABEL[project?.status ?? ''] ?? ''
@@ -54,7 +69,11 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             <div style={{ display: 'flex', background: '#2e7d32', padding: '8px 18px', borderRadius: 6, fontSize: 18, fontWeight: 700 }}>{category}</div>
             {statusLabel && <div style={{ display: 'flex', background: 'rgba(255,255,255,0.15)', padding: '8px 18px', borderRadius: 999, fontSize: 18, fontWeight: 600 }}>{statusLabel}</div>}
           </div>
-          <div style={{ display: 'flex', fontSize: 56, fontWeight: 800, lineHeight: 1.15, maxWidth: 1000 }}>{title}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', maxWidth: 1000 }}>
+            {titleLines.map((line, i) => (
+              <div key={i} style={{ display: 'flex', fontSize: 56, fontWeight: 800, lineHeight: 1.15, justifyContent: isUrduTitle ? 'flex-end' : 'flex-start' }}>{line}</div>
+            ))}
+          </div>
           {budget && (
             <div style={{ display: 'flex', marginTop: 32, alignItems: 'baseline', gap: 14 }}>
               <div style={{ display: 'flex', fontSize: 22, opacity: 0.75, textTransform: 'uppercase', letterSpacing: 2 }}>Requested Budget</div>
