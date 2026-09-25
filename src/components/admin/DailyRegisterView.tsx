@@ -21,7 +21,7 @@ interface Row { id: string; entry_date: string; account_name: string; particular
 const today = () => new Date().toISOString().slice(0, 10)
 
 function fmtAmount(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 interface DailyRegisterViewProps {

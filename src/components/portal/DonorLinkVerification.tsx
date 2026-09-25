@@ -33,7 +33,7 @@ interface Match {
 }
 
 function fmt(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 export function DonorLinkVerification({ user, onLinked }: { user: PortalUser; onLinked: () => void }) {

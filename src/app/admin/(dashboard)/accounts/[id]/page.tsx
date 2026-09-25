@@ -38,7 +38,7 @@ interface PortalUserMatch { id: string; full_name: string; mobile: string; whats
 const systemLabels: Record<string, string> = { water_supply: 'Water Supply System', donors_projects: 'Donors & Projects System' }
 
 function fmtAmount(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('en-GB')

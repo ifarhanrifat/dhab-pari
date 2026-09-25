@@ -32,7 +32,7 @@ interface PoolPending { id: string; source: 'pool'; amount_pkr: number; date: st
 interface PendingItem { key: string; kind: 'donor' | 'pool'; id: string; amount: number; label: string; date: string }
 
 function fmt(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 export default function PortalStatementPage() {

@@ -31,7 +31,7 @@ interface Vehicle { id: string; owner_name: string }
 interface SettleTarget { kind: 'collector' | 'shop' | 'vehicle'; id: string; name: string; balance: number }
 
 function fmt(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 export default function DonorCollectorsPage() {

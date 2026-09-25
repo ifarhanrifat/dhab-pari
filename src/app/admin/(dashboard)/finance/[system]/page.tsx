@@ -177,7 +177,7 @@ const emptyPurchaseForm = { date: today(), vendor: '', method: 'cash' as 'cash' 
 const emptyNewPurchaseLine = { itemId: '', quantity: 1, unit_cost: 0 }
 
 function fmtAmount(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 export default function TransactionsWorkspace({ params }: { params: Promise<{ system: string }> }) {

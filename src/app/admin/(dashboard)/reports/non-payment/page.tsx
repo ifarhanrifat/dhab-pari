@@ -22,7 +22,7 @@ interface FlaggedBill { billId: string; billNumber: string | null; month: number
 interface FlaggedConsumer { consumer: ConsumerRow; bills: FlaggedBill[]; totalOutstanding: number }
 
 function fmtAmount(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 function outstanding(bill: BillRow) {
   const net = Math.max(bill.amount_pkr - (bill.discount_amount ?? 0), 0)

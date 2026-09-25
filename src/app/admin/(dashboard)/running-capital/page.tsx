@@ -32,7 +32,7 @@ const projectStatusLabelKey: Record<string, string> = { ongoing: 'y.ongoing', co
 const donorTypeLabelKey: Record<string, string> = { villager: 'f.villager', city: 'br.city', overseas: 'g.overseas' }
 
 function fmtAmount(n: number | null | undefined) {
-  return Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 function SectionHeading({ children }: { children: React.ReactNode }) {

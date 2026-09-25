@@ -22,7 +22,7 @@ interface VoucherLine { account_id: string; amount: number; description: string 
 const systemLabelKey: Record<string, string> = { water_supply: 'a.waterSupply', donors_projects: 'a.donorsProjects' }
 
 function fmt(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 function hoursLeft(t: (key: string) => string, deadline: string) {
   const hrs = Math.round((new Date(deadline).getTime() - Date.now()) / 3600000)

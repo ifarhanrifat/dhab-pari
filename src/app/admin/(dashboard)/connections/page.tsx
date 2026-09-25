@@ -61,7 +61,7 @@ const taskStageLabels: Record<ConnectionRequest['task_status'], string> = {
 }
 
 function fmtAmount(n: number) {
-  return Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 function normalizePakPhoneLocal(raw: string): string | null {

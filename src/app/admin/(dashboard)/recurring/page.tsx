@@ -42,7 +42,7 @@ const poolKindLink: Record<string, string> = { kafalat: '/admin/kafalat', wazifa
 interface TxnRow { id: string; date: string; label: string; particular: string; amount: number }
 
 function fmtAmount(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 export default function RecurringPage() {

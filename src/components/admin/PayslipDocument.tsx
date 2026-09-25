@@ -25,7 +25,7 @@ export interface PayslipData {
 interface Props { data: PayslipData; branding: Partial<BrandingSettings> }
 
 function fmt(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 const monthName = (m: number) => new Date(2000, m - 1, 1).toLocaleString('en', { month: 'long' })
 

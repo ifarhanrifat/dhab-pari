@@ -14,7 +14,7 @@ interface Project { id: string; title: string; status: string }
 interface AccountBalance { project_id: string; balance: number }
 
 function fmt(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 // Cross-project fund transfer — for money raised on a project that isn't

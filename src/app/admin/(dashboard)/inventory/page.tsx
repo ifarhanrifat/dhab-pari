@@ -34,7 +34,7 @@ interface StockValuePoint { month: string; value: number }
 interface TopSellingItem { itemId: string; name: string; itemCode: string; quantitySold: number; revenue: number }
 
 function fmt(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 const emptyItemForm = { name: '', unit: 'piece', unit_cost: 0, unit_price: 0, reorder_level: 0 }

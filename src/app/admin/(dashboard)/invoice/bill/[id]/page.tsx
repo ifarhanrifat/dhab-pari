@@ -33,7 +33,7 @@ interface LineItemRow { description: string; quantity: number; unit_price: numbe
 interface LedgerRow { id: string; account_name: string; entry_date: string; particular: string; debit: number; credit: number; receipt_no: string | null }
 
 function fmtAmount(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 export default function BillInvoicePage({ params }: { params: Promise<{ id: string }> }) {

@@ -16,7 +16,7 @@ interface LedgerAgg { account_id: string; debit: number; credit: number }
 interface Settlement { id: string; collector_id: string; amount_pkr: number; method: string; settled_date: string; note: string | null; to_account_id: string }
 
 function fmt(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 export default function CollectorsPage() {

@@ -14,7 +14,7 @@ interface RosterName { id: string; full_name: string }
 const systemLabels: Record<string, string> = { water_supply: 'Water Supply', donors_projects: 'Donors & Projects' }
 
 function fmt(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 export function PendingApprovalsWidget() {

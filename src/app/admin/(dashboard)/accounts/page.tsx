@@ -75,7 +75,7 @@ const emptyAccount = {
 const emptyHeaderForm = { label: '', label_ur: '', code: '', code_prefix: '' }
 
 function fmtAmount(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 export default function AccountsPage() {
@@ -193,7 +193,15 @@ export default function AccountsPage() {
     const q = search.trim().toLowerCase()
     return accounts.filter((a) => {
       if (a.system !== tab) return false
-      if (!showZeroBalance && balanceOf(a) === 0) return false
+      // Real report, 2026-09-25: an account with a genuinely zero balance
+      // was still showing up with "Show zero-balance accounts" unchecked.
+      // balanceOf() is opening_balance plus/minus a running sum of every
+      // ledger entry ever posted to that account -- floating-point
+      // addition over enough real transactions can land on 0.0000000001 or
+      // similar instead of a clean 0, which fails === 0 and slips through
+      // the filter. A sub-paisa amount is effectively zero for a PKR
+      // account regardless.
+      if (!showZeroBalance && Math.abs(balanceOf(a)) < 0.01) return false
       if (!q) return true
       const receipts = a.consumer_id ? receiptsByConsumer[a.consumer_id] ?? [] : []
       return a.name.toLowerCase().includes(q)

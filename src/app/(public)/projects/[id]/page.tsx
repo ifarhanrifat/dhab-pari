@@ -664,11 +664,17 @@ export default function ProjectDetailPage() {
 
       {/* Announced (left) / Confirmed (right) — always both visible side by
           side, no tab-switching, per your ask. Headings follow the site's
-          display_language setting. */}
+          display_language setting.
+          Real ask, 2026-09-25: a project with a real donor history made
+          this whole page enormous -- every name/amount rendered in an
+          unbounded list, so scrolling the PAGE was the only way to get
+          past donors. Capped each list at a fixed height with its own
+          internal scroll instead -- a small, contained box, not a page
+          that keeps growing with every new donor. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div dir={isUrdu ? 'rtl' : 'ltr'}>
           <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('announcedSub')}</p>
-          <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
+          <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant max-h-80 overflow-y-auto">
             {announced.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('noAnnounced')}</p>}
             {announced.map((d) => (
               <div key={d.id} className="flex items-center justify-between px-5 py-3.5">
@@ -683,7 +689,7 @@ export default function ProjectDetailPage() {
         </div>
         <div dir={isUrdu ? 'rtl' : 'ltr'}>
           <p className="font-sans text-[11.5px] text-dp-on-surface-variant mb-2" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('confirmedSub')}</p>
-          <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
+          <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant max-h-80 overflow-y-auto">
             {verified.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('noConfirmed')}</p>}
             {verified.map((d) => (
               <div key={d.id} className="flex items-center justify-between px-5 py-3.5">
@@ -697,7 +703,7 @@ export default function ProjectDetailPage() {
 
       <div className="mb-8">
         <p className="font-sans text-[14px] font-bold text-dp-on-surface mb-2" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('expensesHeading')}</p>
-        <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant">
+        <div className="bg-white rounded-lg border border-dp-outline-variant divide-y divide-dp-outline-variant max-h-80 overflow-y-auto">
           {expenses.length === 0 && <p className="p-6 text-center font-sans text-[13.5px] text-dp-on-surface-variant" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{dt('noExpenses')}</p>}
           {expenses.map((e) => (
             <div key={e.id} className="flex items-center justify-between px-5 py-3.5">

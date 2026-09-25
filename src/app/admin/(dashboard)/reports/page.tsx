@@ -55,7 +55,7 @@ const today = () => new Date().toISOString().slice(0, 10)
 const monthStart = () => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10) }
 
 function fmtAmount(n: number) {
-  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 const creditNormal = (type: string) => type === 'donor' || type === 'income' || type === 'liability'
 // A donation posts a donor leg AND a project leg for the same amount (one

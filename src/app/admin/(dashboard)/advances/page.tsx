@@ -23,7 +23,7 @@ interface SettleLine { account_id: string; amount: number; description: string }
 const emptyAdvanceForm = { party_name: '', amount: 0, from_account_id: '', particular: '', voucher_date: new Date().toISOString().slice(0, 10) }
 
 function fmt(n: number) {
-  return Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 export default function AdvancesPage() {
