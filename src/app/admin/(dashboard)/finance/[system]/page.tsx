@@ -66,6 +66,12 @@ interface TxnCard {
   voucherToName?: string
   voucherFromName?: string
   voucherNo?: string | null
+  // Which project this expense/income voucher was posted against (donors_
+  // projects only, voucherForm.projectId at creation) -- real report,
+  // 2026-09-25: the money moved correctly (vouchers.project_id was always
+  // set) but nothing on this card ever showed it, so a correctly-posted
+  // project expense looked indistinguishable from a general one here.
+  projectName?: string | null
   // Waiver (migration 438) — see WaiverDialog.tsx / transactions/page.tsx's
   // identical fields for the full reasoning.
   waiverKind?: 'bill' | 'wazifa_repayment' | 'wazifa_charge' | 'academy_fee'
@@ -367,7 +373,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
 
     const billsRes = { data: (docs.bills ?? []) as { id: string; bill_number: string | null; consumer_id: string; month: number; year: number; amount_pkr: number; discount_amount: number | null; paid_amount: number | null; due_date: string | null; description: string | null; created_at: string; security_deposit_amount: number | null; security_deposit_voucher_id: string | null; recurring_schedule_id: string | null; status: string | null; waived_reason: string | null; waived_at: string | null }[] }
     const paymentsRes = { data: (docs.payments ?? []) as { id: string; bill_id: string; consumer_id: string; amount_pkr: number; method: string | null; paid_date: string; receipt_no: string | null; note: string | null; created_at: string }[] }
-    const vouchersRes = { data: (docs.vouchers ?? []) as { id: string; voucher_type: string; voucher_no: string | null; receipt_no: string | null; voucher_date: string; particular: string; amount_pkr: number; party_name: string | null; from_account_id: string | null; to_account_id: string | null; bill_id: string | null; created_at: string; recurring_schedule_id: string | null }[] }
+    const vouchersRes = { data: (docs.vouchers ?? []) as { id: string; voucher_type: string; voucher_no: string | null; receipt_no: string | null; voucher_date: string; particular: string; amount_pkr: number; party_name: string | null; from_account_id: string | null; to_account_id: string | null; bill_id: string | null; created_at: string; recurring_schedule_id: string | null; project_id: string | null; project_name: string | null; project_name_ur: string | null }[] }
     const donationsRes = { data: (docs.donations ?? []) as { id: string; name: string; name_ur: string | null; amount_pkr: number; date: string; payment_method: string | null; notes: string | null; is_anonymous: boolean; is_verified: boolean; voucher_no: string | null; created_at: string; recurring_schedule_id: string | null; payment_status: string | null; phone: string | null; whatsapp_number: string | null }[] }
     const purchasesRes = { data: (docs.purchases ?? []) as { id: string; vendor: string | null; purchase_date: string; method: string; note: string | null; attachment_url: string | null; purchase_number: string | null; created_at: string }[] }
     const autoPostedRes = { data: (docs.approval_statuses ?? []) as { reference_id: string; auto_posted: boolean }[] }
@@ -545,11 +551,12 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       // label itself, for older/atypical vouchers with no account on either side.
       const voucherToName = (hasLines ? firstToName : toAccountName) ?? v.party_name ?? cfg?.label ?? fallbackLabel
       const voucherFromName = fromName
+      const projectName = isUrdu && v.project_name_ur ? v.project_name_ur : v.project_name
       cards.push({
         id: `voucher-${v.id}`, kind: 'voucher', borderColor: isSecurityDeposit ? 'border-cyan-500' : 'border-slate-400', isRecurring: !!v.recurring_schedule_id,
         typeLabel: fallbackLabel,
         partyName: multiLineLabel ?? (v.party_name || cfg?.label || fallbackLabel),
-        docLabel, voucherToName, voucherFromName, voucherNo: v.voucher_no,
+        docLabel, voucherToName, voucherFromName, voucherNo: v.voucher_no, projectName,
         date: v.voucher_date, description: v.particular, amount: v.amount_pkr,
         badge: null, note: null, created_at: v.created_at, voucherId: v.id,
         voucherType: v.voucher_type, autoPosted: autoPostedIds.has(v.id), fullyApproved: fullyApprovedIds.has(v.id),
@@ -830,6 +837,7 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
       amount: card.amount,
       balanceAfter: 0,
       paidFromName: card.voucherFromName,
+      projectName: card.projectName,
       // The real category breakdown for a multi-line voucher (Kafalat's
       // monthly payment, a multi-category expense) -- undefined for an
       // ordinary single-leg voucher, same as purchases.
@@ -2782,6 +2790,11 @@ function TransactionsWorkspaceInner({ params }: { params: Promise<{ system: stri
                           <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{c.voucherToName}</p>
                           {c.voucherFromName && (
                             <p className="font-sans text-[12px] text-dp-on-surface-variant truncate">{c.voucherFromName}</p>
+                          )}
+                          {c.projectName && (
+                            <p className="flex items-center gap-1 font-sans text-[11.5px] font-semibold text-dp-secondary truncate mt-0.5">
+                              <Heart size={11} className="shrink-0" /> {c.projectName}
+                            </p>
                           )}
                         </div>
                         <div className="text-end shrink-0">

@@ -59,6 +59,11 @@ interface TxnRow {
   voucherToName?: string
   voucherFromName?: string
   voucherNo?: string | null
+  // Which project this voucher was posted against — real report, 2026-09-25:
+  // a correctly-posted project expense (vouchers.project_id was always set)
+  // had no way to show which project here, so it looked indistinguishable
+  // from a general one.
+  projectName?: string | null
   // Waiver (migration 438) — a committee-decided forgiveness of a single
   // pending bill/wazifa instalment/academy fee, distinct per source table
   // so the button knows which of the 4 waive_* RPCs to call. canWaive is
@@ -155,7 +160,7 @@ export default function AllTransactionsPage() {
       system === 'water_supply'
         ? supabase.from('payments').select('id, bill_id, consumer_id, amount_pkr, method, paid_date, receipt_no, note, created_at').gte('paid_date', from).lte('paid_date', to)
         : Promise.resolve({ data: [] as { id: string; bill_id: string; consumer_id: string; amount_pkr: number; method: string | null; paid_date: string; receipt_no: string | null; note: string | null; created_at: string }[] }),
-      supabase.from('vouchers').select('id, voucher_type, voucher_no, receipt_no, voucher_date, particular, amount_pkr, party_name, from_account_id, to_account_id, bill_id, created_at, recurring_schedule_id, reversed_by_voucher_id, reverses_voucher_id')
+      supabase.from('vouchers').select('id, voucher_type, voucher_no, receipt_no, voucher_date, particular, amount_pkr, party_name, from_account_id, to_account_id, bill_id, created_at, recurring_schedule_id, reversed_by_voucher_id, reverses_voucher_id, project_id')
         .eq('system', system).in('status', ['posted', 'approved']).gte('voucher_date', from).lte('voucher_date', to),
       system === 'donors_projects'
         ? supabase.from('donors').select('id, name, amount_pkr, date, payment_method, notes, is_anonymous, created_at, voucher_no, is_verified, payment_status, recurring_schedule_id').gte('date', from).lte('date', to)
@@ -229,6 +234,13 @@ export default function AllTransactionsPage() {
       : { data: [] as { id: string; name: string; name_ur: string | null }[] }
     const accountNameById = Object.fromEntries(
       (accountsForLabels ?? []).map((a) => [a.id, isUrdu && a.name_ur ? a.name_ur : a.name])
+    )
+    const projectIdsNeeded = Array.from(new Set((vouchersRes.data ?? []).map((v) => v.project_id).filter((id): id is string => !!id)))
+    const { data: projectsForLabels } = projectIdsNeeded.length > 0
+      ? await supabase.from('projects').select('id, title, title_ur').in('id', projectIdsNeeded)
+      : { data: [] as { id: string; title: string; title_ur: string | null }[] }
+    const projectNameById = Object.fromEntries(
+      (projectsForLabels ?? []).map((p) => [p.id, isUrdu && p.title_ur ? p.title_ur : p.title])
     )
     const result: TxnRow[] = []
 
@@ -330,13 +342,14 @@ export default function AllTransactionsPage() {
       // label itself, for older/atypical vouchers with no account on either side.
       const voucherToName = (hasLines ? firstToName : toAccountName) ?? v.party_name ?? label
       const voucherFromName = fromName
+      const projectName = v.project_id ? projectNameById[v.project_id] : undefined
       result.push({
         id: `voucher-${v.id}`, kind: 'voucher', voucherType: v.voucher_type, isRecurring: !!v.recurring_schedule_id,
         borderColor: isSecurityDeposit ? 'border-cyan-500' : 'border-slate-400',
         typeLabel: label, partyName: multiLineLabel ?? (v.party_name || label), docLabel,
         date: v.voucher_date, description: v.particular, amount: v.amount_pkr,
         badge: null, note: null, voucherId: v.id, receiptNo: v.receipt_no, autoPosted: autoPostedIds.has(v.id), fullyApproved: fullyApprovedIds.has(v.id), createdAt: v.created_at,
-        hasLineItems: hasLines, voucherToName, voucherFromName, voucherNo: v.voucher_no,
+        hasLineItems: hasLines, voucherToName, voucherFromName, voucherNo: v.voucher_no, projectName,
         reversedByVoucherId: v.reversed_by_voucher_id, reversesVoucherId: v.reverses_voucher_id,
         searchBlob: `${v.party_name ?? ''} ${label} ${fromName ?? ''} ${firstToName ?? ''} ${toAccountName ?? ''} ${v.voucher_no ?? ''} ${v.receipt_no ?? ''} ${v.particular ?? ''}`.toLowerCase(),
       })
@@ -501,6 +514,7 @@ export default function AllTransactionsPage() {
         date: r.date, systemLabel: systemLabels[system], accountName: r.voucherToName ?? r.partyName,
         particular: r.description, amount: r.amount, balanceAfter: 0,
         paidFromName: r.voucherFromName,
+        projectName: r.projectName,
         lineItems,
       })
     } else if (r.kind === 'purchase' && r.purchaseId) {
@@ -658,6 +672,11 @@ export default function AllTransactionsPage() {
                       <p className="font-sans text-[14px] font-bold text-dp-on-surface">{r.voucherToName}</p>
                       {r.voucherFromName && (
                         <p className="font-sans text-[12px] text-dp-on-surface-variant">{r.voucherFromName}</p>
+                      )}
+                      {r.projectName && (
+                        <p className="flex items-center gap-1 font-sans text-[11.5px] font-semibold text-dp-secondary mt-0.5">
+                          <HeartHandshake size={11} className="shrink-0" /> {r.projectName}
+                        </p>
                       )}
                     </div>
                     <div className="text-end shrink-0">

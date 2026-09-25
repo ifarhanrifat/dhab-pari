@@ -304,13 +304,18 @@ function DepositBox({ data }: { data: ReceiptData }) {
   )
 }
 
-// Which project the donation is earmarked for — a donor looking at this receipt
-// months later should not have to guess. Falls back to "General Fund" for
-// unearmarked giving. The donation-side counterpart of BillingPeriod below, and
-// rendered in the same slot in every template.
+// Which project this money is tied to — a donor looking at a donation receipt
+// months later should not have to guess, and a committee member auditing an
+// expense voucher (real report, 2026-09-25: a medical-expense payment posted
+// correctly but nowhere showed which patient's project it was charged to)
+// shouldn't either. Falls back to "General Fund" only for a donation with no
+// project picked; a non-donation receipt with no project simply shows nothing
+// rather than implying every expense is project-earmarked. The donation-side
+// counterpart of BillingPeriod below, and rendered in the same slot in every
+// template.
 function ProjectLine({ data, className = '' }: { data: ReceiptData; className?: string }) {
   const lang: Lang = data.language ?? 'en'
-  if (data.kind !== 'donation') return null
+  if (data.kind !== 'donation' && !data.projectName) return null
   return (
     <p className={`font-sans text-[12.5px] ${className}`}>
       <span className="text-dp-on-surface-variant">{dt(lang, 'forProject')}: </span>
