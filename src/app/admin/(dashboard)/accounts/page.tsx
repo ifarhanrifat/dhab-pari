@@ -396,7 +396,7 @@ export default function AccountsPage() {
       <div
         key={a.id}
         onClick={() => viewAccount(a)}
-        className={`flex items-center justify-between gap-3 px-4 py-3.5 border-t border-dp-outline-variant hover:bg-dp-surface-container-low/50 cursor-pointer transition-colors ${!a.is_active ? 'opacity-50' : ''} ${indented ? 'ps-10 bg-dp-surface-container-low/30' : ''}`}
+        className={`flex items-center justify-between gap-3 px-4 border-t border-dp-outline-variant hover:bg-dp-surface-container-low/50 cursor-pointer transition-colors ${isUrdu ? 'py-3.5' : 'py-2.5'} ${!a.is_active ? 'opacity-50' : ''} ${indented ? 'ps-10 bg-dp-surface-container-low/30' : ''}`}
       >
         {/* No dir override here — the row inherits the page's real dir
             (386), so under Urdu the browser's own RTL flex reversal is
@@ -411,7 +411,7 @@ export default function AccountsPage() {
             individual name's own script) fixes that regardless of which
             accounts happen to have a translation yet. */}
         <div className="min-w-0 flex-1" dir={isUrdu ? 'rtl' : 'ltr'}>
-          <p className={`font-sans font-semibold text-dp-on-surface ${isUrduLine ? 'text-[13px]' : 'text-[13.5px]'}`} style={isUrduLine ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
+          <p className={`font-sans font-semibold leading-snug text-dp-on-surface ${isUrduLine ? 'text-[13px]' : 'text-[13.5px]'}`} style={isUrduLine ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
             {indented && <span className="text-dp-on-surface-variant font-normal">↳ </span>}{primary}
           </p>
           {a.type === 'consumer' && a.consumer_id && consumers[a.consumer_id] && (
@@ -451,9 +451,17 @@ export default function AccountsPage() {
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
-      <div className="mb-6">
-        <h1 className={`font-heading font-bold text-dp-primary ${isUrdu ? 'text-[32px] leading-[40px]' : 'text-[26px] leading-[34px]'}`}>{t('ac.title')}</h1>
-        <p className={`font-sans text-dp-on-surface-variant mt-1 ${isUrdu ? 'text-[14px]' : 'text-[13px]'}`}>{t('ac.subtitle')}</p>
+      {/* Real ask, 2026-09-25: "at least 3 account rows are missing in
+          English vs Urdu on the same screen." Urdu's own downscale table
+          (globals.css) already shrinks its 32px heading down to 20px
+          effective -- English's 26px heading never gets an equivalent cut,
+          so the page-level chrome alone was costing English several rows'
+          worth of height before the list even starts. Tightened here and
+          through the search/filter card and renderRow below, English-only,
+          so Urdu (already reported as "superb") isn't touched. */}
+      <div className={isUrdu ? 'mb-6' : 'mb-4'}>
+        <h1 className={`font-heading font-bold text-dp-primary ${isUrdu ? 'text-[32px] leading-[40px]' : 'text-[22px] leading-[28px]'}`}>{t('ac.title')}</h1>
+        <p className={`font-sans text-dp-on-surface-variant mt-1 ${isUrdu ? 'text-[14px]' : 'text-[12.5px]'}`}>{t('ac.subtitle')}</p>
       </div>
 
       {/* Real ask, 2026-09-25: force these two onto one row instead of
@@ -461,10 +469,10 @@ export default function AccountsPage() {
           button, tighter padding and a smaller badge, so both always share
           one row's width evenly rather than the second one dropping below
           the first. */}
-      <div className="flex gap-2 mb-6">
+      <div className={`flex gap-2 ${isUrdu ? 'mb-6' : 'mb-4'}`}>
         {access.canWaterSupply && <button
           onClick={() => setTab('water_supply')}
-          className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg font-sans font-semibold transition-all cursor-pointer ${isUrdu ? 'text-[12.5px]' : 'text-[12px]'} ${tab === 'water_supply' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
+          className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 px-3 rounded-lg font-sans font-semibold transition-all cursor-pointer ${isUrdu ? 'text-[12.5px] py-2.5' : 'text-[12px] py-2'} ${tab === 'water_supply' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
         >
           <Droplets size={15} className="shrink-0" />
           <span className="truncate">{t('a.waterSupplySystem')}</span>
@@ -472,7 +480,7 @@ export default function AccountsPage() {
         </button>}
         {access.canDonorsProjects && <button
           onClick={() => setTab('donors_projects')}
-          className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg font-sans font-semibold transition-all cursor-pointer ${isUrdu ? 'text-[12.5px]' : 'text-[12px]'} ${tab === 'donors_projects' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
+          className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 px-3 rounded-lg font-sans font-semibold transition-all cursor-pointer ${isUrdu ? 'text-[12.5px] py-2.5' : 'text-[12px] py-2'} ${tab === 'donors_projects' ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:bg-dp-surface-container-low'}`}
         >
           <Heart size={15} className="shrink-0" />
           <span className="truncate">{t('a.donorsProjects')}</span>
@@ -488,31 +496,31 @@ export default function AccountsPage() {
           turned out to be: not a broken filter, an unusable input box.
           Search now always gets its own full-width row; the other three
           controls share a second row that wraps freely if it doesn't fit. */}
-      <div className="bg-white rounded-lg border border-dp-outline-variant p-3 mb-4 space-y-3">
+      <div className={`bg-white rounded-lg border border-dp-outline-variant ${isUrdu ? 'p-3 mb-4 space-y-3' : 'p-2.5 mb-3 space-y-2'}`}>
         <div className="relative">
           <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('ac.searchPlaceholder')}
-            className={`w-full ps-9 pe-3 py-2.5 rounded-lg border border-dp-outline-variant font-sans focus:outline-none focus:border-dp-primary ${isUrdu ? 'text-[13.5px]' : 'text-[12.5px]'}`}
+            className={`w-full ps-9 pe-3 rounded-lg border border-dp-outline-variant font-sans focus:outline-none focus:border-dp-primary ${isUrdu ? 'text-[13.5px] py-2.5' : 'text-[12.5px] py-2'}`}
           />
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => router.push(tab === 'donors_projects' ? '/admin/donors' : '/admin/billing')}
-            className={`shrink-0 px-4 py-2 rounded-lg bg-dp-surface-container-low text-dp-on-surface font-sans font-bold hover:bg-dp-surface-container transition-all cursor-pointer ${isUrdu ? 'text-[13.5px]' : 'text-[12.5px]'}`}
+            className={`shrink-0 px-4 rounded-lg bg-dp-surface-container-low text-dp-on-surface font-sans font-bold hover:bg-dp-surface-container transition-all cursor-pointer ${isUrdu ? 'text-[13.5px] py-2' : 'text-[12.5px] py-1.5'}`}
           >
             {tab === 'donors_projects' ? t('ac.donorBtn') : t('ac.consumerBtn')}
           </button>
           <button
             onClick={() => setSortByBalance((s) => !s)}
             title={sortByBalance ? t('ac.sortedByBalance') : t('ac.sortedByName')}
-            className={`shrink-0 p-2.5 rounded-lg border border-dp-outline-variant cursor-pointer transition-all ${sortByBalance ? 'bg-dp-secondary text-white border-dp-secondary' : 'text-dp-secondary hover:bg-dp-surface-container-low'}`}
+            className={`shrink-0 rounded-lg border border-dp-outline-variant cursor-pointer transition-all ${isUrdu ? 'p-2.5' : 'p-2'} ${sortByBalance ? 'bg-dp-secondary text-white border-dp-secondary' : 'text-dp-secondary hover:bg-dp-surface-container-low'}`}
           >
             <SlidersHorizontal size={16} />
           </button>
-          <label className="min-w-0 flex-1 flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dp-outline-variant cursor-pointer select-none font-sans text-[12.5px] font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low">
+          <label className={`min-w-0 flex-1 flex items-center gap-1.5 px-3 rounded-lg border border-dp-outline-variant cursor-pointer select-none font-sans font-semibold text-dp-on-surface-variant hover:bg-dp-surface-container-low ${isUrdu ? 'py-2 text-[12.5px]' : 'py-1.5 text-[12px]'}`}>
             <input type="checkbox" checked={showZeroBalance} onChange={(e) => setShowZeroBalance(e.target.checked)} className="shrink-0 accent-dp-secondary" />
             <span className="truncate">{t('ac.showZeroBalance')}</span>
           </label>
@@ -522,10 +530,10 @@ export default function AccountsPage() {
       {loading ? (
         <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans">{t('ac.loading')}</div>
       ) : (
-        <div className="space-y-4 pb-24">
+        <div className={`pb-24 ${isUrdu ? 'space-y-4' : 'space-y-2.5'}`}>
           {partyAccounts.length > 0 && (
             <div className="bg-white rounded-lg border border-dp-outline-variant">
-              <div className="flex items-center justify-between px-4 py-3 bg-dp-surface-container-low/60 rounded-t-lg">
+              <div className={`flex items-center justify-between px-4 bg-dp-surface-container-low/60 rounded-t-lg ${isUrdu ? 'py-3' : 'py-2.5'}`}>
                 {/* Real ask, 2026-09-25: putting ms-auto directly on the
                     .ltr-num amount span looked right but silently broke
                     under RTL -- .ltr-num sets direction:ltr on that span
@@ -571,7 +579,7 @@ export default function AccountsPage() {
               <div key={h.code} className="bg-white rounded-lg border border-dp-outline-variant">
                 <button
                   onClick={() => toggleGroup(h.code)}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-dp-surface-container-low/60 hover:bg-dp-surface-container-low cursor-pointer transition-colors rounded-t-lg"
+                  className={`w-full flex items-center justify-between gap-3 px-4 bg-dp-surface-container-low/60 hover:bg-dp-surface-container-low cursor-pointer transition-colors rounded-t-lg ${isUrdu ? 'py-3' : 'py-2.5'}`}
                 >
                   <span className="font-sans text-[13.5px] font-bold text-dp-on-surface" style={lang === 'ur' && h.label_ur ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>{displayName(h.label, h.label_ur)}</span>
                   <span className="flex items-center gap-1 shrink-0">
