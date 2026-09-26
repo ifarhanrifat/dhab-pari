@@ -246,6 +246,20 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse
   }
 
+  // Real bug, 2026-09-27: forgot-password/reset-password redirected straight
+  // back to /portal/login before ever rendering — only /portal/login and
+  // /portal/signup were excluded from the auth gate below, so the blanket
+  // "no session -> bounce to login" check caught these two as well, even
+  // though someone requesting a password reset is by definition not logged
+  // in. Same exception the /admin equivalents already had (see the
+  // isPublicAuthPage comment above) — reset-password's own token arrives as
+  // a URL hash fragment invisible to this server-side check, so the page's
+  // own client-side JS is the only place that can ever detect that session;
+  // it already shows "invalid or expired" when none shows up.
+  if (pathname.startsWith('/portal/forgot-password') || pathname.startsWith('/portal/reset-password')) {
+    return supabaseResponse
+  }
+
   if (pathname.startsWith('/portal')) {
     if (!user) {
       const url = request.nextUrl.clone()
