@@ -122,6 +122,9 @@ function PortalLoginInner() {
                 {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            <div className="text-end mt-1.5">
+              <Link href="/portal/forgot-password" className="font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline">{t('p.forgotPassword')}</Link>
+            </div>
           </div>
 
           {error && !isLocked && (

@@ -1,0 +1,11 @@
+-- Portal password reset (real gap, 2026-09-26): portal accounts log in
+-- through a synthetic mobile-derived email, so Supabase's built-in
+-- resetPasswordForEmail can't be pointed at their real email directly —
+-- the reset API route generates the link itself (admin.auth.admin.
+-- generateLink) and delivers it via a direct Resend send instead. This
+-- column is a cheap per-account cooldown against repeated requests
+-- spamming that direct send (Resend's free tier is rate-limited, and
+-- there's no persistent request-count store otherwise in a stateless
+-- serverless route) — not full rate limiting, just enough to stop one
+-- account being hammered.
+ALTER TABLE portal_users ADD COLUMN IF NOT EXISTS password_reset_requested_at timestamptz;
