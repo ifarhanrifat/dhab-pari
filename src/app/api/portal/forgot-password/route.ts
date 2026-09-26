@@ -61,11 +61,16 @@ export async function POST(req: NextRequest) {
     options: { redirectTo: `${siteUrl}/portal/reset-password` },
   })
 
+  // TEMP DEBUG, 2026-09-27: ?debug=1 echoes the real failure reason back
+  // in the response instead of only logging it server-side (which we have
+  // no log access to right now) -- only reachable by whoever's actively
+  // testing this with the exact query param, not a real end user hitting
+  // the plain form. Revert once the live send failure is diagnosed.
+  const debug = new URL(req.url).searchParams.get('debug') === '1'
+
   if (linkError || !linkData?.properties?.action_link) {
-    // Log server-side for us to debug; still nothing account-specific back
-    // to the caller.
     console.error('portal forgot-password: generateLink failed', linkError)
-    return NextResponse.json({ success: true })
+    return NextResponse.json(debug ? { success: true, debugStage: 'generateLink', debugError: linkError?.message ?? 'no action_link returned' } : { success: true })
   }
 
   try {
@@ -76,7 +81,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (err) {
     console.error('portal forgot-password: email send failed', err)
-    return NextResponse.json({ success: true })
+    return NextResponse.json(debug ? { success: true, debugStage: 'sendEmail', debugError: err instanceof Error ? err.message : String(err) } : { success: true })
   }
 
   await admin.from('portal_users').update({ password_reset_requested_at: new Date().toISOString() }).eq('id', portalUser.id)

@@ -29,6 +29,7 @@ export default function AdminProfilePage() {
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
   const [changingPassword, setChangingPassword] = useState(false)
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
@@ -55,6 +56,7 @@ export default function AdminProfilePage() {
   const changePassword = async () => {
     if (!currentPassword || !newPassword) { toast.error(t('p.enterCurrentNewPassword')); return }
     if (newPassword.length < 8) { toast.error(t('p.passwordMinLength')); return }
+    if (newPassword !== confirmNewPassword) { toast.error(t('p.passwordsDontMatch')); return }
     setChangingPassword(true)
     const supabase = createClient()
     const { error: verifyErr } = await supabase.auth.signInWithPassword({ email: currentEmail, password: currentPassword })
@@ -65,6 +67,8 @@ export default function AdminProfilePage() {
     toast.success(t('p.passwordChanged'))
     setCurrentPassword('')
     setNewPassword('')
+    setConfirmNewPassword('')
+    fetch('/api/admin/notify-password-changed', { method: 'POST' }).catch(() => {})
   }
 
   if (loading) return <div className="text-center py-12 text-dp-on-surface-variant font-sans"><LoadingDots /></div>
@@ -110,6 +114,10 @@ export default function AdminProfilePage() {
               {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
+        </div>
+        <div>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.confirmNewPassword')}</label>
+          <input type={showNewPassword ? 'text' : 'password'} value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} autoComplete="new-password" className="input-field" />
         </div>
         <button onClick={changePassword} disabled={changingPassword} className="w-full border border-dp-outline-variant text-dp-on-surface rounded-lg py-3 font-sans font-semibold cursor-pointer hover:bg-dp-surface-container transition-all disabled:opacity-50">
           {changingPassword ? t('p.changing') : t('p.changePassword')}
