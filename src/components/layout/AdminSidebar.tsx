@@ -288,7 +288,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
   // Urdu) without any extra flip logic of its own.
   const profileBlock = (
     <div className="shrink-0" dir={rowDir}>
-      <div className="bg-dp-primary-container p-3 rounded-lg">
+      <Link href="/admin/profile" onClick={onMobileClose} className="block bg-dp-primary-container p-3 rounded-lg hover:bg-dp-primary-container/80 transition-colors">
         <div className="flex items-center">
           <div className="w-8 h-8 rounded-full bg-[#5bc8a3] text-dp-primary flex items-center justify-center font-bold text-[12px] font-sans me-2 shrink-0">
             {(profile?.full_name ?? '?').charAt(0).toUpperCase()}
@@ -302,7 +302,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
             </p>
           </div>
         </div>
-      </div>
+      </Link>
       <div className="pt-3">
         <LanguageToggle compact />
       </div>
