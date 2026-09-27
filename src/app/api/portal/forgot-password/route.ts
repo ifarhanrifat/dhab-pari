@@ -1,22 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/resend'
-import { portalPasswordResetEmail } from '@/lib/email/portalPasswordResetEmail'
+import { portalPasswordResetCodeEmail } from '@/lib/email/portalPasswordResetEmail'
 
 const COOLDOWN_MS = 60_000
+const CODE_TTL_MS = 15 * 60_000
 
-function syntheticEmail(mobile: string) {
-  return `${mobile.replace(/[^0-9]/g, '')}@portal.dhabpari.local`
+function generateCode() {
+  return String(Math.floor(100000 + Math.random() * 900000))
 }
 
-// Real gap, 2026-09-26: no portal-side password recovery existed at all.
-// Can't use supabase.auth.resetPasswordForEmail() directly — a portal
-// account's real Supabase Auth identity is a synthetic
-// `<mobile>@portal.dhabpari.local` address (see /api/portal/signup),
-// never a deliverable mailbox. So this route resolves the caller's real
-// email -> portal_users row -> mobile -> synthetic email, generates the
-// recovery link itself via the admin API (which does NOT send anything),
-// and delivers it via a direct Resend send to the REAL email instead.
+// Real gap, 2026-09-26, switched to a code 2026-09-27: no portal-side
+// password recovery existed at all. First built as a Supabase magic-link
+// (generateLink + direct Resend send, since a portal account's real
+// Supabase Auth identity is a synthetic <mobile>@portal.dhabpari.local
+// address -- never a deliverable mailbox, so resetPasswordForEmail()
+// can't be pointed at it directly). That link kept failing in the field
+// -- confirmed a genuinely fresh, valid token reading "expired" by the
+// time the real user clicked it, consistent with an email security
+// scanner pre-fetching the one-time link, or the user (reasonably)
+// opening an older email among several requests, each of which
+// invalidates the last. A typed-in code has nothing for a scanner to
+// consume and no "which email is current" ambiguity, and fully sidesteps
+// Supabase's own redirect_to/session-detection quirks — this exchange is
+// now a plain server API call, no magic-link machinery involved.
 export async function POST(req: NextRequest) {
   let body: { email?: string }
   try {
@@ -34,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient()
   const { data: portalUser } = await admin.from('portal_users')
-    .select('id, mobile, auth_user_id, password_reset_requested_at')
+    .select('id, auth_user_id, password_reset_requested_at')
     .ilike('email', email)
     .maybeSingle()
 
@@ -54,32 +61,25 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin
-  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-    type: 'recovery',
-    email: syntheticEmail(portalUser.mobile),
-    options: { redirectTo: `${siteUrl}/portal/reset-password` },
-  })
-
-  if (linkError || !linkData?.properties?.action_link) {
-    // Log server-side for us to debug; still nothing account-specific back
-    // to the caller.
-    console.error('portal forgot-password: generateLink failed', linkError)
-    return NextResponse.json({ success: true })
-  }
+  const code = generateCode()
+  const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString()
 
   try {
     await sendEmail({
       to: email,
-      subject: 'Reset your Dhab Pari portal password',
-      html: portalPasswordResetEmail(linkData.properties.action_link),
+      subject: 'Your Dhab Pari portal password reset code',
+      html: portalPasswordResetCodeEmail(code),
     })
   } catch (err) {
     console.error('portal forgot-password: email send failed', err)
     return NextResponse.json({ success: true })
   }
 
-  await admin.from('portal_users').update({ password_reset_requested_at: new Date().toISOString() }).eq('id', portalUser.id)
+  await admin.from('portal_users').update({
+    password_reset_code: code,
+    password_reset_code_expires_at: expiresAt,
+    password_reset_requested_at: new Date().toISOString(),
+  }).eq('id', portalUser.id)
 
   return NextResponse.json({ success: true })
 }

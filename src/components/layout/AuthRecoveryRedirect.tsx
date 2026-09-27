@@ -4,25 +4,20 @@ import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 
 // Real bug, 2026-09-27: a password-reset email link is supposed to land on
-// /portal/reset-password (or /admin/reset-password), but Supabase's admin
-// generateLink() API silently drops the requested path and bakes in just
-// the bare Site URL instead — confirmed directly against the live project:
-// even after adding the correct entry to Authentication -> URL
-// Configuration -> Redirect URLs (which DOES fix the plain /verify
-// endpoint when hit directly), generateLink() itself still only ever
-// returns a link that redirects to the origin with no path, e.g.
-// "https://dhabpari.com#access_token=...&type=recovery" instead of
-// ".../portal/reset-password#...". Rather than depend on getting every
-// layer of Supabase's own redirect-URL matching to agree (dashboard
-// config we don't have full visibility or control over from here), this
-// makes the actual page the recovery lands on irrelevant: mounted at the
-// root layout, so it runs on every page including the homepage, and
-// forwards a stray recovery hash to the right reset-password page itself.
+// /admin/reset-password, but Supabase's admin generateLink() API silently
+// drops the requested path and bakes in just the bare Site URL instead —
+// confirmed directly against the live project: even after adding the
+// correct entry to Authentication -> URL Configuration -> Redirect URLs
+// (which DOES fix the plain /verify endpoint when hit directly), the
+// admin generateLink() API itself still only ever returns a link that
+// redirects to the origin with no path. Mounted at the root layout so it
+// runs on every page including the homepage, and forwards a stray
+// recovery hash to the actual reset-password page.
 //
-// Which reset page to send it to is read out of the access_token's own
-// email claim (portal accounts are the synthetic <mobile>@portal.
-// dhabpari.local address; anyone else is admin) — a JWT payload is just
-// base64, not encrypted, so this needs no server round trip.
+// Portal password reset no longer uses this at all (see /portal/
+// forgot-password's own comment — it moved to a typed-in code, with no
+// Supabase magic link or session/hash involved), so this only ever needs
+// to send recovery hashes to the admin page now.
 export function AuthRecoveryRedirect() {
   const pathname = usePathname()
 
@@ -30,30 +25,15 @@ export function AuthRecoveryRedirect() {
     if (typeof window === 'undefined') return
     const hash = window.location.hash
     if (!hash || !hash.includes('type=recovery') || !hash.includes('access_token=')) return
-    if (pathname.startsWith('/portal/reset-password') || pathname.startsWith('/admin/reset-password')) return
+    if (pathname.startsWith('/admin/reset-password')) return
 
-    const params = new URLSearchParams(hash.slice(1))
-    const token = params.get('access_token')
-    let isPortal = false
-    try {
-      const payload = JSON.parse(atob(token!.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
-      isPortal = typeof payload.email === 'string' && payload.email.endsWith('@portal.dhabpari.local')
-    } catch {
-      // Malformed/unreadable token — fall through to the admin page, which
-      // will itself show "invalid or expired" same as any other bad link.
-    }
-    const target = isPortal ? '/portal/reset-password' : '/admin/reset-password'
-    // Real bug found live: a Next.js router.replace() here changes the URL
-    // via client-side history navigation only — no real page load — so
-    // Supabase's own auth client (which only scans window.location's hash
-    // for a recovery token ONCE, at its own initialization) never gets a
-    // chance to actually detect and consume it. It had already run once on
-    // this same page load (on the homepage, before this hash existed here)
-    // and doesn't re-scan on a later in-app URL change. A full navigation
-    // forces a fresh page load at the target URL, hash included, which is
-    // what actually gives Supabase's client its one real chance to pick
-    // the session up.
-    window.location.replace(`${target}${hash}`)
+    // Full navigation, not router.replace() — Supabase's auth client only
+    // scans window.location's hash for a recovery token once, at its own
+    // initialization, which already ran (on whatever page this hash first
+    // landed on) by the time a client-side route change would apply. A
+    // real page load at the target URL is what actually gives it a chance
+    // to detect and consume the token.
+    window.location.replace(`/admin/reset-password${hash}`)
   }, [pathname])
 
   return null

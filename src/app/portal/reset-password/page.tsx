@@ -1,60 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { Eye, EyeOff, ShieldCheck, Lock, AlertTriangle } from 'lucide-react'
+import Link from 'next/link'
+import { AlertTriangle, Lock } from 'lucide-react'
 import { SITE } from '@/lib/constants'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
+// No longer the active reset flow — see /portal/forgot-password's own
+// comment for why password reset moved to a typed-in code instead of this
+// page's old clickable-link/hash-session flow. Kept as a plain redirect
+// notice rather than deleted outright, since an email sent before this
+// change could still have someone clicking through to this exact URL.
 export default function PortalResetPasswordPage() {
   const { t, isUrdu } = useLocale()
-  const [checking, setChecking] = useState(true)
-  const [validSession, setValidSession] = useState(false)
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [showPw, setShowPw] = useState(false)
-  const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
-  const router = useRouter()
-  const supabase = createClient()
-  // Same reasoning as admin/reset-password's identical guard: a
-  // pre-existing session (this device already logged into some portal
-  // account) would otherwise mask a genuinely expired/already-used reset
-  // link as valid.
-  const [initialHash] = useState(() => (typeof window !== 'undefined' ? window.location.hash : ''))
-
-  useEffect(() => {
-    if (initialHash.includes('error=') || !initialHash.includes('access_token=')) {
-      setValidSession(false)
-      setChecking(false)
-      return
-    }
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setValidSession(!!session)
-      setChecking(false)
-    })
-  }, [supabase, initialHash])
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-
-    if (password.length < 8) { setError(t('p.passwordMinLength')); return }
-    if (password !== confirmPassword) { setError(isUrdu ? 'پاس ورڈ مماثل نہیں ہیں۔' : 'Passwords do not match.'); return }
-
-    setSaving(true)
-    const { error: updateError } = await supabase.auth.updateUser({ password })
-    if (updateError) {
-      setError(updateError.message)
-      setSaving(false)
-      return
-    }
-
-    router.push('/portal')
-    router.refresh()
-  }
-
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="min-h-screen bg-[#E1F5EE] flex flex-col">
       <header className="bg-dp-primary w-full px-6 py-4">
@@ -68,78 +25,14 @@ export default function PortalResetPasswordPage() {
           </div>
         </div>
       </header>
-
       <div className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-[420px] bg-white border border-dp-outline-variant rounded-lg p-6 md:p-8 shadow-sm">
-          {checking ? (
-            <p className="text-center font-sans text-dp-on-surface-variant py-8">{t('y.checkingReset')}</p>
-          ) : !validSession ? (
-            <div className="text-center py-8">
-              <AlertTriangle size={40} className="text-dp-error mx-auto mb-3" />
-              <p className="font-sans font-semibold text-dp-on-surface mb-2">{t('g.resetLinkInvalid')}</p>
-              <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('y.requestNewOne')}</p>
-            </div>
-          ) : (
-            <>
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-dp-primary-container rounded-full mb-3">
-                  <ShieldCheck size={22} className="text-dp-on-primary-container" />
-                </div>
-                <h2 className="font-heading text-[24px] font-bold text-dp-primary mb-1">{t('y.chooseNewPassword')}</h2>
-                <p className="text-dp-on-surface-variant text-[13px] font-sans">{t('y.replaceCurrent')}</p>
-              </div>
-
-              <form onSubmit={submit} className="space-y-5">
-                <div>
-                  <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('p.newPassword')}</label>
-                  <div className="relative">
-                    <input
-                      type={showPw ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={8}
-                      autoComplete="new-password"
-                      className="w-full px-4 py-3 pe-12 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[16px] font-sans text-dp-on-surface"
-                      placeholder="At least 8 characters"
-                    />
-                    <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute end-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer p-1" tabIndex={-1}>
-                      {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('g.confirmNewPassword')}</label>
-                  <input
-                    type={showPw ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    minLength={8}
-                    autoComplete="new-password"
-                    className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[16px] font-sans text-dp-on-surface"
-                    placeholder="Re-enter your new password"
-                  />
-                </div>
-
-                {error && (
-                  <div className="bg-dp-error-container text-dp-on-error-container px-4 py-3 rounded-lg text-[14px] font-sans flex items-start gap-2">
-                    <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-                    <span>{error}</span>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold text-[16px] hover:bg-dp-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {saving ? t('p.saving') : t('y.chooseNewPassword')}
-                </button>
-              </form>
-            </>
-          )}
+        <div className="w-full max-w-[420px] bg-white border border-dp-outline-variant rounded-lg p-6 md:p-8 shadow-sm text-center">
+          <AlertTriangle size={40} className="text-dp-error mx-auto mb-3" />
+          <p className="font-sans font-semibold text-dp-on-surface mb-2">{t('g.resetLinkInvalid')}</p>
+          <p className="font-sans text-[13px] text-dp-on-surface-variant mb-6">{t('y.requestNewOne')}</p>
+          <Link href="/portal/forgot-password" className="inline-block w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all">
+            {t('g.resetPassword')}
+          </Link>
         </div>
       </div>
     </div>

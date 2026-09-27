@@ -1,9 +1,13 @@
 import { SITE } from '@/lib/constants'
 
-// Plain inline-styled table-free HTML — deliberately simple rather than a
-// full design pass: email clients strip most CSS, and this is a one-button
-// transactional message, not a marketing send.
-export function portalPasswordResetEmail(resetLink: string) {
+// Real ask, 2026-09-27: switched from a clickable one-time link to a
+// plain code the user types in — see migration 514's comment for why
+// (link pre-fetching by email scanners, and confusion over which of
+// several emails is the current one, both silently killed the link
+// approach in practice). A code has nothing for a scanner to consume and
+// nothing ambiguous about "which one" — whichever code is in front of the
+// user is the one they use.
+export function portalPasswordResetCodeEmail(code: string) {
   return `
 <div style="font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #1a1a1a;">
   <div style="text-align: center; margin-bottom: 24px;">
@@ -11,20 +15,19 @@ export function portalPasswordResetEmail(resetLink: string) {
     <h1 style="font-size: 18px; margin: 12px 0 0;">${SITE.name}</h1>
     <p style="font-size: 13px; color: #666; margin: 2px 0 0;">${SITE.committee}</p>
   </div>
-  <h2 style="font-size: 20px; text-align: center; margin-bottom: 8px;">Reset Your Password</h2>
+  <h2 style="font-size: 20px; text-align: center; margin-bottom: 8px;">Your password reset code</h2>
   <p style="font-size: 14px; color: #444; text-align: center; line-height: 22px;">
-    We received a request to reset the password for your Dhab Pari portal account.
-    Click the button below to choose a new one. This link expires in 1 hour.
+    Enter this code on the password reset page to choose a new password. It expires in 15 minutes.
   </p>
   <div style="text-align: center; margin: 28px 0;">
-    <a href="${resetLink}" style="display: inline-block; background: #1D9E75; color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px;">Reset Password</a>
+    <span style="display: inline-block; background: #f0faf6; border: 2px solid #1D9E75; color: #0d3b2e; letter-spacing: 8px; font-size: 32px; font-weight: 700; padding: 16px 24px; border-radius: 10px; font-family: monospace;">${code}</span>
   </div>
   <p style="font-size: 12.5px; color: #888; text-align: center; line-height: 20px;">
-    If you didn't request this, you can safely ignore this email — your password won't change.
+    If you didn't request this, you can safely ignore this email — your password won't change unless this code is used.
   </p>
   <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
   <p dir="rtl" style="font-family: 'Noto Nastaliq Urdu', serif; font-size: 15px; color: #444; text-align: center; line-height: 32px;">
-    آپ کے ڈھاب پڑی پورٹل اکاؤنٹ کے پاس ورڈ کی بحالی کی درخواست موصول ہوئی ہے۔ نیا پاس ورڈ منتخب کرنے کے لیے اوپر دیے گئے بٹن پر کلک کریں۔ اگر آپ نے یہ درخواست نہیں کی تو اس ای میل کو نظر انداز کریں۔
+    نیا پاس ورڈ منتخب کرنے کے لیے یہ کوڈ پاس ورڈ ری سیٹ صفحے پر درج کریں۔ اس کی میعاد 15 منٹ میں ختم ہو جائے گی۔ اگر آپ نے یہ درخواست نہیں کی تو اس ای میل کو نظر انداز کریں۔
   </p>
 </div>`.trim()
 }
