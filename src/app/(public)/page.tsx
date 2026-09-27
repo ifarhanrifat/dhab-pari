@@ -603,8 +603,15 @@ export default async function HomePage() {
                   <p className="font-bold text-red-300">-{fmtPKR(stats.expenses_this_month)}</p>
                 </div>
               </div>
+              {/* Real bug found 2026-09-27: this pointed at /accounts, which
+                  the marketplace rewrite (phase 5) repurposed for something
+                  unrelated — "Financial Report" was silently landing
+                  visitors on the marketplace instead. There's no dedicated
+                  public financial-report page anymore; /donate is the
+                  closest real transparency surface (real total raised,
+                  full donor list) until/unless a proper one gets built. */}
               <Link
-                href="/accounts"
+                href="/donate"
                 className="block w-full py-2 bg-white/10 hover:bg-white/20 rounded text-center font-bold text-[14px] font-sans tracking-[0.05em] transition-colors"
               >
                 <T k="home.financialReport" />

@@ -17,6 +17,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Search, Store, Bus, MapPin, LogIn } from 'lucide-react'
+import { usePortalUser } from '@/hooks/usePortalUser'
 
 type Lang = 'en' | 'ur'
 
@@ -57,6 +58,12 @@ function fmt(n: number) {
 }
 
 export default function MarketplaceLandingPage() {
+  // Real bug, 2026-09-27: this page always showed "Sign in to order or
+  // book" regardless of whether a portal session actually existed — the
+  // original build (see the file's own top comment) assumed no session
+  // was ever available here, which was wrong; a logged-in villager saw
+  // the same prompt telling them to log in.
+  const { user: portalUser } = usePortalUser()
   const [lang, setLang] = useState<Lang>('en')
   const isUrdu = lang === 'ur'
   const dt = (key: keyof typeof t) => t[key][lang]
@@ -112,14 +119,16 @@ export default function MarketplaceLandingPage() {
         />
       </div>
 
-      <div className="bg-dp-secondary-container/40 border border-dp-secondary/20 rounded-lg p-4 flex items-center gap-3 mb-8">
-        <div className="w-10 h-10 rounded-full bg-dp-secondary text-white flex items-center justify-center shrink-0"><LogIn size={18} /></div>
-        <div className="min-w-0 flex-1">
-          <p className="font-sans text-[14px] font-bold text-dp-on-surface">{dt('signInToOrder')}</p>
-          <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">{dt('signInHint')}</p>
+      {!portalUser && (
+        <div className="bg-dp-secondary-container/40 border border-dp-secondary/20 rounded-lg p-4 flex items-center gap-3 mb-8">
+          <div className="w-10 h-10 rounded-full bg-dp-secondary text-white flex items-center justify-center shrink-0"><LogIn size={18} /></div>
+          <div className="min-w-0 flex-1">
+            <p className="font-sans text-[14px] font-bold text-dp-on-surface">{dt('signInToOrder')}</p>
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">{dt('signInHint')}</p>
+          </div>
+          <Link href="/portal/login" className="shrink-0 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all">{dt('signInCta')}</Link>
         </div>
-        <Link href="/portal/login" className="shrink-0 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all">{dt('signInCta')}</Link>
-      </div>
+      )}
 
       {results !== null && (
         <div className="mb-8">

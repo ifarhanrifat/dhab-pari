@@ -23,7 +23,10 @@ export const SITE_FEATURE_LINKS: SiteFeatureLink[] = [
   { key: 'blood', labelEn: 'Blood Donation', labelUr: 'خون کا عطیہ', path: '/blood' },
   { key: 'projects', labelEn: 'All Projects', labelUr: 'تمام منصوبے', path: '/projects' },
   { key: 'jobs', labelEn: 'Job Listings', labelUr: 'ملازمتوں کے اشتہار', path: '/jobs' },
-  { key: 'accounts', labelEn: 'Accounts', labelUr: 'اکاؤنٹس', path: '/accounts' },
+  // key stays 'accounts' (stable identifier existing committee_notes rows
+  // may already reference via linked_feature_key) even though the route
+  // itself moved to /marketplace.
+  { key: 'accounts', labelEn: 'Marketplace', labelUr: 'مارکیٹ پلیس', path: '/marketplace' },
   { key: 'donate', labelEn: 'Donate', labelUr: 'عطیہ دیں', path: '/donate' },
   { key: 'welfare', labelEn: 'Welfare & Education', labelUr: 'فلاح و تعلیم', path: '/welfare' },
   { key: 'zakat', labelEn: 'Zakat & Ushr', labelUr: 'زکوٰۃ و عشر', path: '/welfare#zakat' },
