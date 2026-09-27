@@ -70,12 +70,8 @@ export default function PortalProfilePage() {
 
   const save = async () => {
     if (!user) return
-    if (!form.full_name.trim() || !form.father_husband_name.trim() || !form.whatsapp_number.trim() || !form.username.trim()) {
+    if (!form.full_name.trim() || !form.father_husband_name.trim() || !form.whatsapp_number.trim()) {
       toast.error(t('p.profileRequiredFields'))
-      return
-    }
-    if (!/^[a-zA-Z0-9_]{6,30}$/.test(form.username.trim())) {
-      toast.error(t('p.usernameFormat'))
       return
     }
     if (form.donor_type === 'overseas' && !form.country.trim()) { toast.error(t('p.enterCountry')); return }
@@ -90,7 +86,7 @@ export default function PortalProfilePage() {
       father_husband_name: form.father_husband_name.trim(), whatsapp_number: form.whatsapp_number.trim(),
       donor_type: form.donor_type, country: form.donor_type === 'overseas' ? (form.country.trim() || null) : null,
       sector: form.sector.trim() || null, avatar_url: form.avatar_url || null,
-      username: form.username.trim(), email: form.email.trim() || null,
+      email: form.email.trim() || null,
       display_name: form.display_name.trim() || null,
       gender: mentorship.gender || null, profession: mentorship.profession || null,
       profession_other: mentorship.profession === 'other' ? (mentorship.profession_other.trim() || null) : null,
@@ -103,7 +99,7 @@ export default function PortalProfilePage() {
     }).eq('id', user.id)
     setSaving(false)
     if (error) {
-      toast.error(error.message.includes('duplicate') || error.code === '23505' ? t('p.usernameTaken') : error.message)
+      toast.error(error.message)
       return
     }
     toast.success(t('p.profileUpdated'))
@@ -150,8 +146,9 @@ export default function PortalProfilePage() {
         <ImageUpload bucket="images" label={t('p.profilePhoto')} currentUrl={form.avatar_url} onUpload={(url) => setForm({ ...form, avatar_url: url })} />
 
         <div>
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.usernameReq')}</label>
-          <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className="input-field" />
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.usernameReq').replace(' *', '')}</label>
+          <input value={form.username} disabled className="input-field opacity-60" dir="ltr" />
+          <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1 leading-relaxed">{t('p.usernameCannotChange')}</p>
         </div>
         <div>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.emailOptional')}</label>
