@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 
 // Real bug, 2026-09-27: a password-reset email link is supposed to land on
 // /portal/reset-password (or /admin/reset-password), but Supabase's admin
@@ -24,7 +24,6 @@ import { useRouter, usePathname } from 'next/navigation'
 // dhabpari.local address; anyone else is admin) — a JWT payload is just
 // base64, not encrypted, so this needs no server round trip.
 export function AuthRecoveryRedirect() {
-  const router = useRouter()
   const pathname = usePathname()
 
   useEffect(() => {
@@ -44,8 +43,18 @@ export function AuthRecoveryRedirect() {
       // will itself show "invalid or expired" same as any other bad link.
     }
     const target = isPortal ? '/portal/reset-password' : '/admin/reset-password'
-    router.replace(`${target}${hash}`)
-  }, [pathname, router])
+    // Real bug found live: a Next.js router.replace() here changes the URL
+    // via client-side history navigation only — no real page load — so
+    // Supabase's own auth client (which only scans window.location's hash
+    // for a recovery token ONCE, at its own initialization) never gets a
+    // chance to actually detect and consume it. It had already run once on
+    // this same page load (on the homepage, before this hash existed here)
+    // and doesn't re-scan on a later in-app URL change. A full navigation
+    // forces a fresh page load at the target URL, hash included, which is
+    // what actually gives Supabase's client its one real chance to pick
+    // the session up.
+    window.location.replace(`${target}${hash}`)
+  }, [pathname])
 
   return null
 }
