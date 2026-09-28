@@ -4,10 +4,17 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { HeartHandshake, AlertTriangle } from 'lucide-react'
+import { HeartHandshake, AlertTriangle, KeyRound } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { SectorSelect } from '@/components/portal/SectorSelect'
 
+// Real ask, 2026-09-28: email verification is now mandatory before an
+// account is created at all — see /api/portal/signup/request-code and
+// confirm-code, and portalSignup.ts's own comment on why the form itself
+// (password included) is never persisted server-side while waiting on
+// the code: this component holds it in memory across the two steps and
+// resends it in full once the code comes back, rather than the server
+// ever storing a raw password outside the final create call.
 export default function PortalSignupPage() {
   const { t, isUrdu } = useLocale()
   const [form, setForm] = useState({
@@ -17,40 +24,66 @@ export default function PortalSignupPage() {
   const [sectors, setSectors] = useState<string[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [step, setStep] = useState<'form' | 'code'>('form')
+  const [code, setCode] = useState('')
   const router = useRouter()
 
   useEffect(() => {
     createClient().from('sectors').select('name').order('display_order').order('name').then(({ data }) => setSectors((data ?? []).map((s) => s.name)))
   }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
+  const validateForm = () => {
     if (!form.full_name.trim() || !form.father_husband_name.trim() || !form.mobile.trim() || !form.whatsapp_number.trim() || !form.username.trim() || !form.password || !form.email.trim()) {
-      setError(t('p.signupRequiredFields'))
-      return
+      return t('p.signupRequiredFields')
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      setError(t('p.invalidEmail'))
-      return
+      return t('p.invalidEmail')
     }
     if (!/^[a-zA-Z0-9_]{6,30}$/.test(form.username.trim())) {
-      setError(t('p.usernameFormatPeriod'))
-      return
+      return t('p.usernameFormatPeriod')
     }
     if (form.donor_type === 'overseas' && !form.country.trim()) {
-      setError(t('p.enterCountryPeriod'))
-      return
+      return t('p.enterCountryPeriod')
     }
     if (form.password.length < 8) {
-      setError(t('p.passwordMinLengthPeriod'))
-      return
+      return t('p.passwordMinLengthPeriod')
     }
+    return null
+  }
+
+  const requestCode = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    setError('')
+    const fieldError = validateForm()
+    if (fieldError) { setError(fieldError); return }
     setLoading(true)
     try {
-      const res = await fetch('/api/portal/signup', {
+      const res = await fetch('/api/portal/signup/request-code', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form), credentials: 'same-origin',
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error ?? t('p.couldNotCreateAccount'))
+        setLoading(false)
+        return
+      }
+      setStep('code')
+    } catch {
+      setError(t('p.networkErrorRetry'))
+    }
+    setLoading(false)
+  }
+
+  const confirmCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    if (!code.trim()) { setError(t('p.enterResetCode')); return }
+    setLoading(true)
+    try {
+      const res = await fetch('/api/portal/signup/confirm-code', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, code: code.trim() }), credentials: 'same-origin',
       })
       const data = await res.json()
       if (!res.ok) {
@@ -77,7 +110,44 @@ export default function PortalSignupPage() {
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant p-6 md:p-8 w-full max-w-md">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {step === 'code' ? (
+          <form onSubmit={confirmCode} className="space-y-5">
+            <div className="text-center mb-2">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-dp-primary-container rounded-full mb-3">
+                <KeyRound size={22} className="text-dp-on-primary-container" />
+              </div>
+              <h2 className="font-heading text-[20px] font-bold text-dp-primary mb-1">{t('p.verifyYourEmail')}</h2>
+              <p className="text-dp-on-surface-variant text-[13px] font-sans">{t('p.verifyEmailSentTo')} <strong dir="ltr" className="inline-block">{form.email}</strong></p>
+            </div>
+            <div>
+              <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('p.resetCode')}</label>
+              <input
+                value={code} onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ''))} required inputMode="numeric" maxLength={6}
+                className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[20px] font-mono tracking-[0.3em] text-center text-dp-on-surface"
+                placeholder="000000" dir="ltr" autoFocus
+              />
+            </div>
+
+            {error && (
+              <div className="bg-dp-error-container text-dp-on-error-container px-4 py-3 rounded-lg text-[14px] font-sans flex items-start gap-2">
+                <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <button type="submit" disabled={loading}
+              className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold text-[16px] hover:bg-dp-primary transition-all disabled:opacity-50">
+              {loading ? t('p.verifying') : t('p.createAccountBtn')}
+            </button>
+            <button type="button" onClick={() => requestCode()} disabled={loading} className="w-full text-center font-sans text-[13px] font-semibold text-dp-secondary hover:underline cursor-pointer">
+              {t('p.resendCode')}
+            </button>
+            <button type="button" onClick={() => { setStep('form'); setError('') }} className="w-full text-center font-sans text-[12.5px] text-dp-on-surface-variant hover:underline cursor-pointer">
+              {t('p.editDetails')}
+            </button>
+          </form>
+        ) : (
+        <form onSubmit={requestCode} className="space-y-4">
           <div>
             <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('g.fullNameReq')}</label>
             <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required className="input-field" />
@@ -145,9 +215,10 @@ export default function PortalSignupPage() {
 
           <button type="submit" disabled={loading}
             className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold text-[16px] hover:bg-dp-primary transition-all disabled:opacity-50">
-            {loading ? t('p.creatingAccount') : t('p.createAccountBtn')}
+            {loading ? t('p.sendingCode') : t('p.sendCode')}
           </button>
         </form>
+        )}
 
         <p className="text-center font-sans text-[14px] text-dp-on-surface-variant mt-6">
           {t('p.alreadyHaveAccount')} <Link href="/portal/login" className="text-dp-secondary font-semibold hover:underline">{t('p.logIn')}</Link>
