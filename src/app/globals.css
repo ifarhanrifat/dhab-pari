@@ -806,3 +806,56 @@ html[lang='ur'] .section-title {
 @media (prefers-reduced-motion: reduce) {
   .scroll-hint-nudge { animation: none !important; }
 }
+
+/* ── Print-quality pass for every printed document (2026-09-28) ──────────
+   Real report: statements/reports printed from the app (both the native
+   Android print pipeline and a desktop browser) came out looking bare —
+   no visible grid lines between columns, no shaded header row — even
+   though the same tables look properly bordered/shaded on screen. Two
+   separate causes, both fixed the same global way rather than touching
+   every report/statement page individually:
+
+   1. Browsers (and Android's WebView print pipeline) don't print
+      background-color by default unless the page opts in — every header
+      row's bg-dp-surface-container-low/60 shading was silently dropped.
+      print-color-adjust: exact opts every element back in.
+
+   2. --color-dp-outline-variant (#bfc9c4, every table's border-b color)
+      is calibrated for screen contrast against a backlit display; at
+      print resolution a 1px line in that color is close to invisible.
+      Darkened just for print, plus a full cell grid (most of these
+      tables only ever had a horizontal border-b, no vertical rule
+      between columns) — a printed ledger/statement is expected to be
+      fully ruled, not just row-striped.
+
+   3. Browsers center <th> text by default regardless of the table's own
+      text-align (a UA-stylesheet rule that otherwise beats plain
+      inheritance) — every report/statement table sets text-start on the
+      <table> itself expecting headers to line up with the left-aligned
+      data below them, but only the numeric columns' headers ever got an
+      explicit text-end override, so "Date"/"Particular"/"Bill #" printed
+      centered while their own column's data sat flush left. Scoped to
+      print only (not the on-screen admin UI, which nobody has flagged
+      and this session hasn't reviewed table-by-table) — an explicit
+      text-end/text-center still wins via normal specificity (a class
+      beats a bare element selector), so this only touches headers
+      nobody had already overridden. */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  :root {
+    --color-dp-outline-variant: #8a8f8c;
+    --color-dp-outline: #55605a;
+  }
+  table th, table td {
+    border: 1px solid var(--color-dp-outline-variant) !important;
+  }
+  table {
+    border-collapse: collapse !important;
+  }
+  table th {
+    text-align: inherit;
+  }
+}
