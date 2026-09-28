@@ -816,12 +816,14 @@ html[lang='ur'] .section-title {
    admin UI) rather than page-by-page, since every report/statement table
    in the app shares this same structure and set of Tailwind classes.
 
-   1. Browsers (Android's WebView print pipeline included) don't print
-      background-color by default — print-color-adjust: exact opts back in,
-      so the header row's shading actually survives onto paper/PDF.
+   1. No background colors at all, anywhere, on a printed page — a real
+      ask, 2026-09-28: colored fills (header shading, status badges, etc.)
+      print poorly (patchy toner, wrong-looking on plain paper) and waste
+      ink on a real printer. Forced transparent everywhere rather than
+      left to each browser/printer's own "background graphics" setting.
    2. --color-dp-outline-variant is calibrated for on-screen contrast;
       darkened for print so the header box and total rule are actually
-      visible at print resolution.
+      visible at print resolution now that shading can't carry that job.
    3. <th> centers by default (a UA rule that beats inheritance) — kept and
       made explicit for the header row, since a centered column heading
       over left/right-aligned data below it is the normal, correct
@@ -835,11 +837,14 @@ html[lang='ur'] .section-title {
       report picking its own ad hoc, often-too-narrow pixel width.
    5. Smaller base font size for print only — denser, more professional-
       looking tabular output; explicitly does not touch the app's own
-      screen typography. */
+      screen typography (see layout.tsx's viewport export for the other
+      half of that ask — pinch-zoom stays available to read it). */
 @media print {
   * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    background: none !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
   }
   :root {
     --color-dp-outline-variant: #8a8f8c;
@@ -852,22 +857,20 @@ html[lang='ur'] .section-title {
   table th, table td, table th *, table td * {
     font-size: 10.5px !important;
   }
-  /* Header row: boxed and shaded, centered text. */
+  /* Header row: boxed, centered text. */
   table thead th {
     text-align: center !important;
     vertical-align: middle !important;
     border: 1px solid var(--color-dp-outline-variant) !important;
-    background: var(--color-dp-surface-container-low, #f6f3f2) !important;
   }
   /* Body rows: no per-row ruling — clean whitespace between entries. */
   table tbody td {
     border: none !important;
   }
-  /* Closing total row: ruled off top and bottom, shaded like the header. */
+  /* Closing total row: ruled off top and bottom. */
   table tfoot td {
     border-top: 2px solid var(--color-dp-outline-variant) !important;
     border-bottom: 1px solid var(--color-dp-outline-variant) !important;
-    background: var(--color-dp-surface-container-low, #f6f3f2) !important;
   }
   /* Amount columns: one shared fixed floor everywhere (debit/credit/
      balance/total, already text-end throughout) instead of each report's

@@ -98,9 +98,17 @@ export const metadata: Metadata = {
 // (BottomNav) sits flush against the very edge of the screen instead of
 // clearing the home-indicator gesture strip, which is what "the page
 // isn't displaying full" looks like on an iPhone.
+// maximumScale/userScalable explicit rather than left to Next's defaults --
+// a real ask, 2026-09-28: reports/statements need to be pinch-zoomable to
+// read small print-density text (see globals.css's print font-size
+// reduction), and without an explicit maximumScale some mobile browsers'
+// own default viewport heuristics can still end up capping zoom on a page
+// that never opted into it either way.
 export const viewport: Viewport = {
   themeColor: "#0B3B2E",
   viewportFit: "cover",
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({
