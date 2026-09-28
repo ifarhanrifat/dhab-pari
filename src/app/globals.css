@@ -808,38 +808,34 @@ html[lang='ur'] .section-title {
 }
 
 /* ── Print-quality pass for every printed document (2026-09-28) ──────────
-   Real report: statements/reports printed from the app (both the native
-   Android print pipeline and a desktop browser) came out looking bare —
-   no visible grid lines between columns, no shaded header row — even
-   though the same tables look properly bordered/shaded on screen. Two
-   separate causes, both fixed the same global way rather than touching
-   every report/statement page individually:
+   Real report, refined after two rounds of live device screenshots — a
+   proper accounting statement doesn't rule every row (that's a spreadsheet,
+   not a statement): the header row is boxed and shaded, the closing total
+   row is ruled off, and the body rows in between are clean whitespace, not
+   a grid. All global (@media print only — never touches the on-screen
+   admin UI) rather than page-by-page, since every report/statement table
+   in the app shares this same structure and set of Tailwind classes.
 
-   1. Browsers (and Android's WebView print pipeline) don't print
-      background-color by default unless the page opts in — every header
-      row's bg-dp-surface-container-low/60 shading was silently dropped.
-      print-color-adjust: exact opts every element back in.
-
-   2. --color-dp-outline-variant (#bfc9c4, every table's border-b color)
-      is calibrated for screen contrast against a backlit display; at
-      print resolution a 1px line in that color is close to invisible.
-      Darkened just for print, plus a full cell grid (most of these
-      tables only ever had a horizontal border-b, no vertical rule
-      between columns) — a printed ledger/statement is expected to be
-      fully ruled, not just row-striped.
-
-   3. Browsers center <th> text by default regardless of the table's own
-      text-align (a UA-stylesheet rule that otherwise beats plain
-      inheritance) — every report/statement table sets text-start on the
-      <table> itself expecting headers to line up with the left-aligned
-      data below them, but only the numeric columns' headers ever got an
-      explicit text-end override, so "Date"/"Particular"/"Bill #" printed
-      centered while their own column's data sat flush left. Scoped to
-      print only (not the on-screen admin UI, which nobody has flagged
-      and this session hasn't reviewed table-by-table) — an explicit
-      text-end/text-center still wins via normal specificity (a class
-      beats a bare element selector), so this only touches headers
-      nobody had already overridden. */
+   1. Browsers (Android's WebView print pipeline included) don't print
+      background-color by default — print-color-adjust: exact opts back in,
+      so the header row's shading actually survives onto paper/PDF.
+   2. --color-dp-outline-variant is calibrated for on-screen contrast;
+      darkened for print so the header box and total rule are actually
+      visible at print resolution.
+   3. <th> centers by default (a UA rule that beats inheritance) — kept and
+      made explicit for the header row, since a centered column heading
+      over left/right-aligned data below it is the normal, correct
+      convention here. Body-row labels (an account name, a particular) stay
+      start-aligned via the table's own text-start — nothing to override
+      there, <td> doesn't have the <th> centering quirk.
+   4. Every amount column (debit/credit/balance/total — anything already
+      marked text-end, the existing convention across every one of these
+      tables) gets a shared minimum width wide enough for a real balance up
+      to Rs. 10,000,000 on one line without wrapping, instead of each
+      report picking its own ad hoc, often-too-narrow pixel width.
+   5. Smaller base font size for print only — denser, more professional-
+      looking tabular output; explicitly does not touch the app's own
+      screen typography. */
 @media print {
   * {
     -webkit-print-color-adjust: exact !important;
@@ -849,13 +845,37 @@ html[lang='ur'] .section-title {
     --color-dp-outline-variant: #8a8f8c;
     --color-dp-outline: #55605a;
   }
-  table th, table td {
-    border: 1px solid var(--color-dp-outline-variant) !important;
-  }
   table {
     border-collapse: collapse !important;
+    font-size: 10.5px !important;
   }
-  table th {
-    text-align: inherit;
+  table th, table td, table th *, table td * {
+    font-size: 10.5px !important;
+  }
+  /* Header row: boxed and shaded, centered text. */
+  table thead th {
+    text-align: center !important;
+    vertical-align: middle !important;
+    border: 1px solid var(--color-dp-outline-variant) !important;
+    background: var(--color-dp-surface-container-low, #f6f3f2) !important;
+  }
+  /* Body rows: no per-row ruling — clean whitespace between entries. */
+  table tbody td {
+    border: none !important;
+  }
+  /* Closing total row: ruled off top and bottom, shaded like the header. */
+  table tfoot td {
+    border-top: 2px solid var(--color-dp-outline-variant) !important;
+    border-bottom: 1px solid var(--color-dp-outline-variant) !important;
+    background: var(--color-dp-surface-container-low, #f6f3f2) !important;
+  }
+  /* Amount columns: one shared fixed floor everywhere (debit/credit/
+     balance/total, already text-end throughout) instead of each report's
+     own narrower pixel width — room for a real 8-figure balance on one
+     line, and text-start narrative columns (particular, account name) get
+     whatever's left, which is always substantially more. */
+  table td.text-end, table th.text-end {
+    min-width: 120px !important;
+    white-space: nowrap !important;
   }
 }

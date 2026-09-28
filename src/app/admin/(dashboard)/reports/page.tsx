@@ -678,14 +678,21 @@ function ReportsPageInner() {
                       committee's books; trimmed those and gave nearly all of
                       it back to particular (now ~270px at the 760px floor,
                       more on an actual printed page). */}
-                  <table className="w-full text-start min-w-[760px] [table-layout:fixed]">
+                  {/* Round 3: table-layout:fixed means the global print
+                      min-width rule (globals.css) can't rescue these columns
+                      the way it does for auto-layout tables elsewhere --
+                      widened debit/credit/balance directly so a real 8-figure
+                      balance (Rs. 10,000,000+) still fits on one line, and
+                      bumped the floor to 900px so particular keeps well over
+                      double any single amount column's width. */}
+                  <table className="w-full text-start min-w-[900px] [table-layout:fixed]">
                     <colgroup>
                       <col className="w-[85px]" />
                       <col />
                       <col className="w-[150px]" />
-                      <col className="w-[80px]" />
-                      <col className="w-[80px]" />
-                      <col className="w-[95px]" />
+                      <col className="w-[120px]" />
+                      <col className="w-[120px]" />
+                      <col className="w-[135px]" />
                     </colgroup>
                     <thead>
                       <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">

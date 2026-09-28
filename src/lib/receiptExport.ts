@@ -257,6 +257,34 @@ export function printBlob(blob: Blob, jobName = 'Document') {
   })
 }
 
+// Real report, 2026-09-28: cloning <link rel="stylesheet" href="..."> tags
+// as-is (previous approach) meant the print document -- whether the web
+// iframe or the native Android WebView (PrintPlugin.java, loaded with no
+// baseURL) -- had to fetch that relative CSS file itself, a second time,
+// completely independent of however the CURRENT page loaded it; any cache
+// miss, relative-URL resolution quirk, or timing gap there and the print
+// output silently got no styling at all for whatever didn't load in time.
+// This instead reads the CSS RULES the current page has *already*, visibly,
+// successfully applied (document.styleSheets) and inlines their literal text
+// -- no second network fetch, so nothing to fail or go stale independent of
+// whatever the admin is already looking at on screen.
+function extractLoadedCss(): string {
+  const inline: string[] = []
+  const externalLinks: string[] = []
+  for (const sheet of Array.from(document.styleSheets)) {
+    try {
+      const rules = sheet.cssRules
+      if (!rules) continue
+      inline.push(Array.from(rules).map((r) => r.cssText).join('\n'))
+    } catch {
+      // Cross-origin stylesheet (cssRules access throws) -- keep it as a
+      // <link>, a real resource the print document can still fetch itself.
+      if (sheet.href) externalLinks.push(`<link rel="stylesheet" href="${sheet.href}">`)
+    }
+  }
+  return `${externalLinks.join('\n')}\n<style>${inline.join('\n')}</style>`
+}
+
 /**
  * Prints a DOM node by cloning it into a hidden iframe (with the app's own
  * stylesheets attached) instead of the live page. Used for large/complex
@@ -267,9 +295,7 @@ export function printBlob(blob: Blob, jobName = 'Document') {
  * Same native-first, iframe-fallback split as printBlob() above.
  */
 export function printNodeInPopup(node: HTMLElement, title = 'Print') {
-  const styleTags = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
-    .map((el) => el.outerHTML)
-    .join('\n')
+  const styleTags = extractLoadedCss()
   const html = `<!DOCTYPE html><html><head><title>${title}</title>${styleTags}</head><body>${node.outerHTML}</body></html>`
   printHtmlNatively(html, title).then((handled) => {
     if (handled) return
