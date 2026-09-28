@@ -685,9 +685,9 @@ function ReportsPageInner() {
                       balance (Rs. 10,000,000+) still fits on one line, and
                       bumped the floor to 900px so particular keeps well over
                       double any single amount column's width. */}
-                  <table className="w-full text-start min-w-[900px] [table-layout:fixed]">
+                  <table className="w-full text-start min-w-[925px] [table-layout:fixed]">
                     <colgroup>
-                      <col className="w-[85px]" />
+                      <col className="w-[110px]" />
                       <col />
                       <col className="w-[150px]" />
                       <col className="w-[120px]" />
@@ -717,8 +717,14 @@ function ReportsPageInner() {
                           running += isCredit ? Number(r.credit) - Number(r.debit) : Number(r.debit) - Number(r.credit)
                           return (
                             <tr key={r.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
-                              <td className="px-4 py-3 whitespace-nowrap">{new Date(r.entry_date).toLocaleDateString('en-GB')}</td>
-                              {/* unicode-bidi:isolate (no dir="auto") -- a project title is very often
+                              <td className="ps-4 pe-6 py-3 whitespace-nowrap">{new Date(r.entry_date).toLocaleDateString('en-GB')}</td>
+                              {/* ps-6 (not px-4) on this cell -- a real report, 2026-09-28: an Urdu
+                                  particular that wraps onto a second line was reading as if it sat
+                                  almost under the date column, with barely any visible gap between
+                                  them in English mode. Extra start-padding here, matching the pe-6
+                                  added to the date cell above, so the two columns are unmistakably
+                                  separated regardless of how a wrapped RTL line happens to lay out.
+                                  unicode-bidi:isolate (no dir="auto") -- a project title is very often
                                   typed in Urdu even while the admin is in English mode, and since the
                                   "Donation - " prefix no longer stands in front of it (stripped in
                                   translateParticular), this cell can now start directly with an Urdu
@@ -729,7 +735,7 @@ function ReportsPageInner() {
                                   Urdu mode, matching every other column) keeps alignment correct;
                                   isolate still keeps the Urdu run's own internal word order from being
                                   affected by that surrounding direction once it wraps across lines. */}
-                              <td className="px-4 py-3" style={{ unicodeBidi: 'isolate' }}>{translateParticular(r.particular, t, isUrdu)}</td>
+                              <td className="ps-6 pe-4 py-3" style={{ unicodeBidi: 'isolate' }}>{translateParticular(r.particular, t, isUrdu)}</td>
                               <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant">
                                 {r.bill_number ?? '—'}
                                 {r.receipt_no && <span className="block text-dp-secondary">{dt(lang, 'receiptHash')}{r.receipt_no}</span>}
