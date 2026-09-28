@@ -555,7 +555,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
 
       <div ref={statementRef} dir={lang === 'ur' ? 'rtl' : 'ltr'} style={lang === 'ur' ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="bg-white rounded-lg border border-dp-outline-variant p-6 mb-4">
-        <DocumentHeader title={dt(lang, account.system === 'donors_projects' ? 'donorsProjectsSystem' : 'waterSupplySystem')} />
+        <DocumentHeader title={dt(lang, account.system === 'donors_projects' ? 'donorsProjectsSystem' : 'waterSupplySystem')} lang={lang} />
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="font-heading text-[24px] font-bold text-dp-primary">{accountPrimaryName}</h1>
@@ -599,8 +599,16 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
           mangled a long account name and squeezed the narration column on
           small screens. Same fields, particular/narration gets the full
           width of its own line instead of fighting eight other columns for
-          space, matching the card pattern /admin/donors already uses. */}
-      <div className="md:hidden bg-white rounded-lg border border-dp-outline-variant overflow-hidden divide-y divide-dp-outline-variant">
+          space, matching the card pattern /admin/donors already uses.
+          print:hidden -- real report, 2026-09-28: the native Android print
+          pipeline (PrintPlugin.java's off-screen WebView) doesn't reliably
+          resolve the md: breakpoint the same way a real, attached window
+          does, so both this card list AND the desktop table below were
+          showing at once, every donation printing twice in two different,
+          unstyled-looking layouts. print:hidden/print:block are already
+          proven reliable in this exact pipeline (DocumentHeader's own
+          hidden print:block), unlike a width-based breakpoint. */}
+      <div className="md:hidden print:hidden bg-white rounded-lg border border-dp-outline-variant overflow-hidden divide-y divide-dp-outline-variant">
         {rows.length === 0 && (
           <div className="p-8 text-center text-dp-on-surface-variant font-sans text-[14px]">{dt(lang, 'noTransactionsYet')}</div>
         )}
@@ -664,7 +672,7 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
         ))}
       </div>
 
-      <div className="hidden md:block bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
+      <div className="hidden md:block print:block bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-start min-w-[720px]">
             <thead>

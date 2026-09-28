@@ -725,7 +725,7 @@ export default function RunningCapitalPage() {
                   }
                 `}</style>
                 <div className="monthly-report-print">
-                  <DocumentHeader title={`${dt(lang, 'monthlyClosingReports')} — ${systemLabel}`} className="hidden print:block" />
+                  <DocumentHeader title={`${dt(lang, 'monthlyClosingReports')} — ${systemLabel}`} className="hidden print:block" lang={lang} />
                   {(() => {
                     const narrative = system === 'water_supply' ? buildClosingNarrative(viewTarget, 'واٹر سپلائی') : buildDonorClosingNarrative(viewTarget)
                     return (

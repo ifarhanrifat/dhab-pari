@@ -153,6 +153,7 @@ export function DailyRegisterView({ system, backHref }: DailyRegisterViewProps) 
           <DocumentHeader
             title={`${dt(lang, 'dailyRegister')} — ${systemLabel}`}
             subtitle={`${new Date(from).toLocaleDateString('en-GB')} to ${new Date(to).toLocaleDateString('en-GB')}`}
+            lang={lang}
           />
           <div className="flex justify-between">
             <div>

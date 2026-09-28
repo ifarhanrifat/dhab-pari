@@ -450,7 +450,7 @@ function ReportsPageInner() {
         <div className="bg-white rounded-lg border border-dp-outline-variant p-12 text-center text-dp-on-surface-variant font-sans"><LoadingDots /></div>
       ) : (
         <div ref={printRef} dir={lang === 'ur' ? 'rtl' : 'ltr'} style={lang === 'ur' ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
-          <DocumentHeader title={`${dt(lang, reportTypeDocKeys[reportType])} — ${dt(lang, systemLabelKeys[system])}`} className="hidden print:block" />
+          <DocumentHeader title={`${dt(lang, reportTypeDocKeys[reportType])} — ${dt(lang, systemLabelKeys[system])}`} className="hidden print:block" lang={lang} />
 
           {reportType === 'trial_balance' && (
             <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
@@ -668,14 +668,24 @@ function ReportsPageInner() {
                       made the whole row look like particular had shrunk.
                       Bumped to 150px and dropped whitespace-nowrap so an
                       unusually long number wraps instead of overflowing. */}
-                  <table className="w-full text-start min-w-[700px] [table-layout:fixed]">
+                  {/* Real report, 2026-09-28 (round 2): even after the previous
+                      widening pass, particular was still only left ~155px
+                      (700 total minus the other five columns) -- nowhere near
+                      enough for a donation particular with an embedded Urdu
+                      project title, which wrapped across 3+ lines and read as
+                      "not displaying correctly." The numeric columns don't
+                      need anywhere near 100px for real amounts on this
+                      committee's books; trimmed those and gave nearly all of
+                      it back to particular (now ~270px at the 760px floor,
+                      more on an actual printed page). */}
+                  <table className="w-full text-start min-w-[760px] [table-layout:fixed]">
                     <colgroup>
                       <col className="w-[85px]" />
                       <col />
                       <col className="w-[150px]" />
-                      <col className="w-[100px]" />
-                      <col className="w-[100px]" />
-                      <col className="w-[110px]" />
+                      <col className="w-[80px]" />
+                      <col className="w-[80px]" />
+                      <col className="w-[95px]" />
                     </colgroup>
                     <thead>
                       <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
