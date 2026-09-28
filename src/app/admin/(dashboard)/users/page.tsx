@@ -309,6 +309,25 @@ export default function AdminUsersPage() {
     setInviting(false)
   }
 
+  const [resendingId, setResendingId] = useState<string | null>(null)
+  const resendInvite = async (u: AdminUser) => {
+    setResendingId(u.id)
+    try {
+      const res = await fetch('/api/admin/users/resend-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_user_id: u.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error || t('us.failedSendInvite')); setResendingId(null); return }
+      toast.success(`${t('us.invitationSentPrefix')} ${u.email}`)
+      load()
+    } catch {
+      toast.error(t('us.networkErrorInvite'))
+    }
+    setResendingId(null)
+  }
+
   // Bridge while invite/reset-password emails aren't reaching people — creates
   // a working login immediately with a chosen password instead of an email.
   const createDirect = async () => {
@@ -563,6 +582,11 @@ export default function AdminUsersPage() {
                             <option value="super_admin">{t(roleLabelKey.super_admin)}</option>
                           )}
                         </select>
+                        {u.invited_at && !u.invite_accepted_at && (
+                          <button onClick={() => resendInvite(u)} disabled={resendingId === u.id} title={t('us.resendInviteTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer disabled:opacity-50">
+                            <RefreshCw size={15} className={resendingId === u.id ? 'animate-spin' : ''} />
+                          </button>
+                        )}
                         <button onClick={() => openEditCollector(u)} title={t('us.editCollectorTitle')} className="p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
                           <Pencil size={15} />
                         </button>
