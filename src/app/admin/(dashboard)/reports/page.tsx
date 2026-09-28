@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef, Suspense } from 'rea
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 import { Printer, ExternalLink } from 'lucide-react'
 import { printNodeInPopup } from '@/lib/receiptExport'
 import { DocumentHeader } from '@/components/admin/DocumentHeader'
@@ -49,7 +50,7 @@ interface LedgerAgg { account_id: string; debit: number; credit: number }
 interface Consumer { consumer_id: string; name: string; mobile: string; sector: string | null }
 interface Donation { id: string; name: string; amount_pkr: number; date: string; donor_type: string | null; project_id: string | null; payment_method: string | null; voucher_no: string | null }
 interface Project { id: string; title: string }
-interface LedgerRow { id: string; entry_date: string; particular: string; bill_number: string | null; receipt_no: string | null; debit: number; credit: number }
+interface LedgerRow { id: string; entry_date: string; particular: string; bill_number: string | null; receipt_no: string | null; reference_type: string | null; reference_id: string | null; debit: number; credit: number }
 
 const today = () => new Date().toISOString().slice(0, 10)
 const monthStart = () => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10) }
@@ -323,17 +324,47 @@ function ReportsPageInner() {
       if (!acc) return
       const [{ data: prior }, { data: range }] = await Promise.all([
         supabase.from('ledger_entries').select('debit, credit').eq('account_id', selectedAccountId).lt('entry_date', from),
-        supabase.from('ledger_entries').select('id, entry_date, particular, bill_number, receipt_no, debit, credit').eq('account_id', selectedAccountId).gte('entry_date', from).lte('entry_date', to).order('entry_date').order('created_at'),
+        supabase.from('ledger_entries').select('id, entry_date, particular, bill_number, receipt_no, reference_type, reference_id, debit, credit').eq('account_id', selectedAccountId).gte('entry_date', from).lte('entry_date', to).order('entry_date').order('created_at'),
       ])
       const priorNet = (prior ?? []).reduce((s, e) => s + Number(e.debit) - Number(e.credit), 0)
       const isCredit = creditNormal(acc.type)
       setStatementOpening(isCredit ? acc.opening_balance - priorNet : acc.opening_balance + priorNet)
-      setStatementRows(range ?? [])
+
+      // A donation ledger row stores reference_type='donation' with reference_id
+      // pointing at the donors row, not a vouchers row — its real document number
+      // (confirm_donation()'s voucher_no) lives there, never on the ledger row's
+      // own bill_number column, which is why every donation showed a bare "—"
+      // here. Same gap already fixed on the account detail page (/admin/accounts/[id]).
+      const donationIds = Array.from(new Set((range ?? [])
+        .filter((e) => e.reference_type === 'donation' && e.reference_id)
+        .map((e) => e.reference_id as string)))
+      let donationVoucherById: Record<string, string | null> = {}
+      if (donationIds.length > 0) {
+        const { data: donationsData } = await supabase.from('donors').select('id, voucher_no').in('id', donationIds)
+        donationVoucherById = Object.fromEntries((donationsData ?? []).map((d) => [d.id, d.voucher_no]))
+      }
+      setStatementRows((range ?? []).map((r) => ({
+        ...r, bill_number: r.bill_number ?? (r.reference_id ? donationVoucherById[r.reference_id] ?? null : null),
+      })))
     })()
   }, [reportType, selectedAccountId, from, to, accounts, supabase])
 
   const handlePrint = () => {
-    if (printRef.current) printNodeInPopup(printRef.current, `${reportTypeLabels[reportType]} - ${systemLabels[system]}`)
+    if (!printRef.current) return
+    // A report table's own wrapper is overflow-x-auto so it can scroll on
+    // screen without breaking the page layout -- cloned as-is into the print
+    // iframe (a fixed-size static document, no live scrollbar to drag), any
+    // column past the visible width was simply clipped off the printed page.
+    // Same fix already shipped on the account detail page's own print button.
+    const scrollers = Array.from(printRef.current.querySelectorAll<HTMLElement>('.overflow-x-auto'))
+    const prevOverflow = scrollers.map((el) => el.style.overflow)
+    scrollers.forEach((el) => { el.style.overflow = 'visible' })
+    try {
+      const ok = printNodeInPopup(printRef.current, `${reportTypeLabels[reportType]} - ${systemLabels[system]}`)
+      if (!ok) toast.error('Please allow pop-ups to print this report')
+    } finally {
+      scrollers.forEach((el, i) => { el.style.overflow = prevOverflow[i] })
+    }
   }
 
   return (
@@ -625,22 +656,35 @@ function ReportsPageInner() {
                 <div className="px-4 py-12 text-center text-dp-on-surface-variant font-sans">{dt(lang, 'selectAccountToView')}</div>
               ) : (
                 <div className="overflow-x-auto">
-                  {/* table-layout: fixed + explicit widths on every column
-                      except particular -- real report, 2026-09-24: "give
-                      width to description columns and decrease the date
-                      column lengths." auto layout was giving date and
-                      particular roughly equal room regardless of content;
-                      particular now gets whatever's left, which on a real
-                      statement is most of the row. */}
-                  <table className="w-full text-start min-w-[640px] [table-layout:fixed]">
+                  {/* Fixed layout via <colgroup> (not just <th> widths) --
+                      more reliable across engines, including the Android
+                      WebView this app also runs in, than relying on the
+                      first-row cells alone. Real report, 2026-09-28: once
+                      donation rows actually carry a voucher number (see the
+                      reference_type='donation' lookup above), "DP-INC-V-0123"
+                      at 12px mono needs ~125px to sit on one line -- the old
+                      110px column forced it onto one nowrap line wider than
+                      its box, which bled into the neighbouring columns and
+                      made the whole row look like particular had shrunk.
+                      Bumped to 150px and dropped whitespace-nowrap so an
+                      unusually long number wraps instead of overflowing. */}
+                  <table className="w-full text-start min-w-[700px] [table-layout:fixed]">
+                    <colgroup>
+                      <col className="w-[85px]" />
+                      <col />
+                      <col className="w-[150px]" />
+                      <col className="w-[100px]" />
+                      <col className="w-[100px]" />
+                      <col className="w-[110px]" />
+                    </colgroup>
                     <thead>
                       <tr className="text-dp-on-surface-variant text-[12px] font-sans font-bold tracking-[0.05em] border-b border-dp-outline-variant bg-dp-surface-container-low/60">
-                        <th className="px-4 py-2.5 w-[85px]">{dt(lang, 'date')}</th>
+                        <th className="px-4 py-2.5">{dt(lang, 'date')}</th>
                         <th className="px-4 py-2.5">{dt(lang, 'particular')}</th>
-                        <th className="px-4 py-2.5 w-[110px]">{dt(lang, 'billHash')}</th>
-                        <th className="px-4 py-2.5 text-end w-[100px]">{dt(lang, 'debit')}</th>
-                        <th className="px-4 py-2.5 text-end w-[100px]">{dt(lang, 'credit')}</th>
-                        <th className="px-4 py-2.5 text-end w-[110px]">{dt(lang, 'balance')}</th>
+                        <th className="px-4 py-2.5">{dt(lang, 'billHash')}</th>
+                        <th className="px-4 py-2.5 text-end">{dt(lang, 'debit')}</th>
+                        <th className="px-4 py-2.5 text-end">{dt(lang, 'credit')}</th>
+                        <th className="px-4 py-2.5 text-end">{dt(lang, 'balance')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -657,8 +701,8 @@ function ReportsPageInner() {
                           return (
                             <tr key={r.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
                               <td className="px-4 py-3 whitespace-nowrap">{new Date(r.entry_date).toLocaleDateString('en-GB')}</td>
-                              <td className="px-4 py-3">{translateParticular(r.particular, t, isUrdu)}</td>
-                              <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant whitespace-nowrap">
+                              <td className="px-4 py-3 break-words">{translateParticular(r.particular, t, isUrdu)}</td>
+                              <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant break-words">
                                 {r.bill_number ?? '—'}
                                 {r.receipt_no && <span className="block text-dp-secondary">{dt(lang, 'receiptHash')}{r.receipt_no}</span>}
                               </td>
