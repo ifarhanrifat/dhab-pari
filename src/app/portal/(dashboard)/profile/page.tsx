@@ -10,6 +10,8 @@ import { ImageUpload } from '@/components/admin/ImageUpload'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { SITE } from '@/lib/constants'
 import { MentorshipProfileFields, type MentorshipFieldsValue } from '@/components/portal/MentorshipProfileFields'
+import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
+import { PasswordChecklist } from '@/components/shared/PasswordChecklist'
 import { SectorSelect } from '@/components/portal/SectorSelect'
 import { PortalHelp } from '@/components/portal/PortalHelp'
 import { LoadingDots } from '@/components/shared/LoadingDots'
@@ -107,7 +109,7 @@ export default function PortalProfilePage() {
 
   const changePassword = async () => {
     if (!user || !currentPassword || !newPassword) { toast.error(t('p.enterCurrentNewPassword')); return }
-    if (newPassword.length < 8) { toast.error(t('p.passwordMinLength')); return }
+    if (!passwordMeetsPolicy(newPassword)) { toast.error(t('p.passwordPolicyNotMet')); return }
     if (newPassword !== confirmNewPassword) { toast.error(t('p.passwordsDontMatch')); return }
     setChangingPassword(true)
     const supabase = createClient()
@@ -266,6 +268,7 @@ export default function PortalProfilePage() {
               {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
+          <PasswordChecklist password={newPassword} />
         </div>
         <div>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.confirmNewPassword')}</label>

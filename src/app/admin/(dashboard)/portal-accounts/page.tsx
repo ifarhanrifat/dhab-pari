@@ -16,6 +16,8 @@ import { DonorBadge } from '@/components/public/DonorBadge'
 import { SearchableField } from '@/components/admin/SearchablePicker'
 import type { DonorBadgeTier } from '@/lib/donorBadges'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
+import { PasswordChecklist } from '@/components/shared/PasswordChecklist'
 
 interface PortalUser {
   id: string; full_name: string; name_ur: string | null; mobile: string; username: string | null
@@ -95,7 +97,7 @@ export default function PortalAccountsPage() {
   }
 
   const resetPassword = async () => {
-    if (!passwordFor || newPassword.length < 8) { toast.error(t('pa.passwordTooShort')); return }
+    if (!passwordFor || !passwordMeetsPolicy(newPassword)) { toast.error(t('p.passwordPolicyNotMet')); return }
     setBusyId(passwordFor)
     const res = await fetch('/api/admin/portal-users/set-password', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -264,8 +266,9 @@ export default function PortalAccountsPage() {
               <h2 className="font-heading text-[18px] font-bold text-dp-primary">{t('pa.resetPassword')}</h2>
               <button onClick={() => setPasswordFor(null)} className="cursor-pointer"><X size={18} /></button>
             </div>
-            <input autoFocus type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={t('pa.newPasswordPlaceholder')} className="input-field mb-4" />
-            <button disabled={busyId === passwordFor} onClick={resetPassword} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+            <input autoFocus type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={t('pa.newPasswordPlaceholder')} className="input-field" />
+            <PasswordChecklist password={newPassword} />
+            <button disabled={busyId === passwordFor} onClick={resetPassword} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50 mt-4">
               {t('pa.confirmReset')}
             </button>
           </div>

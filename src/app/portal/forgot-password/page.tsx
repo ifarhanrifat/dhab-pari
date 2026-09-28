@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Lock, Mail, KeyRound, Eye, EyeOff, CheckCircle, AlertTriangle } from 'lucide-react'
 import { SITE } from '@/lib/constants'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
+import { PasswordChecklist } from '@/components/shared/PasswordChecklist'
 
 // Two steps on one page rather than a separate /portal/reset-password —
 // see forgot-password route's own comment for why this moved off a
@@ -46,7 +48,7 @@ export default function PortalForgotPasswordPage() {
     e.preventDefault()
     setError('')
     if (!code.trim()) { setError(t('p.enterResetCode')); return }
-    if (newPassword.length < 8) { setError(t('p.passwordMinLength')); return }
+    if (!passwordMeetsPolicy(newPassword)) { setError(t('p.passwordMinLength')); return }
     if (newPassword !== confirmNewPassword) { setError(t('p.passwordsDontMatch')); return }
     setLoading(true)
     try {
@@ -103,16 +105,17 @@ export default function PortalForgotPasswordPage() {
               <div>
                 <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('p.newPassword')}</label>
                 <div className="relative">
-                  <input type={showPw ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} autoComplete="new-password"
-                    className="w-full px-4 py-3 pe-12 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[16px] font-sans text-dp-on-surface" placeholder="At least 8 characters" />
+                  <input type={showPw ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required autoComplete="new-password"
+                    className="w-full px-4 py-3 pe-12 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[16px] font-sans text-dp-on-surface" placeholder="Choose a strong password" />
                   <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute end-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer p-1" tabIndex={-1}>
                     {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
+                <PasswordChecklist password={newPassword} />
               </div>
               <div>
                 <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('g.confirmNewPassword')}</label>
-                <input type={showPw ? 'text' : 'password'} value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} required minLength={8} autoComplete="new-password"
+                <input type={showPw ? 'text' : 'password'} value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} required autoComplete="new-password"
                   className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[16px] font-sans text-dp-on-surface" placeholder="Re-enter your new password" />
               </div>
 

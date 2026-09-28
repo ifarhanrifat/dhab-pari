@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
 
 // Same shape as /api/admin/users/set-password, for a portal (donor/consumer)
 // account instead of a staff one — the villager on the other end usually
@@ -31,8 +32,8 @@ export async function POST(req: NextRequest) {
   }
 
   const { portalUserId, password } = body
-  if (!portalUserId || !password || password.length < 8) {
-    return NextResponse.json({ error: 'A user and a password of at least 8 characters are required.' }, { status: 400 })
+  if (!portalUserId || !password || !passwordMeetsPolicy(password)) {
+    return NextResponse.json({ error: 'A user and a password meeting all requirements (12+ characters, uppercase, lowercase, a number, and a special character) are required.' }, { status: 400 })
   }
 
   const admin = createAdminClient()

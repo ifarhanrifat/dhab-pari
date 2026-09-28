@@ -7,6 +7,8 @@ import { friendlyError } from '@/lib/errors'
 import { UserCog, KeyRound, Mail, Eye, EyeOff } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
+import { PasswordChecklist } from '@/components/shared/PasswordChecklist'
 
 // Real ask, 2026-09-25: there was no way for an admin to change their own
 // login email at all -- admin_users.email was set once at invite/create
@@ -55,7 +57,7 @@ export default function AdminProfilePage() {
 
   const changePassword = async () => {
     if (!currentPassword || !newPassword) { toast.error(t('p.enterCurrentNewPassword')); return }
-    if (newPassword.length < 8) { toast.error(t('p.passwordMinLength')); return }
+    if (!passwordMeetsPolicy(newPassword)) { toast.error(t('p.passwordPolicyNotMet')); return }
     if (newPassword !== confirmNewPassword) { toast.error(t('p.passwordsDontMatch')); return }
     setChangingPassword(true)
     const supabase = createClient()
@@ -114,6 +116,7 @@ export default function AdminProfilePage() {
               {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
+          <PasswordChecklist password={newPassword} />
         </div>
         <div>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.confirmNewPassword')}</label>

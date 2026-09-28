@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, ShieldCheck, Lock, AlertTriangle } from 'lucide-react'
 import { SITE } from '@/lib/constants'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
+import { PasswordChecklist } from '@/components/shared/PasswordChecklist'
 
 export default function ResetPasswordPage() {
   const { t } = useLocale()
@@ -40,7 +42,7 @@ export default function ResetPasswordPage() {
     e.preventDefault()
     setError('')
 
-    if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
+    if (!passwordMeetsPolicy(password)) { setError('Password does not meet all the requirements below.'); return }
     if (password !== confirmPassword) { setError('Passwords do not match.'); return }
 
     setSaving(true)
@@ -98,15 +100,15 @@ export default function ResetPasswordPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      minLength={8}
                       autoComplete="new-password"
                       className="w-full px-4 py-3 pe-12 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[16px] font-sans text-dp-on-surface"
-                      placeholder="At least 8 characters"
+                      placeholder="Choose a strong password"
                     />
                     <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer p-1" tabIndex={-1}>
                       {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
+                  <PasswordChecklist password={password} />
                 </div>
 
                 <div>
@@ -116,7 +118,6 @@ export default function ResetPasswordPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    minLength={8}
                     autoComplete="new-password"
                     className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[16px] font-sans text-dp-on-surface"
                     placeholder="Re-enter your new password"

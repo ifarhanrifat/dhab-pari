@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
 
 // Resets an existing user's password directly — covers accounts stuck from a
 // broken invite/reset-password email, and keeps the viewable copy (in
@@ -30,8 +31,8 @@ export async function POST(req: NextRequest) {
   }
 
   const { adminUserId, password } = body
-  if (!adminUserId || !password || password.length < 8) {
-    return NextResponse.json({ error: 'A user and a password of at least 8 characters are required.' }, { status: 400 })
+  if (!adminUserId || !password || !passwordMeetsPolicy(password)) {
+    return NextResponse.json({ error: 'A user and a password meeting all requirements (12+ characters, uppercase, lowercase, a number, and a special character) are required.' }, { status: 400 })
   }
 
   const admin = createAdminClient()

@@ -9,6 +9,8 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
+import { PasswordChecklist } from '@/components/shared/PasswordChecklist'
 
 interface AdminUser {
   id: string
@@ -142,10 +144,20 @@ const emptyInvite = {
 }
 
 function generatePassword() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%'
-  let out = ''
-  for (let i = 0; i < 12; i++) out += chars[Math.floor(Math.random() * chars.length)]
-  return out
+  const lower = 'abcdefghijkmnpqrstuvwxyz'
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
+  const digits = '23456789'
+  const special = '!@#$%^&*'
+  const all = lower + upper + digits + special
+  const pick = (set: string) => set[Math.floor(Math.random() * set.length)]
+  const required = [pick(lower), pick(upper), pick(digits), pick(special)]
+  const rest = Array.from({ length: 8 }, () => pick(all))
+  const out = [...required, ...rest]
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out.join('')
 }
 
 const emptyCollectorForm = {
@@ -332,7 +344,7 @@ export default function AdminUsersPage() {
   // a working login immediately with a chosen password instead of an email.
   const createDirect = async () => {
     if (!form.email.trim() || !form.full_name.trim()) { toast.error(t('us.emailNameRequired')); return }
-    if (!form.password || form.password.length < 8) { toast.error(t('us.passwordMinLength')); return }
+    if (!form.password || !passwordMeetsPolicy(form.password)) { toast.error(t('p.passwordPolicyNotMet')); return }
     setCreatingDirect(true)
     try {
       const res = await fetch('/api/admin/users/create-manual', {
@@ -364,7 +376,7 @@ export default function AdminUsersPage() {
 
   const savePassword = async () => {
     if (!passwordTarget) return
-    if (!passwordValue || passwordValue.length < 8) { toast.error(t('us.passwordMinLength')); return }
+    if (!passwordValue || !passwordMeetsPolicy(passwordValue)) { toast.error(t('p.passwordPolicyNotMet')); return }
     setSavingPassword(true)
     try {
       const res = await fetch('/api/admin/users/set-password', {
@@ -754,13 +766,14 @@ export default function AdminUsersPage() {
                       type="text"
                       value={form.password}
                       onChange={(e) => setForm({ ...form, password: e.target.value })}
-                      placeholder={t('us.atLeast8Chars')}
+                      placeholder={t('us.choosePasswordPlaceholder')}
                       className="input-field font-mono"
                     />
                     <button type="button" onClick={() => setForm({ ...form, password: generatePassword() })} title={t('us.generatePasswordTitle')} className="px-3 border border-dp-outline-variant rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container-low cursor-pointer shrink-0">
                       <RefreshCw size={16} />
                     </button>
                   </div>
+                  <PasswordChecklist password={form.password} />
                   <button disabled={creatingDirect} onClick={createDirect} className="w-full flex items-center justify-center gap-2 border-2 border-dp-secondary text-dp-secondary py-3 rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-secondary/5 transition-all cursor-pointer disabled:opacity-50 mt-3">
                     <Key size={16} /> {creatingDirect ? t('us.creating') : t('us.createDirectly')}
                   </button>
@@ -796,7 +809,7 @@ export default function AdminUsersPage() {
                     type={revealPassword ? 'text' : 'password'}
                     value={passwordValue}
                     onChange={(e) => setPasswordValue(e.target.value)}
-                    placeholder={t('us.atLeast8Chars')}
+                    placeholder={t('us.choosePasswordPlaceholder')}
                     className="input-field font-mono"
                   />
                   <button onClick={() => setRevealPassword(!revealPassword)} title={t('us.showHideTitle')} className="px-3 border border-dp-outline-variant rounded-lg text-dp-on-surface-variant hover:bg-dp-surface-container-low cursor-pointer shrink-0">
@@ -811,6 +824,7 @@ export default function AdminUsersPage() {
                     <RefreshCw size={16} />
                   </button>
                 </div>
+                <PasswordChecklist password={passwordValue} />
                 <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1.5">{t('us.editPasswordWarning')}</p>
                 <button disabled={savingPassword} onClick={savePassword} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50 mt-4">
                   <Save size={16} /> {savingPassword ? t('em.saving') : t('us.savePasswordBtn')}

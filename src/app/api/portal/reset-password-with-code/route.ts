@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/resend'
 import { passwordChangedEmail } from '@/lib/email/passwordChangedEmail'
+import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
 
 // Pairs with /api/portal/forgot-password's code — this is the only place
 // that ever consumes it. Runs entirely server-side via the admin API
@@ -23,8 +24,8 @@ export async function POST(req: NextRequest) {
   if (!email || !code) {
     return NextResponse.json({ error: 'Enter the code sent to your email.' }, { status: 400 })
   }
-  if (!newPassword || newPassword.length < 8) {
-    return NextResponse.json({ error: 'New password must be at least 8 characters.' }, { status: 400 })
+  if (!newPassword || !passwordMeetsPolicy(newPassword)) {
+    return NextResponse.json({ error: 'Password does not meet the requirements (12+ characters, uppercase, lowercase, a number, and a special character).' }, { status: 400 })
   }
 
   const admin = createAdminClient()

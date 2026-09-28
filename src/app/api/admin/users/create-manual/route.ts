@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
 
 const VALID_ROLES = ['super_admin', 'admin', 'accountant', 'water_accountant', 'donor_accountant', 'publisher', 'viewer']
 
@@ -61,8 +62,8 @@ export async function POST(req: NextRequest) {
   if (!email || !fullName || !role || !VALID_ROLES.includes(role)) {
     return NextResponse.json({ error: 'Email, full name, and a valid role are required.' }, { status: 400 })
   }
-  if (!password || password.length < 8) {
-    return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })
+  if (!password || !passwordMeetsPolicy(password)) {
+    return NextResponse.json({ error: 'Password does not meet the requirements (12+ characters, uppercase, lowercase, a number, and a special character).' }, { status: 400 })
   }
   if (secondaryRole && (!VALID_ROLES.includes(secondaryRole) || secondaryRole === role)) {
     return NextResponse.json({ error: 'Secondary role must be a different valid role.' }, { status: 400 })

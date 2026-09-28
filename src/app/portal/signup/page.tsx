@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 import { HeartHandshake, AlertTriangle, KeyRound } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { SectorSelect } from '@/components/portal/SectorSelect'
+import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
+import { PasswordChecklist } from '@/components/shared/PasswordChecklist'
 
 // Real ask, 2026-09-28: email verification is now mandatory before an
 // account is created at all — see /api/portal/signup/request-code and
@@ -45,7 +47,7 @@ export default function PortalSignupPage() {
     if (form.donor_type === 'overseas' && !form.country.trim()) {
       return t('p.enterCountryPeriod')
     }
-    if (form.password.length < 8) {
+    if (!passwordMeetsPolicy(form.password)) {
       return t('p.passwordMinLengthPeriod')
     }
     return null
@@ -204,6 +206,7 @@ export default function PortalSignupPage() {
           <div>
             <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('g.passwordReq')}</label>
             <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required autoComplete="new-password" className="input-field" />
+            <PasswordChecklist password={form.password} />
           </div>
 
           {error && (

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
 
 export interface SignupBody {
   full_name?: string; name_ur?: string; father_husband_name?: string
@@ -48,8 +49,8 @@ export function validateSignupFields(body: SignupBody): { error: string } | { ok
   if (donorType === 'overseas' && !country) {
     return { error: 'Please enter your country.' }
   }
-  if (password.length < 8) {
-    return { error: 'Password must be at least 8 characters.' }
+  if (!passwordMeetsPolicy(password)) {
+    return { error: 'Password does not meet the requirements (12+ characters, uppercase, lowercase, a number, and a special character).' }
   }
   if (fullName.length > 200 || mobile.length > 30) {
     return { error: 'Invalid input.' }
