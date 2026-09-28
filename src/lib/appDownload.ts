@@ -30,5 +30,5 @@
 // (@capacitor/app's App.getInfo().build, the Android versionCode) — the
 // only reliable "is this install out of date" signal there is, since a
 // website has no access to installed-package info from outside the app.
-export const APK_VERSION = 14
+export const APK_VERSION = 15
 export const APK_DOWNLOAD_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/attachments/app/dhab-pari-v${APK_VERSION}.apk`
