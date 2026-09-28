@@ -718,16 +718,18 @@ function ReportsPageInner() {
                           return (
                             <tr key={r.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
                               <td className="px-4 py-3 whitespace-nowrap">{new Date(r.entry_date).toLocaleDateString('en-GB')}</td>
-                              {/* dir="auto" + unicode-bidi:isolate -- a donation's particular is built
-                                  server-side as "Donation - " + the project's own title, and a project
-                                  title is very often typed in Urdu even while the admin is in English
-                                  mode. break-words (overflow-wrap:break-word) forces a hard break
-                                  wherever it likes, including mid-word inside that Urdu run, which
-                                  visually scrambles its word order once it wraps across lines (real
-                                  report, 2026-09-28: "12" and "نمبر" swapping places). Plain wrapping
-                                  at natural spaces doesn't have that problem; isolate keeps the Urdu
-                                  run's own direction from being resolved against the table's dir="ltr". */}
-                              <td className="px-4 py-3" dir="auto" style={{ unicodeBidi: 'isolate' }}>{translateParticular(r.particular, t, isUrdu)}</td>
+                              {/* unicode-bidi:isolate (no dir="auto") -- a project title is very often
+                                  typed in Urdu even while the admin is in English mode, and since the
+                                  "Donation - " prefix no longer stands in front of it (stripped in
+                                  translateParticular), this cell can now start directly with an Urdu
+                                  character. dir="auto" was resolving the WHOLE cell to RTL off that
+                                  first character -- right-aligning Urdu-titled rows even in an
+                                  English-mode, dir="ltr" table (real report, 2026-09-28). Fixed dir
+                                  (inherited from the table, so start=left in English mode, right in
+                                  Urdu mode, matching every other column) keeps alignment correct;
+                                  isolate still keeps the Urdu run's own internal word order from being
+                                  affected by that surrounding direction once it wraps across lines. */}
+                              <td className="px-4 py-3" style={{ unicodeBidi: 'isolate' }}>{translateParticular(r.particular, t, isUrdu)}</td>
                               <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant">
                                 {r.bill_number ?? '—'}
                                 {r.receipt_no && <span className="block text-dp-secondary">{dt(lang, 'receiptHash')}{r.receipt_no}</span>}
