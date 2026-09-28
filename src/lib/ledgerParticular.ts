@@ -30,8 +30,23 @@ const METHOD_KEY: Record<string, string> = {
 const method = (t: TFn, m: string) => t(METHOD_KEY[m] ?? '', m)
 
 export function translateParticular(text: string | null | undefined, t: TFn, isUrdu: boolean): string {
-  if (!text || !isUrdu) return text ?? ''
-  let out = text
+  if (!text) return ''
+
+  // "Donation - Project Title" / "Donation - Project Title (ZAKAT)" — a
+  // real report, 2026-09-28: the leading "Donation" label is redundant
+  // everywhere it shows (every row on a donor's own statement is obviously
+  // a donation) and, worse, sits in English right in front of a project
+  // title that's very often typed in Urdu — "Donation - " mixing scripts
+  // at the very start of the line is exactly what read as a stray English
+  // word stuck in the middle of an otherwise Urdu report. Stripped
+  // unconditionally (English mode too, not just Urdu) whenever there's a
+  // project title to stand on its own. A bare "Donation" / "Donation
+  // (ZAKAT)" (no project) has nothing else to show, so that one word is
+  // left as the row's only description — translated below, same as always,
+  // only in Urdu mode.
+  let out = text.replace(/^Donation - (?=\S)/, '')
+
+  if (!isUrdu) return out
 
   // Water Bill #WB-00026 - April 2024 [— accountant's own description, left untouched]
   out = out.replace(/^Water Bill #(\S+) - (\w+) (\d{4})(?= — |$)/, (_m, no: string, mon: string, yr: string) => {

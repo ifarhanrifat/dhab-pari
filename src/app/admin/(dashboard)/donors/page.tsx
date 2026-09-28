@@ -312,7 +312,7 @@ function AdminDonorsPageInner() {
       kind: 'donation', receiptNo: data.voucher_no, date: editForm.date,
       systemLabel: 'Donors & Projects', accountName: editForm.is_anonymous ? 'Anonymous Donor' : data.name,
       accountNameUr: editForm.name_ur || undefined,
-      particular: `Donation${projTitle !== 'General Fund' ? ` - ${projTitle}` : ''} (Account ${data.account_no})`,
+      particular: `${projTitle} (Account ${data.account_no})`,
       amount: data.amount_pkr,
       balanceAfter: totals.totalContributed, announcedRemaining: totals.announcedRemaining,
       projectName: projTitle,

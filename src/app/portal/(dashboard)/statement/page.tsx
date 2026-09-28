@@ -12,6 +12,7 @@ import { PaymentAccountDetails } from '@/components/public/PaymentAccountDetails
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { translateParticular } from '@/lib/ledgerParticular'
 
 interface LedgerRow { id: string; entry_date: string; particular: string; debit: number; credit: number }
 interface AccountInfo { donor_account_no: string | null; opening_balance: number }
@@ -281,7 +282,7 @@ function PortalStatementInner() {
                   {withBalance.map((r) => (
                     <tr key={r.id} className="border-b border-dp-outline-variant last:border-b-0">
                       <td className="p-3 whitespace-nowrap">{new Date(r.entry_date).toLocaleDateString('en-GB')}</td>
-                      <td className="p-3">{r.particular}</td>
+                      <td className="p-3">{translateParticular(r.particular, t, isUrdu)}</td>
                       <td className="p-3 text-end font-semibold">{Number(r.credit) > 0 ? `${fmt(r.credit)}` : '—'}</td>
                       <td className="p-3 text-end font-bold text-dp-secondary">{fmt(r.balance)}</td>
                     </tr>
