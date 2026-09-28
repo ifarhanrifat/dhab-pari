@@ -379,15 +379,20 @@ function AdminVehiclesInner() {
 
     if (editingVehicle) {
       const { error } = await supabase.from('vehicles').update({ portal_user_id: data.id }).eq('id', editingVehicle.id)
+      if (error) { setLinkingKeeper(false); toast.error(friendlyError(error, undefined, isUrdu)); return }
+      await supabase.rpc('sync_vehicle_keeper_name', { p_vehicle_id: editingVehicle.id })
       setLinkingKeeper(false)
-      if (error) { toast.error(friendlyError(error, undefined, isUrdu)); return }
       toast.success(t('sk.keeperLinkedToast'))
       load()
     } else {
       setLinkingKeeper(false)
     }
     setVehicleForm({ ...vehicleForm, portal_user_id: data.id })
-    setKeeperName(`${data.full_name} (${data.mobile})`)
+    // sync_vehicle_keeper_name (just run above, for an existing vehicle) sets
+    // this account's full_name to the vehicle's own owner_name -- show that,
+    // not the account's pre-sync signup name, or this label would still read
+    // like a mismatch immediately after linking.
+    setKeeperName(`${editingVehicle ? vehicleForm.owner_name || data.full_name : data.full_name} (${data.mobile})`)
     setKeeperMobile('')
   }
   const unlinkKeeper = async () => {
@@ -453,6 +458,13 @@ function AdminVehiclesInner() {
       const { data, error } = await supabase.from('vehicles').insert(payload).select('id').single()
       if (error) { setSaving(false); toast.error(friendlyError(error, undefined, isUrdu)); return }
       vehicleId = data.id
+    }
+    // A linked keeper's own portal profile name very often disagrees with
+    // this vehicle's own registered owner_name (a signup nickname vs. the
+    // name typed for this vehicle) -- keep them in step whenever a keeper
+    // is linked, real report 2026-09-28.
+    if (vehicleId && vehicleForm.portal_user_id) {
+      await supabase.rpc('sync_vehicle_keeper_name', { p_vehicle_id: vehicleId })
     }
     // sync service-class assignment (admin-only per migration 492) to match the checklist
     if (vehicleId) {
