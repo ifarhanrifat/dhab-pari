@@ -695,7 +695,11 @@ export default function ViewAccountPage({ params }: { params: Promise<{ id: stri
                       {entryTypeLabel(row.reference_type, row.voucher_type, lang)}
                     </span>
                   </td>
-                  <td className="px-4 py-3">{translateParticular(row.particular, t, isUrdu)}</td>
+                  {/* dir="auto" + unicode-bidi:isolate -- a donation's particular often embeds a
+                      project title typed in Urdu even in English mode; isolating it keeps that
+                      run's own word order from getting scrambled against the table's dir="ltr"
+                      when it wraps (same real report as the reports page's own statement table). */}
+                  <td className="px-4 py-3" dir="auto" style={{ unicodeBidi: 'isolate' }}>{translateParticular(row.particular, t, isUrdu)}</td>
                   <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant whitespace-nowrap">
                     {row.bill_number ?? row.voucher_no ?? '—'}
                     {row.receipt_no && <span className="block text-dp-secondary">{dt(lang, 'receiptHash')}{row.receipt_no}</span>}

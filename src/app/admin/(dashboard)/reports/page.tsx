@@ -701,8 +701,17 @@ function ReportsPageInner() {
                           return (
                             <tr key={r.id} className="font-sans text-[13.5px] border-b border-dp-outline-variant last:border-b-0">
                               <td className="px-4 py-3 whitespace-nowrap">{new Date(r.entry_date).toLocaleDateString('en-GB')}</td>
-                              <td className="px-4 py-3 break-words">{translateParticular(r.particular, t, isUrdu)}</td>
-                              <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant break-words">
+                              {/* dir="auto" + unicode-bidi:isolate -- a donation's particular is built
+                                  server-side as "Donation - " + the project's own title, and a project
+                                  title is very often typed in Urdu even while the admin is in English
+                                  mode. break-words (overflow-wrap:break-word) forces a hard break
+                                  wherever it likes, including mid-word inside that Urdu run, which
+                                  visually scrambles its word order once it wraps across lines (real
+                                  report, 2026-09-28: "12" and "نمبر" swapping places). Plain wrapping
+                                  at natural spaces doesn't have that problem; isolate keeps the Urdu
+                                  run's own direction from being resolved against the table's dir="ltr". */}
+                              <td className="px-4 py-3" dir="auto" style={{ unicodeBidi: 'isolate' }}>{translateParticular(r.particular, t, isUrdu)}</td>
+                              <td className="px-4 py-3 font-mono text-[12px] text-dp-on-surface-variant">
                                 {r.bill_number ?? '—'}
                                 {r.receipt_no && <span className="block text-dp-secondary">{dt(lang, 'receiptHash')}{r.receipt_no}</span>}
                               </td>
