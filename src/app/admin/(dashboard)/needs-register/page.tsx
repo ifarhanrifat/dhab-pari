@@ -1,12 +1,15 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { ShieldCheck, Search, Plus, X, Save, Home, Users, CheckCircle2, Lock } from 'lucide-react'
+import { ShieldCheck, Search, Plus, X, Save, Home, Users, CheckCircle2, Lock, Printer } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { printNodeInPopup } from '@/lib/receiptExport'
+import { DocumentHeader } from '@/components/admin/DocumentHeader'
+import { DocumentFooter } from '@/components/admin/DocumentFooter'
 
 /**
  * The Verified Needs Register.
@@ -74,8 +77,14 @@ export default function NeedsRegisterPage() {
   const [summary, setSummary] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('verified')
+  // Real report, 2026-09-28: defaulted to 'verified' before, so a household
+  // just added (status 'pending') was invisible on the very screen used to
+  // add it -- looked like the add had silently failed. Empty = all statuses,
+  // which also means the printed roster covers every status by default,
+  // not just whichever filter happened to be selected.
+  const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const printRef = useRef<HTMLDivElement>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [verifyTarget, setVerifyTarget] = useState<SafeRow | null>(null)
@@ -172,23 +181,42 @@ export default function NeedsRegisterPage() {
     { key: 'with_orphans', label: t('nr.card.orphans'), icon: Users },
   ]
 
+  const lang: 'en' | 'ur' = isUrdu ? 'ur' : 'en'
+
+  const handlePrint = () => {
+    if (!printRef.current) return
+    const scrollers = Array.from(printRef.current.querySelectorAll<HTMLElement>('.overflow-x-auto'))
+    const prevOverflow = scrollers.map((el) => el.style.overflow)
+    scrollers.forEach((el) => { el.style.overflow = 'visible' })
+    try {
+      printNodeInPopup(printRef.current, t('nr.title'))
+    } finally {
+      scrollers.forEach((el, i) => { el.style.overflow = prevOverflow[i] })
+    }
+  }
+
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
-      <div className="mb-6">
-        <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5">
-          <ShieldCheck size={26} className="text-dp-secondary" /> {t('nr.title')}
-        </h1>
-        <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('nr.blurb')}</p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3 print:hidden">
+        <div>
+          <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2.5">
+            <ShieldCheck size={26} className="text-dp-secondary" /> {t('nr.title')}
+          </h1>
+          <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1">{t('nr.blurb')}</p>
+        </div>
+        <button onClick={handlePrint} className="filter-btn border border-dp-outline-variant text-dp-on-surface hover:bg-dp-surface-container-low shrink-0">
+          <Printer size={15} /> {t('a.print')}
+        </button>
       </div>
 
       {isVerifier === false && (
-        <div className="flex items-start gap-3 bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3 mb-5">
+        <div className="flex items-start gap-3 bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3 mb-5 print:hidden">
           <Lock size={16} className="text-dp-on-surface-variant shrink-0 mt-0.5" />
           <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('nr.codeOnlyNotice')}</p>
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5 print:hidden">
         {cards.map((c) => (
           <div key={c.key} className="bg-white border border-dp-outline-variant rounded-lg px-4 py-3">
             <div className="flex items-center gap-2 text-dp-on-surface-variant mb-1">
@@ -200,7 +228,7 @@ export default function NeedsRegisterPage() {
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-3 mb-4 print:hidden">
         <div className="relative flex-1 min-w-[220px]">
           <Search size={15} className="absolute top-1/2 -translate-y-1/2 left-3 text-dp-outline" />
           <input value={search} onChange={(e) => setSearch(e.target.value)}
@@ -220,75 +248,140 @@ export default function NeedsRegisterPage() {
         )}
       </div>
 
-      <div className="bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-start border-collapse">
-            <thead>
-              <tr className="bg-dp-surface-container-low text-dp-outline text-[13px] font-sans font-bold tracking-[0.05em]">
-                <th className="p-3 text-start">{t('nr.col.code')}</th>
-                {isVerifier && <th className="p-3 text-start">{t('nr.col.household')}</th>}
-                <th className="p-3 text-start">{t('nr.col.category')}</th>
-                <th className="p-3 text-center">{t('nr.col.size')}</th>
-                <th className="p-3 text-center">{t('nr.col.dependants')}</th>
-                <th className="p-3 text-start">{t('nr.col.flags')}</th>
-                <th className="p-3 text-start">{t('nr.col.status')}</th>
-                <th className="p-3 text-end">{t('nr.col.action')}</th>
-              </tr>
-            </thead>
-            <tbody className="font-sans text-[14px]">
-              {loading && <tr><td colSpan={8} className="p-8 text-center text-dp-on-surface-variant"><LoadingDots /></td></tr>}
-              {!loading && filtered.length === 0 && (
-                <tr><td colSpan={8} className="p-8 text-center text-dp-on-surface-variant">{t('nr.empty')}</td></tr>
-              )}
-              {!loading && filtered.map((r, i) => {
-                const id = full[r.id]
-                return (
-                  <tr key={r.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''}`}>
-                    <td className="p-3 border-b border-dp-outline-variant font-mono text-[12.5px] font-semibold">{r.code}</td>
+      <div ref={printRef} dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
+        <DocumentHeader title={t('nr.title')} subtitle={statusFilter ? t(`nr.status.${statusFilter}`) : t('nr.allStatuses')} className="hidden print:block" lang={lang} />
+
+        {/* Mobile card list -- the desktop table below needs real column
+            width for 8 columns and forces horizontal scroll on a phone,
+            which is exactly what "not mobile friendly" looks like. Same
+            fields, one column, full width per household. print:hidden --
+            same reason as the account statement pages: the native print
+            pipeline doesn't reliably resolve the md: breakpoint, so both
+            this and the desktop table could render at once in print
+            without it. */}
+        <div className="md:hidden print:hidden bg-white rounded-lg border border-dp-outline-variant overflow-hidden divide-y divide-dp-outline-variant">
+          {loading && <div className="p-8 text-center text-dp-on-surface-variant"><LoadingDots /></div>}
+          {!loading && filtered.length === 0 && (
+            <div className="p-8 text-center text-dp-on-surface-variant font-sans text-[14px]">{t('nr.empty')}</div>
+          )}
+          {!loading && filtered.map((r) => {
+            const id = full[r.id]
+            return (
+              <div key={r.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-mono text-[12.5px] font-semibold">{r.code}</p>
                     {isVerifier && (
-                      <td className="p-3 border-b border-dp-outline-variant">
+                      <p className="font-sans text-[13.5px] mt-0.5">
                         <span className="font-semibold">{id?.head_name ?? '—'}</span>
                         {id?.address && <span className="block text-[12px] text-dp-on-surface-variant">{id.address}</span>}
-                      </td>
+                      </p>
                     )}
-                    <td className="p-3 border-b border-dp-outline-variant">{t(`nr.asnaf.${r.asnaf_category}`)}</td>
-                    <td className="p-3 border-b border-dp-outline-variant text-center tabular-nums">{r.household_size}</td>
-                    <td className="p-3 border-b border-dp-outline-variant text-center tabular-nums">{r.dependants}</td>
-                    <td className="p-3 border-b border-dp-outline-variant">
-                      <div className="flex flex-wrap gap-1">
-                        {r.is_widow_headed && <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[10.5px] font-bold">{t('nr.flag.widow')}</span>}
-                        {r.has_orphans && <span className="px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 text-[10.5px] font-bold">{t('nr.flag.orphans')}</span>}
-                        {r.has_disabled_member && <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10.5px] font-bold">{t('nr.flag.disabled')}</span>}
-                        {r.receives_bisp && <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10.5px] font-bold">BISP</span>}
-                      </div>
-                    </td>
-                    <td className="p-3 border-b border-dp-outline-variant">
-                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${STATUS_TONE[r.status] ?? 'bg-slate-100'}`}>
-                        {t(`nr.status.${r.status}`)}
-                      </span>
-                      {r.status !== 'verified' && r.verify_count > 0 && (
-                        <span className="block text-[11px] text-dp-on-surface-variant mt-0.5">{r.verify_count} {t('nr.confirmed')}</span>
-                      )}
-                      {r.verified_until && (
-                        <span className="block text-[11px] text-dp-on-surface-variant mt-0.5">
-                          {t('nr.until')} {new Date(r.verified_until).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-3 border-b border-dp-outline-variant text-end">
-                      {isVerifier && ['pending', 'surveying', 'expired'].includes(r.status) && (
-                        <button onClick={() => { setVerifyTarget(r); setVerifyForm({ decision: 'verify', relationship: 'none', reason: '' }) }}
-                          className="px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer whitespace-nowrap">
-                          {t('nr.verify')}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                    <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">{t(`nr.asnaf.${r.asnaf_category}`)}</p>
+                  </div>
+                  <span className={`shrink-0 px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap ${STATUS_TONE[r.status] ?? 'bg-slate-100'}`}>
+                    {t(`nr.status.${r.status}`)}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 font-sans text-[12.5px] text-dp-on-surface-variant">
+                  <span>{t('nr.col.size')}: <strong className="text-dp-on-surface tabular-nums">{r.household_size}</strong></span>
+                  <span>{t('nr.col.dependants')}: <strong className="text-dp-on-surface tabular-nums">{r.dependants}</strong></span>
+                  {r.status !== 'verified' && r.verify_count > 0 && <span>{r.verify_count} {t('nr.confirmed')}</span>}
+                  {r.verified_until && (
+                    <span>{t('nr.until')} {new Date(r.verified_until).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>
+                  )}
+                </div>
+                {(r.is_widow_headed || r.has_orphans || r.has_disabled_member || r.receives_bisp) && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {r.is_widow_headed && <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[10.5px] font-bold">{t('nr.flag.widow')}</span>}
+                    {r.has_orphans && <span className="px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 text-[10.5px] font-bold">{t('nr.flag.orphans')}</span>}
+                    {r.has_disabled_member && <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10.5px] font-bold">{t('nr.flag.disabled')}</span>}
+                    {r.receives_bisp && <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10.5px] font-bold">BISP</span>}
+                  </div>
+                )}
+                {isVerifier && ['pending', 'surveying', 'expired'].includes(r.status) && (
+                  <button onClick={() => { setVerifyTarget(r); setVerifyForm({ decision: 'verify', relationship: 'none', reason: '' }) }}
+                    className="w-full mt-3 px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
+                    {t('nr.verify')}
+                  </button>
+                )}
+              </div>
+            )
+          })}
         </div>
+
+        <div className="hidden md:block print:block bg-white rounded-lg border border-dp-outline-variant overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-start border-collapse">
+              <thead>
+                <tr className="bg-dp-surface-container-low text-dp-outline text-[13px] font-sans font-bold tracking-[0.05em]">
+                  <th className="p-3 text-start">{t('nr.col.code')}</th>
+                  {isVerifier && <th className="p-3 text-start">{t('nr.col.household')}</th>}
+                  <th className="p-3 text-start">{t('nr.col.category')}</th>
+                  <th className="p-3 text-center">{t('nr.col.size')}</th>
+                  <th className="p-3 text-center">{t('nr.col.dependants')}</th>
+                  <th className="p-3 text-start">{t('nr.col.flags')}</th>
+                  <th className="p-3 text-start">{t('nr.col.status')}</th>
+                  <th className="p-3 text-end print:hidden">{t('nr.col.action')}</th>
+                </tr>
+              </thead>
+              <tbody className="font-sans text-[14px]">
+                {loading && <tr><td colSpan={8} className="p-8 text-center text-dp-on-surface-variant"><LoadingDots /></td></tr>}
+                {!loading && filtered.length === 0 && (
+                  <tr><td colSpan={8} className="p-8 text-center text-dp-on-surface-variant">{t('nr.empty')}</td></tr>
+                )}
+                {!loading && filtered.map((r, i) => {
+                  const id = full[r.id]
+                  return (
+                    <tr key={r.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''}`}>
+                      <td className="p-3 border-b border-dp-outline-variant font-mono text-[12.5px] font-semibold">{r.code}</td>
+                      {isVerifier && (
+                        <td className="p-3 border-b border-dp-outline-variant">
+                          <span className="font-semibold">{id?.head_name ?? '—'}</span>
+                          {id?.address && <span className="block text-[12px] text-dp-on-surface-variant">{id.address}</span>}
+                        </td>
+                      )}
+                      <td className="p-3 border-b border-dp-outline-variant">{t(`nr.asnaf.${r.asnaf_category}`)}</td>
+                      <td className="p-3 border-b border-dp-outline-variant text-center tabular-nums">{r.household_size}</td>
+                      <td className="p-3 border-b border-dp-outline-variant text-center tabular-nums">{r.dependants}</td>
+                      <td className="p-3 border-b border-dp-outline-variant">
+                        <div className="flex flex-wrap gap-1">
+                          {r.is_widow_headed && <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[10.5px] font-bold">{t('nr.flag.widow')}</span>}
+                          {r.has_orphans && <span className="px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 text-[10.5px] font-bold">{t('nr.flag.orphans')}</span>}
+                          {r.has_disabled_member && <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10.5px] font-bold">{t('nr.flag.disabled')}</span>}
+                          {r.receives_bisp && <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10.5px] font-bold">BISP</span>}
+                        </div>
+                      </td>
+                      <td className="p-3 border-b border-dp-outline-variant">
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${STATUS_TONE[r.status] ?? 'bg-slate-100'}`}>
+                          {t(`nr.status.${r.status}`)}
+                        </span>
+                        {r.status !== 'verified' && r.verify_count > 0 && (
+                          <span className="block text-[11px] text-dp-on-surface-variant mt-0.5">{r.verify_count} {t('nr.confirmed')}</span>
+                        )}
+                        {r.verified_until && (
+                          <span className="block text-[11px] text-dp-on-surface-variant mt-0.5">
+                            {t('nr.until')} {new Date(r.verified_until).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3 border-b border-dp-outline-variant text-end print:hidden">
+                        {isVerifier && ['pending', 'surveying', 'expired'].includes(r.status) && (
+                          <button onClick={() => { setVerifyTarget(r); setVerifyForm({ decision: 'verify', relationship: 'none', reason: '' }) }}
+                            className="px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer whitespace-nowrap">
+                            {t('nr.verify')}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <DocumentFooter lang={lang} />
       </div>
 
       {/* ── Add a household ─────────────────────────────────────────────── */}
