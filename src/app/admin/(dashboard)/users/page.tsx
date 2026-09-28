@@ -47,6 +47,7 @@ interface AdminUser {
   assigned_sectors: string[] | null
   can_collect_payments: boolean
   can_verify_complaints: boolean
+  can_verify_needs: boolean
   assigned_training_program_ids: string[] | null
   trainer_bio: string | null
   trainer_bio_ur: string | null
@@ -162,7 +163,7 @@ function generatePassword() {
 
 const emptyCollectorForm = {
   mobile: '', can_collect_payments: false, assigned_sectors: [] as string[],
-  can_verify_complaints: false, secondary_role: '',
+  can_verify_complaints: false, can_verify_needs: false, secondary_role: '',
   access_water_supply: false, access_donors_projects: false,
   can_publish_news: false, can_publish_videos: false, can_publish_gallery: false,
   can_publish_ticker: false, can_publish_jobs: false,
@@ -236,7 +237,7 @@ export default function AdminUsersPage() {
     setEditingUser(u)
     setCollectorForm({
       mobile: u.mobile ?? '', can_collect_payments: u.can_collect_payments, assigned_sectors: u.assigned_sectors ?? [],
-      can_verify_complaints: u.can_verify_complaints, secondary_role: u.secondary_role ?? '',
+      can_verify_complaints: u.can_verify_complaints, can_verify_needs: u.can_verify_needs, secondary_role: u.secondary_role ?? '',
       access_water_supply: u.access_water_supply, access_donors_projects: u.access_donors_projects,
       can_publish_news: u.can_publish_news, can_publish_videos: u.can_publish_videos,
       can_publish_gallery: u.can_publish_gallery, can_publish_ticker: u.can_publish_ticker,
@@ -276,6 +277,7 @@ export default function AdminUsersPage() {
       trainer_bio_ur: collectorForm.trainer_bio_ur.trim() || null,
       trainer_photo_url: collectorForm.trainer_photo_url.trim() || null,
       can_verify_complaints: collectorForm.can_verify_complaints,
+      can_verify_needs: collectorForm.can_verify_needs,
       secondary_role: collectorForm.secondary_role || null,
       access_water_supply: collectorForm.access_water_supply,
       access_donors_projects: collectorForm.access_donors_projects,
@@ -968,6 +970,22 @@ export default function AdminUsersPage() {
                   <span className="font-sans text-[13.5px] font-semibold text-indigo-900 flex items-center gap-1.5"><ShieldCheck size={14} /> {t('z.verifierBlurb')}</span>
                 </label>
                 <p className="font-sans text-[11.5px] text-indigo-800 mt-1.5">{t('us.verifierNotTiedNote')}</p>
+
+                {/* can_verify_needs -- deliberately its own permission, not implied by
+                    admin/super_admin (migration 208's own header comment: "running the
+                    system should not mean being able to read the poverty list"). There
+                    was no UI anywhere to grant it, so nobody could ever add a household
+                    to the Needs Register or see names on it -- real report, 2026-09-28. */}
+                <label className="flex items-center gap-2 cursor-pointer mt-3">
+                  <input
+                    type="checkbox"
+                    checked={collectorForm.can_verify_needs}
+                    onChange={(e) => setCollectorForm({ ...collectorForm, can_verify_needs: e.target.checked })}
+                    className="accent-indigo-600"
+                  />
+                  <span className="font-sans text-[13.5px] font-semibold text-indigo-900 flex items-center gap-1.5"><ShieldCheck size={14} /> {t('us.needsVerifierBlurb')}</span>
+                </label>
+                <p className="font-sans text-[11.5px] text-indigo-800 mt-1.5">{t('us.needsVerifierNote')}</p>
               </div>
               <button disabled={savingCollector} onClick={saveCollectorSettings} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
                 <Save size={16} /> {savingCollector ? t('em.saving') : t('g.saveChanges')}
