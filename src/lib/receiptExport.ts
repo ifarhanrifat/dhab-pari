@@ -1,3 +1,5 @@
+import { printHtmlNatively, printPdfNatively } from '@/lib/nativePrint'
+
 export type ReceiptFormat = 'pdf' | 'png'
 
 const FORMAT_KEY = 'dp_receipt_format'
@@ -241,10 +243,18 @@ function printViaHiddenIframe(populate: (iframe: HTMLIFrameElement) => void) {
  * problem this always had: browsers inject the page's own URL into printed
  * headers/footers, so printing the live admin route directly would leak its
  * internal URL (and account UUID) into the printout — a blob: URL has none.
+ *
+ * On the native Android shell, window.print() inside the WebView is a silent
+ * no-op (see PrintPlugin.java) -- tried first, and only falls back to the
+ * iframe/window.print() web path below when it isn't available (a browser
+ * tab) or the plugin call itself fails.
  */
-export function printBlob(blob: Blob) {
-  const url = URL.createObjectURL(blob)
-  printViaHiddenIframe((iframe) => { iframe.src = url })
+export function printBlob(blob: Blob, jobName = 'Document') {
+  printPdfNatively(blob, jobName).then((handled) => {
+    if (handled) return
+    const url = URL.createObjectURL(blob)
+    printViaHiddenIframe((iframe) => { iframe.src = url })
+  })
 }
 
 /**
@@ -253,17 +263,23 @@ export function printBlob(blob: Blob) {
  * regions (e.g. a full statement table) where rasterizing via html2canvas is
  * unreliable — same URL-leak fix as printBlob() above, since the iframe's
  * own document carries no admin route or account id into the printed output.
+ *
+ * Same native-first, iframe-fallback split as printBlob() above.
  */
 export function printNodeInPopup(node: HTMLElement, title = 'Print') {
   const styleTags = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
     .map((el) => el.outerHTML)
     .join('\n')
-  printViaHiddenIframe((iframe) => {
-    const doc = iframe.contentDocument
-    if (!doc) return
-    doc.open()
-    doc.write(`<!DOCTYPE html><html><head><title>${title}</title>${styleTags}</head><body>${node.outerHTML}</body></html>`)
-    doc.close()
+  const html = `<!DOCTYPE html><html><head><title>${title}</title>${styleTags}</head><body>${node.outerHTML}</body></html>`
+  printHtmlNatively(html, title).then((handled) => {
+    if (handled) return
+    printViaHiddenIframe((iframe) => {
+      const doc = iframe.contentDocument
+      if (!doc) return
+      doc.open()
+      doc.write(html)
+      doc.close()
+    })
   })
   return true
 }
