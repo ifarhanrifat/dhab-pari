@@ -61,6 +61,17 @@ export async function POST(req: NextRequest) {
     redirectTo: `${siteUrl}/admin/accept-invite`,
   })
   if (inviteError) {
+    // Defense-in-depth: invite_accepted_at is meant to already rule this
+    // out above, but a real bug (fixed 2026-09-28) had it silently stuck
+    // null on every genuinely-accepted invite for a while, which is
+    // exactly what surfaces here as Supabase's own "already registered"
+    // error instead of the friendlier one above. Translate it rather than
+    // leak the raw GoTrue message, and self-heal the stale bookkeeping
+    // while we're here so this stops recurring for this row.
+    if (/already.*registered/i.test(inviteError.message)) {
+      await admin.from('admin_users').update({ invite_accepted_at: new Date().toISOString() }).eq('id', adminUserId)
+      return NextResponse.json({ error: 'This invite was already accepted (the account is active) — the page just had stale info. Refresh and try again.' }, { status: 409 })
+    }
     return NextResponse.json({ error: inviteError.message }, { status: 400 })
   }
 

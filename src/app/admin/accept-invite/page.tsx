@@ -54,10 +54,16 @@ export default function AcceptInvitePage() {
       return
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase.from('admin_users').update({ invite_accepted_at: new Date().toISOString() }).eq('auth_user_id', user.id)
-    }
+    // Real bug found live: this used to write invite_accepted_at directly
+    // from the client — admin_users has no self-service UPDATE policy for
+    // a brand-new invitee, so it silently failed every time (the result
+    // was never even checked), leaving every accepted invite stuck showing
+    // "Pending" forever even though the password above had already set
+    // correctly. Routed through a service-role API call instead — the
+    // password change already succeeded by this point regardless, so a
+    // failure here is logged but never blocks the redirect.
+    const markRes = await fetch('/api/admin/accept-invite/mark-accepted', { method: 'POST' })
+    if (!markRes.ok) console.error('accept-invite: mark-accepted failed', await markRes.text())
 
     router.push('/admin')
     router.refresh()
