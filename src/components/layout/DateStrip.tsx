@@ -32,7 +32,7 @@ export function DateStrip({ className = '' }: { className?: string }) {
   if (!hijri && !punjabi) return null
 
   return (
-    <div className={`flex items-center gap-3 min-w-0 overflow-x-auto hide-scrollbar text-white/80 font-sans text-[11px] ${className}`}>
+    <div className={`flex items-center gap-3 min-w-0 overflow-x-auto hide-scrollbar text-white/90 font-sans font-bold text-[11px] ${className}`}>
       {hijri && (
         <span className="inline-flex items-center gap-1 shrink-0 whitespace-nowrap">
           <Moon size={12} className="shrink-0 opacity-80" /> {hijri}

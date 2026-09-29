@@ -84,7 +84,7 @@ export function Header() {
                 {SITE.name}
               </Link>
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="text-white/70 text-[10.5px] font-sans">
+                <div className="text-white/90 text-[10.5px] font-sans">
                   <OnlineUsersBadge />
                 </div>
                 <p className="text-white/60 text-[12px] font-sans hidden xl:block">
