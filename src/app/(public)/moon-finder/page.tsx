@@ -78,14 +78,26 @@ export default function MoonFinderPage() {
   // — see the file header note. Safe to remove once the math is trusted.
   const [debugHeading, setDebugHeading] = useState(0)
   const [debugElevation, setDebugElevation] = useState(0)
-  const [debugSource, setDebugSource] = useState<'webkit' | 'computed' | null>(null)
+  const [debugSource, setDebugSource] = useState<'webkit' | 'computed' | 'uncalibrated' | null>(null)
   const [cameraReady, setCameraReady] = useState(false)
+  // If no true-north-referenced heading ever arrives (some browsers never
+  // fire an absolute orientation event at all), fall back to the
+  // best-effort computed one after a few seconds rather than leaving the
+  // feature stuck forever on "hold upright" — flagged in the debug line
+  // so it's clear accuracy may be reduced.
+  const [allowUncalibrated, setAllowUncalibrated] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const targetRef = useRef<MoonTarget | null>(null)
   const lastUpdateRef = useRef(0)
   const orientationHandlerRef = useRef<((e: DeviceOrientationEvent) => void) | null>(null)
+  const uncalibratedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // handleOrientation is attached via addEventListener once (in start()),
+  // so it closes over state from that instant — reading allowUncalibrated
+  // state directly inside it would always see its stale initial value.
+  // Same reason targetRef exists above for `target`.
+  const allowUncalibratedRef = useRef(false)
 
   useEffect(() => { targetRef.current = target }, [target])
 
@@ -97,9 +109,12 @@ export default function MoonFinderPage() {
       window.removeEventListener('deviceorientation', orientationHandlerRef.current as EventListener)
       orientationHandlerRef.current = null
     }
+    if (uncalibratedTimerRef.current) { clearTimeout(uncalibratedTimerRef.current); uncalibratedTimerRef.current = null }
+    allowUncalibratedRef.current = false
     setPhase('idle')
     setHasHeading(false)
     setCameraReady(false)
+    setAllowUncalibrated(false)
   }
 
   useEffect(() => () => stop(), [])
@@ -110,22 +125,38 @@ export default function MoonFinderPage() {
     lastUpdateRef.current = now
     if (e.alpha == null || e.beta == null || e.gamma == null) return
 
-    const webkitHeading = (e as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading
-    const computed = computeHeadingAndElevation(e.alpha, e.beta, e.gamma)
-    // iOS's webkitCompassHeading is a magnetometer-calibrated true heading
-    // Apple derives directly -- more accurate than deriving it ourselves
-    // when it's available. Elevation always comes from the real rotation
-    // math above; webkit doesn't expose that part.
-    const heading = typeof webkitHeading === 'number' ? webkitHeading : computed.heading
-
     const tgt = targetRef.current
     if (!tgt) return
+
+    const computed = computeHeadingAndElevation(e.alpha, e.beta, e.gamma)
+    // Elevation only depends on beta/gamma (device tilt) — accurate
+    // regardless of whether alpha is true-north-referenced, so this
+    // always updates.
+    setDeltaAlt(tgt.altitude - computed.elevation)
+    setDebugElevation(computed.elevation)
+
+    // Real report, 2026-09-30, round 3: altitude/target math is now
+    // correct (confirmed via debug readout), but azimuth stayed ~17° off
+    // while altitude was accurate to ~4° — a split that only makes sense
+    // if `alpha` itself carries an uncalibrated offset, since alpha is
+    // the ONLY input to heading (elevation above never touches it). Root
+    // cause: this handler accepted alpha from plain 'deviceorientation'
+    // events too, without checking they were actually true-north-
+    // referenced (`e.absolute`) — on many Android setups that event can
+    // fire with alpha relative to an arbitrary start orientation, not
+    // north, silently corrupting heading while leaving elevation fine
+    // (exactly what was observed). Now heading only updates from a
+    // source we can trust: iOS's calibrated webkitCompassHeading, or an
+    // event explicitly flagged e.absolute === true.
+    const webkitHeading = (e as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading
+    const trustworthy = typeof webkitHeading === 'number' || e.absolute === true
+    if (!trustworthy && !allowUncalibratedRef.current) return
+    const heading = typeof webkitHeading === 'number' ? webkitHeading : computed.heading
+
     setHasHeading(true)
     setDeltaAz(angularDiff(tgt.azimuth, heading))
-    setDeltaAlt(tgt.altitude - computed.elevation)
     setDebugHeading(heading)
-    setDebugElevation(computed.elevation)
-    setDebugSource(typeof webkitHeading === 'number' ? 'webkit' : 'computed')
+    setDebugSource(typeof webkitHeading === 'number' ? 'webkit' : trustworthy ? 'computed' : 'uncalibrated')
   }
 
   const start = async () => {
@@ -164,6 +195,11 @@ export default function MoonFinderPage() {
     orientationHandlerRef.current = handleOrientation
     window.addEventListener('deviceorientationabsolute', handleOrientation as EventListener)
     window.addEventListener('deviceorientation', handleOrientation as EventListener)
+    allowUncalibratedRef.current = false
+    uncalibratedTimerRef.current = setTimeout(() => {
+      allowUncalibratedRef.current = true
+      setAllowUncalibrated(true)
+    }, 4000)
 
     // Mounts the <video> tag — the camera stream is attached to it in the
     // effect below, once it actually exists in the DOM.
@@ -291,7 +327,8 @@ export default function MoonFinderPage() {
                   devices -- remove once the tolerance/FOV are trusted. */}
               {hasHeading && (
                 <p className="ltr-num text-white/60 text-[10px] mt-1 font-mono">
-                  moon: az{Math.round(target.azimuth)}° alt{Math.round(target.altitude)}° · you: {debugSource === 'webkit' ? 'ios' : 'calc'} hd{Math.round(debugHeading)}° el{Math.round(debugElevation)}° · Δaz{Math.round(deltaAz)}° Δalt{Math.round(deltaAlt)}°
+                  moon: az{Math.round(target.azimuth)}° alt{Math.round(target.altitude)}° · you: {debugSource === 'webkit' ? 'ios' : debugSource === 'uncalibrated' ? 'calc*' : 'calc'} hd{Math.round(debugHeading)}° el{Math.round(debugElevation)}° · Δaz{Math.round(deltaAz)}° Δalt{Math.round(deltaAlt)}°
+                  {debugSource === 'uncalibrated' && ' · *no true-north signal, heading may drift'}
                 </p>
               )}
             </div>
