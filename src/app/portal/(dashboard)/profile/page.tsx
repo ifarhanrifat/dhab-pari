@@ -35,6 +35,22 @@ export default function PortalProfilePage() {
   })
   const [saving, setSaving] = useState(false)
 
+  // Real ask, 2026-09-29: mobile is locked (it's the login identity), but
+  // whatsapp_number -- where donation notifications and committee messages
+  // actually go -- was plain free text saved with the rest of the profile
+  // form, no confirmation at all. Gated behind an emailed code (migration
+  // 521), same shape as portal password reset: request a code for a new
+  // number, type it back to actually commit it. currentWhatsapp tracks
+  // what's live (separate from form.whatsapp_number, which no longer
+  // round-trips through the general Save button at all) so a successful
+  // confirm can update the displayed number without a full page reload.
+  const [currentWhatsapp, setCurrentWhatsapp] = useState('')
+  const [showWhatsappChange, setShowWhatsappChange] = useState(false)
+  const [whatsappStep, setWhatsappStep] = useState<'new' | 'code'>('new')
+  const [newWhatsappNumber, setNewWhatsappNumber] = useState('')
+  const [whatsappCode, setWhatsappCode] = useState('')
+  const [whatsappBusy, setWhatsappBusy] = useState(false)
+
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
@@ -61,6 +77,7 @@ export default function PortalProfilePage() {
       country: user.country ?? '', sector: user.sector ?? '', avatar_url: user.avatar_url ?? '',
       username: user.username ?? '', email: user.email ?? '', display_name: user.display_name ?? '',
     })
+    setCurrentWhatsapp(user.whatsapp_number ?? '')
     setMentorship({
       gender: user.gender ?? '', profession: user.profession ?? '', profession_other: user.profession_other ?? '',
       education_level: user.education_level ?? '', education_details: user.education_details ?? '',
@@ -72,7 +89,7 @@ export default function PortalProfilePage() {
 
   const save = async () => {
     if (!user) return
-    if (!form.full_name.trim() || !form.father_husband_name.trim() || !form.whatsapp_number.trim()) {
+    if (!form.full_name.trim() || !form.father_husband_name.trim() || !currentWhatsapp.trim()) {
       toast.error(t('p.profileRequiredFields'))
       return
     }
@@ -85,7 +102,10 @@ export default function PortalProfilePage() {
     const supabase = createClient()
     const { error } = await supabase.from('portal_users').update({
       full_name: form.full_name.trim(), name_ur: form.name_ur.trim() || null,
-      father_husband_name: form.father_husband_name.trim(), whatsapp_number: form.whatsapp_number.trim(),
+      father_husband_name: form.father_husband_name.trim(),
+      // whatsapp_number deliberately excluded -- it only ever changes
+      // through the emailed-code flow below (requestWhatsappCode /
+      // confirmWhatsappChange), never through this general save.
       donor_type: form.donor_type, country: form.donor_type === 'overseas' ? (form.country.trim() || null) : null,
       sector: form.sector.trim() || null, avatar_url: form.avatar_url || null,
       email: form.email.trim() || null,
@@ -105,6 +125,47 @@ export default function PortalProfilePage() {
       return
     }
     toast.success(t('p.profileUpdated'))
+  }
+
+  const requestWhatsappCode = async () => {
+    if (!newWhatsappNumber.trim()) { toast.error(t('p.enterNewWhatsapp')); return }
+    setWhatsappBusy(true)
+    try {
+      const res = await fetch('/api/portal/profile/request-whatsapp-change-code', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newWhatsappNumber: newWhatsappNumber.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error ?? t('p.networkErrorRetry')); setWhatsappBusy(false); return }
+      toast.success(t('p.whatsappCodeSent'))
+      setWhatsappStep('code')
+    } catch {
+      toast.error(t('p.networkErrorRetry'))
+    }
+    setWhatsappBusy(false)
+  }
+
+  const confirmWhatsappChange = async () => {
+    if (!whatsappCode.trim()) { toast.error(t('p.enterResetCode')); return }
+    setWhatsappBusy(true)
+    try {
+      const res = await fetch('/api/portal/profile/confirm-whatsapp-change', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: whatsappCode.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error ?? t('p.networkErrorRetry')); setWhatsappBusy(false); return }
+      toast.success(t('p.whatsappChanged'))
+      setCurrentWhatsapp(data.whatsappNumber)
+      setForm((f) => ({ ...f, whatsapp_number: data.whatsappNumber }))
+      setShowWhatsappChange(false)
+      setWhatsappStep('new')
+      setNewWhatsappNumber('')
+      setWhatsappCode('')
+    } catch {
+      toast.error(t('p.networkErrorRetry'))
+    }
+    setWhatsappBusy(false)
   }
 
   const changePassword = async () => {
@@ -176,7 +237,46 @@ export default function PortalProfilePage() {
         </div>
         <div>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.whatsappReq')}</label>
-          <input type="tel" value={form.whatsapp_number} onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })} className="input-field" />
+          {/* Real ask, 2026-09-29: this was a plain free-text input saved
+              with the rest of the form, no confirmation at all — the one
+              number donation notifications and committee messages actually
+              go to. Now read-only + a "Change" button that opens the
+              emailed-code flow below (request-whatsapp-change-code /
+              confirm-whatsapp-change), same shape as password reset. */}
+          <div className="flex items-center gap-2">
+            <input value={currentWhatsapp || t('p.noneOnFile')} disabled className="input-field opacity-60" dir="ltr" />
+            <button type="button" onClick={() => { setShowWhatsappChange((v) => !v); setWhatsappStep('new'); setNewWhatsappNumber(''); setWhatsappCode('') }}
+              className="shrink-0 px-3 py-3 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-secondary hover:bg-dp-surface-container-low transition-all cursor-pointer whitespace-nowrap">
+              {t('p.change')}
+            </button>
+          </div>
+          {showWhatsappChange && (
+            <div className="mt-2.5 bg-dp-surface-container-low rounded-lg p-3.5 space-y-2.5">
+              {whatsappStep === 'new' ? (
+                <>
+                  <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant">{t('p.newWhatsappNumber')}</label>
+                  <input type="tel" value={newWhatsappNumber} onChange={(e) => setNewWhatsappNumber(e.target.value)} className="input-field" dir="ltr" autoFocus />
+                  <button disabled={whatsappBusy} onClick={requestWhatsappCode}
+                    className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+                    {whatsappBusy ? t('ap.sending') : t('p.sendConfirmationCode')}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant">{t('p.enterCodeSentToEmail')}</label>
+                  <input value={whatsappCode} onChange={(e) => setWhatsappCode(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" maxLength={6}
+                    className="input-field font-mono tracking-[0.3em] text-center" placeholder="000000" dir="ltr" autoFocus />
+                  <button disabled={whatsappBusy} onClick={confirmWhatsappChange}
+                    className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+                    {whatsappBusy ? t('ap.sending') : t('p.confirmNewNumber')}
+                  </button>
+                  <button type="button" onClick={() => setWhatsappStep('new')} className="w-full text-center font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline cursor-pointer">
+                    {t('p.resendCode')}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
