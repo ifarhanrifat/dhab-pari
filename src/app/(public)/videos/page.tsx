@@ -30,6 +30,28 @@ const categoryTabs = [
   'Freelancing',
 ]
 
+const categoryTabKeys: Record<string, string> = {
+  All: 'x.catAll',
+  Interview: 'x.catInterview',
+  Wedding: 'x.catWedding',
+  Event: 'x.catEvent',
+  Sports: 'x.catSports',
+  Documentary: 'x.catDocumentary',
+  Project: 'x.catProject',
+  Freelancing: 'x.catFreelancing',
+}
+
+const categoryBadgeKeys: Record<string, string> = {
+  interview: 'x.catInterview',
+  wedding: 'x.catWedding',
+  event: 'x.catEvent',
+  sports: 'x.catSports',
+  documentary: 'x.catDocumentary',
+  project: 'x.catProject',
+  news: 'x.catNews',
+  freelancing: 'x.catFreelancing',
+}
+
 const categoryBadgeColors: Record<string, string> = {
   interview: 'bg-blue-600',
   wedding: 'bg-pink-600',
@@ -49,7 +71,7 @@ function formatDuration(seconds: number | null) {
 }
 
 export default function VideosPage() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const [videos, setVideos] = useState<Video[]>([])
   const [activeTab, setActiveTab] = useState('All')
   const [loading, setLoading] = useState(true)
@@ -79,14 +101,14 @@ export default function VideosPage() {
   const otherVideos = filtered.filter((v) => v.category !== 'interview')
 
   return (
-    <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen">
+    <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       {/* Header */}
       <div className="mb-8">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title">
           {t('x.videoLibrary')}
         </h1>
         <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px] mt-2">
-          Watch village events, interviews, sports highlights, and project progress updates.
+          {t('x.videoLibrarySubtitle')}
         </p>
       </div>
 
@@ -102,7 +124,7 @@ export default function VideosPage() {
                 : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-primary hover:text-dp-primary'
             }`}
           >
-            {tab}
+            {t(categoryTabKeys[tab])}
           </button>
         ))}
       </div>
@@ -170,11 +192,16 @@ export default function VideosPage() {
                     {/* Info right */}
                     <div className="p-5 flex flex-col justify-center min-w-0">
                       <span className={`text-[10px] font-bold uppercase tracking-widest font-sans text-white px-2 py-0.5 rounded w-fit mb-2 ${categoryBadgeColors[video.category ?? ''] ?? 'bg-dp-primary'}`}>
-                        {video.category}
+                        {video.category && t(categoryBadgeKeys[video.category.toLowerCase()] ?? '', video.category)}
                       </span>
                       <h3 className="font-bold text-dp-primary text-[16px] font-sans leading-[24px] group-hover:text-dp-secondary transition-colors truncate">
                         {video.title}
                       </h3>
+                      {video.title_ur && (
+                        <p className="text-dp-on-surface-variant text-[13px] mt-0.5 truncate" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
+                          {video.title_ur}
+                        </p>
+                      )}
                       {video.description && (
                         <p className="text-dp-on-surface-variant text-[14px] font-sans mt-1 line-clamp-1">
                           {video.description}
@@ -182,7 +209,7 @@ export default function VideosPage() {
                       )}
                       <div className="flex items-center gap-2 mt-2 text-dp-on-surface-variant text-[12px] font-sans">
                         <Eye size={12} />
-                        <span>{video.views.toLocaleString()} views</span>
+                        <span>{video.views.toLocaleString()} {t('x.views')}</span>
                       </div>
                     </div>
                   </Link>
@@ -196,7 +223,7 @@ export default function VideosPage() {
             <section>
               {interviews.length > 0 && (
                 <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mb-6">
-                  {activeTab === 'All' ? 'All Videos' : activeTab}
+                  {activeTab === 'All' ? t('x.allVideos') : t(categoryTabKeys[activeTab])}
                 </h2>
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -213,6 +240,7 @@ export default function VideosPage() {
 }
 
 function VideoCard({ video, large }: { video: Video; large?: boolean }) {
+  const { t } = useLocale()
   return (
     <Link
       href={`/videos/${video.id}`}
@@ -236,7 +264,7 @@ function VideoCard({ video, large }: { video: Video; large?: boolean }) {
       {/* Category badge */}
       <div className="absolute top-3 left-3">
         <span className={`text-[10px] font-bold uppercase tracking-widest font-sans text-white px-2 py-1 rounded ${categoryBadgeColors[video.category ?? ''] ?? 'bg-dp-primary'}`}>
-          {video.category}
+          {video.category && t(categoryBadgeKeys[video.category.toLowerCase()] ?? '', video.category)}
         </span>
       </div>
 
@@ -245,9 +273,14 @@ function VideoCard({ video, large }: { video: Video; large?: boolean }) {
         <p className="text-white font-bold text-[14px] font-sans tracking-[0.05em] truncate">
           {video.title}
         </p>
+        {video.title_ur && (
+          <p className="text-white/80 text-[12.5px] truncate" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
+            {video.title_ur}
+          </p>
+        )}
         <div className="flex items-center gap-2 mt-1 text-white/70 text-[12px] font-sans">
           <Eye size={12} />
-          <span>{video.views.toLocaleString()} views</span>
+          <span>{video.views.toLocaleString()} {t('x.views')}</span>
         </div>
       </div>
     </Link>
