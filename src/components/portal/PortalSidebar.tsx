@@ -23,37 +23,68 @@ import {
   ShoppingBag,
   Store,
   Bus,
+  ChevronDown,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+
+interface LeafItem {
+  href: string; label: string; tKey: string; icon: LucideIcon
+  requiresConsumer?: boolean; requiresShopKeeper?: boolean; requiresVehicleKeeper?: boolean
+}
+interface GroupItem { groupKey: string; label: string; tKey: string; icon: LucideIcon; children: LeafItem[] }
+type MenuEntry = LeafItem | GroupItem
+const isGroup = (e: MenuEntry): e is GroupItem => 'children' in e
 
 // Mirrors AdminSidebar.tsx's exact pattern (fixed desktop sidebar + mobile
 // slide-in drawer + persistent profile block at the bottom) — the portal
 // nav was a top bar before; a registered user's identity should stay
 // visible the whole time they're in the portal, same as staff in /admin.
-const menuItems = [
+//
+// Grouped the same way AdminSidebar was, 2026-09-29: 25 flat items down to
+// 8 top-level rows behind three natural clusters (giving/welfare programs,
+// community & education, get-involved/support) that expand in place —
+// Marketplace/My Shop/My Vehicle stay standalone since each already opens
+// into its own multi-tab layout rather than being a single screen.
+const menuItems: MenuEntry[] = [
   { href: '/portal', label: 'Dashboard', tKey: 'portal.dashboard', icon: LayoutDashboard },
-  { href: '/portal/donate', label: 'Donate', tKey: 'portal.donate', icon: HeartHandshake },
-  { href: '/portal/statement', label: 'My Giving', tKey: 'portal.statement', icon: HeartHandshake },
-  { href: '/portal/water', label: 'Water Bills', tKey: 'portal.water', icon: Droplets, requiresConsumer: true },
-  { href: '/portal/recurring', label: 'Recurring Donations', tKey: 'portal.recurring', icon: Repeat },
-  { href: '/portal/zakat', label: 'Zakat & Ushr', tKey: 'portal.zakat', icon: Scale },
-  { href: '/portal/kafalat', label: 'Kafalat — Sponsor or Join', tKey: 'portal.kafalat', icon: GraduationCap },
-  { href: '/portal/esal-e-sawab', label: 'Sadqa-e-Jariya', tKey: 'portal.esalESawab', icon: Gift },
-  { href: '/portal/wazifa', label: 'Taleemi Wazifa', tKey: 'portal.wazifa', icon: BookOpen },
-  { href: '/portal/propose-project', label: 'Propose a Project', tKey: 'portal.proposeProject', icon: Vote },
-  { href: '/portal/submit-blog', label: 'Submit a Blog Post', tKey: 'portal.submitBlog', icon: NotebookPen },
-  { href: '/portal/mentors', label: 'Mentors & Career Help', tKey: 'portal.mentors', icon: Users },
-  { href: '/portal/institutes', label: 'Institutes', tKey: 'portal.institutes', icon: School },
-  { href: '/portal/training-programs', label: 'Academies', tKey: 'portal.trainingPrograms', icon: CalendarClock },
+  {
+    groupKey: 'giving', label: 'Giving & Welfare', tKey: 'portal.groupGiving', icon: HeartHandshake,
+    children: [
+      { href: '/portal/donate', label: 'Donate', tKey: 'portal.donate', icon: HeartHandshake },
+      { href: '/portal/statement', label: 'My Giving', tKey: 'portal.statement', icon: HeartHandshake },
+      { href: '/portal/water', label: 'Water Bills', tKey: 'portal.water', icon: Droplets, requiresConsumer: true },
+      { href: '/portal/recurring', label: 'Recurring Donations', tKey: 'portal.recurring', icon: Repeat },
+      { href: '/portal/zakat', label: 'Zakat & Ushr', tKey: 'portal.zakat', icon: Scale },
+      { href: '/portal/kafalat', label: 'Kafalat — Sponsor or Join', tKey: 'portal.kafalat', icon: GraduationCap },
+      { href: '/portal/esal-e-sawab', label: 'Sadqa-e-Jariya', tKey: 'portal.esalESawab', icon: Gift },
+      { href: '/portal/wazifa', label: 'Taleemi Wazifa', tKey: 'portal.wazifa', icon: BookOpen },
+    ],
+  },
+  {
+    groupKey: 'community', label: 'Community & Education', tKey: 'portal.groupCommunity', icon: Users,
+    children: [
+      { href: '/portal/propose-project', label: 'Propose a Project', tKey: 'portal.proposeProject', icon: Vote },
+      { href: '/portal/submit-blog', label: 'Submit a Blog Post', tKey: 'portal.submitBlog', icon: NotebookPen },
+      { href: '/portal/mentors', label: 'Mentors & Career Help', tKey: 'portal.mentors', icon: Users },
+      { href: '/portal/institutes', label: 'Institutes', tKey: 'portal.institutes', icon: School },
+      { href: '/portal/training-programs', label: 'Academies', tKey: 'portal.trainingPrograms', icon: CalendarClock },
+      { href: '/portal/talent-showcase', label: 'Talent Showcase', tKey: 'portal.talentShowcase', icon: Sparkles },
+    ],
+  },
   { href: '/portal/marketplace', label: 'Marketplace', tKey: 'portal.marketplace', icon: ShoppingBag },
   { href: '/portal/my-shop', label: 'My Shop', tKey: 'portal.myShop', icon: Store, requiresShopKeeper: true },
   { href: '/portal/my-vehicle', label: 'My Vehicle', tKey: 'portal.myVehicle', icon: Bus, requiresVehicleKeeper: true },
-  { href: '/portal/talent-showcase', label: 'Talent Showcase', tKey: 'portal.talentShowcase', icon: Sparkles },
-  { href: '/portal/suggestions', label: 'Suggestions', tKey: 'portal.suggestions', icon: MessageSquare },
-  { href: '/portal/complaints', label: 'Complaints', tKey: 'portal.complaints', icon: MessageSquareWarning },
-  { href: '/portal/blood-donor', label: 'Blood Donor', tKey: 'portal.bloodDonor', icon: Droplet },
-  { href: '/portal/post-job', label: 'My Job Listings', tKey: 'portal.postJob', icon: Briefcase },
-  { href: '/portal/my-volunteering', label: 'My Volunteering', tKey: 'portal.myVolunteering', icon: HeartHandshake },
-  { href: '/portal/get-involved', label: 'Get Involved', tKey: 'portal.getInvolved', icon: HandHeart },
+  {
+    groupKey: 'support', label: 'Get Involved & Support', tKey: 'portal.groupSupport', icon: HandHeart,
+    children: [
+      { href: '/portal/suggestions', label: 'Suggestions', tKey: 'portal.suggestions', icon: MessageSquare },
+      { href: '/portal/complaints', label: 'Complaints', tKey: 'portal.complaints', icon: MessageSquareWarning },
+      { href: '/portal/blood-donor', label: 'Blood Donor', tKey: 'portal.bloodDonor', icon: Droplet },
+      { href: '/portal/post-job', label: 'My Job Listings', tKey: 'portal.postJob', icon: Briefcase },
+      { href: '/portal/my-volunteering', label: 'My Volunteering', tKey: 'portal.myVolunteering', icon: HeartHandshake },
+      { href: '/portal/get-involved', label: 'Get Involved', tKey: 'portal.getInvolved', icon: HandHeart },
+    ],
+  },
   { href: '/portal/profile', label: 'My Profile', tKey: 'portal.profile', icon: UserCog },
 ]
 
@@ -122,18 +153,36 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
     router.refresh()
   }
 
-  const visibleMenuItems = menuItems.filter((item) =>
-    (!item.requiresConsumer || user?.consumer_id) && (!item.requiresShopKeeper || hasShop) && (!item.requiresVehicleKeeper || hasVehicle))
+  const isLeafVisible = (item: LeafItem) =>
+    (!item.requiresConsumer || user?.consumer_id) && (!item.requiresShopKeeper || hasShop) && (!item.requiresVehicleKeeper || hasVehicle)
+
+  // A group shows the moment at least one child would have on its own, and
+  // carries only the children that actually passed — same derivation as
+  // AdminSidebar, nothing about who sees which leaf changes.
+  const visibleMenuItems: MenuEntry[] = menuItems
+    .map((entry) => (isGroup(entry) ? { ...entry, children: entry.children.filter(isLeafVisible) } : entry))
+    .filter((entry) => (isGroup(entry) ? entry.children.length > 0 : isLeafVisible(entry)))
+
+  const flatVisibleItems = visibleMenuItems.flatMap((entry) => (isGroup(entry) ? entry.children : [entry]))
 
   // Longest-match so exactly one item highlights — same fix as AdminSidebar,
   // where plain startsWith() lit a parent and its child simultaneously. No
   // portal route collides today; this keeps it that way when one is added.
   const activeHref = (() => {
-    const matches = visibleMenuItems
+    const matches = flatVisibleItems
       .map((i) => i.href)
       .filter((href) => (href === '/portal' ? pathname === '/portal' : pathname === href || pathname.startsWith(href + '/')))
     return matches.sort((a, b) => b.length - a.length)[0] ?? null
   })()
+
+  // Whichever group holds the current page expands automatically; a manual
+  // toggle (a button, not a Link) holds until the next real navigation,
+  // exactly as AdminSidebar's own group behavior works.
+  const activeGroupKey = visibleMenuItems.find((e) => isGroup(e) && e.children.some((c) => c.href === activeHref)) as GroupItem | undefined
+  const [openGroupOverride, setOpenGroupOverride] = useState<string | null | undefined>(undefined)
+  useEffect(() => { setOpenGroupOverride(undefined) }, [pathname])
+  const openGroup = openGroupOverride !== undefined ? openGroupOverride : (activeGroupKey?.groupKey ?? null)
+  const toggleGroup = (key: string) => setOpenGroupOverride(openGroup === key ? null : key)
 
   // The sidebar itself stays pinned to the left edge of the screen in Urdu
   // too — RTL_READY is deliberately off, so nobody has to relearn where the
@@ -171,7 +220,60 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   const sidebarContent = (
     <>
       <nav className="flex-1 space-y-1 overflow-y-auto" dir={rowDir}>
-        {visibleMenuItems.map((item) => {
+        {visibleMenuItems.map((entry) => {
+          if (isGroup(entry)) {
+            const GroupIcon = entry.icon
+            const expanded = openGroup === entry.groupKey
+            const groupIsActiveCollapsed = !expanded && entry.children.some((c) => c.href === activeHref)
+            const groupBadgeTotal = entry.children.reduce((sum, c) => sum + (badges[c.href.split('/')[2] ?? ''] ?? 0), 0)
+            return (
+              <div key={entry.groupKey}>
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(entry.groupKey)}
+                  className={`w-full flex items-center px-4 py-3 mx-2 rounded-lg transition-all text-[14px] font-sans cursor-pointer ${
+                    groupIsActiveCollapsed ? 'bg-[#1D9E75] text-white font-bold' : 'text-white/80 hover:bg-dp-primary-container hover:text-white'
+                  }`}
+                  style={{ width: 'calc(100% - 1rem)' }}
+                  aria-expanded={expanded}
+                >
+                  <GroupIcon size={18} className="me-3 shrink-0" />
+                  <span className="min-w-0 truncate">{t(entry.tKey, entry.label)}</span>
+                  {groupBadgeTotal > 0 && (
+                    <span className="ms-auto me-1.5 shrink-0 bg-dp-error text-white text-[11px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center" aria-label={`${groupBadgeTotal} new`}>
+                      {groupBadgeTotal > 99 ? '99+' : groupBadgeTotal}
+                    </span>
+                  )}
+                  <ChevronDown size={15} className={`shrink-0 transition-transform ${groupBadgeTotal > 0 ? '' : 'ms-auto'} ${expanded ? 'rotate-180' : ''}`} />
+                </button>
+                {expanded && (
+                  <div className="mt-1 space-y-1">
+                    {entry.children.map((item) => {
+                      const Icon = item.icon
+                      const isActive = item.href === activeHref
+                      const count = badges[item.href.split('/')[2] ?? ''] ?? 0
+                      return (
+                        <Link key={item.href} href={item.href} onClick={onMobileClose}
+                          className={`flex items-center ps-8 pe-4 py-2.5 mx-2 rounded-lg transition-all text-[13.5px] font-sans ${
+                            isActive ? 'bg-[#1D9E75] text-white font-bold' : 'text-white/70 hover:bg-dp-primary-container hover:text-white'
+                          }`}>
+                          <Icon size={16} className="me-3 shrink-0" />
+                          <span className="min-w-0 truncate">{item.tKey ? t(item.tKey, item.label) : item.label}</span>
+                          {count > 0 && (
+                            <span className="ms-auto shrink-0 bg-dp-error text-white text-[11px] font-bold font-sans rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center" aria-label={`${count} new`}>
+                              {count > 99 ? '99+' : count}
+                            </span>
+                          )}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          const item = entry
           const Icon = item.icon
           const isActive = item.href === activeHref
           const count = badges[item.href.split('/')[2] ?? ''] ?? 0

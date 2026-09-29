@@ -371,7 +371,13 @@ export default function RunningCapitalPage() {
     setLoadingReports(false)
   }, [system, supabase])
 
-  useEffect(() => { load() }, [load])
+  // Real report, 2026-09-29: system starts at its 'water_supply' default and
+  // only gets corrected (the effect above) once access.loading resolves --
+  // without this guard, a donor accountant (no water_supply access) briefly
+  // fired this RPC against 'water_supply' on first mount, one render before
+  // the correction landed, and got hit with a real "not authorized" error
+  // flashed on screen even though the page recovers a moment later.
+  useEffect(() => { if (!access.loading) load() }, [load, access.loading])
 
   const openView = (r: ClosingRow) => {
     setViewTarget(r)

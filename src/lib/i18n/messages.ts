@@ -45,6 +45,15 @@ export const messages: Record<Locale, Record<string, string>> = {
 
     // ── Admin navigation ─────────────────────────────────────────────────
     'nav.dashboard': 'Dashboard',
+    'nav.groupTasks': 'Tasks & Reminders',
+    'nav.groupBilling': 'Billing & Water Ops',
+    'nav.groupTransactions': 'Transactions & Records',
+    'nav.groupDonors': 'Donors & Projects',
+    'nav.groupWelfare': 'Welfare Programs',
+    'nav.groupContent': 'Content Publishing',
+    'nav.groupBlood': 'Blood Bank',
+    'nav.groupUsers': 'Users & Access',
+    'nav.groupMarketplace': 'Marketplace & Vehicles',
     'nav.billing': 'Billing',
     'nav.connections': 'New Connections',
     'nav.tasks': 'Task Todo',
@@ -226,6 +235,9 @@ export const messages: Record<Locale, Record<string, string>> = {
 
     // ── Portal navigation ────────────────────────────────────────────────
     'portal.dashboard': 'Dashboard',
+    'portal.groupGiving': 'Giving & Welfare',
+    'portal.groupCommunity': 'Community & Education',
+    'portal.groupSupport': 'Get Involved & Support',
     'portal.donate': 'Donate',
     'portal.statement': 'My Giving',
     'portal.water': 'Water Bills',
@@ -4954,6 +4966,15 @@ export const messages: Record<Locale, Record<string, string>> = {
 
     // ── Admin navigation ─────────────────────────────────────────────────
     'nav.dashboard': 'ڈیش بورڈ',
+    'nav.groupTasks': 'کام اور یاد دہانیاں',
+    'nav.groupBilling': 'بلنگ اور واٹر آپریشنز',
+    'nav.groupTransactions': 'لین دین اور ریکارڈ',
+    'nav.groupDonors': 'ڈونرز اور پراجیکٹس',
+    'nav.groupWelfare': 'فلاحی پروگرامز',
+    'nav.groupContent': 'مواد کی اشاعت',
+    'nav.groupBlood': 'بلڈ بینک',
+    'nav.groupUsers': 'یوزرز اور رسائی',
+    'nav.groupMarketplace': 'مارکیٹ پلیس اور گاڑیاں',
     'nav.billing': 'بلنگ',
     'nav.connections': 'نئے کنکشن',
     'nav.tasks': 'کام کی فہرست',
@@ -5135,6 +5156,9 @@ export const messages: Record<Locale, Record<string, string>> = {
 
     // ── Portal navigation ────────────────────────────────────────────────
     'portal.dashboard': 'ڈیش بورڈ',
+    'portal.groupGiving': 'عطیات اور فلاح',
+    'portal.groupCommunity': 'کمیونٹی اور تعلیم',
+    'portal.groupSupport': 'شمولیت اور معاونت',
     'portal.donate': 'عطیہ دیں',
     'portal.statement': 'میرے عطیات',
     'portal.water': 'پانی کے بل',
