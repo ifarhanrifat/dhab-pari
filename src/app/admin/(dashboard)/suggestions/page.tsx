@@ -17,7 +17,11 @@ interface Suggestion {
   admin_notes: string | null
   created_at: string
   portal_user_id: string | null
+  system: 'water_supply' | 'donors_projects' | null
 }
+
+const systemLabelKey: Record<string, string> = { water_supply: 'a.waterSupplySystem', donors_projects: 'a.donorsProjects' }
+const systemColors: Record<string, string> = { water_supply: 'bg-sky-50 text-sky-700', donors_projects: 'bg-violet-50 text-violet-700' }
 
 const statusColors: Record<string, string> = {
   new: 'bg-blue-100 text-blue-700',
@@ -44,6 +48,7 @@ export default function AdminSuggestionsPage() {
   const [items, setItems] = useState<Suggestion[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
+  const [systemFilter, setSystemFilter] = useState('all')
   const [selected, setSelected] = useState<Suggestion | null>(null)
   const [reply, setReply] = useState('')
   const supabase = createClient()
@@ -58,7 +63,9 @@ export default function AdminSuggestionsPage() {
   }
   useEffect(() => { load() }, [])
 
-  const filtered = filter === 'all' ? items : items.filter((s) => s.status === filter)
+  const filtered = items
+    .filter((s) => filter === 'all' || s.status === filter)
+    .filter((s) => systemFilter === 'all' || s.system === systemFilter)
 
   const updateStatus = async (id: string, status: string) => {
     await supabase.from('suggestions').update({ status }).eq('id', id)
@@ -160,6 +167,11 @@ export default function AdminSuggestionsPage() {
             {f === 'all' ? t('su.filterAll') : t(statusLabelKey[f] ?? f)}
           </button>
         ))}
+        <select value={systemFilter} onChange={(e) => setSystemFilter(e.target.value)} className="filter-field w-auto">
+          <option value="all">{t('rp.allSystems')}</option>
+          <option value="water_supply">{t('a.waterSupplySystem')}</option>
+          <option value="donors_projects">{t('a.donorsProjects')}</option>
+        </select>
       </div>
 
       <div className="flex gap-6">
@@ -174,10 +186,15 @@ export default function AdminSuggestionsPage() {
                 selected?.id === s.id ? 'border-dp-secondary ring-2 ring-dp-secondary/20' : 'border-dp-outline-variant'
               }`}
             >
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full font-sans ${typeColors[s.type]}`}>
                   {t(typeLabelKey[s.type] ?? s.type)}
                 </span>
+                {s.system && (
+                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full font-sans ${systemColors[s.system]}`}>
+                    {t(systemLabelKey[s.system])}
+                  </span>
+                )}
                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full font-sans ${statusColors[s.status]}`}>
                   {t(statusLabelKey[s.status] ?? s.status)}
                 </span>
@@ -230,6 +247,12 @@ export default function AdminSuggestionsPage() {
                 <span className="text-dp-on-surface-variant">{t('z.typeColon')}</span>
                 <span className={`text-[12px] font-bold uppercase px-2 py-0.5 rounded-full ${typeColors[selected.type]}`}>{t(typeLabelKey[selected.type] ?? selected.type)}</span>
               </div>
+              {selected.system && (
+                <div className="flex justify-between text-[14px] font-sans">
+                  <span className="text-dp-on-surface-variant">{t('ac.system')}</span>
+                  <span className={`text-[12px] font-bold uppercase px-2 py-0.5 rounded-full ${systemColors[selected.system]}`}>{t(systemLabelKey[selected.system])}</span>
+                </div>
+              )}
               <div className="flex justify-between text-[14px] font-sans">
                 <span className="text-dp-on-surface-variant">{t('z.dateColon')}</span>
                 <span>{new Date(selected.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>

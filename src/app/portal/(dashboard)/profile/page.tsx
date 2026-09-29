@@ -51,6 +51,18 @@ export default function PortalProfilePage() {
   const [whatsappCode, setWhatsappCode] = useState('')
   const [whatsappBusy, setWhatsappBusy] = useState(false)
 
+  // Same shape as the WhatsApp change above (migration 523) — email is now
+  // compulsory and is the account's trusted identity anchor, so it's gated
+  // the same way rather than round-tripping through the general Save
+  // button. The code goes to the NEW address (proving control of it),
+  // not the current one.
+  const [currentEmail, setCurrentEmail] = useState('')
+  const [showEmailChange, setShowEmailChange] = useState(false)
+  const [emailStep, setEmailStep] = useState<'new' | 'code'>('new')
+  const [newEmail, setNewEmail] = useState('')
+  const [emailCode, setEmailCode] = useState('')
+  const [emailBusy, setEmailBusy] = useState(false)
+
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
@@ -78,6 +90,7 @@ export default function PortalProfilePage() {
       username: user.username ?? '', email: user.email ?? '', display_name: user.display_name ?? '',
     })
     setCurrentWhatsapp(user.whatsapp_number ?? '')
+    setCurrentEmail(user.email ?? '')
     setMentorship({
       gender: user.gender ?? '', profession: user.profession ?? '', profession_other: user.profession_other ?? '',
       education_level: user.education_level ?? '', education_details: user.education_details ?? '',
@@ -89,16 +102,8 @@ export default function PortalProfilePage() {
 
   const save = async () => {
     if (!user) return
-    if (!form.full_name.trim() || !form.father_husband_name.trim() || !currentWhatsapp.trim() || !form.email.trim()) {
+    if (!form.full_name.trim() || !form.father_husband_name.trim() || !currentWhatsapp.trim() || !currentEmail.trim()) {
       toast.error(t('p.profileRequiredFields'))
-      return
-    }
-    // Email is now compulsory for every portal account (signup has required
-    // it since migration 516 — this closes the same gap on the profile
-    // page for an account that already existed before that, or that just
-    // never got a chance to fill it in yet).
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      toast.error(t('p.enterValidEmail'))
       return
     }
     if (form.donor_type === 'overseas' && !form.country.trim()) { toast.error(t('p.enterCountry')); return }
@@ -111,12 +116,11 @@ export default function PortalProfilePage() {
     const { error } = await supabase.from('portal_users').update({
       full_name: form.full_name.trim(), name_ur: form.name_ur.trim() || null,
       father_husband_name: form.father_husband_name.trim(),
-      // whatsapp_number deliberately excluded -- it only ever changes
-      // through the emailed-code flow below (requestWhatsappCode /
-      // confirmWhatsappChange), never through this general save.
+      // whatsapp_number and email deliberately excluded -- both only ever
+      // change through their own emailed-code flows below, never through
+      // this general save.
       donor_type: form.donor_type, country: form.donor_type === 'overseas' ? (form.country.trim() || null) : null,
       sector: form.sector.trim() || null, avatar_url: form.avatar_url || null,
-      email: form.email.trim().toLowerCase(),
       display_name: form.display_name.trim() || null,
       gender: mentorship.gender || null, profession: mentorship.profession || null,
       profession_other: mentorship.profession === 'other' ? (mentorship.profession_other.trim() || null) : null,
@@ -176,6 +180,47 @@ export default function PortalProfilePage() {
     setWhatsappBusy(false)
   }
 
+  const requestEmailCode = async () => {
+    if (!newEmail.trim()) { toast.error(t('p.enterNewEmail')); return }
+    setEmailBusy(true)
+    try {
+      const res = await fetch('/api/portal/profile/request-email-change-code', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newEmail: newEmail.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error ?? t('p.networkErrorRetry')); setEmailBusy(false); return }
+      toast.success(t('p.emailCodeSent'))
+      setEmailStep('code')
+    } catch {
+      toast.error(t('p.networkErrorRetry'))
+    }
+    setEmailBusy(false)
+  }
+
+  const confirmEmailChange = async () => {
+    if (!emailCode.trim()) { toast.error(t('p.enterResetCode')); return }
+    setEmailBusy(true)
+    try {
+      const res = await fetch('/api/portal/profile/confirm-email-change', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: emailCode.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error ?? t('p.networkErrorRetry')); setEmailBusy(false); return }
+      toast.success(t('p.emailChanged'))
+      setCurrentEmail(data.email)
+      setForm((f) => ({ ...f, email: data.email }))
+      setShowEmailChange(false)
+      setEmailStep('new')
+      setNewEmail('')
+      setEmailCode('')
+    } catch {
+      toast.error(t('p.networkErrorRetry'))
+    }
+    setEmailBusy(false)
+  }
+
   const changePassword = async () => {
     if (!user || !currentPassword || !newPassword) { toast.error(t('p.enterCurrentNewPassword')); return }
     if (!passwordMeetsPolicy(newPassword)) { toast.error(t('p.passwordPolicyNotMet')); return }
@@ -223,7 +268,44 @@ export default function PortalProfilePage() {
         </div>
         <div>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.emailReq')}</label>
-          <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input-field" />
+          {/* Real ask, 2026-09-29: "same as changing WhatsApp" -- email is
+              now compulsory and is the account's own trusted identity
+              anchor, so changing it is gated the same emailed-code way
+              (migration 523), not folded into the general Save button. */}
+          <div className="flex items-center gap-2">
+            <input value={currentEmail} disabled className="input-field opacity-60" dir="ltr" />
+            <button type="button" onClick={() => { setShowEmailChange((v) => !v); setEmailStep('new'); setNewEmail(''); setEmailCode('') }}
+              className="shrink-0 px-3 py-3 border border-dp-outline-variant rounded-lg font-sans text-[13px] font-semibold text-dp-secondary hover:bg-dp-surface-container-low transition-all cursor-pointer whitespace-nowrap">
+              {t('p.change')}
+            </button>
+          </div>
+          {showEmailChange && (
+            <div className="mt-2.5 bg-dp-surface-container-low rounded-lg p-3.5 space-y-2.5">
+              {emailStep === 'new' ? (
+                <>
+                  <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant">{t('p.newEmail')}</label>
+                  <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="input-field" dir="ltr" autoFocus />
+                  <button disabled={emailBusy} onClick={requestEmailCode}
+                    className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+                    {emailBusy ? t('ap.sending') : t('p.sendConfirmationCode')}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <label className="block font-sans text-[12.5px] font-semibold text-dp-on-surface-variant">{t('p.enterCodeSentToNewEmail')}</label>
+                  <input value={emailCode} onChange={(e) => setEmailCode(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" maxLength={6}
+                    className="input-field font-mono tracking-[0.3em] text-center" placeholder="000000" dir="ltr" autoFocus />
+                  <button disabled={emailBusy} onClick={confirmEmailChange}
+                    className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans text-[13.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
+                    {emailBusy ? t('ap.sending') : t('p.confirmNewEmail')}
+                  </button>
+                  <button type="button" onClick={() => setEmailStep('new')} className="w-full text-center font-sans text-[12.5px] font-semibold text-dp-secondary hover:underline cursor-pointer">
+                    {t('p.resendCode')}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
         <div>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.fullNameReq')}</label>

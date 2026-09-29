@@ -9,8 +9,9 @@ import { Send } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { MODULES } from '@/lib/constants'
 
-interface Suggestion { id: string; message: string; status: string; admin_notes: string | null; created_at: string }
+interface Suggestion { id: string; message: string; status: string; admin_notes: string | null; created_at: string; system: string | null }
 
 const statusLabel: Record<string, { label: string; cls: string }> = {
   new: { label: 'Submitted', cls: 'bg-amber-100 text-amber-700' },
@@ -25,11 +26,18 @@ export default function PortalSuggestionsPage() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  // Real ask, 2026-09-29: a suggestion had no way to say which committee
+  // area it was actually about, so it landed on staff's desk with no
+  // routing hint at all. Defaults to the one module this village actually
+  // runs when only one is enabled; with both running, the admin's own
+  // dropdown starts unselected so the donor has to pick rather than
+  // silently defaulting to whichever happens to be listed first.
+  const [system, setSystem] = useState(() => (MODULES.waterSupply && !MODULES.donors ? 'water_supply' : MODULES.donors && !MODULES.waterSupply ? 'donors_projects' : ''))
 
   const load = async () => {
     if (!user) return
     const supabase = createClient()
-    const { data } = await supabase.from('suggestions').select('id, message, status, admin_notes, created_at')
+    const { data } = await supabase.from('suggestions').select('id, message, status, admin_notes, created_at, system')
       .eq('portal_user_id', user.id).order('created_at', { ascending: false })
     setItems(data ?? [])
     setLoading(false)
@@ -37,15 +45,17 @@ export default function PortalSuggestionsPage() {
   useEffect(() => { load() }, [user])
 
   const submit = async () => {
-    if (!user || !message.trim()) { toast.error('Please write your suggestion'); return }
+    if (!user || !message.trim()) { toast.error(t('p.writeSuggestion')); return }
+    if (MODULES.waterSupply && MODULES.donors && !system) { toast.error(t('p.chooseSuggestionSystem')); return }
     setSaving(true)
     const supabase = createClient()
     const { error } = await supabase.from('suggestions').insert({
       name: user.full_name, mobile: user.whatsapp_number ?? user.mobile, message: message.trim(), portal_user_id: user.id, type: 'suggestion',
+      system: system || null,
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success('Suggestion submitted')
+    toast.success(t('p.suggestionSubmitted'))
     setMessage('')
     load()
   }
@@ -60,9 +70,19 @@ export default function PortalSuggestionsPage() {
       </div>
 
       <div className="bg-white border border-dp-outline-variant rounded-lg p-6 mb-8">
-        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} placeholder="Your suggestion..." className="input-field resize-none mb-4" />
+        {MODULES.waterSupply && MODULES.donors && (
+          <div className="mb-4">
+            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('p.suggestionAboutWhich')}</label>
+            <select value={system} onChange={(e) => setSystem(e.target.value)} className="input-field">
+              <option value="">{t('p.selectOne')}</option>
+              <option value="water_supply">{t('a.waterSupplySystem')}</option>
+              <option value="donors_projects">{t('a.donorsProjects')}</option>
+            </select>
+          </div>
+        )}
+        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} placeholder={t('p.yourSuggestionPlaceholder')} className="input-field resize-none mb-4" />
         <button onClick={submit} disabled={saving} className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
-          <Send size={16} /> {saving ? 'Submitting...' : 'Submit Suggestion'}
+          <Send size={16} /> {saving ? t('ap.sending') : t('p.submitSuggestion')}
         </button>
       </div>
 
@@ -77,7 +97,12 @@ export default function PortalSuggestionsPage() {
                 <p className="font-sans text-[14px] flex-1">{s.message}</p>
                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${statusLabel[s.status]?.cls}`}>{statusLabel[s.status]?.label ?? s.status}</span>
               </div>
-              {s.admin_notes && <p className="font-sans text-[12.5px] text-dp-secondary mt-1.5">Reply: {s.admin_notes}</p>}
+              {s.system && (
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">
+                  {s.system === 'water_supply' ? t('a.waterSupplySystem') : t('a.donorsProjects')}
+                </p>
+              )}
+              {s.admin_notes && <p className="font-sans text-[12.5px] text-dp-secondary mt-1.5">{t('p.replyColonPrefix')} {s.admin_notes}</p>}
               <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1.5">{new Date(s.created_at).toLocaleDateString('en-GB')}</p>
             </div>
           ))
