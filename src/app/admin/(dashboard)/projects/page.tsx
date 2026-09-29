@@ -39,7 +39,11 @@ interface Project { id: string; title: string; title_ur: string | null; descript
   // pipeline. Trainer assignment isn't a projects column at all — it
   // lives on admin_users.assigned_training_program_ids, moved via the
   // assign_academy_trainer() RPC below.
-  intro_video_id: string | null }
+  intro_video_id: string | null
+  // Migration 527 — same video_content table as intro_video_id above, but
+  // shown on every project category once marked completed, not gated to
+  // sports/training: a villager thanking or talking about this project.
+  testimonial_video_id: string | null }
 interface TrainerCandidate { id: string; full_name: string; assigned_training_program_ids: string[] | null }
 interface VideoOption { id: string; title: string }
 // project_media (116) — a real photo gallery, separate from the single
@@ -62,7 +66,7 @@ const categoryLabelKey: Record<string, string> = {
 }
 const feeChargingCategory = (category: string) => category === 'sports' || category === 'training'
 
-const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', location_ur: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0, funding_model: 'one_time', monthly_operating_cost_pkr: 0, is_private: false, hide_donations: false, hide_expenses: false, hide_donor_names: false, hide_fees: false, display_name: '', unlisted: false, intro_video_id: '' }
+const empty = { title: '', title_ur: '', description: '', description_ur: '', status: 'upcoming', progress_percent: 0, budget_pkr: 0, spent_pkr: 0, category: 'infrastructure', location: '', location_ur: '', sector: '', is_featured: false, before_image_url: '', after_image_url: '', start_date: '', end_date: '', beneficiaries_count: 0, funding_model: 'one_time', monthly_operating_cost_pkr: 0, is_private: false, hide_donations: false, hide_expenses: false, hide_donor_names: false, hide_fees: false, display_name: '', unlisted: false, intro_video_id: '', testimonial_video_id: '' }
 
 export default function AdminProjectsPage() {
   const { t, isUrdu } = useLocale()
@@ -113,6 +117,7 @@ export default function AdminProjectsPage() {
       description_ur: form.description_ur || null, display_name: form.display_name.trim() || null,
       monthly_operating_cost_pkr: form.funding_model === 'recurring_support' ? (form.monthly_operating_cost_pkr || null) : null,
       intro_video_id: form.intro_video_id || null,
+      testimonial_video_id: form.testimonial_video_id || null,
     }
     let projectId = editing
     if (editing) {
@@ -141,7 +146,7 @@ export default function AdminProjectsPage() {
   }
 
   const edit = (p: Project) => {
-    setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', location_ur: p.location_ur ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0, is_private: p.is_private, hide_donations: p.hide_donations, hide_expenses: p.hide_expenses, hide_donor_names: p.hide_donor_names, hide_fees: p.hide_fees, display_name: p.display_name ?? '', unlisted: p.unlisted, intro_video_id: p.intro_video_id ?? '' })
+    setForm({ title: p.title, title_ur: p.title_ur ?? '', description: p.description ?? '', description_ur: p.description_ur ?? '', status: p.status, progress_percent: p.progress_percent, budget_pkr: p.budget_pkr ?? 0, spent_pkr: p.spent_pkr ?? 0, category: p.category ?? 'other', location: p.location ?? '', location_ur: p.location_ur ?? '', sector: p.sector ?? '', is_featured: p.is_featured, before_image_url: p.before_image_url ?? '', after_image_url: p.after_image_url ?? '', start_date: p.start_date ?? '', end_date: p.end_date ?? '', beneficiaries_count: p.beneficiaries_count ?? 0, funding_model: p.funding_model ?? 'one_time', monthly_operating_cost_pkr: p.monthly_operating_cost_pkr ?? 0, is_private: p.is_private, hide_donations: p.hide_donations, hide_expenses: p.hide_expenses, hide_donor_names: p.hide_donor_names, hide_fees: p.hide_fees, display_name: p.display_name ?? '', unlisted: p.unlisted, intro_video_id: p.intro_video_id ?? '', testimonial_video_id: p.testimonial_video_id ?? '' })
     setTrainerAdminId(trainerCandidates.find((c) => (c.assigned_training_program_ids ?? []).includes(p.id))?.id ?? '')
     setEditing(p.id); setShowForm(true)
     loadGallery(p.id)
@@ -348,6 +353,15 @@ export default function AdminProjectsPage() {
                   {videoOptions.length === 0 && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('pj.noPublishedVideos')}</p>}
                 </div>
               )}
+              <div>
+                <label className="block font-sans text-[13.5px] font-semibold text-dp-on-surface mb-1">{t('pj.testimonialVideoLabel')}</label>
+                <select value={form.testimonial_video_id} onChange={(e) => setForm({ ...form, testimonial_video_id: e.target.value })} className="input-field">
+                  <option value="">{t('pj.noTestimonialVideo')}</option>
+                  {videoOptions.map((v) => <option key={v.id} value={v.id}>{v.title}</option>)}
+                </select>
+                <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('pj.testimonialVideoHint')}</p>
+                {videoOptions.length === 0 && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('pj.noPublishedVideos')}</p>}
+              </div>
               {form.category === 'health' ? (
                 // Health/medical projects always use one fixed cover image,
                 // never a real patient's before/after photo — not editable

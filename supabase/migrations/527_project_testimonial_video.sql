@@ -1,0 +1,11 @@
+-- Migration 527: "What People Say" testimonial video on a project's page.
+--
+-- Real ask, 2026-09-29: after a project is finished, the committee wants
+-- to show an interview of a villager thanking or talking about that
+-- specific project -- distinct from intro_video_id (migration 334-ish),
+-- which is a promo video shown only for fee-charging categories (sports/
+-- training) and rendered near the top of the page. This is available on
+-- every project category, and points at the same video_content table
+-- (the "interview" category videos already in the library, e.g. the
+-- existing Haji Rasheed interview).
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS testimonial_video_id uuid REFERENCES video_content(id) ON DELETE SET NULL;

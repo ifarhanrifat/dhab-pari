@@ -20,7 +20,7 @@ interface Project {
   budget_pkr: number | null; category: string | null; location: string | null; location_ur: string | null
   vote_target: number | null; minimum_monthly_commitment_pkr: number | null
   funding_model: string | null; monthly_operating_cost_pkr: number | null
-  hide_fees: boolean; intro_video_id: string | null
+  hide_fees: boolean; intro_video_id: string | null; testimonial_video_id: string | null
   before_image_url: string | null; after_image_url: string | null
   // Real report, 2026-09-25: "completed project has no image/video at
   // all" -- for a project that never got formal before/after documentation
@@ -143,13 +143,14 @@ export default function ProjectDetailPage() {
   const [academyBatches, setAcademyBatches] = useState<AcademyBatch[]>([])
   const [trainer, setTrainer] = useState<AcademyTrainer | null>(null)
   const [introVideo, setIntroVideo] = useState<{ video_url: string; title: string } | null>(null)
+  const [testimonialVideo, setTestimonialVideo] = useState<{ video_url: string; title: string; title_ur: string | null } | null>(null)
   const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>([])
   const [lightboxIndex, setLightboxIndex] = useState(-1)
 
   const load = useCallback(async () => {
     const supabase = createClient()
     const [{ data: p }, { data: v }, { data: a }, { data: expenseAcct }, { data: voteRows }, { data: commentRows }] = await Promise.all([
-      supabase.from('projects').select('id, title, display_name, description, status, budget_pkr, category, location, location_ur, vote_target, minimum_monthly_commitment_pkr, funding_model, monthly_operating_cost_pkr, hide_fees, intro_video_id, before_image_url, after_image_url, proposal_image_url').eq('id', id).single(),
+      supabase.from('projects').select('id, title, display_name, description, status, budget_pkr, category, location, location_ur, vote_target, minimum_monthly_commitment_pkr, funding_model, monthly_operating_cost_pkr, hide_fees, intro_video_id, testimonial_video_id, before_image_url, after_image_url, proposal_image_url').eq('id', id).single(),
       supabase.from('donors_public').select('id, name, amount_pkr, date, is_verified, payment_status').eq('project_id', id).eq('is_verified', true).order('amount_pkr', { ascending: false }),
       supabase.from('donors_public').select('id, name, amount_pkr, date, is_verified, payment_status').eq('project_id', id).eq('is_verified', false).order('date', { ascending: false }),
       supabase.from('project_accounts_public').select('id').eq('project_id', id).maybeSingle(),
@@ -192,6 +193,10 @@ export default function ProjectDetailPage() {
     if (p?.intro_video_id) {
       const { data: vid } = await supabase.from('video_content').select('video_url, title').eq('id', p.intro_video_id).maybeSingle()
       setIntroVideo(vid ?? null)
+    }
+    if (p?.testimonial_video_id) {
+      const { data: vid } = await supabase.from('video_content').select('video_url, title, title_ur').eq('id', p.testimonial_video_id).maybeSingle()
+      setTestimonialVideo(vid ?? null)
     }
     // Gallery — same rule as before/after: a health/medical project never
     // shows a real photo publicly, even one that's been uploaded.
@@ -564,6 +569,18 @@ export default function ProjectDetailPage() {
               <Users size={16} /> {tr('x.joinAcademyBtn')}
             </button>
           )}
+        </div>
+      )}
+
+      {/* "What People Say" — migration 527. Separate from introVideo above
+          (that one's a promo clip, gated to sports/training categories,
+          shown near the top): this is a villager's own testimonial about
+          this specific project, available on every category, and only
+          worth showing once there's something to react to. */}
+      {testimonialVideo && (
+        <div className="mb-8" dir={isUrdu ? 'rtl' : 'ltr'}>
+          <h2 className="font-heading text-[20px] font-bold text-dp-primary mb-4">{tr('x.whatPeopleSay')}</h2>
+          <VideoPlayer url={testimonialVideo.video_url} title={isUrdu && testimonialVideo.title_ur ? testimonialVideo.title_ur : testimonialVideo.title} />
         </div>
       )}
 
