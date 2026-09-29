@@ -13,11 +13,47 @@ import { getMoonTarget, angularDiff, type MoonTarget } from '@/lib/moonFinder'
 // than in a native app, and there's no way to read a device's true camera
 // field-of-view from a browser, so the on-screen reticle position is an
 // assumed-FOV approximation, not a precise overlay.
+//
+// Real report, 2026-09-30: (1) camera never showed anything — the <video>
+// tag was gated behind the 'active' phase, but the stream was attached to
+// it BEFORE that phase switch, while the element didn't exist yet.
+// WebCameraCaptureModal (the shop AI-scan camera) already solved this the
+// right way: mount the <video> first, attach the stream once it exists.
+// (2) horizontal aim was off, and vertical never resolved (kept pointing
+// "up" no matter how far up the phone tilted) -- both traced to using
+// raw alpha/beta directly (`(360-alpha)%360`, `90-beta`), which only
+// happen to be right when the phone is dead flat. Held upright like a
+// camera (beta≈90, exactly this feature's use case) those single-axis
+// shortcuts drift and, past beta=90, invert sign entirely -- explains
+// "always up". Replaced with the actual 3-axis rotation math below.
 const HFOV = 60 // assumed horizontal camera field of view, degrees
 const VFOV = 45 // assumed vertical camera field of view, degrees
 const FOUND_TOLERANCE = 4 // degrees, both axes, to count as "found"
 
 type Phase = 'idle' | 'starting' | 'active' | 'belowHorizon' | 'error'
+
+// Full device-rotation-based heading + elevation, not the naive
+// single-axis shortcuts. Standard Tait-Bryan (Z-X'-Y'') decomposition:
+// rotates the device's local frame (camera points along local -Z) into
+// world East/North/Up, then reads heading and elevation off that vector
+// directly instead of assuming the phone is flat.
+function computeHeadingAndElevation(alpha: number, beta: number, gamma: number) {
+  const aRad = alpha * Math.PI / 180
+  const bRad = beta * Math.PI / 180
+  const gRad = gamma * Math.PI / 180
+  const cA = Math.cos(aRad), sA = Math.sin(aRad)
+  const cB = Math.cos(bRad), sB = Math.sin(bRad)
+  const cG = Math.cos(gRad), sG = Math.sin(gRad)
+
+  const east = -cA * sG - sA * sB * cG
+  const north = -sA * sG + cA * sB * cG
+  const up = -cB * cG
+
+  let heading = Math.atan2(east, north) * 180 / Math.PI
+  if (heading < 0) heading += 360
+  const elevation = Math.asin(Math.max(-1, Math.min(1, up))) * 180 / Math.PI
+  return { heading, elevation }
+}
 
 export default function MoonFinderPage() {
   const { t, isUrdu } = useLocale()
@@ -27,6 +63,7 @@ export default function MoonFinderPage() {
   const [deltaAz, setDeltaAz] = useState(0)
   const [deltaAlt, setDeltaAlt] = useState(0)
   const [hasHeading, setHasHeading] = useState(false)
+  const [cameraReady, setCameraReady] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -46,6 +83,7 @@ export default function MoonFinderPage() {
     }
     setPhase('idle')
     setHasHeading(false)
+    setCameraReady(false)
   }
 
   useEffect(() => () => stop(), [])
@@ -54,20 +92,21 @@ export default function MoonFinderPage() {
     const now = performance.now()
     if (now - lastUpdateRef.current < 80) return // ~12fps is plenty for a slow-moving target
     lastUpdateRef.current = now
+    if (e.alpha == null || e.beta == null || e.gamma == null) return
 
     const webkitHeading = (e as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading
-    let heading: number | null = null
-    if (typeof webkitHeading === 'number') heading = webkitHeading // iOS: already 0=N, clockwise
-    else if (e.absolute && e.alpha != null) heading = (360 - e.alpha) % 360 // Android best-effort
-
-    if (heading == null || e.beta == null) return
-    const deviceAltitude = 90 - e.beta // phone held upright (camera ~horizontal) => beta≈90 => altitude≈0
+    const computed = computeHeadingAndElevation(e.alpha, e.beta, e.gamma)
+    // iOS's webkitCompassHeading is a magnetometer-calibrated true heading
+    // Apple derives directly -- more accurate than deriving it ourselves
+    // when it's available. Elevation always comes from the real rotation
+    // math above; webkit doesn't expose that part.
+    const heading = typeof webkitHeading === 'number' ? webkitHeading : computed.heading
 
     const tgt = targetRef.current
     if (!tgt) return
     setHasHeading(true)
     setDeltaAz(angularDiff(tgt.azimuth, heading))
-    setDeltaAlt(tgt.altitude - deviceAltitude)
+    setDeltaAlt(tgt.altitude - computed.elevation)
   }
 
   const start = async () => {
@@ -91,14 +130,6 @@ export default function MoonFinderPage() {
     setTarget(tgt)
     if (tgt.altitude < -2) { setPhase('belowHorizon'); return }
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-      streamRef.current = stream
-      if (videoRef.current) videoRef.current.srcObject = stream
-    } catch {
-      setPhase('error'); setErrorMsg(t('mf.needCamera')); return
-    }
-
     // iOS 13+ gates DeviceOrientationEvent behind an explicit permission
     // prompt that can only be triggered from a user gesture — this whole
     // start() call is one, since it only ever runs from the Start button.
@@ -115,8 +146,32 @@ export default function MoonFinderPage() {
     window.addEventListener('deviceorientationabsolute', handleOrientation as EventListener)
     window.addEventListener('deviceorientation', handleOrientation as EventListener)
 
+    // Mounts the <video> tag — the camera stream is attached to it in the
+    // effect below, once it actually exists in the DOM.
     setPhase('active')
   }
+
+  // Runs once the 'active' phase has mounted the <video> element — camera
+  // permission is requested here, not inside start(), so videoRef.current
+  // is guaranteed non-null when the stream arrives (see file header note).
+  useEffect(() => {
+    if (phase !== 'active') return
+    let cancelled = false
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then((stream) => {
+      streamRef.current = stream
+      if (cancelled) { stream.getTracks().forEach((tr) => tr.stop()); return }
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        videoRef.current.play().catch(() => {})
+      }
+      setCameraReady(true)
+    }).catch(() => {
+      if (cancelled) return
+      setPhase('error'); setErrorMsg(t('mf.needCamera'))
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
 
   // Moon moves slowly (~0.5°/min in the sky) — refreshing every 30s keeps
   // the target accurate without doing real astronomy math every frame.
@@ -174,7 +229,13 @@ export default function MoonFinderPage() {
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
 
-          {!hasHeading && (
+          {!cameraReady && (
+            <div className="absolute inset-0 flex items-center justify-center text-white/70 font-sans text-[13px]">
+              {t('mf.starting')}
+            </div>
+          )}
+
+          {cameraReady && !hasHeading && (
             <div className="absolute inset-x-4 top-4 bg-black/60 text-white text-center rounded-lg px-3 py-2 font-sans text-[12.5px]">
               {t('mf.holdUpright')}
             </div>
