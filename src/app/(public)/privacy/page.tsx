@@ -1,7 +1,9 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { SITE } from '@/lib/constants'
+import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { ShieldCheck } from 'lucide-react'
 
@@ -74,13 +76,13 @@ const sections: { en: { h: string; p: string[] }; ur: { h: string; p: string[] }
     en: {
       h: 'Where your information is stored',
       p: [
-        'Your data is stored in our database (Supabase) and hosted infrastructure (Vercel). Payment proof images and other uploads are stored in the same secured storage. Transactional emails (like sign-up verification or a change-of-email confirmation) are sent through Resend. WhatsApp messages are opened as a link to your own WhatsApp app -- we do not run an automated WhatsApp messaging service that sends on your behalf.',
+        'Your data is stored on secure servers, protected with the same standard of access controls and encryption used across the industry. Payment proof images and other uploads are stored in the same secured storage. Transactional emails (like sign-up verification or a change-of-email confirmation) are sent through a trusted third-party email delivery service, only to send that one message. WhatsApp messages are opened as a link to your own WhatsApp app -- we do not run an automated WhatsApp messaging service that sends on your behalf.',
       ],
     },
     ur: {
       h: 'آپ کی معلومات کہاں محفوظ کی جاتی ہیں',
       p: [
-        'آپ کا ڈیٹا ہمارے ڈیٹا بیس (Supabase) اور ہوسٹنگ انفراسٹرکچر (Vercel) میں محفوظ کیا جاتا ہے۔ ادائیگی کی رسید کی تصاویر اور دیگر اپ لوڈز اسی محفوظ اسٹوریج میں رکھی جاتی ہیں۔ ٹرانزیکشنل ای میلز (جیسے سائن اپ کی تصدیق یا ای میل تبدیلی کی تصدیق) Resend کے ذریعے بھیجی جاتی ہیں۔ واٹس ایپ پیغامات آپ کی اپنی واٹس ایپ ایپ کے لنک کے طور پر کھولے جاتے ہیں -- ہم کوئی خودکار واٹس ایپ میسجنگ سروس نہیں چلاتے جو آپ کی جانب سے پیغام بھیجے۔',
+        'آپ کا ڈیٹا محفوظ سرورز پر رکھا جاتا ہے، جو صنعت کے معیاری رسائی کنٹرولز اور خفیہ کاری (encryption) سے محفوظ ہیں۔ ادائیگی کی رسید کی تصاویر اور دیگر اپ لوڈز اسی محفوظ اسٹوریج میں رکھی جاتی ہیں۔ ٹرانزیکشنل ای میلز (جیسے سائن اپ کی تصدیق یا ای میل تبدیلی کی تصدیق) ایک قابل اعتماد تھرڈ پارٹی ای میل سروس کے ذریعے، صرف وہی ایک پیغام بھیجنے کے لیے، بھیجی جاتی ہیں۔ واٹس ایپ پیغامات آپ کی اپنی واٹس ایپ ایپ کے لنک کے طور پر کھولے جاتے ہیں -- ہم کوئی خودکار واٹس ایپ میسجنگ سروس نہیں چلاتے جو آپ کی جانب سے پیغام بھیجے۔',
       ],
     },
   },
@@ -106,6 +108,15 @@ const sections: { en: { h: string; p: string[] }; ur: { h: string; p: string[] }
 
 export default function PrivacyPage() {
   const { t, isUrdu } = useLocale()
+  // Real report, 2026-09-29: this hardcoded SITE.email (an env-var fallback,
+  // 'info@dhabpari.org') instead of the admin-editable contact_email setting
+  // (migration 525) the committee actually manages -- the same mistake the
+  // public /water page had before it was fixed to read that setting.
+  const [contactEmail, setContactEmail] = useState(SITE.email)
+  useEffect(() => {
+    createClient().from('site_settings').select('value').eq('key', 'contact_email').maybeSingle()
+      .then(({ data }) => { if (data?.value) setContactEmail(data.value) })
+  }, [])
   return (
     <div className="max-w-[820px] mx-auto px-6 md:px-12 py-10" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="flex items-center gap-2.5 mb-1.5">
@@ -134,8 +145,8 @@ export default function PrivacyPage() {
           </h2>
           <p className="font-sans text-[14.5px] leading-relaxed text-dp-on-surface-variant">
             {isUrdu
-              ? `اگر آپ کے اس پالیسی یا آپ کی معلومات کے بارے میں کوئی سوال ہو تو ہمیں ${SITE.whatsapp} پر واٹس ایپ کریں یا ${SITE.email} پر ای میل کریں، یا `
-              : `If you have questions about this policy or your own information, WhatsApp us at ${SITE.whatsapp} or email ${SITE.email}, or `}
+              ? `اگر آپ کے اس پالیسی یا آپ کی معلومات کے بارے میں کوئی سوال ہو تو ہمیں ${SITE.whatsapp} پر واٹس ایپ کریں یا ${contactEmail} پر ای میل کریں، یا `
+              : `If you have questions about this policy or your own information, WhatsApp us at ${SITE.whatsapp} or email ${contactEmail}, or `}
             <Link href="/complaints" className="text-dp-secondary font-semibold hover:underline">
               {isUrdu ? 'شکایت درج کروائیں' : 'file a complaint'}
             </Link>

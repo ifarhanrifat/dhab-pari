@@ -1,7 +1,9 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { SITE } from '@/lib/constants'
+import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { FileText } from 'lucide-react'
 
@@ -146,6 +148,14 @@ const sections: { en: { h: string; p: string[] }; ur: { h: string; p: string[] }
 
 export default function TermsPage() {
   const { t, isUrdu } = useLocale()
+  // Real report, 2026-09-29: this hardcoded SITE.email (an env-var fallback,
+  // 'info@dhabpari.org') instead of the admin-editable contact_email setting
+  // (migration 525) the committee actually manages.
+  const [contactEmail, setContactEmail] = useState(SITE.email)
+  useEffect(() => {
+    createClient().from('site_settings').select('value').eq('key', 'contact_email').maybeSingle()
+      .then(({ data }) => { if (data?.value) setContactEmail(data.value) })
+  }, [])
   return (
     <div className="max-w-[820px] mx-auto px-6 md:px-12 py-10" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="flex items-center gap-2.5 mb-1.5">
@@ -174,8 +184,8 @@ export default function TermsPage() {
           </h2>
           <p className="font-sans text-[14.5px] leading-relaxed text-dp-on-surface-variant">
             {isUrdu
-              ? `اگر آپ کے ان شرائط کے بارے میں کوئی سوال ہو تو ہمیں ${SITE.whatsapp} پر واٹس ایپ کریں یا ${SITE.email} پر ای میل کریں، یا `
-              : `If you have questions about these terms, WhatsApp us at ${SITE.whatsapp} or email ${SITE.email}, or `}
+              ? `اگر آپ کے ان شرائط کے بارے میں کوئی سوال ہو تو ہمیں ${SITE.whatsapp} پر واٹس ایپ کریں یا ${contactEmail} پر ای میل کریں، یا `
+              : `If you have questions about these terms, WhatsApp us at ${SITE.whatsapp} or email ${contactEmail}, or `}
             <Link href="/complaints" className="text-dp-secondary font-semibold hover:underline">
               {isUrdu ? 'شکایت درج کروائیں' : 'file a complaint'}
             </Link>
