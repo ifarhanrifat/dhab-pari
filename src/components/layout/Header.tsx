@@ -10,6 +10,7 @@ import { useMobileNav } from './MobileNavContext'
 import { createClient } from '@/lib/supabase/client'
 import { LanguageToggle } from '@/components/layout/LanguageToggle'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { HeaderStatusBar } from './HeaderStatusBar'
 
 const navLinks: { href: string; label: string; tKey: string }[] = [
   { href: '/', label: 'Home', tKey: 'site.home' },
@@ -174,6 +175,7 @@ export function Header() {
             )}
           </div>
         </div>
+        <HeaderStatusBar />
       </header>
 
       <MobileNav
