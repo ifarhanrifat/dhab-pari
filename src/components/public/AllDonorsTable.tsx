@@ -49,38 +49,67 @@ export function AllDonorsTable({ donors, isUrdu }: { donors: DonorRow[]; isUrdu:
       {filtered.length === 0 ? (
         <p className="text-center py-12 text-dp-on-surface-variant font-sans">{t('x.noDonorsMatchSearch')}</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-dp-outline-variant bg-white">
-          <table className="w-full text-start border-collapse">
-            <thead className="bg-dp-primary text-white sticky top-0">
-              <tr>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">{t('x.rank')}</th>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">{t('x.name')}</th>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">{t('w.amountPkr')}</th>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">{t('x.donationsCount')}</th>
-                <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">{t('x.lastDonation')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-dp-outline-variant">
-              {filtered.map((donor, i) => (
-                <tr key={`${donor.name}-${i}`} className="hover:bg-dp-surface-container transition-colors">
-                  <td className="px-6 py-4">
-                    {i < 3 ? (
-                      <span className={`w-8 h-8 flex items-center justify-center ${rankBadges[i]} text-white rounded-full font-bold font-sans text-[14px]`}>{i + 1}</span>
-                    ) : (
-                      <span className="w-8 h-8 flex items-center justify-center text-dp-on-surface-variant font-bold font-sans text-[14px]">{i + 1}</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 font-bold text-dp-primary font-sans" style={isUrdu && donor.name_ur ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
+        <>
+          {/* Real report with screenshot, 2026-09-29: the table's Name column
+              had no fixed width, so a two/three-part name wrapped across 3-4
+              lines on a phone-width screen, blowing up every row's height
+              and making the whole list unscannable. Same fixed-width-table
+              problem this app already solved for Needs Register (admin) --
+              same fix: a card list below md, the table stays desktop-only. */}
+          <div className="md:hidden bg-white rounded-lg border border-dp-outline-variant overflow-hidden divide-y divide-dp-outline-variant">
+            {filtered.map((donor, i) => (
+              <div key={`${donor.name}-${i}`} className="p-4 flex items-center gap-3">
+                {i < 3 ? (
+                  <span className={`shrink-0 w-8 h-8 flex items-center justify-center ${rankBadges[i]} text-white rounded-full font-bold font-sans text-[13px]`}>{i + 1}</span>
+                ) : (
+                  <span className="shrink-0 w-8 h-8 flex items-center justify-center text-dp-on-surface-variant font-bold font-sans text-[13px]">{i + 1}</span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-dp-primary font-sans text-[14.5px] truncate" style={isUrdu && donor.name_ur ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
                     {isUrdu && donor.name_ur ? donor.name_ur : donor.name}
-                  </td>
-                  <td className="px-6 py-4 font-bold font-sans ltr-num text-end">{Number(donor.total_pkr).toLocaleString()}</td>
-                  <td className="px-6 py-4 text-dp-on-surface-variant font-sans ltr-num text-end">{donor.donation_count}</td>
-                  <td className="px-6 py-4 text-dp-on-surface-variant font-sans">{formatDate(donor.last_date)}</td>
+                  </p>
+                  <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">
+                    <span className="ltr-num">{donor.donation_count}</span> {t('x.donationsCount')} · {formatDate(donor.last_date)}
+                  </p>
+                </div>
+                <p className="shrink-0 font-bold font-sans ltr-num text-dp-primary text-[14.5px]">{Number(donor.total_pkr).toLocaleString()}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden md:block overflow-x-auto rounded-lg border border-dp-outline-variant bg-white">
+            <table className="w-full text-start border-collapse">
+              <thead className="bg-dp-primary text-white sticky top-0">
+                <tr>
+                  <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">{t('x.rank')}</th>
+                  <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">{t('x.name')}</th>
+                  <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">{t('w.amountPkr')}</th>
+                  <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">{t('x.donationsCount')}</th>
+                  <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">{t('x.lastDonation')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-dp-outline-variant">
+                {filtered.map((donor, i) => (
+                  <tr key={`${donor.name}-${i}`} className="hover:bg-dp-surface-container transition-colors">
+                    <td className="px-6 py-4">
+                      {i < 3 ? (
+                        <span className={`w-8 h-8 flex items-center justify-center ${rankBadges[i]} text-white rounded-full font-bold font-sans text-[14px]`}>{i + 1}</span>
+                      ) : (
+                        <span className="w-8 h-8 flex items-center justify-center text-dp-on-surface-variant font-bold font-sans text-[14px]">{i + 1}</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 font-bold text-dp-primary font-sans" style={isUrdu && donor.name_ur ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
+                      {isUrdu && donor.name_ur ? donor.name_ur : donor.name}
+                    </td>
+                    <td className="px-6 py-4 font-bold font-sans ltr-num text-end">{Number(donor.total_pkr).toLocaleString()}</td>
+                    <td className="px-6 py-4 text-dp-on-surface-variant font-sans ltr-num text-end">{donor.donation_count}</td>
+                    <td className="px-6 py-4 text-dp-on-surface-variant font-sans">{formatDate(donor.last_date)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   )
