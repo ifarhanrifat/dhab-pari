@@ -40,7 +40,7 @@ interface FullRow extends SafeRow {
   cnic: string | null; phone: string | null; address: string | null; sector: string | null
   monthly_income_pkr: number | null; outstanding_debt_pkr: number | null
   livestock_note: string | null; notes: string | null
-  family_consented: boolean; rejection_reason: string | null
+  family_consented: boolean; rejection_reason: string | null; consented_at: string | null
 }
 
 const ASNAF = ['faqir', 'miskin', 'gharim', 'ibn_us_sabil', 'fi_sabilillah', 'riqab', 'muallaf', 'amil'] as const
@@ -84,6 +84,12 @@ export default function NeedsRegisterPage() {
   // not just whichever filter happened to be selected.
   const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
+  // Set when the form is open to edit an existing household rather than add
+  // a new one -- save() branches on this, and the original consented_at is
+  // kept alongside so re-saving while still consented doesn't stamp a new
+  // consent time over the real one.
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingConsentedAt, setEditingConsentedAt] = useState<string | null>(null)
   const printRef = useRef<HTMLDivElement>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
@@ -127,23 +133,56 @@ export default function NeedsRegisterPage() {
     })
   }, [rows, full, search, statusFilter, ])
 
+  const openAdd = () => {
+    setEditingId(null)
+    setEditingConsentedAt(null)
+    setForm(emptyForm)
+    setShowForm(true)
+  }
+
+  const openEdit = (r: SafeRow) => {
+    const id = full[r.id]
+    if (!id) return
+    setEditingId(r.id)
+    setEditingConsentedAt(id.consented_at)
+    setForm({
+      head_name: id.head_name, head_name_ur: id.head_name_ur ?? '', father_husband_name: id.father_husband_name ?? '',
+      cnic: id.cnic ?? '', phone: id.phone ?? '', address: id.address ?? '', sector: id.sector ?? '',
+      asnaf_category: r.asnaf_category,
+      household_size: r.household_size, dependants: r.dependants, earning_members: r.earning_members,
+      monthly_income_pkr: id.monthly_income_pkr ?? 0,
+      is_widow_headed: r.is_widow_headed, has_orphans: r.has_orphans, orphan_count: r.orphan_count,
+      has_disabled_member: r.has_disabled_member, school_age_children: r.school_age_children,
+      housing: r.housing ?? 'owned', owns_land: r.owns_land, livestock_note: id.livestock_note ?? '',
+      outstanding_debt_pkr: id.outstanding_debt_pkr ?? 0, receives_bisp: r.receives_bisp, receives_govt_zakat: r.receives_govt_zakat,
+      notes: id.notes ?? '', family_consented: id.family_consented, source: r.source,
+    })
+    setShowForm(true)
+  }
+
   const save = async () => {
     if (!form.head_name.trim()) { toast.error(t('nr.err.name')); return }
     setSaving(true)
-    const { error } = await supabase.from('needs_register').insert({
+    const payload = {
       ...form,
       head_name_ur: form.head_name_ur || null,
       father_husband_name: form.father_husband_name || null,
       cnic: form.cnic || null, phone: form.phone || null,
       address: form.address || null, sector: form.sector || null,
       livestock_note: form.livestock_note || null, notes: form.notes || null,
-      consented_at: form.family_consented ? new Date().toISOString() : null,
-      status: 'pending',
-    })
+      // Consenting for the first time stamps now(); staying consented across
+      // an edit keeps the original timestamp rather than overwriting it.
+      consented_at: form.family_consented ? (editingConsentedAt ?? new Date().toISOString()) : null,
+    }
+    const { error } = editingId
+      ? await supabase.from('needs_register').update(payload).eq('id', editingId)
+      : await supabase.from('needs_register').insert({ ...payload, status: 'pending' })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(t('nr.ok.added'))
+    toast.success(editingId ? t('nr.ok.updated') : t('nr.ok.added'))
     setShowForm(false)
+    setEditingId(null)
+    setEditingConsentedAt(null)
     setForm(emptyForm)
     load()
   }
@@ -241,7 +280,7 @@ export default function NeedsRegisterPage() {
           ))}
         </select>
         {isVerifier && (
-          <button onClick={() => setShowForm(true)}
+          <button onClick={openAdd}
             className="flex items-center gap-1.5 px-4 py-2.5 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">
             <Plus size={16} /> {t('nr.addHousehold')}
           </button>
@@ -299,11 +338,19 @@ export default function NeedsRegisterPage() {
                     {r.receives_bisp && <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10.5px] font-bold">BISP</span>}
                   </div>
                 )}
-                {isVerifier && ['pending', 'surveying', 'expired'].includes(r.status) && (
-                  <button onClick={() => { setVerifyTarget(r); setVerifyForm({ decision: 'verify', relationship: 'none', reason: '' }) }}
-                    className="w-full mt-3 px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
-                    {t('nr.verify')}
-                  </button>
+                {isVerifier && (
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={() => openEdit(r)}
+                      className="flex-1 px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-surface-container-low transition-all cursor-pointer">
+                      {t('action.edit')}
+                    </button>
+                    {['pending', 'surveying', 'expired'].includes(r.status) && (
+                      <button onClick={() => { setVerifyTarget(r); setVerifyForm({ decision: 'verify', relationship: 'none', reason: '' }) }}
+                        className="flex-1 px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer">
+                        {t('nr.verify')}
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )
@@ -366,11 +413,19 @@ export default function NeedsRegisterPage() {
                         )}
                       </td>
                       <td className="p-3 border-b border-dp-outline-variant text-end print:hidden">
-                        {isVerifier && ['pending', 'surveying', 'expired'].includes(r.status) && (
-                          <button onClick={() => { setVerifyTarget(r); setVerifyForm({ decision: 'verify', relationship: 'none', reason: '' }) }}
-                            className="px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer whitespace-nowrap">
-                            {t('nr.verify')}
-                          </button>
+                        {isVerifier && (
+                          <div className="flex justify-end gap-2">
+                            <button onClick={() => openEdit(r)}
+                              className="px-3 py-1.5 border border-dp-outline-variant text-dp-on-surface rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-surface-container-low transition-all cursor-pointer whitespace-nowrap">
+                              {t('action.edit')}
+                            </button>
+                            {['pending', 'surveying', 'expired'].includes(r.status) && (
+                              <button onClick={() => { setVerifyTarget(r); setVerifyForm({ decision: 'verify', relationship: 'none', reason: '' }) }}
+                                className="px-3 py-1.5 border border-dp-secondary text-dp-secondary rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-secondary hover:text-white transition-all cursor-pointer whitespace-nowrap">
+                                {t('nr.verify')}
+                              </button>
+                            )}
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -384,12 +439,12 @@ export default function NeedsRegisterPage() {
         <DocumentFooter lang={lang} />
       </div>
 
-      {/* ── Add a household ─────────────────────────────────────────────── */}
+      {/* ── Add / edit a household ──────────────────────────────────────── */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-heading text-[22px] font-bold text-dp-primary">{t('nr.addHousehold')}</h2>
+              <h2 className="font-heading text-[22px] font-bold text-dp-primary">{editingId ? t('nr.editHousehold') : t('nr.addHousehold')}</h2>
               <button onClick={() => setShowForm(false)} className="cursor-pointer text-dp-on-surface-variant"><X size={20} /></button>
             </div>
 
@@ -497,7 +552,7 @@ export default function NeedsRegisterPage() {
 
               <button disabled={saving} onClick={save}
                 className="w-full flex items-center justify-center gap-2 bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold hover:bg-dp-primary transition-all cursor-pointer disabled:opacity-50">
-                <Save size={16} /> {saving ? t('action.saving') : t('nr.addHousehold')}
+                <Save size={16} /> {saving ? t('action.saving') : editingId ? t('g.saveChanges') : t('nr.addHousehold')}
               </button>
             </div>
           </div>
