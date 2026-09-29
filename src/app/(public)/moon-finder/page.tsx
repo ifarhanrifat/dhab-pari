@@ -262,7 +262,7 @@ export default function MoonFinderPage() {
 
           {hasHeading && !offscreen && (
             <div
-              className={`absolute w-16 h-16 rounded-full border-4 -translate-x-1/2 -translate-y-1/2 transition-all duration-150 ${found ? 'border-emerald-400 shadow-[0_0_24px_8px_rgba(52,211,153,0.6)]' : 'border-white/80'}`}
+              className={`absolute rounded-full border-4 border-white -translate-x-1/2 -translate-y-1/2 transition-all duration-150 ${found ? 'w-20 h-20 shadow-[0_0_24px_8px_rgba(255,255,255,0.5)]' : 'w-16 h-16 opacity-80'}`}
               style={{ left: `${50 + nx * 45}%`, top: `${50 + ny * 45}%` }}
             />
           )}

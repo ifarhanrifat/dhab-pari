@@ -27,10 +27,16 @@ const PHASES = [
 export function getMoonTarget(date: Date, lat: number, lng: number): MoonTarget {
   const pos = SunCalc.getMoonPosition(date, lat, lng)
   const illum = SunCalc.getMoonIllumination(date)
-  // SunCalc's azimuth is measured from south, clockwise, in radians --
-  // converting to a standard 0=north compass bearing is a flat +180°.
-  const azimuth = (pos.azimuth * 180 / Math.PI + 180 + 360) % 360
-  const altitude = pos.altitude * 180 / Math.PI
+  // Real bug, 2026-09-30, caught by a device test showing "alt3458°": the
+  // installed suncalc (v2.0.2)'s azimuth/altitude are already in degrees,
+  // and azimuth is already clockwise-from-north -- a standard compass
+  // bearing, exactly what this needs. The radians->degrees conversion and
+  // south-based +180 shift below were both wrong for this version (they
+  // may have been correct for a much older suncalc release) and were
+  // silently corrupting every value -- 60.35° real altitude became
+  // 60.35 run through a second, unwanted *180/π, landing at ~3458°.
+  const azimuth = ((pos.azimuth % 360) + 360) % 360
+  const altitude = pos.altitude
   const phaseIdx = Math.round(illum.phase * 8) % 8
   return { azimuth, altitude, illumination: illum.fraction, phaseLabel: PHASES[phaseIdx] }
 }
