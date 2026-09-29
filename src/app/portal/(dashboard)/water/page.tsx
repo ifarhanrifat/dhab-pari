@@ -8,6 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { X, UploadCloud } from 'lucide-react'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { PaymentAccountDetails } from '@/components/public/PaymentAccountDetails'
+import { getPaymentAccount, type PaymentAccount } from '@/lib/paymentAccounts'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import Link from 'next/link'
 import { PortalHelp } from '@/components/portal/PortalHelp'
@@ -36,6 +37,11 @@ export default function PortalWaterPage() {
   const [claimFor, setClaimFor] = useState<Bill | null>(null)
   const [claimAmount, setClaimAmount] = useState(0)
   const [claimMethod, setClaimMethod] = useState('jazzcash')
+  // Real ask, 2026-09-29: only show a payment method as an option once the
+  // committee has actually turned it on (Settings > Payment Accounts) —
+  // see getPaymentAccount()'s own comment for why this defaults to "every
+  // method enabled" when unset.
+  const [paymentAccount, setPaymentAccount] = useState<PaymentAccount | null>(null)
   const [claimProof, setClaimProof] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -55,11 +61,18 @@ export default function PortalWaterPage() {
     setLoading(false)
   }
   useEffect(() => { load() }, [user])
+  useEffect(() => { getPaymentAccount(createClient(), 'water_supply').then(setPaymentAccount) }, [])
+
+  const firstEnabledMethod = (pa: PaymentAccount | null) => {
+    if (!pa) return 'jazzcash'
+    const order: (keyof PaymentAccount['enabled'])[] = ['jazzcash', 'easypaisa', 'bank', 'cash']
+    return order.find((m) => pa.enabled[m]) ?? 'jazzcash'
+  }
 
   const openClaim = (b: Bill) => {
     setClaimFor(b)
     setClaimAmount(Number(b.amount_pkr) - Number(b.paid_amount ?? 0) - Number(b.discount_amount ?? 0))
-    setClaimMethod('jazzcash')
+    setClaimMethod(firstEnabledMethod(paymentAccount))
     setClaimProof('')
   }
 
@@ -182,10 +195,10 @@ export default function PortalWaterPage() {
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
                 <select value={claimMethod} onChange={(e) => setClaimMethod(e.target.value)} className="input-field">
-                  <option value="jazzcash">{t('w.jazzcash')}</option>
-                  <option value="easypaisa">{t('w.easypaisa')}</option>
-                  <option value="bank">{t('w.bankTransfer')}</option>
-                  <option value="cash">{t('w.cash')}</option>
+                  {(!paymentAccount || paymentAccount.enabled.jazzcash) && <option value="jazzcash">{t('w.jazzcash')}</option>}
+                  {(!paymentAccount || paymentAccount.enabled.easypaisa) && <option value="easypaisa">{t('w.easypaisa')}</option>}
+                  {(!paymentAccount || paymentAccount.enabled.bank) && <option value="bank">{t('w.bankTransfer')}</option>}
+                  {(!paymentAccount || paymentAccount.enabled.cash) && <option value="cash">{t('w.cash')}</option>}
                 </select>
                 <PaymentAccountDetails system="water_supply" method={claimMethod} />
               </div>

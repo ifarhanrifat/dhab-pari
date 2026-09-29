@@ -128,6 +128,7 @@ const settingGroups: { labelKey: string; description?: string; keys: string[]; c
   { labelKey: 'st.grp.whatsapp', keys: ['whatsapp_number', 'whatsapp_link'], category: 'payments' },
   {
     labelKey: 'st.grp.donorPaymentAccounts', keys: [
+      'donor_enable_bank', 'donor_enable_cash',
       'donor_jazzcash_number', 'donor_jazzcash_name', 'donor_easypaisa_number', 'donor_easypaisa_name',
       'donor_bank_name', 'donor_bank_account_title', 'donor_bank_account_number', 'donor_bank_iban',
       'donor_bank_branch', 'donor_bank_branch_code',
@@ -135,6 +136,7 @@ const settingGroups: { labelKey: string; description?: string; keys: string[]; c
   },
   {
     labelKey: 'st.grp.waterPaymentAccounts', keys: [
+      'water_enable_jazzcash', 'water_enable_easypaisa', 'water_enable_bank', 'water_enable_cash',
       'water_jazzcash_number', 'water_jazzcash_name', 'water_easypaisa_number', 'water_easypaisa_name',
       'water_bank_name', 'water_bank_account_title', 'water_bank_account_number', 'water_bank_iban',
       'water_bank_branch', 'water_bank_branch_code',
@@ -245,6 +247,12 @@ const settingGroups: { labelKey: string; description?: string; keys: string[]; c
 // them; everything else still falls back to the key.
 const FIELD_LABELS: Record<string, string> = {
   contact_email: 'Contact email — public water bill page',
+  donor_enable_bank: 'Bank Transfer — offer to donors',
+  donor_enable_cash: 'Cash — offer to donors',
+  water_enable_jazzcash: 'JazzCash — offer to water consumers',
+  water_enable_easypaisa: 'Easypaisa — offer to water consumers',
+  water_enable_bank: 'Bank Transfer — offer to water consumers',
+  water_enable_cash: 'Cash — offer to water consumers',
   water_walkin_info_en: 'Walk-in payment address & hours (English) — public water bill page',
   water_walkin_info_ur: 'Walk-in payment address & hours (Urdu) — public water bill page',
   about_text: 'About paragraph (English) — public About page',
@@ -748,6 +756,23 @@ export default function AdminSettingsPage() {
                         When set to Urdu, every bill, receipt, voucher, printable statement/register, and report switches to Urdu — labels, headings, and table columns. Company name/email and any name or note actually typed in (consumer names, particulars, etc.) always stay exactly as entered, in whichever script was used.
                       </p>
                     </>
+                  ) : key.startsWith('water_enable_') || key.startsWith('donor_enable_') ? (
+                    // Real ask, 2026-09-29: every payment method (JazzCash,
+                    // Easypaisa, Bank, Cash) always showed as an option on
+                    // every donor/water payment page, whether or not the
+                    // committee actually wanted to offer it. Unset (no row
+                    // yet, or blank) means enabled — matches how every
+                    // method has always behaved, so nothing changes for
+                    // anyone until a box is actually unchecked.
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={values[key] !== 'false'}
+                        onChange={(e) => setValues({ ...values, [key]: e.target.checked ? 'true' : 'false' })}
+                        className="accent-dp-secondary"
+                      />
+                      <span className="font-sans text-[13.5px] text-dp-on-surface">{tr('st.offerThisMethod')}</span>
+                    </label>
                   ) : isLong ? (
                     <>
                       <textarea

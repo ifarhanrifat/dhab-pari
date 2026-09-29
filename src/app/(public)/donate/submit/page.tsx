@@ -7,6 +7,7 @@ import { HeartHandshake, CheckCircle, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { PaymentAccountDetails } from '@/components/public/PaymentAccountDetails'
+import { getPaymentAccount, type PaymentAccount } from '@/lib/paymentAccounts'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { SearchableField, type PickerItem } from '@/components/admin/SearchablePicker'
 import { fetchDonationTargets, parseDonationTargetId, encodeProjectTarget } from '@/lib/donationTargets'
@@ -72,6 +73,9 @@ function DonateSubmitPageInner() {
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
+  // Real ask, 2026-09-29: only show a payment method as an option once the
+  // committee has actually turned it on (Settings > Payment Accounts).
+  const [paymentAccount, setPaymentAccount] = useState<PaymentAccount | null>(null)
 
   const supabase = createClient()
   const dt = (key: keyof typeof t) => t[key][lang]
@@ -91,6 +95,14 @@ function DonateSubmitPageInner() {
         setTargetItems(items)
         setTargetId((current) => current || defaultTargetId)
       })
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    getPaymentAccount(supabase, 'donors_projects').then((pa) => {
+      setPaymentAccount(pa)
+      if (!pa.enabled.bank && pa.enabled.cash) setForm((f) => ({ ...f, payment_method: 'cash' }))
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -235,8 +247,8 @@ function DonateSubmitPageInner() {
                   <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{dt('paymentMethod')}</label>
                   <select value={form.payment_method} disabled={international} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
                     className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all font-sans text-[16px] disabled:opacity-60">
-                    <option value="bank">{tr('w.bankTransfer')}</option>
-                    {!international && <option value="cash">{tr('w.cash')}</option>}
+                    {(!paymentAccount || paymentAccount.enabled.bank || international) && <option value="bank">{tr('w.bankTransfer')}</option>}
+                    {!international && (!paymentAccount || paymentAccount.enabled.cash) && <option value="cash">{tr('w.cash')}</option>}
                   </select>
                   <PaymentAccountDetails system="donors_projects" method={form.payment_method} international={international} />
                 </div>

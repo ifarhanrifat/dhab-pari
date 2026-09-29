@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { HeartHandshake, CheckCircle, CheckSquare, Square } from 'lucide-react'
 import { DonationReceiptUpload } from '@/components/public/DonationReceiptUpload'
 import { PaymentAccountDetails } from '@/components/public/PaymentAccountDetails'
+import { getPaymentAccount, type PaymentAccount } from '@/lib/paymentAccounts'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
 import { SearchableField, type PickerItem } from '@/components/admin/SearchablePicker'
@@ -62,6 +63,9 @@ function PortalDonatePageInner() {
   const [receiptPath, setReceiptPath] = useState('')
   const [saving, setSaving] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  // Real ask, 2026-09-29: only show a payment method as an option once the
+  // committee has actually turned it on (Settings > Payment Accounts).
+  const [paymentAccount, setPaymentAccount] = useState<PaymentAccount | null>(null)
 
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([])
   const [selectedPending, setSelectedPending] = useState<Set<string>>(new Set())
@@ -73,6 +77,13 @@ function PortalDonatePageInner() {
   useEffect(() => {
     if (user?.donor_type === 'overseas') { setInternational(true); setMethod('bank') }
   }, [user])
+
+  useEffect(() => {
+    getPaymentAccount(createClient(), 'donors_projects').then((pa) => {
+      setPaymentAccount(pa)
+      if (!pa.enabled.bank && pa.enabled.cash) setMethod('cash')
+    })
+  }, [])
 
   useEffect(() => {
     const supabase = createClient()
@@ -227,8 +238,8 @@ function PortalDonatePageInner() {
         <div dir={isUrdu ? 'rtl' : 'ltr'}>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.paymentMethod')}</label>
           <select value={method} disabled={international} onChange={(e) => setMethod(e.target.value)} className="input-field disabled:opacity-60">
-            <option value="bank">{t('w.bankTransfer')}</option>
-            {!international && <option value="cash">{t('w.cash')}</option>}
+            {(!paymentAccount || paymentAccount.enabled.bank || international) && <option value="bank">{t('w.bankTransfer')}</option>}
+            {!international && (!paymentAccount || paymentAccount.enabled.cash) && <option value="cash">{t('w.cash')}</option>}
           </select>
           <PaymentAccountDetails system="donors_projects" method={method} international={international} />
         </div>
