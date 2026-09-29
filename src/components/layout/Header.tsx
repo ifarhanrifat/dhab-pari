@@ -10,7 +10,8 @@ import { useMobileNav } from './MobileNavContext'
 import { createClient } from '@/lib/supabase/client'
 import { LanguageToggle } from '@/components/layout/LanguageToggle'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { HeaderStatusBar } from './HeaderStatusBar'
+import { DateStrip } from './DateStrip'
+import { OnlineUsersBadge } from './OnlineUsersBadge'
 
 const navLinks: { href: string; label: string; tKey: string }[] = [
   { href: '/', label: 'Home', tKey: 'site.home' },
@@ -74,16 +75,30 @@ export function Header() {
               <Menu size={26} />
             </button>
             {/* Logo — tagline only shows once there's room to spare (xl+),
-                so it never competes with the nav for space at lg. */}
+                so it never competes with the nav for space at lg. Online
+                count sits right under the name instead, always visible —
+                a real ask, 2026-09-29, to fill the empty green space next
+                to the logo (a screenshot showed it, mostly on mobile). */}
             <div className="shrink-0 relative z-10 bg-dp-primary pe-2">
               <Link href="/" className="font-heading text-[28px] font-bold leading-[34px] text-white tracking-tight">
                 {SITE.name}
               </Link>
-              <p className="text-white/60 text-[12px] font-sans hidden xl:block">
-                {t('y.villageTransparency')}
-              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="text-white/70 text-[10.5px] font-sans">
+                  <OnlineUsersBadge />
+                </div>
+                <p className="text-white/60 text-[12px] font-sans hidden xl:block">
+                  {t('y.villageTransparency')}
+                </p>
+              </div>
             </div>
           </div>
+
+          {/* Hijri + Punjabi date — same row as the logo (not a separate
+              strip below it), only where the desktop nav isn't already
+              filling this space. Never wraps — DateStrip scrolls instead
+              if it doesn't fit, the same escape hatch the nav below uses. */}
+          <DateStrip className="flex lg:hidden flex-1" />
 
           {/* Desktop Nav — every link rendered directly, no "More" trigger.
               flex-1 + min-w-0 + scroll is still the fallback if this ever
@@ -175,7 +190,6 @@ export function Header() {
             )}
           </div>
         </div>
-        <HeaderStatusBar />
       </header>
 
       <MobileNav

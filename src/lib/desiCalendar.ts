@@ -5,11 +5,11 @@
 // Hijri: the JS Intl Islamic (Umm al-Qura) calendar ships in every modern
 // browser already — no library needed. -nu-latn forces Western digits, the
 // same convention every number on this site already follows (see ltr-num).
-export function formatHijri(date: Date, isUrdu: boolean): string {
+export function formatHijri(date: Date, isUrdu: boolean, withWeekday = false): string {
   try {
     return new Intl.DateTimeFormat(
       isUrdu ? 'ur-u-ca-islamic-umalqura-nu-latn' : 'en-u-ca-islamic-umalqura-nu-latn',
-      { day: 'numeric', month: 'long', year: 'numeric' }
+      { weekday: withWeekday ? 'long' : undefined, day: 'numeric', month: 'long', year: 'numeric' }
     ).format(date)
   } catch {
     return ''
