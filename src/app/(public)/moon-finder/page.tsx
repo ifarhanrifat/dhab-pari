@@ -98,6 +98,12 @@ export default function MoonFinderPage() {
   // state directly inside it would always see its stale initial value.
   // Same reason targetRef exists above for `target`.
   const allowUncalibratedRef = useRef(false)
+  // Raw sensor readings are noisy frame-to-frame — without smoothing, the
+  // reticle visibly jitters/"blinks" near the found threshold (real
+  // report, 2026-09-30). Heading is smoothed as a unit vector, not the
+  // raw angle, so it doesn't break at the 0°/360° wraparound.
+  const smoothedHeadingVecRef = useRef<{ x: number; y: number } | null>(null)
+  const smoothedElevationRef = useRef<number | null>(null)
 
   useEffect(() => { targetRef.current = target }, [target])
 
@@ -111,6 +117,8 @@ export default function MoonFinderPage() {
     }
     if (uncalibratedTimerRef.current) { clearTimeout(uncalibratedTimerRef.current); uncalibratedTimerRef.current = null }
     allowUncalibratedRef.current = false
+    smoothedHeadingVecRef.current = null
+    smoothedElevationRef.current = null
     setPhase('idle')
     setHasHeading(false)
     setCameraReady(false)
@@ -131,9 +139,16 @@ export default function MoonFinderPage() {
     const computed = computeHeadingAndElevation(e.alpha, e.beta, e.gamma)
     // Elevation only depends on beta/gamma (device tilt) — accurate
     // regardless of whether alpha is true-north-referenced, so this
-    // always updates.
-    setDeltaAlt(tgt.altitude - computed.elevation)
-    setDebugElevation(computed.elevation)
+    // always updates. Smoothed (simple exponential average) — real
+    // report, 2026-09-30: the raw per-frame reading was noisy enough to
+    // make the reticle visibly jitter/"blink" as it neared the target.
+    const SMOOTHING = 0.2
+    smoothedElevationRef.current = smoothedElevationRef.current == null
+      ? computed.elevation
+      : smoothedElevationRef.current + SMOOTHING * (computed.elevation - smoothedElevationRef.current)
+    const elevation = smoothedElevationRef.current
+    setDeltaAlt(tgt.altitude - elevation)
+    setDebugElevation(elevation)
 
     // Real report, 2026-09-30, round 3: altitude/target math is now
     // correct (confirmed via debug readout), but azimuth stayed ~17° off
@@ -151,7 +166,18 @@ export default function MoonFinderPage() {
     const webkitHeading = (e as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading
     const trustworthy = typeof webkitHeading === 'number' || e.absolute === true
     if (!trustworthy && !allowUncalibratedRef.current) return
-    const heading = typeof webkitHeading === 'number' ? webkitHeading : computed.heading
+    const rawHeading = typeof webkitHeading === 'number' ? webkitHeading : computed.heading
+    // Smoothed as a unit vector, not the raw angle -- averaging angles
+    // directly breaks at the 0°/360° wraparound (0.2*0 + 0.8*359 ≈ 287,
+    // a huge spurious jump for what's really a 1° change).
+    const rad = rawHeading * Math.PI / 180
+    const prev = smoothedHeadingVecRef.current
+    const sv = prev
+      ? { x: prev.x + SMOOTHING * (Math.cos(rad) - prev.x), y: prev.y + SMOOTHING * (Math.sin(rad) - prev.y) }
+      : { x: Math.cos(rad), y: Math.sin(rad) }
+    smoothedHeadingVecRef.current = sv
+    let heading = Math.atan2(sv.y, sv.x) * 180 / Math.PI
+    if (heading < 0) heading += 360
 
     setHasHeading(true)
     setDeltaAz(angularDiff(tgt.azimuth, heading))
@@ -315,9 +341,20 @@ export default function MoonFinderPage() {
           )}
 
           {found && (
-            <div className="absolute inset-x-0 bottom-16 text-center">
-              <span className="inline-block bg-emerald-500 text-white px-4 py-1.5 rounded-full font-sans text-[14px] font-bold">{t('mf.found')}</span>
-            </div>
+            <>
+              {/* A pulsing frame around the whole view, not just the small
+                  reticle — real report, 2026-09-30: the browser has no way
+                  to read a phone's true camera field of view, so the
+                  reticle's exact pixel position is always an assumed-FOV
+                  approximation and can visibly miss the real moon even
+                  when the underlying angle is genuinely close. This makes
+                  "yes, you're on it" obvious without depending on that
+                  pixel-perfect overlay. */}
+              <div className="absolute inset-0 border-[6px] border-white/90 rounded-lg pointer-events-none animate-pulse" />
+              <div className="absolute inset-x-0 bottom-16 text-center">
+                <span className="inline-block bg-emerald-500 text-white px-4 py-1.5 rounded-full font-sans text-[14px] font-bold">{t('mf.found')}</span>
+              </div>
+            </>
           )}
 
           {target && (
