@@ -140,7 +140,7 @@ const settingGroups: { labelKey: string; description?: string; keys: string[]; c
       'water_bank_branch', 'water_bank_branch_code',
     ], category: 'payments',
   },
-  { labelKey: 'st.grp.office', keys: ['office_hours'], category: 'general' },
+  { labelKey: 'st.grp.office', keys: ['office_hours', 'contact_email', 'water_walkin_info_en', 'water_walkin_info_ur'], category: 'general' },
   // One group per audience, in the tab that audience actually lives in.
   // These were a single "Universal Slip" group inside the water supply's
   // Documents tab — so the DONOR print format was set from a water supply
@@ -244,6 +244,9 @@ const settingGroups: { labelKey: string; description?: string; keys: string[]; c
 // printer fields, named the way the person changing them would describe
 // them; everything else still falls back to the key.
 const FIELD_LABELS: Record<string, string> = {
+  contact_email: 'Contact email — public water bill page',
+  water_walkin_info_en: 'Walk-in payment address & hours (English) — public water bill page',
+  water_walkin_info_ur: 'Walk-in payment address & hours (Urdu) — public water bill page',
   about_text: 'About paragraph (English) — public About page',
   about_text_ur: 'About paragraph (Urdu) — public About page',
   vision: 'Vision statement (English)',
@@ -673,7 +676,7 @@ export default function AdminSettingsPage() {
           <div className="space-y-4">
             {group.keys.map((key) => {
               const setting = settings.find((s) => s.key === key)
-              const isLong = ['about_text', 'about_text_ur', 'vision', 'vision_ur', 'mission', 'mission_ur', 'invoice_instructions', 'donor_invoice_instructions', 'receipt_fund_note', 'donor_receipt_fund_note', 'publisher_guidelines_ur', 'publisher_guidelines_en', 'recurring_policy_ur', 'recurring_policy_en'].includes(key) || WELFARE_LONG_FIELDS.includes(key) || PORTAL_GUIDE_LONG_FIELDS.includes(key) || ADMIN_GUIDE_LONG_FIELDS.includes(key)
+              const isLong = ['about_text', 'about_text_ur', 'vision', 'vision_ur', 'mission', 'mission_ur', 'invoice_instructions', 'donor_invoice_instructions', 'receipt_fund_note', 'donor_receipt_fund_note', 'publisher_guidelines_ur', 'publisher_guidelines_en', 'recurring_policy_ur', 'recurring_policy_en', 'water_walkin_info_en', 'water_walkin_info_ur'].includes(key) || WELFARE_LONG_FIELDS.includes(key) || PORTAL_GUIDE_LONG_FIELDS.includes(key) || ADMIN_GUIDE_LONG_FIELDS.includes(key)
               return (
                 <div key={key}>
                   <label className="block font-sans mb-2">

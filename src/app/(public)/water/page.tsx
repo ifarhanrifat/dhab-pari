@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { SITE } from '@/lib/constants'
+import { getPaymentAccount, type PaymentAccount } from '@/lib/paymentAccounts'
 import Link from 'next/link'
 import {
   Search,
@@ -49,7 +50,33 @@ export default function WaterBillPage() {
   const [bills, setBills] = useState<Bill[]>([])
   const [error, setError] = useState('')
 
+  // Real report, 2026-09-29: this whole page was showing the generic
+  // SITE.* fallback constants (env vars, not admin-editable) for the bank
+  // account, JazzCash and Easypaisa numbers, instead of the water-specific
+  // accounts the committee already manages in Settings > Payment Accounts
+  // (getPaymentAccount('water_supply'), the exact same source the portal's
+  // own /portal/water page already correctly reads). Donor and water-bill
+  // money were meant to never share a number (migration 253) — this page
+  // just never got wired to that. walkinAddress/contactEmail are new
+  // settings (migration, see admin Settings > Office) for the two other
+  // things that were pure hardcoded prose with no Urdu translation at all.
+  const [paymentAccount, setPaymentAccount] = useState<PaymentAccount | null>(null)
+  const [walkinAddress, setWalkinAddress] = useState('')
+  const [contactEmail, setContactEmail] = useState(SITE.email)
+
   const supabase = createClient()
+
+  useEffect(() => {
+    getPaymentAccount(supabase, 'water_supply').then(setPaymentAccount)
+    supabase.from('site_settings').select('key, value')
+      .in('key', [isUrdu ? 'water_walkin_info_ur' : 'water_walkin_info_en', 'contact_email'])
+      .then(({ data }) => {
+        const v = Object.fromEntries((data ?? []).map((r) => [r.key, r.value]))
+        setWalkinAddress(v[isUrdu ? 'water_walkin_info_ur' : 'water_walkin_info_en'] || (isUrdu ? 'مرکزی مسجد کے قریب ویلفیئر آفس آئیں، صبح 9 بجے سے دوپہر 2 بجے تک۔' : 'Visit the Welfare Office near the Central Mosque, 9 AM to 2 PM.'))
+        setContactEmail(v.contact_email || SITE.email)
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isUrdu])
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -284,7 +311,7 @@ export default function WaterBillPage() {
                           {t('w.jazzcash')}
                         </p>
                         <p className="font-bold text-dp-primary font-sans">
-                          {SITE.jazzcash}
+                          {paymentAccount?.jazzcashNumber || SITE.jazzcash}
                         </p>
                       </div>
                     </div>
@@ -299,7 +326,7 @@ export default function WaterBillPage() {
                           {t('w.easypaisa')}
                         </p>
                         <p className="font-bold text-dp-primary font-sans">
-                          {SITE.easypaisa}
+                          {paymentAccount?.easypaisaNumber || SITE.easypaisa}
                         </p>
                       </div>
                     </div>
@@ -390,15 +417,14 @@ export default function WaterBillPage() {
             <div className="flex gap-3">
               <Building2 size={20} className="text-dp-secondary shrink-0 mt-0.5" />
               <p>
-                <span className="font-bold">{t('x.bankTransferColon')}</span> {SITE.bankName},{' '}
-                {SITE.bankBranch}, Acc: {SITE.bankAccount}
+                <span className="font-bold">{t('x.bankTransferColon')}</span> {paymentAccount?.bankName || SITE.bankName},{' '}
+                {paymentAccount?.bankBranch || SITE.bankBranch}, Acc: {paymentAccount?.bankAccountNumber || paymentAccount?.bankIban || SITE.bankAccount}
               </p>
             </div>
             <div className="flex gap-3">
               <MapPin size={20} className="text-dp-secondary shrink-0 mt-0.5" />
               <p>
-                <span className="font-bold">{t('x.walkIn')}</span> Visit Welfare Office
-                near Central Mosque from 9 AM to 2 PM.
+                <span className="font-bold">{t('x.walkIn')}</span> {walkinAddress}
               </p>
             </div>
           </div>
@@ -441,11 +467,11 @@ export default function WaterBillPage() {
               {SITE.whatsapp}
             </a>
             <a
-              href={`mailto:${SITE.email}`}
+              href={`mailto:${contactEmail}`}
               className="flex items-center gap-3 text-dp-secondary hover:underline font-sans"
             >
               <Mail size={18} />
-              {SITE.email}
+              {contactEmail}
             </a>
           </div>
         </div>
