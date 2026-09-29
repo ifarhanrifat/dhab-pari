@@ -9,7 +9,23 @@
 // to mail the synthetic one.
 export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
   const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey) throw new Error('RESEND_API_KEY is not set')
+  if (!apiKey) {
+    // Real gap, 2026-09-29: RESEND_API_KEY is only ever set in the deployed
+    // (Vercel) environment, not in local .env.local -- deliberately, so a
+    // dev machine can never accidentally mail a real address. Every
+    // code-based flow through this one function (signup verification,
+    // password reset, WhatsApp/email change) used to just throw here,
+    // which read as "the feature is broken" when it's really "this can
+    // only be tested against the live site, or by reading the code from
+    // here." Logs the code/content instead of sending it, and still
+    // resolves, everywhere except a real production deploy -- so a local
+    // run can walk the whole flow by copying the code out of the terminal.
+    if (process.env.NODE_ENV === 'production' && process.env.VERCEL_ENV === 'production') {
+      throw new Error('RESEND_API_KEY is not set')
+    }
+    console.warn(`[sendEmail] RESEND_API_KEY not set -- would have sent to ${to}:\nSubject: ${subject}\n${html}`)
+    return { id: 'local-dev-no-send' }
+  }
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',

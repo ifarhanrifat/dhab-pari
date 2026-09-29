@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/resend'
 import { portalWhatsappChangeCodeEmail } from '@/lib/email/portalWhatsappChangeEmail'
 
@@ -52,6 +53,15 @@ export async function POST(req: NextRequest) {
     if (elapsed < COOLDOWN_MS) {
       return NextResponse.json({ error: 'A code was just sent — wait a moment before requesting another.' }, { status: 429 })
     }
+  }
+
+  // Real ask, 2026-09-29: warn before sending a code at all if this number
+  // is already someone else's, rather than letting the whole flow succeed
+  // and only failing (or worse, silently overwriting) at confirm time.
+  const admin = createAdminClient()
+  const { data: existing } = await admin.from('portal_users').select('id').eq('whatsapp_number', newWhatsappNumber).neq('id', portalUser.id).maybeSingle()
+  if (existing) {
+    return NextResponse.json({ error: 'This WhatsApp number is already registered to another account — use a different number.' }, { status: 400 })
   }
 
   const code = generateCode()
