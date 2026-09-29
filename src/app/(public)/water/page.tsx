@@ -13,6 +13,7 @@ import {
   Phone,
   Mail,
   Download,
+  Smartphone,
 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
@@ -414,19 +415,44 @@ export default function WaterBillPage() {
             {t('x.howToPay')}
           </h4>
           <div className="space-y-4 font-sans text-dp-on-surface-variant text-[16px]">
-            <div className="flex gap-3">
-              <Building2 size={20} className="text-dp-secondary shrink-0 mt-0.5" />
-              <p>
-                <span className="font-bold">{t('x.bankTransferColon')}</span> {paymentAccount?.bankName || SITE.bankName},{' '}
-                {paymentAccount?.bankBranch || SITE.bankBranch}, Acc: {paymentAccount?.bankAccountNumber || paymentAccount?.bankIban || SITE.bankAccount}
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <MapPin size={20} className="text-dp-secondary shrink-0 mt-0.5" />
-              <p>
-                <span className="font-bold">{t('x.walkIn')}</span> {walkinAddress}
-              </p>
-            </div>
+            {/* Real report, 2026-09-29: this always showed Bank Transfer no
+                matter which methods the committee actually enabled in
+                Settings > Payment Accounts (e.g. Easypaisa-only), so a
+                consumer saw a channel that wasn't really being offered.
+                Each block below now only renders when that method is on. */}
+            {(!paymentAccount || paymentAccount.enabled.jazzcash) && paymentAccount?.jazzcashNumber && (
+              <div className="flex gap-3">
+                <Smartphone size={20} className="text-dp-secondary shrink-0 mt-0.5" />
+                <p>
+                  <span className="font-bold">{t('x.jazzcashColon')}</span> {paymentAccount.jazzcashNumber} ({paymentAccount.jazzcashName})
+                </p>
+              </div>
+            )}
+            {(!paymentAccount || paymentAccount.enabled.easypaisa) && paymentAccount?.easypaisaNumber && (
+              <div className="flex gap-3">
+                <Smartphone size={20} className="text-dp-secondary shrink-0 mt-0.5" />
+                <p>
+                  <span className="font-bold">{t('x.easypaisaColon')}</span> {paymentAccount.easypaisaNumber} ({paymentAccount.easypaisaName})
+                </p>
+              </div>
+            )}
+            {(!paymentAccount || paymentAccount.enabled.bank) && (
+              <div className="flex gap-3">
+                <Building2 size={20} className="text-dp-secondary shrink-0 mt-0.5" />
+                <p>
+                  <span className="font-bold">{t('x.bankTransferColon')}</span> {paymentAccount?.bankName || SITE.bankName},{' '}
+                  {paymentAccount?.bankBranch || SITE.bankBranch}, Acc: {paymentAccount?.bankAccountNumber || paymentAccount?.bankIban || SITE.bankAccount}
+                </p>
+              </div>
+            )}
+            {(!paymentAccount || paymentAccount.enabled.cash) && (
+              <div className="flex gap-3">
+                <MapPin size={20} className="text-dp-secondary shrink-0 mt-0.5" />
+                <p>
+                  <span className="font-bold">{t('x.walkIn')}</span> {walkinAddress}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
