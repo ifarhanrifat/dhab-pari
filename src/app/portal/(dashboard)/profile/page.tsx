@@ -89,8 +89,16 @@ export default function PortalProfilePage() {
 
   const save = async () => {
     if (!user) return
-    if (!form.full_name.trim() || !form.father_husband_name.trim() || !currentWhatsapp.trim()) {
+    if (!form.full_name.trim() || !form.father_husband_name.trim() || !currentWhatsapp.trim() || !form.email.trim()) {
       toast.error(t('p.profileRequiredFields'))
+      return
+    }
+    // Email is now compulsory for every portal account (signup has required
+    // it since migration 516 — this closes the same gap on the profile
+    // page for an account that already existed before that, or that just
+    // never got a chance to fill it in yet).
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      toast.error(t('p.enterValidEmail'))
       return
     }
     if (form.donor_type === 'overseas' && !form.country.trim()) { toast.error(t('p.enterCountry')); return }
@@ -108,7 +116,7 @@ export default function PortalProfilePage() {
       // confirmWhatsappChange), never through this general save.
       donor_type: form.donor_type, country: form.donor_type === 'overseas' ? (form.country.trim() || null) : null,
       sector: form.sector.trim() || null, avatar_url: form.avatar_url || null,
-      email: form.email.trim() || null,
+      email: form.email.trim().toLowerCase(),
       display_name: form.display_name.trim() || null,
       gender: mentorship.gender || null, profession: mentorship.profession || null,
       profession_other: mentorship.profession === 'other' ? (mentorship.profession_other.trim() || null) : null,
@@ -214,7 +222,7 @@ export default function PortalProfilePage() {
           <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1 leading-relaxed">{t('p.usernameCannotChange')}</p>
         </div>
         <div>
-          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('w.emailOptional')}</label>
+          <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('g.emailReq')}</label>
           <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input-field" />
         </div>
         <div>
