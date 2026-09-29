@@ -25,10 +25,21 @@ import { getMoonTarget, angularDiff, type MoonTarget } from '@/lib/moonFinder'
 // happen to be right when the phone is dead flat. Held upright like a
 // camera (beta≈90, exactly this feature's use case) those single-axis
 // shortcuts drift and, past beta=90, invert sign entirely -- explains
-// "always up". Replaced with the actual 3-axis rotation math below.
-const HFOV = 60 // assumed horizontal camera field of view, degrees
-const VFOV = 45 // assumed vertical camera field of view, degrees
-const FOUND_TOLERANCE = 4 // degrees, both axes, to count as "found"
+// "always up". Replaced with the actual 3-axis rotation math.
+//
+// Real report, 2026-09-30, round 2, with a real moon photo: camera now
+// works, but a follow-up screenshot showed the actual moon clearly inside
+// the frame (near the top) while the app still showed full directional
+// arrows instead of the reticle. Two most likely causes, can't fully
+// distinguish without live numbers: FOUND_TOLERANCE (4°) is tighter than
+// real phone sensor noise can reliably hit, and the assumed FOV (60°/45°)
+// is probably narrower than this phone's real rear camera, which would
+// make genuinely-close deltas register as "offscreen" too eagerly.
+// Loosened both, and added a small debug readout (bottom-start corner) so
+// the next test shows the real numbers instead of guessing from a photo.
+const HFOV = 70 // assumed horizontal camera field of view, degrees
+const VFOV = 55 // assumed vertical camera field of view, degrees
+const FOUND_TOLERANCE = 8 // degrees, both axes, to count as "found"
 
 type Phase = 'idle' | 'starting' | 'active' | 'belowHorizon' | 'error'
 
@@ -63,6 +74,11 @@ export default function MoonFinderPage() {
   const [deltaAz, setDeltaAz] = useState(0)
   const [deltaAlt, setDeltaAlt] = useState(0)
   const [hasHeading, setHasHeading] = useState(false)
+  // Raw readout while this is still being calibrated against real devices
+  // — see the file header note. Safe to remove once the math is trusted.
+  const [debugHeading, setDebugHeading] = useState(0)
+  const [debugElevation, setDebugElevation] = useState(0)
+  const [debugSource, setDebugSource] = useState<'webkit' | 'computed' | null>(null)
   const [cameraReady, setCameraReady] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -107,6 +123,9 @@ export default function MoonFinderPage() {
     setHasHeading(true)
     setDeltaAz(angularDiff(tgt.azimuth, heading))
     setDeltaAlt(tgt.altitude - computed.elevation)
+    setDebugHeading(heading)
+    setDebugElevation(computed.elevation)
+    setDebugSource(typeof webkitHeading === 'number' ? 'webkit' : 'computed')
   }
 
   const start = async () => {
@@ -266,8 +285,15 @@ export default function MoonFinderPage() {
           )}
 
           {target && (
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-4 py-3 text-white font-sans text-[12px]">
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-4 pt-6 pb-3 text-white font-sans text-[12px]">
               {Math.round(target.illumination * 100)}% {t('mf.illuminated')} · {t(`mf.phase.${target.phaseLabel}`)}
+              {/* Temporary while this is being calibrated against real
+                  devices -- remove once the tolerance/FOV are trusted. */}
+              {hasHeading && (
+                <p className="ltr-num text-white/60 text-[10px] mt-1 font-mono">
+                  moon: az{Math.round(target.azimuth)}° alt{Math.round(target.altitude)}° · you: {debugSource === 'webkit' ? 'ios' : 'calc'} hd{Math.round(debugHeading)}° el{Math.round(debugElevation)}° · Δaz{Math.round(deltaAz)}° Δalt{Math.round(deltaAlt)}°
+                </p>
+              )}
             </div>
           )}
 
