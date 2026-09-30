@@ -58,6 +58,7 @@ import { CommitteeNoteCard } from '@/components/home/CommitteeNoteCard'
 import { welfareCardContentKeys } from '@/lib/welfareCardContent'
 import { DownloadAppBanner } from '@/components/portal/DownloadAppBanner'
 import { WeatherWidget } from '@/components/home/WeatherWidget'
+import { VillageServicesQuickLinks } from '@/components/home/VillageServicesQuickLinks'
 
 function fmtPKR(n: number) {
   return Math.round(n).toLocaleString()
@@ -281,6 +282,7 @@ export default async function HomePage() {
         <div className="mb-4 lg:mb-6 max-w-sm">
           <WeatherWidget />
         </div>
+        <VillageServicesQuickLinks />
         {/* Desktop: 4 cols / Mobile: 2x2 grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
           <div className="bg-white border border-dp-outline-variant p-4 lg:p-6 rounded-lg hover:bg-dp-surface-container-low transition-colors">

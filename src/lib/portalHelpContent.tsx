@@ -16,7 +16,7 @@ export type PortalHelpKey =
   | 'statement' | 'water' | 'recurring' | 'complaints' | 'suggestions'
   | 'bloodDonor' | 'getInvolved' | 'institutes' | 'mentors' | 'myVolunteering'
   | 'postJob' | 'profile' | 'proposeProject' | 'submitBlog' | 'talentShowcase'
-  | 'trainingPrograms' | 'marketplace' | 'lostFound' | 'reportProblem'
+  | 'trainingPrograms' | 'marketplace' | 'lostFound' | 'reportProblem' | 'askForHelp' | 'classifieds'
 
 interface HelpEntry { title: string; body: ReactNode }
 
@@ -213,6 +213,26 @@ export const PORTAL_HELP_CONTENT: Record<PortalHelpKey, HelpEntry> = {
     body: (
       <>
         <P>یہاں آپ کی تمام رضاکارانہ درخواستوں اور فعالیتوں کی تفصیل ہے — کس منصوبے کے لیے درخواست دی، حالت کیا ہے، اور نیا اندراج بھی یہیں سے کر سکتے ہیں۔</P>
+      </>
+    ),
+  },
+
+  classifieds: {
+    title: 'خرید و فروخت کا اعلان کیسے دیں؟',
+    body: (
+      <>
+        <P>موبائل، گاڑی، جانور، زمین، فرنیچر، یا کوئی بھی چیز بیچنی ہے؟ یہاں سے اعلان دیں — قسم، قیمت، تصویر، اور رابطہ نمبر شامل کریں۔ یہ فوراً گاؤں کے خرید و فروخت والے صفحے پر نظر آئے گا۔</P>
+        <P>جب چیز بک جائے، اسے "فروخت شدہ" نشان زد کر دیں تاکہ لوگوں کو دوبارہ رابطہ نہ کرنا پڑے۔</P>
+      </>
+    ),
+  },
+
+  askForHelp: {
+    title: 'مدد کی درخواست کیسے دیں؟',
+    body: (
+      <>
+        <P>طبی مدد، آمد و رفت، بزرگ کی دیکھ بھال، لاپتہ شخص، آگ، یا حادثہ — یہاں سے مدد کی درخواست دیں۔ یہ فوراً عوامی ایمرجنسی صفحے پر نظر آئے گی تاکہ کوئی بھی گاؤں والا مدد کر سکے۔</P>
+        <P>خون کی ضرورت کے لیے یہاں نہیں — اس کا اپنا مخصوص صفحہ ہے (خون کا عطیہ)، وہاں سے درخواست دیں۔</P>
       </>
     ),
   },

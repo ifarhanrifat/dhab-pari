@@ -26,6 +26,7 @@ import {
   ChevronDown,
   Search,
   AlertTriangle,
+  Tag,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -74,6 +75,7 @@ const menuItems: MenuEntry[] = [
     ],
   },
   { href: '/portal/marketplace', label: 'Marketplace', tKey: 'portal.marketplace', icon: ShoppingBag },
+  { href: '/portal/classifieds', label: 'Buy & Sell', tKey: 'portal.classifieds', icon: Tag },
   { href: '/portal/my-shop', label: 'My Shop', tKey: 'portal.myShop', icon: Store, requiresShopKeeper: true },
   { href: '/portal/my-vehicle', label: 'My Vehicle', tKey: 'portal.myVehicle', icon: Bus, requiresVehicleKeeper: true },
   {
@@ -85,6 +87,7 @@ const menuItems: MenuEntry[] = [
       { href: '/portal/post-job', label: 'My Job Listings', tKey: 'portal.postJob', icon: Briefcase },
       { href: '/portal/lost-found', label: 'Lost & Found', tKey: 'portal.lostFound', icon: Search },
       { href: '/portal/report-problem', label: 'Report a Problem', tKey: 'portal.reportProblem', icon: AlertTriangle },
+      { href: '/portal/ask-for-help', label: 'Ask for Help', tKey: 'portal.askForHelp', icon: HandHeart },
       { href: '/portal/my-volunteering', label: 'My Volunteering', tKey: 'portal.myVolunteering', icon: HeartHandshake },
       { href: '/portal/get-involved', label: 'Get Involved', tKey: 'portal.getInvolved', icon: HandHeart },
     ],

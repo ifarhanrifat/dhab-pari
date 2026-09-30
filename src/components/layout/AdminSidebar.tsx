@@ -44,6 +44,7 @@ import {
   HardHat,
   CalendarClock,
   Phone,
+  ShoppingBag,
   Droplet,
   UploadCloud,
   Store,
@@ -166,6 +167,7 @@ const menuItems: MenuEntry[] = [
   },
   { href: '/admin/complaints', label: 'Complaints', tKey: 'nav.complaints', icon: MessageSquareWarning, badge: 'complaints' },
   { href: '/admin/civic-reports', label: 'Village Problems', tKey: 'nav.civicReports', icon: AlertTriangle },
+  { href: '/admin/help-requests', label: 'Help Requests', tKey: 'nav.helpRequests', icon: HandHeart },
   {
     groupKey: 'content', label: 'Content Publishing', tKey: 'nav.groupContent', icon: Newspaper,
     children: [
@@ -176,6 +178,7 @@ const menuItems: MenuEntry[] = [
       { href: '/admin/gallery', label: 'Gallery', tKey: 'nav.gallery', icon: Image, publish: 'gallery' },
       { href: '/admin/ticker', label: 'Ticker', tKey: 'nav.ticker', icon: TicketSlash, publish: 'ticker' },
       { href: '/admin/jobs', label: 'Job Listings', tKey: 'nav.jobs', icon: Briefcase, publish: 'jobs' },
+      { href: '/admin/classifieds', label: 'Buy & Sell', tKey: 'nav.classifieds', icon: ShoppingBag },
       { href: '/admin/important-contacts', label: 'Important Contacts', tKey: 'nav.importantContacts', icon: Phone },
     ],
   },
