@@ -28,15 +28,19 @@ export function DateCard() {
   if (!hijri && !punjabi) return null
 
   return (
-    <Link href="/moon-finder" className="bg-white border border-dp-outline-variant rounded-lg p-4 flex items-center gap-3 hover:border-dp-secondary transition-all">
-      <span className="w-10 h-10 rounded-full bg-dp-secondary-container text-dp-on-secondary-container flex items-center justify-center shrink-0">
-        <Moon size={20} />
+    <Link href="/moon-finder" className="bg-white border border-dp-outline-variant rounded-lg p-3 sm:p-4 flex items-center gap-2.5 sm:gap-3 hover:border-dp-secondary transition-all">
+      <span className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-dp-secondary-container text-dp-on-secondary-container flex items-center justify-center shrink-0">
+        <Moon size={16} className="sm:hidden" />
+        <Moon size={20} className="hidden sm:block" />
       </span>
+      {/* Real report, 2026-09-30: `truncate` was clipping the date on a
+          narrow phone where this card only gets half the screen width —
+          wraps onto a second line instead now, nothing hidden. */}
       <div className="min-w-0">
-        {hijri && <p className="font-sans text-[13.5px] font-bold text-dp-on-surface leading-tight truncate">{hijri}</p>}
+        {hijri && <p className="font-sans text-[12px] sm:text-[13.5px] font-bold text-dp-on-surface leading-snug">{hijri}</p>}
         {punjabi && (
-          <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1 flex items-center gap-1 truncate">
-            <Leaf size={11} className="shrink-0" /> {punjabi}
+          <p className="font-sans text-[11px] sm:text-[12px] text-dp-on-surface-variant mt-1 flex items-start gap-1 leading-snug">
+            <Leaf size={11} className="shrink-0 mt-0.5" /> <span>{punjabi}</span>
           </p>
         )}
       </div>

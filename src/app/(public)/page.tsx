@@ -282,11 +282,14 @@ export default async function HomePage() {
             isn't squeezed into the logo row anymore. Always 2 columns,
             even on the narrowest phones — real report, same day: sm:
             breakpoint meant they stacked vertically on a phone, which is
-            exactly what was NOT wanted. Date on the left, Weather on the
-            right, per that same report. Not forced into the 4-col stat
-            grid below — a 5th/6th card there would break that grid's
-            even column count. */}
-        <div className="grid grid-cols-2 gap-3 mb-4 lg:mb-6 max-w-xl">
+            exactly what was NOT wanted. dir="ltr" pinned here on purpose:
+            "Date on the left" is a fixed visual side, not a reading-order
+            request — without this, the page's own RTL direction under
+            Urdu flips grid auto-placement and puts Date on the right
+            instead (real report, same day, seen on a laptop). Not forced
+            into the 4-col stat grid below — a 5th/6th card there would
+            break that grid's even column count. */}
+        <div className="grid grid-cols-2 gap-3 mb-4 lg:mb-6 max-w-xl" dir="ltr">
           <DateCard />
           <WeatherWidget />
         </div>

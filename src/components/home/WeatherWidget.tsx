@@ -58,16 +58,17 @@ export function WeatherWidget() {
   if (failed || !weather) return null
 
   return (
-    <Link href="/weather" className="bg-white border border-dp-outline-variant rounded-lg p-4 flex items-center gap-3 hover:border-dp-secondary transition-all">
-      {iconFor(weather.code, 32)}
+    <Link href="/weather" className="bg-white border border-dp-outline-variant rounded-lg p-3 sm:p-4 flex items-center gap-2.5 sm:gap-3 hover:border-dp-secondary transition-all">
+      <span className="sm:hidden shrink-0">{iconFor(weather.code, 24)}</span>
+      <span className="hidden sm:block shrink-0">{iconFor(weather.code, 32)}</span>
       <div className="min-w-0">
-        <p className="font-heading text-[20px] font-bold text-dp-on-surface leading-none ltr-num">{weather.temp}°C</p>
-        <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t(LABEL_KEY(weather.code))} · <span className="ltr-num">{weather.minToday}°–{weather.maxToday}°</span></p>
+        <p className="font-heading text-[17px] sm:text-[20px] font-bold text-dp-on-surface leading-none ltr-num">{weather.temp}°C</p>
+        <p className="font-sans text-[11px] sm:text-[12px] text-dp-on-surface-variant mt-1 leading-snug">{t(LABEL_KEY(weather.code))} · <span className="ltr-num">{weather.minToday}°–{weather.maxToday}°</span></p>
         {weather.rainChance >= 40 && (
-          <p className="font-sans text-[11px] text-sky-600 mt-0.5 flex items-center gap-1"><CloudRain size={11} /> <span className="ltr-num">{weather.rainChance}%</span> {t('wx.rainChance')}</p>
+          <p className="font-sans text-[10.5px] sm:text-[11px] text-sky-600 mt-0.5 flex items-center gap-1"><CloudRain size={11} className="shrink-0" /> <span className="ltr-num">{weather.rainChance}%</span> {t('wx.rainChance')}</p>
         )}
         {weather.windKph >= 30 && (
-          <p className="font-sans text-[11px] text-amber-600 mt-0.5 flex items-center gap-1"><Wind size={11} /> {t('wx.strongWind')}</p>
+          <p className="font-sans text-[10.5px] sm:text-[11px] text-amber-600 mt-0.5 flex items-center gap-1"><Wind size={11} className="shrink-0" /> {t('wx.strongWind')}</p>
         )}
       </div>
     </Link>
