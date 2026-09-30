@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { PlusCircle, X, Pencil, Trash2, BookOpen } from 'lucide-react'
 import { toast } from 'sonner'
@@ -8,11 +9,13 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 
+const LeafletSinglePinPicker = dynamic(() => import('@/components/shared/LeafletSinglePinPicker'), { ssr: false })
+
 interface Entry {
   id: string; category: string; subcategory: string | null; name: string; name_ur: string | null
   description: string | null; description_ur: string | null; location_text: string | null
   phone: string | null; whatsapp_number: string | null; hours_text: string | null; photo_url: string | null
-  display_order: number; is_active: boolean
+  display_order: number; is_active: boolean; lat: number | null; lng: number | null
 }
 
 const CATEGORIES = ['business', 'health', 'mosque', 'school']
@@ -31,8 +34,9 @@ const SUBCATEGORIES: Record<string, string[]> = {
   school: ['primary_school', 'secondary_school', 'college', 'madrassa', 'other'],
 }
 const empty = {
-  category: 'business', subcategory: 'general_store', name: '', name_ur: '', description: '', description_ur: '',
+  category: 'business', subcategory: 'restaurant', name: '', name_ur: '', description: '', description_ur: '',
   location_text: '', phone: '', whatsapp_number: '', hours_text: '', photo_url: '', display_order: 0, is_active: true,
+  lat: null as number | null, lng: null as number | null,
 }
 
 export default function AdminDirectoryPage() {
@@ -64,6 +68,7 @@ export default function AdminDirectoryPage() {
       description: e.description ?? '', description_ur: e.description_ur ?? '', location_text: e.location_text ?? '',
       phone: e.phone ?? '', whatsapp_number: e.whatsapp_number ?? '', hours_text: e.hours_text ?? '',
       photo_url: e.photo_url ?? '', display_order: e.display_order, is_active: e.is_active,
+      lat: e.lat, lng: e.lng,
     })
     setEditing(e.id); setShowForm(true)
   }
@@ -134,6 +139,10 @@ export default function AdminDirectoryPage() {
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ic.whatsapp')}</label><input value={form.whatsapp_number} onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })} className="input-field" /></div>
               </div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('lf.location')}</label><input value={form.location_text} onChange={(e) => setForm({ ...form, location_text: e.target.value })} className="input-field" /></div>
+              <div>
+                <label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('dir.mapLocation')}</label>
+                <LeafletSinglePinPicker lat={form.lat} lng={form.lng} onChange={(pin) => setForm({ ...form, lat: pin?.lat ?? null, lng: pin?.lng ?? null })} />
+              </div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('dir.hours')}</label><input value={form.hours_text} onChange={(e) => setForm({ ...form, hours_text: e.target.value })} placeholder={t('dir.hoursPlaceholder')} className="input-field" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.descriptionOptional')}</label><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="input-field resize-none" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('dir.descriptionUr')}</label><textarea value={form.description_ur} onChange={(e) => setForm({ ...form, description_ur: e.target.value })} rows={2} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} /></div>

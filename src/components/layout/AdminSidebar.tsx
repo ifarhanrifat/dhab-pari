@@ -172,6 +172,7 @@ const menuItems: MenuEntry[] = [
   { href: '/admin/help-requests', label: 'Help Requests', tKey: 'nav.helpRequests', icon: HandHeart },
   { href: '/admin/death-announcements', label: 'Death Announcements', tKey: 'nav.deathAnnouncements', icon: HeartCrack },
   { href: '/admin/events', label: 'Village Events', tKey: 'nav.villageEvents', icon: CalendarDays },
+  { href: '/admin/village-map', label: 'Village Map', tKey: 'nav.villageMap', icon: MapPin },
   {
     groupKey: 'content', label: 'Content Publishing', tKey: 'nav.groupContent', icon: Newspaper,
     children: [
