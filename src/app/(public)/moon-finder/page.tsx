@@ -39,7 +39,19 @@ import { getMoonTarget, angularDiff, type MoonTarget } from '@/lib/moonFinder'
 // the next test shows the real numbers instead of guessing from a photo.
 const HFOV = 70 // assumed horizontal camera field of view, degrees
 const VFOV = 55 // assumed vertical camera field of view, degrees
-const FOUND_TOLERANCE = 8 // degrees, both axes, to count as "found"
+const FOUND_ENTER = 8 // degrees, both axes, to switch INTO "found"
+const FOUND_EXIT = 13 // degrees — has to drift further out to leave "found" again
+const ONSCREEN_ENTER = 0.85 // fraction of half-FOV to switch the reticle back on
+const OFFSCREEN_EXIT = 1.05 // has to drift further out to switch to arrows
+
+// Real report, 2026-09-30, round 5: even after smoothing the raw sensor
+// signal, the reticle kept "blinking" left/right/middle right as it
+// reached the target. Smoothing alone can't fix this part — a single
+// hard cutoff (found vs not, reticle vs arrows) means normal sensor
+// noise sitting right on that line flips the whole display back and
+// forth many times a second. Both now use hysteresis (a different
+// threshold to enter vs. leave the state) instead of one cutoff, the
+// standard fix for exactly this kind of boundary flicker.
 
 type Phase = 'idle' | 'starting' | 'active' | 'belowHorizon' | 'error'
 
@@ -74,6 +86,11 @@ export default function MoonFinderPage() {
   const [deltaAz, setDeltaAz] = useState(0)
   const [deltaAlt, setDeltaAlt] = useState(0)
   const [hasHeading, setHasHeading] = useState(false)
+  // Stateful with hysteresis (see ONSCREEN_ENTER/OFFSCREEN_EXIT and
+  // FOUND_ENTER/FOUND_EXIT above), not derived fresh from deltaAz/deltaAlt
+  // on every render — that's exactly what caused the flicker.
+  const [found, setFound] = useState(false)
+  const [offscreen, setOffscreen] = useState(false)
   // Raw readout while this is still being calibrated against real devices
   // — see the file header note. Safe to remove once the math is trusted.
   const [debugHeading, setDebugHeading] = useState(0)
@@ -104,6 +121,8 @@ export default function MoonFinderPage() {
   // raw angle, so it doesn't break at the 0°/360° wraparound.
   const smoothedHeadingVecRef = useRef<{ x: number; y: number } | null>(null)
   const smoothedElevationRef = useRef<number | null>(null)
+  const foundRef = useRef(false)
+  const offscreenRef = useRef(false)
 
   useEffect(() => { targetRef.current = target }, [target])
 
@@ -119,10 +138,14 @@ export default function MoonFinderPage() {
     allowUncalibratedRef.current = false
     smoothedHeadingVecRef.current = null
     smoothedElevationRef.current = null
+    foundRef.current = false
+    offscreenRef.current = false
     setPhase('idle')
     setHasHeading(false)
     setCameraReady(false)
     setAllowUncalibrated(false)
+    setFound(false)
+    setOffscreen(false)
   }
 
   useEffect(() => () => stop(), [])
@@ -142,12 +165,13 @@ export default function MoonFinderPage() {
     // always updates. Smoothed (simple exponential average) — real
     // report, 2026-09-30: the raw per-frame reading was noisy enough to
     // make the reticle visibly jitter/"blink" as it neared the target.
-    const SMOOTHING = 0.2
+    const SMOOTHING = 0.15
     smoothedElevationRef.current = smoothedElevationRef.current == null
       ? computed.elevation
       : smoothedElevationRef.current + SMOOTHING * (computed.elevation - smoothedElevationRef.current)
     const elevation = smoothedElevationRef.current
-    setDeltaAlt(tgt.altitude - elevation)
+    const deltaAltVal = tgt.altitude - elevation
+    setDeltaAlt(deltaAltVal)
     setDebugElevation(elevation)
 
     // Real report, 2026-09-30, round 3: altitude/target math is now
@@ -179,10 +203,25 @@ export default function MoonFinderPage() {
     let heading = Math.atan2(sv.y, sv.x) * 180 / Math.PI
     if (heading < 0) heading += 360
 
+    const deltaAzVal = angularDiff(tgt.azimuth, heading)
     setHasHeading(true)
-    setDeltaAz(angularDiff(tgt.azimuth, heading))
+    setDeltaAz(deltaAzVal)
     setDebugHeading(heading)
     setDebugSource(typeof webkitHeading === 'number' ? 'webkit' : trustworthy ? 'computed' : 'uncalibrated')
+
+    // Hysteresis, not a single cutoff re-derived every render — see the
+    // FOUND_ENTER/FOUND_EXIT/ONSCREEN_ENTER/OFFSCREEN_EXIT note above.
+    const withinFoundEnter = Math.abs(deltaAzVal) < FOUND_ENTER && Math.abs(deltaAltVal) < FOUND_ENTER
+    const withinFoundExit = Math.abs(deltaAzVal) < FOUND_EXIT && Math.abs(deltaAltVal) < FOUND_EXIT
+    const nextFound = foundRef.current ? withinFoundExit : withinFoundEnter
+    if (nextFound !== foundRef.current) { foundRef.current = nextFound; setFound(nextFound) }
+
+    const nxVal = deltaAzVal / (HFOV / 2)
+    const nyVal = -deltaAltVal / (VFOV / 2)
+    const withinOnscreenEnter = Math.abs(nxVal) < ONSCREEN_ENTER && Math.abs(nyVal) < ONSCREEN_ENTER
+    const withinOffscreenExit = Math.abs(nxVal) > OFFSCREEN_EXIT || Math.abs(nyVal) > OFFSCREEN_EXIT
+    const nextOffscreen = offscreenRef.current ? !withinOnscreenEnter : withinOffscreenExit
+    if (nextOffscreen !== offscreenRef.current) { offscreenRef.current = nextOffscreen; setOffscreen(nextOffscreen) }
   }
 
   const start = async () => {
@@ -266,10 +305,11 @@ export default function MoonFinderPage() {
     return () => clearInterval(id)
   }, [phase])
 
-  const found = hasHeading && Math.abs(deltaAz) < FOUND_TOLERANCE && Math.abs(deltaAlt) < FOUND_TOLERANCE
+  // found/offscreen are real state now (hysteresis, computed in
+  // handleOrientation) — nx/ny here are purely a rendering position, not
+  // a re-derived toggle.
   const nx = Math.max(-1.4, Math.min(1.4, deltaAz / (HFOV / 2)))
   const ny = Math.max(-1.4, Math.min(1.4, -deltaAlt / (VFOV / 2)))
-  const offscreen = Math.abs(nx) > 1 || Math.abs(ny) > 1
 
   return (
     <div className="max-w-[600px] mx-auto px-6 md:px-12 py-10" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
@@ -332,10 +372,10 @@ export default function MoonFinderPage() {
           {hasHeading && offscreen && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="flex flex-col items-center gap-2 text-white">
-                {deltaAlt > FOUND_TOLERANCE && <ArrowUp size={40} className="animate-bounce" />}
-                {deltaAlt < -FOUND_TOLERANCE && <ArrowDown size={40} className="animate-bounce" />}
-                {deltaAz > FOUND_TOLERANCE && <ArrowRight size={40} className="animate-bounce" />}
-                {deltaAz < -FOUND_TOLERANCE && <ArrowLeft size={40} className="animate-bounce" />}
+                {deltaAlt > FOUND_ENTER && <ArrowUp size={40} className="animate-bounce" />}
+                {deltaAlt < -FOUND_ENTER && <ArrowDown size={40} className="animate-bounce" />}
+                {deltaAz > FOUND_ENTER && <ArrowRight size={40} className="animate-bounce" />}
+                {deltaAz < -FOUND_ENTER && <ArrowLeft size={40} className="animate-bounce" />}
               </div>
             </div>
           )}
