@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
-import { BookOpen, Phone, MessageCircle, MapPin, Clock, Search } from 'lucide-react'
+import Link from 'next/link'
+import { BookOpen, Phone, MessageCircle, MapPin, Clock, Search, Store, ArrowRight } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
@@ -64,6 +65,20 @@ export default function DirectoryPage() {
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('dir.searchPlaceholder')}
           className="w-full ps-10 pe-4 py-2.5 rounded-lg border border-dp-outline-variant font-sans text-[14px] focus:outline-none focus:border-dp-secondary" />
       </div>
+
+      {/* Real correction, 2026-10-01: general/kiryana stores already have
+          a full public section in Marketplace (real product catalog,
+          search, online ordering) -- pointing there instead of trying to
+          list the same shops here a second time with less detail. */}
+      {tab === 'business' && (
+        <Link href="/marketplace" className="flex items-center justify-between gap-3 bg-white border-2 border-dp-secondary/30 rounded-lg p-4 mb-6 hover:border-dp-secondary transition-all max-w-2xl">
+          <div className="flex items-center gap-3">
+            <Store size={20} className="text-dp-secondary" />
+            <span className="font-sans text-[14px] font-semibold text-dp-on-surface">{t('dir.generalStorePointer')}</span>
+          </div>
+          <ArrowRight size={16} className="text-dp-secondary shrink-0" />
+        </Link>
+      )}
 
       {loading ? (
         <p className="font-sans text-[14px] text-dp-on-surface-variant text-center py-16"><LoadingDots /></p>

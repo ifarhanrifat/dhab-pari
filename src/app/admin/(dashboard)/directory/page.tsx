@@ -16,8 +16,16 @@ interface Entry {
 }
 
 const CATEGORIES = ['business', 'health', 'mosque', 'school']
+// Real correction, 2026-10-01: "when we already have the business in
+// [marketplace] why are we adding karobar in the directory feature?" --
+// 'general_store' dropped here on purpose. Marketplace (388) already has
+// a full public Shops section (browsable with no login, real product
+// catalog, search, ordering) -- a Directory entry for the same shop
+// would just be a worse duplicate of data staff already maintain there.
+// Every other business subcategory (restaurant, tailor, barber, etc.)
+// has no Marketplace equivalent at all, so those stay here.
 const SUBCATEGORIES: Record<string, string[]> = {
-  business: ['general_store', 'restaurant', 'tailor', 'barber', 'electronics_shop', 'internet_provider', 'mechanic_shop', 'other'],
+  business: ['restaurant', 'tailor', 'barber', 'electronics_shop', 'internet_provider', 'mechanic_shop', 'other'],
   health: ['doctor', 'clinic', 'hospital', 'medical_store', 'ambulance_service'],
   mosque: ['mosque'],
   school: ['primary_school', 'secondary_school', 'college', 'madrassa', 'other'],
@@ -116,6 +124,9 @@ export default function AdminDirectoryPage() {
                   </select>
                 </div>
               </div>
+              {form.category === 'business' && (
+                <p className="font-sans text-[12px] text-dp-on-surface-variant bg-dp-surface-container-low rounded-lg p-2.5">{t('dir.generalStoreNote')}</p>
+              )}
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('dir.nameEn')}</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('dir.nameUr')}</label><input value={form.name_ur} onChange={(e) => setForm({ ...form, name_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} /></div>
               <div className="grid grid-cols-2 gap-4">
