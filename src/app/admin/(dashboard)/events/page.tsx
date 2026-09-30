@@ -12,6 +12,12 @@ interface Ev {
   id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null
   category: string; start_datetime: string; end_datetime: string | null; location_text: string | null
   organizer_name: string | null; organizer_contact: string | null; photo_url: string | null; is_active: boolean
+  groom_name: string | null; bride_name: string | null; wedding_function: string | null
+  venue_men: string | null; venue_women: string | null
+  deceased_name: string | null; gathering_type: string | null
+  speaker_name: string | null
+  tournament_name: string | null; entry_fee: number | null; registration_contact: string | null
+  agenda: string | null
 }
 
 const CATEGORIES = ['religious', 'wedding', 'sports', 'meeting', 'education', 'condolence', 'other']
@@ -27,6 +33,11 @@ const empty = {
   title: '', title_ur: '', description: '', description_ur: '', category: 'other',
   start_datetime: '', end_datetime: '', location_text: '', organizer_name: '', organizer_contact: '',
   photo_url: '', is_active: true,
+  groom_name: '', bride_name: '', wedding_function: 'mehndi', venue_men: '', venue_women: '',
+  deceased_name: '', gathering_type: 'soyem',
+  speaker_name: '',
+  tournament_name: '', entry_fee: '', registration_contact: '',
+  agenda: '',
 }
 
 // Phase 3 of the "Village OS" feature set, 2026-09-30. Admin-curated, same
@@ -49,17 +60,35 @@ export default function AdminEventsPage() {
 
   const save = async () => {
     if (!form.title.trim() || !form.start_datetime) { toast.error(t('ve.titleRequired')); return }
+    const cat = form.category
     const payload = {
-      ...form,
+      title: form.title.trim(),
       title_ur: form.title_ur.trim() || null,
       description: form.description.trim() || null,
       description_ur: form.description_ur.trim() || null,
+      category: form.category,
       location_text: form.location_text.trim() || null,
       organizer_name: form.organizer_name.trim() || null,
       organizer_contact: form.organizer_contact.trim() || null,
       photo_url: form.photo_url || null,
+      is_active: form.is_active,
       start_datetime: new Date(form.start_datetime).toISOString(),
       end_datetime: form.end_datetime ? new Date(form.end_datetime).toISOString() : null,
+      // Only the selected category's fields are kept -- switching category
+      // away from "wedding" after typing a groom_name shouldn't leave a
+      // stale value behind on a religious/sports event.
+      groom_name: cat === 'wedding' ? (form.groom_name.trim() || null) : null,
+      bride_name: cat === 'wedding' ? (form.bride_name.trim() || null) : null,
+      wedding_function: cat === 'wedding' ? form.wedding_function : null,
+      venue_men: (cat === 'wedding' || cat === 'condolence') ? (form.venue_men.trim() || null) : null,
+      venue_women: (cat === 'wedding' || cat === 'condolence') ? (form.venue_women.trim() || null) : null,
+      deceased_name: cat === 'condolence' ? (form.deceased_name.trim() || null) : null,
+      gathering_type: cat === 'condolence' ? form.gathering_type : null,
+      speaker_name: cat === 'religious' ? (form.speaker_name.trim() || null) : null,
+      tournament_name: cat === 'sports' ? (form.tournament_name.trim() || null) : null,
+      entry_fee: cat === 'sports' && form.entry_fee ? parseFloat(form.entry_fee) : null,
+      registration_contact: cat === 'sports' ? (form.registration_contact.trim() || null) : null,
+      agenda: cat === 'meeting' ? (form.agenda.trim() || null) : null,
     }
     if (editing) {
       const { error } = await supabase.from('village_events').update(payload).eq('id', editing)
@@ -79,6 +108,12 @@ export default function AdminEventsPage() {
       category: e.category, start_datetime: toLocalInput(e.start_datetime), end_datetime: toLocalInput(e.end_datetime),
       location_text: e.location_text ?? '', organizer_name: e.organizer_name ?? '', organizer_contact: e.organizer_contact ?? '',
       photo_url: e.photo_url ?? '', is_active: e.is_active,
+      groom_name: e.groom_name ?? '', bride_name: e.bride_name ?? '', wedding_function: e.wedding_function ?? 'mehndi',
+      venue_men: e.venue_men ?? '', venue_women: e.venue_women ?? '',
+      deceased_name: e.deceased_name ?? '', gathering_type: e.gathering_type ?? 'soyem',
+      speaker_name: e.speaker_name ?? '',
+      tournament_name: e.tournament_name ?? '', entry_fee: e.entry_fee != null ? String(e.entry_fee) : '', registration_contact: e.registration_contact ?? '',
+      agenda: e.agenda ?? '',
     })
     setEditing(e.id); setShowForm(true)
   }
@@ -122,6 +157,65 @@ export default function AdminEventsPage() {
                   {CATEGORIES.map((c) => <option key={c} value={c}>{t(`ve.cat.${c}`)}</option>)}
                 </select>
               </div>
+              {/* Category-specific fields -- real ask, 2026-09-30, Punjab
+                  wedding/condolence culture: Mehndi/Nikkah/Baraat/Valima
+                  are genuinely separate, separately-dated functions, and
+                  separate men's/women's venues are standard for both a
+                  wedding and a condolence gathering. */}
+              {form.category === 'wedding' && (
+                <div className="bg-dp-surface-container-low rounded-lg p-3.5 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.groomName')}</label><input value={form.groom_name} onChange={(e) => setForm({ ...form, groom_name: e.target.value })} className="input-field" /></div>
+                    <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.brideName')}</label><input value={form.bride_name} onChange={(e) => setForm({ ...form, bride_name: e.target.value })} className="input-field" /></div>
+                  </div>
+                  <div>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.weddingFunction')}</label>
+                    <select value={form.wedding_function} onChange={(e) => setForm({ ...form, wedding_function: e.target.value })} className="input-field">
+                      {['mehndi', 'nikkah', 'baraat', 'valima', 'other'].map((f) => <option key={f} value={f}>{t(`ve.fn.${f}`)}</option>)}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.venueMen')}</label><input value={form.venue_men} onChange={(e) => setForm({ ...form, venue_men: e.target.value })} className="input-field" /></div>
+                    <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.venueWomen')}</label><input value={form.venue_women} onChange={(e) => setForm({ ...form, venue_women: e.target.value })} className="input-field" /></div>
+                  </div>
+                </div>
+              )}
+              {form.category === 'condolence' && (
+                <div className="bg-dp-surface-container-low rounded-lg p-3.5 space-y-3">
+                  <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.deceasedName')}</label><input value={form.deceased_name} onChange={(e) => setForm({ ...form, deceased_name: e.target.value })} className="input-field" /></div>
+                  <div>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.gatheringType')}</label>
+                    <select value={form.gathering_type} onChange={(e) => setForm({ ...form, gathering_type: e.target.value })} className="input-field">
+                      {['soyem', 'chehlum', 'qul', 'other'].map((g) => <option key={g} value={g}>{t(`ve.gt.${g}`)}</option>)}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.venueMen')}</label><input value={form.venue_men} onChange={(e) => setForm({ ...form, venue_men: e.target.value })} className="input-field" /></div>
+                    <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.venueWomen')}</label><input value={form.venue_women} onChange={(e) => setForm({ ...form, venue_women: e.target.value })} className="input-field" /></div>
+                  </div>
+                </div>
+              )}
+              {form.category === 'religious' && (
+                <div className="bg-dp-surface-container-low rounded-lg p-3.5">
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.speakerName')}</label>
+                  <input value={form.speaker_name} onChange={(e) => setForm({ ...form, speaker_name: e.target.value })} className="input-field" />
+                </div>
+              )}
+              {form.category === 'sports' && (
+                <div className="bg-dp-surface-container-low rounded-lg p-3.5 space-y-3">
+                  <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.tournamentName')}</label><input value={form.tournament_name} onChange={(e) => setForm({ ...form, tournament_name: e.target.value })} className="input-field" /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.entryFee')}</label><input type="number" value={form.entry_fee} onChange={(e) => setForm({ ...form, entry_fee: e.target.value })} className="input-field" /></div>
+                    <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.registrationContact')}</label><input value={form.registration_contact} onChange={(e) => setForm({ ...form, registration_contact: e.target.value })} className="input-field" /></div>
+                  </div>
+                </div>
+              )}
+              {form.category === 'meeting' && (
+                <div className="bg-dp-surface-container-low rounded-lg p-3.5">
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.agenda')}</label>
+                  <textarea value={form.agenda} onChange={(e) => setForm({ ...form, agenda: e.target.value })} rows={2} className="input-field resize-none" />
+                </div>
+              )}
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ve.titleEn')}</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ve.titleUr')}</label><input value={form.title_ur} onChange={(e) => setForm({ ...form, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} /></div>
               <div className="grid grid-cols-2 gap-4">

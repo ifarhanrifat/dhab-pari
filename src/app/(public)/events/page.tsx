@@ -10,6 +10,12 @@ interface Ev {
   id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null
   category: string; start_datetime: string; end_datetime: string | null; location_text: string | null
   organizer_name: string | null; organizer_contact: string | null; photo_url: string | null
+  groom_name: string | null; bride_name: string | null; wedding_function: string | null
+  venue_men: string | null; venue_women: string | null
+  deceased_name: string | null; gathering_type: string | null
+  speaker_name: string | null
+  tournament_name: string | null; entry_fee: number | null; registration_contact: string | null
+  agenda: string | null
 }
 
 const categoryTone: Record<string, string> = {
@@ -38,13 +44,24 @@ export default function VillageEventsPage() {
 
   const card = (e: Ev, faded = false) => (
     <div key={e.id} className={`bg-white border border-dp-outline-variant rounded-lg p-5 ${faded ? 'opacity-60' : ''}`}>
-      <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full uppercase ${categoryTone[e.category] ?? categoryTone.other}`}>{t(`ve.cat.${e.category}`)}</span>
+      <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full uppercase ${categoryTone[e.category] ?? categoryTone.other}`}>{t(`ve.cat.${e.category}`)}{e.category === 'wedding' && e.wedding_function ? ` · ${t(`ve.fn.${e.wedding_function}`)}` : ''}{e.category === 'condolence' && e.gathering_type ? ` · ${t(`ve.gt.${e.gathering_type}`)}` : ''}</span>
       <p className="font-heading text-[18px] font-bold text-dp-on-surface mt-2">{isUrdu && e.title_ur ? e.title_ur : e.title}</p>
+      {e.category === 'wedding' && (e.groom_name || e.bride_name) && (
+        <p className="font-sans text-[13.5px] text-dp-on-surface mt-1">{e.groom_name}{e.groom_name && e.bride_name ? ' & ' : ''}{e.bride_name}</p>
+      )}
+      {e.category === 'condolence' && e.deceased_name && <p className="font-sans text-[13.5px] text-dp-on-surface mt-1">{e.deceased_name}</p>}
+      {e.category === 'religious' && e.speaker_name && <p className="font-sans text-[13.5px] text-dp-on-surface mt-1">{t('ve.speakerName')}: {e.speaker_name}</p>}
+      {e.category === 'sports' && e.tournament_name && <p className="font-sans text-[13.5px] text-dp-on-surface mt-1">{e.tournament_name}{e.entry_fee ? ` · ${t('ve.entryFee')}: ${e.entry_fee}` : ''}</p>}
+      {e.category === 'meeting' && e.agenda && <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1.5">{e.agenda}</p>}
       {(isUrdu ? e.description_ur : e.description) && <p className="font-sans text-[13.5px] text-dp-on-surface-variant mt-1.5">{isUrdu ? e.description_ur : e.description}</p>}
       <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3 font-sans text-[12.5px] text-dp-on-surface-variant">
         <span className="flex items-center gap-1"><Clock size={12} /> <span className="ltr-num">{new Date(e.start_datetime).toLocaleString()}</span>{e.end_datetime && <span className="ltr-num"> – {new Date(e.end_datetime).toLocaleString()}</span>}</span>
         {e.location_text && <span className="flex items-center gap-1"><MapPin size={12} /> {e.location_text}</span>}
+        {(e.venue_men || e.venue_women) && (
+          <span className="flex items-center gap-1"><MapPin size={12} /> {e.venue_men ? `${t('ve.venueMen')}: ${e.venue_men}` : ''}{e.venue_men && e.venue_women ? ' · ' : ''}{e.venue_women ? `${t('ve.venueWomen')}: ${e.venue_women}` : ''}</span>
+        )}
         {e.organizer_name && <span className="flex items-center gap-1"><User size={12} /> {e.organizer_name}{e.organizer_contact ? ` · ${e.organizer_contact}` : ''}</span>}
+        {e.category === 'sports' && e.registration_contact && <span className="flex items-center gap-1"><User size={12} /> {t('ve.registrationContact')}: {e.registration_contact}</span>}
       </div>
     </div>
   )
