@@ -11,7 +11,7 @@ interface Contact {
   id: string; label: string; label_ur: string | null; phone: string; whatsapp_number: string | null
   category: string; display_order: number; is_active: boolean
 }
-const categories = ['police', 'rescue', 'fire', 'ambulance', 'hospital', 'electricity', 'gas', 'water', 'union_council', 'village_rep', 'other']
+const categories = ['police', 'rescue', 'fire', 'ambulance', 'hospital', 'electricity', 'gas', 'water', 'union_council', 'village_rep', 'committee', 'other']
 const empty = { label: '', label_ur: '', phone: '', whatsapp_number: '', category: 'other', display_order: 0, is_active: true }
 
 export default function AdminImportantContactsPage() {
@@ -47,24 +47,34 @@ export default function AdminImportantContactsPage() {
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary">{t('ic.title')}</h1>
         <button onClick={() => { setForm(empty); setEditing(null); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('ic.add')}</button>
       </div>
-      <div className="space-y-3">
+      <div>
         {loading && <div className="text-center py-12 text-dp-on-surface-variant"><LoadingDots /></div>}
-        {!loading && contacts.map((c) => (
-          <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-4 flex items-center justify-between gap-4 hover:border-dp-secondary transition-all">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="w-9 h-9 rounded-full bg-dp-secondary-container text-dp-on-secondary-container flex items-center justify-center shrink-0"><Phone size={16} /></span>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-sans text-[15px] font-bold text-dp-on-surface truncate">{c.label}</h3>
-                  <span className="bg-dp-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold uppercase font-sans shrink-0">{t(`ic.cat.${c.category}`)}</span>
-                  {!c.is_active && <span className="text-[10px] font-bold font-sans text-dp-on-surface-variant shrink-0">{t('ic.inactive')}</span>}
+        {/* Real ask, 2026-09-30: grouped by category with a heading per
+            section, same as the public /contacts page — so a staff member
+            adding an electricity number actually sees it land under an
+            "Electricity" heading, not just tossed into one flat list. */}
+        {!loading && categories.filter((cat) => contacts.some((c) => c.category === cat)).map((cat) => (
+          <div key={cat} className="mb-6">
+            <h2 className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-wide mb-2.5">{t(`ic.cat.${cat}`)}</h2>
+            <div className="space-y-3">
+              {contacts.filter((c) => c.category === cat).map((c) => (
+                <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-4 flex items-center justify-between gap-4 hover:border-dp-secondary transition-all">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="w-9 h-9 rounded-full bg-dp-secondary-container text-dp-on-secondary-container flex items-center justify-center shrink-0"><Phone size={16} /></span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-sans text-[15px] font-bold text-dp-on-surface truncate">{c.label}</h3>
+                        {!c.is_active && <span className="text-[10px] font-bold font-sans text-dp-on-surface-variant shrink-0">{t('ic.inactive')}</span>}
+                      </div>
+                      <p className="font-sans text-[13px] text-dp-on-surface-variant ltr-num">{c.phone}{c.whatsapp_number ? ` · WA ${c.whatsapp_number}` : ''}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => edit(c)} className="p-2 text-dp-primary hover:bg-dp-primary/10 rounded-lg cursor-pointer"><Pencil size={16} /></button>
+                    <button onClick={() => remove(c.id)} className="p-2 text-dp-error hover:bg-dp-error/10 rounded-lg cursor-pointer"><Trash2 size={16} /></button>
+                  </div>
                 </div>
-                <p className="font-sans text-[13px] text-dp-on-surface-variant ltr-num">{c.phone}{c.whatsapp_number ? ` · WA ${c.whatsapp_number}` : ''}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => edit(c)} className="p-2 text-dp-primary hover:bg-dp-primary/10 rounded-lg cursor-pointer"><Pencil size={16} /></button>
-              <button onClick={() => remove(c.id)} className="p-2 text-dp-error hover:bg-dp-error/10 rounded-lg cursor-pointer"><Trash2 size={16} /></button>
+              ))}
             </div>
           </div>
         ))}

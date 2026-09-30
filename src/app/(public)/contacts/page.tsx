@@ -17,12 +17,12 @@ interface Contact {
 const categoryColors: Record<string, string> = {
   police: 'bg-blue-600', rescue: 'bg-red-600', fire: 'bg-orange-600', ambulance: 'bg-rose-600',
   hospital: 'bg-emerald-600', electricity: 'bg-amber-500', gas: 'bg-amber-700', water: 'bg-sky-600',
-  union_council: 'bg-dp-primary-container', village_rep: 'bg-dp-secondary', other: 'bg-slate-500',
+  union_council: 'bg-dp-primary-container', village_rep: 'bg-dp-secondary', committee: 'bg-teal-600', other: 'bg-slate-500',
 }
 // Real ask, 2026-09-30: grouped by category with a heading per section,
 // not one flat list — fixed order (most urgent first) rather than
 // whatever order categories happen to appear in the data.
-const CATEGORY_ORDER = ['police', 'rescue', 'fire', 'ambulance', 'hospital', 'electricity', 'gas', 'water', 'union_council', 'village_rep', 'other']
+const CATEGORY_ORDER = ['police', 'rescue', 'fire', 'ambulance', 'hospital', 'electricity', 'gas', 'water', 'union_council', 'village_rep', 'committee', 'other']
 
 export default function ContactsPage() {
   const { t, isUrdu } = useLocale()

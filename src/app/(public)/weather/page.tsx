@@ -1,10 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudFog, Wind, Droplets, Sunrise, Sunset, AlertTriangle, MapPin } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { toast } from 'sonner'
+import { Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudFog, Wind, Droplets, Sunrise, Sunset, AlertTriangle, MapPin, LocateFixed } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { SITE } from '@/lib/constants'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+
+// Leaflet touches `window` at import time — same ssr:false pattern every
+// other Leaflet map in this app already uses.
+const WeatherRadarMap = dynamic(() => import('@/components/public/WeatherRadarMap').then((m) => m.WeatherRadarMap), { ssr: false })
 
 // Phase 3 of the "Village OS" feature set, 2026-09-30: a full forecast
 // page (not just the homepage's single-number widget) — current
@@ -45,21 +51,31 @@ const LABEL_KEY = (code: number): string => {
 
 export default function WeatherPage() {
   const { t, isUrdu } = useLocale()
-  const [coords, setCoords] = useState<{ lat: number; lng: number; isVillage: boolean } | null>(null)
+  // Real report, 2026-09-30: silently requesting geolocation the instant
+  // the page loads (no click, no user gesture) is exactly the pattern
+  // browsers are most likely to auto-block or never actually prompt for
+  // — and it gives the visitor no visible moment of "this site wants your
+  // location, allow or deny". Defaults to the village's own coordinates
+  // immediately; "Use My Location" below is a real, explicit, user-
+  // initiated permission request instead.
+  const [coords, setCoords] = useState<{ lat: number; lng: number; isVillage: boolean }>({ lat: SITE.lat, lng: SITE.lng, isVillage: true })
+  const [locating, setLocating] = useState(false)
   const [weather, setWeather] = useState<WeatherData | null>(null)
   const [failed, setFailed] = useState(false)
 
-  useEffect(() => {
-    if (!navigator.geolocation) { setCoords({ lat: SITE.lat, lng: SITE.lng, isVillage: true }); return }
+  const useMyLocation = () => {
+    if (!navigator.geolocation) { toast.error(t('wx.locationUnsupported')); return }
+    setLocating(true)
     navigator.geolocation.getCurrentPosition(
-      (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude, isVillage: false }),
-      () => setCoords({ lat: SITE.lat, lng: SITE.lng, isVillage: true }),
-      { timeout: 8000 }
+      (pos) => { setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude, isVillage: false }); setLocating(false) },
+      () => { toast.error(t('wx.locationDenied')); setLocating(false) },
+      { timeout: 10000 }
     )
-  }, [])
+  }
 
   useEffect(() => {
-    if (!coords) return
+    setWeather(null)
+    setFailed(false)
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lng}` +
       `&current=temperature_2m,apparent_temperature,weather_code,relative_humidity_2m,wind_speed_10m` +
       `&hourly=temperature_2m,weather_code,precipitation_probability` +
@@ -92,11 +108,15 @@ export default function WeatherPage() {
         <Sun size={26} className="text-amber-500" />
         <h1 className="font-heading text-[28px] font-bold text-dp-primary">{t('wx.pageTitle')}</h1>
       </div>
-      {coords && (
-        <p className="font-sans text-[13px] text-dp-on-surface-variant mb-8 flex items-center gap-1.5">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-8">
+        <p className="font-sans text-[13px] text-dp-on-surface-variant flex items-center gap-1.5">
           <MapPin size={13} /> {coords.isVillage ? t('wx.villageDefault') : t('wx.yourLocation')}
         </p>
-      )}
+        <button onClick={useMyLocation} disabled={locating}
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-60">
+          <LocateFixed size={14} /> {locating ? t('wx.locating') : t('wx.useMyLocation')}
+        </button>
+      </div>
 
       {failed && <p className="text-center py-16 text-dp-on-surface-variant font-sans text-[15px]">{t('wx.loadFailed')}</p>}
       {!failed && !weather && <div className="text-center py-16"><LoadingDots /></div>}
@@ -183,15 +203,13 @@ export default function WeatherPage() {
             </div>
           )}
 
-          {/* Weather map */}
+          {/* Weather map — real report, 2026-09-30: the previous Windy
+              iframe embed had a menu/sidebar that couldn't be closed, an
+              inherent limit of their free embed. Our own Leaflet + rain
+              radar overlay instead — no foreign UI to get stuck open. */}
           <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-3">{t('wx.map')}</h2>
-          <div className="rounded-lg overflow-hidden border border-dp-outline-variant" style={{ aspectRatio: '4/3' }}>
-            <iframe
-              title="weather-map"
-              className="w-full h-full"
-              src={`https://embed.windy.com/embed2.html?lat=${coords?.lat}&lon=${coords?.lng}&detailLat=${coords?.lat}&detailLon=${coords?.lng}&width=650&height=450&zoom=8&level=surface&overlay=rain&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1`}
-              frameBorder="0"
-            />
+          <div className="rounded-lg overflow-hidden border border-dp-outline-variant">
+            <WeatherRadarMap lat={coords.lat} lng={coords.lng} height={340} />
           </div>
         </>
       )}

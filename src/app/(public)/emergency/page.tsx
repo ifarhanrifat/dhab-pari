@@ -10,7 +10,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 interface Contact { id: string; label: string; label_ur: string | null; phone: string; whatsapp_number: string | null; category: string }
 interface HelpReq { id: string; category: string; description: string; location_text: string | null; contact_name: string; contact_mobile: string }
 
-const EMERGENCY_CATEGORIES = ['police', 'rescue', 'fire', 'ambulance', 'hospital']
+const EMERGENCY_CATEGORIES = ['police', 'rescue', 'fire', 'ambulance', 'hospital', 'committee']
 
 // Phase 2 of the "Village OS" feature set, 2026-09-30. Reuses
 // important_contacts (Phase 1, migration 528) for the numbers grid --
