@@ -57,6 +57,13 @@ export default function AdminHelpRequestsPage() {
     const catLabel = t(`hr.cat.${r.category}`)
     const { error: appealErr } = await supabase.rpc('create_appeal', {
       p_kind: r.category === 'medical' ? 'medical' : 'other',
+      // Real correction, 2026-09-30: the Alerts & Appeals page (migration
+      // 199) already has a 3-tier severity (emergency/important/appeal)
+      // with its own ordering and badge -- this call originally left it
+      // at the 'appeal' default, so a Need Help broadcast showed as a
+      // routine appeal instead of the top-tier Emergency badge it
+      // actually is.
+      p_severity: 'emergency',
       p_body_ur: `${catLabel}: ${r.description} — رابطہ: ${r.contact_name} (${r.contact_mobile})`,
       p_body_en: `${catLabel}: ${r.description} — Contact: ${r.contact_name} (${r.contact_mobile})`,
       p_title_ur: 'مدد درکار ہے', p_title_en: 'Need Help',
