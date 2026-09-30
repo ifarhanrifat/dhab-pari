@@ -10,7 +10,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LanguageToggle } from '@/components/layout/LanguageToggle'
 import {
   LayoutDashboard, HeartHandshake, Droplets, Repeat, MessageSquare,
-  MessageSquareWarning, Droplet, LogOut, X, UserCog, ArrowLeftCircle, HandHeart, Vote, Briefcase,
+  MessageSquareWarning, Droplet, LogOut, X, UserCog, ArrowLeftCircle, HandHeart, HeartCrack, Vote, Briefcase,
   GraduationCap,
   Gift,
   BookOpen,
@@ -88,6 +88,7 @@ const menuItems: MenuEntry[] = [
       { href: '/portal/lost-found', label: 'Lost & Found', tKey: 'portal.lostFound', icon: Search },
       { href: '/portal/report-problem', label: 'Report a Problem', tKey: 'portal.reportProblem', icon: AlertTriangle },
       { href: '/portal/ask-for-help', label: 'Ask for Help', tKey: 'portal.askForHelp', icon: HandHeart },
+      { href: '/portal/death-announcement', label: 'Death Announcement', tKey: 'portal.deathAnnouncement', icon: HeartCrack },
       { href: '/portal/my-volunteering', label: 'My Volunteering', tKey: 'portal.myVolunteering', icon: HeartHandshake },
       { href: '/portal/get-involved', label: 'Get Involved', tKey: 'portal.getInvolved', icon: HandHeart },
     ],

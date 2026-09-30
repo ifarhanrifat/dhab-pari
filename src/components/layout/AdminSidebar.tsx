@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
+  HeartCrack,
   LayoutDashboard,
   Receipt,
   Award,
@@ -169,6 +170,7 @@ const menuItems: MenuEntry[] = [
   { href: '/admin/complaints', label: 'Complaints', tKey: 'nav.complaints', icon: MessageSquareWarning, badge: 'complaints' },
   { href: '/admin/civic-reports', label: 'Village Problems', tKey: 'nav.civicReports', icon: AlertTriangle },
   { href: '/admin/help-requests', label: 'Help Requests', tKey: 'nav.helpRequests', icon: HandHeart },
+  { href: '/admin/death-announcements', label: 'Death Announcements', tKey: 'nav.deathAnnouncements', icon: HeartCrack },
   {
     groupKey: 'content', label: 'Content Publishing', tKey: 'nav.groupContent', icon: Newspaper,
     children: [

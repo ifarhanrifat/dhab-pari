@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Siren, Phone, HandHeart, Droplet, MapPin } from 'lucide-react'
+import { Siren, Phone, HandHeart, Droplet, HeartCrack, MapPin } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
@@ -67,12 +67,20 @@ export default function EmergencyPage() {
           </div>
 
           {/* Blood — its own real system, not duplicated here */}
-          <Link href="/blood" className="flex items-center justify-between gap-3 bg-white border-2 border-red-200 rounded-lg p-4 mb-10 hover:border-red-400 transition-all">
+          <Link href="/blood" className="flex items-center justify-between gap-3 bg-white border-2 border-red-200 rounded-lg p-4 mb-4 hover:border-red-400 transition-all">
             <div className="flex items-center gap-3">
               <Droplet size={22} className="text-red-600" />
               <span className="font-sans text-[15px] font-semibold text-dp-on-surface">{t('em.bloodNeeded')}</span>
             </div>
             <span className="text-red-600 font-sans text-[13px] font-bold">{t('em.goToBlood')} →</span>
+          </Link>
+
+          <Link href="/death-announcements" className="flex items-center justify-between gap-3 bg-white border-2 border-dp-outline-variant rounded-lg p-4 mb-10 hover:border-dp-secondary transition-all">
+            <div className="flex items-center gap-3">
+              <HeartCrack size={22} className="text-dp-secondary" />
+              <span className="font-sans text-[15px] font-semibold text-dp-on-surface">{t('da.pageTitle')}</span>
+            </div>
+            <span className="text-dp-secondary font-sans text-[13px] font-bold">→</span>
           </Link>
 
           {/* Need Help board */}

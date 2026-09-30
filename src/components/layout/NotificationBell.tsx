@@ -70,7 +70,7 @@ export function NotificationBell() {
             // A "Need Help" submission needs to be heard, not just seen —
             // real ask, 2026-09-30. Every other notification keeps the
             // standard chime.
-            if (n.event_type === 'help_request_pending') playUrgentAlertSound()
+            if (n.event_type === 'help_request_pending' || n.event_type === 'death_announcement_pending') playUrgentAlertSound()
             else playNotificationSound()
           }
           toast.info(n.title, { description: n.body ?? undefined, action: n.link ? { label: 'View', onClick: () => router.push(n.link!) } : undefined })

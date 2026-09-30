@@ -276,26 +276,21 @@ export default async function HomePage() {
           cards rode up and covered the hero's own paragraph. Keep the overlap
           from md upward, sit normally below the hero on mobile. */}
       <div className="max-w-[1200px] mx-auto px-6 md:-mt-16 relative z-20">
-        {/* Weather + Date/Moon cards, side by side, same size ("both tabs
-            display in parallel same size" — real ask, 2026-09-30). Date
-            card used to live in the header (DateStrip); moved here so it
-            isn't squeezed into the logo row anymore. Always 2 columns,
-            even on the narrowest phones — real report, same day: sm:
-            breakpoint meant they stacked vertically on a phone, which is
-            exactly what was NOT wanted.
-            dir="ltr" makes grid-auto-placement put Date left of Weather
-            (internal order) — but a block's own left/right position is
-            governed by its CONTAINING block's direction, not its own
-            (CSS spec, not a bug in the dir fix): under Urdu the parent is
-            RTL, so this max-w-xl box itself still hugged the right edge
-            of the wider row even with dir="ltr" on it — real report,
-            confirmed on a laptop, after the first fix only reordered the
-            cards internally. mr-auto is a PHYSICAL margin (unlike
-            Tailwind's logical ms-/me- used elsewhere on this page), so it
-            pins the box to the true left edge regardless of direction.
+        {/* Weather + Date/Moon cards. Real correction, 2026-09-30: an
+            earlier version capped this row at max-w-xl so the two cards
+            sat bunched together at the left edge — "not good i want one
+            tab to display right side and 2nd to display left side".
+            Dropping the max-w cap lets the unconditional grid-cols-2 span
+            the full content width instead, so Date occupies the whole
+            left half of the row and Weather the whole right half — each
+            pinned to its own true edge, not adjacent to each other.
+            dir="ltr" keeps that left/right assignment fixed regardless of
+            page language (see mr-auto note in prior commits: a block's
+            own position follows its CONTAINING block's direction, not an
+            attribute on itself, hence forcing it here explicitly).
             Not forced into the 4-col stat grid below — a 5th/6th card
             there would break that grid's even column count. */}
-        <div className="grid grid-cols-2 gap-3 mb-4 lg:mb-6 max-w-xl mr-auto" dir="ltr">
+        <div className="grid grid-cols-2 gap-3 mb-4 lg:mb-6" dir="ltr">
           <DateCard />
           <WeatherWidget />
         </div>
