@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { PhoneCall, Search, AlertTriangle, Megaphone, Siren, ShoppingBag, BookOpen, CalendarDays, MapPin } from 'lucide-react'
+import { PhoneCall, Search, AlertTriangle, Megaphone, Siren, ShoppingBag, BookOpen, CalendarDays, MapPin, Trophy, Wheat } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 // Real gap, 2026-09-30: these public pages (Contacts, Lost & Found, Civic
@@ -19,6 +19,8 @@ const links = [
   { href: '/directory', icon: BookOpen, key: 'dir.pageTitle', tone: 'bg-teal-50 text-teal-600' },
   { href: '/events', icon: CalendarDays, key: 've.pageTitle', tone: 'bg-indigo-50 text-indigo-600' },
   { href: '/village-map', icon: MapPin, key: 'vm.pageTitle', tone: 'bg-rose-50 text-rose-600' },
+  { href: '/sports', icon: Trophy, key: 'sp.pageTitle', tone: 'bg-amber-50 text-amber-700' },
+  { href: '/agriculture', icon: Wheat, key: 'ag.pageTitle', tone: 'bg-lime-50 text-lime-700' },
 ]
 
 export function VillageServicesQuickLinks() {
