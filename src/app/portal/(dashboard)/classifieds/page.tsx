@@ -10,22 +10,45 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { PortalHelp } from '@/components/portal/PortalHelp'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { ImageUpload } from '@/components/admin/ImageUpload'
+import { ClassifiedsDisclaimer } from '@/components/public/ClassifiedsDisclaimer'
 
 interface Listing {
   id: string; category: string; title: string; description: string | null; price_pkr: number | null; photo_url: string | null
   location_text: string | null; contact_name: string; contact_mobile: string; contact_whatsapp: string | null; status: string; is_active: boolean
   moderation_status: string
+  animal_type: string | null; animal_age_stage: string | null; animal_weight_kg: number | null
+  brand: string | null; model: string | null; item_condition: string | null; specifications: string | null
+  vehicle_year: number | null; vehicle_mileage_km: number | null
+  land_size: number | null; land_size_unit: string | null
 }
 
 const CATEGORIES = ['electronics', 'vehicles', 'animals', 'furniture', 'land', 'agriculture', 'household', 'other']
-const empty = { category: 'electronics', title: '', description: '', price_pkr: '', photo_url: '', location_text: '', contact_name: '', contact_mobile: '', contact_whatsapp: '' }
+const ANIMAL_TYPES = ['cow', 'buffalo', 'goat', 'sheep', 'hen', 'other']
+const ANIMAL_AGE_STAGES = ['young', 'do_dandi', 'chaugga', 'chhakka', 'full_mouth', 'other']
+// Real ask, 2026-09-30: no free API reliably gives phone brand/model
+// autocomplete without a key or fragile scraping -- a curated brand list
+// (what's actually sold/resold in Pakistan) plus a free-text model field
+// is the honest, robust version of that same idea.
+const PHONE_BRANDS = ['Samsung', 'Apple', 'Xiaomi', 'Infinix', 'Tecno', 'Vivo', 'Oppo', 'Realme', 'itel', 'Nokia', 'Honor', 'OnePlus', 'Huawei', 'Google', 'Other']
+const LAND_UNITS = ['marla', 'kanal', 'acre']
+
+const empty = {
+  category: 'electronics', title: '', description: '', price_pkr: '', photo_url: '', location_text: '',
+  contact_name: '', contact_mobile: '', contact_whatsapp: '',
+  animal_type: 'cow', animal_age_stage: 'young', animal_weight_kg: '',
+  brand: '', model: '', item_condition: 'used', specifications: '',
+  vehicle_year: '', vehicle_mileage_km: '',
+  land_size: '', land_size_unit: 'marla',
+}
 
 function fmt(n: number) { return Number(n).toLocaleString() }
 
 // Phase 2 of the "Village OS" feature set, 2026-09-30. Same "deliberately
 // public once posted" stance as post-job/lost-found: the whole point is
 // to be found and contacted by a buyer, unlike everything else identity-
-// linked in this portal.
+// linked in this portal. Category-specific fields (migration 534) added
+// 2026-09-30 -- a cattle sale needs weight/age, a phone needs brand/
+// model/condition, a vehicle needs year/mileage, land needs marla/kanal.
 export default function PortalClassifiedsPage() {
   const { t, isUrdu } = useLocale()
   const { user, loading: userLoading } = usePortalUser()
@@ -40,7 +63,7 @@ export default function PortalClassifiedsPage() {
     if (!user) return
     const supabase = createClient()
     const { data } = await supabase.from('classified_listings').select('*').eq('portal_user_id', user.id).order('created_at', { ascending: false })
-    setListings(data ?? [])
+    setListings((data ?? []) as Listing[])
     setLoading(false)
   }
   useEffect(() => { load() }, [user])
@@ -56,6 +79,11 @@ export default function PortalClassifiedsPage() {
       category: l.category, title: l.title, description: l.description ?? '', price_pkr: l.price_pkr != null ? String(l.price_pkr) : '',
       photo_url: l.photo_url ?? '', location_text: l.location_text ?? '', contact_name: l.contact_name,
       contact_mobile: l.contact_mobile, contact_whatsapp: l.contact_whatsapp ?? '',
+      animal_type: l.animal_type ?? 'cow', animal_age_stage: l.animal_age_stage ?? 'young',
+      animal_weight_kg: l.animal_weight_kg != null ? String(l.animal_weight_kg) : '',
+      brand: l.brand ?? '', model: l.model ?? '', item_condition: l.item_condition ?? 'used', specifications: l.specifications ?? '',
+      vehicle_year: l.vehicle_year != null ? String(l.vehicle_year) : '', vehicle_mileage_km: l.vehicle_mileage_km != null ? String(l.vehicle_mileage_km) : '',
+      land_size: l.land_size != null ? String(l.land_size) : '', land_size_unit: l.land_size_unit ?? 'marla',
     })
     setShowForm(true)
   }
@@ -73,6 +101,17 @@ export default function PortalClassifiedsPage() {
       location_text: form.location_text.trim() || null, contact_name: form.contact_name.trim(),
       contact_mobile: form.contact_mobile.trim(), contact_whatsapp: form.contact_whatsapp.trim() || null,
       updated_at: new Date().toISOString(),
+      animal_type: form.category === 'animals' ? form.animal_type : null,
+      animal_age_stage: form.category === 'animals' ? form.animal_age_stage : null,
+      animal_weight_kg: form.category === 'animals' && form.animal_weight_kg.trim() ? Number(form.animal_weight_kg) : null,
+      brand: (form.category === 'electronics' || form.category === 'vehicles') ? (form.brand.trim() || null) : null,
+      model: (form.category === 'electronics' || form.category === 'vehicles') ? (form.model.trim() || null) : null,
+      item_condition: (form.category === 'electronics' || form.category === 'vehicles') ? form.item_condition : null,
+      specifications: (form.category === 'electronics' || form.category === 'vehicles') ? (form.specifications.trim() || null) : null,
+      vehicle_year: form.category === 'vehicles' && form.vehicle_year.trim() ? Number(form.vehicle_year) : null,
+      vehicle_mileage_km: form.category === 'vehicles' && form.vehicle_mileage_km.trim() ? Number(form.vehicle_mileage_km) : null,
+      land_size: form.category === 'land' && form.land_size.trim() ? Number(form.land_size) : null,
+      land_size_unit: form.category === 'land' ? form.land_size_unit : null,
     }
     const { error } = editId
       ? await supabase.from('classified_listings').update(payload).eq('id', editId)
@@ -105,6 +144,8 @@ export default function PortalClassifiedsPage() {
           <PlusCircle size={16} /> {t('cl.newListing')}
         </button>
       </div>
+
+      <div className="max-w-xl"><ClassifiedsDisclaimer /></div>
 
       {loading ? (
         <p className="font-sans text-[14px] text-dp-on-surface-variant"><LoadingDots /></p>
@@ -155,6 +196,92 @@ export default function PortalClassifiedsPage() {
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cl.itemTitle')}</label>
                 <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder={t('cl.itemTitlePlaceholder')} className="input-field" />
               </div>
+
+              {/* Category-specific fields — migration 534 */}
+              {form.category === 'animals' && (
+                <div className="bg-dp-surface-container-low rounded-lg p-3 space-y-3">
+                  <div>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cl.animalType')}</label>
+                    <select value={form.animal_type} onChange={(e) => setForm({ ...form, animal_type: e.target.value })} className="input-field">
+                      {ANIMAL_TYPES.map((a) => <option key={a} value={a}>{t(`cl.animal.${a}`)}</option>)}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cl.animalAge')}</label>
+                      <select value={form.animal_age_stage} onChange={(e) => setForm({ ...form, animal_age_stage: e.target.value })} className="input-field">
+                        {ANIMAL_AGE_STAGES.map((a) => <option key={a} value={a}>{t(`cl.ageStage.${a}`)}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cl.weightKg')}</label>
+                      <input type="number" value={form.animal_weight_kg} onChange={(e) => setForm({ ...form, animal_weight_kg: e.target.value })} className="input-field" placeholder="250" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(form.category === 'electronics' || form.category === 'vehicles') && (
+                <div className="bg-dp-surface-container-low rounded-lg p-3 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cl.brand')}</label>
+                      {form.category === 'electronics' ? (
+                        <select value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} className="input-field">
+                          <option value="">{t('cl.selectBrand')}</option>
+                          {PHONE_BRANDS.map((b) => <option key={b} value={b}>{b}</option>)}
+                        </select>
+                      ) : (
+                        <input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} placeholder={t('cl.brandPlaceholderVehicle')} className="input-field" />
+                      )}
+                    </div>
+                    <div>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cl.model')}</label>
+                      <input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder={form.category === 'electronics' ? t('cl.modelPlaceholderPhone') : t('cl.modelPlaceholderVehicle')} className="input-field" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cl.condition')}</label>
+                    <div className="flex gap-2">
+                      {(['new', 'used'] as const).map((c) => (
+                        <button key={c} type="button" onClick={() => setForm({ ...form, item_condition: c })}
+                          className={`flex-1 py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer transition-all ${form.item_condition === c ? 'bg-dp-primary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
+                          {t(`cl.condition.${c}`)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {form.category === 'vehicles' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cl.vehicleYear')}</label>
+                        <input type="number" value={form.vehicle_year} onChange={(e) => setForm({ ...form, vehicle_year: e.target.value })} className="input-field" placeholder="2018" />
+                      </div>
+                      <div>
+                        <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cl.mileageKm')}</label>
+                        <input type="number" value={form.vehicle_mileage_km} onChange={(e) => setForm({ ...form, vehicle_mileage_km: e.target.value })} className="input-field" placeholder="45000" />
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cl.specifications')}</label>
+                    <textarea value={form.specifications} onChange={(e) => setForm({ ...form, specifications: e.target.value })} rows={2} className="input-field resize-none" placeholder={form.category === 'electronics' ? t('cl.specsPlaceholderPhone') : t('cl.specsPlaceholderVehicle')} />
+                  </div>
+                </div>
+              )}
+
+              {form.category === 'land' && (
+                <div className="bg-dp-surface-container-low rounded-lg p-3">
+                  <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cl.landSize')}</label>
+                  <div className="flex gap-2">
+                    <input type="number" value={form.land_size} onChange={(e) => setForm({ ...form, land_size: e.target.value })} className="input-field" placeholder="5" />
+                    <select value={form.land_size_unit} onChange={(e) => setForm({ ...form, land_size_unit: e.target.value })} className="input-field w-auto">
+                      {LAND_UNITS.map((u) => <option key={u} value={u}>{t(`cl.unit.${u}`)}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('cl.priceOptional')}</label>
                 <input type="number" value={form.price_pkr} onChange={(e) => setForm({ ...form, price_pkr: e.target.value })} placeholder="180000" className="input-field" />
