@@ -1,12 +1,13 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, Pencil, Trash2, CalendarDays } from 'lucide-react'
+import { PlusCircle, X, Pencil, Trash2, CalendarDays, Gift } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { ImageUpload } from '@/components/admin/ImageUpload'
+import { SalamiAdminPanel } from '@/components/admin/SalamiAdminPanel'
 
 interface Ev {
   id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null
@@ -50,6 +51,7 @@ export default function AdminEventsPage() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState(empty)
+  const [salamiEventId, setSalamiEventId] = useState<string | null>(null)
   const supabase = createClient()
 
   const load = async () => {
@@ -138,6 +140,9 @@ export default function AdminEventsPage() {
               <p className="font-sans text-[12.5px] text-dp-on-surface-variant ltr-num">{new Date(e.start_datetime).toLocaleString()}{e.location_text ? ` · ${e.location_text}` : ''}</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {e.category === 'wedding' && (
+                <button onClick={() => setSalamiEventId(e.id)} title={t('sl.title')} className="p-2 text-dp-secondary hover:bg-dp-secondary/10 rounded-lg cursor-pointer"><Gift size={16} /></button>
+              )}
               <button onClick={() => edit(e)} className="p-2 text-dp-primary hover:bg-dp-primary/10 rounded-lg cursor-pointer"><Pencil size={16} /></button>
               <button onClick={() => remove(e.id)} className="p-2 text-dp-error hover:bg-dp-error/10 rounded-lg cursor-pointer"><Trash2 size={16} /></button>
             </div>
@@ -236,6 +241,7 @@ export default function AdminEventsPage() {
           </div>
         </div>
       )}
+      {salamiEventId && <SalamiAdminPanel eventId={salamiEventId} onClose={() => setSalamiEventId(null)} />}
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { CalendarDays, MapPin, User, Clock } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { SalamiSection } from '@/components/public/SalamiSection'
 
 interface Ev {
   id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null
@@ -63,6 +64,7 @@ export default function VillageEventsPage() {
         {e.organizer_name && <span className="flex items-center gap-1"><User size={12} /> {e.organizer_name}{e.organizer_contact ? ` · ${e.organizer_contact}` : ''}</span>}
         {e.category === 'sports' && e.registration_contact && <span className="flex items-center gap-1"><User size={12} /> {t('ve.registrationContact')}: {e.registration_contact}</span>}
       </div>
+      {e.category === 'wedding' && <SalamiSection eventId={e.id} />}
     </div>
   )
 
