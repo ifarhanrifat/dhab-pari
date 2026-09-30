@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudFog, Wind } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { SITE } from '@/lib/constants'
@@ -57,7 +58,7 @@ export function WeatherWidget() {
   if (failed || !weather) return null
 
   return (
-    <div className="bg-white border border-dp-outline-variant rounded-lg p-4 flex items-center gap-3">
+    <Link href="/weather" className="bg-white border border-dp-outline-variant rounded-lg p-4 flex items-center gap-3 hover:border-dp-secondary transition-all">
       {iconFor(weather.code, 32)}
       <div className="min-w-0">
         <p className="font-heading text-[20px] font-bold text-dp-on-surface leading-none ltr-num">{weather.temp}°C</p>
@@ -69,6 +70,6 @@ export function WeatherWidget() {
           <p className="font-sans text-[11px] text-amber-600 mt-0.5 flex items-center gap-1"><Wind size={11} /> {t('wx.strongWind')}</p>
         )}
       </div>
-    </div>
+    </Link>
   )
 }

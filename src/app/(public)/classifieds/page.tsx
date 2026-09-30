@@ -92,6 +92,41 @@ export default function ClassifiedsPage() {
     setPendingContact(null)
   }
 
+  const renderCard = (l: Listing) => {
+    const detail = detailLine(l)
+    return (
+      <div key={l.id} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
+        <div className="relative w-full aspect-video bg-dp-surface-container">
+          {l.photo_url ? (
+            <Image src={l.photo_url} alt="" fill sizes="360px" className="object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-dp-outline"><ShoppingBag size={32} /></div>
+          )}
+        </div>
+        <div className="p-4">
+          <span className="text-[10.5px] font-bold px-2.5 py-1 rounded-full bg-dp-secondary-container text-dp-on-secondary-container uppercase">{t(`cl.cat.${l.category}`)}</span>
+          <h3 className="font-sans text-[15.5px] font-semibold text-dp-on-surface mt-2 truncate">{l.title}</h3>
+          {detail && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1 ltr-num">{detail}</p>}
+          {l.specifications && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1 line-clamp-2">{l.specifications}</p>}
+          {l.price_pkr != null && <p className="font-heading text-[17px] font-bold text-dp-primary mt-1 ltr-num">PKR {fmt(l.price_pkr)}</p>}
+          {l.location_text && (
+            <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1.5 flex items-center gap-1"><MapPin size={12} /> {l.location_text}</p>
+          )}
+          <div className="flex gap-2 mt-3">
+            <a href={`tel:${l.contact_mobile}`} onClick={(e) => requestContact(e, `tel:${l.contact_mobile}`)} className="flex-1 flex items-center justify-center gap-1.5 border-2 border-dp-primary text-dp-primary px-3 py-2 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary hover:text-white transition-all">
+              <Phone size={13} /> {t('x.call')}
+            </a>
+            {l.contact_whatsapp && (
+              <a href={`https://wa.me/${normalizePakPhone(l.contact_whatsapp)}`} onClick={(e) => requestContact(e, `https://wa.me/${normalizePakPhone(l.contact_whatsapp!)}`)} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 bg-dp-secondary text-white px-3 py-2 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all">
+                <MessageCircle size={13} /> {t('w.whatsapp')}
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-[1100px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
       <div className="mb-8">
@@ -116,43 +151,23 @@ export default function ClassifiedsPage() {
         <p className="font-sans text-[14px] text-dp-on-surface-variant text-center py-16"><LoadingDots /></p>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-dp-on-surface-variant font-sans text-[16px]">{t('cl.noneFound')}</div>
-      ) : (
+      ) : category ? (
+        // A specific category is already chosen via the filter — a
+        // repeated section heading above a single grid would be noise.
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((l) => {
-            const detail = detailLine(l)
-            return (
-              <div key={l.id} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
-                <div className="relative w-full aspect-video bg-dp-surface-container">
-                  {l.photo_url ? (
-                    <Image src={l.photo_url} alt="" fill sizes="360px" className="object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-dp-outline"><ShoppingBag size={32} /></div>
-                  )}
-                </div>
-                <div className="p-4">
-                  <span className="text-[10.5px] font-bold px-2.5 py-1 rounded-full bg-dp-secondary-container text-dp-on-secondary-container uppercase">{t(`cl.cat.${l.category}`)}</span>
-                  <h3 className="font-sans text-[15.5px] font-semibold text-dp-on-surface mt-2 truncate">{l.title}</h3>
-                  {detail && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1 ltr-num">{detail}</p>}
-                  {l.specifications && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1 line-clamp-2">{l.specifications}</p>}
-                  {l.price_pkr != null && <p className="font-heading text-[17px] font-bold text-dp-primary mt-1 ltr-num">PKR {fmt(l.price_pkr)}</p>}
-                  {l.location_text && (
-                    <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1.5 flex items-center gap-1"><MapPin size={12} /> {l.location_text}</p>
-                  )}
-                  <div className="flex gap-2 mt-3">
-                    <a href={`tel:${l.contact_mobile}`} onClick={(e) => requestContact(e, `tel:${l.contact_mobile}`)} className="flex-1 flex items-center justify-center gap-1.5 border-2 border-dp-primary text-dp-primary px-3 py-2 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary hover:text-white transition-all">
-                      <Phone size={13} /> {t('x.call')}
-                    </a>
-                    {l.contact_whatsapp && (
-                      <a href={`https://wa.me/${normalizePakPhone(l.contact_whatsapp)}`} onClick={(e) => requestContact(e, `https://wa.me/${normalizePakPhone(l.contact_whatsapp!)}`)} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 bg-dp-secondary text-white px-3 py-2 rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all">
-                        <MessageCircle size={13} /> {t('w.whatsapp')}
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+          {filtered.map((l) => renderCard(l))}
         </div>
+      ) : (
+        // "All categories" — real ask, 2026-09-30: grouped into a
+        // section per category instead of one undifferentiated grid.
+        CATEGORIES.filter((c) => filtered.some((l) => l.category === c)).map((c) => (
+          <div key={c} className="mb-8">
+            <h2 className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-wide mb-3">{t(`cl.cat.${c}`)}</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filtered.filter((l) => l.category === c).map((l) => renderCard(l))}
+            </div>
+          </div>
+        ))
       )}
 
       {pendingContact && (

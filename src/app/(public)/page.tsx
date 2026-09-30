@@ -58,6 +58,7 @@ import { CommitteeNoteCard } from '@/components/home/CommitteeNoteCard'
 import { welfareCardContentKeys } from '@/lib/welfareCardContent'
 import { DownloadAppBanner } from '@/components/portal/DownloadAppBanner'
 import { WeatherWidget } from '@/components/home/WeatherWidget'
+import { DateCard } from '@/components/home/DateCard'
 import { VillageServicesQuickLinks } from '@/components/home/VillageServicesQuickLinks'
 
 function fmtPKR(n: number) {
@@ -275,12 +276,15 @@ export default async function HomePage() {
           cards rode up and covered the hero's own paragraph. Keep the overlap
           from md upward, sit normally below the hero on mobile. */}
       <div className="max-w-[1200px] mx-auto px-6 md:-mt-16 relative z-20">
-        {/* Phase 1 of the "Village OS" feature set, 2026-09-30 — real
-            weather for the village, not the visitor's own location. Its
-            own row, not forced into the 4-col stat grid below (a 5th
-            card would break that grid's even column count). */}
-        <div className="mb-4 lg:mb-6 max-w-sm">
+        {/* Weather + Date/Moon cards, side by side, same size ("both tabs
+            display in parallel same size" — real ask, 2026-09-30). Date
+            card used to live in the header (DateStrip); moved here so it
+            isn't squeezed into the logo row anymore. Not forced into the
+            4-col stat grid below — a 5th/6th card there would break that
+            grid's even column count. */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 lg:mb-6 max-w-xl">
           <WeatherWidget />
+          <DateCard />
         </div>
         <VillageServicesQuickLinks />
         {/* Desktop: 4 cols / Mobile: 2x2 grid */}

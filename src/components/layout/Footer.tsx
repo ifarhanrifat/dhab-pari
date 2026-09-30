@@ -25,6 +25,7 @@ export function Footer() {
     { href: '/emergency', label: t('em.pageTitle') },
     { href: '/classifieds', label: t('cl.pageTitle') },
     { href: '/directory', label: t('dir.pageTitle') },
+    { href: '/weather', label: t('wx.pageTitle') },
   ]
   return (
     <footer className="bg-dp-surface-container-highest w-full py-12 px-6 md:px-12 border-t border-dp-outline-variant" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>

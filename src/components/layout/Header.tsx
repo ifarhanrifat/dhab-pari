@@ -3,14 +3,13 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { MessageCircle, Menu, UserCircle2, Moon } from 'lucide-react'
+import { MessageCircle, Menu, UserCircle2 } from 'lucide-react'
 import { SITE } from '@/lib/constants'
 import { MobileNav } from './MobileNav'
 import { useMobileNav } from './MobileNavContext'
 import { createClient } from '@/lib/supabase/client'
 import { LanguageToggle } from '@/components/layout/LanguageToggle'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { DateStrip } from './DateStrip'
 import { OnlineUsersBadge } from './OnlineUsersBadge'
 
 const navLinks: { href: string; label: string; tKey: string }[] = [
@@ -92,18 +91,6 @@ export function Header() {
                 </p>
               </div>
             </div>
-          </div>
-
-          {/* Hijri + Punjabi date — same row as the logo (not a separate
-              strip below it), only where the desktop nav isn't already
-              filling this space. Never wraps — DateStrip scrolls instead
-              if it doesn't fit, the same escape hatch the nav below uses.
-              Moon icon on the right of it opens the moon-finder camera. */}
-          <div className="flex lg:hidden items-center gap-2 flex-1 min-w-0">
-            <DateStrip className="flex-1" />
-            <Link href="/moon-finder" aria-label="Moon finder" className="shrink-0 text-white/80 hover:text-white transition-colors">
-              <Moon size={16} />
-            </Link>
           </div>
 
           {/* Desktop Nav — every link rendered directly, no "More" trigger.

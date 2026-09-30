@@ -48,17 +48,25 @@ export default function EmergencyPage() {
         <div className="text-center py-12 text-dp-on-surface-variant"><LoadingDots /></div>
       ) : (
         <>
-          {/* Emergency numbers — big, high-contrast, one tap to call */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-10">
-            {contacts.map((c) => (
-              <a key={c.id} href={`tel:${c.phone.replace(/\s+/g, '')}`}
-                className="bg-red-600 text-white rounded-lg p-4 flex flex-col items-center text-center gap-1 hover:bg-red-700 transition-all active:scale-95">
-                <Phone size={20} />
-                <span className="font-sans text-[13px] font-bold">{isUrdu && c.label_ur ? c.label_ur : c.label}</span>
-                <span className="font-sans text-[15px] font-bold ltr-num">{c.phone}</span>
-              </a>
-            ))}
-          </div>
+          {/* Emergency numbers — big, high-contrast, one tap to call.
+              Grouped by category, real ask 2026-09-30, fixed order
+              (most urgent first) rather than however the data happens
+              to come back. */}
+          {EMERGENCY_CATEGORIES.filter((cat) => contacts.some((c) => c.category === cat)).map((cat) => (
+            <div key={cat} className="mb-8">
+              <h2 className="font-sans text-[12.5px] font-bold text-dp-on-surface-variant uppercase tracking-wide mb-3">{t(`ic.cat.${cat}`)}</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {contacts.filter((c) => c.category === cat).map((c) => (
+                  <a key={c.id} href={`tel:${c.phone.replace(/\s+/g, '')}`}
+                    className="bg-red-600 text-white rounded-lg p-4 flex flex-col items-center text-center gap-1 hover:bg-red-700 transition-all active:scale-95">
+                    <Phone size={20} />
+                    <span className="font-sans text-[13px] font-bold">{isUrdu && c.label_ur ? c.label_ur : c.label}</span>
+                    <span className="font-sans text-[15px] font-bold ltr-num">{c.phone}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          ))}
 
           {/* Blood — its own real system, not duplicated here */}
           <Link href="/blood" className="flex items-center justify-between gap-3 bg-white border-2 border-red-200 rounded-lg p-4 mb-10 hover:border-red-400 transition-all">
