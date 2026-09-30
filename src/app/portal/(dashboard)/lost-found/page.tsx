@@ -14,7 +14,7 @@ import { ImageUpload } from '@/components/admin/ImageUpload'
 interface Post {
   id: string; type: string; item_name: string; description: string | null; photo_url: string | null
   location_text: string | null; contact_name: string; contact_mobile: string; contact_whatsapp: string | null
-  status: string; is_active: boolean
+  status: string; is_active: boolean; moderation_status: string
 }
 
 const empty = { type: 'lost', item_name: '', description: '', photo_url: '', location_text: '', contact_name: '', contact_mobile: '', contact_whatsapp: '' }
@@ -114,6 +114,8 @@ export default function PortalLostFoundPage() {
                   <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full uppercase ${p.type === 'lost' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
                     {p.type === 'lost' ? t('lf.lost') : t('lf.found')}
                   </span>
+                  {p.moderation_status === 'pending' && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase ms-1.5">{t('mod.pendingReview')}</span>}
+                  {p.moderation_status === 'rejected' && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 uppercase ms-1.5">{t('mod.rejectedBadge')}</span>}
                   <p className="font-sans text-[15px] font-semibold text-dp-on-surface mt-1.5">{p.item_name}</p>
                   {p.location_text && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{p.location_text}</p>}
                   {p.status === 'resolved' && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-surface-container-low text-dp-on-surface-variant mt-1.5 inline-block">{t('lf.resolved')}</span>}

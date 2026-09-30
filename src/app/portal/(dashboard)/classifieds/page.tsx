@@ -14,6 +14,7 @@ import { ImageUpload } from '@/components/admin/ImageUpload'
 interface Listing {
   id: string; category: string; title: string; description: string | null; price_pkr: number | null; photo_url: string | null
   location_text: string | null; contact_name: string; contact_mobile: string; contact_whatsapp: string | null; status: string; is_active: boolean
+  moderation_status: string
 }
 
 const CATEGORIES = ['electronics', 'vehicles', 'animals', 'furniture', 'land', 'agriculture', 'household', 'other']
@@ -118,6 +119,8 @@ export default function PortalClassifiedsPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-secondary-container text-dp-on-secondary-container uppercase">{t(`cl.cat.${l.category}`)}</span>
+                  {l.moderation_status === 'pending' && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase ms-1.5">{t('mod.pendingReview')}</span>}
+                  {l.moderation_status === 'rejected' && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 uppercase ms-1.5">{t('mod.rejectedBadge')}</span>}
                   <p className="font-sans text-[15px] font-semibold text-dp-on-surface mt-1.5">{l.title}</p>
                   {l.price_pkr != null && <p className="font-sans text-[14px] font-bold text-dp-primary mt-0.5 ltr-num">PKR {fmt(l.price_pkr)}</p>}
                   {l.status === 'sold' && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-surface-container-low text-dp-on-surface-variant mt-1.5 inline-block">{t('cl.sold')}</span>}

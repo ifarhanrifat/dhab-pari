@@ -6,13 +6,13 @@ import { Bell, Volume2, VolumeX } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { playNotificationSound } from '@/lib/notificationSound'
+import { playNotificationSound, playUrgentAlertSound } from '@/lib/notificationSound'
 import { useNotificationSoundMuted } from '@/hooks/useNotificationSoundMuted'
 import { PushPermissionBanner } from '@/components/layout/PushPermissionBanner'
 
 interface Notification {
   id: string; title: string; body: string | null; link: string | null
-  is_read: boolean; created_at: string
+  is_read: boolean; created_at: string; event_type?: string | null
 }
 
 function timeAgo(iso: string) {
@@ -37,7 +37,7 @@ export function NotificationBell() {
   useEffect(() => { mutedRef.current = muted }, [muted])
 
   const load = async (recipientId: string) => {
-    const { data } = await supabase.from('notifications').select('id, title, body, link, is_read, created_at')
+    const { data } = await supabase.from('notifications').select('id, title, body, link, is_read, created_at, event_type')
       .eq('recipient_id', recipientId).order('created_at', { ascending: false }).limit(20)
     setItems(data ?? [])
   }
@@ -66,7 +66,13 @@ export function NotificationBell() {
         (payload) => {
           const n = payload.new as Notification
           setItems((cur) => [n, ...cur.filter((x) => x.id !== n.id)])
-          if (!mutedRef.current) playNotificationSound()
+          if (!mutedRef.current) {
+            // A "Need Help" submission needs to be heard, not just seen —
+            // real ask, 2026-09-30. Every other notification keeps the
+            // standard chime.
+            if (n.event_type === 'help_request_pending') playUrgentAlertSound()
+            else playNotificationSound()
+          }
           toast.info(n.title, { description: n.body ?? undefined, action: n.link ? { label: 'View', onClick: () => router.push(n.link!) } : undefined })
         }
       )

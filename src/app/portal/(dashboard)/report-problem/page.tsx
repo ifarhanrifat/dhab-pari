@@ -13,7 +13,7 @@ import { ImageUpload } from '@/components/admin/ImageUpload'
 
 interface Report {
   id: string; category: string; title: string; description: string | null; photo_url: string | null
-  location_text: string | null; status: string; admin_notes: string | null; created_at: string
+  location_text: string | null; status: string; admin_notes: string | null; created_at: string; moderation_status: string
 }
 
 const CATEGORIES = ['street_light', 'garbage', 'water', 'road', 'drainage', 'electricity', 'stray_animals', 'other']
@@ -96,7 +96,13 @@ export default function ReportProblemPage() {
                   {r.location_text && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{r.location_text}</p>}
                   {r.admin_notes && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1.5 bg-dp-surface-container-low rounded p-2">{r.admin_notes}</p>}
                 </div>
-                <span className={`text-[10.5px] font-bold px-2.5 py-1 rounded-full uppercase shrink-0 ${STATUS_TONE[r.status]}`}>{t(`cr.status.${r.status}`)}</span>
+                {r.moderation_status === 'pending' ? (
+                  <span className="text-[10.5px] font-bold px-2.5 py-1 rounded-full uppercase shrink-0 bg-amber-100 text-amber-700">{t('mod.pendingReview')}</span>
+                ) : r.moderation_status === 'rejected' ? (
+                  <span className="text-[10.5px] font-bold px-2.5 py-1 rounded-full uppercase shrink-0 bg-red-100 text-red-700">{t('mod.rejectedBadge')}</span>
+                ) : (
+                  <span className={`text-[10.5px] font-bold px-2.5 py-1 rounded-full uppercase shrink-0 ${STATUS_TONE[r.status]}`}>{t(`cr.status.${r.status}`)}</span>
+                )}
               </div>
             </div>
           ))}

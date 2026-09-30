@@ -13,7 +13,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface Req {
   id: string; category: string; description: string; location_text: string | null
-  contact_name: string; contact_mobile: string; status: string
+  contact_name: string; contact_mobile: string; status: string; moderation_status: string
 }
 
 const CATEGORIES = ['medical', 'transport', 'elderly', 'missing_person', 'fire', 'accident', 'other']
@@ -105,6 +105,8 @@ export default function AskForHelpPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-secondary-container text-dp-on-secondary-container uppercase">{t(`hr.cat.${r.category}`)}</span>
+                  {r.moderation_status === 'pending' && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase ms-1.5">{t('mod.pendingReview')}</span>}
+                  {r.moderation_status === 'rejected' && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 uppercase ms-1.5">{t('mod.rejectedBadge')}</span>}
                   <p className="font-sans text-[14px] text-dp-on-surface mt-1.5">{r.description}</p>
                   {r.location_text && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{r.location_text}</p>}
                   {r.status === 'resolved' && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-surface-container-low text-dp-on-surface-variant mt-1.5 inline-block">{t('hr.resolved')}</span>}

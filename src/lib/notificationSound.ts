@@ -44,3 +44,38 @@ export function playNotificationSound() {
     // thrown error inside a realtime callback is not.
   }
 }
+
+// Real ask, 2026-09-30: a "Need Help" submission should not sound like
+// every other admin notification — staff needs to recognize it without
+// looking at the screen. A repeated two-tone wail (siren-like), louder
+// and longer than the standard chime above, reusing the same lazily
+// created AudioContext.
+export function playUrgentAlertSound() {
+  const audioCtx = getContext()
+  if (!audioCtx) return
+  try {
+    if (audioCtx.state === 'suspended') audioCtx.resume()
+    const now = audioCtx.currentTime
+    const cycleMs = 0.3
+    const cycles = 4
+    for (let i = 0; i < cycles; i++) {
+      const pair = [660, 990] // lower/higher than the standard chime — reads as urgent, not routine
+      pair.forEach((freq, j) => {
+        const osc = audioCtx.createOscillator()
+        const gain = audioCtx.createGain()
+        osc.type = 'square'
+        osc.frequency.value = freq
+        const start = now + i * cycleMs * 2 + j * cycleMs
+        gain.gain.setValueAtTime(0, start)
+        gain.gain.linearRampToValueAtTime(0.22, start + 0.02)
+        gain.gain.exponentialRampToValueAtTime(0.001, start + cycleMs - 0.02)
+        osc.connect(gain)
+        gain.connect(audioCtx.destination)
+        osc.start(start)
+        osc.stop(start + cycleMs)
+      })
+    }
+  } catch {
+    // Same fine-to-miss-a-sound reasoning as playNotificationSound() above.
+  }
+}
