@@ -43,6 +43,7 @@ import {
   LineChart,
   HardHat,
   CalendarClock,
+  Phone,
   Droplet,
   UploadCloud,
   Store,
@@ -164,6 +165,7 @@ const menuItems: MenuEntry[] = [
     ],
   },
   { href: '/admin/complaints', label: 'Complaints', tKey: 'nav.complaints', icon: MessageSquareWarning, badge: 'complaints' },
+  { href: '/admin/civic-reports', label: 'Village Problems', tKey: 'nav.civicReports', icon: AlertTriangle },
   {
     groupKey: 'content', label: 'Content Publishing', tKey: 'nav.groupContent', icon: Newspaper,
     children: [
@@ -174,6 +176,7 @@ const menuItems: MenuEntry[] = [
       { href: '/admin/gallery', label: 'Gallery', tKey: 'nav.gallery', icon: Image, publish: 'gallery' },
       { href: '/admin/ticker', label: 'Ticker', tKey: 'nav.ticker', icon: TicketSlash, publish: 'ticker' },
       { href: '/admin/jobs', label: 'Job Listings', tKey: 'nav.jobs', icon: Briefcase, publish: 'jobs' },
+      { href: '/admin/important-contacts', label: 'Important Contacts', tKey: 'nav.importantContacts', icon: Phone },
     ],
   },
   { href: '/admin/suggestions', label: 'Suggestions', tKey: 'nav.suggestions', icon: MessageSquare, badge: 'suggestions' },

@@ -18,6 +18,10 @@ export function Footer() {
     { href: '/projects', label: t('site.projects') },
     { href: '/about', label: t('site.committee') },
     { href: '/news', label: t('site.news') },
+    { href: '/contacts', label: t('ic.pageTitle') },
+    { href: '/lost-found', label: t('lf.pageTitle') },
+    { href: '/civic-reports', label: t('cr.pageTitle') },
+    { href: '/notice-board', label: t('nb.pageTitle') },
   ]
   return (
     <footer className="bg-dp-surface-container-highest w-full py-12 px-6 md:px-12 border-t border-dp-outline-variant" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>

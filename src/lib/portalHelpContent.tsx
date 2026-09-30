@@ -16,7 +16,7 @@ export type PortalHelpKey =
   | 'statement' | 'water' | 'recurring' | 'complaints' | 'suggestions'
   | 'bloodDonor' | 'getInvolved' | 'institutes' | 'mentors' | 'myVolunteering'
   | 'postJob' | 'profile' | 'proposeProject' | 'submitBlog' | 'talentShowcase'
-  | 'trainingPrograms' | 'marketplace'
+  | 'trainingPrograms' | 'marketplace' | 'lostFound' | 'reportProblem'
 
 interface HelpEntry { title: string; body: ReactNode }
 
@@ -213,6 +213,26 @@ export const PORTAL_HELP_CONTENT: Record<PortalHelpKey, HelpEntry> = {
     body: (
       <>
         <P>یہاں آپ کی تمام رضاکارانہ درخواستوں اور فعالیتوں کی تفصیل ہے — کس منصوبے کے لیے درخواست دی، حالت کیا ہے، اور نیا اندراج بھی یہیں سے کر سکتے ہیں۔</P>
+      </>
+    ),
+  },
+
+  reportProblem: {
+    title: 'گاؤں کا مسئلہ کیسے رپورٹ کریں؟',
+    body: (
+      <>
+        <P>ٹوٹی سٹریٹ لائٹ، کچرا، سڑک، نکاسی آب یا بجلی کا کوئی مسئلہ نظر آئے؟ یہاں سے رپورٹ کریں — قسم، جگہ، اور اگر ممکن ہو تصویر لگائیں۔</P>
+        <P>آپ کی رپورٹ فوراً عوامی صفحے پر نظر آئے گی، اور کمیٹی جیسے جیسے اس پر کام کرے گی اس کی حالت (زیرِ جائزہ/تفویض شدہ/جاری/مکمل) یہاں اپڈیٹ ہوتی رہے گی۔</P>
+      </>
+    ),
+  },
+
+  lostFound: {
+    title: 'کھویا/پایا اعلان کیسے دیں؟',
+    body: (
+      <>
+        <P>کوئی چیز گم ہو گئی ہے یا آپ کو کچھ ملا ہے؟ یہاں سے اعلان دیں — چیز کا نام، مقام، اور اگر ممکن ہو تو تصویر لگائیں۔ یہ فوراً گاؤں کے کھویا/پایا صفحے پر سب کو نظر آئے گا۔</P>
+        <P>جب معاملہ حل ہو جائے (چیز مل جائے یا مالک کو واپس مل جائے)، اسے "حل شدہ" نشان زد کر دیں۔</P>
       </>
     ),
   },

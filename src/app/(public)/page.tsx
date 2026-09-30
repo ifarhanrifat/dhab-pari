@@ -57,6 +57,7 @@ import { CareerCards } from '@/components/home/CareerCards'
 import { CommitteeNoteCard } from '@/components/home/CommitteeNoteCard'
 import { welfareCardContentKeys } from '@/lib/welfareCardContent'
 import { DownloadAppBanner } from '@/components/portal/DownloadAppBanner'
+import { WeatherWidget } from '@/components/home/WeatherWidget'
 
 function fmtPKR(n: number) {
   return Math.round(n).toLocaleString()
@@ -273,6 +274,13 @@ export default async function HomePage() {
           cards rode up and covered the hero's own paragraph. Keep the overlap
           from md upward, sit normally below the hero on mobile. */}
       <div className="max-w-[1200px] mx-auto px-6 md:-mt-16 relative z-20">
+        {/* Phase 1 of the "Village OS" feature set, 2026-09-30 — real
+            weather for the village, not the visitor's own location. Its
+            own row, not forced into the 4-col stat grid below (a 5th
+            card would break that grid's even column count). */}
+        <div className="mb-4 lg:mb-6 max-w-sm">
+          <WeatherWidget />
+        </div>
         {/* Desktop: 4 cols / Mobile: 2x2 grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
           <div className="bg-white border border-dp-outline-variant p-4 lg:p-6 rounded-lg hover:bg-dp-surface-container-low transition-colors">

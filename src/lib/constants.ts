@@ -57,6 +57,14 @@ export const SITE = {
   domain: env('NEXT_PUBLIC_DOMAIN', 'dhabpari.com'),
   email: env('NEXT_PUBLIC_EMAIL', 'info@dhabpari.org'),
   officeHours: env('NEXT_PUBLIC_OFFICE_HOURS', 'Mon-Sat: 9AM-2PM, Fri: 9AM-12PM'),
+
+  // For the homepage weather widget (Phase 1, "Village OS" feature set,
+  // 2026-09-30) -- a fixed village location, not the visitor's own
+  // geolocation, since anyone loading the public homepage should see
+  // this village's weather without a permission prompt. Approximate
+  // Chakwal-district coordinates as the fallback.
+  lat: Number(env('NEXT_PUBLIC_VILLAGE_LAT', '32.9')),
+  lng: Number(env('NEXT_PUBLIC_VILLAGE_LNG', '72.85')),
 }
 
 // ── Which parts of the system this deployment runs ───────────────────────
