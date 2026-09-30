@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { PhoneCall, Search, AlertTriangle, Megaphone, Siren, ShoppingBag } from 'lucide-react'
+import { PhoneCall, Search, AlertTriangle, Megaphone, Siren, ShoppingBag, BookOpen } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 // Real gap, 2026-09-30: these public pages (Contacts, Lost & Found, Civic
@@ -16,6 +16,7 @@ const links = [
   { href: '/lost-found', icon: Search, key: 'lf.pageTitle', tone: 'bg-amber-50 text-amber-600' },
   { href: '/civic-reports', icon: AlertTriangle, key: 'cr.pageTitle', tone: 'bg-sky-50 text-sky-600' },
   { href: '/notice-board', icon: Megaphone, key: 'nb.pageTitle', tone: 'bg-emerald-50 text-emerald-600' },
+  { href: '/directory', icon: BookOpen, key: 'dir.pageTitle', tone: 'bg-teal-50 text-teal-600' },
 ]
 
 export function VillageServicesQuickLinks() {
@@ -29,7 +30,7 @@ export function VillageServicesQuickLinks() {
         className="flex items-center justify-center gap-2 bg-red-600 text-white rounded-lg py-3.5 font-sans text-[15px] font-bold hover:bg-red-700 transition-all mb-3">
         <Siren size={20} /> {t('em.pageTitle')}
       </Link>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {links.map((l) => (
           <Link key={l.href} href={l.href}
             className="bg-white border border-dp-outline-variant rounded-lg p-4 flex items-center gap-3 hover:border-dp-secondary transition-all">

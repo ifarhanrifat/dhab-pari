@@ -182,6 +182,7 @@ const menuItems: MenuEntry[] = [
       { href: '/admin/classifieds', label: 'Buy & Sell', tKey: 'nav.classifieds', icon: ShoppingBag },
       { href: '/admin/lost-found', label: 'Lost & Found', tKey: 'nav.lostFoundAdmin', icon: Search },
       { href: '/admin/important-contacts', label: 'Important Contacts', tKey: 'nav.importantContacts', icon: Phone },
+      { href: '/admin/directory', label: 'Directory', tKey: 'nav.directory', icon: BookOpen },
     ],
   },
   { href: '/admin/suggestions', label: 'Suggestions', tKey: 'nav.suggestions', icon: MessageSquare, badge: 'suggestions' },
