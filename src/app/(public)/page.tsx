@@ -282,14 +282,20 @@ export default async function HomePage() {
             isn't squeezed into the logo row anymore. Always 2 columns,
             even on the narrowest phones — real report, same day: sm:
             breakpoint meant they stacked vertically on a phone, which is
-            exactly what was NOT wanted. dir="ltr" pinned here on purpose:
-            "Date on the left" is a fixed visual side, not a reading-order
-            request — without this, the page's own RTL direction under
-            Urdu flips grid auto-placement and puts Date on the right
-            instead (real report, same day, seen on a laptop). Not forced
-            into the 4-col stat grid below — a 5th/6th card there would
-            break that grid's even column count. */}
-        <div className="grid grid-cols-2 gap-3 mb-4 lg:mb-6 max-w-xl" dir="ltr">
+            exactly what was NOT wanted.
+            dir="ltr" makes grid-auto-placement put Date left of Weather
+            (internal order) — but a block's own left/right position is
+            governed by its CONTAINING block's direction, not its own
+            (CSS spec, not a bug in the dir fix): under Urdu the parent is
+            RTL, so this max-w-xl box itself still hugged the right edge
+            of the wider row even with dir="ltr" on it — real report,
+            confirmed on a laptop, after the first fix only reordered the
+            cards internally. mr-auto is a PHYSICAL margin (unlike
+            Tailwind's logical ms-/me- used elsewhere on this page), so it
+            pins the box to the true left edge regardless of direction.
+            Not forced into the 4-col stat grid below — a 5th/6th card
+            there would break that grid's even column count. */}
+        <div className="grid grid-cols-2 gap-3 mb-4 lg:mb-6 max-w-xl mr-auto" dir="ltr">
           <DateCard />
           <WeatherWidget />
         </div>
