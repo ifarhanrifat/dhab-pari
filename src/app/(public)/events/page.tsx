@@ -6,12 +6,15 @@ import { CalendarDays, MapPin, User, Clock } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { SalamiSection } from '@/components/public/SalamiSection'
+import { WeddingFunctionsList } from '@/components/public/WeddingFunctionsList'
 
 interface Ev {
   id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null
   category: string; start_datetime: string; end_datetime: string | null; location_text: string | null
   organizer_name: string | null; organizer_contact: string | null; photo_url: string | null
-  groom_name: string | null; bride_name: string | null; wedding_function: string | null
+  groom_name: string | null; bride_name: string | null
+  groom_muntazim_name: string | null; groom_muntazim_contact: string | null
+  bride_muntazim_name: string | null; bride_muntazim_contact: string | null
   venue_men: string | null; venue_women: string | null
   deceased_name: string | null; gathering_type: string | null
   speaker_name: string | null
@@ -45,10 +48,17 @@ export default function VillageEventsPage() {
 
   const card = (e: Ev, faded = false) => (
     <div key={e.id} className={`bg-white border border-dp-outline-variant rounded-lg p-5 ${faded ? 'opacity-60' : ''}`}>
-      <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full uppercase ${categoryTone[e.category] ?? categoryTone.other}`}>{t(`ve.cat.${e.category}`)}{e.category === 'wedding' && e.wedding_function ? ` · ${t(`ve.fn.${e.wedding_function}`)}` : ''}{e.category === 'condolence' && e.gathering_type ? ` · ${t(`ve.gt.${e.gathering_type}`)}` : ''}</span>
+      <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full uppercase ${categoryTone[e.category] ?? categoryTone.other}`}>{t(`ve.cat.${e.category}`)}{e.category === 'condolence' && e.gathering_type ? ` · ${t(`ve.gt.${e.gathering_type}`)}` : ''}</span>
       <p className="font-heading text-[18px] font-bold text-dp-on-surface mt-2">{isUrdu && e.title_ur ? e.title_ur : e.title}</p>
       {e.category === 'wedding' && (e.groom_name || e.bride_name) && (
         <p className="font-sans text-[13.5px] text-dp-on-surface mt-1">{e.groom_name}{e.groom_name && e.bride_name ? ' & ' : ''}{e.bride_name}</p>
+      )}
+      {e.category === 'wedding' && <WeddingFunctionsList eventId={e.id} />}
+      {e.category === 'wedding' && (e.groom_muntazim_name || e.bride_muntazim_name) && (
+        <div className="mt-2 space-y-0.5 font-sans text-[12.5px] text-dp-on-surface-variant">
+          {e.groom_muntazim_name && <p><span className="font-semibold">{t('ve.muntazim')} ({t('sl.side.groom')})</span>: {e.groom_muntazim_name}{e.groom_muntazim_contact ? ` · ${e.groom_muntazim_contact}` : ''}</p>}
+          {e.bride_muntazim_name && <p><span className="font-semibold">{t('ve.muntazim')} ({t('sl.side.bride')})</span>: {e.bride_muntazim_name}{e.bride_muntazim_contact ? ` · ${e.bride_muntazim_contact}` : ''}</p>}
+        </div>
       )}
       {e.category === 'condolence' && e.deceased_name && <p className="font-sans text-[13.5px] text-dp-on-surface mt-1">{e.deceased_name}</p>}
       {e.category === 'religious' && e.speaker_name && <p className="font-sans text-[13.5px] text-dp-on-surface mt-1">{t('ve.speakerName')}: {e.speaker_name}</p>}

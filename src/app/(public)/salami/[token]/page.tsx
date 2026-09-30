@@ -10,7 +10,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
 interface AccountInfo { event_id: string; side: string; family_name: string; payment_method: string; account_number: string; account_title: string | null; bank_name: string | null }
-interface Pledge { id: string; side: string; giver_name: string; giver_mobile: string | null; amount: number; message: string | null; status: string; created_at: string; confirmed_at: string | null }
+interface Pledge { id: string; side: string; giver_name: string; giver_mobile: string | null; amount: number; message: string | null; status: string; created_at: string; confirmed_at: string | null; receipt_url: string | null }
 
 // Phase 3, 2026-09-30. Private family-side page for the Online Salami
 // board -- reached only via the manage_token link an admin shares
@@ -80,6 +80,7 @@ export default function SalamiManagePage() {
                   <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{p.giver_name}{p.giver_mobile ? ` · ${p.giver_mobile}` : ''}</p>
                   {p.message && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{p.message}</p>}
                   <p className="font-sans text-[15px] font-bold text-amber-700 mt-1 ltr-num">{Number(p.amount).toLocaleString()}</p>
+                  {p.receipt_url && <a href={p.receipt_url} target="_blank" rel="noopener noreferrer" className="font-sans text-[12px] text-dp-secondary underline mt-1 inline-block">{t('sl.viewReceipt')}</a>}
                 </div>
                 <div className="flex gap-1.5 shrink-0">
                   <button onClick={() => markReceived(p.id)} title={t('sl.markReceived')} className="p-2 bg-emerald-600 text-white rounded-lg cursor-pointer hover:bg-emerald-700"><CheckCircle2 size={15} /></button>

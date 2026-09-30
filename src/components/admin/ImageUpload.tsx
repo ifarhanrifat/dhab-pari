@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface ImageUploadProps {
-  bucket: 'images' | 'thumbnails'
+  bucket: 'images' | 'thumbnails' | 'salami_receipts'
   onUpload: (url: string) => void
   currentUrl?: string
   label?: string

@@ -13,15 +13,19 @@ interface Ev {
   id: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null
   category: string; start_datetime: string; end_datetime: string | null; location_text: string | null
   organizer_name: string | null; organizer_contact: string | null; photo_url: string | null; is_active: boolean
-  groom_name: string | null; bride_name: string | null; wedding_function: string | null
+  groom_name: string | null; bride_name: string | null
+  groom_muntazim_name: string | null; groom_muntazim_contact: string | null
+  bride_muntazim_name: string | null; bride_muntazim_contact: string | null
   venue_men: string | null; venue_women: string | null
   deceased_name: string | null; gathering_type: string | null
   speaker_name: string | null
   tournament_name: string | null; entry_fee: number | null; registration_contact: string | null
   agenda: string | null
 }
+interface WeddingFn { function_type: string; function_datetime: string; venue_men: string; venue_women: string }
 
 const CATEGORIES = ['religious', 'wedding', 'sports', 'meeting', 'education', 'condolence', 'other']
+const emptyFn: WeddingFn = { function_type: 'mehndi', function_datetime: '', venue_men: '', venue_women: '' }
 
 const toLocalInput = (iso: string | null) => {
   if (!iso) return ''
@@ -34,7 +38,9 @@ const empty = {
   title: '', title_ur: '', description: '', description_ur: '', category: 'other',
   start_datetime: '', end_datetime: '', location_text: '', organizer_name: '', organizer_contact: '',
   photo_url: '', is_active: true,
-  groom_name: '', bride_name: '', wedding_function: 'mehndi', venue_men: '', venue_women: '',
+  groom_name: '', bride_name: '',
+  groom_muntazim_name: '', groom_muntazim_contact: '', bride_muntazim_name: '', bride_muntazim_contact: '',
+  venue_men: '', venue_women: '',
   deceased_name: '', gathering_type: 'soyem',
   speaker_name: '',
   tournament_name: '', entry_fee: '', registration_contact: '',
@@ -51,6 +57,7 @@ export default function AdminEventsPage() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState(empty)
+  const [weddingFns, setWeddingFns] = useState<WeddingFn[]>([{ ...emptyFn }])
   const [salamiEventId, setSalamiEventId] = useState<string | null>(null)
   const supabase = createClient()
 
@@ -61,8 +68,24 @@ export default function AdminEventsPage() {
   useEffect(() => { load() }, [])
 
   const save = async () => {
-    if (!form.title.trim() || !form.start_datetime) { toast.error(t('ve.titleRequired')); return }
     const cat = form.category
+    // A wedding is one card built from its functions -- "3 events mehndi,
+    // barat and waleema... single card for shadi" -- so start/end are
+    // derived from the functions list instead of typed in separately,
+    // and at least one function (with its own date) is what makes the
+    // card valid at all.
+    let startIso: string, endIso: string | null
+    if (cat === 'wedding') {
+      const withDates = weddingFns.filter((f) => f.function_datetime)
+      if (!form.title.trim() || withDates.length === 0) { toast.error(t('ve.atLeastOneFunction')); return }
+      const times = withDates.map((f) => new Date(f.function_datetime).getTime())
+      startIso = new Date(Math.min(...times)).toISOString()
+      endIso = new Date(Math.max(...times)).toISOString()
+    } else {
+      if (!form.title.trim() || !form.start_datetime) { toast.error(t('ve.titleRequired')); return }
+      startIso = new Date(form.start_datetime).toISOString()
+      endIso = form.end_datetime ? new Date(form.end_datetime).toISOString() : null
+    }
     const payload = {
       title: form.title.trim(),
       title_ur: form.title_ur.trim() || null,
@@ -74,16 +97,19 @@ export default function AdminEventsPage() {
       organizer_contact: form.organizer_contact.trim() || null,
       photo_url: form.photo_url || null,
       is_active: form.is_active,
-      start_datetime: new Date(form.start_datetime).toISOString(),
-      end_datetime: form.end_datetime ? new Date(form.end_datetime).toISOString() : null,
+      start_datetime: startIso,
+      end_datetime: endIso,
       // Only the selected category's fields are kept -- switching category
       // away from "wedding" after typing a groom_name shouldn't leave a
       // stale value behind on a religious/sports event.
       groom_name: cat === 'wedding' ? (form.groom_name.trim() || null) : null,
       bride_name: cat === 'wedding' ? (form.bride_name.trim() || null) : null,
-      wedding_function: cat === 'wedding' ? form.wedding_function : null,
-      venue_men: (cat === 'wedding' || cat === 'condolence') ? (form.venue_men.trim() || null) : null,
-      venue_women: (cat === 'wedding' || cat === 'condolence') ? (form.venue_women.trim() || null) : null,
+      groom_muntazim_name: cat === 'wedding' ? (form.groom_muntazim_name.trim() || null) : null,
+      groom_muntazim_contact: cat === 'wedding' ? (form.groom_muntazim_contact.trim() || null) : null,
+      bride_muntazim_name: cat === 'wedding' ? (form.bride_muntazim_name.trim() || null) : null,
+      bride_muntazim_contact: cat === 'wedding' ? (form.bride_muntazim_contact.trim() || null) : null,
+      venue_men: cat === 'condolence' ? (form.venue_men.trim() || null) : null,
+      venue_women: cat === 'condolence' ? (form.venue_women.trim() || null) : null,
       deceased_name: cat === 'condolence' ? (form.deceased_name.trim() || null) : null,
       gathering_type: cat === 'condolence' ? form.gathering_type : null,
       speaker_name: cat === 'religious' ? (form.speaker_name.trim() || null) : null,
@@ -92,31 +118,56 @@ export default function AdminEventsPage() {
       registration_contact: cat === 'sports' ? (form.registration_contact.trim() || null) : null,
       agenda: cat === 'meeting' ? (form.agenda.trim() || null) : null,
     }
+    let eventId = editing
     if (editing) {
       const { error } = await supabase.from('village_events').update(payload).eq('id', editing)
       if (error) { toast.error(friendlyError(error)); return }
       toast.success(t('ve.updated'))
     } else {
-      const { error } = await supabase.from('village_events').insert(payload)
+      const { data, error } = await supabase.from('village_events').insert(payload).select('id').single()
       if (error) { toast.error(friendlyError(error)); return }
+      eventId = data.id
       toast.success(t('ve.added'))
     }
-    setShowForm(false); setEditing(null); setForm(empty); load()
+    // Functions are always fully replaced -- simplest correct sync for a
+    // low-volume admin form, and also clears any leftover rows if the
+    // category was switched away from "wedding".
+    if (eventId) {
+      await supabase.from('wedding_functions').delete().eq('event_id', eventId)
+      if (cat === 'wedding') {
+        const rows = weddingFns.filter((f) => f.function_datetime).map((f) => ({
+          event_id: eventId, function_type: f.function_type, function_datetime: new Date(f.function_datetime).toISOString(),
+          venue_men: f.venue_men.trim() || null, venue_women: f.venue_women.trim() || null,
+        }))
+        if (rows.length > 0) await supabase.from('wedding_functions').insert(rows)
+      }
+    }
+    setShowForm(false); setEditing(null); setForm(empty); setWeddingFns([{ ...emptyFn }]); load()
   }
 
-  const edit = (e: Ev) => {
+  const edit = async (e: Ev) => {
     setForm({
       title: e.title, title_ur: e.title_ur ?? '', description: e.description ?? '', description_ur: e.description_ur ?? '',
       category: e.category, start_datetime: toLocalInput(e.start_datetime), end_datetime: toLocalInput(e.end_datetime),
       location_text: e.location_text ?? '', organizer_name: e.organizer_name ?? '', organizer_contact: e.organizer_contact ?? '',
       photo_url: e.photo_url ?? '', is_active: e.is_active,
-      groom_name: e.groom_name ?? '', bride_name: e.bride_name ?? '', wedding_function: e.wedding_function ?? 'mehndi',
+      groom_name: e.groom_name ?? '', bride_name: e.bride_name ?? '',
+      groom_muntazim_name: e.groom_muntazim_name ?? '', groom_muntazim_contact: e.groom_muntazim_contact ?? '',
+      bride_muntazim_name: e.bride_muntazim_name ?? '', bride_muntazim_contact: e.bride_muntazim_contact ?? '',
       venue_men: e.venue_men ?? '', venue_women: e.venue_women ?? '',
       deceased_name: e.deceased_name ?? '', gathering_type: e.gathering_type ?? 'soyem',
       speaker_name: e.speaker_name ?? '',
       tournament_name: e.tournament_name ?? '', entry_fee: e.entry_fee != null ? String(e.entry_fee) : '', registration_contact: e.registration_contact ?? '',
       agenda: e.agenda ?? '',
     })
+    if (e.category === 'wedding') {
+      const { data } = await supabase.from('wedding_functions').select('*').eq('event_id', e.id).order('function_datetime')
+      setWeddingFns(data && data.length > 0
+        ? data.map((f) => ({ function_type: f.function_type, function_datetime: toLocalInput(f.function_datetime), venue_men: f.venue_men ?? '', venue_women: f.venue_women ?? '' }))
+        : [{ ...emptyFn }])
+    } else {
+      setWeddingFns([{ ...emptyFn }])
+    }
     setEditing(e.id); setShowForm(true)
   }
   const remove = async (id: string) => { if (!confirm(t('ve.confirmDelete'))) return; await supabase.from('village_events').delete().eq('id', id); toast.success(t('ve.deleted')); load() }
@@ -125,7 +176,7 @@ export default function AdminEventsPage() {
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
         <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary flex items-center gap-2"><CalendarDays size={26} /> {t('ve.pageTitle')}</h1>
-        <button onClick={() => { setForm(empty); setEditing(null); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('ve.add')}</button>
+        <button onClick={() => { setForm(empty); setWeddingFns([{ ...emptyFn }]); setEditing(null); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all"><PlusCircle size={16} /> {t('ve.add')}</button>
       </div>
       <div className="space-y-3">
         {loading && <div className="text-center py-12 text-dp-on-surface-variant"><LoadingDots /></div>}
@@ -173,15 +224,47 @@ export default function AdminEventsPage() {
                     <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.groomName')}</label><input value={form.groom_name} onChange={(e) => setForm({ ...form, groom_name: e.target.value })} className="input-field" /></div>
                     <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.brideName')}</label><input value={form.bride_name} onChange={(e) => setForm({ ...form, bride_name: e.target.value })} className="input-field" /></div>
                   </div>
-                  <div>
-                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.weddingFunction')}</label>
-                    <select value={form.wedding_function} onChange={(e) => setForm({ ...form, wedding_function: e.target.value })} className="input-field">
-                      {['mehndi', 'nikkah', 'baraat', 'valima', 'other'].map((f) => <option key={f} value={f}>{t(`ve.fn.${f}`)}</option>)}
-                    </select>
+                  {/* Real ask, 2026-09-30: a specific point-of-contact per
+                      side, distinct from the generic organizer fields
+                      every other category uses. */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <input placeholder={t('ve.groomMuntazimName')} value={form.groom_muntazim_name} onChange={(e) => setForm({ ...form, groom_muntazim_name: e.target.value })} className="input-field" />
+                    <input placeholder={t('ve.groomMuntazimContact')} value={form.groom_muntazim_contact} onChange={(e) => setForm({ ...form, groom_muntazim_contact: e.target.value })} className="input-field" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.venueMen')}</label><input value={form.venue_men} onChange={(e) => setForm({ ...form, venue_men: e.target.value })} className="input-field" /></div>
-                    <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.venueWomen')}</label><input value={form.venue_women} onChange={(e) => setForm({ ...form, venue_women: e.target.value })} className="input-field" /></div>
+                    <input placeholder={t('ve.brideMuntazimName')} value={form.bride_muntazim_name} onChange={(e) => setForm({ ...form, bride_muntazim_name: e.target.value })} className="input-field" />
+                    <input placeholder={t('ve.brideMuntazimContact')} value={form.bride_muntazim_contact} onChange={(e) => setForm({ ...form, bride_muntazim_contact: e.target.value })} className="input-field" />
+                  </div>
+
+                  {/* Real ask, 2026-09-30: "3 events mehndi, barat and
+                      waleema so there should be a way to add all these
+                      three events in single card for shadi" -- one or
+                      more function rows, each with its own date/venue,
+                      all saved under this one wedding card. */}
+                  <div className="border-t border-dp-outline-variant pt-3">
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-2">{t('ve.functions')}</label>
+                    <div className="space-y-2.5">
+                      {weddingFns.map((f, i) => (
+                        <div key={i} className="bg-white border border-dp-outline-variant rounded-lg p-2.5 space-y-2">
+                          <div className="flex gap-2">
+                            <select value={f.function_type} onChange={(e) => setWeddingFns(weddingFns.map((x, j) => j === i ? { ...x, function_type: e.target.value } : x))} className="input-field flex-1">
+                              {['mehndi', 'nikkah', 'baraat', 'valima', 'other'].map((ft) => <option key={ft} value={ft}>{t(`ve.fn.${ft}`)}</option>)}
+                            </select>
+                            <input type="datetime-local" value={f.function_datetime} onChange={(e) => setWeddingFns(weddingFns.map((x, j) => j === i ? { ...x, function_datetime: e.target.value } : x))} className="input-field flex-1" />
+                            {weddingFns.length > 1 && (
+                              <button onClick={() => setWeddingFns(weddingFns.filter((_, j) => j !== i))} className="p-2 text-dp-error cursor-pointer shrink-0"><Trash2 size={15} /></button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input placeholder={t('ve.venueMen')} value={f.venue_men} onChange={(e) => setWeddingFns(weddingFns.map((x, j) => j === i ? { ...x, venue_men: e.target.value } : x))} className="input-field" />
+                            <input placeholder={t('ve.venueWomen')} value={f.venue_women} onChange={(e) => setWeddingFns(weddingFns.map((x, j) => j === i ? { ...x, venue_women: e.target.value } : x))} className="input-field" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button onClick={() => setWeddingFns([...weddingFns, { ...emptyFn }])} className="mt-2.5 flex items-center gap-1.5 text-dp-secondary font-sans text-[12.5px] font-semibold cursor-pointer">
+                      <PlusCircle size={14} /> {t('ve.addFunction')}
+                    </button>
                   </div>
                 </div>
               )}
@@ -223,10 +306,12 @@ export default function AdminEventsPage() {
               )}
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ve.titleEn')}</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ve.titleUr')}</label><input value={form.title_ur} onChange={(e) => setForm({ ...form, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ve.startDatetime')}</label><input type="datetime-local" value={form.start_datetime} onChange={(e) => setForm({ ...form, start_datetime: e.target.value })} className="input-field" /></div>
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ve.endDatetime')}</label><input type="datetime-local" value={form.end_datetime} onChange={(e) => setForm({ ...form, end_datetime: e.target.value })} className="input-field" /></div>
-              </div>
+              {form.category !== 'wedding' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ve.startDatetime')}</label><input type="datetime-local" value={form.start_datetime} onChange={(e) => setForm({ ...form, start_datetime: e.target.value })} className="input-field" /></div>
+                  <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ve.endDatetime')}</label><input type="datetime-local" value={form.end_datetime} onChange={(e) => setForm({ ...form, end_datetime: e.target.value })} className="input-field" /></div>
+                </div>
+              )}
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('lf.location')}</label><input value={form.location_text} onChange={(e) => setForm({ ...form, location_text: e.target.value })} className="input-field" /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('ve.organizerName')}</label><input value={form.organizer_name} onChange={(e) => setForm({ ...form, organizer_name: e.target.value })} className="input-field" /></div>

@@ -9,12 +9,13 @@ import { friendlyError } from '@/lib/errors'
 import { Gift, ChevronDown, ChevronUp, Copy } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { ImageUpload } from '@/components/admin/ImageUpload'
 
 interface Account {
   id: string; side: 'groom' | 'bride'; family_name: string; payment_method: string
   account_number: string; account_title: string | null; bank_name: string | null
 }
-interface Pledge { id: string; side: string; giver_name: string; amount: number; status: string; created_at: string }
+interface Totals { side: string; status: string; total_amount: number; pledge_count: number }
 
 const methodLabel: Record<string, string> = { easypaisa: 'Easypaisa', jazzcash: 'JazzCash', bank: 'Bank Transfer' }
 
@@ -28,13 +29,14 @@ export function SalamiSection({ eventId }: { eventId: string }) {
   const { user } = usePortalUser()
   const [expanded, setExpanded] = useState(false)
   const [accounts, setAccounts] = useState<Account[]>([])
-  const [pledges, setPledges] = useState<Pledge[]>([])
+  const [totals, setTotals] = useState<Totals[]>([])
   const [loading, setLoading] = useState(true)
   const [loaded, setLoaded] = useState(false)
   const [showForm, setShowForm] = useState<'groom' | 'bride' | null>(null)
   const [amount, setAmount] = useState('')
   const [message, setMessage] = useState('')
   const [anonymous, setAnonymous] = useState(false)
+  const [receiptUrl, setReceiptUrl] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -43,15 +45,15 @@ export function SalamiSection({ eventId }: { eventId: string }) {
       .then(({ data }) => { setAccounts((data ?? []) as Account[]); setLoading(false) })
   }, [eventId])
 
-  const loadPledges = async () => {
+  const loadTotals = async () => {
     const supabase = createClient()
-    const { data } = await supabase.from('event_salami_pledges_public').select('*').eq('event_id', eventId).order('amount', { ascending: false })
-    setPledges((data ?? []) as Pledge[])
+    const { data } = await supabase.from('event_salami_totals').select('*').eq('event_id', eventId)
+    setTotals((data ?? []) as Totals[])
     setLoaded(true)
   }
 
   const toggle = () => {
-    if (!expanded && !loaded) loadPledges()
+    if (!expanded && !loaded) loadTotals()
     setExpanded(!expanded)
   }
 
@@ -62,13 +64,14 @@ export function SalamiSection({ eventId }: { eventId: string }) {
     setSaving(true)
     const supabase = createClient()
     const { error } = await supabase.rpc('announce_salami', {
-      p_event_id: eventId, p_side: showForm, p_amount: amt, p_message: message.trim() || null, p_is_anonymous: anonymous,
+      p_event_id: eventId, p_side: showForm, p_amount: amt, p_message: message.trim() || null,
+      p_is_anonymous: anonymous, p_receipt_url: receiptUrl || null,
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('sl.announced'))
-    setShowForm(null); setAmount(''); setMessage(''); setAnonymous(false)
-    loadPledges()
+    setShowForm(null); setAmount(''); setMessage(''); setAnonymous(false); setReceiptUrl('')
+    loadTotals()
   }
 
   const copyLink = (acc: Account) => {
@@ -89,11 +92,12 @@ export function SalamiSection({ eventId }: { eventId: string }) {
           <p className="bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-3 font-sans text-[12px]">{t('sl.disclaimer')}</p>
 
           {accounts.map((acc) => {
-            const sidePledges = pledges.filter((p) => p.side === acc.side)
-            const confirmed = sidePledges.filter((p) => p.status === 'received')
-            const pending = sidePledges.filter((p) => p.status === 'pending')
-            const confirmedTotal = confirmed.reduce((s, p) => s + Number(p.amount), 0)
-            const pendingTotal = pending.reduce((s, p) => s + Number(p.amount), 0)
+            const confirmedRow = totals.find((r) => r.side === acc.side && r.status === 'received')
+            const pendingRow = totals.find((r) => r.side === acc.side && r.status === 'pending')
+            const confirmedTotal = Number(confirmedRow?.total_amount ?? 0)
+            const pendingTotal = Number(pendingRow?.total_amount ?? 0)
+            const confirmedCount = confirmedRow?.pledge_count ?? 0
+            const pendingCount = pendingRow?.pledge_count ?? 0
             return (
               <div key={acc.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
                 <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
@@ -106,26 +110,22 @@ export function SalamiSection({ eventId }: { eventId: string }) {
                 <button onClick={() => copyLink(acc)} className="flex items-center gap-1.5 font-sans text-[12.5px] text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
                   <Copy size={12} /> {methodLabel[acc.payment_method]}: <span className="ltr-num font-semibold">{acc.account_number}</span>{acc.account_title ? ` (${acc.account_title})` : ''}
                 </button>
+                {/* Totals only -- no per-giver list, real correction
+                    2026-09-30: "we should not display the name list on
+                    the salami page for village website". The real name
+                    stays mandatory in the underlying data (it has to
+                    match the family's own bank/Easypaisa statement) --
+                    it's just never exposed on this public page. */}
                 <div className="grid grid-cols-2 gap-3 mt-3 font-sans text-[12.5px]">
                   <div className="bg-emerald-50 rounded-lg p-2.5">
                     <p className="text-emerald-700 font-bold">{t('sl.confirmed')}: <span className="ltr-num">{confirmedTotal.toLocaleString()}</span></p>
-                    <p className="text-emerald-600 text-[11px] mt-0.5">{confirmed.length} {t('sl.contributors')}</p>
+                    <p className="text-emerald-600 text-[11px] mt-0.5">{confirmedCount} {t('sl.contributors')}</p>
                   </div>
                   <div className="bg-amber-50 rounded-lg p-2.5">
                     <p className="text-amber-700 font-bold">{t('sl.pending')}: <span className="ltr-num">{pendingTotal.toLocaleString()}</span></p>
-                    <p className="text-amber-600 text-[11px] mt-0.5">{pending.length} {t('sl.contributors')}</p>
+                    <p className="text-amber-600 text-[11px] mt-0.5">{pendingCount} {t('sl.contributors')}</p>
                   </div>
                 </div>
-                {sidePledges.length > 0 && (
-                  <div className="mt-3 max-h-40 overflow-y-auto space-y-1.5">
-                    {sidePledges.map((p) => (
-                      <div key={p.id} className="flex items-center justify-between font-sans text-[12px] text-dp-on-surface-variant">
-                        <span>{p.giver_name}</span>
-                        <span className={`ltr-num font-semibold ${p.status === 'received' ? 'text-emerald-700' : 'text-amber-700'}`}>{Number(p.amount).toLocaleString()}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             )
           })}
@@ -142,6 +142,10 @@ export function SalamiSection({ eventId }: { eventId: string }) {
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('sl.message')}</label>
             <input value={message} onChange={(e) => setMessage(e.target.value)} className="input-field mb-3" />
             <label className="flex items-center gap-2 cursor-pointer mb-4"><input type="checkbox" checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)} className="accent-dp-secondary" /><span className="font-sans text-[13px]">{t('sl.anonymous')}</span></label>
+            <div className="mb-4">
+              <ImageUpload bucket="salami_receipts" currentUrl={receiptUrl} onUpload={setReceiptUrl} label={t('sl.receiptOptional')} />
+              <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1.5">{t('sl.receiptNote')}</p>
+            </div>
             <button onClick={announce} disabled={saving} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{saving ? t('p.saving') : t('sl.submit')}</button>
           </div>
         </div>
