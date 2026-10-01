@@ -99,14 +99,22 @@ export function PostsManager({ titleKey, newPostKey, fixedCategory, excludeCateg
   // public listing, the detail page, RSS if it's ever added — just works
   // without needing its own poetry-aware branch.
   const isPoetry = fixedCategory === 'poetry'
+  // Real ask, 2026-10-01: "remove the compulsory english from... blogs" —
+  // Blog still shows the English fields (unlike Poetry, which hides them
+  // entirely), but English is no longer required: Urdu is, and a blank
+  // English field falls back to the Urdu text, same mirroring trick
+  // Poetry already relies on for the shared NOT NULL title/content
+  // columns.
+  const isBlog = fixedCategory === 'blog'
 
   const save = async () => {
-    if (isPoetry) {
+    if (isPoetry || isBlog) {
       if (!form.title_ur.trim() || !form.content_ur.trim()) { toast.error(t('nw.titleContentRequired')); return }
     } else if (!form.title.trim() || !form.content.trim()) { toast.error(t('nw.titleContentRequired')); return }
     const payload = {
       ...form,
-      ...(isPoetry ? { title: form.title_ur, content: form.content_ur } : {}),
+      title: isPoetry ? form.title_ur : (form.title.trim() || form.title_ur),
+      content: isPoetry ? form.content_ur : (form.content.trim() || form.content_ur),
       published_at: form.is_published ? new Date().toISOString() : null,
     }
     if (editing) {
@@ -193,11 +201,11 @@ export function PostsManager({ titleKey, newPostKey, fixedCategory, excludeCateg
             <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[24px] font-bold text-dp-primary">{editing ? t('nw.editPostTitle') : t(newPostKey)}</h2><button onClick={() => setShowForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
               {!isPoetry && (
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.titleEn')}</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('a.titleEn')}{isBlog ? ` (${t('y.optional')})` : ''}</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" /></div>
               )}
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{isPoetry ? t('y.poemTitle') : t('a.titleUr')}</label><input value={form.title_ur} onChange={(e) => setForm({ ...form, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} /></div>
               {!isPoetry && (
-                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('y.contentEn')}</label><textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} rows={6} className="input-field resize-none" /></div>
+                <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('y.contentEn')}{isBlog ? ` (${t('y.optional')})` : ''}</label><textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} rows={6} className="input-field resize-none" /></div>
               )}
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{isPoetry ? t('y.poemContent') : t('y.contentUr')}</label><textarea value={form.content_ur} onChange={(e) => setForm({ ...form, content_ur: e.target.value })} rows={4} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} /></div>
               <ImageUpload bucket="images" currentUrl={form.cover_image_url} onUpload={(url) => setForm({ ...form, cover_image_url: url })} label={t('nw.coverImage')} />

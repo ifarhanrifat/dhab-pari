@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Send, MessageCircle, Megaphone, AlertTriangle, X, Radio, Inbox, Timer, Save } from 'lucide-react'
+import { Send, MessageCircle, Megaphone, AlertTriangle, X, Radio, Inbox, Timer, Save, CheckCircle2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { SITE } from '@/lib/constants'
@@ -212,7 +212,11 @@ export default function AdminNotificationsPage() {
   }, [aAudience, aCountries, supabase])
 
   const postAppeal = async () => {
-    if (!aBodyUr.trim() || !aBodyEn.trim()) { toast.error(t('al.needsBothLangs')); return }
+    // Real ask, 2026-10-01: "remove this compulsory english option from
+    // the appeal tab" — Urdu is what's actually required; English is a
+    // nice-to-have that create_appeal() now reuses the Urdu text for if
+    // left blank (body_en is NOT NULL in the schema).
+    if (!aBodyUr.trim()) { toast.error(t('al.needsBothLangs')); return }
     setPosting(true)
     const { error } = await supabase.rpc('create_appeal', {
       p_kind: aKind,
@@ -252,6 +256,20 @@ export default function AdminNotificationsPage() {
     if (error) { toast.error(friendlyError(error)); return }
     toast.success(t('al.closedBannerGone'))
     loadAppeals()
+  }
+
+  const markLogSent = async (id: string) => {
+    const { error } = await supabase.from('notifications_log').update({ status: 'sent', sent_at: new Date().toISOString() }).eq('id', id)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('al.markedSentToast'))
+    load()
+  }
+  const deleteLog = async (id: string) => {
+    if (!confirm(t('al.confirmDeleteLog'))) return
+    const { error } = await supabase.from('notifications_log').delete().eq('id', id)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('g.deleted'))
+    load()
   }
 
   const sendAlert = async () => {
@@ -608,10 +626,10 @@ export default function AdminNotificationsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-start border-collapse">
             <thead><tr className="bg-dp-surface-container-low text-dp-outline text-[14px] font-sans font-bold tracking-[0.05em]">
-              <th className="p-4">{t('w.date')}</th><th className="p-4">{t('a.type')}</th><th className="p-4">{t('al.recipient')}</th><th className="p-4">{t('g.message')}</th><th className="p-4">{t('w.status')}</th>
+              <th className="p-4">{t('w.date')}</th><th className="p-4">{t('a.type')}</th><th className="p-4">{t('al.recipient')}</th><th className="p-4">{t('g.message')}</th><th className="p-4">{t('w.status')}</th><th className="p-4"></th>
             </tr></thead>
             <tbody className="font-sans text-[16px]">
-              {loading && <tr><td colSpan={5} className="p-8 text-center text-dp-on-surface-variant"><LoadingDots /></td></tr>}
+              {loading && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant"><LoadingDots /></td></tr>}
               {!loading && logs.map((log, i) => (
                 <tr key={log.id} className={`hover:bg-dp-surface-container-low transition-colors ${i % 2 === 1 ? 'bg-dp-surface-container/30' : ''}`}>
                   <td className="p-4 border-b border-dp-outline-variant text-[14px] text-dp-on-surface-variant">{new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
@@ -621,9 +639,25 @@ export default function AdminNotificationsPage() {
                   <td className="p-4 border-b border-dp-outline-variant">
                     <span className={`px-2 py-0.5 rounded text-[12px] font-bold font-sans ${log.status === 'sent' ? 'bg-dp-secondary-container text-dp-on-secondary-container' : log.status === 'failed' ? 'bg-dp-error-container text-dp-error' : 'bg-amber-100 text-amber-800'}`}>{log.status}</span>
                   </td>
+                  {/* Real report, 2026-10-01: "why this section of appeal
+                      is showing pending and nothing can resend or remove
+                      this" — this log has always been a placeholder
+                      (al.integrationNote: "logged for future
+                      integration"), so a row never moved out of 'pending'
+                      on its own. Lets staff mark it sent by hand once
+                      they've actually sent it themselves, or delete a
+                      stale one. */}
+                  <td className="p-4 border-b border-dp-outline-variant">
+                    <div className="flex items-center gap-1.5 justify-end">
+                      {log.status === 'pending' && (
+                        <button onClick={() => markLogSent(log.id)} title={t('al.markSent')} className="p-1.5 text-emerald-700 hover:bg-emerald-50 rounded cursor-pointer"><CheckCircle2 size={15} /></button>
+                      )}
+                      <button onClick={() => deleteLog(log.id)} title={t('g.delete')} className="p-1.5 text-dp-error hover:bg-dp-error/10 rounded cursor-pointer"><Trash2 size={15} /></button>
+                    </div>
+                  </td>
                 </tr>
               ))}
-              {!loading && logs.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-dp-on-surface-variant">{t('al.noMessages')}</td></tr>}
+              {!loading && logs.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-dp-on-surface-variant">{t('al.noMessages')}</td></tr>}
             </tbody>
           </table>
         </div>
