@@ -1,16 +1,27 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Send, MessageCircle, Megaphone, AlertTriangle, X } from 'lucide-react'
+import { Send, MessageCircle, Megaphone, AlertTriangle, X, Radio, Inbox } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { SITE } from '@/lib/constants'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
+interface HelpReqPending {
+  sourceType: 'help_request'; id: string; category: string; description: string; location_text: string | null
+  contact_name: string; contact_mobile: string; created_at: string
+}
+interface DeathAnnPending {
+  sourceType: 'death_announcement'; id: string; deceased_name: string; deceased_name_ur: string | null
+  funeral_datetime: string | null; burial_location: string | null; message: string | null
+  family_contact_name: string; family_contact_mobile: string; created_at: string
+}
+type PendingItem = HelpReqPending | DeathAnnPending
+
 interface LogEntry { id: string; type: string; recipient: string | null; message: string | null; status: string; sent_at: string | null; created_at: string }
 interface HistoryRow {
-  id: string; kind: string; severity: string; body_ur: string; body_en: string
+  id: string; kind: string; severity: string; title_en: string | null; body_ur: string; body_en: string
   audience: string; is_public: boolean; status: string
   starts_at: string; expires_at: string | null; created_at: string
   closed_at: string | null; close_reason: string | null
@@ -74,6 +85,26 @@ export default function AdminNotificationsPage() {
   const [reach, setReach] = useState<number | null>(null)
   const [posting, setPosting] = useState(false)
 
+  // Real ask, 2026-10-01: "why to create separate sections?" — Help
+  // Requests and Death Announcements used to have their own bespoke
+  // approve-and-broadcast buttons on their own admin pages, duplicating
+  // what this "control room" already does for every other appeal. Both
+  // now funnel their pending queue through here instead — one place to
+  // approve, reject, and set a custom expiry before broadcasting.
+  const [pending, setPending] = useState<PendingItem[]>([])
+  const [pendingExpiry, setPendingExpiry] = useState<Record<string, string>>({})
+  const loadPending = async () => {
+    const [{ data: hr }, { data: da }] = await Promise.all([
+      supabase.from('help_requests').select('id, category, description, location_text, contact_name, contact_mobile, created_at').eq('moderation_status', 'pending'),
+      supabase.from('death_announcements').select('id, deceased_name, deceased_name_ur, funeral_datetime, burial_location, message, family_contact_name, family_contact_mobile, created_at').eq('moderation_status', 'pending'),
+    ])
+    const combined: PendingItem[] = [
+      ...((hr ?? []) as Omit<HelpReqPending, 'sourceType'>[]).map((r) => ({ ...r, sourceType: 'help_request' as const })),
+      ...((da ?? []) as Omit<DeathAnnPending, 'sourceType'>[]).map((a) => ({ ...a, sourceType: 'death_announcement' as const })),
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    setPending(combined)
+  }
+
   const load = async () => { const { data } = await supabase.from('notifications_log').select('*').order('created_at', { ascending: false }).limit(20); setLogs(data ?? []); setLoading(false) }
   const loadAppeals = async () => {
     // Brings any scheduled appeal that has come due into the green ticker, and
@@ -86,7 +117,57 @@ export default function AdminNotificationsPage() {
     const { data: h } = await supabase.rpc('appeals_history', { p_limit: 50 })
     setHistory((h ?? []) as HistoryRow[])
   }
-  useEffect(() => { load(); loadAppeals() }, [])
+  useEffect(() => { load(); loadAppeals(); loadPending() }, [])
+
+  const approvePending = async (item: PendingItem) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: me } = await supabase.from('admin_users').select('id').eq('auth_user_id', user!.id).single()
+    const table = item.sourceType === 'help_request' ? 'help_requests' : 'death_announcements'
+    const { error: updateErr } = await supabase.from(table).update({
+      moderation_status: 'approved', is_active: true, reviewed_by: me?.id, reviewed_at: new Date().toISOString(),
+    }).eq('id', item.id)
+    if (updateErr) { toast.error(friendlyError(updateErr)); return }
+
+    let bodyUr: string, bodyEn: string, titleUr: string, titleEn: string, contactName: string, contactMobile: string
+    if (item.sourceType === 'help_request') {
+      const catLabel = t(`hr.cat.${item.category}`)
+      bodyUr = `${catLabel}: ${item.description} — رابطہ: ${item.contact_name} (${item.contact_mobile})`
+      bodyEn = `${catLabel}: ${item.description} — Contact: ${item.contact_name} (${item.contact_mobile})`
+      titleUr = 'مدد درکار ہے'; titleEn = 'Need Help'
+      contactName = item.contact_name; contactMobile = item.contact_mobile
+    } else {
+      const nameLine = item.deceased_name_ur ? `${item.deceased_name} (${item.deceased_name_ur})` : item.deceased_name
+      const funeralLine = item.funeral_datetime ? ` — نماز جنازہ: ${new Date(item.funeral_datetime).toLocaleString()}` : ''
+      const funeralLineEn = item.funeral_datetime ? ` — Funeral: ${new Date(item.funeral_datetime).toLocaleString()}` : ''
+      bodyUr = `انا للہ و انا الیہ راجعون۔ ${nameLine} کا انتقال ہو گیا۔${funeralLine} رابطہ: ${item.family_contact_name} (${item.family_contact_mobile})`
+      bodyEn = `Inna lillahi wa inna ilayhi raji'un. ${nameLine} has passed away.${funeralLineEn} Contact: ${item.family_contact_name} (${item.family_contact_mobile})`
+      titleUr = 'وفات کی اطلاع'; titleEn = 'Death Announcement'
+      contactName = item.family_contact_name; contactMobile = item.family_contact_mobile
+    }
+
+    const customExpiry = pendingExpiry[item.id]
+    const { error: appealErr } = await supabase.rpc('create_appeal', {
+      p_kind: 'other', p_severity: 'emergency', p_alert_type: item.sourceType,
+      p_body_ur: bodyUr, p_body_en: bodyEn, p_title_ur: titleUr, p_title_en: titleEn,
+      p_contact_name: contactName, p_contact_number: contactMobile,
+      p_expires_at: customExpiry ? new Date(customExpiry).toISOString() : null,
+    })
+    if (appealErr) toast.error(t('mod.approvedNoBroadcast') + ': ' + friendlyError(appealErr))
+    else toast.success(t('mod.approvedAndBroadcast'))
+    loadPending(); loadAppeals()
+  }
+
+  const rejectPending = async (item: PendingItem) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: me } = await supabase.from('admin_users').select('id').eq('auth_user_id', user!.id).single()
+    const table = item.sourceType === 'help_request' ? 'help_requests' : 'death_announcements'
+    const { error } = await supabase.from(table).update({
+      moderation_status: 'rejected', reviewed_by: me?.id, reviewed_at: new Date().toISOString(),
+    }).eq('id', item.id)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('mod.rejected'))
+    loadPending()
+  }
 
   // "This will reach 34 people" before sending is the difference between a
   // considered broadcast and a guess.
@@ -154,6 +235,55 @@ export default function AdminNotificationsPage() {
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <h1 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary mb-8">{t('al.title')}</h1>
+
+      {/* Real ask, 2026-10-01: one control room, not scattered approve
+          buttons on every feature's own page. Help Requests and Death
+          Announcements both land here pending, get approved/rejected
+          here (with an optional custom expiry right at approval time),
+          and broadcast through the exact same create_appeal() as
+          everything else. */}
+      {pending.length > 0 && (
+        <div className="bg-white border-2 border-amber-400 rounded-lg overflow-hidden mb-8">
+          <div className="px-6 py-4 border-b border-dp-outline-variant bg-amber-50 flex items-center gap-2.5">
+            <Inbox size={20} className="text-amber-700" />
+            <h2 className="font-sans text-[18px] font-semibold text-amber-800">{t('al.pendingApprovalTitle')} ({pending.length})</h2>
+          </div>
+          <div className="divide-y divide-dp-outline-variant">
+            {pending.map((item) => (
+              <div key={`${item.sourceType}-${item.id}`} className="p-4">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <span className="text-[10.5px] font-bold uppercase px-2 py-0.5 rounded-full bg-dp-surface-container-high text-dp-on-surface-variant font-sans">
+                      {item.sourceType === 'help_request' ? t('em.needHelpTitle') : t('da.pageTitle')}
+                    </span>
+                    {item.sourceType === 'help_request' ? (
+                      <>
+                        <p className="font-sans text-[14px] text-dp-on-surface mt-1.5">{t(`hr.cat.${item.category}`)}: {item.description}</p>
+                        <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{item.contact_name} · {item.contact_mobile}{item.location_text ? ` · ${item.location_text}` : ''}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-sans text-[14px] font-bold text-dp-on-surface mt-1.5">{item.deceased_name}{item.deceased_name_ur ? ` (${item.deceased_name_ur})` : ''}</p>
+                        {item.funeral_datetime && <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('da.funeralAt')}: {new Date(item.funeral_datetime).toLocaleString()}</p>}
+                        {item.message && <p className="font-sans text-[13px] text-dp-on-surface mt-1">{item.message}</p>}
+                        <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-1">{item.family_contact_name} · {item.family_contact_mobile}</p>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-end gap-2 shrink-0">
+                    <div>
+                      <label className="block font-sans text-[11px] text-dp-on-surface-variant mb-1">{t('al.customExpiryOptional')}</label>
+                      <input type="datetime-local" value={pendingExpiry[item.id] ?? ''} onChange={(e) => setPendingExpiry({ ...pendingExpiry, [item.id]: e.target.value })} className="input-field text-[12.5px] py-1.5" />
+                    </div>
+                    <button onClick={() => approvePending(item)} title={t('mod.approveAndBroadcast')} className="p-2 bg-emerald-600 text-white rounded-lg cursor-pointer hover:bg-emerald-700"><Radio size={15} /></button>
+                    <button onClick={() => rejectPending(item)} title={t('mod.reject')} className="p-2 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg cursor-pointer hover:bg-dp-surface-container-low"><X size={15} /></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Appeals replace what "Send Portal Emergency Alert" was reaching for.
           That block broadcast one untargeted bell notification that scrolled
@@ -327,6 +457,12 @@ export default function AdminNotificationsPage() {
                         {t(AUDIENCE_KEYS.find(([v]) => v === h.audience)?.[1] ?? h.audience, h.audience)}
                       </span>
                     </div>
+                    {/* Real ask, 2026-10-01: "complete list of already
+                        aired... everything" — title_en is what actually
+                        tells a Help Request apart from a Death
+                        Announcement apart from a routine appeal here,
+                        since most of them share kind='other'. */}
+                    {h.title_en && <p className="font-sans text-[13px] font-bold text-dp-on-surface">{h.title_en}</p>}
                     <p dir="rtl" className="font-urdu text-[13.5px] text-dp-on-surface leading-relaxed">{h.body_ur}</p>
                     <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">
                       {scheduled
