@@ -54,20 +54,24 @@ const SEVERITY_LABEL: Record<string, string> = {
 }
 
 /**
- * The belt across the top of the site.
+ * Two belts stacked across the top of the site, real ask 2026-10-01:
  *
- * Normally it is the green announcement ticker. While an appeal is live it
- * becomes the appeal instead — red, white text, same scroll — because that is
- * the only way an emergency actually reads as one. The earlier attempt put the
- * appeal *into* the green ticker as one more message, where it became the
- * eighth item in a two-minute loop in the same colour as "free medical camp
- * every Tuesday", and was correct in the database while being invisible on the
- * page.
+ * 1. The calm belt — ordinary news, plus (549) a new Chanda campaign
+ *    launching, plus donation thank-yous. Always runs, on every one of
+ *    the three surfaces (public/portal/admin) — it used to be public-
+ *    only.
+ * 2. The alert belt underneath it — appeals only (Help Requests, Death
+ *    Announcements, blood, weather, routine appeals), red for
+ *    severity='emergency', yellow-with-black-text for everything else.
+ *    This used to REPLACE the calm belt entirely while live; now it
+ *    renders alongside it instead, since a calm "free medical camp
+ *    Tuesday" message and "blood needed" alert are both worth seeing at
+ *    once, not one hiding the other.
  *
- * Both sources are re-read every two minutes, so an appeal posted while
- * someone has the page open reaches them without a reload.
+ * Both sources are re-read every two minutes, so an appeal or a news item
+ * posted while someone has the page open reaches them without a reload.
  */
-export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'portal' }) {
+export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'portal' | 'admin' }) {
   const { t } = useLocale()
   const [messages, setMessages] = useState<TickerMessage[]>([])
   const [appeals, setAppeals] = useState<Appeal[]>([])
@@ -77,19 +81,18 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
     const { data: ap } = await supabase.rpc(source === 'portal' ? 'my_appeals' : 'public_appeals')
     setAppeals((ap ?? []) as Appeal[])
 
-    // The portal has no news ticker of its own — only appeals belong there.
-    if (source === 'public') {
-      // Sweeps expired thank-yous off the belt before reading it. Without this
-      // a donation thank-you would sit there for ever and the belt would fill
-      // with old gratitude until nobody read any of it.
-      await supabase.rpc('expire_ticker_messages')
-      const { data } = await supabase
-        .from('news_ticker')
-        .select('id, message, message_ur')
-        .eq('is_active', true)
-        .order('display_order')
-      if (data) setMessages(data)
-    }
+    // Real ask, 2026-10-01: the calm belt now runs on every surface, not
+    // just the public site — portal and admin get it too. Appeal-sourced
+    // rows (is_appeal_mirror) are excluded here since they now have their
+    // own belt below this one instead (see migration 549).
+    await supabase.rpc('expire_ticker_messages')
+    const { data } = await supabase
+      .from('news_ticker')
+      .select('id, message, message_ur')
+      .eq('is_active', true)
+      .eq('is_appeal_mirror', false)
+      .order('display_order')
+    if (data) setMessages(data)
   }, [source])
 
   useEffect(() => {
@@ -98,9 +101,6 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
     return () => clearInterval(id)
   }, [load])
 
-  // Both tracks' content are computed unconditionally, and both hooks
-  // called unconditionally, before either early return below — which of
-  // the two actually renders is a JSX-level branch, not a hooks-order one.
   const label = (a: Appeal) => SEVERITY_LABEL[a.severity] ?? SEVERITY_LABEL.appeal
   const track = appeals
     .map((a) => `${label(a)}  ●  ${a.body_ur}  ●  ${a.body_en}`)
@@ -114,48 +114,54 @@ export function AnnouncementBar({ source = 'public' }: { source?: 'public' | 'po
   const appealTicker = useTickerDuration(track)
   const messageTicker = useTickerDuration(tickerText)
 
-  // ── Appeal takes the belt ──────────────────────────────────────────────
-  if (appeals.length > 0) {
-    const first = appeals[0]
-    const tel = (first.contact_number ?? '').replace(/[^0-9]/g, '').replace(/^0/, '92')
+  if (messages.length === 0 && appeals.length === 0) return null
 
-    return (
-      <div className="bg-dp-error text-white h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[60] print:hidden">
-        {/* Static badge outside the scroll, so the warning never scrolls away
-            even mid-message. */}
-        <span className="shrink-0 flex items-center gap-1.5 h-full px-3 bg-black/20 font-sans text-[12px] font-bold tracking-[0.06em]">
-          <AlertTriangle size={14} className="shrink-0" />
-          <span className="hidden sm:inline">{t('y.urgent')}</span>
-        </span>
-
-        <div className="flex-1 min-w-0 overflow-hidden">
-          <div ref={appealTicker.ref} className="ticker-track text-[13px] font-sans font-bold tracking-[0.03em]" style={{ animationDuration: `${appealTicker.duration}s` }}>
-            <span className="px-4">{track}</span>
-            <span className="px-4">{SEPARATOR}{track}</span>
-          </div>
-        </div>
-
-        {first.contact_number && (
-          <a
-            href={`tel:${tel}`}
-            className="shrink-0 hidden md:flex items-center h-full px-3 bg-black/20 hover:bg-black/30 transition-colors font-sans text-[12.5px] font-bold"
-          >
-            {first.contact_number}
-          </a>
-        )}
-      </div>
-    )
-  }
-
-  // ── Otherwise the ordinary announcements ───────────────────────────────
-  if (messages.length === 0) return null
+  // Real ask, 2026-10-01: "for emergency that new belt will display in
+  // red background, while for the other ilans... yellow with Black
+  // fonts" — one colour for the whole belt, picked by the single most
+  // urgent thing currently live in it, not per-message inside one
+  // continuous scroll.
+  const hasEmergency = appeals.some((a) => a.severity === 'emergency')
+  const alertBeltClass = hasEmergency ? 'bg-dp-error text-white' : 'bg-amber-400 text-black'
+  const badgeClass = hasEmergency ? 'bg-black/20' : 'bg-black/10'
 
   return (
-    <div className="bg-dp-primary-container text-white text-[13px] font-sans font-semibold tracking-[0.05em] leading-[20px] h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[60] border-b border-dp-on-primary-container/20">
-      <div ref={messageTicker.ref} className="ticker-track" style={{ animationDuration: `${messageTicker.duration}s` }}>
-        <span className="px-4">{tickerText}</span>
-        <span className="px-4">{SEPARATOR}{tickerText}</span>
-      </div>
-    </div>
+    <>
+      {messages.length > 0 && (
+        <div className="bg-dp-primary-container text-white text-[13px] font-sans font-semibold tracking-[0.05em] leading-[20px] h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[60] border-b border-dp-on-primary-container/20">
+          <div ref={messageTicker.ref} className="ticker-track" style={{ animationDuration: `${messageTicker.duration}s` }}>
+            <span className="px-4">{tickerText}</span>
+            <span className="px-4">{SEPARATOR}{tickerText}</span>
+          </div>
+        </div>
+      )}
+
+      {appeals.length > 0 && (
+        <div className={`${alertBeltClass} h-9 flex items-center overflow-hidden whitespace-nowrap relative z-[59] print:hidden`}>
+          {/* Static badge outside the scroll, so the warning never scrolls away
+              even mid-message. */}
+          <span className={`shrink-0 flex items-center gap-1.5 h-full px-3 ${badgeClass} font-sans text-[12px] font-bold tracking-[0.06em]`}>
+            <AlertTriangle size={14} className="shrink-0" />
+            <span className="hidden sm:inline">{t('y.urgent')}</span>
+          </span>
+
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <div ref={appealTicker.ref} className="ticker-track text-[13px] font-sans font-bold tracking-[0.03em]" style={{ animationDuration: `${appealTicker.duration}s` }}>
+              <span className="px-4">{track}</span>
+              <span className="px-4">{SEPARATOR}{track}</span>
+            </div>
+          </div>
+
+          {appeals[0].contact_number && (
+            <a
+              href={`tel:${(appeals[0].contact_number ?? '').replace(/[^0-9]/g, '').replace(/^0/, '92')}`}
+              className={`shrink-0 hidden md:flex items-center h-full px-3 ${badgeClass} hover:brightness-95 transition-colors font-sans text-[12.5px] font-bold`}
+            >
+              {appeals[0].contact_number}
+            </a>
+          )}
+        </div>
+      )}
+    </>
   )
 }
