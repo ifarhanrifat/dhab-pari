@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { PhoneCall, Search, AlertTriangle, Megaphone, Siren, ShoppingBag, BookOpen, CalendarDays, MapPin, Trophy, Wheat } from 'lucide-react'
+import { PhoneCall, Search, AlertTriangle, Megaphone, Siren, ShoppingBag, BookOpen, CalendarDays, MapPin, Trophy, Wheat, Landmark } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 // Real gap, 2026-09-30: these public pages (Contacts, Lost & Found, Civic
@@ -13,6 +13,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 const links = [
   { href: '/contacts', icon: PhoneCall, key: 'ic.pageTitle', tone: 'bg-red-50 text-red-600' },
   { href: '/classifieds', icon: ShoppingBag, key: 'cl.pageTitle', tone: 'bg-violet-50 text-violet-600' },
+  { href: '/chanda', icon: Landmark, key: 'ch.pageTitle', tone: 'bg-emerald-50 text-emerald-700' },
   { href: '/lost-found', icon: Search, key: 'lf.pageTitle', tone: 'bg-amber-50 text-amber-600' },
   { href: '/civic-reports', icon: AlertTriangle, key: 'cr.pageTitle', tone: 'bg-sky-50 text-sky-600' },
   { href: '/notice-board', icon: Megaphone, key: 'nb.pageTitle', tone: 'bg-emerald-50 text-emerald-600' },
