@@ -1,0 +1,19 @@
+-- Migration 556: close a real hole in portal_signup_verifications -- 2026-10-01.
+--
+-- Supabase's security linter flagged this: migration 516 created the table
+-- but never enabled RLS. Every table in the public schema is exposed over
+-- PostgREST by default, so with RLS off, anyone holding the public anon key
+-- (embedded in every page's JS bundle, by design) could call the REST API
+-- directly and read, overwrite, or delete any pending signup's verification
+-- row -- e.g. GET .../portal_signup_verifications?email=eq.someone@x.com
+-- would hand back their live code, completely bypassing the email-ownership
+-- check this table exists to enforce. It could also reset the `attempts`
+-- counter to defeat the 8-try cap in confirm-code/route.ts and brute-force
+-- the 6-digit code within its 15-minute window.
+--
+-- Only /api/portal/signup/request-code and /confirm-code ever touch this
+-- table, and both use createAdminClient() (the service_role key, which
+-- always bypasses RLS) -- so enabling RLS with no policies at all is a
+-- pure lockdown: it blocks every anon/authenticated path while changing
+-- nothing for the app's own real access.
+ALTER TABLE portal_signup_verifications ENABLE ROW LEVEL SECURITY;

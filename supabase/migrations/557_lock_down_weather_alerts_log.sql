@@ -1,0 +1,13 @@
+-- Migration 557: close the same RLS gap on weather_alerts_log -- 2026-10-01.
+--
+-- Found while fixing 556: the table had the same oversight (RLS never
+-- enabled). Lower stakes than the signup-verification table -- it only
+-- holds a per-day dedupe marker (date, rain %, wind kph), nothing
+-- personal -- but it was still directly readable/writable by anyone with
+-- the anon key via PostgREST, and a write access lets someone pre-insert
+-- today's row to make the twice-daily cron's `ON CONFLICT DO NOTHING`
+-- silently skip, permanently suppressing that day's real severe-weather
+-- alert. broadcast_weather_alert() (544) is already revoked from
+-- anon/authenticated and reachable only via the trusted service-role
+-- client, so this is a pure lockdown with no change to real access.
+ALTER TABLE weather_alerts_log ENABLE ROW LEVEL SECURITY;
