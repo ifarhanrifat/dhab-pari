@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Send, MessageCircle, Megaphone, AlertTriangle, X, Radio, Inbox } from 'lucide-react'
+import { Send, MessageCircle, Megaphone, AlertTriangle, X, Radio, Inbox, Timer, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { SITE } from '@/lib/constants'
@@ -18,6 +18,8 @@ interface DeathAnnPending {
   family_contact_name: string; family_contact_mobile: string; created_at: string
 }
 type PendingItem = HelpReqPending | DeathAnnPending
+
+interface ExpirySetting { alert_type: string; label: string; label_ur: string | null; default_hours: number }
 
 interface LogEntry { id: string; type: string; recipient: string | null; message: string | null; status: string; sent_at: string | null; created_at: string }
 interface HistoryRow {
@@ -117,7 +119,38 @@ export default function AdminNotificationsPage() {
     const { data: h } = await supabase.rpc('appeals_history', { p_limit: 50 })
     setHistory((h ?? []) as HistoryRow[])
   }
-  useEffect(() => { load(); loadAppeals(); loadPending() }, [])
+  // Real ask, 2026-10-01: "where are the default expiry setting" — folded
+  // in here rather than its own sidebar page, same "one control room"
+  // reasoning as the Pending Approval queue above.
+  const [expirySettings, setExpirySettings] = useState<ExpirySetting[]>([])
+  const [expiryHours, setExpiryHours] = useState<Record<string, string>>({})
+  const [showExpirySettings, setShowExpirySettings] = useState(false)
+  const [savingExpiry, setSavingExpiry] = useState<string | null>(null)
+  const loadExpirySettings = async () => {
+    const { data } = await supabase.from('alert_expiry_settings').select('*').order('default_hours')
+    setExpirySettings((data ?? []) as ExpirySetting[])
+    setExpiryHours(Object.fromEntries((data ?? []).map((s: ExpirySetting) => [s.alert_type, String(s.default_hours)])))
+  }
+  const saveExpirySetting = async (alertType: string) => {
+    const h = parseInt(expiryHours[alertType], 10)
+    if (!h || h <= 0) { toast.error(t('aes.invalidHours')); return }
+    setSavingExpiry(alertType)
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: me } = await supabase.from('admin_users').select('id').eq('auth_user_id', user!.id).single()
+    const { error } = await supabase.from('alert_expiry_settings')
+      .update({ default_hours: h, updated_at: new Date().toISOString(), updated_by: me?.id })
+      .eq('alert_type', alertType)
+    setSavingExpiry(null)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('aes.saved'))
+    loadExpirySettings()
+  }
+  const describeHours = (h: number) => {
+    if (h % 24 === 0) { const d = h / 24; return d === 1 ? t('aes.oneDay') : `${d} ${t('aes.days')}` }
+    return `${h} ${t('aes.hours')}`
+  }
+
+  useEffect(() => { load(); loadAppeals(); loadPending(); loadExpirySettings() }, [])
 
   const approvePending = async (item: PendingItem) => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -284,6 +317,42 @@ export default function AdminNotificationsPage() {
           </div>
         </div>
       )}
+
+      {/* Real ask, 2026-10-01: "where are the default expiry setting for
+          the alerts and appeals?" — was its own sidebar page
+          (/admin/alert-settings), moved in here for the same reason the
+          Pending Approval queue above is here instead of scattered. */}
+      <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden mb-8">
+        <button onClick={() => setShowExpirySettings((v) => !v)}
+          className="w-full px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-dp-surface-container-low transition-colors">
+          <span className="flex items-center gap-2.5"><Timer size={18} className="text-dp-secondary" /><h3 className="font-sans text-[18px] font-semibold text-dp-primary">{t('aes.title')}</h3></span>
+          <span className="font-sans text-[13px] text-dp-secondary font-semibold">{showExpirySettings ? t('al.hide') : t('al.show')}</span>
+        </button>
+        {showExpirySettings && (
+          <div className="border-t border-dp-outline-variant p-6">
+            <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">{t('aes.intro')}</p>
+            <div className="space-y-3">
+              {expirySettings.map((s) => (
+                <div key={s.alert_type} className="bg-dp-surface-container-low rounded-lg p-3.5 flex items-center justify-between gap-4 flex-wrap">
+                  <div className="min-w-0">
+                    <p className="font-sans text-[13.5px] font-semibold text-dp-on-surface">{isUrdu && s.label_ur ? s.label_ur : s.label}</p>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-0.5">{t('aes.currently')}: {describeHours(s.default_hours)}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <input type="number" min={1} value={expiryHours[s.alert_type] ?? ''} onChange={(e) => setExpiryHours({ ...expiryHours, [s.alert_type]: e.target.value })}
+                      className="input-field w-20 text-center py-1.5" />
+                    <span className="font-sans text-[12px] text-dp-on-surface-variant">{t('aes.hoursUnit')}</span>
+                    <button onClick={() => saveExpirySetting(s.alert_type)} disabled={savingExpiry === s.alert_type}
+                      className="p-2 bg-dp-secondary text-white rounded-lg cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+                      <Save size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Appeals replace what "Send Portal Emergency Alert" was reaching for.
           That block broadcast one untargeted bell notification that scrolled

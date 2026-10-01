@@ -7,7 +7,6 @@ import {
   HeartCrack,
   Wheat,
   Landmark,
-  Timer,
   LayoutDashboard,
   Receipt,
   Award,
@@ -178,7 +177,6 @@ const menuItems: MenuEntry[] = [
   { href: '/admin/village-map', label: 'Village Map', tKey: 'nav.villageMap', icon: MapPin },
   { href: '/admin/crop-prices', label: 'Crop Prices', tKey: 'nav.cropPrices', icon: Wheat },
   { href: '/admin/chanda', label: 'Chanda', tKey: 'nav.chanda', icon: Landmark },
-  { href: '/admin/alert-settings', label: 'Alert Expiry Settings', tKey: 'nav.alertSettings', icon: Timer },
   {
     groupKey: 'content', label: 'Content Publishing', tKey: 'nav.groupContent', icon: Newspaper,
     children: [
