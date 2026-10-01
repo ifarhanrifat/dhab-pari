@@ -3,12 +3,28 @@
 // Deliberately conservative: this app shows people money — bills, balances,
 // donation totals. Serving a stale balance from cache would be worse than
 // showing nothing, so NOTHING from Supabase, /api, or any authenticated page
-// is ever cached. This only makes the app *shell* load instantly and shows a
-// proper offline page instead of the browser's dinosaur.
+// (/admin, /portal) is ever cached, online or offline — that line does not
+// move below.
 //
-// Bump CACHE_VERSION to force every client to drop the old cache.
-const CACHE_VERSION = 'dp-shell-v2'
+// Within that line, public read-mostly pages (home, projects, directory,
+// news, etc.) now get real offline support too: every successful visit is
+// saved, so a page someone has already opened keeps working with no signal
+// at all, instead of only ever showing the offline placeholder. The figures
+// on those pages already tolerate some staleness on a live connection too —
+// the Server Components behind them run with `revalidate = 300` — so a
+// cached copy used only when the network is slow or absent is the same
+// staleness this app already accepts, not a new risk.
+//
+// Bump CACHE_VERSION / PAGES_CACHE to force every client to drop the old cache.
+const CACHE_VERSION = 'dp-shell-v3'
+const PAGES_CACHE = 'dp-pages-v1'
+const CURRENT_CACHES = [CACHE_VERSION, PAGES_CACHE]
 const OFFLINE_URL = '/offline.html'
+// A slow village connection should still feel instant: if the network
+// hasn't answered within this window, hand back the last good copy right
+// away rather than making someone stare at a spinner. The network request
+// keeps running in the background and refreshes the cache for next time.
+const NAV_TIMEOUT_MS = 3500
 
 const PRECACHE = [
   OFFLINE_URL,
@@ -29,7 +45,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => !CURRENT_CACHES.includes(k)).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   )
 })
@@ -69,11 +85,37 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/admin')) return
   if (url.pathname.startsWith('/portal')) return
 
-  // Navigations: always go to the network so the page is fresh; fall back to
-  // the offline page only when the device genuinely has no connection.
+  // Navigations: race the network against a short timeout. A fast/normal
+  // connection always wins the race, so nothing changes for most visits —
+  // the page is as fresh as it always was. A slow or absent connection
+  // instead gets the last copy of this exact page that was ever saved, so
+  // a flaky village signal shows something real instantly instead of a
+  // spinner, and no signal at all still shows the real page, not a
+  // placeholder, for anywhere already visited once.
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => caches.match(OFFLINE_URL).then((r) => r ?? Response.error()))
+      (async () => {
+        const cached = await caches.match(request)
+
+        const networkFetch = fetch(request).then((response) => {
+          if (response.ok && response.type === 'basic') {
+            const copy = response.clone()
+            caches.open(PAGES_CACHE).then((cache) => cache.put(request, copy))
+          }
+          return response
+        })
+        // Keep the worker alive long enough for the cache write above to
+        // finish even when the race below resolves from the timeout/cache
+        // branch first and nothing else is awaiting this promise.
+        event.waitUntil(networkFetch.catch(() => {}))
+
+        if (!cached) {
+          return networkFetch.catch(() => caches.match(OFFLINE_URL).then((r) => r ?? Response.error()))
+        }
+
+        const timeout = new Promise((resolve) => setTimeout(() => resolve(cached), NAV_TIMEOUT_MS))
+        return Promise.race([networkFetch, timeout]).catch(() => cached)
+      })()
     )
     return
   }
