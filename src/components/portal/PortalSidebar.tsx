@@ -14,6 +14,7 @@ import {
   GraduationCap,
   Gift,
   CalendarDays,
+  Bell,
   BookOpen,
   NotebookPen,
   Scale,
@@ -96,6 +97,7 @@ const menuItems: MenuEntry[] = [
       { href: '/portal/get-involved', label: 'Get Involved', tKey: 'portal.getInvolved', icon: HandHeart },
     ],
   },
+  { href: '/portal/notification-preferences', label: 'Notification Preferences', tKey: 'np.pageTitle', icon: Bell },
   { href: '/portal/profile', label: 'My Profile', tKey: 'portal.profile', icon: UserCog },
 ]
 
