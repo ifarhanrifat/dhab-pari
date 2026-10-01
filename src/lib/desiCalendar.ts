@@ -44,3 +44,41 @@ export function formatHijri(date: Date, isUrdu: boolean, withWeekday = false): s
   const weekday = withWeekday ? `${(isUrdu ? WEEKDAYS_UR : WEEKDAYS_EN)[date.getDay()]} ` : ''
   return isUrdu ? `${weekday}${day} ${monthName} ${year}ھ` : `${weekday}${day} ${monthName} ${year} AH`
 }
+
+// Punjabi solar (Bikrami) calendar — 12 months, each starting on a roughly
+// fixed Gregorian date (drifts by at most a day across leap years, same
+// approximation printed on any Punjabi wall calendar). Day-of-month here is
+// just days-since-month-start + 1 — the plain solar count these calendars
+// show, not the lunar tithi the religious calendar tracks separately.
+// Restored, 2026-10-01: "why you have removed the Punjabi date... restore
+// that date, I have asked you to remove only the kable maseh date" — the
+// removal was a misread of which of the two lines on the date card was
+// meant; this one (Assu/Katak/Harh/Poh etc.) stays.
+const PUNJABI_MONTHS_UR = ['چیت', 'وساکھ', 'جیٹھ', 'ہاڑ', 'ساون', 'بھادوں', 'اسو', 'کاتک', 'مگھر', 'پوہ', 'ماگھ', 'پھاگن']
+const PUNJABI_MONTHS_EN = ['Chet', 'Vaisakh', 'Jeth', 'Harh', 'Sawan', 'Bhadon', 'Assu', 'Katak', 'Maghar', 'Poh', 'Magh', 'Phagan']
+// [gregorian month (0=Jan), day] each Punjabi month starts on. Index 10
+// (Magh) and 11 (Phagan) fall in the Gregorian year AFTER the one Chet (0)
+// starts in — the Punjabi year runs mid-March to mid-February.
+const STARTS: [number, number][] = [
+  [2, 14], [3, 14], [4, 15], [5, 15], [6, 16], [7, 16],
+  [8, 16], [9, 16], [10, 15], [11, 15], [0, 13], [1, 12],
+]
+
+export function formatPunjabi(date: Date, isUrdu: boolean): string {
+  const names = isUrdu ? PUNJABI_MONTHS_UR : PUNJABI_MONTHS_EN
+  const y = date.getFullYear()
+  const starts: { at: Date; monthIdx: number }[] = []
+  for (const baseY of [y - 1, y]) {
+    STARTS.forEach(([m, d], i) => {
+      starts.push({ at: new Date(baseY + (i >= 10 ? 1 : 0), m, d), monthIdx: i })
+    })
+  }
+  starts.sort((a, b) => a.at.getTime() - b.at.getTime())
+  let current = starts[0]
+  for (const s of starts) {
+    if (s.at.getTime() <= date.getTime()) current = s
+    else break
+  }
+  const dayNum = Math.floor((date.getTime() - current.at.getTime()) / 86400000) + 1
+  return `${dayNum} ${names[current.monthIdx]}`
+}
