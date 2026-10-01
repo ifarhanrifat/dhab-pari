@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import dynamic from 'next/dynamic'
 import { toast } from 'sonner'
 import { Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudFog, Wind, Droplets, Sunrise, Sunset, AlertTriangle, MapPin, LocateFixed } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -10,7 +9,6 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 
 // Leaflet touches `window` at import time — same ssr:false pattern every
 // other Leaflet map in this app already uses.
-const WeatherRadarMap = dynamic(() => import('@/components/public/WeatherRadarMap').then((m) => m.WeatherRadarMap), { ssr: false })
 
 // Phase 3 of the "Village OS" feature set, 2026-09-30: a full forecast
 // page (not just the homepage's single-number widget) — current
@@ -203,13 +201,23 @@ export default function WeatherPage() {
             </div>
           )}
 
-          {/* Weather map — real report, 2026-09-30: the previous Windy
-              iframe embed had a menu/sidebar that couldn't be closed, an
-              inherent limit of their free embed. Our own Leaflet + rain
-              radar overlay instead — no foreign UI to get stuck open. */}
+          {/* Weather map — real ask, 2026-10-01: "keep the same weather
+              map actual that you deployed first time ... I want that map
+              back" — restoring the original Windy embed (real wind/rain/
+              pressure layers, not just our own radar-only Leaflet map).
+              The one real issue it had — a detail sidebar that opened on
+              marker click and couldn't be closed — is fixed this time by
+              explicitly passing detail=false (the original URL left this
+              param blank, which did not suppress it); confirmed via
+              other real embed.windy.com URLs that set it explicitly. */}
           <h2 className="font-heading text-[18px] font-bold text-dp-primary mb-3">{t('wx.map')}</h2>
-          <div className="rounded-lg overflow-hidden border border-dp-outline-variant">
-            <WeatherRadarMap lat={coords.lat} lng={coords.lng} height={340} />
+          <div className="rounded-lg overflow-hidden border border-dp-outline-variant" style={{ height: 450 }}>
+            <iframe
+              title="weather-map"
+              className="w-full h-full"
+              src={`https://embed.windy.com/embed2.html?lat=${coords.lat}&lon=${coords.lng}&detailLat=${coords.lat}&detailLon=${coords.lng}&width=650&height=450&zoom=8&level=surface&overlay=rain&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=false&metricWind=default&metricTemp=default&radarRange=-1`}
+              frameBorder="0"
+            />
           </div>
         </>
       )}
