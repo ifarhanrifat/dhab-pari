@@ -28,16 +28,7 @@ interface DispatchBody {
 export async function POST(req: NextRequest) {
   const auth = req.headers.get('authorization')
   if (auth !== `Bearer ${process.env.PUSH_TRIGGER_SECRET}`) {
-    // TEMPORARY diagnostic, 2026-10-02 — revert once the env var mismatch
-    // behind repeated 401s is found. Never reveals the actual secret.
-    return NextResponse.json({
-      error: 'Unauthorized',
-      debug: {
-        envSecretLen: process.env.PUSH_TRIGGER_SECRET?.length ?? null,
-        receivedLen: auth?.length ?? null,
-        receivedPrefix: auth?.slice(0, 10) ?? null,
-      },
-    }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const { VAPID_SUBJECT, NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY } = process.env
