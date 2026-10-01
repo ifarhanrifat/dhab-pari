@@ -39,8 +39,12 @@ export default function VillageEventsPage() {
     const supabase = createClient()
     const nowIso = new Date().toISOString()
     Promise.all([
-      supabase.from('village_events').select('*').eq('is_active', true).gte('start_datetime', nowIso).order('start_datetime', { ascending: true }),
-      supabase.from('village_events').select('*').eq('is_active', true).lt('start_datetime', nowIso).order('start_datetime', { ascending: false }).limit(10),
+      // display_until (wedding-only, migration 548) caps how long a
+      // wedding/its Salami board stays visible at all, capped at 30 days
+      // past its last function — replaces riding the generic "last 10
+      // past events" window below for that one category.
+      supabase.from('village_events').select('*').eq('is_active', true).gte('start_datetime', nowIso).or(`display_until.is.null,display_until.gt.${nowIso}`).order('start_datetime', { ascending: true }),
+      supabase.from('village_events').select('*').eq('is_active', true).lt('start_datetime', nowIso).or(`display_until.is.null,display_until.gt.${nowIso}`).order('start_datetime', { ascending: false }).limit(10),
     ]).then(([u, p]) => {
       setUpcoming(u.data ?? []); setPast(p.data ?? []); setLoading(false)
     })

@@ -16,6 +16,7 @@ interface Ev {
   groom_name: string | null; bride_name: string | null
   groom_muntazim_name: string | null; groom_muntazim_contact: string | null
   bride_muntazim_name: string | null; bride_muntazim_contact: string | null
+  display_until: string | null
   venue_men: string | null; venue_women: string | null
   deceased_name: string | null; gathering_type: string | null
   speaker_name: string | null
@@ -40,6 +41,7 @@ const empty = {
   photo_url: '', is_active: true,
   groom_name: '', bride_name: '',
   groom_muntazim_name: '', groom_muntazim_contact: '', bride_muntazim_name: '', bride_muntazim_contact: '',
+  display_days: '30',
   venue_men: '', venue_women: '',
   deceased_name: '', gathering_type: 'soyem',
   speaker_name: '',
@@ -74,13 +76,21 @@ export default function AdminEventsPage() {
     // derived from the functions list instead of typed in separately,
     // and at least one function (with its own date) is what makes the
     // card valid at all.
-    let startIso: string, endIso: string | null
+    let startIso: string, endIso: string | null, displayUntilIso: string | null = null
     if (cat === 'wedding') {
       const withDates = weddingFns.filter((f) => f.function_datetime)
       if (!form.title.trim() || withDates.length === 0) { toast.error(t('ve.atLeastOneFunction')); return }
       const times = withDates.map((f) => new Date(f.function_datetime).getTime())
       startIso = new Date(Math.min(...times)).toISOString()
       endIso = new Date(Math.max(...times)).toISOString()
+      // Real ask, 2026-10-01: "the end date of displaying which should be
+      // no more [than] 1 month for shadi" -- capped at 30 days past the
+      // last function, not a free-floating date, so the wedding card
+      // (and its Salami board) always disappears on a predictable
+      // schedule instead of riding the Events page's generic "last 10
+      // past events" window.
+      const days = Math.min(30, Math.max(1, parseInt(form.display_days, 10) || 30))
+      displayUntilIso = new Date(Math.max(...times) + days * 86400000).toISOString()
     } else {
       if (!form.title.trim() || !form.start_datetime) { toast.error(t('ve.titleRequired')); return }
       startIso = new Date(form.start_datetime).toISOString()
@@ -99,6 +109,7 @@ export default function AdminEventsPage() {
       is_active: form.is_active,
       start_datetime: startIso,
       end_datetime: endIso,
+      display_until: displayUntilIso,
       // Only the selected category's fields are kept -- switching category
       // away from "wedding" after typing a groom_name shouldn't leave a
       // stale value behind on a religious/sports event.
@@ -154,6 +165,9 @@ export default function AdminEventsPage() {
       groom_name: e.groom_name ?? '', bride_name: e.bride_name ?? '',
       groom_muntazim_name: e.groom_muntazim_name ?? '', groom_muntazim_contact: e.groom_muntazim_contact ?? '',
       bride_muntazim_name: e.bride_muntazim_name ?? '', bride_muntazim_contact: e.bride_muntazim_contact ?? '',
+      display_days: e.display_until && e.end_datetime
+        ? String(Math.max(1, Math.round((new Date(e.display_until).getTime() - new Date(e.end_datetime).getTime()) / 86400000)))
+        : '30',
       venue_men: e.venue_men ?? '', venue_women: e.venue_women ?? '',
       deceased_name: e.deceased_name ?? '', gathering_type: e.gathering_type ?? 'soyem',
       speaker_name: e.speaker_name ?? '',
@@ -234,6 +248,11 @@ export default function AdminEventsPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <input placeholder={t('ve.brideMuntazimName')} value={form.bride_muntazim_name} onChange={(e) => setForm({ ...form, bride_muntazim_name: e.target.value })} className="input-field" />
                     <input placeholder={t('ve.brideMuntazimContact')} value={form.bride_muntazim_contact} onChange={(e) => setForm({ ...form, bride_muntazim_contact: e.target.value })} className="input-field" />
+                  </div>
+                  <div>
+                    <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ve.displayDays')}</label>
+                    <input type="number" min={1} max={30} value={form.display_days} onChange={(e) => setForm({ ...form, display_days: e.target.value })} className="input-field" />
+                    <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">{t('ve.displayDaysHint')}</p>
                   </div>
 
                   {/* Real ask, 2026-09-30: "3 events mehndi, barat and

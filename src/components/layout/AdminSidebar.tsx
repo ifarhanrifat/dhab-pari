@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   HeartCrack,
   Wheat,
+  Landmark,
   LayoutDashboard,
   Receipt,
   Award,
@@ -175,6 +176,7 @@ const menuItems: MenuEntry[] = [
   { href: '/admin/events', label: 'Village Events', tKey: 'nav.villageEvents', icon: CalendarDays },
   { href: '/admin/village-map', label: 'Village Map', tKey: 'nav.villageMap', icon: MapPin },
   { href: '/admin/crop-prices', label: 'Crop Prices', tKey: 'nav.cropPrices', icon: Wheat },
+  { href: '/admin/chanda', label: 'Chanda', tKey: 'nav.chanda', icon: Landmark },
   {
     groupKey: 'content', label: 'Content Publishing', tKey: 'nav.groupContent', icon: Newspaper,
     children: [
