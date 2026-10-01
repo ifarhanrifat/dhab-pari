@@ -12,9 +12,18 @@ interface Entry {
   id: string; category: string; subcategory: string | null; name: string; name_ur: string | null
   description: string | null; description_ur: string | null; location_text: string | null
   phone: string | null; whatsapp_number: string | null; hours_text: string | null; photo_url: string | null
+  admission_status: string | null; fee_per_month: number | null; current_students_count: number | null; teacher_qualifications: string | null
+  fajr_time: string | null; zuhr_time: string | null; asr_time: string | null; maghrib_time: string | null; isha_time: string | null; jumma_time: string | null
 }
 
-const CATEGORIES = ['business', 'health', 'mosque', 'school']
+const CATEGORIES = ['business', 'health', 'mosque', 'school', 'veterinary']
+const fmtTime = (t: string | null) => {
+  if (!t) return null
+  const [h, m] = t.split(':').map(Number)
+  const period = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${String(m).padStart(2, '0')} ${period}`
+}
 function normalizePakPhone(raw: string) {
   const digits = raw.replace(/\D/g, '')
   return digits.startsWith('0') ? `92${digits.slice(1)}` : digits.startsWith('92') ? digits : `92${digits}`
@@ -35,7 +44,7 @@ export default function DirectoryPage() {
 
   useEffect(() => {
     createClient().from('directory_entries')
-      .select('id, category, subcategory, name, name_ur, description, description_ur, location_text, phone, whatsapp_number, hours_text, photo_url')
+      .select('id, category, subcategory, name, name_ur, description, description_ur, location_text, phone, whatsapp_number, hours_text, photo_url, admission_status, fee_per_month, current_students_count, teacher_qualifications, fajr_time, zuhr_time, asr_time, maghrib_time, isha_time, jumma_time')
       .eq('is_active', true).order('display_order').order('name')
       .then(({ data }) => { setEntries((data ?? []) as Entry[]); setLoading(false) })
   }, [])
@@ -101,6 +110,28 @@ export default function DirectoryPage() {
                 {(isUrdu ? e.description_ur : e.description) && <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5 line-clamp-2">{isUrdu ? e.description_ur : e.description}</p>}
                 {e.location_text && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1 flex items-center gap-1"><MapPin size={11} /> {e.location_text}</p>}
                 {e.hours_text && <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5 flex items-center gap-1"><Clock size={11} /> {e.hours_text}</p>}
+                {e.category === 'school' && (
+                  <div className="mt-1.5 space-y-0.5">
+                    {e.admission_status && (
+                      <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${e.admission_status === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                        {t(e.admission_status === 'open' ? 'dir.admissionOpen' : 'dir.admissionClosed')}
+                      </span>
+                    )}
+                    {e.fee_per_month != null && <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('dir.feePerMonth')}: <span className="ltr-num">Rs {e.fee_per_month.toLocaleString()}</span></p>}
+                    {e.current_students_count != null && <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('dir.currentStudents')}: <span className="ltr-num">{e.current_students_count}</span></p>}
+                    {e.teacher_qualifications && <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('dir.teacherQualifications')}: {e.teacher_qualifications}</p>}
+                  </div>
+                )}
+                {e.category === 'mosque' && (e.fajr_time || e.zuhr_time || e.asr_time || e.maghrib_time || e.isha_time || e.jumma_time) && (
+                  <div className="mt-1.5 grid grid-cols-3 gap-x-2 gap-y-0.5 font-sans text-[11px] text-dp-on-surface-variant ltr-num">
+                    {e.fajr_time && <span>{t('dir.fajr')}: {fmtTime(e.fajr_time)}</span>}
+                    {e.zuhr_time && <span>{t('dir.zuhr')}: {fmtTime(e.zuhr_time)}</span>}
+                    {e.asr_time && <span>{t('dir.asr')}: {fmtTime(e.asr_time)}</span>}
+                    {e.maghrib_time && <span>{t('dir.maghrib')}: {fmtTime(e.maghrib_time)}</span>}
+                    {e.isha_time && <span>{t('dir.isha')}: {fmtTime(e.isha_time)}</span>}
+                    {e.jumma_time && <span>{t('dir.jumma')}: {fmtTime(e.jumma_time)}</span>}
+                  </div>
+                )}
                 {(e.phone || e.whatsapp_number) && (
                   <div className="flex gap-2 mt-2">
                     {e.phone && (

@@ -16,9 +16,11 @@ interface Entry {
   description: string | null; description_ur: string | null; location_text: string | null
   phone: string | null; whatsapp_number: string | null; hours_text: string | null; photo_url: string | null
   display_order: number; is_active: boolean; lat: number | null; lng: number | null
+  admission_status: string | null; fee_per_month: number | null; current_students_count: number | null; teacher_qualifications: string | null
+  fajr_time: string | null; zuhr_time: string | null; asr_time: string | null; maghrib_time: string | null; isha_time: string | null; jumma_time: string | null
 }
 
-const CATEGORIES = ['business', 'health', 'mosque', 'school']
+const CATEGORIES = ['business', 'health', 'mosque', 'school', 'veterinary']
 // Real correction, 2026-10-01: "when we already have the business in
 // [marketplace] why are we adding karobar in the directory feature?" --
 // 'general_store' dropped here on purpose. Marketplace (388) already has
@@ -32,11 +34,14 @@ const SUBCATEGORIES: Record<string, string[]> = {
   health: ['doctor', 'clinic', 'hospital', 'medical_store', 'ambulance_service'],
   mosque: ['mosque'],
   school: ['primary_school', 'secondary_school', 'college', 'madrassa', 'other'],
+  veterinary: ['veterinary_clinic', 'veterinary_doctor', 'other'],
 }
 const empty = {
   category: 'business', subcategory: 'restaurant', name: '', name_ur: '', description: '', description_ur: '',
   location_text: '', phone: '', whatsapp_number: '', hours_text: '', photo_url: '', display_order: 0, is_active: true,
   lat: null as number | null, lng: null as number | null,
+  admission_status: '', fee_per_month: '', current_students_count: '', teacher_qualifications: '',
+  fajr_time: '', zuhr_time: '', asr_time: '', maghrib_time: '', isha_time: '', jumma_time: '',
 }
 
 export default function AdminDirectoryPage() {
@@ -57,7 +62,24 @@ export default function AdminDirectoryPage() {
 
   const save = async () => {
     if (!form.name.trim()) { toast.error(t('dir.nameRequired')); return }
-    const payload = { ...form, subcategory: form.subcategory || null }
+    const cat = form.category
+    const payload = {
+      ...form,
+      subcategory: form.subcategory || null,
+      // Category-scoped, same convention as Events (539) -- switching a
+      // school entry's category away from "school" shouldn't leave a
+      // stale fee/admission value behind on, say, a mosque.
+      admission_status: cat === 'school' ? (form.admission_status || null) : null,
+      fee_per_month: cat === 'school' && form.fee_per_month ? parseFloat(form.fee_per_month) : null,
+      current_students_count: cat === 'school' && form.current_students_count ? parseInt(form.current_students_count, 10) : null,
+      teacher_qualifications: cat === 'school' ? (form.teacher_qualifications.trim() || null) : null,
+      fajr_time: cat === 'mosque' ? (form.fajr_time || null) : null,
+      zuhr_time: cat === 'mosque' ? (form.zuhr_time || null) : null,
+      asr_time: cat === 'mosque' ? (form.asr_time || null) : null,
+      maghrib_time: cat === 'mosque' ? (form.maghrib_time || null) : null,
+      isha_time: cat === 'mosque' ? (form.isha_time || null) : null,
+      jumma_time: cat === 'mosque' ? (form.jumma_time || null) : null,
+    }
     if (editing) { const { error } = await supabase.from('directory_entries').update(payload).eq('id', editing); if (error) { toast.error(friendlyError(error)); return }; toast.success(t('dir.updated')) }
     else { const { error } = await supabase.from('directory_entries').insert(payload); if (error) { toast.error(friendlyError(error)); return }; toast.success(t('dir.added')) }
     setShowForm(false); setEditing(null); setForm(empty); load()
@@ -69,6 +91,10 @@ export default function AdminDirectoryPage() {
       phone: e.phone ?? '', whatsapp_number: e.whatsapp_number ?? '', hours_text: e.hours_text ?? '',
       photo_url: e.photo_url ?? '', display_order: e.display_order, is_active: e.is_active,
       lat: e.lat, lng: e.lng,
+      admission_status: e.admission_status ?? '', fee_per_month: e.fee_per_month != null ? String(e.fee_per_month) : '',
+      current_students_count: e.current_students_count != null ? String(e.current_students_count) : '', teacher_qualifications: e.teacher_qualifications ?? '',
+      fajr_time: e.fajr_time ?? '', zuhr_time: e.zuhr_time ?? '', asr_time: e.asr_time ?? '',
+      maghrib_time: e.maghrib_time ?? '', isha_time: e.isha_time ?? '', jumma_time: e.jumma_time ?? '',
     })
     setEditing(e.id); setShowForm(true)
   }
@@ -144,6 +170,43 @@ export default function AdminDirectoryPage() {
                 <LeafletSinglePinPicker lat={form.lat} lng={form.lng} onChange={(pin) => setForm({ ...form, lat: pin?.lat ?? null, lng: pin?.lng ?? null })} />
               </div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('dir.hours')}</label><input value={form.hours_text} onChange={(e) => setForm({ ...form, hours_text: e.target.value })} placeholder={t('dir.hoursPlaceholder')} className="input-field" /></div>
+
+              {/* Real ask, 2026-10-01: category-specific fields for
+                  School (admission status/fee/enrollment/teachers) and
+                  Mosque (the five daily prayers + Jumma), same shape as
+                  Events' category fields (539). */}
+              {form.category === 'school' && (
+                <div className="bg-dp-surface-container-low rounded-lg p-3.5 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('dir.admissionStatus')}</label>
+                      <select value={form.admission_status} onChange={(e) => setForm({ ...form, admission_status: e.target.value })} className="input-field">
+                        <option value="">—</option>
+                        <option value="open">{t('dir.admissionOpen')}</option>
+                        <option value="closed">{t('dir.admissionClosed')}</option>
+                      </select>
+                    </div>
+                    <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('dir.feePerMonth')}</label><input type="number" value={form.fee_per_month} onChange={(e) => setForm({ ...form, fee_per_month: e.target.value })} className="input-field" /></div>
+                  </div>
+                  <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('dir.currentStudents')}</label><input type="number" value={form.current_students_count} onChange={(e) => setForm({ ...form, current_students_count: e.target.value })} className="input-field" /></div>
+                  <div><label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('dir.teacherQualifications')}</label><textarea value={form.teacher_qualifications} onChange={(e) => setForm({ ...form, teacher_qualifications: e.target.value })} rows={2} className="input-field resize-none" /></div>
+                </div>
+              )}
+              {form.category === 'mosque' && (
+                <div className="bg-dp-surface-container-low rounded-lg p-3.5 space-y-3">
+                  <p className="font-sans text-[12px] font-bold text-dp-on-surface-variant uppercase tracking-wide">{t('dir.namazTimings')}</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div><label className="block font-sans text-[12px] text-dp-on-surface-variant mb-1">{t('dir.fajr')}</label><input type="time" value={form.fajr_time} onChange={(e) => setForm({ ...form, fajr_time: e.target.value })} className="input-field" /></div>
+                    <div><label className="block font-sans text-[12px] text-dp-on-surface-variant mb-1">{t('dir.zuhr')}</label><input type="time" value={form.zuhr_time} onChange={(e) => setForm({ ...form, zuhr_time: e.target.value })} className="input-field" /></div>
+                    <div><label className="block font-sans text-[12px] text-dp-on-surface-variant mb-1">{t('dir.asr')}</label><input type="time" value={form.asr_time} onChange={(e) => setForm({ ...form, asr_time: e.target.value })} className="input-field" /></div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div><label className="block font-sans text-[12px] text-dp-on-surface-variant mb-1">{t('dir.maghrib')}</label><input type="time" value={form.maghrib_time} onChange={(e) => setForm({ ...form, maghrib_time: e.target.value })} className="input-field" /></div>
+                    <div><label className="block font-sans text-[12px] text-dp-on-surface-variant mb-1">{t('dir.isha')}</label><input type="time" value={form.isha_time} onChange={(e) => setForm({ ...form, isha_time: e.target.value })} className="input-field" /></div>
+                    <div><label className="block font-sans text-[12px] text-dp-on-surface-variant mb-1">{t('dir.jumma')}</label><input type="time" value={form.jumma_time} onChange={(e) => setForm({ ...form, jumma_time: e.target.value })} className="input-field" /></div>
+                  </div>
+                </div>
+              )}
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('w.descriptionOptional')}</label><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="input-field resize-none" /></div>
               <div><label className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">{t('dir.descriptionUr')}</label><textarea value={form.description_ur} onChange={(e) => setForm({ ...form, description_ur: e.target.value })} rows={2} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} /></div>
               <ImageUpload bucket="images" currentUrl={form.photo_url} onUpload={(url) => setForm({ ...form, photo_url: url })} label={t('lf.photoOptional')} />
