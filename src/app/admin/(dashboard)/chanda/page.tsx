@@ -7,12 +7,14 @@ import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { PortalUserSearchPicker, type PortalUserLite } from '@/components/admin/PortalUserSearchPicker'
+import { ImageUpload } from '@/components/admin/ImageUpload'
 
 interface DirEntry { id: string; name: string }
 interface Campaign {
   id: string; type: string; directory_entry_id: string | null; title: string; title_ur: string | null
   description: string | null; description_ur: string | null; target_amount: number | null
   payment_method: string; account_number: string; account_title: string | null; bank_name: string | null
+  cover_image_url: string | null
   display_until: string; is_active: boolean; manager_portal_user_id: string | null; manager?: PortalUserLite
 }
 
@@ -21,7 +23,7 @@ const DURATIONS = [1, 2, 3, 4, 5, 6]
 const empty = {
   type: 'mosque', directory_entry_id: '', title: '', title_ur: '', description: '', description_ur: '',
   target_amount: '', payment_method: 'easypaisa', account_number: '', account_title: '', bank_name: '',
-  duration_months: '3', is_active: true,
+  cover_image_url: '', duration_months: '3', is_active: true,
 }
 
 // Phase 3 of the "Village OS" feature set, 2026-10-01. Chanda (Mosque /
@@ -72,6 +74,7 @@ export default function AdminChandaPage() {
       target_amount: form.target_amount ? parseFloat(form.target_amount) : null,
       payment_method: form.payment_method, account_number: form.account_number.trim(),
       account_title: form.account_title.trim() || null, bank_name: form.bank_name.trim() || null,
+      cover_image_url: form.cover_image_url || null,
       is_active: form.is_active,
       display_until: new Date(Date.now() + parseInt(form.duration_months, 10) * 30 * 86400000).toISOString(),
       created_by: me?.id,
@@ -94,7 +97,7 @@ export default function AdminChandaPage() {
       type: c.type, directory_entry_id: c.directory_entry_id ?? '', title: c.title, title_ur: c.title_ur ?? '',
       description: c.description ?? '', description_ur: c.description_ur ?? '', target_amount: c.target_amount != null ? String(c.target_amount) : '',
       payment_method: c.payment_method, account_number: c.account_number, account_title: c.account_title ?? '', bank_name: c.bank_name ?? '',
-      duration_months: String(monthsLeft), is_active: c.is_active,
+      cover_image_url: c.cover_image_url ?? '', duration_months: String(monthsLeft), is_active: c.is_active,
     })
     setEditing(c.id); setShowForm(true)
   }
@@ -124,11 +127,17 @@ export default function AdminChandaPage() {
         {!loading && campaigns.map((c) => (
           <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
             <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <span className="bg-dp-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold uppercase font-sans">{t(`ch.type.${c.type}`)}</span>
-                {new Date(c.display_until) < new Date() && <span className="text-[10px] font-bold font-sans text-dp-error ms-1.5">{t('ch.expired')}</span>}
-                <h3 className="font-sans text-[15px] font-bold text-dp-on-surface truncate mt-1">{c.title}</h3>
-                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('ch.displayUntil')}: <span className="ltr-num">{new Date(c.display_until).toLocaleDateString()}</span></p>
+              <div className="flex items-center gap-3 min-w-0">
+                {c.cover_image_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={c.cover_image_url} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0 border border-dp-outline-variant" />
+                )}
+                <div className="min-w-0">
+                  <span className="bg-dp-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold uppercase font-sans">{t(`ch.type.${c.type}`)}</span>
+                  {new Date(c.display_until) < new Date() && <span className="text-[10px] font-bold font-sans text-dp-error ms-1.5">{t('ch.expired')}</span>}
+                  <h3 className="font-sans text-[15px] font-bold text-dp-on-surface truncate mt-1">{c.title}</h3>
+                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('ch.displayUntil')}: <span className="ltr-num">{new Date(c.display_until).toLocaleDateString()}</span></p>
+                </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button onClick={() => edit(c)} className="p-2 text-dp-primary hover:bg-dp-primary/10 rounded-lg cursor-pointer"><Pencil size={16} /></button>
@@ -179,6 +188,7 @@ export default function AdminChandaPage() {
               )}
               <input placeholder={t('ve.titleEn')} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" />
               <input placeholder={t('ve.titleUr')} value={form.title_ur} onChange={(e) => setForm({ ...form, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
+              <ImageUpload bucket="images" currentUrl={form.cover_image_url} onUpload={(url) => setForm({ ...form, cover_image_url: url })} label={t('ch.coverImage')} />
               <div>
                 <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ch.workDescription')} *</label>
                 <textarea placeholder={t('ch.workDescription')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="input-field resize-none" />

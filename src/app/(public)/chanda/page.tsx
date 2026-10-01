@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { toast } from 'sonner'
@@ -14,6 +15,7 @@ import { ImageUpload } from '@/components/admin/ImageUpload'
 interface Campaign {
   id: string; type: string; title: string; title_ur: string | null; description: string | null; description_ur: string | null
   target_amount: number | null; payment_method: string; account_number: string; account_title: string | null; bank_name: string | null
+  cover_image_url: string | null
 }
 interface Pledge { id: string; campaign_id: string; giver_name: string; amount: number; status: string; created_at: string }
 
@@ -89,8 +91,15 @@ export default function ChandaPage() {
             const confirmed = campaignPledges.filter((p) => p.status === 'received')
             const pending = campaignPledges.filter((p) => p.status === 'pending')
             const confirmedTotal = confirmed.reduce((s, p) => s + Number(p.amount), 0)
+            const progressPct = c.target_amount ? Math.min(100, Math.round((confirmedTotal / c.target_amount) * 100)) : 0
             return (
-              <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-5">
+              <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
+                {c.cover_image_url && (
+                  <div className="relative w-full h-44">
+                    <Image src={c.cover_image_url} alt={isUrdu && c.title_ur ? c.title_ur : c.title} fill sizes="(min-width: 900px) 900px, 100vw" className="object-cover" />
+                  </div>
+                )}
+                <div className="p-5">
                 <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
                   <div>
                     <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-secondary-container text-dp-on-secondary-container uppercase">{t(`ch.type.${c.type}`)}</span>
@@ -109,10 +118,22 @@ export default function ChandaPage() {
                 {(isUrdu ? c.description_ur : c.description) && <p className="font-sans text-[13.5px] text-dp-on-surface-variant mb-2">{isUrdu ? c.description_ur : c.description}</p>}
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{methodLabel[c.payment_method]}: <span className="ltr-num font-semibold">{c.account_number}</span>{c.account_title ? ` (${c.account_title})` : ''}</p>
 
-                <div className="flex items-center gap-4 mb-3 font-sans text-[13px]">
-                  <span className="text-emerald-700 font-bold">{t('sl.confirmed')}: <span className="ltr-num">Rs {confirmedTotal.toLocaleString()}</span></span>
-                  {c.target_amount != null && <span className="text-dp-on-surface-variant">/ <span className="ltr-num">Rs {c.target_amount.toLocaleString()}</span> {t('ch.target')}</span>}
-                </div>
+                {c.target_amount != null ? (
+                  <div className="mb-3">
+                    <div className="flex justify-between font-sans text-[13px] mb-1.5">
+                      <span className="text-emerald-700 font-bold">{t('sl.confirmed')}: <span className="ltr-num">Rs {confirmedTotal.toLocaleString()}</span></span>
+                      <span className="text-dp-on-surface-variant"><span className="ltr-num">Rs {c.target_amount.toLocaleString()}</span> {t('ch.target')}</span>
+                    </div>
+                    <div className="h-2.5 w-full bg-dp-surface-container-highest rounded-full overflow-hidden">
+                      <div className="h-full bg-dp-secondary transition-all duration-1000" style={{ width: `${progressPct}%` }} />
+                    </div>
+                    <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1 ltr-num">{progressPct}% {t('ch.raised')}</p>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4 mb-3 font-sans text-[13px]">
+                    <span className="text-emerald-700 font-bold">{t('sl.confirmed')}: <span className="ltr-num">Rs {confirmedTotal.toLocaleString()}</span></span>
+                  </div>
+                )}
 
                 {campaignPledges.length > 0 && (
                   <div className="max-h-48 overflow-y-auto space-y-1.5 border-t border-dp-outline-variant pt-3">
@@ -124,6 +145,7 @@ export default function ChandaPage() {
                     ))}
                   </div>
                 )}
+                </div>
               </div>
             )
           })}
