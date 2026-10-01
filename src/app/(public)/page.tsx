@@ -57,8 +57,7 @@ import { CareerCards } from '@/components/home/CareerCards'
 import { CommitteeNoteCard } from '@/components/home/CommitteeNoteCard'
 import { welfareCardContentKeys } from '@/lib/welfareCardContent'
 import { DownloadAppBanner } from '@/components/portal/DownloadAppBanner'
-import { WeatherWidget } from '@/components/home/WeatherWidget'
-import { DateCard } from '@/components/home/DateCard'
+import { WeatherDateRow } from '@/components/home/WeatherDateRow'
 import { VillageServicesQuickLinks } from '@/components/home/VillageServicesQuickLinks'
 
 function fmtPKR(n: number) {
@@ -281,19 +280,15 @@ export default async function HomePage() {
             sat bunched together at the left edge — "not good i want one
             tab to display right side and 2nd to display left side".
             Dropping the max-w cap lets the unconditional grid-cols-2 span
-            the full content width instead, so Date occupies the whole
-            left half of the row and Weather the whole right half — each
-            pinned to its own true edge, not adjacent to each other.
-            dir="ltr" keeps that left/right assignment fixed regardless of
-            page language (see mr-auto note in prior commits: a block's
-            own position follows its CONTAINING block's direction, not an
-            attribute on itself, hence forcing it here explicitly).
-            Not forced into the 4-col stat grid below — a 5th/6th card
-            there would break that grid's even column count. */}
-        <div className="grid grid-cols-2 gap-3 mb-4 lg:mb-6" dir="ltr">
-          <DateCard />
-          <WeatherWidget />
-        </div>
+            the full content width instead, so each card occupies its own
+            half of the row, pinned to its own true edge.
+            Real ask, 2026-10-01: "flip the weather and date tab in Urdu
+            mode" — which side is which now depends on language, so the
+            ordering moved into WeatherDateRow (a client component; this
+            page is a server component with no access to isUrdu). Not
+            forced into the 4-col stat grid below — a 5th/6th card there
+            would break that grid's even column count. */}
+        <WeatherDateRow />
         <VillageServicesQuickLinks />
         {/* Desktop: 4 cols / Mobile: 2x2 grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">

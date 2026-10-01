@@ -15,6 +15,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Search, Store, Bus, MapPin, LogIn } from 'lucide-react'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -64,6 +65,15 @@ export default function MarketplaceLandingPage() {
   // was ever available here, which was wrong; a logged-in villager saw
   // the same prompt telling them to log in.
   const { user: portalUser } = usePortalUser()
+  const router = useRouter()
+  // Real bug, 2026-10-01: "why the marketplace from the web is not
+  // navigate to the shops and adda for the portal logged in users" —
+  // the shop and route cards below were plain <div>s with no Link or
+  // onClick at all, so clicking one did nothing no matter who was
+  // logged in. goTo() sends a logged-in user straight to the real
+  // detail page, anyone else to login first (same next= pattern the
+  // sign-in banner above already uses).
+  const goTo = (path: string) => router.push(portalUser ? path : `/portal/login?next=${path}`)
   const [lang, setLang] = useState<Lang>('en')
   const isUrdu = lang === 'ur'
   const dt = (key: keyof typeof t) => t[key][lang]
@@ -137,7 +147,8 @@ export default function MarketplaceLandingPage() {
           {!searching && results.length === 0 && <p className="font-sans text-[14px] text-dp-on-surface-variant">{dt('noResults')}</p>}
           <div className="space-y-2">
             {results.map((r) => (
-              <div key={`${r.shop_id}-${r.product_id}`} className="flex items-center justify-between gap-3 bg-white border border-dp-outline-variant rounded-lg p-3.5">
+              <button key={`${r.shop_id}-${r.product_id}`} onClick={() => goTo(`/portal/marketplace/shop/${r.shop_id}`)}
+                className="w-full text-start flex items-center justify-between gap-3 bg-white border border-dp-outline-variant rounded-lg p-3.5 cursor-pointer hover:border-dp-secondary transition-all">
                 <div className="min-w-0">
                   <p className="font-sans text-[14px] font-semibold text-dp-on-surface truncate">
                     {isUrdu && r.product_name_ur ? r.product_name_ur : r.product_name}
@@ -146,7 +157,7 @@ export default function MarketplaceLandingPage() {
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5 truncate">{isUrdu && r.shop_name_ur ? r.shop_name_ur : r.shop_name}{!r.delivery_enabled && ` · ${dt('visitStoreNote')}`}</p>
                 </div>
                 <p className="font-sans text-[15px] font-bold text-dp-secondary shrink-0">{fmt(r.unit_price_pkr)}</p>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -157,13 +168,14 @@ export default function MarketplaceLandingPage() {
         {shops.length === 0 && <p className="font-sans text-[14px] text-dp-on-surface-variant">{dt('noShopsListed')}</p>}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {shops.map((s) => (
-            <div key={s.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
+            <button key={s.id} onClick={() => goTo(`/portal/marketplace/shop/${s.id}`)}
+              className="text-start bg-white border border-dp-outline-variant rounded-lg p-4 cursor-pointer hover:border-dp-secondary transition-all">
               <p className="font-sans text-[15px] font-semibold text-dp-on-surface truncate">{isUrdu && s.name_ur ? s.name_ur : s.name}</p>
               {s.location && <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5 flex items-center gap-1"><MapPin size={12} /> {isUrdu ? (s.location_ur || s.location) : s.location}</p>}
               <span className={`inline-block mt-2 text-[11px] font-bold px-2 py-0.5 rounded-full ${s.delivery_enabled ? 'bg-sky-100 text-sky-700' : 'bg-dp-surface-container-high text-dp-on-surface-variant'}`}>
                 {s.delivery_enabled ? dt('deliveryEnabled') : dt('pickupOnly')}
               </span>
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -173,11 +185,12 @@ export default function MarketplaceLandingPage() {
         {routes.length === 0 && <p className="font-sans text-[14px] text-dp-on-surface-variant">{dt('noRoutesListed')}</p>}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {routes.map((r) => (
-            <div key={r.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
+            <button key={r.id} onClick={() => goTo(`/portal/marketplace/route/${r.id}`)}
+              className="text-start bg-white border border-dp-outline-variant rounded-lg p-4 cursor-pointer hover:border-dp-secondary transition-all">
               <p className="font-sans text-[15px] font-semibold text-dp-on-surface flex items-center gap-1.5"><MapPin size={14} className="text-dp-secondary shrink-0" /> {isUrdu && r.origin_ur ? r.origin_ur : r.origin} → {isUrdu && r.destination_ur ? r.destination_ur : r.destination}</p>
               <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5">{routeVehicleNames[r.vehicle_id] ?? ''}</p>
               <p className="font-sans text-[15px] font-bold text-dp-secondary mt-1.5">{fmt(r.fare_per_seat_pkr)} <span className="font-normal text-dp-on-surface-variant text-[12.5px]">{dt('perSeat')}</span></p>
-            </div>
+            </button>
           ))}
         </div>
       </div>

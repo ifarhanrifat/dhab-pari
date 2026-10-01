@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Moon, Leaf } from 'lucide-react'
+import { Moon } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { formatHijri, formatPunjabi } from '@/lib/desiCalendar'
+import { formatHijri } from '@/lib/desiCalendar'
 
 // Real ask, 2026-09-30: moved out of the header (where it lived as
 // DateStrip, squeezed into the same row as the logo) onto the homepage,
@@ -24,8 +24,7 @@ export function DateCard() {
   if (!now) return null
 
   const hijri = formatHijri(now, isUrdu, true)
-  const punjabi = formatPunjabi(now, isUrdu)
-  if (!hijri && !punjabi) return null
+  if (!hijri) return null
 
   return (
     <Link href="/moon-finder" className="bg-white border border-dp-outline-variant rounded-lg p-3 sm:p-4 flex items-center gap-2.5 sm:gap-3 hover:border-dp-secondary transition-all">
@@ -35,14 +34,11 @@ export function DateCard() {
       </span>
       {/* Real report, 2026-09-30: `truncate` was clipping the date on a
           narrow phone where this card only gets half the screen width —
-          wraps onto a second line instead now, nothing hidden. */}
+          wraps onto a second line instead now, nothing hidden.
+          Real ask, 2026-10-01: the Bikrami/Punjabi calendar line dropped
+          entirely — Hijri is the one date wanted here. */}
       <div className="min-w-0">
-        {hijri && <p className="font-sans text-[12px] sm:text-[13.5px] font-bold text-dp-on-surface leading-snug">{hijri}</p>}
-        {punjabi && (
-          <p className="font-sans text-[11px] sm:text-[12px] text-dp-on-surface-variant mt-1 flex items-start gap-1 leading-snug">
-            <Leaf size={11} className="shrink-0 mt-0.5" /> <span>{punjabi}</span>
-          </p>
-        )}
+        <p className="font-sans text-[12px] sm:text-[13.5px] font-bold text-dp-on-surface leading-snug">{hijri}</p>
       </div>
     </Link>
   )

@@ -74,22 +74,14 @@ export function Header() {
               <Menu size={26} />
             </button>
             {/* Logo — tagline only shows once there's room to spare (xl+),
-                so it never competes with the nav for space at lg. Online
-                count sits right under the name instead, always visible —
-                a real ask, 2026-09-29, to fill the empty green space next
-                to the logo (a screenshot showed it, mostly on mobile). */}
+                so it never competes with the nav for space at lg. */}
             <div className="shrink-0 relative z-10 bg-dp-primary pe-2">
               <Link href="/" className="font-heading text-[28px] font-bold leading-[34px] text-white tracking-tight">
                 {SITE.name}
               </Link>
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="text-white/90 text-[10.5px] font-sans">
-                  <OnlineUsersBadge />
-                </div>
-                <p className="text-white/60 text-[12px] font-sans hidden xl:block">
-                  {t('y.villageTransparency')}
-                </p>
-              </div>
+              <p className="text-white/60 text-[12px] font-sans hidden xl:block">
+                {t('y.villageTransparency')}
+              </p>
             </div>
           </div>
 
@@ -181,6 +173,16 @@ export function Header() {
                 {t('site.login')}
               </Link>
             )}
+            {/* Real ask, 2026-10-01: "move the online users button on the
+                same row where dhab pari is written there is much place is
+                exist there at the far right side" — it used to sit under
+                the logo on the left; most of the right-actions items here
+                are hidden below md/sm, which is exactly the empty space
+                being pointed at, so this one stays visible at every
+                width, true rightmost item in the row. */}
+            <div className="text-white/90 text-[10.5px] font-sans">
+              <OnlineUsersBadge />
+            </div>
           </div>
         </div>
       </header>
