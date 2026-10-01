@@ -1,201 +1,28 @@
-'use client'
+import { createClient } from '@/lib/supabase/server'
+import { ProjectsListClient, type Project, type FeeSummary } from '@/components/public/ProjectsListClient'
 
-import { useEffect, useState } from 'react'
-import Image from 'next/image'
-import { createClient } from '@/lib/supabase/client'
-import Link from 'next/link'
-import { motion } from 'motion/react'
-import {
-  MapPin,
-  CheckCircle,
-  Vote,
-  ThumbsUp,
-  MessageSquare,
-  Flame,
-  Lock,
-  Eye,
-  HandHeart,
-} from 'lucide-react'
-import { SITE } from '@/lib/constants'
-import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { ProjectShareCard } from '@/components/public/ProjectShareCard'
-
-interface Project {
-  id: string
-  title: string
-  title_ur: string | null
-  display_name: string | null
-  description: string | null
-  description_ur: string | null
-  status: string
-  progress_percent: number
-  start_date: string | null
-  end_date: string | null
-  budget_pkr: number | null
-  spent_pkr: number | null
-  category: string | null
-  location: string | null
-  location_ur: string | null
-  sector: string | null
-  beneficiaries_count: number | null
-  vote_target: number | null
-  before_image_url: string | null
-  after_image_url: string | null
-  proposal_image_url: string | null
-  funding_model: string | null
-  // A designated cover (383) — merged in after the main fetch, since it
-  // lives on project_media, not this row. Wins over after_image_url as
-  // the single "here's this project" hero image; OngoingCard's genuine
-  // before/after pairing is untouched by it on purpose.
-  cover_photo_url?: string | null
-}
-
-// Migration 370 — the rate card moved off the project onto its batches
-// (kids/adults, day/night, tape/hard ball, as many as the academy needs),
-// since one number was never going to describe a whole academy. The card
-// badge shows the cheapest villager rate across all of an academy's
-// batches — "starting from" is the honest summary for something that can
-// now have several different prices at once.
-interface FeeSummary { free: boolean; cheapestVillagerMonthly: number | null }
-const isFeeCategory = (category: string | null) => category === 'sports' || category === 'training'
-function feeBadgeLabel(p: Project, fee: FeeSummary | undefined, isUrdu: boolean): string | null {
-  if (!isFeeCategory(p.category) || !fee) return null
-  if (fee.free) return isUrdu ? 'مفت' : 'Free'
-  if (fee.cheapestVillagerMonthly) {
-    return isUrdu ? `فیس — ${fee.cheapestVillagerMonthly.toLocaleString()} سے/ماہ` : `Fee — from ${fee.cheapestVillagerMonthly.toLocaleString()}/mo`
-  }
-  return isUrdu ? 'فیس لاگو' : 'Fee applies'
-}
+// Real perf fix, 2026-10-01: every sibling public page (/, /donate, /about,
+// /news/[id]) already fetches server-side with revalidate — this page was
+// the one holdout still doing the whole fetch client-side on every visit
+// (site_settings + the RPC + the projects row + 6 dependent queries, all
+// inside a useEffect with zero caching between navigations, and the main
+// projects query had no .limit() at all). Moved the entire fetch here;
+// the client component now only owns the status/category filter buttons.
+export const revalidate = 300
 
 type Lang = 'en' | 'ur'
 
-// Health/medical projects use one fixed, non-editable cover image instead
-// of a real before/after pair — the "before" photo of an actual patient's
-// treatment isn't something the committee has (or should be showing)
-// publicly, unlike a street or a water tank. Same asset admin's project
-// form is blocked from replacing (see the admin projects page).
-const HEALTH_COVER_IMAGE = '/images/health-project-cover.jpg'
-const isHealthCategory = (category: string | null) => category === 'health'
-// Every donor-facing surface on this page prefers the admin-set public
-// label (see migration 364) over the real title — for a medical project
-// whose real title is a patient's name, this is the whole point.
-const displayTitle = (project: Project) => project.display_name || project.title
-// Same fallback chain each card already uses for its own hero photo — reused
-// here so a share card's preview image always matches what the card itself
-// shows. Health stays on the fixed placeholder for the same privacy reason
-// the card enforces it: never a real patient's photo.
-const shareImage = (project: Project) =>
-  isHealthCategory(project.category) ? HEALTH_COVER_IMAGE
-    : project.cover_photo_url ?? project.after_image_url ?? project.proposal_image_url ?? project.before_image_url ?? null
+// A generous cap, not a real pagination UI yet — this village's total
+// project count is nowhere near this today, but the old query had no
+// limit at all and would have gotten linearly slower as it grew.
+const MAX_PROJECTS = 200
 
-// Same site-wide "Accounts Display Language" toggle every other bilingual
-// page here already respects (site_settings.display_language).
-const t: Record<string, { en: string; ur: string }> = {
-  pageTitle: { en: 'Village Welfare Projects', ur: 'گاؤں کی فلاحی منصوبے' },
-  pageSubtitle: { en: `Tracking the growth of ${SITE.name} through community-funded infrastructure, healthcare, and educational initiatives.`, ur: `کمیونٹی کی مالی معاونت سے تعمیرات، صحت اور تعلیمی اقدامات کے ذریعے ${SITE.nameUrdu} کی ترقی کا سفر۔` },
-  privateTotalLabel: { en: 'Spent on confidential medical support', ur: 'خفیہ طبی امداد پر خرچ' },
-  privateTotalNote: { en: "Individual cases are kept private — names, amounts, and details are never shown here to protect the people involved.", ur: 'انفرادی کیسز کو خفیہ رکھا جاتا ہے — متعلقہ افراد کی حفاظت کے لیے یہاں نام، رقم یا تفصیلات ظاہر نہیں کی جاتیں۔' },
-  filterAll: { en: 'All', ur: 'تمام' },
-  filterOngoing: { en: 'Ongoing', ur: 'جاری' },
-  filterCompleted: { en: 'Completed', ur: 'مکمل' },
-  filterUpcoming: { en: 'Upcoming', ur: 'آئندہ' },
-  filterAnnounced: { en: 'Announced', ur: 'اعلان شدہ' },
-  sortByDate: { en: 'Sort by Date', ur: 'تاریخ کے مطابق ترتیب' },
-  noProjects: { en: 'No projects found for this filter.', ur: 'اس فلٹر کے لیے کوئی منصوبہ نہیں ملا۔' },
-  ctaTitle: { en: 'Have an idea for the village?', ur: 'گاؤں کے لیے کوئی خیال ہے؟' },
-  ctaBody: { en: `Every great transformation starts with a simple suggestion. Share your vision for ${SITE.name}'s future infrastructure or welfare projects.`, ur: `ہر بڑی تبدیلی ایک سادہ تجویز سے شروع ہوتی ہے۔ ${SITE.nameUrdu} کے مستقبل کے تعمیراتی یا فلاحی منصوبوں کے لیے اپنا خیال پیش کریں۔` },
-  submitProposal: { en: 'Submit Proposal', ur: 'تجویز جمع کرائیں' },
-  browseProposals: { en: 'Browse Proposals', ur: 'تجاویز دیکھیں' },
+export default async function ProjectsPage() {
+  const supabase = await createClient()
 
-  before: { en: 'Before', ur: 'پہلے' },
-  present: { en: 'Present', ur: 'اب' },
-  ongoingBadge: { en: 'Ongoing', ur: 'جاری' },
-  completionLabel: { en: 'Progress', ur: 'پیش رفت' },
-  budgetLabel: { en: 'Budget', ur: 'بجٹ' },
-  spentLabel: { en: 'Spent', ur: 'خرچ شدہ' },
-  detailsBtn: { en: 'Details', ur: 'تفصیلات' },
-  donateBtn: { en: 'Donate', ur: 'عطیہ دیں' },
-
-  successStory: { en: 'Success Story', ur: 'کامیابی کی کہانی' },
-  completedBadge: { en: 'Completed', ur: 'مکمل' },
-  operationalStatus: { en: 'Operational Status', ur: 'آپریشنل حیثیت' },
-  fullyFunctional: { en: '100% Fully Functional', ur: '100% مکمل طور پر فعال' },
-  totalCost: { en: 'Total Cost', ur: 'کل لاگت' },
-  totalReceived: { en: 'Total Received', ur: 'کل موصولہ' },
-  totalSpent: { en: 'Total Spent', ur: 'کل خرچ' },
-  balanceRemaining: { en: 'Balance remaining in this account', ur: 'اس اکاؤنٹ میں باقی رقم' },
-  balanceDeficit: { en: 'Covered by the general fund', ur: 'عمومی فنڈ سے پورا کیا گیا' },
-  beneficiaries: { en: 'Beneficiaries', ur: 'مستفید افراد' },
-  homes: { en: 'Homes', ur: 'گھر' },
-  completedOn: { en: 'Completed', ur: 'مکمل ہوا' },
-  viewAudit: { en: 'View Audit', ur: 'آڈٹ دیکھیں' },
-
-  futureVision: { en: 'Future Vision', ur: 'مستقبل کا منصوبہ' },
-  votingStage: { en: 'Community Voting Stage', ur: 'کمیونٹی ووٹنگ مرحلہ' },
-  upcomingVoting: { en: 'Upcoming / Voting', ur: 'آئندہ / ووٹنگ' },
-  requestedBudget: { en: 'Requested Budget', ur: 'مطلوبہ بجٹ' },
-  votesWord: { en: 'Votes', ur: 'ووٹ' },
-  requiresToAdvance: { en: 'Requires {n} to advance', ur: 'آگے بڑھنے کے لیے {n} درکار' },
-  voteTargetNotSet: { en: 'Vote target not set', ur: 'ووٹ کا ہدف مقرر نہیں' },
-  viewAndVote: { en: 'View & Vote', ur: 'دیکھیں اور ووٹ دیں' },
-  shareToVote: { en: 'Share', ur: 'شیئر کریں' },
-  submitSuggestion: { en: 'Submit Suggestion', ur: 'تجویز جمع کرائیں' },
-
-  announcedBadge: { en: 'Announced', ur: 'اعلان شدہ' },
-  waitingConfirmation: { en: 'Waiting for the announced payment confirmation', ur: 'اعلان شدہ ادائیگی کی تصدیق کا انتظار' },
-  viewDetails: { en: 'View Details', ur: 'تفصیلات دیکھیں' },
-}
-
-const CATEGORY_LABEL_UR: Record<string, string> = {
-  infrastructure: 'تعمیرات', water: 'پانی', health: 'صحت', education: 'تعلیم',
-  environment: 'ماحولیات', welfare: 'بہبود', sports: 'کھیل', training: 'تربیت', other: 'دیگر',
-}
-const ALL_CATEGORIES = ['infrastructure', 'water', 'health', 'education', 'environment', 'welfare', 'sports', 'training', 'other']
-
-const filters = ['All', 'Ongoing', 'Completed', 'Upcoming', 'Announced']
-
-function fmtFull(val: number | null) {
-  return (val ?? 0).toLocaleString()
-}
-
-function categoryLabel(category: string | null, isUrdu: boolean) {
-  const c = category ?? 'other'
-  return isUrdu ? (CATEGORY_LABEL_UR[c] ?? c) : c
-}
-
-export default function ProjectsPage() {
-  const { t: tr } = useLocale()
-  const [projects, setProjects] = useState<Project[]>([])
-  const [voteCounts, setVoteCounts] = useState<Record<string, number>>({})
-  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
-  // Real ledger totals, not the manual budget_pkr/spent_pkr fields — those
-  // were never populated for the legacy-imported projects (still 0/null
-  // for most), which is why a completed project's card was showing
-  // Rs. 0 spent despite the real ledger having real numbers all along.
-  const [receivedByProject, setReceivedByProject] = useState<Record<string, number>>({})
-  const [expenseByProject, setExpenseByProject] = useState<Record<string, number>>({})
-  const [feeByProject, setFeeByProject] = useState<Record<string, FeeSummary>>({})
-  const [activeFilter, setActiveFilter] = useState('All')
-  // A second, independent exclusive filter — status and category each
-  // narrow on their own axis and combine (AND), same as any normal
-  // category+status facet filter; within each row only one button is
-  // ever active at a time, never several ANDed together as booleans.
-  const [categoryFilter, setCategoryFilter] = useState('All')
-  const [loading, setLoading] = useState(true)
-  const [lang, setLang] = useState<Lang>('en')
-  // Private/medical projects never appear individually anywhere on this
-  // page (RLS blocks the rows themselves) — this is the one honest number
-  // the public IS told, naming no one and no specific case.
-  const [privateTotal, setPrivateTotal] = useState(0)
-  const dt = (key: keyof typeof t) => t[key][lang]
-  const isUrdu = lang === 'ur'
-
-  useEffect(() => {
-    const supabase = createClient()
-    supabase.from('site_settings').select('value').eq('key', 'display_language').maybeSingle().then(({ data }) => {
-      if (data?.value === 'ur') setLang('ur')
-    })
-    supabase.rpc('public_private_projects_total').then(({ data }) => setPrivateTotal(Number(data ?? 0)))
+  const [{ data: settingsRow }, { data: privateTotalRaw }, { data: projectRows }] = await Promise.all([
+    supabase.from('site_settings').select('value').eq('key', 'display_language').maybeSingle(),
+    supabase.rpc('public_private_projects_total'),
     supabase
       .from('projects')
       .select('*')
@@ -204,674 +31,67 @@ export default function ProjectsPage() {
       // render as a card here.
       .eq('unlisted', false)
       .order('created_at', { ascending: false })
-      .then(async ({ data }) => {
-        setProjects(data ?? [])
-        setLoading(false)
-        const allIds = (data ?? []).map((p) => p.id)
-        if (allIds.length > 0) {
-          const [{ data: voteRows }, { data: commentRows }, { data: donationRows }, { data: expenseRows }, { data: batchRows }, { data: coverRows }] = await Promise.all([
-            supabase.from('project_votes_public').select('project_id').in('project_id', allIds),
-            // Excludes comment_type='system' — those are the auto-posted "X submitted
-            // a donation of Rs. Y" lines the donation trigger writes on every submission,
-            // not something a visitor typed. Counting them made e.g. a 73-donor medical
-            // project's card claim "73 comments" when the thread held zero real ones.
-            supabase.from('project_comments_public').select('project_id').eq('comment_type', 'user').in('project_id', allIds),
-            supabase.from('donors_public').select('project_id, amount_pkr').eq('is_verified', true).in('project_id', allIds),
-            supabase.from('project_expenses_public').select('project_id, debit').in('project_id', allIds),
-            supabase.from('training_batches').select('project_id, fee_villager_monthly_pkr, fee_outsider_monthly_pkr, fee_villager_full_pkr, fee_outsider_full_pkr').eq('status', 'active').in('project_id', allIds),
-            supabase.from('project_media').select('project_id, url').eq('is_cover', true).in('project_id', allIds),
-          ])
-          if (coverRows && coverRows.length > 0) {
-            const coverByProject: Record<string, string> = {}
-            for (const c of coverRows) coverByProject[c.project_id] = c.url
-            setProjects((prev) => prev.map((p) => coverByProject[p.id] ? { ...p, cover_photo_url: coverByProject[p.id] } : p))
-          }
-          const vCounts: Record<string, number> = {}
-          for (const v of voteRows ?? []) vCounts[v.project_id] = (vCounts[v.project_id] ?? 0) + 1
-          setVoteCounts(vCounts)
-          const cCounts: Record<string, number> = {}
-          for (const c of commentRows ?? []) cCounts[c.project_id] = (cCounts[c.project_id] ?? 0) + 1
-          setCommentCounts(cCounts)
-          const received: Record<string, number> = {}
-          for (const d of donationRows ?? []) received[d.project_id] = (received[d.project_id] ?? 0) + Number(d.amount_pkr)
-          setReceivedByProject(received)
-          const expense: Record<string, number> = {}
-          for (const e of expenseRows ?? []) expense[e.project_id] = (expense[e.project_id] ?? 0) + Number(e.debit)
-          setExpenseByProject(expense)
-          const fee: Record<string, FeeSummary> = {}
-          for (const b of batchRows ?? []) {
-            const existing = fee[b.project_id] ?? { free: true, cheapestVillagerMonthly: null }
-            const batchIsFree = !b.fee_villager_monthly_pkr && !b.fee_outsider_monthly_pkr && !b.fee_villager_full_pkr && !b.fee_outsider_full_pkr
-            const villagerMonthly = Number(b.fee_villager_monthly_pkr) || null
-            fee[b.project_id] = {
-              free: existing.free && batchIsFree,
-              cheapestVillagerMonthly: villagerMonthly && (!existing.cheapestVillagerMonthly || villagerMonthly < existing.cheapestVillagerMonthly)
-                ? villagerMonthly : existing.cheapestVillagerMonthly,
-            }
-          }
-          setFeeByProject(fee)
-        }
-      })
-  }, [])
+      .limit(MAX_PROJECTS),
+  ])
 
-  // Engagement score weights votes above comments (a vote is a stronger
-  // support signal) — used both to sort within a filter and to mark "Hot".
-  const engagementScore = (p: Project) => (voteCounts[p.id] ?? 0) * 2 + (commentCounts[p.id] ?? 0)
-  const hotIds = new Set(
-    [...projects].sort((a, b) => engagementScore(b) - engagementScore(a)).slice(0, 3)
-      .filter((p) => engagementScore(p) > 0).map((p) => p.id)
-  )
+  const lang: Lang = settingsRow?.value === 'ur' ? 'ur' : 'en'
+  const privateTotal = Number(privateTotalRaw ?? 0)
+  const projects = (projectRows ?? []) as Project[]
 
-  const filtered = projects
-    .filter((p) => activeFilter === 'All' || p.status === activeFilter.toLowerCase())
-    .filter((p) => categoryFilter === 'All' || (p.category ?? 'other') === categoryFilter)
-    .slice().sort((a, b) => engagementScore(b) - engagementScore(a))
+  const voteCounts: Record<string, number> = {}
+  const commentCounts: Record<string, number> = {}
+  const receivedByProject: Record<string, number> = {}
+  const expenseByProject: Record<string, number> = {}
+  const feeByProject: Record<string, FeeSummary> = {}
 
-  // Counts follow the status filter (so "Medical (3)" always matches
-  // what clicking it will actually show) but not each other — every
-  // category button's own count is computed as if it, not whichever one
-  // happens to be active, were selected.
-  const categoryCounts: Record<string, number> = { All: 0 }
-  for (const p of projects) {
-    if (activeFilter !== 'All' && p.status !== activeFilter.toLowerCase()) continue
-    categoryCounts.All += 1
-    const cat = p.category ?? 'other'
-    categoryCounts[cat] = (categoryCounts[cat] ?? 0) + 1
-  }
-  const presentCategories = ALL_CATEGORIES.filter((c) => (categoryCounts[c] ?? 0) > 0)
+  const allIds = projects.map((p) => p.id)
+  if (allIds.length > 0) {
+    const [{ data: voteRows }, { data: commentRows }, { data: donationRows }, { data: expenseRows }, { data: batchRows }, { data: coverRows }] = await Promise.all([
+      supabase.from('project_votes_public').select('project_id').in('project_id', allIds),
+      // Excludes comment_type='system' — those are the auto-posted "X submitted
+      // a donation of Rs. Y" lines the donation trigger writes on every submission,
+      // not something a visitor typed. Counting them made e.g. a 73-donor medical
+      // project's card claim "73 comments" when the thread held zero real ones.
+      supabase.from('project_comments_public').select('project_id').eq('comment_type', 'user').in('project_id', allIds),
+      supabase.from('donors_public').select('project_id, amount_pkr').eq('is_verified', true).in('project_id', allIds),
+      supabase.from('project_expenses_public').select('project_id, debit').in('project_id', allIds),
+      supabase.from('training_batches').select('project_id, fee_villager_monthly_pkr, fee_outsider_monthly_pkr, fee_villager_full_pkr, fee_outsider_full_pkr').eq('status', 'active').in('project_id', allIds),
+      supabase.from('project_media').select('project_id, url').eq('is_cover', true).in('project_id', allIds),
+    ])
 
-  const filterKeys: Record<string, keyof typeof t> = {
-    All: 'filterAll', Ongoing: 'filterOngoing', Completed: 'filterCompleted', Upcoming: 'filterUpcoming', Announced: 'filterAnnounced',
+    if (coverRows && coverRows.length > 0) {
+      const coverByProject: Record<string, string> = {}
+      for (const c of coverRows) coverByProject[c.project_id] = c.url
+      for (const p of projects) {
+        if (coverByProject[p.id]) p.cover_photo_url = coverByProject[p.id]
+      }
+    }
+    for (const v of voteRows ?? []) voteCounts[v.project_id] = (voteCounts[v.project_id] ?? 0) + 1
+    for (const c of commentRows ?? []) commentCounts[c.project_id] = (commentCounts[c.project_id] ?? 0) + 1
+    for (const d of donationRows ?? []) receivedByProject[d.project_id] = (receivedByProject[d.project_id] ?? 0) + Number(d.amount_pkr)
+    for (const e of expenseRows ?? []) expenseByProject[e.project_id] = (expenseByProject[e.project_id] ?? 0) + Number(e.debit)
+    for (const b of batchRows ?? []) {
+      const existing = feeByProject[b.project_id] ?? { free: true, cheapestVillagerMonthly: null }
+      const batchIsFree = !b.fee_villager_monthly_pkr && !b.fee_outsider_monthly_pkr && !b.fee_villager_full_pkr && !b.fee_outsider_full_pkr
+      const villagerMonthly = Number(b.fee_villager_monthly_pkr) || null
+      feeByProject[b.project_id] = {
+        free: existing.free && batchIsFree,
+        cheapestVillagerMonthly: villagerMonthly && (!existing.cheapestVillagerMonthly || villagerMonthly < existing.cheapestVillagerMonthly)
+          ? villagerMonthly : existing.cheapestVillagerMonthly,
+      }
+    }
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'}>
-      {/* Header */}
-      <div className="mb-12">
-        <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-on-surface" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
-          {dt('pageTitle')}
-        </h2>
-        <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px] max-w-2xl mt-2" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
-          {dt('pageSubtitle')}
-        </p>
-      </div>
-
-      {/* Private/medical support — the one aggregate figure for projects
-          this page never lists individually. Quiet by design, not a hero
-          stat, since the point is discretion, not drawing attention. */}
-      {privateTotal > 0 && (
-        <div className="flex items-start gap-3 bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-5 py-4 mb-8 max-w-2xl" dir={isUrdu ? 'rtl' : 'ltr'}>
-          <Lock size={17} className="text-dp-on-surface-variant shrink-0 mt-0.5" />
-          <div>
-            <p className="font-sans text-[15px] font-bold text-dp-on-surface" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
-              {dt('privateTotalLabel')}: {fmtFull(privateTotal)}
-            </p>
-            <p className="font-sans text-[13px] text-dp-on-surface-variant mt-0.5 leading-relaxed" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
-              {dt('privateTotalNote')}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-4 mb-8">
-        {filters.map((f) => (
-          <button
-            key={f}
-            onClick={() => setActiveFilter(f)}
-            className={`px-6 py-2 rounded-full font-sans text-[14px] font-semibold tracking-[0.05em] transition-all cursor-pointer ${
-              activeFilter === f
-                ? 'bg-dp-primary text-white shadow-sm'
-                : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-primary hover:text-dp-primary'
-            }`}
-            style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
-          >
-            {dt(filterKeys[f])}
-          </button>
-        ))}
-        <div className="ms-auto hidden md:flex items-center gap-2 text-dp-on-surface-variant">
-          <span className="font-sans text-[14px] font-semibold tracking-[0.05em] uppercase" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
-            {dt('sortByDate')}
-          </span>
-        </div>
-      </div>
-
-      {/* Category filter — its own exclusive row, combines with the status
-          filter above rather than replacing it. Counts follow whichever
-          status is active, so "Medical (3)" always matches what clicking
-          it actually shows. */}
-      {presentCategories.length > 1 && (
-        <div className="flex flex-wrap items-center gap-2.5 mb-8 -mt-3">
-          <button
-            onClick={() => setCategoryFilter('All')}
-            className={`px-4 py-1.5 rounded-full font-sans text-[13px] font-semibold tracking-[0.03em] transition-all cursor-pointer ${
-              categoryFilter === 'All'
-                ? 'bg-dp-secondary text-white shadow-sm'
-                : 'bg-dp-surface-container-low text-dp-on-surface-variant hover:bg-dp-surface-container'
-            }`}
-            style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
-          >
-            {dt('filterAll')} ({categoryCounts.All ?? 0})
-          </button>
-          {presentCategories.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCategoryFilter(c)}
-              className={`px-4 py-1.5 rounded-full font-sans text-[13px] font-semibold tracking-[0.03em] transition-all cursor-pointer ${
-                categoryFilter === c
-                  ? 'bg-dp-secondary text-white shadow-sm'
-                  : 'bg-dp-surface-container-low text-dp-on-surface-variant hover:bg-dp-surface-container'
-              }`}
-              style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
-            >
-              {categoryLabel(c, isUrdu)} ({categoryCounts[c] ?? 0})
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Loading */}
-      {loading && (
-        <div className="space-y-8">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="bg-white border border-dp-outline-variant rounded-lg h-[300px] animate-pulse"
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Project Cards */}
-      {!loading && (
-        <div className="space-y-8">
-          {filtered.map((project) => {
-            if (project.status === 'ongoing') return <OngoingCard key={project.id} project={project} isHot={hotIds.has(project.id)} commentCount={commentCounts[project.id] ?? 0} expense={expenseByProject[project.id] ?? 0} fee={feeByProject[project.id]} dt={dt} isUrdu={isUrdu} />
-            if (project.status === 'completed') return <CompletedCard key={project.id} project={project} isHot={hotIds.has(project.id)} dt={dt} isUrdu={isUrdu} received={receivedByProject[project.id] ?? 0} expense={expenseByProject[project.id] ?? 0} />
-            if (project.status === 'upcoming') return <UpcomingCard key={project.id} project={project} voteCount={voteCounts[project.id] ?? 0} isHot={hotIds.has(project.id)} dt={dt} isUrdu={isUrdu} />
-            if (project.status === 'announced') return <AnnouncedCard key={project.id} project={project} dt={dt} isUrdu={isUrdu} />
-            return null
-          })}
-
-          {filtered.length === 0 && !loading && (
-            <div className="text-center py-16 text-dp-on-surface-variant font-sans text-[16px]" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
-              {dt('noProjects')}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Bottom CTA */}
-      <div className="mt-20 bg-dp-primary-container text-white p-12 rounded-2xl text-center relative overflow-hidden">
-        <div className="relative z-10">
-          <h3 className="font-heading text-[32px] font-bold leading-[40px] mb-4" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
-            {dt('ctaTitle')}
-          </h3>
-          <p className="font-sans text-[18px] leading-[28px] mb-8 max-w-xl mx-auto opacity-90" style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
-            {dt('ctaBody')}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/portal/propose-project"
-              className="inline-flex items-center justify-center gap-2 font-sans text-[14px] font-semibold tracking-[0.05em] rounded transition-all active:scale-[0.98] cursor-pointer px-8 py-3 bg-dp-secondary text-white hover:bg-dp-primary"
-              style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
-            >
-              {dt('submitProposal')}
-            </Link>
-            <button
-              onClick={() => setActiveFilter('Upcoming')}
-              className="inline-flex items-center justify-center gap-2 font-sans text-[14px] font-semibold tracking-[0.05em] rounded transition-all active:scale-[0.98] cursor-pointer px-8 py-3 bg-transparent border-2 border-white text-white hover:bg-white/10"
-              style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
-            >
-              {dt('browseProposals')}
-            </button>
-          </div>
-        </div>
-        <div className="absolute top-[-50px] right-[-50px] w-64 h-64 bg-dp-primary rounded-full opacity-20 blur-3xl" />
-        <div className="absolute bottom-[-50px] left-[-50px] w-64 h-64 bg-dp-secondary rounded-full opacity-10 blur-3xl" />
-      </div>
-    </div>
-  )
-}
-
-type Dt = (key: keyof typeof t) => string
-
-/* ========== ONGOING CARD ========== */
-function HotBadge() {
-  const { t: tr } = useLocale()
-  return (
-    <span className="absolute top-2 right-2 z-20 bg-red-500 text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded-full font-sans flex items-center gap-1">
-      <Flame size={11} /> {tr('y.hot')}
-    </span>
-  )
-}
-
-const urduStyle = { fontFamily: 'var(--font-urdu-ui)' } as const
-
-function OngoingCard({ project, isHot, commentCount, expense, fee, dt, isUrdu }: { project: Project; isHot: boolean; commentCount: number; expense: number; fee: FeeSummary | undefined; dt: Dt; isUrdu: boolean }) {
-  const { t: tr } = useLocale()
-  return (
-    <div className="relative bg-white border border-dp-outline-variant rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 hover:border-dp-secondary transition-all">
-      {isHot && <HotBadge />}
-      {/* Left: Before / Present — except health projects, which get one
-          fixed cover image, never a real before/after pair. */}
-      {isHealthCategory(project.category) ? (
-        <div className="relative aspect-[4/3] md:aspect-auto md:h-full min-h-[240px]">
-          <Image src={HEALTH_COVER_IMAGE} alt={displayTitle(project)} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
-        </div>
-      ) : (
-        <div className="relative grid grid-cols-2 gap-[2px] bg-dp-outline-variant p-[2px]">
-          <div className="relative aspect-[4/3]">
-            <div className="absolute top-2 left-2 z-10 bg-black/50 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded font-sans">
-              {dt('before')}
-            </div>
-            {project.before_image_url ? (
-              <Image src={project.before_image_url} alt="Before" fill sizes="(min-width: 768px) 25vw, 50vw" className="object-cover" />
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-dp-surface-container-high to-dp-surface-dim" />
-            )}
-          </div>
-          <div className="relative aspect-[4/3]">
-            <div className="absolute top-2 left-2 z-10 bg-dp-primary text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded font-sans">
-              {dt('present')}
-            </div>
-            {project.after_image_url || project.proposal_image_url ? (
-              <Image src={project.after_image_url ?? project.proposal_image_url ?? ''} alt="Present" fill sizes="(min-width: 768px) 25vw, 50vw" className="object-cover" />
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container" />
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Right: Content */}
-      <div className="p-8 flex flex-col justify-between">
-        <div>
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded font-sans text-[12px] font-semibold tracking-[0.05em] uppercase" style={isUrdu ? urduStyle : undefined}>
-                {categoryLabel(project.category, isUrdu)}
-              </span>
-              {feeBadgeLabel(project, fee, isUrdu) && (
-                <span className={`px-3 py-1 rounded font-sans text-[12px] font-semibold ${fee?.free ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`} style={isUrdu ? urduStyle : undefined}>
-                  {feeBadgeLabel(project, fee, isUrdu)}
-                </span>
-              )}
-            </div>
-            <span className="bg-amber-100 text-amber-900 px-3 py-1 rounded-full font-sans text-[12px] font-semibold flex items-center gap-1" style={isUrdu ? urduStyle : undefined}>
-              <span className="w-2 h-2 bg-amber-600 rounded-full animate-pulse" />
-              {dt('ongoingBadge')}
-            </span>
-          </div>
-          <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-1 text-dp-on-surface">
-            {displayTitle(project)}
-          </h3>
-          <div className="flex items-center text-dp-on-surface-variant mb-6 gap-1">
-            <MapPin size={16} />
-            <span className="font-sans text-[16px]">{isUrdu ? (project.location_ur || project.location) : project.location}</span>
-          </div>
-
-          {/* Progress */}
-          <div className="mb-6">
-            <div className="flex justify-between font-sans text-[14px] font-semibold tracking-[0.05em] mb-2 text-dp-on-surface" style={isUrdu ? urduStyle : undefined}>
-              <span>{dt('completionLabel')}</span>
-              <span>{project.progress_percent}%</span>
-            </div>
-            <div className="h-3 w-full bg-dp-surface-container-highest rounded-full overflow-hidden">
-              <div
-                className="h-full bg-dp-secondary transition-all duration-1000"
-                style={{ width: `${project.progress_percent}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Budget */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="p-3 bg-dp-surface-container-low rounded-lg">
-              <p className="text-dp-on-surface-variant text-[12px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
-                {dt('budgetLabel')}
-              </p>
-              <p className="text-[20px] font-bold text-dp-primary font-sans leading-[28px]">
-                {fmtFull(project.budget_pkr)}{' '}
-                <span className="text-[14px] font-normal">PKR</span>
-              </p>
-            </div>
-            <div className="p-3 bg-dp-surface-container-low rounded-lg">
-              <p className="text-dp-on-surface-variant text-[12px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
-                {dt('spentLabel')}
-              </p>
-              <p className="text-[20px] font-bold text-dp-secondary font-sans leading-[28px]">
-                {fmtFull(expense)}{' '}
-                <span className="text-[14px] font-normal">PKR</span>
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {commentCount > 0 ? (
-              <Link href={`/projects/${project.id}`} className="flex items-center gap-1.5 text-dp-on-surface-variant font-sans text-[13px] hover:text-dp-secondary transition-colors">
-                <MessageSquare size={15} /> {commentCount} {commentCount === 1 ? 'comment' : 'comments'}
-              </Link>
-            ) : <span />}
-            <ProjectShareCard projectId={project.id} title={displayTitle(project)} imageUrl={shareImage(project)} isUrdu={isUrdu} />
-          </div>
-          <div className="flex gap-2">
-            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
-              <Link href={`/projects/${project.id}`} className="flex items-center gap-1.5 px-4 py-2 border-2 border-dp-primary text-dp-primary font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg hover:bg-dp-primary hover:text-white transition-colors" style={isUrdu ? urduStyle : undefined}>
-                <Eye size={15} /> {dt('detailsBtn')}
-              </Link>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
-              <Link
-                href={`/projects/${project.id}`}
-                className="flex items-center gap-1.5 px-4 py-2 bg-dp-primary text-white font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg shadow-sm hover:shadow-md hover:bg-dp-primary-container transition-all"
-                style={isUrdu ? urduStyle : undefined}
-              >
-                <HandHeart size={15} /> {dt('donateBtn')}
-              </Link>
-            </motion.div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ========== COMPLETED CARD ========== */
-function CompletedCard({ project, isHot, dt, isUrdu, received, expense }: { project: Project; isHot: boolean; dt: Dt; isUrdu: boolean; received: number; expense: number }) {
-  const { t: tr } = useLocale()
-  // A completed project's real final numbers, not the original budget
-  // estimate — a leftover balance (received > expense) is money still
-  // sitting in this project's account, not yet moved anywhere; a deficit
-  // (expense > received) was covered by the general pool. Both shown
-  // as-is for now — reconciling either via a real project-transfer is a
-  // separate, deliberate accounting action, not something this card
-  // decides on its own.
-  const remaining = received - expense
-  return (
-    <div className="relative bg-white border border-dp-outline-variant rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 hover:border-dp-secondary transition-all">
-      {isHot && <HotBadge />}
-      {/* Left: Photo */}
-      <div className="relative h-full min-h-[300px]">
-        <div className="absolute top-4 left-4 z-10 bg-dp-primary text-white text-[10px] uppercase font-bold px-3 py-1 rounded font-sans">
-          {dt('successStory')}
-        </div>
-        {isHealthCategory(project.category) ? (
-          <Image src={HEALTH_COVER_IMAGE} alt={displayTitle(project)} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
-        ) : project.cover_photo_url || project.after_image_url || project.proposal_image_url ? (
-          <Image src={project.cover_photo_url ?? project.after_image_url ?? project.proposal_image_url ?? ''} alt={displayTitle(project)} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-dp-secondary to-dp-primary-container" />
-        )}
-      </div>
-
-      {/* Right: Content */}
-      <div className="p-8 flex flex-col justify-between">
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <span className="bg-dp-primary-container text-dp-on-primary-container px-3 py-1 rounded font-sans text-[12px] font-semibold tracking-[0.05em] uppercase" style={isUrdu ? urduStyle : undefined}>
-              {categoryLabel(project.category, isUrdu)}
-            </span>
-            <span className="bg-dp-primary text-white px-3 py-1 rounded-full font-sans text-[12px] font-semibold flex items-center gap-1" style={isUrdu ? urduStyle : undefined}>
-              <CheckCircle size={14} />
-              {dt('completedBadge')}
-            </span>
-          </div>
-          <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-1 text-dp-on-surface">
-            {displayTitle(project)}
-          </h3>
-          <div className="flex items-center text-dp-on-surface-variant mb-6 gap-1">
-            <MapPin size={16} />
-            <span className="font-sans text-[16px]">{isUrdu ? (project.location_ur || project.location) : project.location}</span>
-          </div>
-
-          {/* Progress */}
-          <div className="mb-6">
-            <div className="flex justify-between font-sans text-[14px] font-semibold tracking-[0.05em] mb-2 text-dp-primary font-bold" style={isUrdu ? urduStyle : undefined}>
-              <span>{dt('operationalStatus')}</span>
-              <span>{dt('fullyFunctional')}</span>
-            </div>
-            <div className="h-3 w-full bg-dp-surface-container-highest rounded-full overflow-hidden">
-              <div className="h-full bg-dp-primary w-full" />
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-3 mb-3">
-            <div className="p-3 border border-dp-outline-variant rounded-lg">
-              <p className="text-dp-on-surface-variant text-[11px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
-                {dt('totalReceived')}
-              </p>
-              <p className={`text-[16px] font-bold text-dp-on-surface font-sans ${isUrdu ? 'leading-[28px]' : 'leading-[22px]'}`}>
-                {fmtFull(received)}
-              </p>
-            </div>
-            <div className="p-3 border border-dp-outline-variant rounded-lg">
-              <p className="text-dp-on-surface-variant text-[11px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
-                {dt('totalSpent')}
-              </p>
-              <p className={`text-[16px] font-bold text-dp-on-surface font-sans ${isUrdu ? 'leading-[28px]' : 'leading-[22px]'}`}>
-                {fmtFull(expense)}
-              </p>
-            </div>
-            <div className="p-3 border border-dp-outline-variant rounded-lg">
-              <p className="text-dp-on-surface-variant text-[11px] uppercase font-semibold mb-1 font-sans" style={isUrdu ? urduStyle : undefined}>
-                {dt('beneficiaries')}
-              </p>
-              <p className={`text-[16px] font-bold text-dp-on-surface font-sans ${isUrdu ? 'leading-[28px]' : 'leading-[22px]'}`}>
-                {project.beneficiaries_count ?? 0}+{' '}
-                <span className="text-[12px] font-normal" style={isUrdu ? urduStyle : undefined}>{dt('homes')}</span>
-              </p>
-            </div>
-          </div>
-          <div className="mb-6">
-            {remaining !== 0 && (
-              <p className={`font-sans text-[13px] font-semibold ${remaining > 0 ? 'text-dp-secondary' : 'text-dp-error'}`} style={isUrdu ? urduStyle : undefined}>
-                {remaining > 0 ? dt('balanceRemaining') : dt('balanceDeficit')}: {fmtFull(Math.abs(remaining))}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Bottom */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {project.end_date ? (
-              <p className="text-dp-on-surface-variant font-sans text-[14px] border-s-4 border-dp-secondary-fixed ps-3" style={isUrdu ? urduStyle : undefined}>
-                {dt('completedOn')} {new Date(project.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-              </p>
-            ) : <span />}
-            <ProjectShareCard projectId={project.id} title={displayTitle(project)} imageUrl={shareImage(project)} isUrdu={isUrdu} />
-          </div>
-          <div className="flex items-center gap-2">
-            {/* A one-time build is done once it's completed — but a
-                recurring_support project (a salary, a monthly running
-                cost) still needs donors regardless of the build's own
-                status, so it keeps its Donate link even here. */}
-            {project.funding_model === 'recurring_support' && (
-              <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
-                <Link href={`/projects/${project.id}`} className="flex items-center gap-1.5 px-4 py-2 bg-dp-primary text-white font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg shadow-sm hover:bg-dp-primary-container transition-all">
-                  <HandHeart size={15} /> {dt('donateBtn')}
-                </Link>
-              </motion.div>
-            )}
-            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
-              <Link href={`/projects/${project.id}`} className="flex items-center gap-1.5 px-6 py-2 bg-dp-surface-container-highest text-dp-on-surface font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg shadow-sm hover:bg-dp-outline-variant hover:shadow-md transition-all" style={isUrdu ? urduStyle : undefined}>
-                <Eye size={15} /> {dt('viewAudit')}
-              </Link>
-            </motion.div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ========== UPCOMING CARD ========== */
-function UpcomingCard({ project, voteCount, isHot, dt, isUrdu }: { project: Project; voteCount: number; isHot: boolean; dt: Dt; isUrdu: boolean }) {
-  const { t: tr } = useLocale()
-
-  return (
-    <div className="relative bg-white border-2 border-dashed border-blue-200 rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm">
-      {isHot && <HotBadge />}
-      {/* Left: Photo when the proposer submitted one, else the illustration */}
-      <div className="relative bg-blue-50 flex items-center justify-center min-h-[300px]">
-        {isHealthCategory(project.category) ? (
-          <Image src={HEALTH_COVER_IMAGE} alt={displayTitle(project)} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
-        ) : project.proposal_image_url ? (
-          <Image src={project.proposal_image_url} alt={displayTitle(project)} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
-        ) : (
-          <div className="text-center p-8">
-            <Vote size={64} className="text-blue-500 mb-4 mx-auto" />
-            <h4 className="font-heading text-[24px] font-bold leading-[32px] text-blue-900 mb-2" style={isUrdu ? urduStyle : undefined}>
-              {dt('futureVision')}
-            </h4>
-            <p className="text-blue-700 font-sans text-[16px]" style={isUrdu ? urduStyle : undefined}>{dt('votingStage')}</p>
-          </div>
-        )}
-        <div
-          className={`absolute inset-0 ${project.proposal_image_url ? 'hidden' : 'opacity-10'}`}
-          style={{
-            backgroundImage: 'radial-gradient(#2563eb 1px, transparent 1px)',
-            backgroundSize: '20px 20px',
-          }}
-        />
-      </div>
-
-      {/* Right: Content */}
-      <div className="p-8 flex flex-col justify-between">
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <span className="bg-blue-600 text-white px-3 py-1 rounded font-sans text-[12px] font-semibold tracking-[0.05em] uppercase" style={isUrdu ? urduStyle : undefined}>
-              {categoryLabel(project.category, isUrdu)}
-            </span>
-            <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-sans text-[12px] font-semibold flex items-center gap-1" style={isUrdu ? urduStyle : undefined}>
-              <Vote size={14} />
-              {dt('upcomingVoting')}
-            </span>
-          </div>
-          <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-1 text-dp-on-surface">
-            {displayTitle(project)}
-          </h3>
-          <div className="flex items-center text-dp-on-surface-variant mb-6 gap-1">
-            <MapPin size={16} />
-            <span className="font-sans text-[16px]">{isUrdu ? (project.location_ur || project.location) : project.location}</span>
-          </div>
-          <p className={`text-dp-on-surface-variant mb-4 line-clamp-3 font-sans text-[16px] ${isUrdu ? 'leading-[26px]' : 'leading-[24px]'}`}>
-            {project.description}
-          </p>
-
-          {/* Budget — compulsory info before voting, not just votes */}
-          <div className="flex items-center justify-between mb-4 px-1">
-            <span className="font-sans text-[13px] font-semibold text-dp-on-surface-variant uppercase tracking-wide" style={isUrdu ? urduStyle : undefined}>{dt('requestedBudget')}</span>
-            <span className="font-heading text-[20px] font-bold text-blue-900">{fmtFull(project.budget_pkr)}</span>
-          </div>
-
-          {/* Vote Box */}
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center justify-between mb-6">
-            <div>
-              <p className="text-blue-900 font-bold text-[20px] font-sans leading-[28px]">
-                {voteCount} {dt('votesWord')}
-              </p>
-              <p className="text-blue-700 text-[14px] font-sans font-semibold tracking-[0.05em]" style={isUrdu ? urduStyle : undefined}>
-                {project.vote_target ? dt('requiresToAdvance').replace('{n}', String(project.vote_target)) : dt('voteTargetNotSet')}
-              </p>
-            </div>
-            <div className="h-2 w-24 bg-blue-100 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-600" style={{ width: `${project.vote_target ? Math.min(100, (voteCount / project.vote_target) * 100) : 0}%` }} />
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-2.5">
-          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="flex-1">
-            <Link
-              href={`/projects/${project.id}`}
-              className="w-full py-3 bg-blue-600 text-white font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg shadow-sm hover:shadow-md hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
-              style={isUrdu ? urduStyle : undefined}
-            >
-              <ThumbsUp size={16} />
-              {dt('viewAndVote')}
-            </Link>
-          </motion.div>
-          <motion.div whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}>
-            <ProjectShareCard
-              projectId={project.id} title={displayTitle(project)} imageUrl={shareImage(project)}
-              isVotingOpen isUrdu={isUrdu}
-              className="flex items-center justify-center px-4 py-3 border-2 border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer h-full"
-            />
-          </motion.div>
-          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-            <Link
-              href="/suggestions"
-              className="h-full px-5 py-3 border-2 border-blue-600 text-blue-600 font-sans text-[13.5px] font-semibold tracking-[0.03em] rounded-lg hover:bg-blue-50 transition-colors text-center flex items-center justify-center"
-              style={isUrdu ? urduStyle : undefined}
-            >
-              {dt('submitSuggestion')}
-            </Link>
-          </motion.div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ========== ANNOUNCED CARD ========== */
-// A freshly-posted proposal, paused until the proposer's own self-commitment
-// is paid and staff-confirmed (migration 141) — greyed out on purpose, no
-// vote/donate actions yet, just the "waiting" label from the detail page.
-function AnnouncedCard({ project, dt, isUrdu }: { project: Project; dt: Dt; isUrdu: boolean }) {
-  const { t: tr } = useLocale()
-  return (
-    <div className="relative bg-dp-surface-container-low border-2 border-dashed border-dp-outline-variant rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-2 opacity-90">
-      <div className="relative bg-slate-100 flex items-center justify-center min-h-[220px] md:min-h-[300px]">
-        {project.proposal_image_url && (
-          <Image src={project.proposal_image_url} alt={displayTitle(project)} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover grayscale opacity-40" />
-        )}
-        <div className="relative text-center p-8">
-          <Lock size={56} className="text-slate-400 mb-4 mx-auto" />
-          <p className="text-slate-500 font-sans text-[15px] font-semibold" style={isUrdu ? urduStyle : undefined}>{dt('waitingConfirmation')}</p>
-        </div>
-      </div>
-      <div className="p-8 flex flex-col justify-between">
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <span className="bg-slate-300 text-slate-700 px-3 py-1 rounded font-sans text-[12px] font-semibold tracking-[0.05em] uppercase" style={isUrdu ? urduStyle : undefined}>
-              {categoryLabel(project.category, isUrdu)}
-            </span>
-            <span className="bg-slate-200 text-slate-600 px-3 py-1 rounded-full font-sans text-[12px] font-semibold" style={isUrdu ? urduStyle : undefined}>
-              {dt('announcedBadge')}
-            </span>
-          </div>
-          <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-1 text-dp-on-surface-variant">
-            {displayTitle(project)}
-          </h3>
-          <div className="flex items-center text-dp-on-surface-variant mb-6 gap-1">
-            <MapPin size={16} />
-            <span className="font-sans text-[16px]">{isUrdu ? (project.location_ur || project.location) : project.location}</span>
-          </div>
-          <p className={`text-dp-on-surface-variant line-clamp-3 font-sans text-[16px] mb-4 ${isUrdu ? 'leading-[26px]' : 'leading-[24px]'}`}>
-            {project.description}
-          </p>
-          <div className="flex items-center justify-between px-1">
-            <span className="font-sans text-[13px] font-semibold text-dp-on-surface-variant uppercase tracking-wide" style={isUrdu ? urduStyle : undefined}>{dt('requestedBudget')}</span>
-            <span className="font-heading text-[18px] font-bold text-dp-on-surface-variant">{fmtFull(project.budget_pkr)}</span>
-          </div>
-        </div>
-        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-          <Link
-            href={`/projects/${project.id}`}
-            className="mt-6 py-3 border-2 border-dp-outline-variant text-dp-on-surface-variant font-sans text-[14px] font-semibold tracking-[0.05em] rounded-lg hover:border-dp-primary hover:text-dp-primary transition-colors flex items-center justify-center gap-2"
-            style={isUrdu ? urduStyle : undefined}
-          >
-            <Eye size={15} /> {dt('viewDetails')}
-          </Link>
-        </motion.div>
-      </div>
-    </div>
+    <ProjectsListClient
+      projects={projects}
+      voteCounts={voteCounts}
+      commentCounts={commentCounts}
+      receivedByProject={receivedByProject}
+      expenseByProject={expenseByProject}
+      feeByProject={feeByProject}
+      privateTotal={privateTotal}
+      lang={lang}
+    />
   )
 }
