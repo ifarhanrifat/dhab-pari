@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Send, MessageCircle, Megaphone, AlertTriangle, X, Radio, Inbox, Timer, Save, CheckCircle2, Trash2 } from 'lucide-react'
+import { Send, MessageCircle, Megaphone, AlertTriangle, X, Radio, Inbox, Timer, Save, CheckCircle2, Trash2, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { SITE } from '@/lib/constants'
@@ -33,7 +33,32 @@ interface HistoryRow {
 interface Appeal {
   id: string; kind: string; title_ur: string | null; body_ur: string; body_en: string
   audience: string; audience_countries: string[]; is_public: boolean; severity: string
-  contact_number: string | null; created_at: string; expires_at: string | null
+  contact_name: string | null; contact_number: string | null; created_at: string; expires_at: string | null
+}
+
+// Real ask, 2026-10-01: "the date of start and date of expiry is very
+// hard to set make it easy" — quick preset buttons that compute the
+// actual datetime-local value, sitting above the same raw input for
+// anyone who wants to fine-tune or pick something the presets don't
+// cover.
+const EXPIRY_PRESETS: [string, number][] = [
+  ['6h', 6 * 3600000], ['1d', 24 * 3600000], ['3d', 3 * 24 * 3600000], ['1w', 7 * 24 * 3600000], ['2w', 14 * 24 * 3600000],
+]
+function toLocalInputValue(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+function ExpiryPresetButtons({ onPick }: { onPick: (value: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-1.5 mb-1.5">
+      {EXPIRY_PRESETS.map(([label, ms]) => (
+        <button key={label} type="button" onClick={() => onPick(toLocalInputValue(new Date(Date.now() + ms)))}
+          className="px-2.5 py-1 rounded-full border border-dp-outline-variant text-[11px] font-sans font-semibold text-dp-on-surface-variant hover:border-dp-secondary hover:text-dp-secondary transition-all cursor-pointer">
+          {label}
+        </button>
+      ))}
+    </div>
+  )
 }
 
 // Second element of each tuple is an i18n key (module scope has no
@@ -86,6 +111,10 @@ export default function AdminNotificationsPage() {
   const [showHistory, setShowHistory] = useState(false)
   const [reach, setReach] = useState<number | null>(null)
   const [posting, setPosting] = useState(false)
+  // Real ask, 2026-10-01: "alerts are not editable make them editable" —
+  // the same compose form below doubles as the edit form when this is
+  // set, instead of a second form existing somewhere else.
+  const [editingAppealId, setEditingAppealId] = useState<string | null>(null)
 
   // Real ask, 2026-10-01: "why to create separate sections?" — Help
   // Requests and Death Announcements used to have their own bespoke
@@ -211,6 +240,20 @@ export default function AdminNotificationsPage() {
     }).then(({ data }) => setReach(typeof data === 'number' ? data : null))
   }, [aAudience, aCountries, supabase])
 
+  const resetComposeForm = () => {
+    setATitleUr(''); setABodyUr(''); setABodyEn(''); setAContact(''); setAExpires(''); setAStarts(''); setEditingAppealId(null)
+  }
+
+  const startEdit = (a: Appeal) => {
+    setEditingAppealId(a.id)
+    setAKind(a.kind); setASeverity(a.severity); setATitleUr(a.title_ur ?? '')
+    setABodyUr(a.body_ur); setABodyEn(a.body_en); setAAudience(a.audience)
+    setACountries((a.audience_countries ?? []).join(', ')); setAPublic(a.is_public)
+    setAContact(a.contact_number ?? ''); setAExpires(a.expires_at ? toLocalInputValue(new Date(a.expires_at)) : '')
+    setAStarts('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const postAppeal = async () => {
     // Real ask, 2026-10-01: "remove this compulsory english option from
     // the appeal tab" — Urdu is what's actually required; English is a
@@ -218,29 +261,47 @@ export default function AdminNotificationsPage() {
     // left blank (body_en is NOT NULL in the schema).
     if (!aBodyUr.trim()) { toast.error(t('al.needsBothLangs')); return }
     setPosting(true)
-    const { error } = await supabase.rpc('create_appeal', {
-      p_kind: aKind,
-      p_body_ur: aBodyUr.trim(),
-      p_body_en: aBodyEn.trim(),
-      p_audience: aAudience,
-      p_audience_countries: aCountries.split(',').map((c) => c.trim()).filter(Boolean),
-      p_is_public: aPublic,
-      p_title_ur: aTitleUr.trim() || null,
-      p_title_en: null,
-      p_contact_name: null,
-      p_contact_number: aContact.trim() || null,
-      p_project_id: null,
-      p_expires_at: aExpires ? new Date(aExpires).toISOString() : null,
-      p_notify: aNotify,
-      p_severity: aSeverity,
-      p_starts_at: aStarts ? new Date(aStarts).toISOString() : null,
-    })
+    const { error } = editingAppealId
+      ? await supabase.rpc('update_appeal', {
+          p_appeal_id: editingAppealId,
+          p_kind: aKind,
+          p_body_ur: aBodyUr.trim(),
+          p_body_en: aBodyEn.trim(),
+          p_audience: aAudience,
+          p_audience_countries: aCountries.split(',').map((c) => c.trim()).filter(Boolean),
+          p_is_public: aPublic,
+          p_title_ur: aTitleUr.trim() || null,
+          p_contact_number: aContact.trim() || null,
+          p_expires_at: aExpires ? new Date(aExpires).toISOString() : null,
+          p_severity: aSeverity,
+        })
+      : await supabase.rpc('create_appeal', {
+          p_kind: aKind,
+          p_body_ur: aBodyUr.trim(),
+          p_body_en: aBodyEn.trim(),
+          p_audience: aAudience,
+          p_audience_countries: aCountries.split(',').map((c) => c.trim()).filter(Boolean),
+          p_is_public: aPublic,
+          p_title_ur: aTitleUr.trim() || null,
+          p_title_en: null,
+          p_contact_name: null,
+          p_contact_number: aContact.trim() || null,
+          p_project_id: null,
+          p_expires_at: aExpires ? new Date(aExpires).toISOString() : null,
+          p_notify: aNotify,
+          p_severity: aSeverity,
+          p_starts_at: aStarts ? new Date(aStarts).toISOString() : null,
+        })
     setPosting(false)
     if (error) { toast.error(friendlyError(error)); return }
-    toast.success(aStarts && new Date(aStarts) > new Date()
-      ? `${t('al.scheduledFor')} ${new Date(aStarts).toLocaleString('en-GB')}`
-      : aNotify ? `${t('al.postedAndSentTo')} ${reach ?? 0} ${t('al.portalUsersSuffix')}` : t('al.appealPostedOnly'))
-    setATitleUr(''); setABodyUr(''); setABodyEn(''); setAContact(''); setAExpires(''); setAStarts('')
+    if (editingAppealId) {
+      toast.success(t('al.appealUpdated'))
+    } else {
+      toast.success(aStarts && new Date(aStarts) > new Date()
+        ? `${t('al.scheduledFor')} ${new Date(aStarts).toLocaleString('en-GB')}`
+        : aNotify ? `${t('al.postedAndSentTo')} ${reach ?? 0} ${t('al.portalUsersSuffix')}` : t('al.appealPostedOnly'))
+    }
+    resetComposeForm()
     loadAppeals()
   }
 
@@ -324,6 +385,7 @@ export default function AdminNotificationsPage() {
                   <div className="flex items-end gap-2 shrink-0">
                     <div>
                       <label className="block font-sans text-[11px] text-dp-on-surface-variant mb-1">{t('al.customExpiryOptional')}</label>
+                      <ExpiryPresetButtons onPick={(v) => setPendingExpiry({ ...pendingExpiry, [item.id]: v })} />
                       <input type="datetime-local" value={pendingExpiry[item.id] ?? ''} onChange={(e) => setPendingExpiry({ ...pendingExpiry, [item.id]: e.target.value })} className="input-field text-[12.5px] py-1.5" />
                     </div>
                     <button onClick={() => approvePending(item)} title={t('mod.approveAndBroadcast')} className="p-2 bg-emerald-600 text-white rounded-lg cursor-pointer hover:bg-emerald-700"><Radio size={15} /></button>
@@ -378,12 +440,17 @@ export default function AdminNotificationsPage() {
           the top of every matching portal, and retractable the moment the need
           is met. */}
       <div className="bg-white border border-dp-outline-variant rounded-lg p-6 mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <AlertTriangle size={20} className="text-dp-error" />
-          <h2 className="font-sans text-[20px] font-semibold leading-[28px] text-dp-primary">{t('al.postAppeal')}</h2>
+        <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+          <div className="flex items-center gap-3">
+            <AlertTriangle size={20} className="text-dp-error" />
+            <h2 className="font-sans text-[20px] font-semibold leading-[28px] text-dp-primary">{editingAppealId ? t('al.editAppeal') : t('al.postAppeal')}</h2>
+          </div>
+          {editingAppealId && (
+            <button onClick={resetComposeForm} className="font-sans text-[13px] font-semibold text-dp-on-surface-variant hover:text-dp-error cursor-pointer">{t('g.cancel')}</button>
+          )}
         </div>
         <p className="font-sans text-[13px] text-dp-on-surface-variant mb-5">
-          {t('al.postAppealBlurb')}
+          {editingAppealId ? t('al.editAppealBlurb') : t('al.postAppealBlurb')}
         </p>
 
         {/* Sets the word shown in front of the scrolling text, and the order
@@ -453,13 +520,17 @@ export default function AdminNotificationsPage() {
           </div>
           <div>
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('al.startShowing')}</label>
+            {aStarts && (
+              <button type="button" onClick={() => setAStarts('')} className="mb-1.5 px-2.5 py-1 rounded-full border border-dp-outline-variant text-[11px] font-sans font-semibold text-dp-on-surface-variant hover:border-dp-secondary hover:text-dp-secondary transition-all cursor-pointer">{t('al.startNow')}</button>
+            )}
             <input type="datetime-local" value={aStarts} onChange={(e) => setAStarts(e.target.value)} className="input-field" />
             <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('al.startBlankNote')}</p>
           </div>
           <div>
             <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('al.stopShowing')}</label>
+            <ExpiryPresetButtons onPick={setAExpires} />
             <input type="datetime-local" value={aExpires} onChange={(e) => setAExpires(e.target.value)} className="input-field" />
-            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('al.blankKeepUp')}</p>
+            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('al.blankUsesDefault')}</p>
           </div>
         </div>
 
@@ -477,7 +548,7 @@ export default function AdminNotificationsPage() {
         </label>
 
         <button onClick={postAppeal} disabled={posting} className="flex items-center gap-2 px-6 py-3 bg-dp-error text-white rounded-lg font-sans font-semibold hover:opacity-90 transition-all disabled:opacity-50 cursor-pointer">
-          <Megaphone size={16} /> {posting ? t('al.posting') : t('al.postAppealBtn')}
+          <Megaphone size={16} /> {posting ? t('al.posting') : editingAppealId ? t('al.updateAppealBtn') : t('al.postAppealBtn')}
         </button>
       </div>
 
@@ -504,10 +575,20 @@ export default function AdminNotificationsPage() {
                   <p dir="rtl" className="font-urdu text-[14px] text-dp-on-surface leading-relaxed">{a.body_ur}</p>
                   <p className="font-sans text-[12.5px] text-dp-on-surface-variant mt-0.5">{a.body_en}</p>
                 </div>
-                <button onClick={() => closeAppeal(a.id)}
-                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-error cursor-pointer hover:bg-dp-surface-container-low transition-all">
-                  <X size={14} /> {t('g.close')}
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Real ask, 2026-10-01: "alerts are not editable make
+                      them editable" — reopens this same alert in the
+                      compose form above instead of only being able to
+                      close and re-post it from scratch. */}
+                  <button onClick={() => startEdit(a)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-secondary cursor-pointer hover:bg-dp-surface-container-low transition-all">
+                    <Pencil size={14} /> {t('g.edit')}
+                  </button>
+                  <button onClick={() => closeAppeal(a.id)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dp-outline-variant font-sans text-[13px] font-semibold text-dp-error cursor-pointer hover:bg-dp-surface-container-low transition-all">
+                    <X size={14} /> {t('g.close')}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
