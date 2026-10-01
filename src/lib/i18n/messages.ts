@@ -2902,6 +2902,11 @@ export const messages: Record<Locale, Record<string, string>> = {
     'np.saved': 'Saved', 'np.saveFailed': 'Could not save, please try again.',
     'np.emergencyNote': 'Emergency broadcasts (blood needed, Help Requests, Death Announcements) always reach you regardless of these settings.',
 
+    'aes.title': 'Alert Expiry Settings', 'aes.intro': 'How long each kind of alert stays on the belt before it automatically disappears. A staff member can always end one earlier with the Close button on the Alerts & Appeals page — this only sets the default when nobody does.',
+    'aes.currently': 'Currently', 'aes.invalidHours': 'Enter a number of hours greater than 0', 'aes.saved': 'Saved',
+    'aes.oneDay': '1 day', 'aes.days': 'days', 'aes.hours': 'hours', 'aes.hoursUnit': 'hrs',
+    'nav.alertSettings': 'Alert Expiry Settings',
+
     'ch.pageTitle': 'Chanda', 'ch.pageIntro': 'Mosque and Janaza Gah construction fund collection for the village.',
     'ch.noneFound': 'No Chanda campaigns are open right now.', 'ch.donateBtn': 'Donate', 'ch.target': 'target',
     'ch.shareLink': 'Share', 'ch.linkCopiedShare': 'Link copied — share it with your group',
@@ -8086,6 +8091,11 @@ export const messages: Record<Locale, Record<string, string>> = {
     'np.generalAppeals': 'عمومی اپیلیں', 'np.generalAppealsDesc': 'منصوبوں کی درخواستیں، دیکھ بھال کے نوٹس، اور دیگر معمول کی اپیلیں۔',
     'np.saved': 'محفوظ ہو گیا', 'np.saveFailed': 'محفوظ نہیں ہو سکا، دوبارہ کوشش کریں۔',
     'np.emergencyNote': 'ہنگامی اعلانات (خون کی ضرورت، مدد کی درخواستیں، وفات کی اطلاعات) ان ترتیبات سے قطع نظر ہمیشہ آپ تک پہنچیں گے۔',
+
+    'aes.title': 'الرٹ کی میعاد کی ترتیبات', 'aes.intro': 'ہر قسم کا الرٹ خود بخود ختم ہونے سے پہلے کتنی دیر بیلٹ پر رہے گا۔ عملہ ہمیشہ Alerts & Appeals صفحے پر Close بٹن سے اسے جلدی ختم کر سکتا ہے — یہ صرف وہ ڈیفالٹ مقرر کرتا ہے جب کوئی ایسا نہ کرے۔',
+    'aes.currently': 'فی الحال', 'aes.invalidHours': 'براہ کرم 0 سے زیادہ گھنٹے درج کریں', 'aes.saved': 'محفوظ ہو گیا',
+    'aes.oneDay': '1 دن', 'aes.days': 'دن', 'aes.hours': 'گھنٹے', 'aes.hoursUnit': 'گھنٹے',
+    'nav.alertSettings': 'الرٹ کی میعاد کی ترتیبات',
 
     'ch.pageTitle': 'چندہ', 'ch.pageIntro': 'گاؤں کے لیے مسجد اور جنازہ گاہ کی تعمیر کے فنڈ کی جمع آوری۔',
     'ch.noneFound': 'فی الحال کوئی چندہ مہم جاری نہیں۔', 'ch.donateBtn': 'چندہ دیں', 'ch.target': 'ہدف',

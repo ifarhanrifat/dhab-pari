@@ -64,6 +64,11 @@ export default function AdminHelpRequestsPage() {
       // routine appeal instead of the top-tier Emergency badge it
       // actually is.
       p_severity: 'emergency',
+      // Real ask, 2026-10-01: configurable default expiry per alert type
+      // (migration 550) — this identifies the call so admin's own
+      // expiry setting for "Help Request" specifically applies, instead
+      // of falling back to the generic emergency default.
+      p_alert_type: 'help_request',
       p_body_ur: `${catLabel}: ${r.description} — رابطہ: ${r.contact_name} (${r.contact_mobile})`,
       p_body_en: `${catLabel}: ${r.description} — Contact: ${r.contact_name} (${r.contact_mobile})`,
       p_title_ur: 'مدد درکار ہے', p_title_en: 'Need Help',

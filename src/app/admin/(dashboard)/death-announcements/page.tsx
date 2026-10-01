@@ -56,6 +56,10 @@ export default function AdminDeathAnnouncementsPage() {
     const { error: appealErr } = await supabase.rpc('create_appeal', {
       p_kind: 'other',
       p_severity: 'emergency',
+      // Real ask, 2026-10-01: configurable default expiry per alert type
+      // (migration 550) — "Death Announcement" gets its own setting
+      // instead of the generic emergency default.
+      p_alert_type: 'death_announcement',
       p_body_ur: `انا للہ و انا الیہ راجعون۔ ${nameLine} کا انتقال ہو گیا۔${funeralLine} رابطہ: ${a.family_contact_name} (${a.family_contact_mobile})`,
       p_body_en: `Inna lillahi wa inna ilayhi raji'un. ${nameLine} has passed away.${funeralLineEn} Contact: ${a.family_contact_name} (${a.family_contact_mobile})`,
       p_title_ur: 'وفات کی اطلاع', p_title_en: 'Death Announcement',
