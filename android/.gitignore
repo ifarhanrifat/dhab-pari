@@ -65,8 +65,11 @@ keystore.properties
 .externalNativeBuild
 .cxx/
 
-# Google Services (e.g. APIs or Firebase)
-# google-services.json
+# Google Services (e.g. APIs or Firebase) — same treatment as the keystore
+# file above: not committed, kept as a private local backup instead. Not
+# strictly a secret by Google's own policy, but this repo is public, so
+# there's no reason to publish it either.
+google-services.json
 
 # Freeline
 freeline.py

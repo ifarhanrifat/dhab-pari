@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getFirebaseMessaging } from '@/lib/firebaseAdmin'
 
 // Called by the dispatch_push_notification() Postgres trigger (migration
 // 348) right after a row lands in `notifications` or `portal_notifications`.
@@ -60,13 +61,11 @@ export async function POST(req: NextRequest) {
   // separate mapping, not the same ownerColumn reused.
   const subsColumn = table === 'notifications' ? 'admin_user_id' : 'portal_user_id'
 
-  const { data: subs } = await supabase.from('push_subscriptions').select('id, endpoint, p256dh, auth').eq(subsColumn, recipientId)
-  if (!subs?.length) return NextResponse.json({ ok: true, note: 'no subscriptions' })
-
   const payload = JSON.stringify({ title: row.title, body: row.body ?? '', link: row.link ?? '/' })
 
-  const results = await Promise.allSettled(
-    subs.map((s) =>
+  const { data: subs } = await supabase.from('push_subscriptions').select('id, endpoint, p256dh, auth').eq(subsColumn, recipientId)
+  const webPushResults = await Promise.allSettled(
+    (subs ?? []).map((s) =>
       webpush.sendNotification(
         { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
         payload
@@ -82,5 +81,35 @@ export async function POST(req: NextRequest) {
     )
   )
 
+  // Native Android app (a bare WebView) can't receive Web Push in the
+  // background — fcm_device_tokens (558) is that app's own registration,
+  // delivered through Firebase instead. Same payload, a second real
+  // delivery path, not a replacement for the one above (a browser install
+  // or iOS Home Screen app still uses Web Push, same as before).
+  const messaging = getFirebaseMessaging()
+  const { data: fcmTokens } = messaging
+    ? await supabase.from('fcm_device_tokens').select('id, token').eq(subsColumn, recipientId)
+    : { data: null }
+  const fcmResults = messaging
+    ? await Promise.allSettled(
+        (fcmTokens ?? []).map((t) =>
+          messaging.send({
+            token: t.token,
+            notification: { title: row.title, body: row.body ?? '' },
+            data: { link: row.link ?? '/' },
+          }).catch(async (err) => {
+            // The FCM-side equivalent of a 404/410 — the app was
+            // uninstalled or the token rotated, so this one is dead.
+            if (err?.code === 'messaging/registration-token-not-registered' || err?.code === 'messaging/invalid-registration-token') {
+              await supabase.from('fcm_device_tokens').delete().eq('id', t.id)
+            }
+            throw err
+          })
+        )
+      )
+    : []
+
+  const results = [...webPushResults, ...fcmResults]
+  if (!subs?.length && !fcmTokens?.length) return NextResponse.json({ ok: true, note: 'no subscriptions' })
   return NextResponse.json({ ok: true, sent: results.filter((r) => r.status === 'fulfilled').length, failed: results.filter((r) => r.status === 'rejected').length })
 }
