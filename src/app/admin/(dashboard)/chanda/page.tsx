@@ -59,7 +59,10 @@ export default function AdminChandaPage() {
   useEffect(() => { load() }, [])
 
   const save = async () => {
-    if (!form.title.trim() || !form.account_number.trim()) { toast.error(t('ch.fillRequired')); return }
+    const cost = parseFloat(form.target_amount)
+    if (!form.title.trim() || !form.account_number.trim() || !form.description.trim() || !cost || cost <= 0) {
+      toast.error(t('ch.fillRequired')); return
+    }
     const { data: { user } } = await supabase.auth.getUser()
     const { data: me } = await supabase.from('admin_users').select('id').eq('auth_user_id', user!.id).single()
     const payload = {
@@ -176,8 +179,15 @@ export default function AdminChandaPage() {
               )}
               <input placeholder={t('ve.titleEn')} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input-field" />
               <input placeholder={t('ve.titleUr')} value={form.title_ur} onChange={(e) => setForm({ ...form, title_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
-              <textarea placeholder={t('w.descriptionOptional')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="input-field resize-none" />
-              <input type="number" placeholder={t('ch.targetAmount')} value={form.target_amount} onChange={(e) => setForm({ ...form, target_amount: e.target.value })} className="input-field" />
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ch.workDescription')} *</label>
+                <textarea placeholder={t('ch.workDescription')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="input-field resize-none" />
+                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('ch.workDescriptionHint')}</p>
+              </div>
+              <div>
+                <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ch.targetAmount')} *</label>
+                <input type="number" placeholder={t('ch.targetAmount')} value={form.target_amount} onChange={(e) => setForm({ ...form, target_amount: e.target.value })} className="input-field" />
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })} className="input-field">
                   <option value="easypaisa">Easypaisa</option>

@@ -98,12 +98,20 @@ export default function ChandaPage() {
                   </div>
                   <button onClick={() => setShowForm(c.id)} className="px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[13px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">{t('ch.donateBtn')}</button>
                 </div>
+                {/* The work this money is actually for, and its real cost — the two
+                    things a donor needs before giving, shown up front rather than
+                    buried after the payment details. */}
+                {c.target_amount != null && (
+                  <p className="font-sans text-[13px] font-bold text-dp-on-surface mb-1.5">
+                    {t('ch.costLabel')}: <span className="ltr-num">Rs {c.target_amount.toLocaleString()}</span>
+                  </p>
+                )}
                 {(isUrdu ? c.description_ur : c.description) && <p className="font-sans text-[13.5px] text-dp-on-surface-variant mb-2">{isUrdu ? c.description_ur : c.description}</p>}
                 <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{methodLabel[c.payment_method]}: <span className="ltr-num font-semibold">{c.account_number}</span>{c.account_title ? ` (${c.account_title})` : ''}</p>
 
                 <div className="flex items-center gap-4 mb-3 font-sans text-[13px]">
                   <span className="text-emerald-700 font-bold">{t('sl.confirmed')}: <span className="ltr-num">Rs {confirmedTotal.toLocaleString()}</span></span>
-                  {c.target_amount && <span className="text-dp-on-surface-variant">/ <span className="ltr-num">Rs {c.target_amount.toLocaleString()}</span> {t('ch.target')}</span>}
+                  {c.target_amount != null && <span className="text-dp-on-surface-variant">/ <span className="ltr-num">Rs {c.target_amount.toLocaleString()}</span> {t('ch.target')}</span>}
                 </div>
 
                 {campaignPledges.length > 0 && (

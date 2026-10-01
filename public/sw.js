@@ -17,7 +17,7 @@
 //
 // Bump CACHE_VERSION / PAGES_CACHE to force every client to drop the old cache.
 const CACHE_VERSION = 'dp-shell-v3'
-const PAGES_CACHE = 'dp-pages-v1'
+const PAGES_CACHE = 'dp-pages-v2'
 const CURRENT_CACHES = [CACHE_VERSION, PAGES_CACHE]
 const OFFLINE_URL = '/offline.html'
 // A slow village connection should still feel instant: if the network
@@ -101,14 +101,27 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/admin')) return
   if (url.pathname.startsWith('/portal')) return
 
-  // Navigations: race the network against a short timeout. A fast/normal
-  // connection always wins the race, so nothing changes for most visits —
-  // the page is as fresh as it always was. A slow or absent connection
-  // instead gets the last copy of this exact page that was ever saved, so
-  // a flaky village signal shows something real instantly instead of a
-  // spinner, and no signal at all still shows the real page, not a
-  // placeholder, for anywhere already visited once.
-  if (request.mode === 'navigate') {
+  // Next's App Router doesn't reload the page for a <Link> click — it fetches
+  // the next page's React payload in the background (an "RSC" request,
+  // flagged by these headers) and swaps it in client-side. That request
+  // never has request.mode 'navigate', so without this it was invisible to
+  // this worker entirely: tapping around inside an already-open app only
+  // ever hit the navigate branch below on the very first hard load, and
+  // every link tapped afterwards bypassed the cache completely — which is
+  // the exact report that prompted this (every page worked once, offline,
+  // except whichever one the tab happened to be freshly, hard-loaded on).
+  const isNextDataRequest = request.headers.get('RSC') === '1'
+    || request.headers.get('Next-Router-Prefetch') === '1'
+
+  // Navigations and the RSC fetches behind in-app link taps: race the
+  // network against a short timeout. A fast/normal connection always wins,
+  // so nothing changes for most visits — the page is as fresh as it always
+  // was. A slow connection instead gets the last copy of this exact
+  // request that was ever saved, so a flaky village signal shows something
+  // real instantly instead of a spinner, and no signal at all still shows
+  // the real page for anywhere already visited once — by any means, not
+  // just a hard reload.
+  if (request.mode === 'navigate' || isNextDataRequest) {
     event.respondWith(
       (async () => {
         const cached = await caches.match(request)
@@ -126,6 +139,14 @@ self.addEventListener('fetch', (event) => {
         event.waitUntil(networkFetch.catch(() => {}))
 
         if (!cached) {
+          // An RSC request isn't a full page — offline.html is an HTML
+          // document and handing it back here as if it were the expected
+          // React payload would just make the client router error out.
+          // Let it reject; Next's own router falls back to a hard page
+          // load on a failed transition, which lands back on this
+          // worker as a real 'navigate' request and gets the proper
+          // offline page there instead.
+          if (isNextDataRequest) return networkFetch
           return networkFetch.catch(() => caches.match(OFFLINE_URL).then((r) => r ?? Response.error()))
         }
 
