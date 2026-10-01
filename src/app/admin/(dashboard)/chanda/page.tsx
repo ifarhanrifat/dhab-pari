@@ -1,18 +1,19 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, Pencil, Trash2, Landmark, Copy } from 'lucide-react'
+import { PlusCircle, X, Pencil, Trash2, Landmark, UserCheck, UserX, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { PortalUserSearchPicker, type PortalUserLite } from '@/components/admin/PortalUserSearchPicker'
 
 interface DirEntry { id: string; name: string }
 interface Campaign {
   id: string; type: string; directory_entry_id: string | null; title: string; title_ur: string | null
   description: string | null; description_ur: string | null; target_amount: number | null
   payment_method: string; account_number: string; account_title: string | null; bank_name: string | null
-  manage_token: string; display_until: string; is_active: boolean
+  display_until: string; is_active: boolean; manager_portal_user_id: string | null; manager?: PortalUserLite
 }
 
 const TYPES = ['mosque', 'janaza_gah']
@@ -25,9 +26,12 @@ const empty = {
 
 // Phase 3 of the "Village OS" feature set, 2026-10-01. Chanda (Mosque /
 // Janaza Gah fund collection) -- a standing campaign, not a dated event,
-// so it's its own admin page rather than living under Events. Same
-// pledge/manage-link mechanics as wedding Salami (540), but donor names
-// ARE shown publicly here (real ask), unlike Salami's privacy fix (541).
+// so it's its own admin page rather than living under Events.
+//
+// Real security correction, 2026-10-01: "this link part is unsecure what
+// if it get leaked" -- the manage_token copy-link is gone from this UI;
+// a campaign is managed by linking it to a real portal account instead
+// (migration 554), the same fix applied to wedding Salami.
 export default function AdminChandaPage() {
   const { t, isUrdu } = useLocale()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
@@ -36,6 +40,7 @@ export default function AdminChandaPage() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState(empty)
+  const [managingId, setManagingId] = useState<string | null>(null)
   const supabase = createClient()
 
   const load = async () => {
@@ -43,7 +48,13 @@ export default function AdminChandaPage() {
       supabase.from('chanda_campaigns').select('*').order('created_at', { ascending: false }),
       supabase.from('directory_entries').select('id, name').eq('category', 'mosque').eq('is_active', true).order('name'),
     ])
-    setCampaigns((c ?? []) as Campaign[]); setMosques((m ?? []) as DirEntry[]); setLoading(false)
+    const rows = (c ?? []) as Campaign[]
+    const managerIds = rows.map((r) => r.manager_portal_user_id).filter((id): id is string => !!id)
+    if (managerIds.length > 0) {
+      const { data: managers } = await supabase.from('portal_users').select('id, full_name, mobile').in('id', managerIds)
+      rows.forEach((r) => { r.manager = managers?.find((mg) => mg.id === r.manager_portal_user_id) })
+    }
+    setCampaigns(rows); setMosques((m ?? []) as DirEntry[]); setLoading(false)
   }
   useEffect(() => { load() }, [])
 
@@ -85,7 +96,19 @@ export default function AdminChandaPage() {
     setEditing(c.id); setShowForm(true)
   }
   const remove = async (id: string) => { if (!confirm(t('ch.confirmDelete'))) return; await supabase.from('chanda_campaigns').delete().eq('id', id); toast.success(t('ch.deleted')); load() }
-  const copyManageLink = (token: string) => { navigator.clipboard.writeText(`${window.location.origin}/chanda/${token}`); toast.success(t('sl.linkCopied')) }
+
+  const linkManager = async (campaignId: string, user: PortalUserLite) => {
+    const { error } = await supabase.from('chanda_campaigns').update({ manager_portal_user_id: user.id }).eq('id', campaignId)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('fnd.managerLinked'))
+    setManagingId(null); load()
+  }
+  const unlinkManager = async (campaignId: string) => {
+    const { error } = await supabase.from('chanda_campaigns').update({ manager_portal_user_id: null }).eq('id', campaignId)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(t('fnd.managerUnlinked'))
+    load()
+  }
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'}>
@@ -96,17 +119,35 @@ export default function AdminChandaPage() {
       <div className="space-y-3">
         {loading && <div className="text-center py-12 text-dp-on-surface-variant"><LoadingDots /></div>}
         {!loading && campaigns.map((c) => (
-          <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-4 flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <span className="bg-dp-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold uppercase font-sans">{t(`ch.type.${c.type}`)}</span>
-              {new Date(c.display_until) < new Date() && <span className="text-[10px] font-bold font-sans text-dp-error ms-1.5">{t('ch.expired')}</span>}
-              <h3 className="font-sans text-[15px] font-bold text-dp-on-surface truncate mt-1">{c.title}</h3>
-              <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('ch.displayUntil')}: <span className="ltr-num">{new Date(c.display_until).toLocaleDateString()}</span></p>
+          <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <span className="bg-dp-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold uppercase font-sans">{t(`ch.type.${c.type}`)}</span>
+                {new Date(c.display_until) < new Date() && <span className="text-[10px] font-bold font-sans text-dp-error ms-1.5">{t('ch.expired')}</span>}
+                <h3 className="font-sans text-[15px] font-bold text-dp-on-surface truncate mt-1">{c.title}</h3>
+                <p className="font-sans text-[12.5px] text-dp-on-surface-variant">{t('ch.displayUntil')}: <span className="ltr-num">{new Date(c.display_until).toLocaleDateString()}</span></p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={() => edit(c)} className="p-2 text-dp-primary hover:bg-dp-primary/10 rounded-lg cursor-pointer"><Pencil size={16} /></button>
+                <button onClick={() => remove(c.id)} className="p-2 text-dp-error hover:bg-dp-error/10 rounded-lg cursor-pointer"><Trash2 size={16} /></button>
+              </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => copyManageLink(c.manage_token)} title={t('sl.copyManageLink')} className="p-2 text-dp-secondary hover:bg-dp-secondary/10 rounded-lg cursor-pointer"><Copy size={16} /></button>
-              <button onClick={() => edit(c)} className="p-2 text-dp-primary hover:bg-dp-primary/10 rounded-lg cursor-pointer"><Pencil size={16} /></button>
-              <button onClick={() => remove(c.id)} className="p-2 text-dp-error hover:bg-dp-error/10 rounded-lg cursor-pointer"><Trash2 size={16} /></button>
+            {/* Real security correction, 2026-10-01: "this link part is
+                unsecure" -- a linked portal account replaces the
+                manage_token copy-link entirely. */}
+            <div className="mt-3 pt-3 border-t border-dp-outline-variant">
+              {c.manager ? (
+                <div className="flex items-center justify-between gap-2 bg-emerald-50 rounded-lg p-2.5">
+                  <span className="flex items-center gap-1.5 font-sans text-[12.5px] text-emerald-800"><UserCheck size={14} /> {t('fnd.managedBy')}: {c.manager.full_name} · <span className="ltr-num">{c.manager.mobile}</span></span>
+                  <button onClick={() => unlinkManager(c.id)} title={t('fnd.unlink')} className="p-1 text-emerald-700 hover:bg-emerald-100 rounded cursor-pointer"><UserX size={14} /></button>
+                </div>
+              ) : managingId === c.id ? (
+                <PortalUserSearchPicker onPick={(u) => linkManager(c.id, u)} />
+              ) : (
+                <button onClick={() => setManagingId(c.id)} className="flex items-center gap-1.5 font-sans text-[12.5px] font-semibold text-dp-secondary cursor-pointer hover:underline">
+                  <UserPlus size={14} /> {t('fnd.linkManager')}
+                </button>
+              )}
             </div>
           </div>
         ))}

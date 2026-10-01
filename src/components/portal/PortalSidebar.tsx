@@ -35,7 +35,7 @@ import type { LucideIcon } from 'lucide-react'
 
 interface LeafItem {
   href: string; label: string; tKey: string; icon: LucideIcon
-  requiresConsumer?: boolean; requiresShopKeeper?: boolean; requiresVehicleKeeper?: boolean
+  requiresConsumer?: boolean; requiresShopKeeper?: boolean; requiresVehicleKeeper?: boolean; requiresManagedFunds?: boolean
 }
 interface GroupItem { groupKey: string; label: string; tKey: string; icon: LucideIcon; children: LeafItem[] }
 type MenuEntry = LeafItem | GroupItem
@@ -95,6 +95,10 @@ const menuItems: MenuEntry[] = [
       { href: '/events', label: 'Village Events', tKey: 'nav.villageEvents', icon: CalendarDays },
       { href: '/portal/my-salami', label: 'My Salami', tKey: 'sl.myPledges', icon: Gift },
       { href: '/chanda', label: 'Chanda', tKey: 'ch.pageTitle', icon: Landmark },
+      // Real ask, 2026-10-01: "we will make sure only the right person
+      // will get this tab" — only shows up for a portal account an admin
+      // has actually linked as a Salami/Chanda manager (migration 554).
+      { href: '/portal/fund-management', label: 'Fund Management', tKey: 'fnd.pageTitle', icon: Landmark, requiresManagedFunds: true },
       { href: '/portal/my-volunteering', label: 'My Volunteering', tKey: 'portal.myVolunteering', icon: HeartHandshake },
       { href: '/portal/get-involved', label: 'Get Involved', tKey: 'portal.getInvolved', icon: HandHeart },
     ],
@@ -117,6 +121,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   const [badges, setBadges] = useState<Record<string, number>>({})
   const [hasShop, setHasShop] = useState(false)
   const [hasVehicle, setHasVehicle] = useState(false)
+  const [hasManagedFunds, setHasManagedFunds] = useState(false)
 
   // A shop/vehicle only exists for a portal user once staff links one to
   // them (shops.portal_user_id / vehicles.portal_user_id) — public-read
@@ -145,6 +150,10 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
     ]).then(([owned, staff]) => setHasShop((owned.data?.length ?? 0) > 0 || (staff.data?.length ?? 0) > 0))
     supabase.from('vehicles').select('id').eq('portal_user_id', user.id).limit(1)
       .then(({ data }) => setHasVehicle((data?.length ?? 0) > 0))
+    Promise.all([
+      supabase.from('event_salami_accounts').select('id').eq('manager_portal_user_id', user.id).limit(1),
+      supabase.from('chanda_campaigns').select('id').eq('manager_portal_user_id', user.id).limit(1),
+    ]).then(([sa, cc]) => setHasManagedFunds((sa.data?.length ?? 0) > 0 || (cc.data?.length ?? 0) > 0))
   }, [supabase, user, pathname])
 
   // Keyed by the last segment of each href, because the server buckets unread
@@ -169,7 +178,7 @@ export function PortalSidebar({ mobileOpen = false, onMobileClose }: PortalSideb
   }
 
   const isLeafVisible = (item: LeafItem) =>
-    (!item.requiresConsumer || user?.consumer_id) && (!item.requiresShopKeeper || hasShop) && (!item.requiresVehicleKeeper || hasVehicle)
+    (!item.requiresConsumer || user?.consumer_id) && (!item.requiresShopKeeper || hasShop) && (!item.requiresVehicleKeeper || hasVehicle) && (!item.requiresManagedFunds || hasManagedFunds)
 
   // A group shows the moment at least one child would have on its own, and
   // carries only the children that actually passed — same derivation as
