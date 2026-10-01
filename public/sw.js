@@ -31,12 +31,28 @@ const PRECACHE = [
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/apple-touch-icon.png',
+  // The homepage is saved up front, at install time, so it works offline
+  // the very first time anyone tries — every other page still needs one
+  // real online visit first (see the navigate handler below) before it
+  // has anything to fall back on, since there's no other way to get a
+  // copy of a page nobody has opened yet.
+  '/',
 ]
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION)
-      .then((cache) => cache.addAll(PRECACHE))
+      .then((cache) => Promise.all(
+        // Not cache.addAll() — that fails the *entire* install if even one
+        // entry errors, and unlike the static icons/offline page, '/' is a
+        // live server-rendered fetch that can genuinely fail (a blip, a
+        // redirect). One bad fetch shouldn't cost the whole shell its
+        // install, so each entry is fetched and cached independently and a
+        // failure here is just a missed precache, not a broken update.
+        PRECACHE.map((url) => fetch(url).then((response) => {
+          if (response.ok) return cache.put(url, response)
+        }).catch(() => {}))
+      ))
       // Don't make the user close every tab to get a fixed version.
       .then(() => self.skipWaiting())
   )
