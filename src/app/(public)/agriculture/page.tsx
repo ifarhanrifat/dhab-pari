@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Wheat, ShoppingBag, CloudSun, ArrowRight } from 'lucide-react'
+import { Wheat, ShoppingBag, CloudSun, ArrowRight, Bug, Landmark, Building2, Tractor } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
@@ -11,11 +11,13 @@ interface Price { id: string; commodity: string; commodity_ur: string | null; pr
 
 const categoryLabel: Record<string, string> = { crop: 'ag.cat.crop', input: 'ag.cat.input', livestock_feed: 'ag.cat.livestock_feed' }
 
-// Phase 3 of the "Village OS" feature set, 2026-10-01. Deliberately just
-// a price reference board plus pointers to the two features that already
-// cover the rest of "agriculture" for this app: Classifieds (animal/
-// land listings, migration 534) for actually buying/selling, and Weather
-// for planning around rain/wind.
+// Phase 3 of the "Village OS" feature set, 2026-10-01, expanded 2026-10-02
+// into a real hub -- deliberately scoped down from a much bigger proposal
+// to four things: crop disease/spray-timing awareness, government scheme
+// info, local help-center contacts, and a village tractors/machinery
+// directory (the last reusing the existing Directory feature, not a new
+// system). No farmer forms, no personal records, no field tracking --
+// explicit real ask ("we should not add my form etc").
 export default function AgriculturePage() {
   const { t, isUrdu } = useLocale()
   const [prices, setPrices] = useState<Price[]>([])
@@ -40,6 +42,22 @@ export default function AgriculturePage() {
       <p className="font-sans text-[14px] text-dp-on-surface-variant mb-6">{t('ag.pageIntro')}</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+        <Link href="/agriculture/diseases" className="flex items-center justify-between gap-3 bg-white border-2 border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-all">
+          <div className="flex items-center gap-3"><Bug size={20} className="text-amber-700" /><span className="font-sans text-[14px] font-semibold text-dp-on-surface">{t('agh.diseasesTitle')}</span></div>
+          <ArrowRight size={16} className="text-dp-secondary shrink-0" />
+        </Link>
+        <Link href="/agriculture/schemes" className="flex items-center justify-between gap-3 bg-white border-2 border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-all">
+          <div className="flex items-center gap-3"><Landmark size={20} className="text-dp-secondary" /><span className="font-sans text-[14px] font-semibold text-dp-on-surface">{t('agh.schemesTitle')}</span></div>
+          <ArrowRight size={16} className="text-dp-secondary shrink-0" />
+        </Link>
+        <Link href="/agriculture/help-centers" className="flex items-center justify-between gap-3 bg-white border-2 border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-all">
+          <div className="flex items-center gap-3"><Building2 size={20} className="text-dp-secondary" /><span className="font-sans text-[14px] font-semibold text-dp-on-surface">{t('agh.centersTitle')}</span></div>
+          <ArrowRight size={16} className="text-dp-secondary shrink-0" />
+        </Link>
+        <Link href="/directory?category=machinery" className="flex items-center justify-between gap-3 bg-white border-2 border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-all">
+          <div className="flex items-center gap-3"><Tractor size={20} className="text-dp-secondary" /><span className="font-sans text-[14px] font-semibold text-dp-on-surface">{t('agh.machineryPointer')}</span></div>
+          <ArrowRight size={16} className="text-dp-secondary shrink-0" />
+        </Link>
         <Link href="/classifieds" className="flex items-center justify-between gap-3 bg-white border-2 border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-all">
           <div className="flex items-center gap-3"><ShoppingBag size={20} className="text-dp-secondary" /><span className="font-sans text-[14px] font-semibold text-dp-on-surface">{t('ag.buySellPointer')}</span></div>
           <ArrowRight size={16} className="text-dp-secondary shrink-0" />

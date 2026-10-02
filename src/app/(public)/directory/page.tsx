@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -16,7 +17,7 @@ interface Entry {
   fajr_time: string | null; zuhr_time: string | null; asr_time: string | null; maghrib_time: string | null; isha_time: string | null; jumma_time: string | null
 }
 
-const CATEGORIES = ['business', 'health', 'mosque', 'school', 'veterinary']
+const CATEGORIES = ['business', 'health', 'mosque', 'school', 'machinery']
 const fmtTime = (t: string | null) => {
   if (!t) return null
   const [h, m] = t.split(':').map(Number)
@@ -37,9 +38,14 @@ function normalizePakPhone(raw: string) {
 // doctor, not a self-declared one.
 export default function DirectoryPage() {
   const { t, isUrdu } = useLocale()
+  const searchParams = useSearchParams()
   const [entries, setEntries] = useState<Entry[]>([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState('business')
+  // Lets the Agriculture hub deep-link straight into the machinery tab
+  // (/directory?category=machinery) instead of landing on "business" and
+  // making someone click again.
+  const initialCategory = searchParams.get('category')
+  const [tab, setTab] = useState(initialCategory && CATEGORIES.includes(initialCategory) ? initialCategory : 'business')
   const [search, setSearch] = useState('')
 
   useEffect(() => {

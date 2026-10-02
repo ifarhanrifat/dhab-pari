@@ -20,7 +20,7 @@ interface Entry {
   fajr_time: string | null; zuhr_time: string | null; asr_time: string | null; maghrib_time: string | null; isha_time: string | null; jumma_time: string | null
 }
 
-const CATEGORIES = ['business', 'health', 'mosque', 'school', 'veterinary']
+const CATEGORIES = ['business', 'health', 'mosque', 'school', 'machinery']
 // Real correction, 2026-10-01: "when we already have the business in
 // [marketplace] why are we adding karobar in the directory feature?" --
 // 'general_store' dropped here on purpose. Marketplace (388) already has
@@ -34,7 +34,14 @@ const SUBCATEGORIES: Record<string, string[]> = {
   health: ['doctor', 'clinic', 'hospital', 'medical_store', 'ambulance_service'],
   mosque: ['mosque'],
   school: ['primary_school', 'secondary_school', 'college', 'madrassa', 'other'],
-  veterinary: ['veterinary_clinic', 'veterinary_doctor', 'other'],
+  // Real ask, 2026-10-02: "village tractors directory and phone numbers
+  // along with there machinery what they have" -- the 'veterinary'
+  // category it replaces had zero real entries (animal health now lives
+  // under the Agriculture hub instead). description/description_ur
+  // already free-text, used here to list exactly what equipment an
+  // owner has (e.g. "50HP tractor + rotavator + trolley") rather than
+  // adding new columns for it.
+  machinery: ['tractor', 'rotavator', 'thresher', 'laser_leveler', 'combine_harvester', 'sprayer', 'other'],
 }
 const empty = {
   category: 'business', subcategory: 'restaurant', name: '', name_ur: '', description: '', description_ur: '',
