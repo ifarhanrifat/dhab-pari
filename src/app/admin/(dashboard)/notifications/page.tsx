@@ -274,6 +274,7 @@ export default function AdminNotificationsPage() {
           p_contact_number: aContact.trim() || null,
           p_expires_at: aExpires ? new Date(aExpires).toISOString() : null,
           p_severity: aSeverity,
+          p_notify: aNotify,
         })
       : await supabase.rpc('create_appeal', {
           p_kind: aKind,
@@ -295,7 +296,7 @@ export default function AdminNotificationsPage() {
     setPosting(false)
     if (error) { toast.error(friendlyError(error)); return }
     if (editingAppealId) {
-      toast.success(t('al.appealUpdated'))
+      toast.success(aNotify ? `${t('al.appealUpdated')} — ${t('al.postedAndSentTo')} ${reach ?? 0} ${t('al.portalUsersSuffix')}` : t('al.appealUpdated'))
     } else {
       toast.success(aStarts && new Date(aStarts) > new Date()
         ? `${t('al.scheduledFor')} ${new Date(aStarts).toLocaleString('en-GB')}`
