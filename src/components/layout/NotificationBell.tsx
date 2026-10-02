@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { playNotificationSound, playUrgentAlertSound } from '@/lib/notificationSound'
 import { useNotificationSoundMuted } from '@/hooks/useNotificationSoundMuted'
-import { PushPermissionBanner } from '@/components/layout/PushPermissionBanner'
+import { NotificationOffBanner } from '@/components/shared/NotificationOffBanner'
 
 interface Notification {
   id: string; title: string; body: string | null; link: string | null
@@ -116,7 +116,7 @@ export function NotificationBell() {
 
   return (
     <>
-    <PushPermissionBanner owner={{ adminUserId }} />
+    <NotificationOffBanner owner={{ adminUserId }} settingsHref="/admin/profile" />
     {/* top-16 clears the mobile header bar (AdminHeader, md:hidden, ~60px tall
     with its own hamburger button in the same top-right corner) so the two
     don't overlap; on desktop there's no header bar, so it sits at top-4. */}

@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { UserCog, KeyRound, Mail, Eye, EyeOff } from 'lucide-react'
+import { UserCog, KeyRound, Mail, Eye, EyeOff, Bell } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
 import { PasswordChecklist } from '@/components/shared/PasswordChecklist'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 
 // Real ask, 2026-09-25: there was no way for an admin to change their own
 // login email at all -- admin_users.email was set once at invite/create
@@ -28,6 +29,8 @@ export default function AdminProfilePage() {
   const [currentEmail, setCurrentEmail] = useState('')
   const [newEmail, setNewEmail] = useState('')
   const [sendingEmailChange, setSendingEmailChange] = useState(false)
+  const [adminUserId, setAdminUserId] = useState<string | null>(null)
+  const { permission, subscribe, subscribing } = usePushNotifications(adminUserId ? { adminUserId } : null)
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -37,9 +40,13 @@ export default function AdminProfilePage() {
   const [showNewPassword, setShowNewPassword] = useState(false)
 
   useEffect(() => {
-    createClient().auth.getUser().then(({ data: { user } }) => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       setCurrentEmail(user?.email ?? '')
       setLoading(false)
+      if (!user) return
+      const { data } = await supabase.from('admin_users').select('id').eq('auth_user_id', user.id).single()
+      if (data) setAdminUserId(data.id)
     })
   }, [])
 
@@ -82,7 +89,21 @@ export default function AdminProfilePage() {
         <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{t('ap.myAccountSubtitle')}</p>
       </div>
 
-      <div className="bg-white border border-dp-outline-variant rounded-lg p-6 max-w-md space-y-4">
+      <div className="bg-white border border-dp-outline-variant rounded-lg p-6 max-w-md space-y-3">
+        <h2 className="font-heading text-[18px] font-bold text-dp-primary flex items-center gap-2"><Bell size={18} className="text-dp-secondary" /> {t('ap.pushNotifications')}</h2>
+        <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('ap.pushNotificationsDesc')}</p>
+        {permission === 'granted' ? (
+          <p className="font-sans text-[13px] font-semibold text-emerald-700">{t('ap.pushEnabledStatus')}</p>
+        ) : permission === 'unsupported' ? (
+          <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('ap.pushUnsupportedStatus')}</p>
+        ) : (
+          <button onClick={subscribe} disabled={subscribing} className="bg-dp-secondary text-white px-4 py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+            {subscribing ? t('p.saving') : t('np.enablePush')}
+          </button>
+        )}
+      </div>
+
+      <div className="bg-white border border-dp-outline-variant rounded-lg p-6 max-w-md mt-6 space-y-4">
         <h2 className="font-heading text-[18px] font-bold text-dp-primary flex items-center gap-2"><Mail size={18} className="text-dp-secondary" /> {t('ap.changeEmail')}</h2>
         <div>
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('ap.currentEmail')}</label>

@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { playNotificationSound } from '@/lib/notificationSound'
 import { useNotificationSoundMuted } from '@/hooks/useNotificationSoundMuted'
-import { PushPermissionBanner } from '@/components/layout/PushPermissionBanner'
+import { NotificationOffBanner } from '@/components/shared/NotificationOffBanner'
 
 interface PortalNotification {
   id: string; title: string; body: string | null; link: string | null
@@ -117,7 +117,7 @@ export function PortalNotificationBell() {
 
   return (
     <>
-    <PushPermissionBanner owner={{ portalUserId }} />
+    <NotificationOffBanner owner={{ portalUserId }} settingsHref="/portal/notification-preferences" />
     {/* Fixed, floating — mirrors src/components/layout/NotificationBell.tsx
     (the admin equivalent). top-16 clears the mobile header bar on small
     screens; top-4 on desktop where there's no header bar above it. */}
