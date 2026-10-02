@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Compass, X, Menu, HandCoins, Heart, FileClock } from 'lucide-react'
+import { Compass, X, Menu, HandCoins, Heart, FileClock, BellRing } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 
 const STORAGE_KEY = 'dp-portal-welcome-tour-seen'
 
@@ -11,11 +13,25 @@ const STORAGE_KEY = 'dp-portal-welcome-tour-seen'
 // shown once automatically on whichever page a new user first lands on
 // (mounted in the dashboard layout, not a specific page), never shown
 // again after being closed once.
+//
+// Real ask, 2026-10-02: "its just one time allow access... same thing
+// which many apps are using [for] camera/contacts/notifications" — rather
+// than a separate permission-priming screen, the notification ask now
+// rides along inside this same one-time tour, the same way a lot of apps
+// bundle their permission asks into first-run onboarding.
 export function WelcomeTour() {
   const [open, setOpen] = useState(false)
+  const [portalUserId, setPortalUserId] = useState<string | null>(null)
+  const { permission, subscribe, subscribing } = usePushNotifications(portalUserId ? { portalUserId } : null)
 
   useEffect(() => {
     if (!window.localStorage.getItem(STORAGE_KEY)) setOpen(true)
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data } = await supabase.from('portal_users').select('id').eq('auth_user_id', user.id).single()
+      if (data) setPortalUserId(data.id)
+    })
   }, [])
 
   const close = () => {
@@ -67,6 +83,23 @@ export function WelcomeTour() {
             <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-dp-secondary-container text-dp-on-secondary-container shrink-0"><Heart size={17} /></span>
             <p>ہر صفحے کے اوپر ایک چھوٹا <strong className="text-dp-primary">(؟)</strong> آئیکن نظر آئے گا — اس پر کلک کریں تو وہ خاص صفحہ کس کام کا ہے، اور اس کے بٹن کیا کرتے ہیں، تفصیل سے اردو میں سمجھایا جائے گا۔</p>
           </div>
+
+          {permission !== 'granted' && permission !== 'unsupported' && (
+            <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-amber-100 text-amber-700 shrink-0"><BellRing size={17} /></span>
+              <div className="flex-1">
+                <p className="font-semibold text-dp-primary mb-1">اطلاعات آن کریں؟</p>
+                <p className="text-[13.5px] leading-[24px] mb-3">ایمرجنسی، خون کی اپیلز، اور بل کی یاد دہانی کے لیے فوری اطلاع حاصل کریں — ایپ بند ہونے پر بھی۔</p>
+                <button
+                  onClick={subscribe}
+                  disabled={subscribing || !portalUserId}
+                  className="bg-dp-secondary text-white px-4 py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50"
+                >
+                  {subscribing ? '...' : 'اطلاعات آن کریں'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="px-6 pb-6 pt-1">
