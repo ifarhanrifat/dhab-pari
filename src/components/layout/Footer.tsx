@@ -26,6 +26,10 @@ export function Footer() {
     { href: '/classifieds', label: t('cl.pageTitle') },
     { href: '/directory', label: t('dir.pageTitle') },
     { href: '/weather', label: t('wx.pageTitle') },
+    // Real gap found 2026-10-02: Agriculture was never in any discovery
+    // surface at all -- not the header nav, not the homepage, not even
+    // here -- reachable only by typing the URL directly.
+    { href: '/agriculture', label: t('ag.pageTitle') },
   ]
   return (
     <footer className="bg-dp-surface-container-highest w-full py-12 px-6 md:px-12 border-t border-dp-outline-variant" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
