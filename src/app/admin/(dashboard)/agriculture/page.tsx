@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PlusCircle, X, Pencil, Trash2, Sprout, Landmark, Building2 } from 'lucide-react'
+import { PlusCircle, X, Pencil, Trash2, Sprout, Landmark, Building2, PawPrint } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -20,7 +20,12 @@ interface Scheme {
 }
 interface HelpCenter {
   id: string; name: string; name_ur: string; what_they_offer: string | null; what_they_offer_ur: string | null
-  phone: string | null; address: string | null; address_ur: string | null; display_order: number; is_active: boolean
+  phone: string | null; address: string | null; address_ur: string | null; category: string; display_order: number; is_active: boolean
+}
+interface LivestockGuide {
+  id: string; animal: string; animal_ur: string; topic_name: string; topic_name_ur: string
+  details: string | null; details_ur: string | null; timing: string | null; timing_ur: string | null
+  care_tips: string | null; care_tips_ur: string | null; display_order: number; is_active: boolean
 }
 
 const emptyDisease = {
@@ -34,10 +39,15 @@ const emptyScheme = {
 }
 const emptyCenter = {
   name: '', name_ur: '', what_they_offer: '', what_they_offer_ur: '', phone: '', address: '', address_ur: '',
-  display_order: 0, is_active: true,
+  category: 'agriculture', display_order: 0, is_active: true,
+}
+const emptyLivestock = {
+  animal: '', animal_ur: '', topic_name: '', topic_name_ur: '', details: '', details_ur: '',
+  timing: '', timing_ur: '', care_tips: '', care_tips_ur: '', display_order: 0, is_active: true,
 }
 
 const STATUSES = ['open', 'upcoming', 'closed']
+const HELP_CENTER_CATEGORIES = ['agriculture', 'livestock']
 
 // Phase 3 of the "Village OS" feature set, 2026-10-02. One control room
 // for the whole Agriculture Hub's admin-curated content -- deliberately
@@ -47,7 +57,7 @@ const STATUSES = ['open', 'upcoming', 'closed']
 // these three are new content types, prefixed agh.* instead.
 export default function AdminAgriculturePage() {
   const { t, isUrdu } = useLocale()
-  const [tab, setTab] = useState<'diseases' | 'schemes' | 'centers'>('schemes')
+  const [tab, setTab] = useState<'diseases' | 'schemes' | 'centers' | 'livestock'>('schemes')
   const supabase = createClient()
 
   // ── Disease guides ──────────────────────────────────────────────────
@@ -151,17 +161,52 @@ export default function AdminAgriculturePage() {
   const editCenter = (c: HelpCenter) => {
     setCenterForm({
       name: c.name, name_ur: c.name_ur, what_they_offer: c.what_they_offer ?? '', what_they_offer_ur: c.what_they_offer_ur ?? '',
-      phone: c.phone ?? '', address: c.address ?? '', address_ur: c.address_ur ?? '', display_order: c.display_order, is_active: c.is_active,
+      phone: c.phone ?? '', address: c.address ?? '', address_ur: c.address_ur ?? '', category: c.category, display_order: c.display_order, is_active: c.is_active,
     })
     setEditingCenter(c.id); setShowCenterForm(true)
   }
   const removeCenter = async (id: string) => { if (!confirm(t('agh.confirmDelete'))) return; await supabase.from('ag_help_centers').delete().eq('id', id); toast.success(t('agh.deleted')); loadCenters() }
 
-  useEffect(() => { loadDiseases(); loadSchemes(); loadCenters() }, [])
+  // ── Livestock guides ─────────────────────────────────────────────────
+  // Same shape as disease guides, generalized from "disease" to "topic"
+  // so one table covers health, vaccination schedules, and feeding
+  // instead of three near-identical ones.
+  const [livestock, setLivestock] = useState<LivestockGuide[]>([])
+  const [loadingLivestock, setLoadingLivestock] = useState(true)
+  const [livestockForm, setLivestockForm] = useState(emptyLivestock)
+  const [showLivestockForm, setShowLivestockForm] = useState(false)
+  const [editingLivestock, setEditingLivestock] = useState<string | null>(null)
+
+  const loadLivestock = async () => {
+    const { data } = await supabase.from('ag_livestock_guides').select('*').order('animal').order('display_order')
+    setLivestock((data ?? []) as LivestockGuide[]); setLoadingLivestock(false)
+  }
+  const saveLivestock = async () => {
+    if (!livestockForm.animal.trim() || !livestockForm.topic_name.trim()) { toast.error(t('agh.fillRequired')); return }
+    const payload = { ...livestockForm }
+    const { error } = editingLivestock
+      ? await supabase.from('ag_livestock_guides').update(payload).eq('id', editingLivestock)
+      : await supabase.from('ag_livestock_guides').insert(payload)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success(editingLivestock ? t('agh.updated') : t('agh.added'))
+    setShowLivestockForm(false); setEditingLivestock(null); setLivestockForm(emptyLivestock); loadLivestock()
+  }
+  const editLivestock = (l: LivestockGuide) => {
+    setLivestockForm({
+      animal: l.animal, animal_ur: l.animal_ur, topic_name: l.topic_name, topic_name_ur: l.topic_name_ur,
+      details: l.details ?? '', details_ur: l.details_ur ?? '', timing: l.timing ?? '', timing_ur: l.timing_ur ?? '',
+      care_tips: l.care_tips ?? '', care_tips_ur: l.care_tips_ur ?? '', display_order: l.display_order, is_active: l.is_active,
+    })
+    setEditingLivestock(l.id); setShowLivestockForm(true)
+  }
+  const removeLivestock = async (id: string) => { if (!confirm(t('agh.confirmDelete'))) return; await supabase.from('ag_livestock_guides').delete().eq('id', id); toast.success(t('agh.deleted')); loadLivestock() }
+
+  useEffect(() => { loadDiseases(); loadSchemes(); loadCenters(); loadLivestock() }, [])
 
   const TABS: { key: typeof tab; label: string; icon: typeof Sprout }[] = [
     { key: 'schemes', label: t('agh.tabSchemes'), icon: Landmark },
     { key: 'diseases', label: t('agh.tabDiseases'), icon: Sprout },
+    { key: 'livestock', label: t('agh.tabLivestock'), icon: PawPrint },
     { key: 'centers', label: t('agh.tabCenters'), icon: Building2 },
   ]
 
@@ -238,7 +283,8 @@ export default function AdminAgriculturePage() {
             {!loadingCenters && centers.map((c) => (
               <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-4 flex items-center justify-between gap-4">
                 <div className="min-w-0">
-                  <h3 className="font-sans text-[15px] font-bold text-dp-on-surface truncate">{c.name}</h3>
+                  <span className="bg-dp-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold uppercase font-sans">{t(`agh.hcCat.${c.category}`)}</span>
+                  <h3 className="font-sans text-[15px] font-bold text-dp-on-surface truncate mt-1">{c.name}</h3>
                   {c.phone && <p className="font-sans text-[12.5px] text-dp-on-surface-variant ltr-num">{c.phone}</p>}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -248,6 +294,29 @@ export default function AdminAgriculturePage() {
               </div>
             ))}
             {!loadingCenters && centers.length === 0 && <p className="text-center py-12 text-dp-on-surface-variant font-sans text-[14px]">{t('agh.empty')}</p>}
+          </div>
+        </div>
+      )}
+
+      {/* ── Livestock guides tab ── */}
+      {tab === 'livestock' && (
+        <div>
+          <button onClick={() => { setLivestockForm(emptyLivestock); setEditingLivestock(null); setShowLivestockForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-dp-secondary text-white rounded-lg font-sans text-[14px] font-semibold cursor-pointer hover:bg-dp-primary transition-all mb-4"><PlusCircle size={16} /> {t('agh.addLivestock')}</button>
+          <div className="space-y-3">
+            {loadingLivestock && <div className="text-center py-12 text-dp-on-surface-variant"><LoadingDots /></div>}
+            {!loadingLivestock && livestock.map((l) => (
+              <div key={l.id} className="bg-white border border-dp-outline-variant rounded-lg p-4 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <span className="bg-dp-surface-container-high px-2 py-0.5 rounded text-[10px] font-bold uppercase font-sans">{l.animal}</span>
+                  <h3 className="font-sans text-[15px] font-bold text-dp-on-surface truncate mt-1">{l.topic_name}</h3>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button onClick={() => editLivestock(l)} className="p-2 text-dp-primary hover:bg-dp-primary/10 rounded-lg cursor-pointer"><Pencil size={16} /></button>
+                  <button onClick={() => removeLivestock(l.id)} className="p-2 text-dp-error hover:bg-dp-error/10 rounded-lg cursor-pointer"><Trash2 size={16} /></button>
+                </div>
+              </div>
+            ))}
+            {!loadingLivestock && livestock.length === 0 && <p className="text-center py-12 text-dp-on-surface-variant font-sans text-[14px]">{t('agh.empty')}</p>}
           </div>
         </div>
       )}
@@ -316,6 +385,9 @@ export default function AdminAgriculturePage() {
           <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[22px] font-bold text-dp-primary">{editingCenter ? t('agh.editCenter') : t('agh.addCenter')}</h2><button onClick={() => setShowCenterForm(false)} className="cursor-pointer"><X size={20} /></button></div>
             <div className="space-y-4">
+              <select value={centerForm.category} onChange={(e) => setCenterForm({ ...centerForm, category: e.target.value })} className="input-field">
+                {HELP_CENTER_CATEGORIES.map((c) => <option key={c} value={c}>{t(`agh.hcCat.${c}`)}</option>)}
+              </select>
               <input placeholder={t('ve.titleEn')} value={centerForm.name} onChange={(e) => setCenterForm({ ...centerForm, name: e.target.value })} className="input-field" />
               <input placeholder={t('ve.titleUr')} value={centerForm.name_ur} onChange={(e) => setCenterForm({ ...centerForm, name_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
               <textarea placeholder={t('agh.whatTheyOfferEn')} value={centerForm.what_they_offer} onChange={(e) => setCenterForm({ ...centerForm, what_they_offer: e.target.value })} rows={2} className="input-field resize-none" />
@@ -324,6 +396,30 @@ export default function AdminAgriculturePage() {
               <input placeholder={t('agh.addressEn')} value={centerForm.address} onChange={(e) => setCenterForm({ ...centerForm, address: e.target.value })} className="input-field" />
               <input placeholder={t('agh.addressUr')} value={centerForm.address_ur} onChange={(e) => setCenterForm({ ...centerForm, address_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
               <button onClick={saveCenter} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{editingCenter ? t('ic.updateBtn') : t('agh.addBtn')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Livestock guide form modal ── */}
+      {showLivestockForm && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowLivestockForm(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6"><h2 className="font-heading text-[22px] font-bold text-dp-primary">{editingLivestock ? t('agh.editLivestock') : t('agh.addLivestock')}</h2><button onClick={() => setShowLivestockForm(false)} className="cursor-pointer"><X size={20} /></button></div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <input placeholder={t('agh.animalEn')} value={livestockForm.animal} onChange={(e) => setLivestockForm({ ...livestockForm, animal: e.target.value })} className="input-field" />
+                <input placeholder={t('agh.animalUr')} value={livestockForm.animal_ur} onChange={(e) => setLivestockForm({ ...livestockForm, animal_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
+              </div>
+              <input placeholder={t('agh.topicEn')} value={livestockForm.topic_name} onChange={(e) => setLivestockForm({ ...livestockForm, topic_name: e.target.value })} className="input-field" />
+              <input placeholder={t('agh.topicUr')} value={livestockForm.topic_name_ur} onChange={(e) => setLivestockForm({ ...livestockForm, topic_name_ur: e.target.value })} className="input-field" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
+              <textarea placeholder={t('agh.detailsEn')} value={livestockForm.details} onChange={(e) => setLivestockForm({ ...livestockForm, details: e.target.value })} rows={2} className="input-field resize-none" />
+              <textarea placeholder={t('agh.detailsUr')} value={livestockForm.details_ur} onChange={(e) => setLivestockForm({ ...livestockForm, details_ur: e.target.value })} rows={2} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
+              <textarea placeholder={t('agh.timingEn')} value={livestockForm.timing} onChange={(e) => setLivestockForm({ ...livestockForm, timing: e.target.value })} rows={2} className="input-field resize-none" />
+              <textarea placeholder={t('agh.timingUr')} value={livestockForm.timing_ur} onChange={(e) => setLivestockForm({ ...livestockForm, timing_ur: e.target.value })} rows={2} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
+              <textarea placeholder={t('agh.careTipsEn')} value={livestockForm.care_tips} onChange={(e) => setLivestockForm({ ...livestockForm, care_tips: e.target.value })} rows={2} className="input-field resize-none" />
+              <textarea placeholder={t('agh.careTipsUr')} value={livestockForm.care_tips_ur} onChange={(e) => setLivestockForm({ ...livestockForm, care_tips_ur: e.target.value })} rows={2} className="input-field resize-none" style={{ fontFamily: 'var(--font-urdu-ui)', direction: 'rtl' }} />
+              <button onClick={saveLivestock} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">{editingLivestock ? t('ic.updateBtn') : t('agh.addBtn')}</button>
             </div>
           </div>
         </div>

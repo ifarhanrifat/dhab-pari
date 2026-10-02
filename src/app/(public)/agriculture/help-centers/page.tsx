@@ -23,7 +23,9 @@ export default function AgricultureHelpCentersPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    createClient().from('ag_help_centers').select('*').order('display_order').order('name')
+    // Livestock/veterinary centers show on the dedicated Livestock page
+    // instead, so the same contact never appears twice.
+    createClient().from('ag_help_centers').select('*').eq('category', 'agriculture').order('display_order').order('name')
       .then(({ data }) => { setCenters((data ?? []) as Center[]); setLoading(false) })
   }, [])
 

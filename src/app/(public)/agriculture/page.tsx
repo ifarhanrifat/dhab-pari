@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Wheat, ShoppingBag, CloudSun, ArrowRight, Bug, Landmark, Building2, Tractor } from 'lucide-react'
+import { Wheat, ShoppingBag, CloudSun, ArrowRight, Bug, Landmark, Building2, Tractor, PawPrint } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
@@ -52,6 +52,10 @@ export default function AgriculturePage() {
         </Link>
         <Link href="/agriculture/help-centers" className="flex items-center justify-between gap-3 bg-white border-2 border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-all">
           <div className="flex items-center gap-3"><Building2 size={20} className="text-dp-secondary" /><span className="font-sans text-[14px] font-semibold text-dp-on-surface">{t('agh.centersTitle')}</span></div>
+          <ArrowRight size={16} className="text-dp-secondary shrink-0" />
+        </Link>
+        <Link href="/agriculture/livestock" className="flex items-center justify-between gap-3 bg-white border-2 border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-all">
+          <div className="flex items-center gap-3"><PawPrint size={20} className="text-amber-700" /><span className="font-sans text-[14px] font-semibold text-dp-on-surface">{t('agh.livestockTitle')}</span></div>
           <ArrowRight size={16} className="text-dp-secondary shrink-0" />
         </Link>
         <Link href="/directory?category=machinery" className="flex items-center justify-between gap-3 bg-white border-2 border-dp-outline-variant rounded-lg p-4 hover:border-dp-secondary transition-all">
