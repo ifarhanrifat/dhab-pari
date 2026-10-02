@@ -31,7 +31,17 @@ const CATEGORIES = ['business', 'health', 'mosque', 'school', 'machinery']
 // has no Marketplace equivalent at all, so those stay here.
 const SUBCATEGORIES: Record<string, string[]> = {
   business: ['restaurant', 'tailor', 'barber', 'electronics_shop', 'internet_provider', 'mechanic_shop', 'other'],
-  health: ['doctor', 'clinic', 'hospital', 'medical_store', 'ambulance_service'],
+  // The 20 specialty values after 'other' came from a real, 99-record
+  // Chakwal city doctors directory, 2026-10-02 -- consolidated from the
+  // source's 56 raw near-duplicate specialty strings (e.g. "Child
+  // Specialist" / "Paediatrician" / "General Physician / General
+  // Pediatrician" were all the same thing worded three ways) down to one
+  // clean, filterable set.
+  health: ['doctor', 'clinic', 'hospital', 'medical_store', 'ambulance_service', 'other',
+    'general_physician', 'child_specialist', 'gynaecologist', 'dermatologist', 'ent_specialist',
+    'eye_specialist', 'dental_surgeon', 'orthopedic_surgeon', 'general_surgeon', 'cardiologist',
+    'neurologist', 'neurosurgeon', 'gastroenterologist', 'nephrologist', 'urologist',
+    'internal_medicine', 'psychologist', 'physiotherapist', 'anesthesiologist', 'aesthetic_physician'],
   mosque: ['mosque'],
   school: ['primary_school', 'secondary_school', 'college', 'madrassa', 'other'],
   // Real ask, 2026-10-02: "village tractors directory and phone numbers

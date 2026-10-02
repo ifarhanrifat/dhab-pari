@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 import Link from 'next/link'
-import { BookOpen, Phone, MessageCircle, MapPin, Clock, Search, Store, ArrowRight } from 'lucide-react'
+import { BookOpen, Phone, MessageCircle, MapPin, Clock, Search, Store, ArrowRight, Navigation, Info } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
@@ -29,6 +29,12 @@ function normalizePakPhone(raw: string) {
   const digits = raw.replace(/\D/g, '')
   return digits.startsWith('0') ? `92${digits.slice(1)}` : digits.startsWith('92') ? digits : `92${digits}`
 }
+// Same technique as the source doctors-directory file this data came
+// from: a plain Google Maps *search* URL, not an embedded map -- no API
+// key, no billing, works for any public web page.
+function mapsSearchUrl(name: string, location: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${location}`)}`
+}
 
 // Phase 3 of the "Village OS" feature set, 2026-09-30. One page, one
 // schema, four sections (Business/Health/Mosques/Schools) — the same
@@ -47,6 +53,11 @@ export default function DirectoryPage() {
   const initialCategory = searchParams.get('category')
   const [tab, setTab] = useState(initialCategory && CATEGORIES.includes(initialCategory) ? initialCategory : 'business')
   const [search, setSearch] = useState('')
+  // Independent of search -- e.g. "all Health entries" vs "just
+  // gynaecologists within Health". Resets whenever the main category tab
+  // changes, same as the Agriculture/Projects pages' own filter pattern.
+  const [subFilter, setSubFilter] = useState<string | null>(null)
+  const changeTab = (c: string) => { setTab(c); setSubFilter(null) }
 
   useEffect(() => {
     createClient().from('directory_entries')
@@ -55,10 +66,20 @@ export default function DirectoryPage() {
       .then(({ data }) => { setEntries((data ?? []) as Entry[]); setLoading(false) })
   }, [])
 
+  const inTab = useMemo(() => entries.filter((e) => e.category === tab), [entries, tab])
+  // Only worth showing a subcategory row when the category actually has
+  // more than one in use -- Mosques, for instance, never will.
+  const subcategoriesPresent = useMemo(
+    () => Array.from(new Set(inTab.map((e) => e.subcategory).filter((s): s is string => !!s))),
+    [inTab]
+  )
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return entries.filter((e) => e.category === tab && (!q || e.name.toLowerCase().includes(q) || (e.name_ur ?? '').includes(search.trim())))
-  }, [entries, tab, search])
+    return inTab.filter((e) =>
+      (!subFilter || e.subcategory === subFilter)
+      && (!q || e.name.toLowerCase().includes(q) || (e.name_ur ?? '').includes(search.trim()) || (e.description ?? '').toLowerCase().includes(q))
+    )
+  }, [inTab, subFilter, search])
 
   return (
     <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-10 min-h-screen" dir={isUrdu ? 'rtl' : 'ltr'} style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
@@ -69,11 +90,31 @@ export default function DirectoryPage() {
 
       <div className="flex flex-wrap gap-2 mb-6">
         {CATEGORIES.map((c) => (
-          <button key={c} onClick={() => setTab(c)} className={`px-5 py-2 rounded-full font-sans text-[13.5px] font-semibold cursor-pointer transition-all ${tab === c ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-primary'}`}>
+          <button key={c} onClick={() => changeTab(c)} className={`px-5 py-2 rounded-full font-sans text-[13.5px] font-semibold cursor-pointer transition-all ${tab === c ? 'bg-dp-primary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface-variant hover:border-dp-primary'}`}>
             {t(`dir.cat.${c}`)}
           </button>
         ))}
       </div>
+
+      {subcategoriesPresent.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-6 -mt-3">
+          <button onClick={() => setSubFilter(null)} className={`px-3.5 py-1.5 rounded-full font-sans text-[12.5px] font-semibold cursor-pointer transition-all ${!subFilter ? 'bg-dp-secondary text-white' : 'bg-dp-surface-container-low text-dp-on-surface-variant hover:bg-dp-surface-container'}`}>
+            {t('dir.allSubcategories')}
+          </button>
+          {subcategoriesPresent.map((s) => (
+            <button key={s} onClick={() => setSubFilter(s)} className={`px-3.5 py-1.5 rounded-full font-sans text-[12.5px] font-semibold cursor-pointer transition-all ${subFilter === s ? 'bg-dp-secondary text-white' : 'bg-dp-surface-container-low text-dp-on-surface-variant hover:bg-dp-surface-container'}`}>
+              {t(`dir.sub.${s}`)}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tab === 'health' && (
+        <div className="flex items-start gap-2.5 bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-4 py-3 mb-6 max-w-2xl">
+          <Info size={15} className="text-dp-on-surface-variant shrink-0 mt-0.5" />
+          <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">{t('dir.healthDisclaimer')}</p>
+        </div>
+      )}
 
       <div className="relative mb-6 max-w-md">
         <Search size={16} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
@@ -138,8 +179,8 @@ export default function DirectoryPage() {
                     {e.jumma_time && <span>{t('dir.jumma')}: {fmtTime(e.jumma_time)}</span>}
                   </div>
                 )}
-                {(e.phone || e.whatsapp_number) && (
-                  <div className="flex gap-2 mt-2">
+                {(e.phone || e.whatsapp_number || e.location_text) && (
+                  <div className="flex gap-2 mt-2 flex-wrap">
                     {e.phone && (
                       <a href={`tel:${e.phone.replace(/\s+/g, '')}`} className="flex items-center gap-1 px-2.5 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[11.5px] font-semibold hover:bg-dp-primary transition-all">
                         <Phone size={11} /> {t('ic.call')}
@@ -148,6 +189,11 @@ export default function DirectoryPage() {
                     {e.whatsapp_number && (
                       <a href={`https://wa.me/${normalizePakPhone(e.whatsapp_number)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 px-2.5 py-1.5 bg-[#25D366] text-white rounded-lg font-sans text-[11.5px] font-semibold hover:bg-[#1ebe5a] transition-all">
                         <MessageCircle size={11} /> {t('ic.whatsappBtn')}
+                      </a>
+                    )}
+                    {e.location_text && (
+                      <a href={mapsSearchUrl(e.name, e.location_text)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 px-2.5 py-1.5 border border-dp-outline-variant text-dp-on-surface-variant rounded-lg font-sans text-[11.5px] font-semibold hover:border-dp-secondary hover:text-dp-secondary transition-all">
+                        <Navigation size={11} /> {t('dir.viewOnMap')}
                       </a>
                     )}
                   </div>
