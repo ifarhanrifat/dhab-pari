@@ -12,8 +12,15 @@
 // board page this links out to, not duplicated here.
 //
 // Map-first layout, same shape as a ride-hailing app: the map fills the
-// screen, the results panel is a real sidebar — fixed on a wide screen,
-// a slide-in drawer (open by default) on a phone, not a bottom sheet.
+// screen, the results panel is a real sidebar on a wide screen. On a
+// phone it's a bottom sheet (Uber/Careem/Google Maps' own pattern for
+// exactly this — "what's near me" over a map), not a side drawer — a
+// side drawer was tried first and rejected: it covered most of the map
+// and opened from the wrong edge for a map-first screen, where the point
+// is to keep the map visible while still surfacing the list. The sheet
+// starts collapsed to a small peek bar (map fully visible on load) and
+// expands on tap, no backdrop — the map stays visible and interactive
+// above it either way, same as the apps this is modeled on.
 // Breaks out of the portal shell's own padding (-m-6/-m-10, canceling
 // <main>'s p-6/p-10) since a "full page map" can't sit inside a padded
 // card.
@@ -28,7 +35,7 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, LocateFixed, MapPinned, Phone, Loader2, Radio, Signpost, ChevronRight, List, X } from 'lucide-react'
+import { ArrowLeft, LocateFixed, MapPinned, Phone, Loader2, Radio, Signpost, ChevronRight, ChevronUp, ChevronDown, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -110,7 +117,9 @@ export default function NearbyOpenTripsPage() {
   const [pickingOnMap, setPickingOnMap] = useState(false)
   const [pickedPin, setPickedPin] = useState<{ lat: number; lng: number } | null>(null)
   const [locationModalReason, setLocationModalReason] = useState<Extract<LocationErrorReason, 'services_disabled' | 'permission_denied'> | null>(null)
-  const [panelOpen, setPanelOpen] = useState(true)
+  // Starts collapsed (peek) — the map is the first thing a rider sees on
+  // this screen, same as Uber/Careem's own "Where to?" bar does on load.
+  const [sheetExpanded, setSheetExpanded] = useState(false)
   const [activeAddaId, setActiveAddaId] = useState<string | null>(null)
 
   const [trips, setTrips] = useState<NearbyTrip[]>([])
@@ -378,7 +387,10 @@ export default function NearbyOpenTripsPage() {
       <div className="p-5 pb-4 border-b border-dp-outline-variant/60 shrink-0">
         <div className="flex items-center justify-between mb-3">
           <Link href="/portal/marketplace" className="inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-dp-secondary hover:underline"><ArrowLeft size={14} className={isUrdu ? 'rotate-180' : ''} /> {t('mp.backToMarketplace')}</Link>
-          <button onClick={() => setPanelOpen(false)} className="lg:hidden shrink-0 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer p-1"><X size={18} /></button>
+          {/* Collapses the sheet back to its peek bar — this header is
+              reused for both the always-expanded desktop sidebar (where
+              this stays lg:hidden) and the mobile sheet's expanded state. */}
+          <button onClick={() => setSheetExpanded(false)} className="lg:hidden shrink-0 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer p-1"><ChevronDown size={20} /></button>
         </div>
         <h1 className="font-heading text-[22px] font-bold leading-[28px] text-dp-primary mb-1">{t('af.nearbyPageTitle')}</h1>
         <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">{t('af.nearbyPageHint')}</p>
@@ -400,7 +412,7 @@ export default function NearbyOpenTripsPage() {
           {panelInner}
         </div>
 
-        {/* Mobile: a slide-in drawer, rendered via a portal straight into
+        {/* Mobile: a bottom sheet, rendered via a portal straight into
             <body> rather than in its normal spot in this page's own DOM
             tree. A high z-index alone was not enough — the map (Leaflet
             manages a lot of internal layered DOM of its own) kept
@@ -410,12 +422,30 @@ export default function NearbyOpenTripsPage() {
             standard, reliable fix for exactly this class of bug, the
             same reason most drawer/modal libraries default to portals.
             `dir` has to be set explicitly here — a portaled node is a
-            child of <body>, not of this page's own dir="rtl" wrapper. */}
+            child of <body>, not of this page's own dir="rtl" wrapper.
+
+            No backdrop — unlike a side drawer, a bottom sheet here is
+            meant to sit over the map while leaving it visible and
+            interactive above the sheet, same as every reference app this
+            is modeled on. Both heights are explicit (not h-auto) so the
+            height change itself can transition smoothly. */}
         {mounted && createPortal(
           <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme">
-            {panelOpen && <div onClick={() => setPanelOpen(false)} className="lg:hidden fixed inset-0 z-[9998] bg-black/40" />}
-            <div className={`lg:hidden fixed inset-y-0 start-0 z-[9999] w-[86%] max-w-[380px] h-full bg-white shadow-2xl transition-transform duration-300 ease-out flex flex-col ${panelOpen ? 'translate-x-0' : isUrdu ? 'translate-x-full' : '-translate-x-full'}`}>
-              {panelInner}
+            <div className={`lg:hidden fixed inset-x-0 bottom-0 z-[9999] bg-white rounded-t-2xl shadow-2xl transition-[height] duration-300 ease-out flex flex-col overflow-hidden ${sheetExpanded ? 'h-[78vh]' : 'h-[112px]'}`}>
+              {sheetExpanded ? panelInner : (
+                <button onClick={() => setSheetExpanded(true)} className="w-full text-start px-5 pt-3 pb-4 cursor-pointer" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+                  <div className="mx-auto w-10 h-1.5 rounded-full bg-dp-outline-variant mb-3" />
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <h1 className="font-heading text-[16px] font-bold leading-snug text-dp-primary truncate">{t('af.nearbyPageTitle')}</h1>
+                      <p className="font-sans text-[12px] text-dp-on-surface-variant truncate">{myPos ? t('af.positionSetHint') : t('af.nearbyPageHint')}</p>
+                    </div>
+                    <span className="shrink-0 w-8 h-8 rounded-full bg-dp-secondary-container/40 flex items-center justify-center text-dp-secondary">
+                      <ChevronUp size={16} />
+                    </span>
+                  </div>
+                </button>
+              )}
             </div>
           </div>,
           document.body
@@ -434,18 +464,7 @@ export default function NearbyOpenTripsPage() {
               </div>
             </div>
           ) : (
-            <>
-              <LeafletMap ref={mapRef} pins={pins} height="100%" className="w-full h-full" extraPadding={{ top: 70 }} />
-
-              {/* Floating "show list" button — mobile only, shown once the
-                  drawer's been closed (it's the only way back to it besides
-                  a full page reload). */}
-              {!panelOpen && (
-                <button onClick={() => setPanelOpen(true)} className="lg:hidden absolute top-3 z-[400] flex items-center gap-1.5 px-3.5 py-2.5 rounded-full bg-white shadow-lg font-sans text-[13px] font-semibold text-dp-on-surface cursor-pointer hover:bg-dp-surface-container-low" style={isUrdu ? { right: 12 } : { left: 12 }}>
-                  <List size={16} /> {t('af.showListBtn')}
-                </button>
-              )}
-            </>
+            <LeafletMap ref={mapRef} pins={pins} height="100%" className="w-full h-full" extraPadding={{ top: 70 }} />
           )}
         </div>
       </div>
