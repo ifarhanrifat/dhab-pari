@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sendEmail } from '@/lib/email/resend'
+import { adminInviteCodeEmail } from '@/lib/email/adminInviteCodeEmail'
 
 const VALID_ROLES = ['super_admin', 'admin', 'accountant', 'water_accountant', 'donor_accountant', 'publisher', 'viewer']
 
@@ -13,6 +15,12 @@ const ROLE_LABELS: Record<string, string> = {
   donor_accountant: 'Donor Accountant',
   publisher: 'Publisher',
   viewer: 'Viewer',
+}
+
+const CODE_TTL_MS = 60 * 60_000
+
+function generateCode() {
+  return String(Math.floor(100000 + Math.random() * 900000))
 }
 
 export async function POST(req: NextRequest) {
@@ -80,27 +88,35 @@ export async function POST(req: NextRequest) {
     }, { status: 409 })
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin
-
   const roleLabel = ROLE_LABELS[role] ?? role
   const secondaryRoleLabel = secondaryRole ? (ROLE_LABELS[secondaryRole] ?? secondaryRole) : null
 
-  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: {
-      full_name: fullName,
-      role: roleLabel,
-      secondary_role: secondaryRoleLabel,
-    },
-    redirectTo: `${siteUrl}/admin/accept-invite`,
-  })
+  // No Supabase auth user is created yet, and no clickable link is sent —
+  // see migration 565's comment for why (a magic link gets silently
+  // consumed by email security scanners before the real person ever
+  // clicks it, which is exactly what happened to this app's own admin
+  // invites). The admin_users row below is created in a genuinely pending
+  // state (auth_user_id null); the real auth user is only created once
+  // the invitee types this code back in at /admin/accept-invite.
+  const code = generateCode()
+  const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString()
 
-  if (inviteError) {
-    return NextResponse.json({ error: inviteError.message }, { status: 400 })
+  try {
+    await sendEmail({
+      to: email,
+      subject: 'Your Dhab Pari admin invite code',
+      html: adminInviteCodeEmail(code, fullName, roleLabel),
+    })
+  } catch (err) {
+    console.error('admin invite: email send failed', err)
+    return NextResponse.json({ error: 'Could not send the invite email. Please try again.' }, { status: 500 })
   }
 
   const { error: upsertError } = await admin.from('admin_users').upsert({
     email, full_name: fullName, role, secondary_role: secondaryRole, is_active: true,
-    auth_user_id: invited.user.id,
+    auth_user_id: null,
+    invite_code: code,
+    invite_code_expires_at: expiresAt,
     can_post_transactions: !!body.can_post_transactions,
     can_edit_transactions: !!body.can_edit_transactions,
     can_delete_transactions: !!body.can_delete_transactions,

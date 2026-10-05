@@ -1,74 +1,55 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { Eye, EyeOff, ShieldCheck, Lock, AlertTriangle } from 'lucide-react'
+import { Eye, EyeOff, ShieldCheck, Lock, KeyRound, CheckCircle, AlertTriangle } from 'lucide-react'
 import { SITE } from '@/lib/constants'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
 import { PasswordChecklist } from '@/components/shared/PasswordChecklist'
 
+// Rewritten 2026-10-05 (migration 565) off the old clickable-magic-link/
+// hash-session flow onto a typed-in code — see
+// /api/admin/accept-invite-with-code's comment for why: the old link got
+// silently consumed by email security scanners before the real invitee
+// ever clicked it. No Supabase session is created by this page at all;
+// the account is created directly, server-side, once the code checks out,
+// so there's nothing to redirect into afterward — the invitee signs in
+// normally with the password they just chose.
 export default function AcceptInvitePage() {
   const { t } = useLocale()
-  const [checking, setChecking] = useState(true)
-  const [validSession, setValidSession] = useState(false)
+  const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
-  const router = useRouter()
-  const supabase = createClient()
-  // Captured on first render, before Supabase's client can consume/clear it.
-  // This is what actually tells "this navigation just carried a fresh invite
-  // token" apart from "this browser tab already had an unrelated session
-  // sitting around" (e.g. an admin testing a dead link while still logged
-  // into their own account) — a plain getSession() can't make that
-  // distinction, since a failed/expired token exchange never touches a
-  // session that was already there before the link was opened.
-  const [initialHash] = useState(() => (typeof window !== 'undefined' ? window.location.hash : ''))
-
-  useEffect(() => {
-    if (initialHash.includes('error=') || !initialHash.includes('access_token=')) {
-      setValidSession(false)
-      setChecking(false)
-      return
-    }
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setValidSession(!!session)
-      setChecking(false)
-    })
-  }, [supabase, initialHash])
+  const [done, setDone] = useState(false)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
+    if (!email.trim()) { setError('Enter the email address the invite was sent to.'); return }
+    if (!code.trim()) { setError(t('p.enterResetCode')); return }
     if (!passwordMeetsPolicy(password)) { setError(t('p.passwordPolicyNotMet')); return }
     if (password !== confirmPassword) { setError('Passwords do not match.'); return }
 
     setSaving(true)
-    const { error: updateError } = await supabase.auth.updateUser({ password })
-    if (updateError) {
-      setError(updateError.message)
-      setSaving(false)
-      return
+    try {
+      const res = await fetch('/api/admin/accept-invite-with-code', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), code: code.trim(), password }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error ?? t('p.networkErrorRetry')); setSaving(false); return }
+      setDone(true)
+    } catch {
+      setError(t('p.networkErrorRetry'))
     }
-
-    // Real bug found live: this used to write invite_accepted_at directly
-    // from the client — admin_users has no self-service UPDATE policy for
-    // a brand-new invitee, so it silently failed every time (the result
-    // was never even checked), leaving every accepted invite stuck showing
-    // "Pending" forever even though the password above had already set
-    // correctly. Routed through a service-role API call instead — the
-    // password change already succeeded by this point regardless, so a
-    // failure here is logged but never blocks the redirect.
-    const markRes = await fetch('/api/admin/accept-invite/mark-accepted', { method: 'POST' })
-    if (!markRes.ok) console.error('accept-invite: mark-accepted failed', await markRes.text())
-
-    router.push('/admin')
-    router.refresh()
+    setSaving(false)
   }
 
   return (
@@ -87,13 +68,14 @@ export default function AcceptInvitePage() {
 
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-[420px] bg-white border border-dp-outline-variant rounded-lg p-6 md:p-8 shadow-sm">
-          {checking ? (
-            <p className="text-center font-sans text-dp-on-surface-variant py-8">{t('y.checkingInvite')}</p>
-          ) : !validSession ? (
-            <div className="text-center py-8">
-              <AlertTriangle size={40} className="text-dp-error mx-auto mb-3" />
-              <p className="font-sans font-semibold text-dp-on-surface mb-2">{t('y.inviteInvalid')}</p>
-              <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('y.askAdminInvite')}</p>
+          {done ? (
+            <div className="text-center py-4">
+              <CheckCircle size={40} className="text-dp-secondary mx-auto mb-3" />
+              <p className="font-sans font-semibold text-dp-on-surface mb-2">{t('y.accountActivated')}</p>
+              <p className="font-sans text-[13.5px] text-dp-on-surface-variant mb-6">{t('y.signInNow')}</p>
+              <button onClick={() => router.push('/admin/login')} className="w-full bg-dp-secondary text-white py-3 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all">
+                {t('g.backToSignIn')}
+              </button>
             </div>
           ) : (
             <>
@@ -107,6 +89,28 @@ export default function AcceptInvitePage() {
 
               <form onSubmit={submit} className="space-y-5">
                 <div>
+                  <label htmlFor="email" className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('a.email')}</label>
+                  <input
+                    id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email"
+                    disabled={saving}
+                    className="w-full px-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[16px] font-sans text-dp-on-surface disabled:opacity-50"
+                    placeholder="you@example.com" dir="ltr"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('y.inviteCode')}</label>
+                  <div className="relative">
+                    <KeyRound size={16} className="absolute start-4 top-1/2 -translate-y-1/2 text-dp-on-surface-variant" />
+                    <input
+                      value={code} onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ''))} required inputMode="numeric" maxLength={6}
+                      className="w-full ps-11 pe-4 py-3 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[20px] font-mono tracking-[0.3em] text-center text-dp-on-surface"
+                      placeholder="000000" dir="ltr"
+                    />
+                  </div>
+                </div>
+
+                <div>
                   <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-2 tracking-[0.06em] uppercase font-sans">{t('w.password')}</label>
                   <div className="relative">
                     <input
@@ -118,7 +122,7 @@ export default function AcceptInvitePage() {
                       className="w-full px-4 py-3 pe-12 bg-white border-2 border-dp-outline-variant rounded-lg focus:border-dp-secondary focus:ring-0 transition-all text-[16px] font-sans text-dp-on-surface"
                       placeholder="Choose a strong password"
                     />
-                    <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer p-1" tabIndex={-1}>
+                    <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute end-3 top-1/2 -translate-y-1/2 text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer p-1" tabIndex={-1}>
                       {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>

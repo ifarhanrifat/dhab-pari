@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sendEmail } from '@/lib/email/resend'
+import { adminInviteCodeEmail } from '@/lib/email/adminInviteCodeEmail'
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Super Admin', admin: 'Admin', accountant: 'Accountant',
   water_accountant: 'Water Accountant', donor_accountant: 'Donor Accountant',
   publisher: 'Publisher', viewer: 'Viewer',
+}
+
+const CODE_TTL_MS = 60 * 60_000
+const COOLDOWN_MS = 60_000
+
+function generateCode() {
+  return String(Math.floor(100000 + Math.random() * 900000))
 }
 
 // Real gap, 2026-09-28: an invite that never arrived (landed in spam, or
@@ -17,6 +26,20 @@ const ROLE_LABELS: Record<string, string> = {
 // how the live pakistan001@gmail.com case got unstuck). This is that same
 // call, wired to a real button, gated the same way inviting is and only
 // for a row that's still genuinely pending (never accepted).
+//
+// Rewritten 2026-10-05 to the code-based invite flow (migration 565). A
+// row created under the OLD link-based flow already has auth_user_id set
+// (the old /invite route set it immediately) even though invite_accepted_at
+// is still null — this is exactly the "a scanner silently consumed the
+// link" case that prompted this whole rewrite (confirmed live for
+// saeedazmat80@gmail.com: email_confirmed_at/last_sign_in_at were set 56
+// seconds after invited_at, with no password ever chosen by the real
+// person). Any still-pending row with auth_user_id set is unambiguously
+// one of these stale pre-migration rows, since the new /invite route never
+// sets auth_user_id until a code is actually verified — so resending here
+// also deletes that stale, passwordless auth user and clears the link,
+// which is what finally lets the new code-based accept flow create a
+// clean one.
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -45,37 +68,51 @@ export async function POST(req: NextRequest) {
   if (!adminUserId) return NextResponse.json({ error: 'Missing admin_user_id.' }, { status: 400 })
 
   const admin = createAdminClient()
-  const { data: target } = await admin.from('admin_users').select('email, full_name, role, secondary_role, invite_accepted_at').eq('id', adminUserId).maybeSingle()
+  const { data: target } = await admin.from('admin_users')
+    .select('email, full_name, role, secondary_role, invite_accepted_at, auth_user_id, invited_at')
+    .eq('id', adminUserId).maybeSingle()
   if (!target) return NextResponse.json({ error: 'User not found.' }, { status: 404 })
   if (target.invite_accepted_at) {
     return NextResponse.json({ error: 'This invite was already accepted — there is nothing to resend.' }, { status: 409 })
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin
-  const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(target.email, {
-    data: {
-      full_name: target.full_name,
-      role: ROLE_LABELS[target.role] ?? target.role,
-      secondary_role: target.secondary_role ? (ROLE_LABELS[target.secondary_role] ?? target.secondary_role) : null,
-    },
-    redirectTo: `${siteUrl}/admin/accept-invite`,
-  })
-  if (inviteError) {
-    // Defense-in-depth: invite_accepted_at is meant to already rule this
-    // out above, but a real bug (fixed 2026-09-28) had it silently stuck
-    // null on every genuinely-accepted invite for a while, which is
-    // exactly what surfaces here as Supabase's own "already registered"
-    // error instead of the friendlier one above. Translate it rather than
-    // leak the raw GoTrue message, and self-heal the stale bookkeeping
-    // while we're here so this stops recurring for this row.
-    if (/already.*registered/i.test(inviteError.message)) {
-      await admin.from('admin_users').update({ invite_accepted_at: new Date().toISOString() }).eq('id', adminUserId)
-      return NextResponse.json({ error: 'This invite was already accepted (the account is active) — the page just had stale info. Refresh and try again.' }, { status: 409 })
+  if (target.invited_at) {
+    const elapsed = Date.now() - new Date(target.invited_at).getTime()
+    if (elapsed < COOLDOWN_MS) {
+      return NextResponse.json({ error: 'A code was just sent — wait a moment before resending.' }, { status: 429 })
     }
-    return NextResponse.json({ error: inviteError.message }, { status: 400 })
   }
 
-  await admin.from('admin_users').update({ invited_at: new Date().toISOString() }).eq('id', adminUserId)
+  // A stray auth user from the old link-based flow (see this route's own
+  // comment above) — delete it so the new code can create a clean one.
+  if (target.auth_user_id) {
+    const { error: deleteError } = await admin.auth.admin.deleteUser(target.auth_user_id)
+    if (deleteError && !/not.*found/i.test(deleteError.message)) {
+      return NextResponse.json({ error: `Could not clear the stale account before resending: ${deleteError.message}` }, { status: 500 })
+    }
+  }
+
+  const code = generateCode()
+  const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString()
+  const roleLabel = ROLE_LABELS[target.role] ?? target.role
+
+  try {
+    await sendEmail({
+      to: target.email,
+      subject: 'Your Dhab Pari admin invite code',
+      html: adminInviteCodeEmail(code, target.full_name, roleLabel),
+    })
+  } catch (err) {
+    console.error('resend-invite: email send failed', err)
+    return NextResponse.json({ error: 'Could not send the invite email. Please try again.' }, { status: 500 })
+  }
+
+  await admin.from('admin_users').update({
+    auth_user_id: null,
+    invite_code: code,
+    invite_code_expires_at: expiresAt,
+    invited_at: new Date().toISOString(),
+  }).eq('id', adminUserId)
 
   return NextResponse.json({ success: true })
 }

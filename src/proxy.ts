@@ -157,13 +157,12 @@ export async function proxy(request: NextRequest) {
 
   if (pathname.startsWith('/admin')) {
     // accept-invite/forgot-password/reset-password must always render regardless
-    // of session state. accept-invite and reset-password's token arrives as a
-    // URL hash fragment (invisible to this server-side middleware) rather than a
-    // ?code= query param, so the only place that can ever detect and establish
-    // that session is the page's own client-side JS — the pages themselves
-    // already show "invalid or expired" when no session shows up. forgot-password
-    // is requested BY DEFINITION by someone with no session at all, so it must
-    // never be gated behind having one.
+    // of session state — all three are, by definition, reached by someone with
+    // no session at all. accept-invite and forgot-password now exchange a
+    // typed-in code via plain server API calls (migration 565 — no Supabase
+    // session/hash involved at any point, which sidesteps the scanner/magic-link
+    // problems the old hash-based flow had). reset-password is kept only as an
+    // inert notice for links sent before that change.
     const isPublicAuthPage = pathname.startsWith('/admin/accept-invite')
       || pathname.startsWith('/admin/forgot-password')
       || pathname.startsWith('/admin/reset-password')
