@@ -14,7 +14,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, ArrowLeftRight, MapPin, Phone, Timer, Trophy, Users, Loader2 } from 'lucide-react'
+import { ArrowLeft, MapPin, Phone, Timer, Trophy, Users, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
@@ -94,8 +94,6 @@ function AddaBoardPageInner() {
   const secondsLeft = (expiresAt: string | null) => expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - now) / 1000)) : null
   const fmtCountdown = (secs: number) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
 
-  const switchDirection = () => { if (board?.pair_adda) setActiveAddaId(board.pair_adda.id) }
-
   const bookFixed = async (entry: AddaBoardEntry) => {
     const seats = bookingSeats[entry.entry_id] || 1
     setActionId(entry.entry_id)
@@ -125,10 +123,17 @@ function AddaBoardPageInner() {
   const waiting = board?.entries.filter((e) => e.status === 'waiting').sort((a, b) => a.position - b.position) ?? []
   const currentSecs = current ? secondsLeft(current.turn_expires_at) : null
 
-  const pins = board ? [
-    ...(board.adda.lat != null ? [{ lat: board.adda.lat, lng: board.adda.lng!, label: isUrdu && board.adda.name_ur ? board.adda.name_ur : board.adda.name, color: '#16a34a' }] : []),
-    ...(board.pair_adda?.lat != null ? [{ lat: board.pair_adda.lat, lng: board.pair_adda.lng!, label: isUrdu && board.pair_adda.name_ur ? board.pair_adda.name_ur : board.pair_adda.name, color: '#dc2626' }] : []),
-  ] : []
+  // Every active adda gets a pin now, not just the current one and its
+  // pair — the tab row below lets a rider jump to any of them, so the
+  // map should show where they all are, not just the two the old
+  // pair-direction toggle knew about.
+  const pins = addas
+    .filter((a) => a.lat != null && a.lng != null)
+    .map((a) => ({
+      lat: a.lat!, lng: a.lng!,
+      label: isUrdu && a.name_ur ? a.name_ur : a.name,
+      color: a.id === activeAddaId ? '#16a34a' : '#7c3aed',
+    }))
 
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="shop-ink-theme pb-16">
@@ -136,15 +141,21 @@ function AddaBoardPageInner() {
       <h1 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mb-1 flex items-center gap-2">{t('af.addaBoardPageTitle')}</h1>
       <p className="font-sans text-[13px] text-dp-on-surface-variant mb-5">{t('af.addaBoardHint')}</p>
 
-      {board && (
-        <div className="flex items-center justify-center gap-3 mb-4 bg-white border border-dp-outline-variant rounded-lg p-3">
-          <span className="font-sans text-[14px] font-bold text-dp-on-surface">{isUrdu && board.adda.name_ur ? board.adda.name_ur : board.adda.name}</span>
-          {board.pair_adda && (
-            <>
-              <button onClick={switchDirection} className="p-1.5 rounded-full bg-dp-secondary-container/40 text-dp-secondary cursor-pointer hover:bg-dp-secondary-container/70"><ArrowLeftRight size={15} /></button>
-              <span className="font-sans text-[14px] text-dp-on-surface-variant">{isUrdu && board.pair_adda.name_ur ? board.pair_adda.name_ur : board.pair_adda.name}</span>
-            </>
-          )}
+      {/* Every active adda, not just the current one's paired stand —
+          replaces the old single swap-direction button, which could only
+          ever jump between two specific addas regardless of how many
+          exist. Scales to any number of stands without a second switcher. */}
+      {addas.length > 1 && (
+        <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1">
+          {addas.map((a) => {
+            const active = a.id === activeAddaId
+            return (
+              <button key={a.id} onClick={() => setActiveAddaId(a.id)}
+                className={`shrink-0 px-3.5 py-2 rounded-full font-sans text-[12.5px] font-bold cursor-pointer transition-colors ${active ? 'bg-dp-secondary text-white' : 'bg-white border border-dp-outline-variant text-dp-on-surface hover:bg-dp-surface-container'}`}>
+                🚏 {isUrdu && a.name_ur ? a.name_ur : a.name}
+              </button>
+            )
+          })}
         </div>
       )}
 
