@@ -49,7 +49,6 @@ import {
   Droplet,
 } from 'lucide-react'
 import { HomeHero } from '@/components/home/HomeHero'
-import { HomeMobileQuickActions } from '@/components/home/HomeMobileQuickActions'
 import { HomeMobileUrduCta } from '@/components/home/HomeMobileUrduCta'
 import { T, LocaleDir } from '@/components/i18n/T'
 import { WelfareCards } from '@/components/home/WelfareCards'
@@ -343,9 +342,6 @@ export default async function HomePage() {
       <div className="max-w-[1200px] mx-auto px-6 mt-6">
         <DownloadAppBanner />
       </div>
-
-      {/* ========== MOBILE: Quick Actions ========== */}
-      <HomeMobileQuickActions />
 
       {/* ========== MAIN CONTENT + SIDEBAR ========== */}
       <div className="max-w-[1200px] mx-auto px-6 py-8 flex flex-col lg:flex-row gap-6">
