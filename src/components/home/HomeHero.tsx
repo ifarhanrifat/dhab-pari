@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { SITE } from '@/lib/constants'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { T } from '@/components/i18n/T'
 import { HomeFeatureCarousel } from '@/components/home/HomeFeatureCarousel'
 
 // Was `motion`-animated (a JS animation library) for two one-shot fade-ins
@@ -94,8 +95,8 @@ export function HomeHero() {
           <div className="absolute inset-0 z-0 bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-[1]" />
           <div className="relative z-10 text-white">
-            <h2 className="font-heading text-[24px] font-bold leading-tight mb-3">
-              {t('home.heroTagline')}
+            <h2 className="font-heading text-[24px] font-bold leading-tight mb-3 break-words rtl-text">
+              <T k="home.heroTagline" />
             </h2>
             <HomeFeatureCarousel />
           </div>

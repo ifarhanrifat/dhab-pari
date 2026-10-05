@@ -6,7 +6,7 @@ import {
   PhoneCall, Search, AlertTriangle, Megaphone, Siren, ShoppingBag, BookOpen, CalendarDays, MapPin, Trophy, Wheat, Landmark,
   Droplet, HeartHandshake, Newspaper, ChevronDown, ChevronUp,
 } from 'lucide-react'
-import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { T } from '@/components/i18n/T'
 
 // Real gap, 2026-09-30: these public pages (Contacts, Lost & Found, Civic
 // Reports, Notice Board, Buy & Sell) only ever linked from the footer --
@@ -41,20 +41,28 @@ const MORE_LINKS = [
   { href: '/agriculture', icon: Wheat, key: 'ag.pageTitle', tone: 'bg-lime-50 text-lime-700' },
 ]
 
-function Tile({ href, icon: Icon, label, tone }: { href: string; icon: typeof PhoneCall; label: string; tone: string }) {
+function Tile({ href, icon: Icon, labelKey, tone }: { href: string; icon: typeof PhoneCall; labelKey: string; tone: string }) {
   return (
     <Link href={href}
       className="bg-white border border-dp-outline-variant rounded-lg p-4 flex items-center gap-3 hover:border-dp-secondary transition-all">
       <span className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${tone}`}>
         <Icon size={18} />
       </span>
-      <span className="font-sans text-[13.5px] font-semibold text-dp-on-surface leading-tight">{label}</span>
+      {/* min-w-0 stops this flex child from refusing to shrink below its
+          text's content width (the default min-width:auto). rtl-text is
+          the other half, per globals.css's own note: <T>'s dir fixes how
+          the characters within the line read, not where the line sits in
+          its box — without the ancestor's own text-align:right, a long
+          label hugs the left edge and overflows past the tile instead of
+          wrapping flush right. */}
+      <span className="min-w-0 font-sans text-[13.5px] font-semibold text-dp-on-surface leading-tight break-words rtl-text">
+        <T k={labelKey} />
+      </span>
     </Link>
   )
 }
 
 export function VillageServicesQuickLinks() {
-  const { t } = useLocale()
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -64,19 +72,19 @@ export function VillageServicesQuickLinks() {
           for just another utility link. */}
       <Link href="/emergency"
         className="flex items-center justify-center gap-2 bg-red-600 text-white rounded-lg py-3.5 font-sans text-[15px] font-bold hover:bg-red-700 transition-all mb-3">
-        <Siren size={20} /> {t('em.pageTitle')}
+        <Siren size={20} /> <T k="em.pageTitle" />
       </Link>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {PRIMARY_LINKS.map((l) => (
-          <Tile key={l.href} href={l.href} icon={l.icon} label={t(l.key)} tone={l.tone} />
+          <Tile key={l.href} href={l.href} icon={l.icon} labelKey={l.key} tone={l.tone} />
         ))}
       </div>
 
       {expanded && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mt-3">
           {MORE_LINKS.map((l) => (
-            <Tile key={l.href} href={l.href} icon={l.icon} label={t(l.key)} tone={l.tone} />
+            <Tile key={l.href} href={l.href} icon={l.icon} labelKey={l.key} tone={l.tone} />
           ))}
         </div>
       )}
@@ -85,7 +93,7 @@ export function VillageServicesQuickLinks() {
         onClick={() => setExpanded((v) => !v)}
         className="w-full flex items-center justify-center gap-1.5 mt-3 py-2 font-sans text-[13px] font-semibold text-dp-secondary hover:underline cursor-pointer"
       >
-        {expanded ? t('home.showLess') : t('home.viewAll')}
+        <T k={expanded ? 'home.showLess' : 'home.viewAll'} />
         {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
       </button>
     </div>
