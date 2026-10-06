@@ -1,18 +1,26 @@
 import type { Metadata } from 'next'
-import { GraduationCap, BookOpen, Award, Users } from 'lucide-react'
-
-export const metadata: Metadata = {
-  title: 'Education Corner',
-  description: `Scholarship programs, student achievements, and educational initiatives in ${SITE.name}.`,
-}
+import { GraduationCap, HeartHandshake, MessageSquarePlus, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { SITE } from '@/lib/constants'
 import { T } from '@/components/i18n/T'
 
+export const metadata: Metadata = {
+  title: 'Education Corner',
+  description: `Education support programs in ${SITE.name}.`,
+}
+
+// Real gap, 2026-10-06: this page used to show three fabricated "Scholarship
+// Info Cards" with invented numbers (e.g. "25 students supported") and a
+// list of five named students with fabricated achievements, none of it
+// backed by any table. Harmless as placeholder copy for one village's own
+// site, but it would show the exact same fake Dhab Pari-specific names on
+// any other village's site, word for word. Replaced with links to the
+// education-support systems this app actually has and actually tracks
+// (Kafalat/Wazifa/Zakat, under the real welfare hub) rather than inventing
+// a second, unbacked "scholarship" concept next to them.
 export default function EducationPage() {
   return (
     <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen">
-      {/* Header */}
       <div className="text-center mb-12 max-w-3xl mx-auto">
         <div className="inline-flex items-center justify-center p-3 bg-blue-100 rounded-full text-blue-600 mb-4">
           <GraduationCap size={32} />
@@ -21,112 +29,40 @@ export default function EducationPage() {
           <T k="x.educationCorner" />
         </h1>
         <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px]">
-          Supporting the next generation of {SITE.name} through scholarships,
-          resources, and community learning.
+          Supporting the next generation of {SITE.name} through sponsorship, stipends, and community support.
         </p>
       </div>
 
-      {/* Scholarship Info Cards */}
-      <section className="mb-16">
-        <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mb-6">
-          <T k="x.scholarshipPrograms" />
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white border border-dp-outline-variant rounded-lg p-6 hover:border-dp-secondary transition-all">
-            <div className="w-12 h-12 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center mb-4">
-              <BookOpen size={24} />
-            </div>
-            <h3 className="font-sans text-[18px] font-bold leading-[28px] text-dp-on-surface mb-2">
-              <T k="x.primaryEducationFund" />
-            </h3>
-            <p className="text-dp-on-surface-variant font-sans text-[14px] mb-4">
-              Covers school fees, books, and uniforms for underprivileged
-              students from Class 1 to 5 in the village school.
-            </p>
-            <div className="flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold">
-              <Users size={14} />
-              <span>25 students supported</span>
-            </div>
+      <section className="mb-10">
+        <div className="bg-white border border-dp-outline-variant rounded-lg p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center gap-5">
+          <div className="w-14 h-14 shrink-0 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <HeartHandshake size={28} />
           </div>
-
-          <div className="bg-white border border-dp-outline-variant rounded-lg p-6 hover:border-dp-secondary transition-all">
-            <div className="w-12 h-12 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
-              <Award size={24} />
-            </div>
-            <h3 className="font-sans text-[18px] font-bold leading-[28px] text-dp-on-surface mb-2">
-              <T k="x.meritScholarship" />
-            </h3>
-            <p className="text-dp-on-surface-variant font-sans text-[14px] mb-4">
-              Annual scholarship for top-performing students in Matric and
-              Intermediate exams. Covers tuition and transport costs.
+          <div className="flex-1">
+            <h2 className="font-heading text-[22px] font-bold leading-[30px] text-dp-primary mb-1.5">Kafalat, Wazifa &amp; Zakat</h2>
+            <p className="text-dp-on-surface-variant font-sans text-[14.5px] leading-[22px]">
+              Sponsor an orphan or student directly (Kafalat), support ongoing education stipends (Taleemi Wazifa), or contribute to the pooled Zakat &amp; Ushr fund. Every program here is run and tracked by the committee — real sponsors, real recipients.
             </p>
-            <div className="flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold">
-              <Award size={14} />
-              <span>PKR 15,000 per year</span>
-            </div>
           </div>
-
-          <div className="bg-white border border-dp-outline-variant rounded-lg p-6 hover:border-dp-secondary transition-all">
-            <div className="w-12 h-12 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center mb-4">
-              <GraduationCap size={24} />
-            </div>
-            <h3 className="font-sans text-[18px] font-bold leading-[28px] text-dp-on-surface mb-2">
-              <T k="x.higherEducation" />
-            </h3>
-            <p className="text-dp-on-surface-variant font-sans text-[14px] mb-4">
-              Partial funding for village students admitted to public
-              universities. Priority given to STEM and medical fields.
-            </p>
-            <div className="flex items-center gap-2 text-dp-secondary font-sans text-[14px] font-semibold">
-              <Users size={14} />
-              <span>8 university students</span>
-            </div>
-          </div>
+          <Link href="/welfare" className="shrink-0 inline-flex items-center gap-1.5 bg-dp-primary text-white px-5 py-2.5 rounded-lg font-sans text-[14px] font-semibold hover:brightness-110 transition-all">
+            Explore Welfare Programs <ArrowRight size={15} />
+          </Link>
         </div>
       </section>
 
-      {/* Student Achievements */}
-      <section className="mb-16">
-        <h2 className="font-heading text-[24px] font-bold leading-[32px] text-dp-primary mb-6">
-          <T k="x.studentAchievements" />
-        </h2>
-        <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
-          {[
-            { name: 'Aisha Malik', achievement: 'Topped District Board Exam — Matric Science (2024)', grade: '1st Position' },
-            { name: 'Hassan Ghulam', achievement: 'Selected for Punjab Youth Science Olympiad', grade: 'Gold Medal' },
-            { name: 'Fatima Zahoor', achievement: 'Admission to NUST Islamabad — BS Computer Science', grade: 'Merit Based' },
-            { name: 'Ahmad Rasheed', achievement: 'Hafiz-e-Quran completion at age 12', grade: 'Completed' },
-            { name: 'Sana Arshad', achievement: 'Won District-level Urdu Debate Competition', grade: '1st Prize' },
-          ].map((s, i) => (
-            <div
-              key={i}
-              className={`p-5 flex flex-col md:flex-row md:items-center justify-between gap-2 ${i % 2 === 1 ? 'bg-dp-surface-container' : ''}`}
-            >
-              <div>
-                <h4 className="font-sans text-[16px] font-bold text-dp-on-surface">{s.name}</h4>
-                <p className="font-sans text-[14px] text-dp-on-surface-variant">{s.achievement}</p>
-              </div>
-              <span className="bg-dp-secondary-container text-dp-on-secondary-container px-3 py-1 rounded-full text-[12px] font-bold font-sans shrink-0 w-fit">
-                {s.grade}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* CTA */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center">
-        <h3 className="font-heading text-[24px] font-bold leading-[32px] text-blue-900 mb-2">
-          <T k="x.supportEducation" />
-        </h3>
-        <p className="text-blue-700 font-sans text-[16px] mb-6">
-          Your donation can help a child attend school, buy books, or pursue higher education.
+        <div className="inline-flex items-center justify-center p-2.5 bg-white rounded-full text-blue-600 mb-3">
+          <MessageSquarePlus size={22} />
+        </div>
+        <h3 className="font-heading text-[22px] font-bold leading-[30px] text-blue-900 mb-2">Have an idea for education in {SITE.name}?</h3>
+        <p className="text-blue-700 font-sans text-[15px] mb-6 max-w-xl mx-auto">
+          A tuition center, a book drive, a tutoring program — suggest it directly to the committee.
         </p>
         <Link
-          href="/donate"
+          href="/suggestions"
           className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-sans font-semibold hover:bg-blue-700 transition-all"
         >
-          <T k="x.donateForEducation" />
+          Submit a Suggestion
         </Link>
       </div>
     </div>
