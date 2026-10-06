@@ -1025,6 +1025,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'x.announcePledge': 'Announce a Pledge',
     'x.donateNowBtn': 'Donate Now',
     'x.verifiedRaised': 'Verified Raised',
+    'x.stillNeeded': 'Still Needed',
     'x.monthlySponsorship': 'Monthly Sponsorship (ongoing support)',
     'x.fullySponsored': 'Fully Sponsored', 'x.needsMoreSponsors': 'Needs More Monthly Sponsors', 'x.committedPerMonth': 'committed per month',
     'x.monthlySponsorshipHint': 'This ongoing cost (e.g. staff/instructor salary) is separate from the one-time budget above — set up a recurring monthly donation from your portal to sponsor it.',
@@ -6288,6 +6289,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'x.announcePledge': 'عطیے کا اعلان کریں',
     'x.donateNowBtn': 'ابھی عطیہ دیں',
     'x.verifiedRaised': 'تصدیق شدہ وصولی',
+    'x.stillNeeded': 'ابھی درکار',
     // "کفالت" is reserved for the Kafalat child-sponsorship program
     // elsewhere in the app — using it here too (a project's own recurring
     // running cost, e.g. a trainer's salary) read as if this were that

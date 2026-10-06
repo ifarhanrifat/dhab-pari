@@ -257,6 +257,11 @@ export default function ProjectDetailPage() {
   const totalVerified = verified.reduce((s, d) => s + Number(d.amount_pkr), 0)
   const totalAnnounced = announced.reduce((s, d) => s + Number(d.amount_pkr), 0)
   const totalExpenses = expenses.reduce((s, e) => s + Number(e.debit), 0)
+  // Same formula the donation-target dropdown uses (src/lib/donationTargets.ts)
+  // so this page never implies a different "amount needed" than the picker.
+  const stillNeeded = project && project.budget_pkr && project.funding_model !== 'recurring_support'
+    ? Math.max(0, Number(project.budget_pkr) - totalVerified)
+    : null
 
   const submitAnnounce = async () => {
     if (!portalUser) { router.push(`/portal/login?next=/projects/${id}`); return }
@@ -480,6 +485,12 @@ export default function ProjectDetailPage() {
           <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{tr('home.spent')}</p>
           <p className="font-heading text-[20px] font-bold text-dp-error">{fmt(totalExpenses)}</p>
         </div>
+        {stillNeeded !== null && (
+          <div className="bg-white border border-dp-outline-variant rounded-lg p-4">
+            <p className="font-sans text-[11px] font-semibold text-dp-on-surface-variant uppercase tracking-wide">{tr('x.stillNeeded')}</p>
+            <p className="font-heading text-[20px] font-bold text-dp-tertiary">{fmt(stillNeeded)}</p>
+          </div>
+        )}
       </div>
 
       {channels.length > 0 && (
