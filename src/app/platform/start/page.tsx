@@ -11,7 +11,17 @@ import {
 import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
 import { PasswordChecklist } from '@/components/shared/PasswordChecklist'
 
-interface PlanOption { id: string; key: string; name: string; monthly_price_pkr: number; commission_pct: number; max_admin_users: number | null }
+interface PlanOption {
+  id: string; key: string; name: string; monthly_price_pkr: number; commission_pct: number; max_admin_users: number | null
+  includes_water_supply: boolean; includes_donors_projects: boolean
+}
+
+function planModuleLabel(p: PlanOption) {
+  if (p.includes_water_supply && p.includes_donors_projects) return 'Everything: Donations, Water Billing, Marketplace & more'
+  if (p.includes_water_supply) return 'Water Supply Billing only'
+  if (p.includes_donors_projects) return 'Donations, Marketplace & Committee Operations only'
+  return 'No modules included'
+}
 
 function slugify(name: string) {
   return name.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').slice(0, 63)
@@ -71,7 +81,7 @@ export default function PlatformStartPage() {
   const router = useRouter()
 
   useEffect(() => {
-    createClient().from('subscription_plans').select('id, key, name, monthly_price_pkr, commission_pct, max_admin_users')
+    createClient().from('subscription_plans').select('id, key, name, monthly_price_pkr, commission_pct, max_admin_users, includes_water_supply, includes_donors_projects')
       .eq('is_active', true).order('monthly_price_pkr').then(({ data }) => {
         const list = (data as PlanOption[]) ?? []
         setPlans(list)
@@ -217,18 +227,20 @@ export default function PlatformStartPage() {
                     <span className={`font-sans text-[13px] ${highlighted ? 'text-white/70' : 'text-dp-on-surface-variant'}`}>/month</span>
                   </div>
                   <ul className="space-y-2 mb-6 flex-1">
+                    <li className={`font-sans text-[13px] font-semibold flex items-start gap-1.5 ${highlighted ? 'text-white' : 'text-dp-on-surface'}`}>
+                      <CheckCircle2 size={14} className={`shrink-0 mt-0.5 ${highlighted ? 'text-white' : 'text-dp-secondary'}`} />
+                      {planModuleLabel(p)}
+                    </li>
                     <li className={`font-sans text-[13px] flex items-start gap-1.5 ${highlighted ? 'text-white/90' : 'text-dp-on-surface-variant'}`}>
                       <CheckCircle2 size={14} className={`shrink-0 mt-0.5 ${highlighted ? 'text-white' : 'text-dp-secondary'}`} />
                       {p.max_admin_users ? `Up to ${p.max_admin_users} admin accounts` : 'Unlimited admin accounts'}
                     </li>
-                    <li className={`font-sans text-[13px] flex items-start gap-1.5 ${highlighted ? 'text-white/90' : 'text-dp-on-surface-variant'}`}>
-                      <CheckCircle2 size={14} className={`shrink-0 mt-0.5 ${highlighted ? 'text-white' : 'text-dp-secondary'}`} />
-                      {p.commission_pct}% marketplace commission
-                    </li>
-                    <li className={`font-sans text-[13px] flex items-start gap-1.5 ${highlighted ? 'text-white/90' : 'text-dp-on-surface-variant'}`}>
-                      <CheckCircle2 size={14} className={`shrink-0 mt-0.5 ${highlighted ? 'text-white' : 'text-dp-secondary'}`} />
-                      All features included
-                    </li>
+                    {p.includes_donors_projects && (
+                      <li className={`font-sans text-[13px] flex items-start gap-1.5 ${highlighted ? 'text-white/90' : 'text-dp-on-surface-variant'}`}>
+                        <CheckCircle2 size={14} className={`shrink-0 mt-0.5 ${highlighted ? 'text-white' : 'text-dp-secondary'}`} />
+                        {p.commission_pct}% marketplace commission
+                      </li>
+                    )}
                   </ul>
                   <button
                     onClick={() => choosePlan(p.id)}
@@ -332,6 +344,7 @@ export default function PlatformStartPage() {
                         <p className="font-sans text-[12px] text-dp-on-surface-variant">
                           PKR {p.monthly_price_pkr}/mo{p.max_admin_users ? ` · up to ${p.max_admin_users} admins` : ''}
                         </p>
+                        <p className="font-sans text-[11.5px] text-dp-secondary font-semibold mt-0.5">{planModuleLabel(p)}</p>
                       </div>
                     </div>
                     {form.plan_id === p.id && <CheckCircle2 size={18} className="text-dp-secondary shrink-0" />}
