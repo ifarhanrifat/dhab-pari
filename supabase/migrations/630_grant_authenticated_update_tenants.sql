@@ -1,0 +1,22 @@
+-- Real bug, found live 2026-10-07: migration 616's tenants lockdown
+-- correctly revoked INSERT/UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER on
+-- tenants from `authenticated` (as well as `anon`) since at the time
+-- nothing legitimate needed direct client-side writes to tenants at all
+-- -- tenant creation went through the SECURITY DEFINER
+-- platform_create_tenant function, which bypasses grants as its owner.
+--
+-- Since then, the platform console's tenant-edit and module-toggle
+-- features (this session) were built as plain client-side
+-- `.update()` calls relying on the tenants_platform_manage RLS policy --
+-- but a missing table-level GRANT is checked by Postgres BEFORE RLS ever
+-- runs, so every one of those updates failed with "permission denied for
+-- table tenants" even for a real platform admin whose is_platform_admin()
+-- correctly returns true. Confirmed live: RLS was never the problem here,
+-- the grant simply never existed for this use case.
+--
+-- Safe to re-grant: tenants_platform_manage (migration 617) already
+-- requires is_platform_admin() in its WITH CHECK, so this doesn't reopen
+-- last night's actual vulnerability (that was RLS being fully disabled
+-- plus a blanket anon grant) -- only a genuine platform admin's session
+-- can pass the RLS check regardless of this grant existing.
+grant update on tenants to authenticated;
