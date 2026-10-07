@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/resend'
 import { passwordChangedEmail } from '@/lib/email/passwordChangedEmail'
 import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
+import { getTenantName } from '@/lib/tenant'
 
 // Pairs with /api/portal/forgot-password's code — this is the only place
 // that ever consumes it. Runs entirely server-side via the admin API
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient()
   const { data: portalUser } = await admin.from('portal_users')
-    .select('id, auth_user_id, full_name, password_reset_code, password_reset_code_expires_at')
+    .select('id, auth_user_id, full_name, tenant_id, password_reset_code, password_reset_code_expires_at')
     .ilike('email', email)
     .maybeSingle()
 
@@ -62,10 +63,11 @@ export async function POST(req: NextRequest) {
   await admin.from('portal_users').update({ password_reset_code: null, password_reset_code_expires_at: null }).eq('id', portalUser.id)
 
   try {
+    const tenantName = await getTenantName(admin, portalUser.tenant_id)
     await sendEmail({
       to: email,
-      subject: 'Your Dhab Pari portal password was changed',
-      html: passwordChangedEmail(portalUser.full_name),
+      subject: `Your ${tenantName} portal password was changed`,
+      html: passwordChangedEmail(portalUser.full_name, tenantName),
     })
   } catch (err) {
     console.error('reset-password-with-code: notification send failed', err)

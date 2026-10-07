@@ -6,12 +6,28 @@ import Link from 'next/link'
 import { Eye, EyeOff, ShieldAlert, Lock, AlertTriangle } from 'lucide-react'
 import { SITE } from '@/lib/constants'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { createClient } from '@/lib/supabase/client'
 
 const MIN_DELAY_MS = 1000   // 1 s after first failure, doubles each time
 const MAX_DELAY_MS = 8000   // cap at 8 s
 
+function readCookieTenantId(): string | null {
+  if (typeof document === 'undefined') return null
+  const match = document.cookie.match(/(?:^|; )x-tenant-id=([^;]+)/)
+  return match ? decodeURIComponent(match[1]) : null
+}
+
 export default function AdminLoginPage() {
   const { t } = useLocale()
+  // Which village's admin panel this is, from the subdomain cookie —
+  // falls back to the global SITE constant on the primary domain.
+  const [tenantName, setTenantName] = useState(SITE.name)
+  useEffect(() => {
+    const tenantId = readCookieTenantId()
+    if (!tenantId) return
+    createClient().from('tenants').select('name').eq('id', tenantId).maybeSingle()
+      .then(({ data }) => { if (data?.name) setTenantName(data.name) })
+  }, [])
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw]     = useState(false)
@@ -115,7 +131,7 @@ export default function AdminLoginPage() {
           </div>
           <div>
             <h1 className="font-heading text-[24px] font-bold leading-[32px] text-white">
-              {SITE.name}
+              {tenantName}
             </h1>
             <p className="text-white/60 text-[12px] font-sans">
               {t('y.restrictedAccess')}
@@ -251,7 +267,7 @@ export default function AdminLoginPage() {
 
       {/* Footer */}
       <div className="text-center py-4 text-dp-on-surface-variant text-[12px] font-sans">
-        © {new Date().getFullYear()} {SITE.fullName} — All access is logged
+        © {new Date().getFullYear()} {tenantName} {SITE.committee} — All access is logged
       </div>
     </div>
   )

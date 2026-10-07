@@ -7,12 +7,14 @@ import { SITE } from '@/lib/constants'
 // approach in practice). A code has nothing for a scanner to consume and
 // nothing ambiguous about "which one" — whichever code is in front of the
 // user is the one they use.
-export function portalPasswordResetCodeEmail(code: string) {
+// tenantName: whichever tenant's account this reset is for -- never read
+// from the global SITE constant (shared across every tenant's logins).
+export function portalPasswordResetCodeEmail(code: string, tenantName: string) {
   return `
 <div style="font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #1a1a1a;">
   <div style="text-align: center; margin-bottom: 24px;">
     <div style="display: inline-block; width: 48px; height: 48px; border-radius: 50%; background: #0d3b2e; color: white; line-height: 48px; font-weight: bold; font-size: 20px;">DP</div>
-    <h1 style="font-size: 18px; margin: 12px 0 0;">${SITE.name}</h1>
+    <h1 style="font-size: 18px; margin: 12px 0 0;">${tenantName}</h1>
     <p style="font-size: 13px; color: #666; margin: 2px 0 0;">${SITE.committee}</p>
   </div>
   <h2 style="font-size: 20px; text-align: center; margin-bottom: 8px;">Your password reset code</h2>

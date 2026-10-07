@@ -1,4 +1,6 @@
 import { cookies } from 'next/headers'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { SITE } from '@/lib/constants'
 
 // Mirrors the hardcoded fallback baked into every RLS policy's own
 // coalesce() chain (see migration 624's request_tenant_id()). Used by
@@ -22,4 +24,16 @@ export async function getCookieTenantId(): Promise<string | null> {
 // default" with no client-supplied fallback to consider.
 export async function getRequestTenantId(): Promise<string> {
   return (await getCookieTenantId()) ?? DEFAULT_TENANT_ID
+}
+
+// White-labeling helper — every outbound email names the real tenant
+// instead of the global SITE constant (which would always say "Dhab
+// Pari" regardless of whose account the email is actually about). Falls
+// back to SITE.name only if the lookup itself fails, so a quiet DB hiccup
+// never blocks sending the email over branding.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getTenantName(client: SupabaseClient<any, any, any>, tenantId: string | null | undefined): Promise<string> {
+  if (!tenantId) return SITE.name
+  const { data } = await client.from('tenants').select('name').eq('id', tenantId).maybeSingle()
+  return data?.name ?? SITE.name
 }

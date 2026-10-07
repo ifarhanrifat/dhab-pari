@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/resend'
 import { portalSignupVerificationEmail } from '@/lib/email/portalSignupVerificationEmail'
 import { validateSignupFields, checkSignupDuplicates, resolveSignupTenantId } from '@/lib/portalSignup'
-import { getCookieTenantId } from '@/lib/tenant'
+import { getCookieTenantId, getTenantName } from '@/lib/tenant'
 
 const CODE_TTL_MS = 15 * 60_000
 
@@ -42,10 +42,11 @@ export async function POST(req: NextRequest) {
   const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString()
 
   try {
+    const tenantName = await getTenantName(admin, tenantId)
     await sendEmail({
       to: validated.data.userEmail,
-      subject: 'Verify your email — Dhab Pari portal signup',
-      html: portalSignupVerificationEmail(code),
+      subject: `Verify your email — ${tenantName} portal signup`,
+      html: portalSignupVerificationEmail(code, tenantName),
     })
   } catch (err) {
     console.error('portal signup request-code: email send failed', err)

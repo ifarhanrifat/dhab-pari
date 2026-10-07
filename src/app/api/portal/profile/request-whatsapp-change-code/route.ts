@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/resend'
 import { portalWhatsappChangeCodeEmail } from '@/lib/email/portalWhatsappChangeEmail'
+import { getTenantName } from '@/lib/tenant'
 
 const COOLDOWN_MS = 60_000
 const CODE_TTL_MS = 15 * 60_000
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: portalUser } = await supabase.from('portal_users')
-    .select('id, email, whatsapp_change_requested_at')
+    .select('id, email, tenant_id, whatsapp_change_requested_at')
     .eq('auth_user_id', user.id).maybeSingle()
   if (!portalUser) return NextResponse.json({ error: 'Account not found.' }, { status: 404 })
   if (!portalUser.email) {
@@ -68,10 +69,11 @@ export async function POST(req: NextRequest) {
   const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString()
 
   try {
+    const tenantName = await getTenantName(supabase, portalUser.tenant_id)
     await sendEmail({
       to: portalUser.email,
-      subject: 'Confirm your new Dhab Pari WhatsApp number',
-      html: portalWhatsappChangeCodeEmail(code, newWhatsappNumber),
+      subject: `Confirm your new ${tenantName} WhatsApp number`,
+      html: portalWhatsappChangeCodeEmail(code, newWhatsappNumber, tenantName),
     })
   } catch (err) {
     console.error('request-whatsapp-change-code: email send failed', err)

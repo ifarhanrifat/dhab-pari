@@ -72,6 +72,7 @@ import {
   Trophy,
   DatabaseZap,
   ChevronDown,
+  CreditCard,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -239,6 +240,7 @@ const menuItems: MenuEntry[] = [
   { href: '/admin/achievements', label: 'Achievements', tKey: 'nav.achievements', icon: Trophy, adminAndAbove: true },
   { href: '/admin/audit-log', label: 'Audit Log', tKey: 'nav.auditLog', icon: History, adminAndAbove: true },
   { href: '/admin/import-legacy', label: 'Import Legacy Data', tKey: 'nav.importLegacy', icon: DatabaseZap, superAdminOnly: true },
+  { href: '/admin/subscription', label: 'Subscription & Billing', tKey: 'nav.subscription', icon: CreditCard, superAdminOnly: true },
   { href: '/admin/settings', label: 'Settings', tKey: 'nav.settings', icon: Settings, superAdminOnly: true },
 ]
 

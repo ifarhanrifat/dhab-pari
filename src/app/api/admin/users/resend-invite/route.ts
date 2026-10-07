@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/resend'
 import { adminInviteCodeEmail } from '@/lib/email/adminInviteCodeEmail'
+import { getTenantName } from '@/lib/tenant'
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Super Admin', admin: 'Admin', accountant: 'Accountant',
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient()
   const { data: target } = await admin.from('admin_users')
-    .select('email, full_name, role, secondary_role, invite_accepted_at, auth_user_id, invited_at')
+    .select('email, full_name, role, secondary_role, invite_accepted_at, auth_user_id, invited_at, tenant_id')
     .eq('id', adminUserId).maybeSingle()
   if (!target) return NextResponse.json({ error: 'User not found.' }, { status: 404 })
   if (target.invite_accepted_at) {
@@ -97,10 +98,11 @@ export async function POST(req: NextRequest) {
   const roleLabel = ROLE_LABELS[target.role] ?? target.role
 
   try {
+    const tenantName = await getTenantName(admin, target.tenant_id)
     await sendEmail({
       to: target.email,
-      subject: 'Your Dhab Pari admin invite code',
-      html: adminInviteCodeEmail(code, target.full_name, roleLabel),
+      subject: `Your ${tenantName} admin invite code`,
+      html: adminInviteCodeEmail(code, target.full_name, roleLabel, tenantName),
     })
   } catch (err) {
     console.error('resend-invite: email send failed', err)

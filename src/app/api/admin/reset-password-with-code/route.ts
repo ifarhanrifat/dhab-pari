@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/resend'
 import { passwordChangedEmail } from '@/lib/email/passwordChangedEmail'
 import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
+import { getTenantName } from '@/lib/tenant'
 
 // Pairs with /api/admin/forgot-password's code — this is the only place
 // that ever consumes it. Runs entirely server-side via the admin API
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient()
   const { data: adminUser } = await admin.from('admin_users')
-    .select('id, auth_user_id, full_name, password_reset_code, password_reset_code_expires_at')
+    .select('id, auth_user_id, full_name, tenant_id, password_reset_code, password_reset_code_expires_at')
     .ilike('email', email)
     .maybeSingle()
 
@@ -55,10 +56,11 @@ export async function POST(req: NextRequest) {
   await admin.from('admin_users').update({ password_reset_code: null, password_reset_code_expires_at: null }).eq('id', adminUser.id)
 
   try {
+    const tenantName = await getTenantName(admin, adminUser.tenant_id)
     await sendEmail({
       to: email,
-      subject: 'Your Dhab Pari admin password was changed',
-      html: passwordChangedEmail(adminUser.full_name),
+      subject: `Your ${tenantName} admin password was changed`,
+      html: passwordChangedEmail(adminUser.full_name, tenantName),
     })
   } catch (err) {
     console.error('admin reset-password-with-code: notification send failed', err)

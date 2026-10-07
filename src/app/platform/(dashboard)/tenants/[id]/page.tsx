@@ -26,6 +26,10 @@ interface Plan {
   id: string; key: string; name: string; monthly_price_pkr: number; commission_pct: number
 }
 
+interface CurrentPlanLimit {
+  max_admin_users: number | null
+}
+
 function generatePassword() {
   const lower = 'abcdefghijkmnpqrstuvwxyz'
   const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
@@ -58,18 +62,20 @@ export default function PlatformTenantDetailPage() {
   const [saving, setSaving] = useState(false)
 
   const [showSubscribe, setShowSubscribe] = useState(false)
-  const [subscribeForm, setSubscribeForm] = useState({ plan_id: '', billing_cycle: 'monthly' })
+  const [subscribeForm, setSubscribeForm] = useState({ plan_id: '', billing_cycle: 'monthly', trial_days: '' })
   const [subscribing, setSubscribing] = useState(false)
+  const [planLimit, setPlanLimit] = useState<CurrentPlanLimit | null>(null)
 
   const [showEdit, setShowEdit] = useState(false)
   const [editForm, setEditForm] = useState({ name: '', name_ur: '', slug: '' })
   const [editSaving, setEditSaving] = useState(false)
 
   const load = async () => {
-    const [{ data: tenants, error: tenantsError }, { data: adminsData, error: adminsError }, { data: plansData }] = await Promise.all([
+    const [{ data: tenants, error: tenantsError }, { data: adminsData, error: adminsError }, { data: plansData }, { data: subData }] = await Promise.all([
       supabase.rpc('platform_list_tenants'),
       supabase.rpc('platform_get_tenant_admins', { p_tenant_id: id }),
       supabase.from('subscription_plans').select('id, key, name, monthly_price_pkr, commission_pct').eq('is_active', true).order('monthly_price_pkr'),
+      supabase.from('tenant_subscriptions').select('plan:subscription_plans(max_admin_users)').eq('tenant_id', id).in('status', ['active', 'trialing', 'past_due']).maybeSingle(),
     ])
     if (tenantsError) toast.error(friendlyError(tenantsError))
     else setTenant(((tenants as TenantSummary[]) ?? []).find((t) => t.id === id) ?? null)
@@ -78,6 +84,7 @@ export default function PlatformTenantDetailPage() {
     else setAdmins((adminsData as TenantAdmin[]) ?? [])
 
     setPlans((plansData as Plan[]) ?? [])
+    setPlanLimit((subData as unknown as { plan: CurrentPlanLimit } | null)?.plan ?? null)
   }
 
   useEffect(() => { load() }, [id])
@@ -128,6 +135,7 @@ export default function PlatformTenantDetailPage() {
       p_tenant_id: id,
       p_plan_id: subscribeForm.plan_id,
       p_billing_cycle: subscribeForm.billing_cycle,
+      p_trial_days: subscribeForm.trial_days ? Number(subscribeForm.trial_days) : null,
     })
     setSubscribing(false)
     if (error) {
@@ -136,6 +144,7 @@ export default function PlatformTenantDetailPage() {
     }
     toast.success('Subscription updated.')
     setShowSubscribe(false)
+    setSubscribeForm({ plan_id: '', billing_cycle: 'monthly', trial_days: '' })
     load()
   }
 
@@ -260,12 +269,18 @@ export default function PlatformTenantDetailPage() {
       {/* Admins */}
       <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
         <div className="flex items-center justify-between p-5 border-b border-dp-outline-variant">
-          <h2 className="font-sans text-[15px] font-bold text-dp-on-surface flex items-center gap-2">
-            <UserCircle2 size={16} /> Admin Users ({admins.length})
-          </h2>
+          <div>
+            <h2 className="font-sans text-[15px] font-bold text-dp-on-surface flex items-center gap-2">
+              <UserCircle2 size={16} /> Admin Users ({admins.length}{planLimit?.max_admin_users ? ` / ${planLimit.max_admin_users}` : ''})
+            </h2>
+            {planLimit?.max_admin_users != null && admins.length >= planLimit.max_admin_users && (
+              <p className="text-[12px] text-amber-700 font-sans mt-0.5">At this tenant's plan limit — deactivate one or move it to a higher plan to add more.</p>
+            )}
+          </div>
           <button
             onClick={() => setShowAddAdmin(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1f2e] text-white rounded-lg font-sans font-semibold text-[13px] hover:opacity-90 cursor-pointer"
+            disabled={planLimit?.max_admin_users != null && admins.length >= planLimit.max_admin_users}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1f2e] text-white rounded-lg font-sans font-semibold text-[13px] hover:opacity-90 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Plus size={14} /> Add Admin
           </button>
@@ -451,6 +466,15 @@ export default function PlatformTenantDetailPage() {
                     <option value="monthly">Monthly</option>
                     <option value="annual">Annual</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 font-sans">Start as a trial (optional)</label>
+                  <input
+                    type="number" min="1" step="1" value={subscribeForm.trial_days}
+                    onChange={(e) => setSubscribeForm((f) => ({ ...f, trial_days: e.target.value }))}
+                    placeholder="Number of days, leave blank to bill immediately"
+                    className="w-full px-3 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] focus:border-dp-secondary focus:ring-0"
+                  />
                 </div>
                 <button
                   type="submit" disabled={subscribing}

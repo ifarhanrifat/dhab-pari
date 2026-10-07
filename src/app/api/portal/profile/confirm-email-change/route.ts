@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { sendEmail } from '@/lib/email/resend'
 import { portalEmailChangedNoticeEmail } from '@/lib/email/portalEmailChangeEmail'
+import { getTenantName } from '@/lib/tenant'
 
 // Confirms the code request-email-change-code sent to the NEW address and,
 // only then, commits pending_email onto the live email column — see
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
   if (!code) return NextResponse.json({ error: 'Enter the code.' }, { status: 400 })
 
   const { data: portalUser } = await supabase.from('portal_users')
-    .select('id, email, email_change_code, email_change_code_expires_at, pending_email')
+    .select('id, email, tenant_id, email_change_code, email_change_code_expires_at, pending_email')
     .eq('auth_user_id', user.id).maybeSingle()
   if (!portalUser) return NextResponse.json({ error: 'Account not found.' }, { status: 404 })
 
@@ -55,7 +56,8 @@ export async function POST(req: NextRequest) {
 
   if (oldEmail) {
     try {
-      await sendEmail({ to: oldEmail, subject: 'Your Dhab Pari portal email was changed', html: portalEmailChangedNoticeEmail(newEmail) })
+      const tenantName = await getTenantName(supabase, portalUser.tenant_id)
+      await sendEmail({ to: oldEmail, subject: `Your ${tenantName} portal email was changed`, html: portalEmailChangedNoticeEmail(newEmail, tenantName) })
     } catch (err) {
       console.error('confirm-email-change: old-address notice failed', err)
     }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/resend'
 import { portalPasswordResetCodeEmail } from '@/lib/email/portalPasswordResetEmail'
+import { getTenantName } from '@/lib/tenant'
 
 const COOLDOWN_MS = 60_000
 const CODE_TTL_MS = 15 * 60_000
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient()
   const { data: portalUser } = await admin.from('portal_users')
-    .select('id, auth_user_id, password_reset_requested_at')
+    .select('id, auth_user_id, tenant_id, password_reset_requested_at')
     .ilike('email', email)
     .maybeSingle()
 
@@ -65,10 +66,11 @@ export async function POST(req: NextRequest) {
   const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString()
 
   try {
+    const tenantName = await getTenantName(admin, portalUser.tenant_id)
     await sendEmail({
       to: email,
-      subject: 'Your Dhab Pari portal password reset code',
-      html: portalPasswordResetCodeEmail(code),
+      subject: `Your ${tenantName} portal password reset code`,
+      html: portalPasswordResetCodeEmail(code, tenantName),
     })
   } catch (err) {
     console.error('portal forgot-password: email send failed', err)
