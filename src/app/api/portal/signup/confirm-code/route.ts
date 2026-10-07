@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { validateSignupFields, checkSignupDuplicates, createSignupAccount } from '@/lib/portalSignup'
-import { getRequestTenantId } from '@/lib/tenant'
+import { validateSignupFields, checkSignupDuplicates, createSignupAccount, resolveSignupTenantId } from '@/lib/portalSignup'
+import { getCookieTenantId } from '@/lib/tenant'
 
 const MAX_ATTEMPTS = 8
 
@@ -14,7 +14,7 @@ const MAX_ATTEMPTS = 8
 // earlier pass — state (an available username, say) can change in the
 // few minutes someone takes to read an email.
 export async function POST(req: NextRequest) {
-  let body: Parameters<typeof validateSignupFields>[0] & { code?: string }
+  let body: Parameters<typeof validateSignupFields>[0] & { code?: string; tenant_id?: string }
   try {
     body = await req.json()
   } catch {
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(invalid, { status: 400 })
   }
 
-  const tenantId = await getRequestTenantId()
+  const tenantId = await resolveSignupTenantId(admin, await getCookieTenantId(), body.tenant_id)
   const dupCheck = await checkSignupDuplicates(admin, validated.data, tenantId)
   if ('error' in dupCheck) {
     return NextResponse.json({ error: dupCheck.error }, { status: dupCheck.status })

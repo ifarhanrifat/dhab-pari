@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
+import { DEFAULT_TENANT_ID } from '@/lib/tenant'
 
 export interface SignupBody {
   full_name?: string; name_ur?: string; father_husband_name?: string
@@ -63,6 +64,21 @@ export function validateSignupFields(body: SignupBody): { error: string } | { ok
 type AdminClient = SupabaseClient<any, any, any>
 
 export interface DuplicateCandidate { id: string; full_name: string; mobile: string; whatsapp_number: string | null; father_husband_name: string | null; auth_user_id: string | null }
+
+// The cookie (set by src/proxy.ts from the Host header) is authoritative
+// whenever it exists — nobody signing up through a real village
+// subdomain can override their tenant via a crafted request body. The
+// client-supplied id is only ever consulted when there's no subdomain
+// context at all (the primary domain's own dropdown fallback), and even
+// then only if it names a real, active tenant.
+export async function resolveSignupTenantId(admin: AdminClient, cookieTenantId: string | null, clientSuppliedTenantId: string | null | undefined): Promise<string> {
+  if (cookieTenantId) return cookieTenantId
+  if (clientSuppliedTenantId) {
+    const { data } = await admin.from('tenants').select('id').eq('id', clientSuppliedTenantId).eq('is_active', true).maybeSingle()
+    if (data) return clientSuppliedTenantId
+  }
+  return DEFAULT_TENANT_ID
+}
 
 // DB-backed checks — username uniqueness and the same duplicate/claiming
 // logic the original single-step signup route always had (see its own

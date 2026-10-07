@@ -11,10 +11,15 @@ import { cookies } from 'next/headers'
 export const DEFAULT_TENANT_ID = 'bf9e4815-4104-472a-ab32-114171b7e34d'
 
 // Set by src/proxy.ts from the request's Host header, resolved against
-// tenants.slug. Falls back to dhab-pari's own tenant on the primary
-// domain, localhost, previews, or any request this cookie never reached
-// (e.g. a background job) — never throws, never blocks account creation.
-export async function getRequestTenantId(): Promise<string> {
+// tenants.slug. Null on the primary domain, localhost, previews, or any
+// request this cookie never reached (e.g. a background job).
+export async function getCookieTenantId(): Promise<string | null> {
   const cookieStore = await cookies()
-  return cookieStore.get('x-tenant-id')?.value || DEFAULT_TENANT_ID
+  return cookieStore.get('x-tenant-id')?.value || null
+}
+
+// Convenience wrapper for callers that just want "the real tenant or the
+// default" with no client-supplied fallback to consider.
+export async function getRequestTenantId(): Promise<string> {
+  return (await getCookieTenantId()) ?? DEFAULT_TENANT_ID
 }

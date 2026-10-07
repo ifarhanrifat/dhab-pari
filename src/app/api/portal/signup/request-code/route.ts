@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/resend'
 import { portalSignupVerificationEmail } from '@/lib/email/portalSignupVerificationEmail'
-import { validateSignupFields, checkSignupDuplicates } from '@/lib/portalSignup'
-import { getRequestTenantId } from '@/lib/tenant'
+import { validateSignupFields, checkSignupDuplicates, resolveSignupTenantId } from '@/lib/portalSignup'
+import { getCookieTenantId } from '@/lib/tenant'
 
 const CODE_TTL_MS = 15 * 60_000
 
@@ -19,7 +19,7 @@ function generateCode() {
 // the account itself is only ever created in confirm-code, after the
 // code comes back.
 export async function POST(req: NextRequest) {
-  let body: Parameters<typeof validateSignupFields>[0]
+  let body: Parameters<typeof validateSignupFields>[0] & { tenant_id?: string }
   try {
     body = await req.json()
   } catch {
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
-  const tenantId = await getRequestTenantId()
+  const tenantId = await resolveSignupTenantId(admin, await getCookieTenantId(), body.tenant_id)
   const dupCheck = await checkSignupDuplicates(admin, validated.data, tenantId)
   if ('error' in dupCheck) {
     return NextResponse.json({ error: dupCheck.error }, { status: dupCheck.status })

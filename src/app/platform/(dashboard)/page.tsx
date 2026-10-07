@@ -35,7 +35,7 @@ export default function PlatformTenantsPage() {
   const [tenants, setTenants] = useState<Tenant[] | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ name: '', name_ur: '', slug: '' })
+  const [form, setForm] = useState({ name: '', name_ur: '', slug: '', waterSupplyEnabled: true, donorsEnabled: true })
 
   const load = async () => {
     const { data, error } = await supabase.rpc('platform_list_tenants')
@@ -61,6 +61,8 @@ export default function PlatformTenantsPage() {
       p_name: form.name.trim(),
       p_slug: form.slug.trim(),
       p_name_ur: form.name_ur.trim() || null,
+      p_water_supply_enabled: form.waterSupplyEnabled,
+      p_donors_enabled: form.donorsEnabled,
     })
     setSaving(false)
     if (error) {
@@ -69,7 +71,7 @@ export default function PlatformTenantsPage() {
     }
     toast.success('Tenant created.')
     setShowCreate(false)
-    setForm({ name: '', name_ur: '', slug: '' })
+    setForm({ name: '', name_ur: '', slug: '', waterSupplyEnabled: true, donorsEnabled: true })
     load()
   }
 
@@ -212,6 +214,27 @@ export default function PlatformTenantsPage() {
                   className="w-full px-3 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] focus:border-dp-secondary focus:ring-0"
                   placeholder="chak-123"
                 />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-[13px] font-semibold text-dp-on-surface-variant font-sans">Modules</label>
+                <label className="flex items-center gap-2 text-[14px] font-sans text-dp-on-surface cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.waterSupplyEnabled}
+                    onChange={(e) => setForm((f) => ({ ...f, waterSupplyEnabled: e.target.checked }))}
+                    className="cursor-pointer"
+                  />
+                  Water Supply
+                </label>
+                <label className="flex items-center gap-2 text-[14px] font-sans text-dp-on-surface cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.donorsEnabled}
+                    onChange={(e) => setForm((f) => ({ ...f, donorsEnabled: e.target.checked }))}
+                    className="cursor-pointer"
+                  />
+                  Donors & Projects
+                </label>
               </div>
               <button
                 type="submit"

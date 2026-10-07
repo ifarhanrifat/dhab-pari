@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Plus, X, UserCircle2, Copy, Eye, EyeOff, Power, CreditCard } from 'lucide-react'
+import { ArrowLeft, Plus, X, UserCircle2, Copy, Eye, EyeOff, Power, CreditCard, Pencil, Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { LoadingDots } from '@/components/shared/LoadingDots'
@@ -14,6 +14,7 @@ interface TenantSummary {
   id: string; name: string; name_ur: string | null; slug: string; is_active: boolean
   admin_count: number; portal_user_count: number
   subscription_status: string | null; subscription_plan: string | null
+  water_supply_enabled: boolean; donors_enabled: boolean
 }
 
 interface TenantAdmin {
@@ -59,6 +60,10 @@ export default function PlatformTenantDetailPage() {
   const [showSubscribe, setShowSubscribe] = useState(false)
   const [subscribeForm, setSubscribeForm] = useState({ plan_id: '', billing_cycle: 'monthly' })
   const [subscribing, setSubscribing] = useState(false)
+
+  const [showEdit, setShowEdit] = useState(false)
+  const [editForm, setEditForm] = useState({ name: '', name_ur: '', slug: '' })
+  const [editSaving, setEditSaving] = useState(false)
 
   const load = async () => {
     const [{ data: tenants, error: tenantsError }, { data: adminsData, error: adminsError }, { data: plansData }] = await Promise.all([
@@ -142,6 +147,39 @@ export default function PlatformTenantDetailPage() {
     load()
   }
 
+  const openEdit = () => {
+    if (!tenant) return
+    setEditForm({ name: tenant.name, name_ur: tenant.name_ur ?? '', slug: tenant.slug })
+    setShowEdit(true)
+  }
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!tenant) return
+    if (!editForm.name.trim() || !editForm.slug.trim()) {
+      toast.error('Name and slug are required.')
+      return
+    }
+    setEditSaving(true)
+    const { error } = await supabase.from('tenants').update({
+      name: editForm.name.trim(),
+      name_ur: editForm.name_ur.trim() || null,
+      slug: editForm.slug.trim().toLowerCase(),
+    }).eq('id', tenant.id)
+    setEditSaving(false)
+    if (error) { toast.error(friendlyError(error)); return }
+    toast.success('Tenant updated.')
+    setShowEdit(false)
+    load()
+  }
+
+  const toggleModule = async (field: 'water_supply_enabled' | 'donors_enabled') => {
+    if (!tenant) return
+    const { error } = await supabase.from('tenants').update({ [field]: !tenant[field] }).eq('id', tenant.id)
+    if (error) { toast.error(friendlyError(error)); return }
+    load()
+  }
+
   const copyCredentials = () => {
     navigator.clipboard.writeText(`Email: ${adminForm.email}\nPassword: ${adminForm.password}`)
     toast.success('Copied to clipboard.')
@@ -158,9 +196,14 @@ export default function PlatformTenantDetailPage() {
       </button>
 
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="font-heading text-[26px] font-bold text-dp-on-surface">{tenant.name}</h1>
-          <p className="text-dp-on-surface-variant text-[13px] font-sans mt-0.5">{tenant.slug}</p>
+        <div className="flex items-center gap-2">
+          <div>
+            <h1 className="font-heading text-[26px] font-bold text-dp-on-surface">{tenant.name}</h1>
+            <p className="text-dp-on-surface-variant text-[13px] font-sans mt-0.5">{tenant.slug}</p>
+          </div>
+          <button onClick={openEdit} className="text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer p-1.5" aria-label="Edit tenant">
+            <Pencil size={16} />
+          </button>
         </div>
         <button
           onClick={toggleActive}
@@ -170,6 +213,26 @@ export default function PlatformTenantDetailPage() {
         >
           <Power size={14} /> {tenant.is_active ? 'Deactivate Tenant' : 'Activate Tenant'}
         </button>
+      </div>
+
+      {/* Modules */}
+      <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-6">
+        <h2 className="font-sans text-[15px] font-bold text-dp-on-surface flex items-center gap-2 mb-3">
+          <Settings2 size={16} /> Modules
+        </h2>
+        <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-3">
+          Live for this tenant right now — independent of its plan. Turning a module off revokes it for every admin and villager immediately.
+        </p>
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-2 text-[14px] font-sans text-dp-on-surface cursor-pointer">
+            <input type="checkbox" checked={tenant.water_supply_enabled} onChange={() => toggleModule('water_supply_enabled')} className="cursor-pointer" />
+            Water Supply
+          </label>
+          <label className="flex items-center gap-2 text-[14px] font-sans text-dp-on-surface cursor-pointer">
+            <input type="checkbox" checked={tenant.donors_enabled} onChange={() => toggleModule('donors_enabled')} className="cursor-pointer" />
+            Donors & Projects
+          </label>
+        </div>
       </div>
 
       {/* Subscription */}
@@ -296,6 +359,54 @@ export default function PlatformTenantDetailPage() {
                 className="w-full bg-[#1a1f2e] text-white py-2.5 rounded-lg font-sans font-semibold text-[14px] hover:opacity-90 disabled:opacity-50 cursor-pointer"
               >
                 {saving ? 'Creating...' : 'Create Admin'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit modal */}
+      {showEdit && (
+        <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4" onClick={() => setShowEdit(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-sans text-[18px] font-bold text-dp-on-surface">Edit Tenant</h2>
+              <button onClick={() => setShowEdit(false)} className="text-dp-on-surface-variant hover:text-dp-on-surface cursor-pointer"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleEdit} className="space-y-4">
+              <div>
+                <label className="block text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 font-sans">Committee Name</label>
+                <input
+                  type="text" value={editForm.name}
+                  onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                  required
+                  className="w-full px-3 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] focus:border-dp-secondary focus:ring-0"
+                />
+              </div>
+              <div>
+                <label className="block text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 font-sans">Name (Urdu, optional)</label>
+                <input
+                  type="text" value={editForm.name_ur}
+                  onChange={(e) => setEditForm((f) => ({ ...f, name_ur: e.target.value }))}
+                  dir="rtl"
+                  className="w-full px-3 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] focus:border-dp-secondary focus:ring-0"
+                />
+              </div>
+              <div>
+                <label className="block text-[13px] font-semibold text-dp-on-surface-variant mb-1.5 font-sans">Slug</label>
+                <input
+                  type="text" value={editForm.slug}
+                  onChange={(e) => setEditForm((f) => ({ ...f, slug: e.target.value.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') }))}
+                  required
+                  className="w-full px-3 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] focus:border-dp-secondary focus:ring-0"
+                />
+                <p className="text-[12px] text-dp-on-surface-variant mt-1 font-sans">Public subdomain: {editForm.slug || '...'}.dhabpari.com</p>
+              </div>
+              <button
+                type="submit" disabled={editSaving}
+                className="w-full bg-[#1a1f2e] text-white py-2.5 rounded-lg font-sans font-semibold text-[14px] hover:opacity-90 disabled:opacity-50 cursor-pointer"
+              >
+                {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
             </form>
           </div>

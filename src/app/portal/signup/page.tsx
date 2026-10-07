@@ -17,6 +17,14 @@ import { PasswordChecklist } from '@/components/shared/PasswordChecklist'
 // the code: this component holds it in memory across the two steps and
 // resends it in full once the code comes back, rather than the server
 // ever storing a raw password outside the final create call.
+interface VillageOption { id: string; name: string; name_ur: string | null }
+
+function readCookieTenantId(): string | null {
+  if (typeof document === 'undefined') return null
+  const match = document.cookie.match(/(?:^|; )x-tenant-id=([^;]+)/)
+  return match ? decodeURIComponent(match[1]) : null
+}
+
 export default function PortalSignupPage() {
   const { t, isUrdu } = useLocale()
   const [form, setForm] = useState({
@@ -30,13 +38,40 @@ export default function PortalSignupPage() {
   const [code, setCode] = useState('')
   const router = useRouter()
 
+  // Which village this signup belongs to. On a village's own subdomain,
+  // the cookie src/proxy.ts set from the Host header is authoritative —
+  // shown read-only, nothing to pick wrong. Only on the primary domain
+  // (no cookie at all) does signup show a real picker, since there's no
+  // way to know which village someone means otherwise. Either way, once
+  // the account is created this can never be changed again — see
+  // confirm-code's own server-side resolution, which trusts the cookie
+  // over anything this page sends.
+  const cookieTenantId = useState(() => readCookieTenantId())[0]
+  const [villageConfirmed, setVillageConfirmed] = useState<VillageOption | null>(null)
+  const [villageOptions, setVillageOptions] = useState<VillageOption[]>([])
+  const [selectedVillageId, setSelectedVillageId] = useState('')
+
   useEffect(() => {
     createClient().from('sectors').select('name').order('display_order').order('name').then(({ data }) => setSectors((data ?? []).map((s) => s.name)))
   }, [])
 
+  useEffect(() => {
+    const supabase = createClient()
+    if (cookieTenantId) {
+      supabase.from('tenants').select('id, name, name_ur').eq('id', cookieTenantId).maybeSingle()
+        .then(({ data }) => setVillageConfirmed(data as VillageOption | null))
+    } else {
+      supabase.from('tenants').select('id, name, name_ur').eq('is_active', true).order('name')
+        .then(({ data }) => setVillageOptions((data as VillageOption[]) ?? []))
+    }
+  }, [cookieTenantId])
+
   const validateForm = () => {
     if (!form.full_name.trim() || !form.father_husband_name.trim() || !form.mobile.trim() || !form.whatsapp_number.trim() || !form.username.trim() || !form.password || !form.email.trim()) {
       return t('p.signupRequiredFields')
+    }
+    if (!cookieTenantId && !selectedVillageId) {
+      return 'Please choose your village.'
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       return t('p.invalidEmail')
@@ -62,7 +97,7 @@ export default function PortalSignupPage() {
     try {
       const res = await fetch('/api/portal/signup/request-code', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form), credentials: 'same-origin',
+        body: JSON.stringify({ ...form, tenant_id: selectedVillageId || undefined }), credentials: 'same-origin',
       })
       const data = await res.json()
       if (!res.ok) {
@@ -85,7 +120,7 @@ export default function PortalSignupPage() {
     try {
       const res = await fetch('/api/portal/signup/confirm-code', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, code: code.trim() }), credentials: 'same-origin',
+        body: JSON.stringify({ ...form, code: code.trim(), tenant_id: selectedVillageId || undefined }), credentials: 'same-origin',
       })
       const data = await res.json()
       if (!res.ok) {
@@ -150,6 +185,27 @@ export default function PortalSignupPage() {
           </form>
         ) : (
         <form onSubmit={requestCode} className="space-y-4">
+          {cookieTenantId ? (
+            villageConfirmed && (
+              <div className="bg-dp-primary-container px-4 py-3 rounded-lg flex items-center gap-2">
+                <span className="font-sans text-[13px] text-dp-on-primary-container">
+                  Village: <strong>{isUrdu && villageConfirmed.name_ur ? villageConfirmed.name_ur : villageConfirmed.name}</strong>
+                </span>
+                <span className="text-dp-on-primary-container text-[13px]">✓</span>
+              </div>
+            )
+          ) : (
+            <div>
+              <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">Village *</label>
+              <select value={selectedVillageId} onChange={(e) => setSelectedVillageId(e.target.value)} required className="input-field">
+                <option value="">Choose your village</option>
+                {villageOptions.map((v) => (
+                  <option key={v.id} value={v.id}>{isUrdu && v.name_ur ? v.name_ur : v.name}</option>
+                ))}
+              </select>
+              <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1">This cannot be changed once your account is created.</p>
+            </div>
+          )}
           <div>
             <label className="block text-[13px] font-bold text-dp-on-surface-variant mb-1.5 tracking-[0.06em] uppercase font-sans">{t('g.fullNameReq')}</label>
             <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required className="input-field" />

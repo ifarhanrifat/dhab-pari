@@ -10,6 +10,7 @@ import { LoadingDots } from '@/components/shared/LoadingDots'
 interface Plan {
   id: string; key: string; name: string; monthly_price_pkr: number
   commission_pct: number; max_admin_users: number | null; is_active: boolean
+  includes_water_supply: boolean; includes_donors_projects: boolean
 }
 
 export default function PlatformPlansPage() {
@@ -17,7 +18,7 @@ export default function PlatformPlansPage() {
   const [plans, setPlans] = useState<Plan[] | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ key: '', name: '', monthly_price_pkr: '', commission_pct: '', max_admin_users: '' })
+  const [form, setForm] = useState({ key: '', name: '', monthly_price_pkr: '', commission_pct: '', max_admin_users: '', includesWaterSupply: true, includesDonorsProjects: true })
 
   const load = async () => {
     const { data, error } = await supabase.from('subscription_plans').select('*').order('monthly_price_pkr')
@@ -40,12 +41,14 @@ export default function PlatformPlansPage() {
       monthly_price_pkr: Number(form.monthly_price_pkr) || 0,
       commission_pct: Number(form.commission_pct) || 0,
       max_admin_users: form.max_admin_users ? Number(form.max_admin_users) : null,
+      includes_water_supply: form.includesWaterSupply,
+      includes_donors_projects: form.includesDonorsProjects,
     })
     setSaving(false)
     if (error) { toast.error(friendlyError(error)); return }
     toast.success('Plan created.')
     setShowCreate(false)
-    setForm({ key: '', name: '', monthly_price_pkr: '', commission_pct: '', max_admin_users: '' })
+    setForm({ key: '', name: '', monthly_price_pkr: '', commission_pct: '', max_admin_users: '', includesWaterSupply: true, includesDonorsProjects: true })
     load()
   }
 
@@ -93,8 +96,11 @@ export default function PlatformPlansPage() {
               <p className="font-sans text-[22px] font-bold text-dp-on-surface mb-1">
                 Rs {Number(p.monthly_price_pkr).toLocaleString()}<span className="text-[13px] font-normal text-dp-on-surface-variant">/mo</span>
               </p>
-              <p className="font-sans text-[13px] text-dp-on-surface-variant mb-4">
+              <p className="font-sans text-[13px] text-dp-on-surface-variant mb-2">
                 {p.commission_pct}% platform commission{p.max_admin_users ? ` · up to ${p.max_admin_users} admins` : ''}
+              </p>
+              <p className="font-sans text-[12px] text-dp-on-surface-variant mb-4">
+                {[p.includes_water_supply && 'Water Supply', p.includes_donors_projects && 'Donors & Projects'].filter(Boolean).join(' · ') || 'No modules included'}
               </p>
               <button
                 onClick={() => toggleActive(p)}
@@ -160,6 +166,27 @@ export default function PlatformPlansPage() {
                   onChange={(e) => setForm((f) => ({ ...f, max_admin_users: e.target.value }))}
                   className="w-full px-3 py-2.5 border border-dp-outline-variant rounded-lg font-sans text-[14px] focus:border-dp-secondary focus:ring-0"
                 />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-[13px] font-semibold text-dp-on-surface-variant font-sans">Modules Included</label>
+                <label className="flex items-center gap-2 text-[14px] font-sans text-dp-on-surface cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.includesWaterSupply}
+                    onChange={(e) => setForm((f) => ({ ...f, includesWaterSupply: e.target.checked }))}
+                    className="cursor-pointer"
+                  />
+                  Water Supply
+                </label>
+                <label className="flex items-center gap-2 text-[14px] font-sans text-dp-on-surface cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.includesDonorsProjects}
+                    onChange={(e) => setForm((f) => ({ ...f, includesDonorsProjects: e.target.checked }))}
+                    className="cursor-pointer"
+                  />
+                  Donors & Projects
+                </label>
               </div>
               <button
                 type="submit" disabled={saving}
