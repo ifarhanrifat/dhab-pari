@@ -13,10 +13,27 @@ import { createBrowserClient } from '@supabase/ssr'
 // call — caching via ReturnType<typeof createBrowserClient> directly loses the resolved
 // Database/SchemaName generics app-wide (every .from().select() call degrades to
 // implicit-any). Routing through this monomorphic helper keeps the resolved type intact.
+// Set by middleware.ts from the request's Host header, resolved against
+// tenants.slug — read here once at client-init time (the cookie is
+// already present in document.cookie by the time this module runs, since
+// it was set server-side before the page's HTML was sent). Lets
+// request_tenant_id() in RLS show an anonymous visitor the right
+// tenant's public content for their subdomain; absent on the primary
+// domain/localhost/previews, where every policy falls back to dhab-pari
+// exactly as before. Harmless for an authenticated request too —
+// my_tenant_id() always wins over it.
+function readTenantIdCookie(): string | undefined {
+  if (typeof document === 'undefined') return undefined
+  const match = document.cookie.match(/(?:^|; )x-tenant-id=([^;]+)/)
+  return match ? decodeURIComponent(match[1]) : undefined
+}
+
 function makeClient() {
+  const tenantId = readTenantIdCookie()
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    tenantId ? { global: { headers: { 'x-tenant-id': tenantId } } } : undefined
   )
 }
 

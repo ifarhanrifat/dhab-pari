@@ -87,7 +87,68 @@ function middlewareRateLimit(request: NextRequest): NextResponse | null {
   return null
 }
 
+// Resolves which tenant's public website a request is for, from its Host
+// header, matched against tenants.slug (via a lightweight REST lookup —
+// anon has narrow, RLS-gated read access to active tenants only, see
+// migration 624/625). Returns null on the primary domain, localhost, a
+// preview URL, or any unrecognized/inactive subdomain — every RLS
+// policy's own coalesce() then falls back to dhab-pari's existing
+// hardcoded tenant exactly as before this feature existed, so the
+// primary site can never regress from this. Only affects anonymous
+// public browsing: an authenticated session's my_tenant_id() always
+// takes precedence over this in every policy, regardless of domain.
+async function resolveTenantId(request: NextRequest): Promise<string | null> {
+  try {
+    const host = (request.headers.get('host') ?? '').split(':')[0].toLowerCase()
+    const rootDomain = (process.env.NEXT_PUBLIC_DOMAIN?.trim() || 'dhabpari.com').toLowerCase()
+    if (!host || host === rootDomain || host === `www.${rootDomain}`) return null
+
+    const suffix = `.${rootDomain}`
+    if (!host.endsWith(suffix)) return null
+
+    const slug = host.slice(0, -suffix.length)
+    if (!slug || slug === 'www') return null
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    if (!supabaseUrl || !anonKey) return null
+
+    const lookup = await fetch(
+      `${supabaseUrl}/rest/v1/tenants?select=id&slug=eq.${encodeURIComponent(slug)}&is_active=eq.true`,
+      { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } }
+    )
+    if (!lookup.ok) return null
+
+    const rows = (await lookup.json()) as { id: string }[]
+    return rows.length === 1 ? rows[0].id : null
+  } catch {
+    return null
+  }
+}
+
 export async function proxy(request: NextRequest) {
+  const tenantId = await resolveTenantId(request)
+  const { pathname } = request.nextUrl
+  const isAdminOrPortal =
+    pathname.startsWith('/admin') || pathname.startsWith('/api/admin') ||
+    pathname.startsWith('/portal') || pathname.startsWith('/api/portal')
+
+  // Everything else (the public site) never needed the auth-gating logic
+  // below at all — skip straight past it so an anonymous visitor to e.g.
+  // /donate or /news doesn't pay for an extra auth.getUser() round trip
+  // just so a tenant cookie can be attached.
+  if (!isAdminOrPortal) {
+    const response = NextResponse.next()
+    if (tenantId) response.cookies.set('x-tenant-id', tenantId, { sameSite: 'lax', path: '/' })
+    return response
+  }
+
+  const response = await proxyAuthGate(request)
+  if (tenantId) response.cookies.set('x-tenant-id', tenantId, { sameSite: 'lax', path: '/' })
+  return response
+}
+
+async function proxyAuthGate(request: NextRequest): Promise<NextResponse> {
   // Rate limit the login API endpoint before anything else
   const rateLimitResponse = middlewareRateLimit(request)
   if (rateLimitResponse) return rateLimitResponse
@@ -280,5 +341,10 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*', '/portal/:path*', '/api/portal/:path*'],
+  matcher: [
+    '/admin/:path*', '/api/admin/:path*', '/portal/:path*', '/api/portal/:path*',
+    // Public site — tenant-cookie resolution only (see resolveTenantId
+    // above); none of the admin/portal auth-gating logic runs for these.
+    '/((?!api|_next/static|_next/image|favicon.ico|platform).*)',
+  ],
 }
