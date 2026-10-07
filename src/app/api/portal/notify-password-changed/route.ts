@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { sendEmail } from '@/lib/email/resend'
 import { passwordChangedEmail } from '@/lib/email/passwordChangedEmail'
-import { getTenantName } from '@/lib/tenant'
+import { getTenantName, getTenantWhatsapp } from '@/lib/tenant'
 
 // Real ask, 2026-09-27: a password change happened with no email trail at
 // all -- "like the professional website use to do". This fires right
@@ -28,10 +28,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const tenantName = await getTenantName(supabase, portalUser.tenant_id)
+    const whatsapp = await getTenantWhatsapp(supabase, portalUser.tenant_id)
     await sendEmail({
       to: portalUser.email,
       subject: `Your ${tenantName} portal password was changed`,
-      html: passwordChangedEmail(portalUser.full_name, tenantName),
+      html: passwordChangedEmail(portalUser.full_name, tenantName, whatsapp),
     })
   } catch (err) {
     console.error('notify-password-changed (portal): send failed', err)

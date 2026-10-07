@@ -54,17 +54,21 @@ function SubscriptionPageInner() {
     else if (payment === 'error') toast.error('Something went wrong verifying that payment. Contact the platform operator if this keeps happening.')
   }, [searchParams])
 
-  const payInvoice = async (invoice: Invoice) => {
+  const payInvoice = async (invoice: Invoice, provider: 'jazzcash' | 'easypaisa') => {
     setPayingId(invoice.id)
     try {
-      const res = await fetch(`/api/platform/invoices/${invoice.id}/checkout`, { method: 'POST' })
+      const res = await fetch(`/api/platform/invoices/${invoice.id}/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider }),
+      })
       const data = await res.json()
       if (!res.ok) {
         toast.error(data.error ?? 'Could not start the payment.')
         return
       }
-      // JazzCash's Hosted Checkout expects a real browser form POST, not a
-      // fetch redirect — build and auto-submit one.
+      // Both gateways' hosted checkout pages expect a real browser form
+      // POST, not a fetch redirect — build and auto-submit one.
       const form = document.createElement('form')
       form.method = 'POST'
       form.action = data.actionUrl
@@ -152,13 +156,22 @@ function SubscriptionPageInner() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     {(inv.status === 'pending' || inv.status === 'overdue') && (
-                      <button
-                        onClick={() => payInvoice(inv)}
-                        disabled={payingId === inv.id}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white hover:opacity-90 rounded-lg text-[12.5px] font-semibold cursor-pointer transition-all disabled:opacity-50"
-                      >
-                        <CheckCircle2 size={13} /> {payingId === inv.id ? 'Starting...' : 'Pay via JazzCash'}
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => payInvoice(inv, 'jazzcash')}
+                          disabled={payingId === inv.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white hover:opacity-90 rounded-lg text-[12.5px] font-semibold cursor-pointer transition-all disabled:opacity-50"
+                        >
+                          <CheckCircle2 size={13} /> {payingId === inv.id ? 'Starting...' : 'JazzCash'}
+                        </button>
+                        <button
+                          onClick={() => payInvoice(inv, 'easypaisa')}
+                          disabled={payingId === inv.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-dp-primary text-white hover:opacity-90 rounded-lg text-[12.5px] font-semibold cursor-pointer transition-all disabled:opacity-50"
+                        >
+                          <CheckCircle2 size={13} /> {payingId === inv.id ? 'Starting...' : 'EasyPaisa'}
+                        </button>
+                      </div>
                     )}
                     {inv.status === 'paid' && (
                       <span className="inline-flex items-center gap-1 text-green-700 text-[12.5px] font-sans">

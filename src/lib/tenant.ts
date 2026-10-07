@@ -37,3 +37,29 @@ export async function getTenantName(client: SupabaseClient<any, any, any>, tenan
   const { data } = await client.from('tenants').select('name').eq('id', tenantId).maybeSingle()
   return data?.name ?? SITE.name
 }
+
+// Duplicated from src/lib/nativeWhatsApp.ts's normalizePhone rather than
+// imported, same reasoning as that file's own comment — not worth a
+// cross-file import for one line.
+function toIntlPhone(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '')
+  if (!digits) return null
+  if (digits.startsWith('92')) return digits
+  if (digits.startsWith('0')) return '92' + digits.slice(1)
+  return digits
+}
+
+// Same white-labeling reasoning as getTenantName — the "if this wasn't
+// you, contact the committee" security notice should point at the real
+// tenant's own WhatsApp number, not dhab-pari's. Falls back to the
+// global SITE constant if the tenant never set one.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getTenantWhatsapp(client: SupabaseClient<any, any, any>, tenantId: string | null | undefined): Promise<{ number: string; link: string }> {
+  if (tenantId) {
+    const { data } = await client.from('site_settings').select('value').eq('tenant_id', tenantId).eq('key', 'whatsapp_number').maybeSingle()
+    const raw = data?.value?.trim()
+    const intl = raw ? toIntlPhone(raw) : null
+    if (raw && intl) return { number: raw, link: `https://wa.me/${intl}` }
+  }
+  return { number: SITE.whatsapp, link: SITE.whatsappLink }
+}
