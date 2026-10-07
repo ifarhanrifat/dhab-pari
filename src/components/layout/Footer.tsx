@@ -107,6 +107,13 @@ export function Footer() {
             <Link href="/admin" className="hover:text-dp-primary transition-all">
               {t('y.staffLogIn')}
             </Link>
+            {/* Same reasoning — this site is itself the platform's own
+                flagship example, and until this link existed nothing on
+                the whole product pointed a prospective village to
+                /platform/start at all. */}
+            <Link href="/platform/start" className="hover:text-dp-primary transition-all">
+              Start Your Own Committee
+            </Link>
           </div>
         </div>
       </div>
