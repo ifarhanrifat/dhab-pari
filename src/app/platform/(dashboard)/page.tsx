@@ -21,6 +21,8 @@ interface Tenant {
   portal_user_count: number
   subscription_status: string | null
   subscription_plan: string | null
+  billing_exempt: boolean
+  onboarding_status: string
 }
 
 const statusColors: Record<string, string> = {
@@ -88,6 +90,16 @@ export default function PlatformTenantsPage() {
     load()
   }
 
+  const approveTenant = async (tenant: Tenant) => {
+    const { error } = await supabase.from('tenants').update({ onboarding_status: 'approved' }).eq('id', tenant.id)
+    if (error) {
+      toast.error(friendlyError(error))
+      return
+    }
+    toast.success('Tenant approved.')
+    load()
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -134,6 +146,12 @@ export default function PlatformTenantsPage() {
                       <ChevronRight size={14} className="text-dp-on-surface-variant" />
                     </Link>
                     <p className="text-dp-on-surface-variant text-[12px]">{t.slug}</p>
+                    {t.onboarding_status === 'pending_review' && (
+                      <span className="inline-block w-fit mt-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">Pending Review</span>
+                    )}
+                    {t.billing_exempt && (
+                      <span className="inline-block w-fit mt-1 ml-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800">Billing Exempt</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center gap-1.5"><UserCircle2 size={14} className="text-dp-on-surface-variant" /> {t.admin_count}</span>
@@ -157,14 +175,24 @@ export default function PlatformTenantsPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => toggleActive(t)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold cursor-pointer transition-all ${
-                        t.is_active ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-green-50 text-green-700 hover:bg-green-100'
-                      }`}
-                    >
-                      <Power size={13} /> {t.is_active ? 'Deactivate' : 'Activate'}
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      {t.onboarding_status === 'pending_review' && (
+                        <button
+                          onClick={() => approveTenant(t)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold cursor-pointer transition-all bg-amber-50 text-amber-800 hover:bg-amber-100"
+                        >
+                          Approve
+                        </button>
+                      )}
+                      <button
+                        onClick={() => toggleActive(t)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold cursor-pointer transition-all ${
+                          t.is_active ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-green-50 text-green-700 hover:bg-green-100'
+                        }`}
+                      >
+                        <Power size={13} /> {t.is_active ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
