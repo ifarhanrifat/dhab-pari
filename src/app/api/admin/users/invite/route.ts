@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 })
 
-  const { data: caller } = await supabase.from('admin_users').select('role, secondary_role, can_invite_users').eq('auth_user_id', user.id).single()
+  const { data: caller } = await supabase.from('admin_users').select('role, secondary_role, can_invite_users, tenant_id').eq('auth_user_id', user.id).single()
   const callerIsSuperAdmin = caller?.role === 'super_admin' || caller?.secondary_role === 'super_admin'
   const callerIsAdmin = caller?.role === 'admin' || caller?.secondary_role === 'admin'
   const callerCanInvite = callerIsSuperAdmin || (callerIsAdmin && caller?.can_invite_users)
@@ -114,6 +114,7 @@ export async function POST(req: NextRequest) {
 
   const { error: upsertError } = await admin.from('admin_users').upsert({
     email, full_name: fullName, role, secondary_role: secondaryRole, is_active: true,
+    tenant_id: caller!.tenant_id,
     auth_user_id: null,
     invite_code: code,
     invite_code_expires_at: expiresAt,

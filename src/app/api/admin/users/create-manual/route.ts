@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 })
 
-  const { data: caller } = await supabase.from('admin_users').select('role, secondary_role').eq('auth_user_id', user.id).single()
+  const { data: caller } = await supabase.from('admin_users').select('role, secondary_role, tenant_id').eq('auth_user_id', user.id).single()
   const callerIsSuperAdmin = caller?.role === 'super_admin' || caller?.secondary_role === 'super_admin'
   if (!callerIsSuperAdmin) {
     return NextResponse.json({ error: 'Only a Super Admin can create a user directly.' }, { status: 403 })
@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
 
   const { data: adminUserRow, error: upsertError } = await admin.from('admin_users').upsert({
     email, full_name: fullName, role, secondary_role: secondaryRole, is_active: true,
+    tenant_id: caller!.tenant_id,
     auth_user_id: created.user.id,
     can_post_transactions: !!body.can_post_transactions,
     can_edit_transactions: !!body.can_edit_transactions,

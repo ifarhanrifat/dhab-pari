@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { validateSignupFields, checkSignupDuplicates, createSignupAccount } from '@/lib/portalSignup'
+import { getRequestTenantId } from '@/lib/tenant'
 
 const MAX_ATTEMPTS = 8
 
@@ -43,12 +44,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(invalid, { status: 400 })
   }
 
-  const dupCheck = await checkSignupDuplicates(admin, validated.data)
+  const tenantId = await getRequestTenantId()
+  const dupCheck = await checkSignupDuplicates(admin, validated.data, tenantId)
   if ('error' in dupCheck) {
     return NextResponse.json({ error: dupCheck.error }, { status: dupCheck.status })
   }
 
-  const result = await createSignupAccount(admin, validated.data, dupCheck.claiming)
+  const result = await createSignupAccount(admin, validated.data, dupCheck.claiming, tenantId)
   if ('error' in result) {
     return NextResponse.json({ error: result.error }, { status: result.status })
   }

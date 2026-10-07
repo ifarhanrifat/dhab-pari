@@ -70,13 +70,17 @@ export interface DuplicateCandidate { id: string; full_name: string; mobile: str
 // placeholder row claims it instead of blocking). Re-run at confirm time
 // too, not just request time — state can change in the few minutes
 // someone takes to read an email and type a code back in.
-export async function checkSignupDuplicates(admin: AdminClient, data: NormalizedSignup): Promise<{ error: string; status: number } | { ok: true; claiming: DuplicateCandidate | null }> {
-  const { data: usernameTaken } = await admin.from('portal_users').select('id').ilike('username', data.username).maybeSingle()
+export async function checkSignupDuplicates(admin: AdminClient, data: NormalizedSignup, tenantId: string): Promise<{ error: string; status: number } | { ok: true; claiming: DuplicateCandidate | null }> {
+  const { data: usernameTaken } = await admin.from('portal_users').select('id').eq('tenant_id', tenantId).ilike('username', data.username).maybeSingle()
   if (usernameTaken) {
     return { error: 'That username is already taken.', status: 409 }
   }
 
-  const { data: candidates } = await admin.from('portal_users').select('id, full_name, mobile, whatsapp_number, father_husband_name, auth_user_id')
+  // Scoped to the signing-up tenant — the "claiming" match below links a
+  // new login to an existing unclaimed placeholder row (e.g. a water
+  // consumer's phone pre-registered before they ever signed up), and that
+  // placeholder can only ever belong to the same village.
+  const { data: candidates } = await admin.from('portal_users').select('id, full_name, mobile, whatsapp_number, father_husband_name, auth_user_id').eq('tenant_id', tenantId)
   const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase()
   const dup = ((candidates ?? []) as DuplicateCandidate[]).find((c) =>
     norm(c.mobile) === norm(data.mobile) ||
@@ -93,7 +97,7 @@ export async function checkSignupDuplicates(admin: AdminClient, data: Normalized
 // The actual account creation — moved out of the original single-step
 // route unchanged, just parameterized. Only ever called after a code has
 // been verified (see /api/portal/signup/confirm-code).
-export async function createSignupAccount(admin: AdminClient, data: NormalizedSignup, claiming: DuplicateCandidate | null) {
+export async function createSignupAccount(admin: AdminClient, data: NormalizedSignup, claiming: DuplicateCandidate | null, tenantId: string) {
   const email = syntheticEmail(claiming ? claiming.mobile : data.mobile)
   const { data: authUser, error: authErr } = await admin.auth.admin.createUser({
     email, password: data.password, email_confirm: true,
@@ -102,15 +106,20 @@ export async function createSignupAccount(admin: AdminClient, data: NormalizedSi
     return { error: authErr?.message ?? 'Could not create account.', status: 400 } as const
   }
 
+  // Scoped to the signing-up tenant — this is a service-role call with no
+  // auth.uid(), so without an explicit tenant_id both of these would only
+  // ever match dhab-pari's own records regardless of which village the
+  // signup is actually for (see migration 626).
   const { data: matchedConsumer } = await admin.from('consumers')
     .select('consumer_id')
+    .eq('tenant_id', tenantId)
     .or(`mobile.eq.${data.mobile},whatsapp_number.eq.${data.mobile},mobile.eq.${data.whatsapp},whatsapp_number.eq.${data.whatsapp}`)
     .limit(1)
     .maybeSingle()
 
   let matchedDonorAccountId: string | null = null
   for (const candidate of [data.mobile, data.whatsapp]) {
-    const { data: match } = await admin.rpc('match_donor_account_by_phone', { p_phone: candidate })
+    const { data: match } = await admin.rpc('match_donor_account_by_phone', { p_phone: candidate, p_tenant_id: tenantId })
       .maybeSingle<{ account_id: string; already_claimed: boolean }>()
     if (match?.account_id && !match.already_claimed) { matchedDonorAccountId = match.account_id; break }
   }
@@ -130,6 +139,7 @@ export async function createSignupAccount(admin: AdminClient, data: NormalizedSi
         consumer_id: matchedConsumer?.consumer_id ?? null,
         donor_account_id: matchedDonorAccountId,
         email_verified_at: new Date().toISOString(),
+        tenant_id: tenantId,
       })
 
   if (writeErr) {

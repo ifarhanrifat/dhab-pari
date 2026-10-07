@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/resend'
 import { portalSignupVerificationEmail } from '@/lib/email/portalSignupVerificationEmail'
 import { validateSignupFields, checkSignupDuplicates } from '@/lib/portalSignup'
+import { getRequestTenantId } from '@/lib/tenant'
 
 const CODE_TTL_MS = 15 * 60_000
 
@@ -31,7 +32,8 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
-  const dupCheck = await checkSignupDuplicates(admin, validated.data)
+  const tenantId = await getRequestTenantId()
+  const dupCheck = await checkSignupDuplicates(admin, validated.data, tenantId)
   if ('error' in dupCheck) {
     return NextResponse.json({ error: dupCheck.error }, { status: dupCheck.status })
   }
