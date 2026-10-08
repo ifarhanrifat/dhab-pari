@@ -263,7 +263,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
   const router = useRouter()
   const supabase = createClient()
   const [profile, setProfile] = useState<{
-    full_name: string; role: string; can_collect_payments: boolean
+    full_name: string; role: string; secondary_role: string | null; can_collect_payments: boolean
     can_publish_news: boolean; can_publish_videos: boolean; can_publish_gallery: boolean
     can_publish_ticker: boolean; can_publish_jobs: boolean
     can_publish_poetry: boolean; can_publish_blog: boolean
@@ -290,7 +290,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
       if (!user) return
       const [{ data }, { data: pa }] = await Promise.all([
         supabase.from('admin_users')
-          .select('full_name, role, can_collect_payments, can_publish_news, can_publish_videos, can_publish_gallery, can_publish_ticker, can_publish_jobs, can_publish_poetry, can_publish_blog')
+          .select('full_name, role, secondary_role, can_collect_payments, can_publish_news, can_publish_videos, can_publish_gallery, can_publish_ticker, can_publish_jobs, can_publish_poetry, can_publish_blog')
           .eq('auth_user_id', user.id).single(),
         supabase.from('platform_admins').select('id').eq('auth_user_id', user.id).eq('is_active', true).maybeSingle(),
       ])
@@ -348,10 +348,18 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
       if (item.href === '/admin') return true
       return !!item.publish && publisherAreas[item.publish]
     }
-    // Anyone else keeps a publishable section only if they hold that area.
-    // Administrators are given every area by the migration, so nothing changes
-    // for them.
-    if (item.publish && !publisherAreas[item.publish]) return false
+    // Same bypass as current_admin_can_publish() (migration 202) — a
+    // super_admin/admin can actually publish every area server-side
+    // regardless of their own can_publish_* columns, which start false
+    // for every NEW admin_users row and were only ever backfilled true
+    // for admins that existed in 2026-09. Checking the raw columns here
+    // instead of this bypass hid every Content Publishing link for any
+    // super_admin created since then (confirmed for Dhab Kalan's
+    // self-signup admin, 2026-10-08) even though they could publish
+    // fine by navigating there directly.
+    const isAdministrator = profile.role === 'super_admin' || profile.role === 'admin'
+      || profile.secondary_role === 'super_admin' || profile.secondary_role === 'admin'
+    if (item.publish && !isAdministrator && !publisherAreas[item.publish]) return false
 
     // While access is still loading, show nothing system-specific rather than
     // flashing the other account's menu and then removing it.

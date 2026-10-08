@@ -16,6 +16,7 @@ import { ImageUpload } from '@/components/admin/ImageUpload'
 import { VideoUpload } from '@/components/admin/VideoUpload'
 import { VideoEmbed } from '@/components/public/VideoEmbed'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { useSystemAccess } from '@/hooks/useSystemAccess'
 
 interface Entry {
   id: string; display_name: string; talent_description: string; needs: string | null; aspiration: string | null
@@ -47,6 +48,13 @@ export default function TalentShowcaseAdminPage() {
   const [supporters, setSupporters] = useState<Supporter[]>([])
   const [supportersFor, setSupportersFor] = useState<string | null>(null)
   const [donorNames, setDonorNames] = useState<string[]>([])
+  // Real gap found 2026-10-08: a water-supply-only tenant's admin could
+  // still see every donor's name here and auto-link a supporter to one
+  // — the donors_projects module being off didn't stop this page from
+  // reading the donors table at all. Supporters can still be credited
+  // by name either way; only the "link to a known donor" convenience
+  // (and the name autocomplete it powers) needs that module.
+  const access = useSystemAccess()
   const [helperOffers, setHelperOffers] = useState<{ name: string; portalUserId: string; offerId: string }[]>([])
   const [newSupporterName, setNewSupporterName] = useState('')
   const [addingSupporter, setAddingSupporter] = useState(false)
@@ -165,7 +173,7 @@ export default function TalentShowcaseAdminPage() {
     setNewSupporterName('')
     const { data } = await supabase.from('talent_showcase_supporters').select('id, talent_showcase_id, donor_id, name, created_at').eq('talent_showcase_id', id).order('created_at')
     setSupporters((data ?? []) as Supporter[])
-    if (donorNames.length === 0) {
+    if (donorNames.length === 0 && access.canDonorsProjects) {
       const { data: donors } = await supabase.from('donors').select('name').order('date', { ascending: false }).limit(500)
       setDonorNames(Array.from(new Set((donors ?? []).map((d) => d.name).filter(Boolean))))
     }
@@ -187,7 +195,9 @@ export default function TalentShowcaseAdminPage() {
     const { data: admin } = await supabase.from('admin_users').select('id').eq('auth_user_id', user!.id).single()
     // A typed name that exactly matches a known donor gets linked
     // (donor_id) for traceability; anything else is credited as-is.
-    const { data: matchedDonor } = await supabase.from('donors').select('id').eq('name', name).order('date', { ascending: false }).limit(1).maybeSingle()
+    const matchedDonor = access.canDonorsProjects
+      ? (await supabase.from('donors').select('id').eq('name', name).order('date', { ascending: false }).limit(1).maybeSingle()).data
+      : null
     const { data: row, error } = await supabase.from('talent_showcase_supporters').insert({
       talent_showcase_id: talentShowcaseId, name, donor_id: matchedDonor?.id ?? null, added_by: admin!.id,
     }).select('id, talent_showcase_id, donor_id, name, created_at').single()
