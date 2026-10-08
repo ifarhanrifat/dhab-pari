@@ -4,33 +4,28 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, HeartHandshake, AlertTriangle } from 'lucide-react'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { createClient } from '@/lib/supabase/client'
 
 const MIN_DELAY_MS = 1000
 const MAX_DELAY_MS = 8000
 
-function readCookieTenantId(): string | null {
-  if (typeof document === 'undefined') return null
-  const match = document.cookie.match(/(?:^|; )x-tenant-id=([^;]+)/)
-  return match ? decodeURIComponent(match[1]) : null
-}
-
 function PortalLoginInner() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
+  // Real bug found 2026-10-08, device-verified on a Pixel 4a: this used
+  // to read the x-tenant-id cookie and fetch the tenant's own name
+  // itself, client-side, after mount, then append the literal word
+  // "Committee" to it -- correct only for dhab-pari's own historical
+  // name (stored without a committee suffix); every other tenant's name
+  // already ends in "Committee" (e.g. "Dhab Khushal Welfare Committee"),
+  // so this doubled up to "...Committee Committee". site.fullName is
+  // already the correct, complete name -- resolved server-side before
+  // first paint, so there's no first-load flash of the wrong tenant
+  // either (confirmed on-device: a cold first visit showed dhab-pari's
+  // name until a second load).
+  const committeeLabel = site.fullName
   const [username, setUsername] = useState('')
-  // Which village's portal this is, from the subdomain cookie — falls
-  // back to the global SITE constant on the primary domain (same as
-  // before this existed). See src/app/portal/signup/page.tsx for the
-  // same pattern.
-  const [committeeLabel, setCommitteeLabel] = useState(SITE.shortCommittee)
-  useEffect(() => {
-    const tenantId = readCookieTenantId()
-    if (!tenantId) return
-    createClient().from('tenants').select('name').eq('id', tenantId).maybeSingle()
-      .then(({ data }) => { if (data?.name) setCommitteeLabel(`${data.name} Committee`) })
-  }, [])
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')

@@ -4,30 +4,22 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, ShieldAlert, Lock, AlertTriangle } from 'lucide-react'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { createClient } from '@/lib/supabase/client'
 
 const MIN_DELAY_MS = 1000   // 1 s after first failure, doubles each time
 const MAX_DELAY_MS = 8000   // cap at 8 s
 
-function readCookieTenantId(): string | null {
-  if (typeof document === 'undefined') return null
-  const match = document.cookie.match(/(?:^|; )x-tenant-id=([^;]+)/)
-  return match ? decodeURIComponent(match[1]) : null
-}
-
 export default function AdminLoginPage() {
   const { t } = useLocale()
-  // Which village's admin panel this is, from the subdomain cookie —
-  // falls back to the global SITE constant on the primary domain.
-  const [tenantName, setTenantName] = useState(SITE.name)
-  useEffect(() => {
-    const tenantId = readCookieTenantId()
-    if (!tenantId) return
-    createClient().from('tenants').select('name').eq('id', tenantId).maybeSingle()
-      .then(({ data }) => { if (data?.name) setTenantName(data.name) })
-  }, [])
+  // Real bug found 2026-10-08, device-verified on a Pixel 4a: this used
+  // to read the x-tenant-id cookie and fetch the tenant's name itself,
+  // client-side, after mount. On a cold first visit (no cookie read yet
+  // by the time this effect ran) it showed dhab-pari's name regardless of
+  // subdomain -- site is resolved server-side before first paint, so
+  // there's no flash and no separate fetch needed.
+  const site = useSite()
+  const tenantName = site.name
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw]     = useState(false)
