@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { getPaymentAccount, type PaymentAccount } from '@/lib/paymentAccounts'
 import Link from 'next/link'
 import {
@@ -43,6 +43,7 @@ const monthNames = [
 
 export default function WaterBillPage() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   const [query, setQuery] = useState('')
   const [verify, setVerify] = useState('')
   const [loading, setLoading] = useState(false)
@@ -63,7 +64,7 @@ export default function WaterBillPage() {
   // things that were pure hardcoded prose with no Urdu translation at all.
   const [paymentAccount, setPaymentAccount] = useState<PaymentAccount | null>(null)
   const [walkinAddress, setWalkinAddress] = useState('')
-  const [contactEmail, setContactEmail] = useState(SITE.email)
+  const [contactEmail, setContactEmail] = useState(site.email)
 
   const supabase = createClient()
 
@@ -74,7 +75,7 @@ export default function WaterBillPage() {
       .then(({ data }) => {
         const v = Object.fromEntries((data ?? []).map((r) => [r.key, r.value]))
         setWalkinAddress(v[isUrdu ? 'water_walkin_info_ur' : 'water_walkin_info_en'] || (isUrdu ? 'مرکزی مسجد کے قریب ویلفیئر آفس آئیں، صبح 9 بجے سے دوپہر 2 بجے تک۔' : 'Visit the Welfare Office near the Central Mosque, 9 AM to 2 PM.'))
-        setContactEmail(v.contact_email || SITE.email)
+        setContactEmail(v.contact_email || site.email)
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isUrdu])
@@ -312,7 +313,7 @@ export default function WaterBillPage() {
                           {t('w.jazzcash')}
                         </p>
                         <p className="font-bold text-dp-primary font-sans">
-                          {paymentAccount?.jazzcashNumber || SITE.jazzcash}
+                          {paymentAccount?.jazzcashNumber || site.jazzcash}
                         </p>
                       </div>
                     </div>
@@ -327,7 +328,7 @@ export default function WaterBillPage() {
                           {t('w.easypaisa')}
                         </p>
                         <p className="font-bold text-dp-primary font-sans">
-                          {paymentAccount?.easypaisaNumber || SITE.easypaisa}
+                          {paymentAccount?.easypaisaNumber || site.easypaisa}
                         </p>
                       </div>
                     </div>
@@ -440,8 +441,8 @@ export default function WaterBillPage() {
               <div className="flex gap-3">
                 <Building2 size={20} className="text-dp-secondary shrink-0 mt-0.5" />
                 <p>
-                  <span className="font-bold">{t('x.bankTransferColon')}</span> {paymentAccount?.bankName || SITE.bankName},{' '}
-                  {paymentAccount?.bankBranch || SITE.bankBranch}, Acc: {paymentAccount?.bankAccountNumber || paymentAccount?.bankIban || SITE.bankAccount}
+                  <span className="font-bold">{t('x.bankTransferColon')}</span> {paymentAccount?.bankName || site.bankName},{' '}
+                  {paymentAccount?.bankBranch || site.bankBranch}, Acc: {paymentAccount?.bankAccountNumber || paymentAccount?.bankIban || site.bankAccount}
                 </p>
               </div>
             )}
@@ -486,11 +487,11 @@ export default function WaterBillPage() {
           </h4>
           <div className="space-y-3">
             <a
-              href={`tel:${SITE.whatsapp.replace(/-/g, '')}`}
+              href={`tel:${site.whatsapp.replace(/-/g, '')}`}
               className="flex items-center gap-3 text-dp-secondary hover:underline font-sans"
             >
               <Phone size={18} />
-              {SITE.whatsapp}
+              {site.whatsapp}
             </a>
             <a
               href={`mailto:${contactEmail}`}

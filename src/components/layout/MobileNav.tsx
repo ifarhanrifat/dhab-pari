@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { X, UserCircle2, ShieldCheck } from 'lucide-react'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { LanguageToggle } from '@/components/layout/LanguageToggle'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
@@ -17,6 +17,7 @@ interface MobileNavProps {
 
 export function MobileNav({ open, onClose, navLinks, isPortalUser, isStaffUser }: MobileNavProps) {
   const { t } = useLocale()
+  const site = useSite()
   const pathname = usePathname()
 
   return (
@@ -45,7 +46,7 @@ export function MobileNav({ open, onClose, navLinks, isPortalUser, isStaffUser }
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
           <span className="font-heading text-[24px] font-bold text-white">
-            {SITE.name}
+            {site.name}
           </span>
           <button
             onClick={onClose}

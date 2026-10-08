@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
-import { SITE } from '@/lib/constants'
+import { getPublicSiteContext } from '@/lib/publicSite'
+import { getCookieTenantId } from '@/lib/tenant'
 
 // Per-project metadata so a shared /projects/[id] link shows the real
 // project (not the generic "Village Projects" list title/description) when
@@ -11,6 +12,7 @@ import { SITE } from '@/lib/constants'
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
   const supabase = await createClient()
+  const site = await getPublicSiteContext(supabase, await getCookieTenantId())
   const { data: project } = await supabase.from('projects').select('title, display_name, description, budget_pkr').eq('id', id).maybeSingle()
 
   if (!project) return { title: 'Project Not Found' }
@@ -20,7 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   // people who never touched the site itself.
   const title = project.display_name || project.title
   const budgetLine = project.budget_pkr ? `Budget: ${Number(project.budget_pkr).toLocaleString()}. ` : ''
-  const description = `${budgetLine}${project.description ?? `A community project by ${SITE.fullName}.`}`.slice(0, 200)
+  const description = `${budgetLine}${project.description ?? `A community project by ${site.fullName}.`}`.slice(0, 200)
 
   return {
     title,

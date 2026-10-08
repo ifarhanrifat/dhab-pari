@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
-import { SITE } from '@/lib/constants'
+import { getPublicSiteContext } from '@/lib/publicSite'
+import { getCookieTenantId } from '@/lib/tenant'
 
 // Per-child metadata so a shared /kafalat/[code] link shows the actual
 // child's name and progress when pasted into WhatsApp/Facebook, not the
@@ -9,6 +10,7 @@ import { SITE } from '@/lib/constants'
 export async function generateMetadata({ params }: { params: Promise<{ code: string }> }): Promise<Metadata> {
   const { code } = await params
   const supabase = await createClient()
+  const site = await getPublicSiteContext(supabase, await getCookieTenantId())
   const { data: children } = await supabase.rpc('kafalat_children_for_naming')
   const child = ((children ?? []) as { code: string; first_name: string; this_year_requirement: number; already_named: number }[])
     .find((c) => c.code === code)
@@ -17,8 +19,8 @@ export async function generateMetadata({ params }: { params: Promise<{ code: str
 
   const remaining = Math.max(child.this_year_requirement - child.already_named, 0)
   const description = remaining > 0
-    ? `${child.first_name} still needs ${remaining.toLocaleString()} for this school year. Join their sponsorship on ${SITE.fullName}.`
-    : `${child.first_name}'s education is fully sponsored, Alhamdulillah — see how ${SITE.fullName}'s Kafalat programme works.`
+    ? `${child.first_name} still needs ${remaining.toLocaleString()} for this school year. Join their sponsorship on ${site.fullName}.`
+    : `${child.first_name}'s education is fully sponsored, Alhamdulillah — see how ${site.fullName}'s Kafalat programme works.`
 
   return {
     title: `Sponsor ${child.first_name}'s Education`,

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, ShieldCheck, Lock, KeyRound, CheckCircle, AlertTriangle } from 'lucide-react'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
 import { PasswordChecklist } from '@/components/shared/PasswordChecklist'
@@ -18,6 +18,7 @@ import { PasswordChecklist } from '@/components/shared/PasswordChecklist'
 // normally with the password they just chose.
 export default function AcceptInvitePage() {
   const { t } = useLocale()
+  const site = useSite()
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
@@ -60,7 +61,7 @@ export default function AcceptInvitePage() {
             <Lock size={18} className="text-white" />
           </div>
           <div>
-            <h1 className="font-heading text-[24px] font-bold leading-[32px] text-white">{SITE.name}</h1>
+            <h1 className="font-heading text-[24px] font-bold leading-[32px] text-white">{site.name}</h1>
             <p className="text-white/60 text-[12px] font-sans">{t('y.acceptInvite')}</p>
           </div>
         </div>

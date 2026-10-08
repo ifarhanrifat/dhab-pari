@@ -1,10 +1,15 @@
 // One place that knows what "send it to" actually means for a given
 // system — separate real accounts for Donor & Projects vs Water Supply
 // (migration 253), read from site_settings so the committee can update
-// them without a deploy. SITE constants remain the fallback so nothing
-// breaks if a key is ever missing.
+// them without a deploy.
+//
+// Real gap found 2026-10-08: the fallback here was SITE.jazzcash/
+// easypaisa/bank* — dhab-pari's OWN real payment numbers — so any OTHER
+// tenant that hadn't yet configured its own accounts would silently show
+// (and accept donations/payments into) dhab-pari's real accounts. Empty
+// string instead: every call site must treat "" as "this method isn't
+// configured yet", never render it as if it were a real account.
 import { SupabaseClient } from '@supabase/supabase-js'
-import { SITE } from '@/lib/constants'
 
 export interface PaymentAccount {
   jazzcashNumber: string
@@ -43,15 +48,15 @@ export async function getPaymentAccount(
   const v = Object.fromEntries((data ?? []).map((r) => [r.key.replace(prefix, ''), r.value ?? '']))
   const isEnabled = (key: string) => v[key] !== 'false'
   return {
-    jazzcashNumber: v.jazzcash_number || SITE.jazzcash,
-    jazzcashName: v.jazzcash_name || SITE.jazzcashName,
-    easypaisaNumber: v.easypaisa_number || SITE.easypaisa,
-    easypaisaName: v.easypaisa_name || SITE.easypaisaName,
-    bankName: v.bank_name || SITE.bankName,
-    bankAccountTitle: v.bank_account_title || SITE.fullName,
+    jazzcashNumber: v.jazzcash_number || '',
+    jazzcashName: v.jazzcash_name || '',
+    easypaisaNumber: v.easypaisa_number || '',
+    easypaisaName: v.easypaisa_name || '',
+    bankName: v.bank_name || '',
+    bankAccountTitle: v.bank_account_title || '',
     bankAccountNumber: v.bank_account_number || '',
-    bankIban: v.bank_iban || SITE.bankAccount,
-    bankBranch: v.bank_branch || SITE.bankBranch,
+    bankIban: v.bank_iban || '',
+    bankBranch: v.bank_branch || '',
     bankBranchCode: v.bank_branch_code || '',
     enabled: {
       jazzcash: isEnabled('enable_jazzcash'),

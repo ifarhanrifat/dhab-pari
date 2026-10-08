@@ -1,4 +1,3 @@
-import { SITE } from '@/lib/constants'
 
 // Real ask, 2026-09-27: switched from a clickable one-time link to a
 // plain code the user types in — see migration 514's comment for why
@@ -15,7 +14,6 @@ export function portalPasswordResetCodeEmail(code: string, tenantName: string) {
   <div style="text-align: center; margin-bottom: 24px;">
     <div style="display: inline-block; width: 48px; height: 48px; border-radius: 50%; background: #0d3b2e; color: white; line-height: 48px; font-weight: bold; font-size: 20px;">DP</div>
     <h1 style="font-size: 18px; margin: 12px 0 0;">${tenantName}</h1>
-    <p style="font-size: 13px; color: #666; margin: 2px 0 0;">${SITE.committee}</p>
   </div>
   <h2 style="font-size: 20px; text-align: center; margin-bottom: 8px;">Your password reset code</h2>
   <p style="font-size: 14px; color: #444; text-align: center; line-height: 22px;">

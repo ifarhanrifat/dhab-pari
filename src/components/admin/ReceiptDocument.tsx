@@ -4,7 +4,7 @@ import { forwardRef } from 'react'
 import { dt, type Lang, type SlipLang } from '@/lib/docTranslations'
 import { UniversalSlip, type SlipFormat } from './UniversalSlip'
 import { fmt, fmtDate, Ltr, PhoneLink, prettyUrl, splitNumbers } from './slipShared'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 
 export type InvoiceTemplate =
   | 'universal'
@@ -375,6 +375,7 @@ function PaymentStamp({ data, compact = false }: { data: ReceiptData; compact?: 
 }
 
 export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function ReceiptDocument({ data, template = 'classic', format = 'a4' }, ref) {
+  const site = useSite()
   // The Universal Slip is its own document — one design that covers every
   // transaction type and both print targets. The ten skins below stay
   // available as alternates.
@@ -410,9 +411,9 @@ export const ReceiptDocument = forwardRef<HTMLDivElement, Props>(function Receip
   const hasDiscount = !!data.discountAmount && data.discountAmount > 0
   const showUrdu = data.language === 'ur'
   const logoPad = data.logoUrl ? (data.logoWidth ?? 56) + 12 : 0
-  const companyNameEn = data.companyNameEn || SITE.name
+  const companyNameEn = data.companyNameEn || site.name
   const companyNameUr = data.companyNameUr || 'واٹر اینڈ ویلفئیر کمیٹی'
-  const companyEmail = data.companyEmail || 'dhabpariwelfare@gmail.com'
+  const companyEmail = data.companyEmail || site.email
 
   if (template === 'modern') {
     return (

@@ -1,7 +1,7 @@
 'use client'
 
 import { Menu } from 'lucide-react'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface AdminHeaderProps {
@@ -10,6 +10,7 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
   const { t } = useLocale()
+  const site = useSite()
   return (
     // Menu button on the LEFT, matching the public header and the sidebar
     // that slides in from the left. It used to sit on the far right, so the
@@ -23,7 +24,7 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
         <Menu size={26} />
       </button>
       <h1 className="text-white font-heading text-[20px] font-bold leading-[28px] truncate">
-        {SITE.name} {t('g.portalSuffix')}
+        {site.name} {t('g.portalSuffix')}
       </h1>
     </header>
   )

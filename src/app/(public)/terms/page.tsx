@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
+import type { PublicSite } from '@/lib/publicSite'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { FileText } from 'lucide-react'
@@ -11,18 +12,22 @@ import { FileText } from 'lucide-react'
 // 404'd -- the page never existed. Written to cover what this system
 // actually does (portal accounts, water billing, donations, welfare
 // programs, community marketplace), not generic boilerplate.
-const sections: { en: { h: string; p: string[] }; ur: { h: string; p: string[] } }[] = [
+//
+// A function, not a module-level constant, since the very first section
+// names the real tenant (site.fullName/name) -- useSite() is a hook and
+// can only be called inside the component body.
+const getSections = (site: PublicSite): { en: { h: string; p: string[] }; ur: { h: string; p: string[] } }[] => [
   {
     en: {
       h: 'Who this is for',
       p: [
-        `These terms cover the ${SITE.fullName} website and Portal, run by the committee for the people of ${SITE.name} -- residents, donors (including those living abroad), and anyone using the marketplace, welfare, or billing features. By creating a Portal account or using this site, you agree to these terms.`,
+        `These terms cover the ${site.fullName} website and Portal, run by the committee for the people of ${site.name} -- residents, donors (including those living abroad), and anyone using the marketplace, welfare, or billing features. By creating a Portal account or using this site, you agree to these terms.`,
       ],
     },
     ur: {
       h: 'یہ کس کے لیے ہے',
       p: [
-        `یہ شرائط ${SITE.fullNameUrdu} کی ویب سائٹ اور پورٹل پر لاگو ہوتی ہیں، جو کمیٹی ${SITE.nameUrdu} کے لوگوں کے لیے چلاتی ہے -- رہائشی، عطیہ دہندگان (بشمول بیرون ملک مقیم افراد)، اور مارکیٹ پلیس، فلاحی، یا بلنگ کی سہولیات استعمال کرنے والا کوئی بھی شخص۔ پورٹل اکاؤنٹ بنا کر یا یہ سائٹ استعمال کر کے، آپ ان شرائط سے اتفاق کرتے ہیں۔`,
+        `یہ شرائط ${site.fullNameUrdu} کی ویب سائٹ اور پورٹل پر لاگو ہوتی ہیں، جو کمیٹی ${site.nameUrdu} کے لوگوں کے لیے چلاتی ہے -- رہائشی، عطیہ دہندگان (بشمول بیرون ملک مقیم افراد)، اور مارکیٹ پلیس، فلاحی، یا بلنگ کی سہولیات استعمال کرنے والا کوئی بھی شخص۔ پورٹل اکاؤنٹ بنا کر یا یہ سائٹ استعمال کر کے، آپ ان شرائط سے اتفاق کرتے ہیں۔`,
       ],
     },
   },
@@ -148,10 +153,12 @@ const sections: { en: { h: string; p: string[] }; ur: { h: string; p: string[] }
 
 export default function TermsPage() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
+  const sections = getSections(site)
   // Real report, 2026-09-29: this hardcoded SITE.email (an env-var fallback,
   // 'info@dhabpari.org') instead of the admin-editable contact_email setting
   // (migration 525) the committee actually manages.
-  const [contactEmail, setContactEmail] = useState(SITE.email)
+  const [contactEmail, setContactEmail] = useState(site.email)
   useEffect(() => {
     createClient().from('site_settings').select('value').eq('key', 'contact_email').maybeSingle()
       .then(({ data }) => { if (data?.value) setContactEmail(data.value) })
@@ -184,8 +191,8 @@ export default function TermsPage() {
           </h2>
           <p className="font-sans text-[14.5px] leading-relaxed text-dp-on-surface-variant">
             {isUrdu
-              ? `اگر آپ کے ان شرائط کے بارے میں کوئی سوال ہو تو ہمیں ${SITE.whatsapp} پر واٹس ایپ کریں یا ${contactEmail} پر ای میل کریں، یا `
-              : `If you have questions about these terms, WhatsApp us at ${SITE.whatsapp} or email ${contactEmail}, or `}
+              ? `اگر آپ کے ان شرائط کے بارے میں کوئی سوال ہو تو ہمیں ${site.whatsapp} پر واٹس ایپ کریں یا ${contactEmail} پر ای میل کریں، یا `
+              : `If you have questions about these terms, WhatsApp us at ${site.whatsapp} or email ${contactEmail}, or `}
             <Link href="/complaints" className="text-dp-secondary font-semibold hover:underline">
               {isUrdu ? 'شکایت درج کروائیں' : 'file a complaint'}
             </Link>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { AlertTriangle, Lock } from 'lucide-react'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 // No longer the active reset flow — see /portal/forgot-password's own
@@ -12,6 +12,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 // change could still have someone clicking through to this exact URL.
 export default function PortalResetPasswordPage() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   return (
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="min-h-screen bg-[#E1F5EE] flex flex-col">
       <header className="bg-dp-primary w-full px-6 py-4">
@@ -20,7 +21,7 @@ export default function PortalResetPasswordPage() {
             <Lock size={18} className="text-white" />
           </div>
           <div>
-            <h1 className="font-heading text-[24px] font-bold leading-[32px] text-white">{SITE.name}</h1>
+            <h1 className="font-heading text-[24px] font-bold leading-[32px] text-white">{site.name}</h1>
             <p className="text-white/60 text-[12px] font-sans">{t('p.resetTitle')}</p>
           </div>
         </div>

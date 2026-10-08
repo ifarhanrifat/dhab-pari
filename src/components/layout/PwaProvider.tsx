@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Download, X, Share } from 'lucide-react'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 // Chrome/Edge/Android fire this so the site can show its own install button.
@@ -24,6 +24,7 @@ const IOS_RESURFACE_MS = 14 * 24 * 60 * 60 * 1000
 
 export function PwaProvider() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
   const [showIosHint, setShowIosHint] = useState(false)
   const [iosNeedsSafari, setIosNeedsSafari] = useState(false)
@@ -143,7 +144,7 @@ export function PwaProvider() {
       <div className="bg-dp-primary text-white rounded-xl shadow-2xl border border-white/10 p-4 flex items-start gap-3">
         <img src="/icons/icon-192.png" alt="" className="w-10 h-10 rounded-lg shrink-0 bg-white" />
         <div className="min-w-0 flex-1">
-          <p className="font-sans text-[14px] font-bold leading-[20px]">Install {SITE.name}</p>
+          <p className="font-sans text-[14px] font-bold leading-[20px]">Install {site.name}</p>
           {showIosHint ? (
             <>
               {iosNeedsSafari && (

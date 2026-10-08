@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Lock, Mail, KeyRound, Eye, EyeOff, CheckCircle, AlertTriangle } from 'lucide-react'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
 import { PasswordChecklist } from '@/components/shared/PasswordChecklist'
@@ -17,6 +17,7 @@ import { PasswordChecklist } from '@/components/shared/PasswordChecklist'
 // involved at all.
 export default function PortalForgotPasswordPage() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   const router = useRouter()
   const [step, setStep] = useState<'email' | 'code' | 'done'>('email')
   const [email, setEmail] = useState('')
@@ -72,7 +73,7 @@ export default function PortalForgotPasswordPage() {
           <Lock size={22} />
         </div>
         <h1 className="font-heading text-[22px] font-bold text-dp-primary">{t('p.resetTitle')}</h1>
-        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{SITE.shortCommittee}</p>
+        <p className="font-sans text-[14px] text-dp-on-surface-variant mt-1">{site.shortCommittee}</p>
       </div>
 
       <div className="bg-white rounded-lg border border-dp-outline-variant p-6 md:p-8 w-full max-w-sm">

@@ -1,7 +1,11 @@
-import { SITE } from '@/lib/constants'
+import { createClient } from '@/lib/supabase/server'
+import { getPublicSiteContext } from '@/lib/publicSite'
+import { getCookieTenantId } from '@/lib/tenant'
 import { ImageResponse } from 'next/og'
 
-export const alt = SITE.fullName
+// Next's opengraph-image convention only allows `alt` as a static string
+// export (no per-request function) -- genuinely can't be made tenant-aware.
+export const alt = 'Village Transparency Portal'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -9,12 +13,13 @@ export const contentType = 'image/png'
 // defines its own (e.g. /projects/[id] has a per-project one). Previously
 // there was no og:image at all, so links pasted into Facebook/WhatsApp
 // showed a bare text card.
-export default function Image() {
+export default async function Image() {
+  const site = await getPublicSiteContext(await createClient(), await getCookieTenantId())
   return new ImageResponse(
     (
       <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0d3b2e', color: 'white' }}>
-        <div style={{ display: 'flex', fontSize: 88, fontWeight: 800 }}>{SITE.name}</div>
-        <div style={{ display: 'flex', fontSize: 30, opacity: 0.85, marginTop: 12 }}>Water &amp; Welfare Committee</div>
+        <div style={{ display: 'flex', fontSize: 88, fontWeight: 800 }}>{site.name}</div>
+        <div style={{ display: 'flex', fontSize: 30, opacity: 0.85, marginTop: 12 }}>{site.shortCommittee}</div>
         <div style={{ display: 'flex', fontSize: 20, opacity: 0.6, marginTop: 28, letterSpacing: 3, textTransform: 'uppercase' }}>Village Transparency Portal</div>
       </div>
     ),

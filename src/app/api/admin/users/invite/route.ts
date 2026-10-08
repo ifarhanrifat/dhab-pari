@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/resend'
 import { adminInviteCodeEmail } from '@/lib/email/adminInviteCodeEmail'
-import { getTenantName } from '@/lib/tenant'
+import { getTenantName, getTenantSlug } from '@/lib/tenant'
 
 const VALID_ROLES = ['super_admin', 'admin', 'accountant', 'water_accountant', 'donor_accountant', 'publisher', 'viewer']
 
@@ -103,11 +103,14 @@ export async function POST(req: NextRequest) {
   const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString()
 
   try {
-    const tenantName = await getTenantName(admin, caller!.tenant_id)
+    const [tenantName, tenantSlug] = await Promise.all([
+      getTenantName(admin, caller!.tenant_id),
+      getTenantSlug(admin, caller!.tenant_id),
+    ])
     await sendEmail({
       to: email,
       subject: `Your ${tenantName} admin invite code`,
-      html: adminInviteCodeEmail(code, fullName, roleLabel, tenantName),
+      html: adminInviteCodeEmail(code, fullName, roleLabel, tenantName, tenantSlug),
     })
   } catch (err) {
     console.error('admin invite: email send failed', err)

@@ -17,7 +17,7 @@ import {
   Printer, Download, Lightbulb, ListChecks, AlertTriangle, User, FileText, Sparkles, Loader2, Globe2, Reply,
   Siren, Copy, MessageSquareWarning, Vote, Activity, Briefcase, HandHeart, HeartHandshake, Lock, Send, Ban,
 } from 'lucide-react'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface ActivityEntry { event_type: string; title: string; detail: string | null; actor_name: string | null; created_at: string }
@@ -85,6 +85,7 @@ const emptySuggestionForm = { text_ur: '', raised_by_committee_member_id: '' }
 
 export default function MeetingsAgendaPage() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   const supabase = createClient()
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [members, setMembers] = useState<CommitteeMember[]>([])
@@ -464,7 +465,7 @@ export default function MeetingsAgendaPage() {
   // shown identically in the shared preview.
   const buildAgendaText = (meeting: Meeting, memberName?: string) => {
     const tasks = itemsFor(meeting.id, 'task').filter((t) => !t.is_emergency)
-    const lines: string[] = [`*🕌 ${SITE.shortCommittee} — Meeting Notice*`]
+    const lines: string[] = [`*🕌 ${site.shortCommittee} — Meeting Notice*`]
     if (memberName) lines.push(`_Dear ${memberName},_`)
     lines.push(``, `📅 *تاریخ:* ${formatUrduDate(meeting.meeting_date)}`)
     if (meeting.meeting_time) lines.push(`🕐 *وقت:* ${formatUrduTime(meeting.meeting_time)}`)
@@ -504,7 +505,7 @@ export default function MeetingsAgendaPage() {
     const intl = phone ? normalizePakPhone(phone) : null
     if (!intl) { toast.error(`No phone number on file for ${member.name}`); return }
     const lines = [
-      `*${SITE.shortCommittee} — Meeting Task*`,
+      `*${site.shortCommittee} — Meeting Task*`,
       actingProxy ? `For: ${member.name} (via you as proxy)` : `Dear ${member.name},`,
       item.text_ur,
       item.due_date ? `Due: ${new Date(item.due_date).toLocaleDateString('en-GB')}` : '',
@@ -544,7 +545,7 @@ export default function MeetingsAgendaPage() {
     const intl = member.phone ? normalizePakPhone(member.phone) : null
     if (!intl) { toast.error(`No phone number on file for ${member.name}`); return }
     const lines = [
-      `*🚨 ${SITE.shortCommittee} — Emergency Job*`,
+      `*🚨 ${site.shortCommittee} — Emergency Job*`,
       actingProxy ? `For: ${member.name} (via you as proxy)` : `Dear ${member.name},`,
       item.text_ur,
       `Called by: ${adminName(item.created_by_admin_user_id) ?? 'Committee'}`,
@@ -554,7 +555,7 @@ export default function MeetingsAgendaPage() {
 
   const copyEmergencyMessage = async (item: AgendaItem) => {
     const lines = [
-      `🚨 ${SITE.shortCommittee} — Emergency Job`,
+      `🚨 ${site.shortCommittee} — Emergency Job`,
       item.text_ur,
       `Called by: ${adminName(item.created_by_admin_user_id) ?? 'Committee'}`,
     ].join('\n')
@@ -603,7 +604,7 @@ export default function MeetingsAgendaPage() {
     const intl = phone ? normalizePakPhone(phone) : null
     if (!intl) { toast.error('No phone number on file for this suggestion'); return }
     const name = item.raised_by_committee_member_id ? memberName(item.raised_by_committee_member_id) : (item.raised_by_name || 'there')
-    const lines = [`*${SITE.shortCommittee}*`, `Dear ${name}, regarding your suggestion:`, `"${item.text_ur}"`, ``, item.reply_text].join('\n')
+    const lines = [`*${site.shortCommittee}*`, `Dear ${name}, regarding your suggestion:`, `"${item.text_ur}"`, ``, item.reply_text].join('\n')
     window.open(`https://wa.me/${intl}?text=${encodeURIComponent(lines)}`, '_blank')
   }
 

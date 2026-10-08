@@ -10,13 +10,18 @@ import { SITE } from '@/lib/constants'
 // shares this one email, so the name is never read from the global SITE
 // constant here (that would always say "Dhab Pari" regardless of which
 // village actually sent the invite).
-export function adminInviteCodeEmail(code: string, fullName: string, roleLabel: string, tenantName: string) {
+//
+// tenantSlug: null for dhab-pari itself (stays on the apex domain, its
+// long-standing default); every other tenant gets its own subdomain so
+// the accept-invite page lands with the right x-tenant-id cookie set --
+// see getTenantSlug()'s own comment for why this matters.
+export function adminInviteCodeEmail(code: string, fullName: string, roleLabel: string, tenantName: string, tenantSlug: string | null) {
+  const host = tenantSlug ? `${tenantSlug}.${SITE.domain}` : SITE.domain
   return `
 <div style="font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #1a1a1a;">
   <div style="text-align: center; margin-bottom: 24px;">
     <div style="display: inline-block; width: 48px; height: 48px; border-radius: 50%; background: #0d3b2e; color: white; line-height: 48px; font-weight: bold; font-size: 20px;">DP</div>
     <h1 style="font-size: 18px; margin: 12px 0 0;">${tenantName}</h1>
-    <p style="font-size: 13px; color: #666; margin: 2px 0 0;">${SITE.committee}</p>
   </div>
   <h2 style="font-size: 20px; text-align: center; margin-bottom: 8px;">You've been invited as ${roleLabel}</h2>
   <p style="font-size: 14px; color: #444; text-align: center; line-height: 22px;">
@@ -26,7 +31,7 @@ export function adminInviteCodeEmail(code: string, fullName: string, roleLabel: 
     <span style="display: inline-block; background: #f0faf6; border: 2px solid #1D9E75; color: #0d3b2e; letter-spacing: 8px; font-size: 32px; font-weight: 700; padding: 16px 24px; border-radius: 10px; font-family: monospace;">${code}</span>
   </div>
   <div style="text-align: center; margin-bottom: 24px;">
-    <a href="https://${SITE.domain}/admin/accept-invite" style="color: #1D9E75; font-weight: 600; font-size: 14px;">Open the accept-invite page</a>
+    <a href="https://${host}/admin/accept-invite" style="color: #1D9E75; font-weight: 600; font-size: 14px;">Open the accept-invite page</a>
   </div>
   <p style="font-size: 12.5px; color: #888; text-align: center; line-height: 20px;">
     If you weren't expecting this, you can ignore this email — no account is created unless this code is used.

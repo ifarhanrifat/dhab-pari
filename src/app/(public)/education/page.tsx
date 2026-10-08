@@ -1,12 +1,17 @@
 import type { Metadata } from 'next'
 import { GraduationCap, HeartHandshake, MessageSquarePlus, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
-import { SITE } from '@/lib/constants'
+import { createClient } from '@/lib/supabase/server'
+import { getPublicSiteContext } from '@/lib/publicSite'
+import { getCookieTenantId } from '@/lib/tenant'
 import { T } from '@/components/i18n/T'
 
-export const metadata: Metadata = {
-  title: 'Education Corner',
-  description: `Education support programs in ${SITE.name}.`,
+export async function generateMetadata(): Promise<Metadata> {
+  const site = await getPublicSiteContext(await createClient(), await getCookieTenantId())
+  return {
+    title: 'Education Corner',
+    description: `Education support programs in ${site.name}.`,
+  }
 }
 
 // Real gap, 2026-10-06: this page used to show three fabricated "Scholarship
@@ -18,7 +23,8 @@ export const metadata: Metadata = {
 // education-support systems this app actually has and actually tracks
 // (Kafalat/Wazifa/Zakat, under the real welfare hub) rather than inventing
 // a second, unbacked "scholarship" concept next to them.
-export default function EducationPage() {
+export default async function EducationPage() {
+  const site = await getPublicSiteContext(await createClient(), await getCookieTenantId())
   return (
     <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-10 min-h-screen">
       <div className="text-center mb-12 max-w-3xl mx-auto">
@@ -29,7 +35,7 @@ export default function EducationPage() {
           <T k="x.educationCorner" />
         </h1>
         <p className="text-dp-on-surface-variant font-sans text-[18px] leading-[28px]">
-          Supporting the next generation of {SITE.name} through sponsorship, stipends, and community support.
+          Supporting the next generation of {site.name} through sponsorship, stipends, and community support.
         </p>
       </div>
 
@@ -54,7 +60,7 @@ export default function EducationPage() {
         <div className="inline-flex items-center justify-center p-2.5 bg-white rounded-full text-blue-600 mb-3">
           <MessageSquarePlus size={22} />
         </div>
-        <h3 className="font-heading text-[22px] font-bold leading-[30px] text-blue-900 mb-2">Have an idea for education in {SITE.name}?</h3>
+        <h3 className="font-heading text-[22px] font-bold leading-[30px] text-blue-900 mb-2">Have an idea for education in {site.name}?</h3>
         <p className="text-blue-700 font-sans text-[15px] mb-6 max-w-xl mx-auto">
           A tuition center, a book drive, a tutoring program — suggest it directly to the committee.
         </p>

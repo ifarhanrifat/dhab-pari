@@ -4,8 +4,13 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudFog, Wind, Droplets, Sunrise, Sunset, AlertTriangle, MapPin, LocateFixed } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+
+// Pakistan's approximate geographic center -- last-resort fallback only
+// for a tenant that hasn't set its own village coordinates yet (every new
+// signup, until it configures them in Settings).
+const PAKISTAN_CENTER = { lat: 30.3753, lng: 69.3451 }
 
 // Leaflet touches `window` at import time — same ssr:false pattern every
 // other Leaflet map in this app already uses.
@@ -49,6 +54,7 @@ const LABEL_KEY = (code: number): string => {
 
 export default function WeatherPage() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   // Real report, 2026-09-30: silently requesting geolocation the instant
   // the page loads (no click, no user gesture) is exactly the pattern
   // browsers are most likely to auto-block or never actually prompt for
@@ -56,7 +62,9 @@ export default function WeatherPage() {
   // location, allow or deny". Defaults to the village's own coordinates
   // immediately; "Use My Location" below is a real, explicit, user-
   // initiated permission request instead.
-  const [coords, setCoords] = useState<{ lat: number; lng: number; isVillage: boolean }>({ lat: SITE.lat, lng: SITE.lng, isVillage: true })
+  const [coords, setCoords] = useState<{ lat: number; lng: number; isVillage: boolean }>(
+    site.lat != null && site.lng != null ? { lat: site.lat, lng: site.lng, isVillage: true } : { ...PAKISTAN_CENTER, isVillage: false }
+  )
   const [locating, setLocating] = useState(false)
   const [weather, setWeather] = useState<WeatherData | null>(null)
   const [failed, setFailed] = useState(false)

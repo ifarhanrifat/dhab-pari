@@ -15,7 +15,7 @@ import {
   Eye,
   HandHeart,
 } from 'lucide-react'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { ProjectShareCard } from '@/components/public/ProjectShareCard'
 
@@ -87,7 +87,7 @@ const shareImage = (project: Project) =>
 // page here already respects (site_settings.display_language).
 const t: Record<string, { en: string; ur: string }> = {
   pageTitle: { en: 'Village Welfare Projects', ur: 'گاؤں کی فلاحی منصوبے' },
-  pageSubtitle: { en: `Tracking the growth of ${SITE.name} through community-funded infrastructure, healthcare, and educational initiatives.`, ur: `کمیونٹی کی مالی معاونت سے تعمیرات، صحت اور تعلیمی اقدامات کے ذریعے ${SITE.nameUrdu} کی ترقی کا سفر۔` },
+  pageSubtitle: { en: `Tracking the growth of {name} through community-funded infrastructure, healthcare, and educational initiatives.`, ur: `کمیونٹی کی مالی معاونت سے تعمیرات، صحت اور تعلیمی اقدامات کے ذریعے {nameUrdu} کی ترقی کا سفر۔` },
   privateTotalLabel: { en: 'Spent on confidential medical support', ur: 'خفیہ طبی امداد پر خرچ' },
   privateTotalNote: { en: "Individual cases are kept private — names, amounts, and details are never shown here to protect the people involved.", ur: 'انفرادی کیسز کو خفیہ رکھا جاتا ہے — متعلقہ افراد کی حفاظت کے لیے یہاں نام، رقم یا تفصیلات ظاہر نہیں کی جاتیں۔' },
   filterAll: { en: 'All', ur: 'تمام' },
@@ -98,7 +98,7 @@ const t: Record<string, { en: string; ur: string }> = {
   sortByDate: { en: 'Sort by Date', ur: 'تاریخ کے مطابق ترتیب' },
   noProjects: { en: 'No projects found for this filter.', ur: 'اس فلٹر کے لیے کوئی منصوبہ نہیں ملا۔' },
   ctaTitle: { en: 'Have an idea for the village?', ur: 'گاؤں کے لیے کوئی خیال ہے؟' },
-  ctaBody: { en: `Every great transformation starts with a simple suggestion. Share your vision for ${SITE.name}'s future infrastructure or welfare projects.`, ur: `ہر بڑی تبدیلی ایک سادہ تجویز سے شروع ہوتی ہے۔ ${SITE.nameUrdu} کے مستقبل کے تعمیراتی یا فلاحی منصوبوں کے لیے اپنا خیال پیش کریں۔` },
+  ctaBody: { en: `Every great transformation starts with a simple suggestion. Share your vision for {name}'s future infrastructure or welfare projects.`, ur: `ہر بڑی تبدیلی ایک سادہ تجویز سے شروع ہوتی ہے۔ {nameUrdu} کے مستقبل کے تعمیراتی یا فلاحی منصوبوں کے لیے اپنا خیال پیش کریں۔` },
   submitProposal: { en: 'Submit Proposal', ur: 'تجویز جمع کرائیں' },
   browseProposals: { en: 'Browse Proposals', ur: 'تجاویز دیکھیں' },
 
@@ -185,7 +185,8 @@ export function ProjectsListClient({ projects, voteCounts, commentCounts, receiv
   // category+status facet filter; within each row only one button is
   // ever active at a time, never several ANDed together as booleans.
   const [categoryFilter, setCategoryFilter] = useState('All')
-  const dt = (key: keyof typeof t) => t[key][lang]
+  const site = useSite()
+  const dt = (key: keyof typeof t) => t[key][lang].replaceAll('{name}', site.name).replaceAll('{nameUrdu}', site.nameUrdu)
   const isUrdu = lang === 'ur'
 
   // Engagement score weights votes above comments (a vote is a stronger

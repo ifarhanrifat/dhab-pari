@@ -2,8 +2,9 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
-import { SITE } from '@/lib/constants'
 import { getPaymentAccount } from '@/lib/paymentAccounts'
+import { getPublicSiteContext } from '@/lib/publicSite'
+import { getCookieTenantId } from '@/lib/tenant'
 import { HomeDonateCard } from '@/components/public/HomeDonateCard'
 import { FeeBadge } from '@/components/public/FeeBadge'
 
@@ -23,9 +24,11 @@ const CATEGORY_LABEL_KEY: Record<string, string> = {
   environment: 'pj.catEnvironment', welfare: 'pj.catWelfare', sports: 'pj.catSports', training: 'pj.catTraining', other: 'pj.catOther',
 }
 
+// Description is deliberately omitted -- it falls through to the root
+// layout's generateMetadata(), which already resolves the real tenant
+// (this used to hardcode SITE.fullName, always "Dhab Pari").
 export const metadata: Metadata = {
   title: 'Home',
-  description: `Official portal for ${SITE.fullName} — village transparency, water bills, projects, and community updates.`,
 }
 
 // Homepage stats/activity digest change more often than About/Donate, but
@@ -70,6 +73,11 @@ interface HomepageStats {
 
 export default async function HomePage() {
   const supabase = await createClient()
+  // Real gap found 2026-10-08: a water-supply-only tenant's homepage
+  // still rendered every donor/welfare section unconditionally (stats
+  // row, Welfare & Education cards, Sadqa board, Ongoing Projects) --
+  // same class of bug as the header/footer nav, fixed the same day.
+  const site = await getPublicSiteContext(supabase, await getCookieTenantId())
 
   const [projectsRes, newsRes, videosRes, donorsRes, statsRes, jobsRes, volunteersRes, achievementsRes, bloodRes,
          needsRes, kafalatRes, wazifaRes, sadqaRes, committeeNotesRes, welfareContentRes, careerCountsRes, paymentAccount] = await Promise.all([
@@ -289,8 +297,15 @@ export default async function HomePage() {
             would break that grid's even column count. */}
         <WeatherDateRow />
         <VillageServicesQuickLinks />
-        {/* Desktop: 4 cols / Mobile: 2x2 grid */}
+        {/* Desktop: 4 cols / Mobile: 2x2 grid. Real gap found 2026-10-08: a
+            water-only tenant still saw the donor-system cards (Available
+            Funds/Projects/Donations), and a donors-only tenant would see
+            the water-system Consumers card -- neither stat means anything
+            without the module behind it, same gating as everywhere else
+            touched the same day. */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+          {site.donorsEnabled && (
+          <>
           <div className="bg-white border border-dp-outline-variant p-4 lg:p-6 rounded-lg hover:bg-dp-surface-container-low transition-colors">
             <div className="flex justify-between items-start mb-2">
               <span className="p-2 bg-dp-primary-fixed text-dp-primary rounded-lg">
@@ -322,7 +337,10 @@ export default async function HomePage() {
             <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">PKR {fmtPKR(stats.donations_this_month)}</div>
             <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]"><T k="home.totalDonations" /></div>
           </div>
+          </>
+          )}
 
+          {site.waterSupplyEnabled && (
           <div className="bg-white border border-dp-outline-variant p-4 lg:p-6 rounded-lg hover:bg-dp-surface-container-low transition-colors">
             <div className="flex justify-between items-start mb-2">
               <span className="p-2 bg-dp-primary-fixed text-dp-primary rounded-lg">
@@ -335,6 +353,7 @@ export default async function HomePage() {
             <div className="text-dp-primary font-bold text-[20px] font-sans leading-[28px]">{stats.registered_households} Consumers</div>
             <div className="text-dp-on-surface-variant text-[14px] font-sans font-semibold tracking-[0.05em]"><T k="home.registeredHouseholds" /></div>
           </div>
+          )}
         </div>
       </div>
 
@@ -350,6 +369,7 @@ export default async function HomePage() {
         <div className="flex-1 space-y-8">
 
           {/* --- Projects --- */}
+          {site.donorsEnabled && (
           <section>
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title"><T k="home.ongoingProjects" /></h2>
@@ -428,12 +448,14 @@ export default async function HomePage() {
               )}
             </div>
           </section>
+          )}
 
           {/* --- Welfare: Zakat, Kafalat, Taleemi Wazifa, Esal-e-Sawab ---
               A client island, because the counters animate as they scroll
               into view and the cards lift on hover — none of which a server
               component can do. The counts are computed here and passed down,
               so the page still renders them without waiting on the browser. */}
+          {site.donorsEnabled && (
           <WelfareCards
             needs={needs}
             kafalat={kafalat}
@@ -442,16 +464,23 @@ export default async function HomePage() {
             sadqaTotal={sadqaObjects.length}
             content={welfareContent}
           />
+          )}
 
-          {/* --- Mentors & Career Support --- */}
+          {/* --- Mentors & Career Support --- same bucket as Mentor Chats/
+              Institutes/Talent Showcase on the admin sidebar (fixed the
+              same day) -- these all read the donors_projects system's own
+              tables (training_batches, institutes, talent_showcases). */}
+          {site.donorsEnabled && (
           <CareerCards
             mentorsAvailable={careerCounts.mentors_available ?? 0}
             institutes={careerCounts.institutes ?? 0}
             trainingProgramsOpen={careerCounts.training_programs_open ?? 0}
             talentShowcased={careerCounts.talent_showcased ?? 0}
           />
+          )}
 
           {/* --- Latest News --- */}
+          {site.donorsEnabled && (
           <section>
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title"><T k="home.latestNews" /></h2>
@@ -492,8 +521,10 @@ export default async function HomePage() {
               )}
             </div>
           </section>
+          )}
 
           {/* --- Featured Videos --- */}
+          {site.donorsEnabled && (
           <section>
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title"><T k="home.featuredVideos" /></h2>
@@ -528,8 +559,10 @@ export default async function HomePage() {
               )}
             </div>
           </section>
+          )}
 
           {/* --- Village Job Board --- */}
+          {site.donorsEnabled && (
           <section>
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title flex items-center gap-3"><Briefcase size={26} /> <T k="home.jobBoard" /></h2>
@@ -559,8 +592,10 @@ export default async function HomePage() {
               )}
             </div>
           </section>
+          )}
 
           {/* --- Our Achievements --- */}
+          {site.donorsEnabled && (
           <section>
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-heading text-[32px] font-bold leading-[40px] text-dp-primary section-title flex items-center gap-3"><Trophy size={26} /> <T k="home.achievements" /></h2>
@@ -586,6 +621,7 @@ export default async function HomePage() {
               )}
             </div>
           </section>
+          )}
 
         </div>
 
@@ -633,6 +669,7 @@ export default async function HomePage() {
           </div>
 
           {/* Donors Transparency */}
+          {site.donorsEnabled && (
           <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
             <div className="p-4 bg-dp-surface-container-low border-b border-dp-outline-variant flex items-center justify-between">
               <h3 className="font-bold text-dp-primary text-[14px] font-sans tracking-[0.05em]">
@@ -672,8 +709,10 @@ export default async function HomePage() {
               <T k="home.viewFullList" />
             </Link>
           </div>
+          )}
 
           {/* Volunteers */}
+          {site.donorsEnabled && (
           <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
             <div className="p-4 bg-dp-surface-container-low border-b border-dp-outline-variant flex items-center justify-between">
               <h3 className="font-bold text-dp-primary text-[14px] font-sans tracking-[0.05em] flex items-center gap-2">
@@ -704,12 +743,13 @@ export default async function HomePage() {
               <T k="home.joinVolunteer" />
             </Link>
           </div>
+          )}
 
           {/* Blood Donor Registry — numbers only.
               Publishing names and numbers is how village blood lists get
               spammed and how donors quietly de-register. Anyone who needs
               blood phones the committee; the committee does the matching. */}
-          {bloodGroups.length > 0 && (
+          {site.donorsEnabled && bloodGroups.length > 0 && (
           <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
             <div className="p-4 bg-dp-surface-container-low border-b border-dp-outline-variant flex items-center justify-between">
               <h3 className="font-bold text-dp-primary text-[14px] font-sans tracking-[0.05em] flex items-center gap-2">
@@ -745,7 +785,7 @@ export default async function HomePage() {
           )}
 
           {/* Donate Now Card */}
-          <HomeDonateCard account={paymentAccount} />
+          {site.donorsEnabled && <HomeDonateCard account={paymentAccount} />}
         </aside>
       </div>
 

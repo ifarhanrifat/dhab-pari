@@ -8,7 +8,7 @@ import { friendlyError } from '@/lib/errors'
 import { UserCog, KeyRound, Droplets, CheckCircle2, Copy, Eye, EyeOff } from 'lucide-react'
 import { ImageUpload } from '@/components/admin/ImageUpload'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { MentorshipProfileFields, type MentorshipFieldsValue } from '@/components/portal/MentorshipProfileFields'
 import { passwordMeetsPolicy } from '@/lib/passwordPolicy'
 import { PasswordChecklist } from '@/components/shared/PasswordChecklist'
@@ -22,6 +22,7 @@ function syntheticEmail(mobile: string) {
 
 export default function PortalProfilePage() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   const { user, loading: userLoading } = usePortalUser()
   const [sectors, setSectors] = useState<string[]>([])
   const [form, setForm] = useState({
@@ -432,8 +433,8 @@ export default function PortalProfilePage() {
               </div>
             </div>
             <p className="font-sans text-[12.5px] text-dp-on-surface-variant leading-relaxed">
-              {t('p.waterLinkInstructions')} <a href={SITE.whatsappLink} target="_blank" rel="noreferrer" className="font-semibold text-dp-secondary hover:underline">{SITE.whatsapp}</a>
-              {' · '}{SITE.location} ({SITE.officeHours})
+              {t('p.waterLinkInstructions')} <a href={site.whatsappLink} target="_blank" rel="noreferrer" className="font-semibold text-dp-secondary hover:underline">{site.whatsapp}</a>
+              {site.location && <>{' · '}{site.location}</>}{site.officeHours && <> ({site.officeHours})</>}
             </p>
           </div>
         )}

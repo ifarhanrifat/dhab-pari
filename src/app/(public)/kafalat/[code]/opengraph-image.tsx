@@ -1,8 +1,11 @@
 import { ImageResponse } from 'next/og'
 import { createClient } from '@/lib/supabase/server'
-import { SITE } from '@/lib/constants'
+import { getPublicSiteContext } from '@/lib/publicSite'
+import { getCookieTenantId } from '@/lib/tenant'
 
-export const alt = `Sponsor a child's education — ${SITE.name}`
+// Next's opengraph-image convention only allows `alt` as a static string
+// export (no per-request function) -- genuinely can't be made tenant-aware.
+export const alt = `Sponsor a child's education`
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -14,6 +17,7 @@ export const contentType = 'image/png'
 export default async function Image({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
   const supabase = await createClient()
+  const site = await getPublicSiteContext(supabase, await getCookieTenantId())
   const { data: children } = await supabase.rpc('kafalat_children_for_naming')
   const child = ((children ?? []) as {
     code: string; first_name: string; current_class: string | null; is_orphan: boolean
@@ -39,7 +43,7 @@ export default async function Image({ params }: { params: Promise<{ code: string
           <div style={{ position: 'absolute', inset: 0, display: 'flex', background: 'linear-gradient(to top, rgba(13,59,46,0.96), rgba(13,59,46,0.25) 55%, rgba(13,59,46,0.6))' }} />
         )}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, position: 'relative' }}>
-          <div style={{ fontSize: 30, fontWeight: 700 }}>{SITE.name}</div>
+          <div style={{ fontSize: 30, fontWeight: 700 }}>{site.name}</div>
           <div style={{ fontSize: 18, opacity: 0.7 }}>Kafalat — Education Sponsorship</div>
         </div>
         <div style={{ display: 'flex', marginTop: 'auto', flexDirection: 'column', position: 'relative' }}>

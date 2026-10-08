@@ -1,4 +1,3 @@
-import { SITE } from '@/lib/constants'
 
 // Same code-not-link pattern as the password reset email (see that
 // file's own comment) — nothing to pre-fetch, nothing ambiguous about
@@ -12,7 +11,6 @@ export function portalSignupVerificationEmail(code: string, tenantName: string) 
   <div style="text-align: center; margin-bottom: 24px;">
     <div style="display: inline-block; width: 48px; height: 48px; border-radius: 50%; background: #0d3b2e; color: white; line-height: 48px; font-weight: bold; font-size: 20px;">DP</div>
     <h1 style="font-size: 18px; margin: 12px 0 0;">${tenantName}</h1>
-    <p style="font-size: 13px; color: #666; margin: 2px 0 0;">${SITE.committee}</p>
   </div>
   <h2 style="font-size: 20px; text-align: center; margin-bottom: 8px;">Verify your email</h2>
   <p style="font-size: 14px; color: #444; text-align: center; line-height: 22px;">

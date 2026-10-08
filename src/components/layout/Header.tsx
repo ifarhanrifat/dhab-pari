@@ -4,40 +4,49 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { MessageCircle, Menu, UserCircle2 } from 'lucide-react'
-import { SITE } from '@/lib/constants'
 import { MobileNav } from './MobileNav'
 import { useMobileNav } from './MobileNavContext'
 import { createClient } from '@/lib/supabase/client'
 import { LanguageToggle } from '@/components/layout/LanguageToggle'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { useSite } from '@/components/layout/SiteProvider'
 import { OnlineUsersBadge } from './OnlineUsersBadge'
 
-const navLinks: { href: string; label: string; tKey: string }[] = [
+// Real gap found 2026-10-08: a water-supply-only tenant's own public
+// site still showed every donor/community nav item -- none of these
+// were ever tagged by module, unlike the admin sidebar (fixed earlier
+// the same day). Same classification reused verbatim: Home/Water Bill/
+// Committee are universal, everything else bundles under donors_projects.
+const navLinks: { href: string; label: string; tKey: string; system?: 'water_supply' | 'donors_projects' }[] = [
   { href: '/', label: 'Home', tKey: 'site.home' },
-  { href: '/water', label: 'Water Bill', tKey: 'site.waterBill' },
+  { href: '/water', label: 'Water Bill', tKey: 'site.waterBill', system: 'water_supply' },
   // High in the list on purpose: someone looking for this is looking for it in
   // an emergency, and will not hunt through a sidebar card to find it.
-  { href: '/blood', label: 'Blood', tKey: 'site.blood' },
-  { href: '/projects', label: 'Projects', tKey: 'site.projects' },
-  { href: '/jobs', label: 'Jobs', tKey: 'site.jobs' },
-  { href: '/marketplace', label: 'Marketplace', tKey: 'site.accounts' },
+  { href: '/blood', label: 'Blood', tKey: 'site.blood', system: 'donors_projects' },
+  { href: '/projects', label: 'Projects', tKey: 'site.projects', system: 'donors_projects' },
+  { href: '/jobs', label: 'Jobs', tKey: 'site.jobs', system: 'donors_projects' },
+  { href: '/marketplace', label: 'Marketplace', tKey: 'site.accounts', system: 'donors_projects' },
   // Real gap found 2026-10-02: the whole Agriculture section (disease
   // awareness, schemes, help centers, livestock, tractor directory) was
   // reachable only by typing the URL directly -- not in this nav, the
   // homepage, or even the footer's Quick Links.
-  { href: '/agriculture', label: 'Agriculture', tKey: 'ag.pageTitle' },
-  { href: '/donate', label: 'Donate', tKey: 'site.donate' },
-  { href: '/welfare', label: 'Welfare', tKey: 'site.welfare' },
-  { href: '/news', label: 'News', tKey: 'site.news' },
-  { href: '/videos', label: 'Videos', tKey: 'site.videos' },
-  { href: '/gallery', label: 'Gallery', tKey: 'site.gallery' },
+  { href: '/agriculture', label: 'Agriculture', tKey: 'ag.pageTitle', system: 'donors_projects' },
+  { href: '/donate', label: 'Donate', tKey: 'site.donate', system: 'donors_projects' },
+  { href: '/welfare', label: 'Welfare', tKey: 'site.welfare', system: 'donors_projects' },
+  { href: '/news', label: 'News', tKey: 'site.news', system: 'donors_projects' },
+  { href: '/videos', label: 'Videos', tKey: 'site.videos', system: 'donors_projects' },
+  { href: '/gallery', label: 'Gallery', tKey: 'site.gallery', system: 'donors_projects' },
   { href: '/about', label: 'Committee', tKey: 'site.committee' },
 ]
 
 export function Header() {
   const { t } = useLocale()
+  const site = useSite()
   const pathname = usePathname()
   const { open: mobileOpen, setOpen: setMobileOpen } = useMobileNav()
+  const visibleNavLinks = navLinks.filter((l) =>
+    l.system === 'water_supply' ? site.waterSupplyEnabled : l.system === 'donors_projects' ? site.donorsEnabled : true
+  )
   const [isPortalUser, setIsPortalUser] = useState(false)
   // Real report, 2026-09-25: a staff/admin account has no portal_users row
   // at all, so navigating here from /admin via the sidebar's new "Back to
@@ -82,7 +91,7 @@ export function Header() {
                 so it never competes with the nav for space at lg. */}
             <div className="shrink-0 relative z-10 bg-dp-primary pe-2">
               <Link href="/" className="font-heading text-[28px] font-bold leading-[34px] text-white tracking-tight">
-                {SITE.name}
+                {site.name}
               </Link>
               <p className="text-white/60 text-[12px] font-sans hidden xl:block">
                 {t('y.villageTransparency')}
@@ -99,7 +108,7 @@ export function Header() {
               text is shorter (see Right Actions below), and the gap here
               is tighter than it was. */}
           <nav className="hidden lg:flex flex-1 min-w-0 justify-start items-center gap-2 xl:gap-3.5 overflow-x-auto hide-scrollbar relative z-0 ps-3">
-            {navLinks.map((link) => {
+            {visibleNavLinks.map((link) => {
               const isActive = pathname === link.href
               return (
                 <Link
@@ -139,15 +148,17 @@ export function Header() {
                 2026-09-24, "WhatsApp/Login buttons not aligned with the
                 toggle". Explicit height on all three removes the drift
                 instead of chasing it with more line-height tuning. */}
-            <a
-              href={SITE.whatsappGroupLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden md:flex items-center gap-1 h-[32px] bg-[#25D366] text-white px-2.5 rounded-lg font-sans text-[12px] font-semibold tracking-[0.02em] hover:bg-[#1ebe5a] transition-all active:scale-95 whitespace-nowrap"
-            >
-              <MessageCircle size={14} />
-              {t('site.joinGroup')}
-            </a>
+            {site.whatsappGroupLink && (
+              <a
+                href={site.whatsappGroupLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden md:flex items-center gap-1 h-[32px] bg-[#25D366] text-white px-2.5 rounded-lg font-sans text-[12px] font-semibold tracking-[0.02em] hover:bg-[#1ebe5a] transition-all active:scale-95 whitespace-nowrap"
+              >
+                <MessageCircle size={14} />
+                {t('site.joinGroup')}
+              </a>
+            )}
             {/* Sits where the old dead "EN/UR" placeholder was, so the
                 control is where people were already looking for it — that one
                 had no handler and never switched anything. Hidden on the
@@ -195,7 +206,7 @@ export function Header() {
       <MobileNav
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
-        navLinks={navLinks}
+        navLinks={visibleNavLinks}
         isPortalUser={isPortalUser}
         isStaffUser={isStaffUser}
       />

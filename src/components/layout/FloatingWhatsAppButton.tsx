@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import { MessageCircle } from 'lucide-react'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 
 // Click-to-chat: opens the visitor's own WhatsApp with our number
 // pre-filled — no third-party service, no backend, same wa.me pattern used
@@ -10,11 +10,15 @@ import { SITE } from '@/lib/constants'
 // on /admin since staff already work from inside the dashboard.
 export function FloatingWhatsAppButton() {
   const pathname = usePathname()
+  const site = useSite()
   if (pathname?.startsWith('/admin')) return null
+  // A tenant that hasn't set a WhatsApp number yet gets no floating button
+  // at all, rather than a dead link to nowhere.
+  if (!site.whatsappLink) return null
 
   return (
     <a
-      href={SITE.whatsappLink}
+      href={site.whatsappLink}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Chat with us on WhatsApp"

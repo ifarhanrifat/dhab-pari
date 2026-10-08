@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Send, MessageCircle, Megaphone, AlertTriangle, X, Radio, Inbox, Timer, Save, CheckCircle2, Trash2, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
@@ -87,6 +87,7 @@ const KIND_KEYS: [string, string][] = [
 
 export default function AdminNotificationsPage() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
@@ -484,12 +485,12 @@ export default function AdminNotificationsPage() {
         <div className="mb-4">
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('al.appealUr')}</label>
           <textarea value={aBodyUr} onChange={(e) => setABodyUr(e.target.value)} rows={3} dir="rtl"
-            placeholder={`${SITE.nameUrdu} کے ایک خاندان کو فوری طبی امداد درکار ہے...`} className="input-field resize-none" />
+            placeholder={`${site.nameUrdu} کے ایک خاندان کو فوری طبی امداد درکار ہے...`} className="input-field resize-none" />
         </div>
         <div className="mb-4">
           <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('al.appealEn')}</label>
           <textarea value={aBodyEn} onChange={(e) => setABodyEn(e.target.value)} rows={2}
-            placeholder={`A family in ${SITE.name} needs urgent medical help...`} className="input-field resize-none" />
+            placeholder={`A family in ${site.name} needs urgent medical help...`} className="input-field resize-none" />
           <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('al.bothShownNote')}</p>
         </div>
 

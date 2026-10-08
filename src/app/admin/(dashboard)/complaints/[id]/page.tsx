@@ -13,7 +13,7 @@ import { friendlyError } from '@/lib/errors'
 import { FileAttachment } from '@/components/admin/FileAttachment'
 import { VoiceRecorder } from '@/components/admin/VoiceRecorder'
 import { normalizePakPhone } from '@/lib/receiptExport'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Complaint {
@@ -51,6 +51,7 @@ function deadlineText(deadline: string, status: string) {
 
 export default function ComplaintDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   const { id } = usePromise(params)
   const supabase = createClient()
 
@@ -237,7 +238,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
     if (!complaint?.phone) return
     const intl = normalizePakPhone(complaint.phone)
     if (!intl) { toast.error('No usable phone number on this complaint'); return }
-    const msg = encodeURIComponent(`${SITE.name} — your complaint ${complaint.complaint_number} has been resolved. Thank you for your patience.`)
+    const msg = encodeURIComponent(`${site.name} — your complaint ${complaint.complaint_number} has been resolved. Thank you for your patience.`)
     window.open(`https://wa.me/${intl}?text=${msg}`, '_blank')
   }
 

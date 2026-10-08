@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { Droplet, CheckCircle, Phone, MessageCircle, ShieldCheck, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
@@ -89,6 +89,7 @@ interface GroupCount { blood_group: string; registered: number; available_now: n
 
 export default function PublicBloodPage() {
   const { t: tr } = useLocale()
+  const site = useSite()
   const [lang, setLang] = useState<Lang>('en')
   const [counts, setCounts] = useState<GroupCount[]>([])
   const [form, setForm] = useState({
@@ -103,7 +104,7 @@ export default function PublicBloodPage() {
   const supabase = createClient()
   const dt = (key: keyof typeof t) => t[key][lang]
   const isUrdu = lang === 'ur'
-  const waNumber = SITE.whatsapp.replace(/[^0-9]/g, '').replace(/^0/, '92')
+  const waNumber = site.whatsapp.replace(/[^0-9]/g, '').replace(/^0/, '92')
 
   useEffect(() => {
     supabase.from('site_settings').select('value').eq('key', 'display_language').maybeSingle().then(({ data }) => {
@@ -169,7 +170,7 @@ export default function PublicBloodPage() {
           <MessageCircle size={17} /> {dt('whatsappNow')}
         </a>
       </div>
-      <p dir="ltr" className="text-center font-mono text-[19px] font-bold text-dp-error mt-3">{SITE.whatsapp}</p>
+      <p dir="ltr" className="text-center font-mono text-[19px] font-bold text-dp-error mt-3">{site.whatsapp}</p>
     </div>
   )
 

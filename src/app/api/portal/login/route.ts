@@ -2,7 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { SITE } from '@/lib/constants'
+import { getPublicSiteContext } from '@/lib/publicSite'
+import { getCookieTenantId } from '@/lib/tenant'
 
 // Mirrors src/app/api/admin/login/route.ts's rate-limit shape exactly, but
 // for portal_users — entirely separate in-memory limiter/table, no shared
@@ -94,6 +95,7 @@ export async function POST(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { cookies: { getAll: () => cookieStore.getAll(), setAll: (list) => list.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) } }
   )
+  const site = await getPublicSiteContext(supabase, await getCookieTenantId())
 
   const { error } = await supabase.auth.signInWithPassword({ email: syntheticEmail(portalUser.mobile), password })
 
@@ -106,7 +108,7 @@ export async function POST(req: NextRequest) {
     if (error.code === 'user_banned') {
       recordFailure(ip)
       return NextResponse.json(
-        { error: `Your account has been blocked. If you think this is a mistake, message us on WhatsApp: ${SITE.whatsapp}.` },
+        { error: `Your account has been blocked. If you think this is a mistake, message us on WhatsApp: ${site.whatsapp}.` },
         { status: 403 }
       )
     }
@@ -125,7 +127,7 @@ export async function POST(req: NextRequest) {
     await supabase.auth.signOut()
     recordFailure(ip)
     return NextResponse.json(
-      { error: `Your account has been blocked. If you think this is a mistake, message us on WhatsApp: ${SITE.whatsapp}.` },
+      { error: `Your account has been blocked. If you think this is a mistake, message us on WhatsApp: ${site.whatsapp}.` },
       { status: 403 }
     )
   }

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { cache } from "react";
 import { Source_Sans_3, Playfair_Display, Noto_Nastaliq_Urdu, Noto_Naskh_Arabic, Noto_Sans_Arabic } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
@@ -6,8 +7,23 @@ import { FloatingWhatsAppButton } from "@/components/layout/FloatingWhatsAppButt
 import { PwaProvider } from "@/components/layout/PwaProvider";
 import { AppUpdateRequiredModal } from "@/components/layout/AppUpdateRequiredModal";
 import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
+import { SiteProvider } from "@/components/layout/SiteProvider";
+import { getPublicSiteContext } from "@/lib/publicSite";
+import { getCookieTenantId } from "@/lib/tenant";
+import { createClient } from "@/lib/supabase/server";
 import { SITE } from "@/lib/constants";
 import "./globals.css";
+
+// Memoized per request (React's cache(), the standard App Router pattern
+// for sharing one async result between generateMetadata() and the page
+// body) — both need the same tenant's identity, and this is the one
+// place it's resolved, so it's only ever fetched once per request
+// regardless of how many call sites ask for it.
+const resolveSite = cache(async () => {
+  const supabase = await createClient();
+  const tenantId = await getCookieTenantId();
+  return getPublicSiteContext(supabase, tenantId);
+});
 
 const sourceSans = Source_Sans_3({
   variable: "--font-source-sans",
@@ -57,37 +73,46 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: SITE.fullName,
-    template: `%s | ${SITE.name}`,
-  },
-  description: `Official portal for the ${SITE.committee} of ${SITE.name} village, Dist. ${SITE.district}, ${SITE.province}, Pakistan.`,
-  metadataBase: new URL(`https://${SITE.domain}`),
-  openGraph: {
-    siteName: SITE.fullName,
-    locale: "en_US",
-    type: "website",
-  },
-  // iOS ignores the web manifest's icons and display mode — these are the
-  // only things that make an installed home-screen app look right on iPhone.
-  appleWebApp: {
-    capable: true,
-    title: SITE.name,
-    statusBarStyle: "black-translucent",
-  },
-  icons: {
-    icon: [{ url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" }],
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
-  },
-  other: {
-    // Next emits the modern `mobile-web-app-capable`, which only iOS 15.4+
-    // honours. Plenty of phones in the village will be older than that, and
-    // without this legacy tag those launch in a Safari window with the address
-    // bar instead of full-screen. Harmless duplication on new devices.
-    "apple-mobile-web-app-capable": "yes",
-  },
-};
+// SITE.domain stays a deployment-wide constant deliberately — every
+// tenant is reached through the same dhabpari.com domain (subdomain-
+// resolved), so metadataBase never varies per tenant the way the title/
+// description text does.
+export async function generateMetadata(): Promise<Metadata> {
+  const site = await resolveSite();
+  return {
+    title: {
+      default: site.fullName,
+      template: `%s | ${site.name}`,
+    },
+    description: site.location
+      ? `Official portal for ${site.fullName}, ${site.location}.`
+      : `Official portal for ${site.fullName}.`,
+    metadataBase: new URL(`https://${SITE.domain}`),
+    openGraph: {
+      siteName: site.fullName,
+      locale: "en_US",
+      type: "website",
+    },
+    // iOS ignores the web manifest's icons and display mode — these are the
+    // only things that make an installed home-screen app look right on iPhone.
+    appleWebApp: {
+      capable: true,
+      title: site.name,
+      statusBarStyle: "black-translucent",
+    },
+    icons: {
+      icon: [{ url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" }],
+      apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    },
+    other: {
+      // Next emits the modern `mobile-web-app-capable`, which only iOS 15.4+
+      // honours. Plenty of phones in the village will be older than that, and
+      // without this legacy tag those launch in a Safari window with the address
+      // bar instead of full-screen. Harmless duplication on new devices.
+      "apple-mobile-web-app-capable": "yes",
+    },
+  };
+}
 
 // Colours the Android status bar / iOS notch area to match the site header
 // so the installed app doesn't show a white strip above the green header.
@@ -110,11 +135,12 @@ export const viewport: Viewport = {
   userScalable: true,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const site = await resolveSite();
   return (
     <html
       lang="en"
@@ -130,11 +156,13 @@ export default function RootLayout({
             member who reads Urdu gets Urdu wherever they are, not only on the
             public pages. The provider also sets lang/dir on <html>, which is
             what makes the logical CSS properties mirror the whole layout. */}
+        <SiteProvider site={site}>
         <LocaleProvider>
         {children}
-        </LocaleProvider>
         <PwaProvider />
         <FloatingWhatsAppButton />
+        </LocaleProvider>
+        </SiteProvider>
         <AppUpdateRequiredModal />
         <Toaster
           position="top-center"

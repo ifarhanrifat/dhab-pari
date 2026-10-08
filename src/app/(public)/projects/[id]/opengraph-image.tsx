@@ -1,10 +1,13 @@
 import { ImageResponse } from 'next/og'
 import { createClient } from '@/lib/supabase/server'
-import { SITE } from '@/lib/constants'
+import { getPublicSiteContext } from '@/lib/publicSite'
+import { getCookieTenantId } from '@/lib/tenant'
 import { T } from '@/components/i18n/T'
 import { shapeUrduLines } from '@/lib/ogArabicShape'
 
-export const alt = `${SITE.name} Project`
+// Next's opengraph-image convention only allows `alt` as a static string
+// export (no per-request function) -- genuinely can't be made tenant-aware.
+export const alt = `Village Project`
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -22,6 +25,7 @@ const STATUS_LABEL: Record<string, string> = {
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
+  const site = await getPublicSiteContext(supabase, await getCookieTenantId())
   const { data: project } = await supabase.from('projects')
     .select('title, display_name, category, budget_pkr, status, proposal_image_url, after_image_url, before_image_url').eq('id', id).maybeSingle()
 
@@ -61,8 +65,8 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           <div style={{ position: 'absolute', inset: 0, display: 'flex', background: 'linear-gradient(to top, rgba(13,59,46,0.95), rgba(13,59,46,0.15) 55%, rgba(13,59,46,0.55))' }} />
         )}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, position: 'relative' }}>
-          <div style={{ fontSize: 30, fontWeight: 700 }}>{SITE.name}</div>
-          <div style={{ fontSize: 18, opacity: 0.7 }}>{SITE.committee}</div>
+          <div style={{ fontSize: 30, fontWeight: 700 }}>{site.name}</div>
+          <div style={{ fontSize: 18, opacity: 0.7 }}>{site.shortCommittee}</div>
         </div>
         <div style={{ display: 'flex', marginTop: 'auto', flexDirection: 'column', position: 'relative' }}>
           <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>

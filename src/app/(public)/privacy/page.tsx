@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { ShieldCheck } from 'lucide-react'
@@ -108,11 +108,12 @@ const sections: { en: { h: string; p: string[] }; ur: { h: string; p: string[] }
 
 export default function PrivacyPage() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   // Real report, 2026-09-29: this hardcoded SITE.email (an env-var fallback,
   // 'info@dhabpari.org') instead of the admin-editable contact_email setting
   // (migration 525) the committee actually manages -- the same mistake the
   // public /water page had before it was fixed to read that setting.
-  const [contactEmail, setContactEmail] = useState(SITE.email)
+  const [contactEmail, setContactEmail] = useState(site.email)
   useEffect(() => {
     createClient().from('site_settings').select('value').eq('key', 'contact_email').maybeSingle()
       .then(({ data }) => { if (data?.value) setContactEmail(data.value) })
@@ -145,8 +146,8 @@ export default function PrivacyPage() {
           </h2>
           <p className="font-sans text-[14.5px] leading-relaxed text-dp-on-surface-variant">
             {isUrdu
-              ? `اگر آپ کے اس پالیسی یا آپ کی معلومات کے بارے میں کوئی سوال ہو تو ہمیں ${SITE.whatsapp} پر واٹس ایپ کریں یا ${contactEmail} پر ای میل کریں، یا `
-              : `If you have questions about this policy or your own information, WhatsApp us at ${SITE.whatsapp} or email ${contactEmail}, or `}
+              ? `اگر آپ کے اس پالیسی یا آپ کی معلومات کے بارے میں کوئی سوال ہو تو ہمیں ${site.whatsapp} پر واٹس ایپ کریں یا ${contactEmail} پر ای میل کریں، یا `
+              : `If you have questions about this policy or your own information, WhatsApp us at ${site.whatsapp} or email ${contactEmail}, or `}
             <Link href="/complaints" className="text-dp-secondary font-semibold hover:underline">
               {isUrdu ? 'شکایت درج کروائیں' : 'file a complaint'}
             </Link>

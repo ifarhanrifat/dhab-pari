@@ -2,13 +2,17 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowLeft, Heart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { SITE } from '@/lib/constants'
+import { getPublicSiteContext } from '@/lib/publicSite'
+import { getCookieTenantId } from '@/lib/tenant'
 import { T } from '@/components/i18n/T'
 import { AllDonorsTable } from '@/components/public/AllDonorsTable'
 
-export const metadata: Metadata = {
-  title: 'All Donors',
-  description: `The complete, transparent record of every verified contribution to ${SITE.name}.`,
+export async function generateMetadata(): Promise<Metadata> {
+  const site = await getPublicSiteContext(await createClient(), await getCookieTenantId())
+  return {
+    title: 'All Donors',
+    description: `The complete, transparent record of every verified contribution to ${site.name}.`,
+  }
 }
 
 export const revalidate = 300

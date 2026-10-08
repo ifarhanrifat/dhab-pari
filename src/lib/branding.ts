@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import type { InvoiceTemplate } from '@/components/admin/ReceiptDocument'
 import type { SlipLang } from '@/lib/docTranslations'
-import { SITE } from '@/lib/constants'
 
 // A plain <img src> (no `crossorigin` attribute) and html2canvas-pro's own
 // `useCORS: true` fetch (which sets `crossOrigin = 'anonymous'`) are cached
@@ -169,9 +168,9 @@ export async function fetchBrandingSettings(system?: 'water_supply' | 'donors_pr
   ])
 
   return {
-    companyNameEn: v.company_name_en || SITE.name,
-    companyNameUr: v.company_name_ur || 'واٹر اینڈ ویلفئیر کمیٹی',
-    companyEmail: v.company_email || 'dhabpariwelfare@gmail.com',
+    companyNameEn: v.company_name_en || '',
+    companyNameUr: v.company_name_ur || '',
+    companyEmail: v.company_email || '',
     logoUrl,
     logoWidth: v.invoice_logo_width ? +v.invoice_logo_width : 56,
     logoOffsetY: v.invoice_logo_offset_y ? +v.invoice_logo_offset_y : 0,

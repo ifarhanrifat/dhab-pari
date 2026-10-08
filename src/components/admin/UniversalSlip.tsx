@@ -5,7 +5,7 @@ import { dtBoth, type DocStringKey, type SlipLang } from '@/lib/docTranslations'
 import { fmt, fmtDate, isRtlText, Ltr, PhoneLink, prettyUrl, splitNumbers, waHref } from './slipShared'
 import { SlipIcon, type SlipIconName } from './SlipIcons'
 import type { ReceiptData } from './ReceiptDocument'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 
 export type SlipFormat = 'a4' | 'thermal'
 
@@ -202,6 +202,7 @@ const INK = '#1a1d21'
 const RULE = '#d8dce1'
 
 export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function UniversalSlip({ data, format = 'a4' }, ref) {
+  const site = useSite()
   const thermal = format === 'thermal'
   const mode: SlipLang = data.slipDisplayMode ?? 'both'
 
@@ -437,7 +438,7 @@ export const UniversalSlip = forwardRef<HTMLDivElement, Props>(function Universa
             reserves for it, so the English name is nudged clear of the tail
             rather than sitting under it. */}
         <div style={{ fontSize: b(1.05), fontWeight: 600, letterSpacing: '0.02em', color: INK, lineHeight: 1.35, marginTop: mode !== 'en' && data.companyNameUr ? 3 : 0 }}>
-          {data.companyNameEn || SITE.name}
+          {data.companyNameEn || site.name}
         </div>
         {data.systemLabel && (
           // Tracking buys nothing on a 48mm strip except lost characters.

@@ -1,11 +1,15 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
-import { SITE } from '@/lib/constants'
+import { getPublicSiteContext } from '@/lib/publicSite'
+import { getCookieTenantId } from '@/lib/tenant'
 import { getPaymentAccount } from '@/lib/paymentAccounts'
 
-export const metadata: Metadata = {
-  title: 'Donate',
-  description: `Support ${SITE.name} village growth — donate via bank transfer.`,
+export async function generateMetadata(): Promise<Metadata> {
+  const site = await getPublicSiteContext(await createClient(), await getCookieTenantId())
+  return {
+    title: 'Donate',
+    description: `Support ${site.name} village growth — donate via bank transfer.`,
+  }
 }
 
 // No per-visitor content — payment method details/instructions change rarely.
@@ -23,6 +27,7 @@ import { TotalRaisedBadge, ViewAllDonorsLink } from '@/components/public/DonorsH
 
 export default async function DonatePage() {
   const supabase = await createClient()
+  const site = await getPublicSiteContext(supabase, await getCookieTenantId())
 
   // donors_public (migration 116) — not the raw `donors` table, which is
   // staff-only now that it carries WhatsApp numbers, father's names, and
@@ -159,15 +164,17 @@ export default async function DonatePage() {
           </div>
           <div className="mt-10 flex flex-wrap gap-4">
             <DonateCTAButton className="inline-flex items-center gap-2 bg-dp-primary text-white px-8 py-3 rounded-lg font-bold font-sans hover:bg-dp-primary-container transition-all" />
-            <a
-              href={SITE.whatsappLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 border border-dp-outline-variant text-dp-primary px-8 py-3 rounded-lg font-bold font-sans hover:bg-dp-surface-container transition-all"
-            >
-              <MessageCircle size={18} />
-              <T k="x.contactWhatsapp" />
-            </a>
+            {site.whatsappLink && (
+              <a
+                href={site.whatsappLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 border border-dp-outline-variant text-dp-primary px-8 py-3 rounded-lg font-bold font-sans hover:bg-dp-surface-container transition-all"
+              >
+                <MessageCircle size={18} />
+                <T k="x.contactWhatsapp" />
+              </a>
+            )}
           </div>
         </div>
         <div className="relative aspect-square overflow-hidden rounded-lg bg-gradient-to-br from-dp-primary-container to-dp-tertiary-container flex items-center justify-center">

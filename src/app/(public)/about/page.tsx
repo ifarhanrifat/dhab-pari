@@ -1,11 +1,15 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
-import { SITE } from '@/lib/constants'
+import { getPublicSiteContext } from '@/lib/publicSite'
+import { getCookieTenantId } from '@/lib/tenant'
 
-export const metadata: Metadata = {
-  title: 'About & Committee',
-  description: `Meet the ${SITE.fullName} — village history, vision, mission, and team members.`,
+export async function generateMetadata(): Promise<Metadata> {
+  const site = await getPublicSiteContext(await createClient(), await getCookieTenantId())
+  return {
+    title: 'About & Committee',
+    description: `Meet the ${site.fullName} — village history, vision, mission, and team members.`,
+  }
 }
 
 // Nothing on this page is per-visitor — committee roster, vision/mission,
@@ -28,6 +32,7 @@ const initialsColors = [
 
 export default async function AboutPage() {
   const supabase = await createClient()
+  const site = await getPublicSiteContext(supabase, await getCookieTenantId())
 
   const { data: members } = await supabase
     .from('committee_members')
@@ -82,11 +87,11 @@ export default async function AboutPage() {
   // setting, splitting the page across two languages at once.
   const historyMsgs = messages[isUrdu ? 'ur' : 'en']
   const villageHistoryP1 = historyMsgs['x.villageHistoryP1']
-    .replaceAll('{name}', isUrdu ? SITE.nameUrdu : SITE.name)
-    .replaceAll('{district}', SITE.district)
-    .replaceAll('{province}', SITE.province)
-  const villageHistoryP2 = historyMsgs['x.villageHistoryP2'].replaceAll('{established}', SITE.established)
-  const aboutHeading = historyMsgs['x.aboutHeading'].replaceAll('{name}', isUrdu ? SITE.nameUrdu : SITE.name)
+    .replaceAll('{name}', isUrdu ? site.nameUrdu : site.name)
+    .replaceAll('{district}', site.district)
+    .replaceAll('{province}', site.province)
+  const villageHistoryP2 = historyMsgs['x.villageHistoryP2'].replaceAll('{established}', site.established)
+  const aboutHeading = historyMsgs['x.aboutHeading'].replaceAll('{name}', isUrdu ? site.nameUrdu : site.name)
 
   // Migration 508 added the _ur counterparts these three never had. Falls
   // back to the English value (never to a hardcoded literal — an admin who
@@ -98,8 +103,8 @@ export default async function AboutPage() {
   // in this page's RTL paragraph context bidi-reorders its own trailing
   // punctuation (a report with a screenshot: a stray "." rendered BEFORE
   // the sentence instead of after it).
-  const aboutTextEn = settingsMap.about_text || 'Dedicated to the prosperity and welfare of Dhab Pari village through transparent management, modern water systems, and communal support.'
-  const visionEn = settingsMap.vision || 'A self-sustaining village with clean water, quality education, and modern infrastructure for every household.'
+  const aboutTextEn = settingsMap.about_text || `Dedicated to the prosperity and welfare of ${site.name} village through transparent management and community support.`
+  const visionEn = settingsMap.vision || `A self-sustaining village with modern infrastructure for every household.`
   const missionEn = settingsMap.mission || 'To provide transparent governance, efficient water management, and community-driven development through collective effort.'
   const aboutText = isUrdu ? (settingsMap.about_text_ur || aboutTextEn) : aboutTextEn
   const vision = isUrdu ? (settingsMap.vision_ur || visionEn) : visionEn
@@ -115,12 +120,14 @@ export default async function AboutPage() {
         <h1 className="font-heading text-[32px] md:text-[40px] font-bold leading-[40px] md:leading-[48px] text-dp-primary mb-4">
           {aboutHeading}
         </h1>
-        <p
-          className="text-dp-on-surface-variant text-[20px] mb-2"
-          style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6' }}
-        >
-          {SITE.committeeUrdu}
-        </p>
+        {site.committeeUrdu && (
+          <p
+            className="text-dp-on-surface-variant text-[20px] mb-2"
+            style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6' }}
+          >
+            {site.committeeUrdu}
+          </p>
+        )}
       </div>
 
       {/* Village History */}

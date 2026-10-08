@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { usePortalUser } from '@/hooks/usePortalUser'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 import { MarketplaceBottomNav } from '@/components/portal/MarketplaceBottomNav'
 import { ReportProblemButton } from '@/components/shared/ReportProblemButton'
@@ -39,6 +39,7 @@ function fmt(n: number) {
 
 export default function TripsPage() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   const { user, loading: userLoading } = usePortalUser()
   const supabase = createClient()
 
@@ -68,7 +69,7 @@ export default function TripsPage() {
     // these offers (unlike vehicle_routes' pinned origin/destination) —
     // this is a same-name text match, not a radius; a nearby town whose
     // name doesn't literally mention the village slips through.
-    const startsHere = (s: string | null) => !!s && (s.includes(SITE.name) || s.includes(SITE.nameUrdu))
+    const startsHere = (s: string | null) => !!s && (s.includes(site.name) || s.includes(site.nameUrdu))
     setOffers(((o ?? []) as unknown as TripOffer[]).filter((x) =>
       new Date(x.travel_date) >= new Date(new Date().toDateString()) && !startsHere(x.origin) && !startsHere(x.origin_ur)))
     setMyOffers((mo ?? []) as unknown as MyFareOffer[])

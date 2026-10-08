@@ -16,7 +16,7 @@ import Link from 'next/link'
 import { X, Megaphone, FolderKanban, Link2 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { ShareButtons } from '@/components/public/ShareButtons'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 
 export interface CommitteeNote {
   id: string
@@ -41,6 +41,7 @@ function fmtDate(d: string) {
 
 export function CommitteeNoteCard({ latest, archive }: { latest: CommitteeNote | null; archive: CommitteeNote[] }) {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   const [open, setOpen] = useState(false)
 
   // Nothing posted yet — no empty card on the homepage.
@@ -72,7 +73,7 @@ export function CommitteeNoteCard({ latest, archive }: { latest: CommitteeNote |
           </Link>
         )}
         <div className="ms-auto">
-          <ShareButtons url={absoluteUrl} text={`${label} — ${SITE.fullName}`} compact />
+          <ShareButtons url={absoluteUrl} text={`${label} — ${site.fullName}`} compact />
         </div>
       </div>
     )

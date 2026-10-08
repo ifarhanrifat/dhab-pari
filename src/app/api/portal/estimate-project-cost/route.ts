@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { GoogleGenAI } from '@google/genai'
-import { SITE } from '@/lib/constants'
+import { getPublicSiteContext } from '@/lib/publicSite'
+import { getCookieTenantId } from '@/lib/tenant'
 
 // Rough, non-binding cost estimate for a village project proposal — reuses
 // the same Gemini setup already configured for agenda photo extraction
@@ -14,7 +15,7 @@ import { SITE } from '@/lib/constants'
 // with a machine-parseable "FINAL_ESTIMATE: <number>" line once it has
 // enough information, which the client watches for to know when to stop
 // the back-and-forth and show a number.
-const SYSTEM_PROMPT = (stage: 'modern' | 'cheapest') => `You are estimating a rough construction/welfare project cost in Pakistani Rupees (PKR) for a small village committee (${SITE.name}) in Pakistan.
+const SYSTEM_PROMPT = (stage: 'modern' | 'cheapest', villageName: string) => `You are estimating a rough construction/welfare project cost in Pakistani Rupees (PKR) for a small village committee (${villageName}) in Pakistan.
 
 Stage: ${stage === 'modern' ? 'Estimate using modern, good-quality equipment and materials (not the cheapest, not luxury — solid, standard modern quality).' : 'Estimate using the CHEAPEST realistic way to accomplish the same project — cheaper materials/labor/approach, while still being safe and functional.'}
 
@@ -64,11 +65,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const site = await getPublicSiteContext(supabase, await getCookieTenantId())
     const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
     const result = await genAI.models.generateContent({
       model: 'gemini-flash-latest',
       contents,
-      config: { systemInstruction: SYSTEM_PROMPT(stage) },
+      config: { systemInstruction: SYSTEM_PROMPT(stage, site.name) },
     })
     const text = result.text ?? result.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
     if (!text) throw new Error('No text in model response')

@@ -267,7 +267,7 @@ export default function AdminLoginPage() {
 
       {/* Footer */}
       <div className="text-center py-4 text-dp-on-surface-variant text-[12px] font-sans">
-        © {new Date().getFullYear()} {tenantName} {SITE.committee} — All access is logged
+        © {new Date().getFullYear()} {tenantName} — All access is logged
       </div>
     </div>
   )

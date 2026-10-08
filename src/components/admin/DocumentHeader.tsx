@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { fetchBrandingSettings, type BrandingSettings } from '@/lib/branding'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 
 interface Props { title: string; subtitle?: string; className?: string; lang?: 'en' | 'ur' }
 
@@ -23,13 +23,14 @@ interface Props { title: string; subtitle?: string; className?: string; lang?: '
 // admin viewing a report in English still got an Urdu company-name line stuck
 // at the top because this only ever read the unrelated site-wide setting.
 export function DocumentHeader({ title, subtitle, className = '', lang }: Props) {
+  const site = useSite()
   const [branding, setBranding] = useState<Pick<BrandingSettings, 'companyNameEn' | 'companyNameUr' | 'language' | 'logoUrl' | 'logoWidth' | 'logoOffsetY'> | null>(null)
 
   useEffect(() => {
     fetchBrandingSettings().then(setBranding)
   }, [])
 
-  const companyNameEn = branding?.companyNameEn ?? SITE.name
+  const companyNameEn = branding?.companyNameEn ?? site.name
   const companyNameUr = branding?.companyNameUr ?? 'واٹر اینڈ ویلفئیر کمیٹی'
   const showUrdu = lang ? lang === 'ur' : branding?.language === 'ur'
 

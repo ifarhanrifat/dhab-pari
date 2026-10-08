@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/resend'
 import { adminInviteCodeEmail } from '@/lib/email/adminInviteCodeEmail'
-import { getTenantName } from '@/lib/tenant'
+import { getTenantName, getTenantSlug } from '@/lib/tenant'
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Super Admin', admin: 'Admin', accountant: 'Accountant',
@@ -98,11 +98,14 @@ export async function POST(req: NextRequest) {
   const roleLabel = ROLE_LABELS[target.role] ?? target.role
 
   try {
-    const tenantName = await getTenantName(admin, target.tenant_id)
+    const [tenantName, tenantSlug] = await Promise.all([
+      getTenantName(admin, target.tenant_id),
+      getTenantSlug(admin, target.tenant_id),
+    ])
     await sendEmail({
       to: target.email,
       subject: `Your ${tenantName} admin invite code`,
-      html: adminInviteCodeEmail(code, target.full_name, roleLabel, tenantName),
+      html: adminInviteCodeEmail(code, target.full_name, roleLabel, tenantName, tenantSlug),
     })
   } catch (err) {
     console.error('resend-invite: email send failed', err)

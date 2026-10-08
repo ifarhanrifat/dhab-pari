@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { Share2, X, Copy, MessageCircle, Vote } from 'lucide-react'
 import { toast } from 'sonner'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 
 // Real ask, 2026-09-25: the plain wa.me-only share on project cards (and the
 // project detail page's own copy of the same logic) looked nothing like the
@@ -34,6 +34,7 @@ export function ProjectShareCard({
   className?: string
 }) {
   const [open, setOpen] = useState(false)
+  const site = useSite()
   const url = typeof window !== 'undefined' ? `${window.location.origin}/projects/${projectId}` : ''
 
   // Professional, committee-appropriate wording — an appeal for support, not
@@ -41,8 +42,8 @@ export function ProjectShareCard({
   // message preview.
   const votingTextUr = `براہِ کرم "${title}" کے حق میں ووٹ دے کر ہماری کمیونٹی کے اس منصوبے کی منظوری میں تعاون فرمائیں۔`
   const votingTextEn = `Please support the approval of "${title}" by casting your vote — every vote helps this community project move forward.`
-  const generalTextUr = `"${title}" ملاحظہ کریں — ${SITE.fullNameUrdu}`
-  const generalTextEn = `Check out "${title}" — ${SITE.fullName}`
+  const generalTextUr = `"${title}" ملاحظہ کریں — ${site.fullNameUrdu}`
+  const generalTextEn = `Check out "${title}" — ${site.fullName}`
 
   const shareText = isVotingOpen ? (isUrdu ? votingTextUr : votingTextEn) : (isUrdu ? generalTextUr : generalTextEn)
   const fullMessage = `${shareText}\n${url}`
@@ -92,7 +93,7 @@ export function ProjectShareCard({
               </button>
               <div className="absolute bottom-0 inset-x-0 p-4">
                 <p className="text-white font-heading text-[17px] font-bold leading-snug line-clamp-2">{title}</p>
-                <p className="text-white/70 font-sans text-[11.5px] mt-0.5">{isUrdu ? SITE.fullNameUrdu : SITE.fullName}</p>
+                <p className="text-white/70 font-sans text-[11.5px] mt-0.5">{isUrdu ? site.fullNameUrdu : site.fullName}</p>
               </div>
             </div>
 

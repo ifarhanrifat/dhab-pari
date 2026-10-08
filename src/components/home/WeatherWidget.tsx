@@ -4,14 +4,16 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudFog, Wind } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 
 // Phase 1 of the "Village OS" feature set, 2026-09-30. Open-Meteo — free,
 // no API key, no account, CORS-enabled for direct browser calls — for a
 // village homepage this doesn't need anything heavier. Fixed village
-// coordinates (SITE.lat/lng), not the visitor's own location: anyone
+// coordinates (site.lat/lng), not the visitor's own location: anyone
 // loading the public homepage should see this village's weather with no
-// permission prompt.
+// permission prompt. A tenant that hasn't set coordinates yet (every new
+// signup, until it configures them) sees no widget at all rather than
+// dhab-pari's own Chakwal weather.
 interface WeatherNow { temp: number; code: number; windKph: number; maxToday: number; minToday: number; rainChance: number }
 
 function iconFor(code: number, size: number) {
@@ -38,11 +40,13 @@ const LABEL_KEY: (code: number) => string = (code) => {
 
 export function WeatherWidget() {
   const { t } = useLocale()
+  const site = useSite()
   const [weather, setWeather] = useState<WeatherNow | null>(null)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${SITE.lat}&longitude=${SITE.lng}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=1`
+    if (site.lat == null || site.lng == null) return
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${site.lat}&longitude=${site.lng}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=1`
     fetch(url).then((r) => r.json()).then((data) => {
       setWeather({
         temp: Math.round(data.current.temperature_2m),
@@ -53,9 +57,9 @@ export function WeatherWidget() {
         rainChance: data.daily.precipitation_probability_max[0] ?? 0,
       })
     }).catch(() => setFailed(true))
-  }, [])
+  }, [site.lat, site.lng])
 
-  if (failed || !weather) return null
+  if (site.lat == null || site.lng == null || failed || !weather) return null
 
   return (
     <Link href="/weather" className="bg-white border border-dp-outline-variant rounded-lg p-3 sm:p-4 flex items-center gap-2.5 sm:gap-3 hover:border-dp-secondary transition-all">

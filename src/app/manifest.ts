@@ -1,13 +1,19 @@
 import type { MetadataRoute } from 'next'
-import { SITE } from '@/lib/constants'
+import { createClient } from '@/lib/supabase/server'
+import { getPublicSiteContext } from '@/lib/publicSite'
+import { getCookieTenantId } from '@/lib/tenant'
 
 // Next.js serves this at /manifest.webmanifest and links it automatically —
-// no <link rel="manifest"> needed in the layout.
-export default function manifest(): MetadataRoute.Manifest {
+// no <link rel="manifest"> needed in the layout. Async so the installed
+// home-screen app's own name/description reflect the real tenant (this
+// used to hardcode SITE.name, always "Dhab Pari", regardless of which
+// committee's subdomain someone installed the app from).
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const site = await getPublicSiteContext(await createClient(), await getCookieTenantId())
   return {
-    name: `${SITE.name} — ${SITE.committee}`,
-    short_name: SITE.name,
-    description: `Village transparency portal — water bills, donations, projects, and committee updates for ${SITE.name}.`,
+    name: `${site.name} — ${site.shortCommittee}`,
+    short_name: site.name,
+    description: `Village transparency portal — water bills, donations, projects, and committee updates for ${site.name}.`,
     start_url: '/',
     display: 'standalone',
     orientation: 'portrait',

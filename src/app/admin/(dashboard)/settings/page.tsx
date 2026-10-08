@@ -8,7 +8,7 @@ import { ImageUpload } from '@/components/admin/ImageUpload'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import type { ManagementContact } from '@/lib/branding'
 import { TEMPLATE_KEYS } from '@/lib/messageTemplates'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useSystemAccess } from '@/hooks/useSystemAccess'
 import { MODULES } from '@/lib/constants'
 import { LanguageSettings } from '@/components/admin/LanguageSettings'
@@ -338,6 +338,7 @@ function SettingsSection({
 
 export default function AdminSettingsPage() {
   const { t: tr, isUrdu } = useLocale()
+  const site = useSite()
   const [settings, setSettings] = useState<Setting[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -946,7 +947,7 @@ export default function AdminSettingsPage() {
                       {values.display_language === 'ur' && (
                         <p className="text-[16px] font-bold mb-1.5" style={{ fontFamily: 'var(--font-urdu-ui)' }}>واٹر اینڈ ویلفئیر کمیٹی</p>
                       )}
-                      <p className="text-[13px] font-bold text-dp-on-surface-variant">{SITE.name}</p>
+                      <p className="text-[13px] font-bold text-dp-on-surface-variant">{site.name}</p>
                     </div>
                   </div>
                 )}

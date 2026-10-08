@@ -10,7 +10,7 @@ import { ReceiptModal } from '@/components/admin/ReceiptModal'
 import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { billBadge, billBadgeClass } from '@/lib/billStatus'
 import { normalizePakPhone } from '@/lib/receiptExport'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
@@ -40,6 +40,7 @@ const complaintCategories = [
 
 export default function CollectPaymentPage() {
   const { t } = useLocale()
+  const site = useSite()
   const supabase = createClient()
   const [me, setMe] = useState<Me | null | 'loading'>('loading')
   const [consumers, setConsumers] = useState<Consumer[]>([])
@@ -189,7 +190,7 @@ export default function CollectPaymentPage() {
   const notifyViaWhatsApp = (target: NotifyTarget) => {
     if (!target.mobile || !receipt) return
     const msg = encodeURIComponent(
-      `${SITE.name} — Payment Collected\n\nCollected ${fmt(lastCollectedAmount)} from ${receipt.accountName} by ${me !== 'loading' && me ? me.full_name : ''}.\n\nPlease check /admin/collectors for the current holding balance.`
+      `${site.name} — Payment Collected\n\nCollected ${fmt(lastCollectedAmount)} from ${receipt.accountName} by ${me !== 'loading' && me ? me.full_name : ''}.\n\nPlease check /admin/collectors for the current holding balance.`
     )
     window.open(`https://wa.me/${normalizePakPhone(target.mobile)}?text=${msg}`, '_blank')
   }
@@ -199,7 +200,7 @@ export default function CollectPaymentPage() {
     const intl = normalizePakPhone(lastConsumerMobile)
     if (!intl) { toast.error('No usable phone number for this consumer'); return }
     const msg = encodeURIComponent(
-      `${SITE.name} — Payment Received\n\nThank you, ${receipt.accountName}. We received ${fmt(lastCollectedAmount)} against ${receipt.particular}.`
+      `${site.name} — Payment Received\n\nThank you, ${receipt.accountName}. We received ${fmt(lastCollectedAmount)} against ${receipt.particular}.`
       + (lastOutstanding > 0 ? `\n\nRemaining outstanding on this bill: ${fmt(lastOutstanding)}.` : '\n\nThis bill is now fully paid.')
     )
     window.open(`https://wa.me/${intl}?text=${msg}`, '_blank')

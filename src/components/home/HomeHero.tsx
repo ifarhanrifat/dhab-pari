@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { SITE } from '@/lib/constants'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { useSite } from '@/components/layout/SiteProvider'
 import { T } from '@/components/i18n/T'
 import { HomeFeatureCarousel } from '@/components/home/HomeFeatureCarousel'
 
@@ -15,6 +15,7 @@ import { HomeFeatureCarousel } from '@/components/home/HomeFeatureCarousel'
 // is genuinely motion-driven, not just decorative), just not here.
 export function HomeHero() {
   const { t } = useLocale()
+  const site = useSite()
   return (
     <section className="bg-dp-primary-container relative overflow-hidden">
       {/* Desktop Hero */}
@@ -38,13 +39,15 @@ export function HomeHero() {
               (سورۃ البقرہ، آیت 219)
             </p>
           </div>
-          <h1
-            dir="rtl"
-            className="font-bold text-white drop-shadow-xl leading-tight text-[26px] lg:text-[31px] animate-in fade-in slide-in-from-top-3 duration-700 [animation-delay:200ms] [animation-fill-mode:both]"
-            style={{ fontFamily: 'var(--font-urdu-ui)' }}
-          >
-            {SITE.committeeUrdu}
-          </h1>
+          {site.committeeUrdu && (
+            <h1
+              dir="rtl"
+              className="font-bold text-white drop-shadow-xl leading-tight text-[26px] lg:text-[31px] animate-in fade-in slide-in-from-top-3 duration-700 [animation-delay:200ms] [animation-fill-mode:both]"
+              style={{ fontFamily: 'var(--font-urdu-ui)' }}
+            >
+              {site.committeeUrdu}
+            </h1>
+          )}
           {/* Plain English text, but text-[26px]/text-[30px] happened to be
               exact class names the html[lang='ur'] correction table also
               targets (it matches by class name, not by which script is
@@ -52,14 +55,16 @@ export function HomeHero() {
               and "grew" back in English, purely from that coincidence. Baked
               in at the size it already showed in Urdu mode. */}
           <p className="font-heading text-[21px] lg:text-[24px] font-semibold text-dp-on-primary-container mb-6 mt-1 tracking-wide">
-            {SITE.name}
+            {site.name}
           </p>
-          <p
-            className="text-dp-on-primary-container text-[18px] mb-8 leading-relaxed"
-            style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6' }}
-          >
-            {SITE.taglineUrdu}
-          </p>
+          {site.taglineUrdu && (
+            <p
+              className="text-dp-on-primary-container text-[18px] mb-8 leading-relaxed"
+              style={{ fontFamily: 'var(--font-urdu-ui)', lineHeight: '1.6' }}
+            >
+              {site.taglineUrdu}
+            </p>
+          )}
           <div className="flex flex-wrap justify-center gap-4">
             <Link
               href="/water"

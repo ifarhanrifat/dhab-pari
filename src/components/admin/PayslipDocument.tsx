@@ -2,7 +2,7 @@
 
 import { forwardRef } from 'react'
 import type { BrandingSettings } from '@/lib/branding'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 export interface PayslipJobLine { label: string; amount: number }
@@ -37,7 +37,8 @@ const monthName = (m: number) => new Date(2000, m - 1, 1).toLocaleString('en', {
 // live balance, not a computed diff against a settled advance voucher.
 export const PayslipDocument = forwardRef<HTMLDivElement, Props>(function PayslipDocument({ data, branding }, ref) {
   const { t } = useLocale()
-  const companyNameEn = branding.companyNameEn || SITE.name
+  const site = useSite()
+  const companyNameEn = branding.companyNameEn || site.name
 
   return (
     <div ref={ref} dir="ltr" className="relative bg-white p-8 w-[560px] font-sans text-dp-on-surface" style={{ fontFamily: 'var(--font-sans), sans-serif' }}>

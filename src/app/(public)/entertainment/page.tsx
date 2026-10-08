@@ -1,12 +1,17 @@
 import type { Metadata } from 'next'
 import { Trophy, Sparkles, MessageSquarePlus, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
-import { SITE } from '@/lib/constants'
+import { createClient } from '@/lib/supabase/server'
+import { getPublicSiteContext } from '@/lib/publicSite'
+import { getCookieTenantId } from '@/lib/tenant'
 import { T } from '@/components/i18n/T'
 
-export const metadata: Metadata = {
-  title: 'Community Corner',
-  description: `Sports and community talent from ${SITE.name} village.`,
+export async function generateMetadata(): Promise<Metadata> {
+  const site = await getPublicSiteContext(await createClient(), await getCookieTenantId())
+  return {
+    title: 'Community Corner',
+    description: `Sports and community talent from ${site.name} village.`,
+  }
 }
 
 // Real gap, 2026-10-06: this page used to show fabricated Urdu poems (with

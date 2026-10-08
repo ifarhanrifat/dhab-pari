@@ -14,7 +14,7 @@ import { fetchBrandingSettings, type BrandingSettings } from '@/lib/branding'
 import { nodeToPdfBlob, printBlob } from '@/lib/receiptExport'
 import { renderTemplate } from '@/lib/messageTemplates'
 import { findDuplicate, type DuplicateCandidate } from '@/lib/duplicateCheck'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface ConnectionRequest {
@@ -74,6 +74,7 @@ function normalizePakPhoneLocal(raw: string): string | null {
 
 export default function ConnectionsPage() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   const supabase = createClient()
   const [requests, setRequests] = useState<ConnectionRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -472,7 +473,7 @@ export default function ConnectionsPage() {
     const intl = normalizePakPhoneLocal(activationForm.whatsapp_number)
     if (intl) {
       const template = messageTemplates.connection_activated
-        ?? `*${SITE.name} Water Committee*\n\nCongratulations %%name%%! Your new water connection (%%consumer_id%%) has been installed and activated. Monthly bill: Rs. %%monthly_amount%%.\n\nThank you for connecting with us.`
+        ?? `*${site.name} Water Committee*\n\nCongratulations %%name%%! Your new water connection (%%consumer_id%%) has been installed and activated. Monthly bill: Rs. %%monthly_amount%%.\n\nThank you for connecting with us.`
       const msg = encodeURIComponent(renderTemplate(template, {
         name: r.consumer_name, consumer_id: r.consumer_id ?? '', monthly_amount: fmtAmount(netAmount),
       }))
@@ -832,7 +833,7 @@ export default function ConnectionsPage() {
               <div ref={challanRef} dir="ltr" className="bg-white p-8" style={{ width: 560 }}>
                 <div className="flex items-center justify-between mb-6 pb-4 border-b-2 border-dp-primary">
                   <div>
-                    <h1 className="font-heading text-[22px] font-bold text-dp-primary">{branding?.companyNameEn || SITE.fullName}</h1>
+                    <h1 className="font-heading text-[22px] font-bold text-dp-primary">{branding?.companyNameEn || site.fullName}</h1>
                     {branding?.companyEmail && <p className="text-[12px] text-dp-on-surface-variant">{branding.companyEmail}</p>}
                   </div>
                   <div className="text-end">

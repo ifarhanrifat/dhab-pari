@@ -11,7 +11,7 @@ import Link from 'next/link'
 import { Megaphone, FolderKanban, Link2 } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { ShareButtons } from '@/components/public/ShareButtons'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import type { CommitteeNote } from './CommitteeNoteCard'
 
 function fmtDate(d: string) {
@@ -20,6 +20,7 @@ function fmtDate(d: string) {
 
 export function CommitteeAnnouncementsArchive({ notes }: { notes: CommitteeNote[] }) {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
 
   const body = (n: CommitteeNote) => (isUrdu ? (n.body_ur || n.body_en) : (n.body_en || n.body_ur))
   const urduStyle = isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } as const : undefined
@@ -87,7 +88,7 @@ export function CommitteeAnnouncementsArchive({ notes }: { notes: CommitteeNote[
                           </Link>
                         )}
                         <div className="ms-auto">
-                          <ShareButtons url={absoluteUrl} text={`${link.label} — ${SITE.fullName}`} compact />
+                          <ShareButtons url={absoluteUrl} text={`${link.label} — ${site.fullName}`} compact />
                         </div>
                       </div>
                     )}

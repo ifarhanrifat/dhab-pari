@@ -1,4 +1,3 @@
-import { SITE } from '@/lib/constants'
 
 // Same code-not-link shape as portalPasswordResetEmail.ts, migration 521's
 // own reasoning: whatsapp_number is where donation notifications and
@@ -13,7 +12,6 @@ export function portalWhatsappChangeCodeEmail(code: string, newNumber: string, t
   <div style="text-align: center; margin-bottom: 24px;">
     <div style="display: inline-block; width: 48px; height: 48px; border-radius: 50%; background: #0d3b2e; color: white; line-height: 48px; font-weight: bold; font-size: 20px;">DP</div>
     <h1 style="font-size: 18px; margin: 12px 0 0;">${tenantName}</h1>
-    <p style="font-size: 13px; color: #666; margin: 2px 0 0;">${SITE.committee}</p>
   </div>
   <h2 style="font-size: 20px; text-align: center; margin-bottom: 8px;">Confirm your new WhatsApp number</h2>
   <p style="font-size: 14px; color: #444; text-align: center; line-height: 22px;">

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { AlertTriangle, Lock } from 'lucide-react'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 // No longer the active reset flow — see /admin/forgot-password's own
@@ -13,6 +13,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 // this exact URL. Mirrors /portal/reset-password's identical precedent.
 export default function AdminResetPasswordPage() {
   const { t } = useLocale()
+  const site = useSite()
   return (
     <div className="min-h-screen bg-[#E1F5EE] flex flex-col">
       <header className="bg-dp-primary w-full px-6 py-4">
@@ -21,7 +22,7 @@ export default function AdminResetPasswordPage() {
             <Lock size={18} className="text-white" />
           </div>
           <div>
-            <h1 className="font-heading text-[24px] font-bold leading-[32px] text-white">{SITE.name}</h1>
+            <h1 className="font-heading text-[24px] font-bold leading-[32px] text-white">{site.name}</h1>
             <p className="text-white/60 text-[12px] font-sans">{t('y.resetTitle')}</p>
           </div>
         </div>

@@ -38,6 +38,21 @@ export async function getTenantName(client: SupabaseClient<any, any, any>, tenan
   return data?.name ?? SITE.name
 }
 
+// Real gap found 2026-10-08: the admin invite email's accept-invite link
+// always pointed at the bare apex domain, regardless of which tenant the
+// invite was for -- for any tenant other than dhab-pari, that means
+// landing on the WRONG subdomain with no x-tenant-id cookie set, which
+// breaks the tenant-locking this whole invite flow depends on (same bug
+// class as the portal signup tenant-assignment issue this already has a
+// fix for). Null (dhab-pari itself, or a lookup failure) means "use the
+// apex domain, no subdomain prefix" -- its own long-standing default.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getTenantSlug(client: SupabaseClient<any, any, any>, tenantId: string | null | undefined): Promise<string | null> {
+  if (!tenantId || tenantId === DEFAULT_TENANT_ID) return null
+  const { data } = await client.from('tenants').select('slug').eq('id', tenantId).maybeSingle()
+  return data?.slug ?? null
+}
+
 // Duplicated from src/lib/nativeWhatsApp.ts's normalizePhone rather than
 // imported, same reasoning as that file's own comment — not worth a
 // cross-file import for one line.

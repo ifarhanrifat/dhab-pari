@@ -19,7 +19,7 @@ import type { ReceiptData } from '@/components/admin/ReceiptDocument'
 import { billBadge, billBadgeClass } from '@/lib/billStatus'
 import { renderTemplate } from '@/lib/messageTemplates'
 import { findDuplicate, type DuplicateCandidate } from '@/lib/duplicateCheck'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Consumer {
@@ -143,6 +143,7 @@ export default function BillingPage() {
 
 function BillingPageInner() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   const searchParams = useSearchParams()
   const [consumers, setConsumers] = useState<Consumer[]>([])
   const [bills, setBills] = useState<Bill[]>([])
@@ -767,7 +768,7 @@ function BillingPageInner() {
     const rawPhone = consumer.whatsapp_number || consumer.mobile
     if (!rawPhone) { toast.error(t('billing.err.noMobile')); return }
     const template = messageTemplates.consumer_outstanding_notify
-      ?? `*${SITE.name} Water Committee*\n\nDear %%name%%, your outstanding water bill is Rs. %%outstanding%% (%%pending_count%% bill(s) pending). Consumer No: %%consumer_id%%. Please pay at your earliest convenience. Thank you.`
+      ?? `*${site.name} Water Committee*\n\nDear %%name%%, your outstanding water bill is Rs. %%outstanding%% (%%pending_count%% bill(s) pending). Consumer No: %%consumer_id%%. Please pay at your earliest convenience. Thank you.`
     const msg = encodeURIComponent(renderTemplate(template, {
       name: consumer.name, outstanding: stats.outstanding.toLocaleString(),
       pending_count: String(stats.pendingCount), consumer_id: consumer.consumer_id,

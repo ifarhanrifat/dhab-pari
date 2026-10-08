@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { getPublicSiteContext } from '@/lib/publicSite'
+import { getCookieTenantId } from '@/lib/tenant'
 import { SITE } from '@/lib/constants'
 import { GraduationCap, Users, CheckCircle2, Heart, ShieldCheck } from 'lucide-react'
 import { ShareButtons } from '@/components/public/ShareButtons'
@@ -36,6 +38,7 @@ const CATEGORY_LABEL_EN: Record<string, string> = {
 export default async function KafalatChildSharePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
   const supabase = await createClient()
+  const site = await getPublicSiteContext(supabase, await getCookieTenantId())
 
   const { data: children } = await supabase.rpc('kafalat_children_for_naming')
   const child = ((children ?? []) as NamingChild[]).find((c) => c.code === code)
@@ -149,7 +152,7 @@ export default async function KafalatChildSharePage({ params }: { params: Promis
                 <Heart size={18} /> کفالت میں شامل ہوں · Join this sponsorship
               </Link>
             )}
-            <ShareButtons url={shareUrl} text={`${child.first_name} کی تعلیم میں مدد کریں — ${SITE.fullName}`} />
+            <ShareButtons url={shareUrl} text={`${child.first_name} کی تعلیم میں مدد کریں — ${site.fullName}`} />
           </div>
 
           <div className="flex items-start gap-2 mt-5 pt-5 border-t border-dp-outline-variant">
@@ -162,7 +165,7 @@ export default async function KafalatChildSharePage({ params }: { params: Promis
       </div>
 
       <p className="flex items-center justify-center gap-1.5 font-sans text-[12px] text-dp-on-surface-variant mt-4">
-        <GraduationCap size={13} /> {SITE.fullName} — Kafalat
+        <GraduationCap size={13} /> {site.fullName} — Kafalat
       </p>
     </div>
   )

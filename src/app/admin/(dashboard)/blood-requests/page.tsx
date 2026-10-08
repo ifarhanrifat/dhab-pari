@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { Droplet, Plus, X, Search, MessageCircle, Megaphone, Pause, Play, Ban, CheckCircle2, Heart, Phone } from 'lucide-react'
 import { friendlyError } from '@/lib/errors'
 import { normalizePakPhone } from '@/lib/receiptExport'
-import { SITE } from '@/lib/constants'
+import { useSite } from '@/components/layout/SiteProvider'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { LoadingDots } from '@/components/shared/LoadingDots'
 
@@ -71,6 +71,7 @@ const emptyForm = {
 // against, so the taker, the approver and the call are all recorded.
 export default function AdminBloodRequestsPage() {
   const { t, isUrdu } = useLocale()
+  const site = useSite()
   const supabase = createClient()
   const [requests, setRequests] = useState<BloodRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -208,7 +209,7 @@ export default function AdminBloodRequestsPage() {
   const whatsappDonor = (d: Eligible, r: BloodRequest) => {
     const intl = normalizePakPhone(d.whatsapp_number || d.mobile || '')
     if (!intl) { toast.error(t('br.noUsableNumber')); return }
-    const msg = `Assalam o Alaikum ${d.full_name}. ${r.units_needed} unit(s) of ${r.blood_group} blood are needed for a patient at ${r.hospital}, ${r.city} on ${new Date(r.needed_on).toLocaleDateString('en-GB')}${fmtTime(t, r) ? ` at ${fmtTime(t, r)}` : ''}. If you are able to help, please reply. — ${SITE.fullName}`
+    const msg = `Assalam o Alaikum ${d.full_name}. ${r.units_needed} unit(s) of ${r.blood_group} blood are needed for a patient at ${r.hospital}, ${r.city} on ${new Date(r.needed_on).toLocaleDateString('en-GB')}${fmtTime(t, r) ? ` at ${fmtTime(t, r)}` : ''}. If you are able to help, please reply. — ${site.fullName}`
     window.open(`https://wa.me/${intl}?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
