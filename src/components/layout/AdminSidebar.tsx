@@ -173,37 +173,45 @@ const menuItems: MenuEntry[] = [
     ],
   },
   { href: '/admin/complaints', label: 'Complaints', tKey: 'nav.complaints', icon: MessageSquareWarning, badge: 'complaints' },
-  { href: '/admin/civic-reports', label: 'Village Problems', tKey: 'nav.civicReports', icon: AlertTriangle },
-  { href: '/admin/help-requests', label: 'Help Requests', tKey: 'nav.helpRequests', icon: HandHeart },
-  { href: '/admin/death-announcements', label: 'Death Announcements', tKey: 'nav.deathAnnouncements', icon: HeartCrack },
-  { href: '/admin/events', label: 'Village Events', tKey: 'nav.villageEvents', icon: CalendarDays },
-  { href: '/admin/village-map', label: 'Village Map', tKey: 'nav.villageMap', icon: MapPin },
-  { href: '/admin/crop-prices', label: 'Crop Prices', tKey: 'nav.cropPrices', icon: Wheat },
-  { href: '/admin/agriculture', label: 'Agriculture Hub', tKey: 'nav.agricultureHub', icon: Sprout },
-  { href: '/admin/chanda', label: 'Chanda', tKey: 'nav.chanda', icon: Landmark },
+  // Real ask, 2026-10-08: "these belong to the donor and community
+  // system" — confirmed none of the following touch water_supply data
+  // at all; they're the public village-website/outreach side of the
+  // product. Folded into the existing donors_projects module flag
+  // rather than a new one — a Water Supply Only tenant now gets pure
+  // billing with no village website at all, same mechanism (and same
+  // "product switch, not an RLS wall" caveat) as every other
+  // system-tagged item already in this file.
+  { href: '/admin/civic-reports', label: 'Village Problems', tKey: 'nav.civicReports', icon: AlertTriangle, system: 'donors_projects' },
+  { href: '/admin/help-requests', label: 'Help Requests', tKey: 'nav.helpRequests', icon: HandHeart, system: 'donors_projects' },
+  { href: '/admin/death-announcements', label: 'Death Announcements', tKey: 'nav.deathAnnouncements', icon: HeartCrack, system: 'donors_projects' },
+  { href: '/admin/events', label: 'Village Events', tKey: 'nav.villageEvents', icon: CalendarDays, system: 'donors_projects' },
+  { href: '/admin/village-map', label: 'Village Map', tKey: 'nav.villageMap', icon: MapPin, system: 'donors_projects' },
+  { href: '/admin/crop-prices', label: 'Crop Prices', tKey: 'nav.cropPrices', icon: Wheat, system: 'donors_projects' },
+  { href: '/admin/agriculture', label: 'Agriculture Hub', tKey: 'nav.agricultureHub', icon: Sprout, system: 'donors_projects' },
+  { href: '/admin/chanda', label: 'Chanda', tKey: 'nav.chanda', icon: Landmark, system: 'donors_projects' },
   {
     groupKey: 'content', label: 'Content Publishing', tKey: 'nav.groupContent', icon: Newspaper,
     children: [
-      { href: '/admin/news', label: 'News', tKey: 'nav.news', icon: Newspaper, publish: 'news' },
-      { href: '/admin/poetry', label: 'Poetry Corner', tKey: 'nav.poetry', icon: Feather, publish: 'poetry' },
-      { href: '/admin/blog', label: 'Blog', tKey: 'nav.blog', icon: NotebookPen, publish: 'blog' },
-      { href: '/admin/videos', label: 'Videos', tKey: 'nav.videos', icon: Video, publish: 'videos' },
-      { href: '/admin/gallery', label: 'Gallery', tKey: 'nav.gallery', icon: Image, publish: 'gallery' },
-      { href: '/admin/ticker', label: 'Ticker', tKey: 'nav.ticker', icon: TicketSlash, publish: 'ticker' },
-      { href: '/admin/jobs', label: 'Job Listings', tKey: 'nav.jobs', icon: Briefcase, publish: 'jobs' },
-      { href: '/admin/classifieds', label: 'Buy & Sell', tKey: 'nav.classifieds', icon: ShoppingBag },
-      { href: '/admin/lost-found', label: 'Lost & Found', tKey: 'nav.lostFoundAdmin', icon: Search },
-      { href: '/admin/important-contacts', label: 'Important Contacts', tKey: 'nav.importantContacts', icon: Phone },
-      { href: '/admin/directory', label: 'Directory', tKey: 'nav.directory', icon: BookOpen },
+      { href: '/admin/news', label: 'News', tKey: 'nav.news', icon: Newspaper, publish: 'news', system: 'donors_projects' },
+      { href: '/admin/poetry', label: 'Poetry Corner', tKey: 'nav.poetry', icon: Feather, publish: 'poetry', system: 'donors_projects' },
+      { href: '/admin/blog', label: 'Blog', tKey: 'nav.blog', icon: NotebookPen, publish: 'blog', system: 'donors_projects' },
+      { href: '/admin/videos', label: 'Videos', tKey: 'nav.videos', icon: Video, publish: 'videos', system: 'donors_projects' },
+      { href: '/admin/gallery', label: 'Gallery', tKey: 'nav.gallery', icon: Image, publish: 'gallery', system: 'donors_projects' },
+      { href: '/admin/ticker', label: 'Ticker', tKey: 'nav.ticker', icon: TicketSlash, publish: 'ticker', system: 'donors_projects' },
+      { href: '/admin/jobs', label: 'Job Listings', tKey: 'nav.jobs', icon: Briefcase, publish: 'jobs', system: 'donors_projects' },
+      { href: '/admin/classifieds', label: 'Buy & Sell', tKey: 'nav.classifieds', icon: ShoppingBag, system: 'donors_projects' },
+      { href: '/admin/lost-found', label: 'Lost & Found', tKey: 'nav.lostFoundAdmin', icon: Search, system: 'donors_projects' },
+      { href: '/admin/important-contacts', label: 'Important Contacts', tKey: 'nav.importantContacts', icon: Phone, system: 'donors_projects' },
+      { href: '/admin/directory', label: 'Directory', tKey: 'nav.directory', icon: BookOpen, system: 'donors_projects' },
     ],
   },
-  { href: '/admin/suggestions', label: 'Suggestions', tKey: 'nav.suggestions', icon: MessageSquare, badge: 'suggestions' },
-  { href: '/admin/notifications', label: 'Alerts & Appeals', tKey: 'nav.alerts', icon: Bell, badge: 'alerts' },
+  { href: '/admin/suggestions', label: 'Suggestions', tKey: 'nav.suggestions', icon: MessageSquare, badge: 'suggestions', system: 'donors_projects' },
+  { href: '/admin/notifications', label: 'Alerts & Appeals', tKey: 'nav.alerts', icon: Bell, badge: 'alerts', system: 'donors_projects' },
   {
     groupKey: 'blood', label: 'Blood Bank', tKey: 'nav.groupBlood', icon: Droplet,
     children: [
-      { href: '/admin/blood-donors', label: 'Blood Donors', tKey: 'nav.bloodDonors', icon: Droplet },
-      { href: '/admin/blood-requests', label: 'Blood Requests', tKey: 'nav.bloodRequests', icon: Droplet, badge: 'blood_requests' },
+      { href: '/admin/blood-donors', label: 'Blood Donors', tKey: 'nav.bloodDonors', icon: Droplet, system: 'donors_projects' },
+      { href: '/admin/blood-requests', label: 'Blood Requests', tKey: 'nav.bloodRequests', icon: Droplet, badge: 'blood_requests', system: 'donors_projects' },
     ],
   },
   { href: '/admin/reports', label: 'Reports', tKey: 'nav.reports', icon: FileText },
@@ -216,8 +224,8 @@ const menuItems: MenuEntry[] = [
       { href: '/admin/portal-accounts', label: 'Portal Accounts', tKey: 'nav.portalAccounts', icon: KeyRound, adminAndAbove: true },
     ],
   },
-  { href: '/admin/mentor-chats', label: 'Mentor Chats', tKey: 'nav.mentorChats', icon: MessageCircle, adminAndAbove: true },
-  { href: '/admin/institutes', label: 'Institutes', tKey: 'nav.institutes', icon: School, adminAndAbove: true },
+  { href: '/admin/mentor-chats', label: 'Mentor Chats', tKey: 'nav.mentorChats', icon: MessageCircle, adminAndAbove: true, system: 'donors_projects' },
+  { href: '/admin/institutes', label: 'Institutes', tKey: 'nav.institutes', icon: School, adminAndAbove: true, system: 'donors_projects' },
   {
     // The vehicle/shop marketplace cluster — real ask, 2026-09-29: "for
     // vehicle there are 5 or 6 tabs, make these all sub tabs" (there turned
@@ -237,8 +245,8 @@ const menuItems: MenuEntry[] = [
       { href: '/admin/fleet-map', label: 'Fleet Map', tKey: 'nav.fleetMap', icon: Radar, system: 'donors_projects' },
     ],
   },
-  { href: '/admin/talent-showcase', label: 'Talent Showcase', tKey: 'nav.talentShowcase', icon: Sparkles, adminAndAbove: true },
-  { href: '/admin/achievements', label: 'Achievements', tKey: 'nav.achievements', icon: Trophy, adminAndAbove: true },
+  { href: '/admin/talent-showcase', label: 'Talent Showcase', tKey: 'nav.talentShowcase', icon: Sparkles, adminAndAbove: true, system: 'donors_projects' },
+  { href: '/admin/achievements', label: 'Achievements', tKey: 'nav.achievements', icon: Trophy, adminAndAbove: true, system: 'donors_projects' },
   { href: '/admin/audit-log', label: 'Audit Log', tKey: 'nav.auditLog', icon: History, adminAndAbove: true },
   { href: '/admin/import-legacy', label: 'Import Legacy Data', tKey: 'nav.importLegacy', icon: DatabaseZap, superAdminOnly: true },
   { href: '/admin/subscription', label: 'Subscription & Billing', tKey: 'nav.subscription', icon: CreditCard, superAdminOnly: true },
