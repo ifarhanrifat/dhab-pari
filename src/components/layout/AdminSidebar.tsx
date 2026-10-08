@@ -73,6 +73,7 @@ import {
   DatabaseZap,
   ChevronDown,
   CreditCard,
+  Building2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -275,14 +276,26 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
   const access = useSystemAccess()
   const { t, isUrdu } = useLocale()
   const [badges, setBadges] = useState<Record<string, number>>({})
+  // Deliberately NOT derived from profile.role — platform_admins is a
+  // wholly separate identity table (migration 617), keyed by auth_user_id
+  // with no tenant_id at all. Granting someone super_admin on a tenant
+  // must never expose this link to them; only a row in platform_admins
+  // (added by hand via the service-role key, same bootstrap as every
+  // other admin identity in this app) does. Same query the platform
+  // console's own layout uses to gate itself.
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
-      const { data } = await supabase.from('admin_users')
-        .select('full_name, role, can_collect_payments, can_publish_news, can_publish_videos, can_publish_gallery, can_publish_ticker, can_publish_jobs, can_publish_poetry, can_publish_blog')
-        .eq('auth_user_id', user.id).single()
+      const [{ data }, { data: pa }] = await Promise.all([
+        supabase.from('admin_users')
+          .select('full_name, role, can_collect_payments, can_publish_news, can_publish_videos, can_publish_gallery, can_publish_ticker, can_publish_jobs, can_publish_poetry, can_publish_blog')
+          .eq('auth_user_id', user.id).single(),
+        supabase.from('platform_admins').select('id').eq('auth_user_id', user.id).eq('is_active', true).maybeSingle(),
+      ])
       if (data) setProfile(data)
+      setIsPlatformAdmin(!!pa)
     })
   }, [supabase])
 
@@ -517,6 +530,20 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: AdminSidebar
           )
         })}
       </nav>
+
+      {/* Real ask, 2026-10-08: "does any admin see this if I give them
+          access" -- no. Rendered only for the handful of auth_user_ids
+          with their own row in platform_admins (see the state above),
+          never for a tenant's own super_admin, however many tenants they
+          administer. Visually distinct (amber, not the sidebar's teal)
+          so it reads as a different kind of access, not another feature. */}
+      {isPlatformAdmin && (
+        <div className="px-2 pt-2 shrink-0" dir={rowDir}>
+          <a href="/platform" className="flex items-center px-2 py-2.5 rounded-lg text-amber-200 bg-amber-900/20 hover:bg-amber-900/35 hover:text-amber-100 transition-all text-[13.5px] font-sans font-semibold">
+            <Building2 size={17} className="me-3 shrink-0" /> {t('nav.platformConsole', 'Platform Console')}
+          </a>
+        </div>
+      )}
 
       {/* Real report, 2026-09-25: no way to reach the public website from an
           admin account at all -- the portal sidebar already has exactly

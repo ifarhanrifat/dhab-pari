@@ -7,6 +7,7 @@ import { CreditCard, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { friendlyError } from '@/lib/errors'
 import { LoadingDots } from '@/components/shared/LoadingDots'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 
 interface Invoice {
   id: string; invoice_number: string; period_start: string; period_end: string
@@ -26,7 +27,14 @@ const statusColors: Record<string, string> = {
   void: 'bg-gray-100 text-gray-600',
 }
 
+const subStatusColors: Record<string, string> = {
+  active: 'bg-green-100 text-green-800',
+  trialing: 'bg-blue-100 text-blue-800',
+  past_due: 'bg-amber-100 text-amber-800',
+}
+
 function SubscriptionPageInner() {
+  const { t, isUrdu } = useLocale()
   const supabase = createClient()
   const searchParams = useSearchParams()
   const [subscription, setSubscription] = useState<Subscription | null>(null)
@@ -49,9 +57,10 @@ function SubscriptionPageInner() {
 
   useEffect(() => {
     const payment = searchParams.get('payment')
-    if (payment === 'success') toast.success('Payment received — thank you!')
-    else if (payment === 'failed') toast.error('Payment was not completed. You can try again.')
-    else if (payment === 'error') toast.error('Something went wrong verifying that payment. Contact the platform operator if this keeps happening.')
+    if (payment === 'success') toast.success(t('sub.paymentReceivedToast'))
+    else if (payment === 'failed') toast.error(t('sub.paymentFailedToast'))
+    else if (payment === 'error') toast.error(t('sub.paymentErrorToast'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
   const payInvoice = async (invoice: Invoice, provider: 'jazzcash' | 'easypaisa') => {
@@ -64,7 +73,7 @@ function SubscriptionPageInner() {
       })
       const data = await res.json()
       if (!res.ok) {
-        toast.error(data.error ?? 'Could not start the payment.')
+        toast.error(data.error ?? t('sub.couldNotStartPayment'))
         return
       }
       // Both gateways' hosted checkout pages expect a real browser form
@@ -93,54 +102,50 @@ function SubscriptionPageInner() {
   }
 
   return (
-    <div>
+    <div dir={isUrdu ? 'rtl' : 'ltr'}>
       <div className="mb-6">
-        <h1 className="font-heading text-[26px] font-bold text-dp-on-surface">Subscription & Billing</h1>
-        <p className="text-dp-on-surface-variant text-[13px] font-sans mt-0.5">Your committee's platform plan and invoices.</p>
+        <h1 className="font-heading text-[26px] font-bold text-dp-on-surface">{t('sub.pageTitle')}</h1>
+        <p className="text-dp-on-surface-variant text-[13px] font-sans mt-0.5">{t('sub.pageSubtitle')}</p>
       </div>
 
       <div className="bg-white border border-dp-outline-variant rounded-lg p-5 mb-6">
         <h2 className="font-sans text-[15px] font-bold text-dp-on-surface flex items-center gap-2 mb-3">
-          <CreditCard size={16} /> Current Plan
+          <CreditCard size={16} /> {t('sub.currentPlan')}
         </h2>
         {subscription ? (
           <div className="flex items-center gap-3">
             <p className="font-sans text-[14px] text-dp-on-surface">
               {subscription.plan?.name ?? '—'} — Rs {Number(subscription.plan?.monthly_price_pkr ?? 0).toLocaleString()}/mo
             </p>
-            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-              subscription.status === 'active' ? 'bg-green-100 text-green-800'
-                : subscription.status === 'trialing' ? 'bg-blue-100 text-blue-800'
-                : 'bg-amber-100 text-amber-800'
-            }`}>
-              {subscription.status}
+            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${subStatusColors[subscription.status] ?? 'bg-amber-100 text-amber-800'}`}>
+              {t(`sub.status.${subscription.status}`, subscription.status)}
             </span>
             {subscription.status === 'past_due' && (
               <span className="inline-flex items-center gap-1 text-red-700 text-[12.5px] font-sans">
-                <AlertTriangle size={13} /> Payment overdue — see invoices below
+                <AlertTriangle size={13} /> {t('sub.paymentOverdue')}
               </span>
             )}
           </div>
         ) : (
-          <p className="font-sans text-[14px] text-dp-on-surface-variant">No active subscription on file.</p>
+          <p className="font-sans text-[14px] text-dp-on-surface-variant">{t('sub.noActiveSubscription')}</p>
         )}
       </div>
 
       <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden overflow-x-auto">
         <div className="p-5 border-b border-dp-outline-variant">
-          <h2 className="font-sans text-[15px] font-bold text-dp-on-surface">Invoices</h2>
+          <h2 className="font-sans text-[15px] font-bold text-dp-on-surface">{t('sub.invoices')}</h2>
         </div>
         {invoices.length === 0 ? (
-          <p className="p-5 text-dp-on-surface-variant font-sans text-[14px]">No invoices yet.</p>
+          <p className="p-5 text-dp-on-surface-variant font-sans text-[14px]">{t('sub.noInvoicesYet')}</p>
         ) : (
           <table className="w-full text-[13.5px] font-sans">
             <thead className="bg-dp-surface-container text-dp-on-surface-variant text-left">
               <tr>
-                <th className="px-4 py-3 font-semibold">Invoice</th>
-                <th className="px-4 py-3 font-semibold">Period</th>
-                <th className="px-4 py-3 font-semibold">Total</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold text-right">Actions</th>
+                <th className="px-4 py-3 font-semibold">{t('sub.invoiceCol')}</th>
+                <th className="px-4 py-3 font-semibold">{t('sub.periodCol')}</th>
+                <th className="px-4 py-3 font-semibold">{t('sub.totalCol')}</th>
+                <th className="px-4 py-3 font-semibold">{t('sub.statusCol')}</th>
+                <th className="px-4 py-3 font-semibold text-right">{t('sub.actionsCol')}</th>
               </tr>
             </thead>
             <tbody>
@@ -151,7 +156,7 @@ function SubscriptionPageInner() {
                   <td className="px-4 py-3 tabular-nums font-semibold">Rs {Number(inv.total_amount_pkr).toLocaleString()}</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${statusColors[inv.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {inv.status}
+                      {t(`sub.status.${inv.status}`, inv.status)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -162,25 +167,25 @@ function SubscriptionPageInner() {
                           disabled={payingId === inv.id}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-dp-secondary text-white hover:opacity-90 rounded-lg text-[12.5px] font-semibold cursor-pointer transition-all disabled:opacity-50"
                         >
-                          <CheckCircle2 size={13} /> {payingId === inv.id ? 'Starting...' : 'JazzCash'}
+                          <CheckCircle2 size={13} /> {payingId === inv.id ? t('sub.starting') : 'JazzCash'}
                         </button>
                         <button
                           onClick={() => payInvoice(inv, 'easypaisa')}
                           disabled={payingId === inv.id}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-dp-primary text-white hover:opacity-90 rounded-lg text-[12.5px] font-semibold cursor-pointer transition-all disabled:opacity-50"
                         >
-                          <CheckCircle2 size={13} /> {payingId === inv.id ? 'Starting...' : 'EasyPaisa'}
+                          <CheckCircle2 size={13} /> {payingId === inv.id ? t('sub.starting') : 'EasyPaisa'}
                         </button>
                       </div>
                     )}
                     {inv.status === 'paid' && (
                       <span className="inline-flex items-center gap-1 text-green-700 text-[12.5px] font-sans">
-                        <CheckCircle2 size={13} /> Paid
+                        <CheckCircle2 size={13} /> {t('sub.paid')}
                       </span>
                     )}
                     {inv.status === 'void' && (
                       <span className="inline-flex items-center gap-1 text-dp-on-surface-variant text-[12.5px] font-sans">
-                        <XCircle size={13} /> Void
+                        <XCircle size={13} /> {t('sub.void')}
                       </span>
                     )}
                   </td>
