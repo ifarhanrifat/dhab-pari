@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Compass, X, Menu, HandCoins, Heart, FileClock, BellRing } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
+import { useSite } from '@/components/layout/SiteProvider'
 
 const STORAGE_KEY = 'dp-portal-welcome-tour-seen'
 
@@ -20,6 +21,7 @@ const STORAGE_KEY = 'dp-portal-welcome-tour-seen'
 // rides along inside this same one-time tour, the same way a lot of apps
 // bundle their permission asks into first-run onboarding.
 export function WelcomeTour() {
+  const site = useSite()
   const [open, setOpen] = useState(false)
   const [portalUserId, setPortalUserId] = useState<string | null>(null)
   const { permission, subscribe, subscribing } = usePushNotifications(portalUserId ? { portalUserId } : null)
@@ -52,7 +54,7 @@ export function WelcomeTour() {
         <div className="bg-dp-primary text-white px-6 py-5 sm:rounded-t-lg flex items-start justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <Compass size={22} />
-            <h2 className="font-heading text-[20px] font-bold">ڈھاب پڑی پورٹل میں خوش آمدید</h2>
+            <h2 className="font-heading text-[20px] font-bold">{site.nameUrdu || site.name} پورٹل میں خوش آمدید</h2>
           </div>
           <button onClick={close} aria-label="بند کریں" className="text-white/80 hover:text-white cursor-pointer p-1 shrink-0">
             <X size={20} />
