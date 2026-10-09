@@ -87,6 +87,29 @@ export async function resolveSignupTenantId(admin: AdminClient, cookieTenantId: 
 // too, not just request time — state can change in the few minutes
 // someone takes to read an email and type a code back in.
 export async function checkSignupDuplicates(admin: AdminClient, data: NormalizedSignup, tenantId: string): Promise<{ error: string; status: number } | { ok: true; claiming: DuplicateCandidate | null }> {
+  // Real ask, 2026-10-09: one portal identity should never span multiple
+  // villages. Scoped to OTHER tenants only (neq, not a plain match) --
+  // within the signing-up tenant itself, an unclaimed placeholder row with
+  // this same mobile is meant to be claimed, not blocked, and that's
+  // already handled correctly by the claiming logic below; this only adds
+  // the cross-tenant case, which nothing checked before. A matching mobile
+  // in another tenant is already blocked at the DB level too
+  // (portal_users_mobile_key is a plain, un-re-keyed global unique index --
+  // it was never part of migration 590's tenant_id re-keying sweep, since
+  // that slice only touched notification_preferences/fcm_device_tokens/
+  // portal_signup_verifications/push_subscriptions), but that surfaces as a
+  // raw constraint-violation message; checking proactively here, in the
+  // same style as the checks below, catches it with a clear, actionable
+  // message instead.
+  const { data: emailTakenElsewhere } = await admin.from('portal_users').select('id').neq('tenant_id', tenantId).ilike('email', data.userEmail).maybeSingle()
+  if (emailTakenElsewhere) {
+    return { error: 'An account with this email already exists in another village. Please log in there instead, or use a different email.', status: 409 }
+  }
+  const { data: mobileTakenElsewhere } = await admin.from('portal_users').select('id').neq('tenant_id', tenantId).eq('mobile', data.mobile).maybeSingle()
+  if (mobileTakenElsewhere) {
+    return { error: 'An account with this mobile number already exists in another village. Please log in there instead.', status: 409 }
+  }
+
   const { data: usernameTaken } = await admin.from('portal_users').select('id').eq('tenant_id', tenantId).ilike('username', data.username).maybeSingle()
   if (usernameTaken) {
     return { error: 'That username is already taken.', status: 409 }

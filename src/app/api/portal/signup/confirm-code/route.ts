@@ -31,8 +31,14 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
+  // Must resolve tenantId before the verification lookup below, not after --
+  // the table's real PK (migration 590) is (tenant_id, email), so looking
+  // this row up by email alone (the bug fixed 2026-10-09 alongside
+  // request-code's matching upsert) could also cross-match a different
+  // tenant's pending code for the same email.
+  const tenantId = await resolveSignupTenantId(admin, await getCookieTenantId(), body.tenant_id)
   const { data: verification } = await admin.from('portal_signup_verifications')
-    .select('code, expires_at, attempts').eq('email', validated.data.userEmail).maybeSingle()
+    .select('code, expires_at, attempts').eq('tenant_id', tenantId).eq('email', validated.data.userEmail).maybeSingle()
 
   const invalid = { error: 'That code is wrong or has expired. Request a new one.' }
   if (!verification) return NextResponse.json(invalid, { status: 400 })
@@ -40,11 +46,10 @@ export async function POST(req: NextRequest) {
   if (verification.attempts >= MAX_ATTEMPTS) return NextResponse.json(invalid, { status: 400 })
 
   if (verification.code !== code) {
-    await admin.from('portal_signup_verifications').update({ attempts: verification.attempts + 1 }).eq('email', validated.data.userEmail)
+    await admin.from('portal_signup_verifications').update({ attempts: verification.attempts + 1 }).eq('tenant_id', tenantId).eq('email', validated.data.userEmail)
     return NextResponse.json(invalid, { status: 400 })
   }
 
-  const tenantId = await resolveSignupTenantId(admin, await getCookieTenantId(), body.tenant_id)
   const dupCheck = await checkSignupDuplicates(admin, validated.data, tenantId)
   if ('error' in dupCheck) {
     return NextResponse.json({ error: dupCheck.error }, { status: dupCheck.status })
@@ -56,7 +61,7 @@ export async function POST(req: NextRequest) {
   }
 
   // One-time use — clear it immediately regardless of outcome from here.
-  await admin.from('portal_signup_verifications').delete().eq('email', validated.data.userEmail)
+  await admin.from('portal_signup_verifications').delete().eq('tenant_id', tenantId).eq('email', validated.data.userEmail)
 
   // Sign them in immediately (cookie-bound client) so signup flows straight
   // into the portal without a separate login step — same as the original

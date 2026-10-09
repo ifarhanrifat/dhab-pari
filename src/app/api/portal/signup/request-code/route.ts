@@ -53,9 +53,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Could not send the verification email. Please try again in a moment.' }, { status: 500 })
   }
 
-  await admin.from('portal_signup_verifications').upsert({
-    email: validated.data.userEmail, code, expires_at: expiresAt, attempts: 0,
-  }, { onConflict: 'email' })
+  // Real bug found 2026-10-09: migration 590 re-keyed this table's PK from
+  // (email) alone to (tenant_id, email) -- same multi-tenancy sweep as
+  // notification_preferences/fcm_device_tokens -- but this upsert's
+  // onConflict target and payload were never updated to match. Every call
+  // here (insert or update) hit "no unique or exclusion constraint matching
+  // ON CONFLICT" and failed outright, silently, since the result was never
+  // checked -- the email still sent, but the row was never saved, so
+  // confirm-code always found nothing and returned its generic "wrong or
+  // expired" message regardless of what code was typed back.
+  const { error: verificationErr } = await admin.from('portal_signup_verifications').upsert({
+    tenant_id: tenantId, email: validated.data.userEmail, code, expires_at: expiresAt, attempts: 0,
+  }, { onConflict: 'tenant_id,email' })
+  if (verificationErr) {
+    console.error('portal signup request-code: verification upsert failed', verificationErr)
+    return NextResponse.json({ error: 'Could not send the verification email. Please try again in a moment.' }, { status: 500 })
+  }
 
   return NextResponse.json({ success: true })
 }
