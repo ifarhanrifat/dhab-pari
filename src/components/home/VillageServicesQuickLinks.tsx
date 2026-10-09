@@ -7,6 +7,7 @@ import {
   Droplet, HeartHandshake, Newspaper, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { T } from '@/components/i18n/T'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useSite } from '@/components/layout/SiteProvider'
 
 // Real gap, 2026-09-30: these public pages (Contacts, Lost & Found, Civic
@@ -48,8 +49,9 @@ const MORE_LINKS = [
 ]
 
 function Tile({ href, icon: Icon, labelKey, tone }: { href: string; icon: typeof PhoneCall; labelKey: string; tone: string }) {
+  const { isUrdu } = useLocale()
   return (
-    <Link href={href}
+    <Link href={href} dir={isUrdu ? 'rtl' : 'ltr'}
       className="bg-white border border-dp-outline-variant rounded-lg p-4 flex items-center gap-3 hover:border-dp-secondary transition-all">
       <span className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${tone}`}>
         <Icon size={18} />
@@ -71,6 +73,7 @@ function Tile({ href, icon: Icon, labelKey, tone }: { href: string; icon: typeof
 export function VillageServicesQuickLinks() {
   const [expanded, setExpanded] = useState(false)
   const site = useSite()
+  const { isUrdu } = useLocale()
   const isVisible = (l: { system: 'water_supply' | 'donors_projects' }) =>
     l.system === 'water_supply' ? site.waterSupplyEnabled : site.donorsEnabled
   const primaryLinks = PRIMARY_LINKS.filter(isVisible)
@@ -81,7 +84,7 @@ export function VillageServicesQuickLinks() {
       {/* Phase 2, 2026-09-30 — "a big Emergency button", per the vision doc,
           on its own row above the other quick links so it's never mistaken
           for just another utility link. */}
-      <Link href="/emergency"
+      <Link href="/emergency" dir={isUrdu ? 'rtl' : 'ltr'}
         className="flex items-center justify-center gap-2 bg-red-600 text-white rounded-lg py-3.5 font-sans text-[15px] font-bold hover:bg-red-700 transition-all mb-3">
         <Siren size={20} /> <T k="em.pageTitle" />
       </Link>
@@ -103,6 +106,7 @@ export function VillageServicesQuickLinks() {
       {moreLinks.length > 0 && (
         <button
           onClick={() => setExpanded((v) => !v)}
+          dir={isUrdu ? 'rtl' : 'ltr'}
           className="w-full flex items-center justify-center gap-1.5 mt-3 py-2 font-sans text-[13px] font-semibold text-dp-secondary hover:underline cursor-pointer"
         >
           <T k={expanded ? 'home.showLess' : 'home.viewAll'} />

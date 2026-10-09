@@ -39,7 +39,7 @@ const LABEL_KEY: (code: number) => string = (code) => {
 }
 
 export function WeatherWidget() {
-  const { t } = useLocale()
+  const { t, isUrdu } = useLocale()
   const site = useSite()
   const [weather, setWeather] = useState<WeatherNow | null>(null)
   const [failed, setFailed] = useState(false)
@@ -59,10 +59,29 @@ export function WeatherWidget() {
     }).catch(() => setFailed(true))
   }, [site.lat, site.lng])
 
-  if (site.lat == null || site.lng == null || failed || !weather) return null
+  if (site.lat == null || site.lng == null || failed) return null
+
+  // Real report, 2026-10-09: this used to render nothing at all (null)
+  // until the open-meteo fetch resolved, which on a slow village
+  // connection reads as "the weather button takes forever to load" --
+  // there's nothing on screen for seconds, then it pops in. A skeleton
+  // the same size as the real card fills that gap instead, same pattern
+  // DateCard itself doesn't need (its own data is computed locally, no
+  // network round trip).
+  if (!weather) {
+    return (
+      <div dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white border border-dp-outline-variant rounded-lg p-3 sm:p-4 flex items-center gap-2.5 sm:gap-3 animate-pulse">
+        <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-dp-surface-container-high shrink-0" />
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="h-4 w-12 rounded bg-dp-surface-container-high" />
+          <div className="h-3 w-20 rounded bg-dp-surface-container-high" />
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <Link href="/weather" className="bg-white border border-dp-outline-variant rounded-lg p-3 sm:p-4 flex items-center gap-2.5 sm:gap-3 hover:border-dp-secondary transition-all">
+    <Link href="/weather" dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white border border-dp-outline-variant rounded-lg p-3 sm:p-4 flex items-center gap-2.5 sm:gap-3 hover:border-dp-secondary transition-all">
       <span className="sm:hidden shrink-0">{iconFor(weather.code, 24)}</span>
       <span className="hidden sm:block shrink-0">{iconFor(weather.code, 32)}</span>
       <div className="min-w-0">

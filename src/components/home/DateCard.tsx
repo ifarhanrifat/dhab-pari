@@ -28,7 +28,7 @@ export function DateCard() {
   if (!hijri && !punjabi) return null
 
   return (
-    <Link href="/moon-finder" className="bg-white border border-dp-outline-variant rounded-lg p-3 sm:p-4 flex items-center gap-2.5 sm:gap-3 hover:border-dp-secondary transition-all">
+    <Link href="/moon-finder" dir={isUrdu ? 'rtl' : 'ltr'} className="bg-white border border-dp-outline-variant rounded-lg p-3 sm:p-4 flex items-center gap-2.5 sm:gap-3 hover:border-dp-secondary transition-all">
       <span className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-dp-secondary-container text-dp-on-secondary-container flex items-center justify-center shrink-0">
         <Moon size={16} className="sm:hidden" />
         <Moon size={20} className="hidden sm:block" />
