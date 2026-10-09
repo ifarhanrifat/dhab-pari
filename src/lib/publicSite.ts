@@ -40,6 +40,29 @@ export interface PublicSite {
   donorsEnabled: boolean
 }
 
+// Real ask, 2026-10-09: the top of every page (public site, portal app,
+// admin app) should show just the village name -- "Dhab Khushal", not
+// "Dhab Khushal Welfare Committee". dhab-pari's own tenants.name has
+// always been the short form (its committee suffix was a separate,
+// historical SITE.committee constant); every tenant created since
+// (self-signup or platform-created) stores its WHOLE name in one field
+// instead, with nothing to tell "village name" and "committee name"
+// apart. Rather than add a required field to every signup form today,
+// this strips the common committee-type suffixes a name was typed with
+// -- an explicit brand_village_name override (below) always wins over
+// this guess, for the rare name this doesn't handle cleanly.
+const COMMITTEE_SUFFIXES = [
+  ' water & welfare committee', ' water and welfare committee',
+  ' welfare committee', ' committee',
+]
+function deriveVillageName(fullName: string): string {
+  const lower = fullName.toLowerCase()
+  for (const suffix of COMMITTEE_SUFFIXES) {
+    if (lower.endsWith(suffix)) return fullName.slice(0, fullName.length - suffix.length).trim()
+  }
+  return fullName
+}
+
 // A brand new tenant with none of the optional site_settings keys filled
 // in yet still needs a working page -- derived straight from its own
 // name, never from dhab-pari's. Payment fields are the one exception:
@@ -48,7 +71,7 @@ export interface PublicSite {
 // show this payment method" rather than printing a blank line.
 function safeDefaults(name: string, nameUrdu: string): Omit<PublicSite, 'waterSupplyEnabled' | 'donorsEnabled'> {
   return {
-    name, nameUrdu,
+    name: deriveVillageName(name), nameUrdu,
     fullName: name, fullNameUrdu: nameUrdu || name,
     shortCommittee: name,
     committeeUrdu: '',
@@ -77,6 +100,7 @@ export async function getPublicSiteContext(client: AnyClient, tenantId: string |
   const [{ data: tenant }, { data: settingsRows }] = await Promise.all([
     client.from('tenants').select('name, name_ur, water_supply_enabled, donors_enabled').eq('id', id).maybeSingle(),
     client.from('site_settings').select('key, value').eq('tenant_id', id).in('key', [
+      'brand_village_name', 'brand_village_name_ur',
       'brand_full_name', 'brand_full_name_ur', 'brand_short_committee', 'brand_committee_ur', 'brand_tagline_ur',
       'whatsapp_number', 'whatsapp_link', 'footer_whatsapp_group_link', 'footer_facebook_link',
       'jazzcash_number', 'jazzcash_name', 'easypaisa_number', 'easypaisa_name',
@@ -94,7 +118,8 @@ export async function getPublicSiteContext(client: AnyClient, tenantId: string |
   const defaults = safeDefaults(name, nameUrdu)
 
   return {
-    name, nameUrdu,
+    name: s.brand_village_name || defaults.name,
+    nameUrdu: s.brand_village_name_ur || nameUrdu,
     fullName: s.brand_full_name || defaults.fullName,
     fullNameUrdu: s.brand_full_name_ur || defaults.fullNameUrdu,
     shortCommittee: s.brand_short_committee || defaults.shortCommittee,

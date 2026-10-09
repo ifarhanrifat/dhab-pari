@@ -19,12 +19,13 @@ function PortalLoginInner() {
   // "Committee" to it -- correct only for dhab-pari's own historical
   // name (stored without a committee suffix); every other tenant's name
   // already ends in "Committee" (e.g. "Dhab Khushal Welfare Committee"),
-  // so this doubled up to "...Committee Committee". site.fullName is
-  // already the correct, complete name -- resolved server-side before
-  // first paint, so there's no first-load flash of the wrong tenant
-  // either (confirmed on-device: a cold first visit showed dhab-pari's
-  // name until a second load).
-  const committeeLabel = site.fullName
+  // so this doubled up to "...Committee Committee". site.name is
+  // resolved server-side before first paint (no first-load flash of the
+  // wrong tenant, confirmed on-device) and is the short village name
+  // ("Dhab Khushal") — real ask, 2026-10-09: the top of every page
+  // (here, the header, the admin login) should read just the village
+  // name, not the full committee name.
+  const committeeLabel = site.name
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)

@@ -48,24 +48,32 @@ export default function ContactsPage() {
       {!loading && CATEGORY_ORDER.filter((cat) => contacts.some((c) => c.category === cat)).map((cat) => (
         <div key={cat} className="mb-8">
           <h2 className="font-sans text-[13px] font-bold text-dp-on-surface-variant uppercase tracking-wide mb-3">{t(`ic.cat.${cat}`)}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Real report, 2026-10-09: on a phone (every viewport below
+              `sm`), this was one grid column -- i.e. a plain vertical list
+              -- and each row's p-4 padding + 44px icon + two 44px action
+              buttons made every single contact's row read as oddly tall
+              for what's just a name and a phone number, especially for a
+              newer tenant with only one or two contacts per category.
+              Tightened padding/icon/button sizing closes that up without
+              touching the sm:grid-cols-2 desktop layout at all. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
             {contacts.filter((c) => c.category === cat).map((c) => (
-              <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-4 flex items-center gap-3">
-                <span className={`w-11 h-11 rounded-full flex items-center justify-center text-white shrink-0 ${categoryColors[c.category] ?? 'bg-dp-primary'}`}>
-                  <Phone size={18} />
+              <div key={c.id} className="bg-white border border-dp-outline-variant rounded-lg p-3 flex items-center gap-2.5">
+                <span className={`w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0 ${categoryColors[c.category] ?? 'bg-dp-primary'}`}>
+                  <Phone size={15} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-sans text-[15px] font-bold text-dp-on-surface truncate">{isUrdu && c.label_ur ? c.label_ur : c.label}</p>
-                  <p className="font-sans text-[13px] text-dp-on-surface-variant ltr-num">{c.phone}</p>
+                  <p className="font-sans text-[14px] font-bold text-dp-on-surface truncate">{isUrdu && c.label_ur ? c.label_ur : c.label}</p>
+                  <p className="font-sans text-[12.5px] text-dp-on-surface-variant ltr-num">{c.phone}</p>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <a href={`tel:${c.phone.replace(/\s+/g, '')}`} className="p-2.5 bg-dp-secondary text-white rounded-lg hover:bg-dp-primary transition-all" aria-label={t('ic.call')}>
-                    <Phone size={16} />
+                  <a href={`tel:${c.phone.replace(/\s+/g, '')}`} className="p-2 bg-dp-secondary text-white rounded-lg hover:bg-dp-primary transition-all" aria-label={t('ic.call')}>
+                    <Phone size={14} />
                   </a>
                   {c.whatsapp_number && (
                     <a href={`https://wa.me/${c.whatsapp_number.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
-                      className="p-2.5 bg-[#25D366] text-white rounded-lg hover:bg-[#1ebe5a] transition-all" aria-label={t('ic.whatsappBtn')}>
-                      <MessageCircle size={16} />
+                      className="p-2 bg-[#25D366] text-white rounded-lg hover:bg-[#1ebe5a] transition-all" aria-label={t('ic.whatsappBtn')}>
+                      <MessageCircle size={14} />
                     </a>
                   )}
                 </div>
