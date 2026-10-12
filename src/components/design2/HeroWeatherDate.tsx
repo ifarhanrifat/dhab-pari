@@ -1,5 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { Moon } from 'lucide-react'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { useSite } from '@/components/layout/SiteProvider'
 import { formatHijri, formatPunjabi } from '@/lib/desiCalendar'
@@ -66,14 +68,18 @@ export function HeroWeatherDate() {
           )}
         </div>
       </div>
-      <div dir={isUrdu ? 'rtl' : 'ltr'} className="flex items-center gap-1.5 min-w-0 bg-white/10 border border-white/15 rounded-xl px-2 py-1 text-start">
-        <span className="shrink-0 text-base leading-none">📅</span>
+      {/* Real gap found live on device: the old DateCard's moon icon
+          opened the moon-finder camera tool (same icon in the header too)
+          -- lost when this compact hero row replaced DateCard outright.
+          Restored as a tap target on the whole date box, same as before. */}
+      <Link href="/moon-finder" dir={isUrdu ? 'rtl' : 'ltr'} className="flex items-center gap-1.5 min-w-0 bg-white/10 border border-white/15 rounded-xl px-2 py-1 text-start">
+        <Moon size={16} className="shrink-0 text-dp2-gold" />
         <div className="min-w-0 flex flex-col">
           <span className="text-[10px] leading-[1.75] font-bold whitespace-nowrap overflow-hidden text-ellipsis">{greg}</span>
           <span className="text-[10px] leading-[1.75] text-green-100 whitespace-nowrap overflow-hidden text-ellipsis">{hijri}</span>
           <span className="text-[10px] leading-[1.75] text-dp2-gold whitespace-nowrap overflow-hidden text-ellipsis">{punjabi}</span>
         </div>
-      </div>
+      </Link>
     </div>
   )
 }

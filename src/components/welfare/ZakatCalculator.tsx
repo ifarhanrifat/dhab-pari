@@ -22,6 +22,14 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
  * Ushr defaults to 10%, not 5%, because Chakwal is barani — rain-fed. Land
  * watered by rain owes the full tenth; land watered by tubewell or canal owes
  * half. Getting this backwards halves what the fund should receive.
+ *
+ * Re-skinned onto the card-based redesign's dp2-* tokens, 2026-10-12 --
+ * this is embedded both on /welfare and inside the new homepage's Zakat
+ * quick-tile sheet, so it needed to stop being the one visibly-old
+ * Material3-styled form on an otherwise re-skinned surface. The shared
+ * global .input-field class (admin + public, untouched -- restyling it
+ * would also change every admin form) is replaced here with a local input
+ * style scoped to just this component.
  */
 
 const NISAB_GOLD_GRAMS = 87.48
@@ -30,6 +38,8 @@ const NISAB_SILVER_GRAMS = 612.36
 const USHR_NISAB_KG = 653
 
 const fmt = (n: number) => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
+
+const inputCls = 'w-full h-[52px] px-4 py-3 bg-white border-2 border-dp2-card-border rounded-xl transition-all font-sans text-[17px] text-slate-800 focus:border-dp2-primary-dark focus:outline-none'
 
 export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
   const { t } = useLocale()
@@ -107,17 +117,17 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
 
   const num = (v: number, set: (n: number) => void, ph?: string) => (
     <input type="number" min={0} value={v || ''} onChange={(e) => set(+e.target.value)}
-      placeholder={ph} className="input-field text-end tabular-nums" />
+      placeholder={ph} className={`${inputCls} text-end tabular-nums`} />
   )
-  const label = 'block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5'
+  const label = 'block font-sans text-[14px] font-semibold text-slate-500 mb-1.5'
 
   return (
-    <div className="bg-white border border-dp-outline-variant rounded-lg overflow-hidden">
-      <div className="px-5 py-4 border-b border-dp-outline-variant">
-        <h2 className="font-heading text-[20px] font-bold text-dp-primary flex items-center gap-2">
-          <Calculator size={20} className="text-dp-secondary" /> {t('zc.title')}
+    <div className="bg-white border border-dp2-card-border rounded-2xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-dp2-card-border">
+        <h2 className="font-heading text-[21px] font-bold text-dp2-primary flex items-center gap-2">
+          <Calculator size={20} className="text-dp2-primary-dark" /> {t('zc.title')}
         </h2>
-        {!compact && <p className="font-sans text-[13px] text-dp-on-surface-variant mt-1">{t('zc.blurb')}</p>}
+        {!compact && <p className="font-sans text-[14px] text-slate-500 mt-1">{t('zc.blurb')}</p>}
       </div>
 
       <div className="flex gap-2 px-5 pt-4">
@@ -126,7 +136,7 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
           ['ushr', 'zc.tab.ushr', Wheat],
         ] as const).map(([key, lbl, Icon]) => (
           <button key={key} onClick={() => setTab(key)}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-sans text-[13.5px] font-semibold cursor-pointer transition-all ${tab === key ? 'bg-dp-secondary text-white' : 'border border-dp-outline-variant text-dp-on-surface-variant'}`}>
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-sans text-[14.5px] font-semibold cursor-pointer transition-all ${tab === key ? 'bg-dp2-primary-dark text-white' : 'border border-dp2-card-border text-slate-500'}`}>
             <Icon size={15} /> {t(lbl)}
           </button>
         ))}
@@ -135,17 +145,17 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
       {tab === 'zakat' && (
         <div className="mx-5 mt-4">
           {rateError && ratesMissing ? (
-            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3.5 py-2.5 mb-2">
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 mb-2">
               <Info size={15} className="text-amber-700 shrink-0 mt-0.5" />
-              <p className="font-sans text-[12.5px] text-amber-900">{t('zc.ratesUnavailable')}</p>
+              <p className="font-sans text-[13.5px] text-amber-900">{t('zc.ratesUnavailable')}</p>
             </div>
           ) : null}
 
-          <div className="bg-dp-surface-container-low border border-dp-outline-variant rounded-lg px-3.5 py-3">
+          <div className="bg-dp2-surface border border-dp2-card-border rounded-xl px-3.5 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-              <p className="font-sans text-[12px] font-bold uppercase tracking-[0.06em] text-dp-outline">{t('zc.todaysRates')}</p>
+              <p className="font-sans text-[13px] font-bold uppercase tracking-[0.06em] text-slate-500">{t('zc.todaysRates')}</p>
               <button onClick={() => setManualRates(!manualRates)}
-                className="font-sans text-[12px] font-semibold text-dp-secondary hover:underline cursor-pointer">
+                className="font-sans text-[13px] font-semibold text-dp2-primary-dark hover:underline cursor-pointer">
                 {manualRates ? t('zc.useFeed') : t('zc.enterOwnRates')}
               </button>
             </div>
@@ -153,22 +163,22 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
             {manualRates ? (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-sans text-[12px] text-dp-on-surface-variant mb-1">{t('zc.goldPerGram')}</label>
+                  <label className="block font-sans text-[13px] text-slate-500 mb-1">{t('zc.goldPerGram')}</label>
                   <input type="number" min={0} value={goldRate || ''} onChange={(e) => setGoldRate(+e.target.value)}
-                    className="input-field !py-2 text-end tabular-nums" />
+                    className={`${inputCls} !h-auto !py-2 text-end tabular-nums`} />
                 </div>
                 <div>
-                  <label className="block font-sans text-[12px] text-dp-on-surface-variant mb-1">{t('zc.silverPerGram')}</label>
+                  <label className="block font-sans text-[13px] text-slate-500 mb-1">{t('zc.silverPerGram')}</label>
                   <input type="number" min={0} step="0.01" value={silverRate || ''} onChange={(e) => setSilverRate(+e.target.value)}
-                    className="input-field !py-2 text-end tabular-nums" />
+                    className={`${inputCls} !h-auto !py-2 text-end tabular-nums`} />
                 </div>
               </div>
             ) : (
               <div className="flex flex-wrap gap-x-6 gap-y-1">
-                <p className="font-sans text-[13px] text-dp-on-surface">
+                <p className="font-sans text-[14px] text-slate-800">
                   {t('zc.goldPerGram')}: <strong>{fmt(goldRate)}</strong>
                 </p>
-                <p className="font-sans text-[13px] text-dp-on-surface">
+                <p className="font-sans text-[14px] text-slate-800">
                   {t('zc.silverPerGram')}: <strong>{silverRate ? silverRate.toFixed(2) : '—'}</strong>
                 </p>
               </div>
@@ -177,7 +187,7 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
             {/* Where the numbers came from, named. A zakat figure worked out
                 from an unattributed rate is a number nobody should act on. */}
             {rateSource && !manualRates && (
-              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2 leading-relaxed">
+              <p className="font-sans text-[12.5px] text-slate-500 mt-2 leading-relaxed">
                 {t('zc.rateSource')} <strong>{rateSource.sources.join(', ')}</strong>
                 {' · '}
                 {new Date(rateSource.fetchedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -190,22 +200,22 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
 
       {tab === 'zakat' ? (
         <div className="p-5">
-          <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('zc.zakatHelp')}</p>
+          <p className="font-sans text-[13.5px] text-slate-500 mb-4">{t('zc.zakatHelp')}</p>
 
-          <h3 className="font-sans text-[13px] font-bold uppercase tracking-[0.06em] text-dp-outline mb-3">{t('zc.whatYouHave')}</h3>
+          <h3 className="font-sans text-[14px] font-bold uppercase tracking-[0.06em] text-slate-500 mb-3">{t('zc.whatYouHave')}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
             <div>
               <label className={label}>{t('zc.f.goldGrams')}</label>
               {num(z.goldGrams, (n) => setZ({ ...z, goldGrams: n }))}
               {goldRate > 0 && z.goldGrams > 0 && (
-                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">= {fmt(zakat.goldValue)}</p>
+                <p className="font-sans text-[12.5px] text-slate-500 mt-1">= {fmt(zakat.goldValue)}</p>
               )}
             </div>
             <div>
               <label className={label}>{t('zc.f.silverGrams')}</label>
               {num(z.silverGrams, (n) => setZ({ ...z, silverGrams: n }))}
               {silverRate > 0 && z.silverGrams > 0 && (
-                <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">= {fmt(zakat.silverValue)}</p>
+                <p className="font-sans text-[12.5px] text-slate-500 mt-1">= {fmt(zakat.silverValue)}</p>
               )}
             </div>
             <div>
@@ -227,11 +237,11 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
             <div className="sm:col-span-2">
               <label className={label}>{t('zc.f.receivables')}</label>
               {num(z.receivables, (n) => setZ({ ...z, receivables: n }))}
-              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1">{t('zc.f.receivablesHint')}</p>
+              <p className="font-sans text-[12.5px] text-slate-500 mt-1">{t('zc.f.receivablesHint')}</p>
             </div>
           </div>
 
-          <h3 className="font-sans text-[13px] font-bold uppercase tracking-[0.06em] text-dp-outline mb-3">{t('zc.whatYouOwe')}</h3>
+          <h3 className="font-sans text-[14px] font-bold uppercase tracking-[0.06em] text-slate-500 mb-3">{t('zc.whatYouOwe')}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
             <div>
               <label className={label}>{t('zc.f.debts')}</label>
@@ -243,41 +253,41 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
             </div>
           </div>
 
-          <div className="bg-dp-surface-container-low rounded-lg p-4">
-            <div className="flex items-center justify-between py-1 font-sans text-[13.5px]">
-              <span className="text-dp-on-surface-variant">{t('zc.totalAssets')}</span>
+          <div className="bg-dp2-surface rounded-xl p-4">
+            <div className="flex items-center justify-between py-1 font-sans text-[14.5px]">
+              <span className="text-slate-500">{t('zc.totalAssets')}</span>
               <span className="font-semibold tabular-nums">{fmt(zakat.assets)}</span>
             </div>
-            <div className="flex items-center justify-between py-1 font-sans text-[13.5px]">
-              <span className="text-dp-on-surface-variant">{t('zc.totalLiabilities')}</span>
+            <div className="flex items-center justify-between py-1 font-sans text-[14.5px]">
+              <span className="text-slate-500">{t('zc.totalLiabilities')}</span>
               <span className="font-semibold tabular-nums">− {fmt(zakat.liabilities)}</span>
             </div>
-            <div className="flex items-center justify-between py-1.5 border-t border-dp-outline-variant mt-1.5 font-sans text-[14px]">
+            <div className="flex items-center justify-between py-1.5 border-t border-dp2-card-border mt-1.5 font-sans text-[15px]">
               <span className="font-semibold">{t('zc.netWealth')}</span>
               <span className="font-bold tabular-nums">{fmt(zakat.net)}</span>
             </div>
 
-            <div className="mt-3 pt-3 border-t border-dp-outline-variant">
-              <div className="flex items-center justify-between py-0.5 font-sans text-[12.5px] text-dp-on-surface-variant">
+            <div className="mt-3 pt-3 border-t border-dp2-card-border">
+              <div className="flex items-center justify-between py-0.5 font-sans text-[13.5px] text-slate-500">
                 <span>{t('zc.nisabSilver')}</span>
                 <span className="tabular-nums">{fmt(zakat.nisabSilver)}</span>
               </div>
-              <div className="flex items-center justify-between py-0.5 font-sans text-[12.5px] text-dp-on-surface-variant">
+              <div className="flex items-center justify-between py-0.5 font-sans text-[13.5px] text-slate-500">
                 <span>{t('zc.nisabGold')}</span>
                 <span className="tabular-nums">{fmt(zakat.nisabGold)}</span>
               </div>
-              <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-1.5">{t('zc.nisabNote')}</p>
+              <p className="font-sans text-[12.5px] text-slate-500 mt-1.5">{t('zc.nisabNote')}</p>
             </div>
 
-            <div className={`mt-4 rounded-lg px-4 py-3.5 ${zakat.due > 0 ? 'bg-dp-secondary/10' : 'bg-white border border-dp-outline-variant'}`}>
+            <div className={`mt-4 rounded-xl px-4 py-3.5 ${zakat.due > 0 ? 'bg-dp2-gold/15' : 'bg-white border border-dp2-card-border'}`}>
               {zakat.due > 0 ? (
                 <>
-                  <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface-variant">{t('zc.youOwe')}</p>
-                  <p className="font-heading text-[30px] font-bold text-dp-primary leading-tight">{fmt(zakat.due)}</p>
-                  <p className="font-sans text-[12px] text-dp-on-surface-variant mt-1">{t('zc.twoPointFive')}</p>
+                  <p className="font-sans text-[13.5px] font-semibold text-slate-500">{t('zc.youOwe')}</p>
+                  <p className="font-heading text-[31px] font-bold text-dp2-primary leading-tight">{fmt(zakat.due)}</p>
+                  <p className="font-sans text-[13px] text-slate-500 mt-1">{t('zc.twoPointFive')}</p>
                 </>
               ) : (
-                <p className="font-sans text-[13.5px] text-dp-on-surface-variant">
+                <p className="font-sans text-[14.5px] text-slate-500">
                   {zakat.net > 0 ? t('zc.belowNisab') : t('zc.enterValues')}
                 </p>
               )}
@@ -286,7 +296,7 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
         </div>
       ) : (
         <div className="p-5">
-          <p className="font-sans text-[12.5px] text-dp-on-surface-variant mb-4">{t('zc.ushrHelp')}</p>
+          <p className="font-sans text-[13.5px] text-slate-500 mb-4">{t('zc.ushrHelp')}</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
             <div>
@@ -305,47 +315,47 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
               ['rain', 'zc.irr.rain', 'zc.irr.rainHelp'],
               ['artificial', 'zc.irr.artificial', 'zc.irr.artificialHelp'],
             ] as const).map(([value, lbl, help]) => (
-              <label key={value} className={`flex items-start gap-2.5 px-3.5 py-3 rounded-lg border-2 cursor-pointer transition-all ${u.irrigation === value ? 'border-dp-secondary bg-dp-secondary/5' : 'border-dp-outline-variant'}`}>
+              <label key={value} className={`flex items-start gap-2.5 px-3.5 py-3 rounded-xl border-2 cursor-pointer transition-all ${u.irrigation === value ? 'border-dp2-primary-dark bg-dp2-surface' : 'border-dp2-card-border'}`}>
                 <input type="radio" name="irrigation" checked={u.irrigation === value}
-                  onChange={() => setU({ ...u, irrigation: value })} className="accent-dp-secondary mt-0.5" />
+                  onChange={() => setU({ ...u, irrigation: value })} className="accent-dp2-primary-dark mt-0.5" />
                 <span>
-                  <span className="block font-sans text-[13.5px] font-semibold text-dp-on-surface">{t(lbl)}</span>
-                  <span className="block font-sans text-[12px] text-dp-on-surface-variant mt-0.5">{t(help)}</span>
+                  <span className="block font-sans text-[14.5px] font-semibold text-slate-800">{t(lbl)}</span>
+                  <span className="block font-sans text-[13px] text-slate-500 mt-0.5">{t(help)}</span>
                 </span>
               </label>
             ))}
           </div>
 
-          <div className="bg-dp-surface-container-low rounded-lg p-4">
-            <div className="flex items-center justify-between py-1 font-sans text-[13.5px]">
-              <span className="text-dp-on-surface-variant">{t('zc.produceValue')}</span>
+          <div className="bg-dp2-surface rounded-xl p-4">
+            <div className="flex items-center justify-between py-1 font-sans text-[14.5px]">
+              <span className="text-slate-500">{t('zc.produceValue')}</span>
               <span className="font-semibold tabular-nums">{fmt(ushr.value)}</span>
             </div>
-            <div className="flex items-center justify-between py-1 font-sans text-[13.5px]">
-              <span className="text-dp-on-surface-variant">{t('zc.ushrRate')}</span>
+            <div className="flex items-center justify-between py-1 font-sans text-[14.5px]">
+              <span className="text-slate-500">{t('zc.ushrRate')}</span>
               <span className="font-semibold tabular-nums">{(ushr.rate * 100).toFixed(0)}%</span>
             </div>
 
-            <div className={`mt-3 rounded-lg px-4 py-3.5 ${ushr.due > 0 ? 'bg-dp-secondary/10' : 'bg-white border border-dp-outline-variant'}`}>
+            <div className={`mt-3 rounded-xl px-4 py-3.5 ${ushr.due > 0 ? 'bg-dp2-gold/15' : 'bg-white border border-dp2-card-border'}`}>
               {ushr.due > 0 ? (
                 <>
-                  <p className="font-sans text-[12.5px] font-semibold text-dp-on-surface-variant">{t('zc.ushrDue')}</p>
-                  <p className="font-heading text-[30px] font-bold text-dp-primary leading-tight">{fmt(ushr.due)}</p>
+                  <p className="font-sans text-[13.5px] font-semibold text-slate-500">{t('zc.ushrDue')}</p>
+                  <p className="font-heading text-[31px] font-bold text-dp2-primary leading-tight">{fmt(ushr.due)}</p>
                 </>
               ) : (
-                <p className="font-sans text-[13.5px] text-dp-on-surface-variant">
+                <p className="font-sans text-[14.5px] text-slate-500">
                   {u.produceKg > 0 && !ushr.aboveNisab ? t('zc.belowUshrNisab') : t('zc.enterValues')}
                 </p>
               )}
             </div>
-            <p className="font-sans text-[11.5px] text-dp-on-surface-variant mt-2.5">{t('zc.ushrNisabNote')}</p>
+            <p className="font-sans text-[12.5px] text-slate-500 mt-2.5">{t('zc.ushrNisabNote')}</p>
           </div>
         </div>
       )}
 
       <div className="px-5 pb-5">
-        <p className="font-sans text-[11.5px] text-dp-on-surface-variant leading-relaxed mb-3">{t('zc.disclaimer')}</p>
-        <p className="font-sans text-[11.5px] font-semibold text-dp-on-surface-variant mb-1.5">{t('zc.crossCheck')}</p>
+        <p className="font-sans text-[12.5px] text-slate-500 leading-relaxed mb-3">{t('zc.disclaimer')}</p>
+        <p className="font-sans text-[12.5px] font-semibold text-slate-500 mb-1.5">{t('zc.crossCheck')}</p>
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           {([
             ['Zakat & Ushr Department, Punjab', 'https://zakat.punjab.gov.pk/'],
@@ -353,7 +363,7 @@ export function ZakatCalculator({ compact = false }: { compact?: boolean }) {
             ['Saylani Welfare', 'https://saylaniwelfare.com/'],
           ] as const).map(([label, href]) => (
             <a key={href} href={href} target="_blank" rel="noopener noreferrer"
-              className="font-sans text-[11.5px] text-dp-secondary hover:underline">
+              className="font-sans text-[12.5px] text-dp2-primary-dark hover:underline">
               {label} ↗
             </a>
           ))}

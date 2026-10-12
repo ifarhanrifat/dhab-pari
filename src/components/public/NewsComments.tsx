@@ -67,46 +67,46 @@ export function NewsComments({ newsPostId }: { newsPostId: string }) {
   }
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="mt-10 pt-8 border-t border-dp-outline-variant">
-      <h3 className="font-heading text-[18px] font-bold text-dp-primary flex items-center gap-2 mb-4">
-        <MessageCircle size={18} className="text-dp-secondary" /> {t('nc.comments')} {comments.length > 0 && `(${comments.length})`}
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="mt-10 pt-8 border-t border-dp2-card-border">
+      <h3 className="font-heading text-[19px] font-bold text-dp2-primary flex items-center gap-2 mb-4">
+        <MessageCircle size={18} className="text-dp2-primary-dark" /> {t('nc.comments')} {comments.length > 0 && `(${comments.length})`}
       </h3>
 
       <div className="mb-6">
         <textarea
           value={text} onChange={(e) => setText(e.target.value)} rows={2}
           placeholder={staffUser ? t('nc.commentingAs').replace('{name}', staffUser.full_name).replace('{role}', STAFF_ROLE_LABEL[staffUser.role] ?? staffUser.role) : portalUser ? t('nc.shareThoughts') : t('nc.logInToComment')}
-          className="w-full px-4 py-3 border border-dp-outline-variant rounded-lg font-sans text-[14px] resize-none focus:border-dp-secondary transition-all"
+          className="w-full px-4 py-3 border border-dp2-card-border rounded-xl font-sans text-[15px] resize-none focus:border-dp2-primary-dark transition-all"
         />
-        <button onClick={post} disabled={posting || !text.trim()} className="mt-2 flex items-center gap-1.5 bg-dp-secondary text-white px-4 py-2 rounded-lg font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+        <button onClick={post} disabled={posting || !text.trim()} className="mt-2 flex items-center gap-1.5 bg-dp2-primary-dark text-white px-4 py-2 rounded-xl font-sans text-[14px] font-semibold cursor-pointer hover:brightness-110 transition-all disabled:opacity-50">
           <Send size={13} className={isUrdu ? 'rotate-180' : ''} /> {t('nc.post')}
         </button>
       </div>
 
       {loading ? (
-        <p className="font-sans text-[13px] text-dp-on-surface-variant"><LoadingDots /></p>
+        <p className="font-sans text-[14px] text-slate-500"><LoadingDots /></p>
       ) : comments.length === 0 ? (
-        <p className="font-sans text-[13px] text-dp-on-surface-variant">{t('nc.noComments')}</p>
+        <p className="font-sans text-[14px] text-slate-500">{t('nc.noComments')}</p>
       ) : (
         <div className="space-y-4">
           {comments.map((c) => (
             <div key={c.id} className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-dp-surface-container-low flex items-center justify-center shrink-0 font-sans text-[12px] font-bold text-dp-primary">
+              <div className="w-8 h-8 rounded-full bg-dp2-surface flex items-center justify-center shrink-0 font-sans text-[13px] font-bold text-dp2-primary">
                 {(c.username ?? '?').charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-sans text-[13px] font-bold text-dp-on-surface">{c.username}</span>
+                  <span className="font-sans text-[14px] font-bold text-slate-800">{c.username}</span>
                   {c.comment_type === 'staff' ? (
-                    <span className="inline-flex items-center gap-1 text-[9px] font-bold font-sans px-1.5 py-0.5 rounded-full bg-dp-primary/10 text-dp-primary whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold font-sans px-1.5 py-0.5 rounded-full bg-dp2-primary/10 text-dp2-primary whitespace-nowrap">
                       <ShieldCheck size={10} /> {c.staff_role ? (STAFF_ROLE_LABEL[c.staff_role] ?? c.staff_role) : 'Staff'}
                     </span>
                   ) : (
                     <DonorBadge tier={c.badge_tier} isUrdu={isUrdu} size="xs" iconOnly />
                   )}
-                  <span className="font-sans text-[11px] text-dp-on-surface-variant">{new Date(c.created_at).toLocaleDateString()}</span>
+                  <span className="font-sans text-[12px] text-slate-500">{new Date(c.created_at).toLocaleDateString()}</span>
                 </div>
-                <p className="font-sans text-[13.5px] text-dp-on-surface mt-0.5 leading-relaxed">{c.content}</p>
+                <p className="font-sans text-[14.5px] text-slate-800 mt-0.5 leading-relaxed">{c.content}</p>
               </div>
             </div>
           ))}

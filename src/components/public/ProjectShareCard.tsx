@@ -61,8 +61,8 @@ export function ProjectShareCard({
         title={isUrdu ? 'شیئر کریں' : 'Share'}
         className={className ?? (
           variant === 'button'
-            ? 'flex items-center gap-1.5 px-4 py-2 border-2 border-dp-outline-variant text-dp-on-surface-variant font-sans text-[13.5px] font-semibold rounded-lg hover:border-dp-secondary hover:text-dp-secondary transition-colors cursor-pointer'
-            : 'flex items-center gap-1.5 text-dp-on-surface-variant font-sans text-[13px] hover:text-dp-secondary transition-colors cursor-pointer'
+            ? 'flex items-center gap-1.5 px-4 py-2 border-2 border-dp2-card-border text-slate-500 font-sans text-[14.5px] font-semibold rounded-xl hover:border-dp2-primary-dark hover:text-dp2-primary-dark transition-colors cursor-pointer'
+            : 'flex items-center gap-1.5 text-slate-500 font-sans text-[14px] hover:text-dp2-primary-dark transition-colors cursor-pointer'
         )}
       >
         <Share2 size={variant === 'button' ? 15 : 15} />
@@ -76,7 +76,7 @@ export function ProjectShareCard({
                 card" instead of a bare action-sheet: the recipient's first
                 impression on WhatsApp/Facebook is the actual project photo
                 and title, not a plain link. */}
-            <div className="relative aspect-[1.91/1] bg-gradient-to-br from-dp-primary to-dp-primary-container">
+            <div className="relative aspect-[1.91/1]" style={{ background: 'linear-gradient(135deg,#005A36,#166534)' }}>
               {imageUrl && <Image src={imageUrl} alt={title} fill sizes="384px" className="object-cover" />}
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
               {isVotingOpen && (
@@ -99,26 +99,26 @@ export function ProjectShareCard({
 
             <div className="p-5">
               {isVotingOpen && (
-                <p dir="rtl" className="font-sans text-[13.5px] leading-[26px] text-dp-on-surface mb-4 text-end" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
+                <p dir="rtl" className="font-sans text-[14.5px] leading-[27px] text-slate-800 mb-4 text-end" style={{ fontFamily: 'var(--font-urdu-ui)' }}>
                   {votingTextUr}
                 </p>
               )}
               <div className="space-y-2.5">
                 <a
                   href={`https://wa.me/?text=${encodeURIComponent(fullMessage)}`} target="_blank" rel="noreferrer"
-                  className="w-full flex items-center justify-center gap-2 bg-[#25D366] text-white py-3 rounded-lg font-sans text-[14px] font-bold hover:opacity-90 transition-all"
+                  className="w-full flex items-center justify-center gap-2 bg-[#25D366] text-white py-3 rounded-xl font-sans text-[15px] font-bold hover:opacity-90 transition-all"
                 >
                   <MessageCircle size={17} /> WhatsApp
                 </a>
                 <a
                   href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`} target="_blank" rel="noreferrer"
-                  className="w-full flex items-center justify-center gap-2 bg-[#1877F2] text-white py-3 rounded-lg font-sans text-[14px] font-bold hover:opacity-90 transition-all"
+                  className="w-full flex items-center justify-center gap-2 bg-[#1877F2] text-white py-3 rounded-xl font-sans text-[15px] font-bold hover:opacity-90 transition-all"
                 >
-                  <span className="font-heading text-[16px] font-black leading-none">f</span> Facebook
+                  <span className="font-heading text-[17px] font-black leading-none">f</span> Facebook
                 </a>
                 <button
                   type="button" onClick={copyLink}
-                  className="w-full flex items-center justify-center gap-2 border border-dp-outline-variant text-dp-on-surface py-3 rounded-lg font-sans text-[14px] font-semibold hover:border-dp-secondary transition-all cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 border border-dp2-card-border text-slate-800 py-3 rounded-xl font-sans text-[15px] font-semibold hover:border-dp2-primary-dark transition-all cursor-pointer"
                 >
                   <Copy size={16} /> {isUrdu ? 'لنک کاپی کریں' : 'Copy link'}
                 </button>

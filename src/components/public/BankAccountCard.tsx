@@ -21,14 +21,14 @@ function CopyRow({ label, value }: { label: string; value: string }) {
     toast.success(t('p.copied'))
   }
   return (
-    <div className="bg-white border-2 border-dp-secondary rounded-lg px-4 py-3 flex items-center justify-between gap-3">
+    <div className="bg-white border-2 border-dp2-gold/40 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
       <div className="min-w-0">
-        <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[11px] font-bold uppercase tracking-wide text-dp-secondary mb-0.5">{label}</p>
-        <p className="font-mono text-[16px] font-bold text-dp-on-surface tracking-wide break-all">{value}</p>
+        <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[12px] font-bold uppercase tracking-wide text-dp2-primary-dark mb-0.5">{label}</p>
+        <p className="font-mono text-[17px] font-bold text-slate-800 tracking-wide break-all">{value}</p>
       </div>
-      <button onClick={copy} title={t('p.copy')} className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-dp-secondary text-white rounded-lg hover:bg-dp-primary transition-colors cursor-pointer">
+      <button onClick={copy} title={t('p.copy')} className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-dp2-primary-dark text-white rounded-xl hover:brightness-110 transition-colors cursor-pointer">
         <Copy size={14} />
-        <span className="font-sans text-[12px] font-semibold hidden sm:inline">{t('p.copy')}</span>
+        <span className="font-sans text-[13px] font-semibold hidden sm:inline">{t('p.copy')}</span>
       </button>
     </div>
   )
@@ -39,8 +39,8 @@ function Field({ label, value }: { label: string; value: string }) {
   if (!value) return null
   return (
     <div className="flex items-baseline justify-between gap-3 py-1">
-      <span dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[12px] text-dp-on-surface-variant shrink-0">{label}</span>
-      <span className="font-sans text-[13px] font-semibold text-dp-on-surface text-end">{value}</span>
+      <span dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[13px] text-slate-500 shrink-0">{label}</span>
+      <span className="font-sans text-[14px] font-semibold text-slate-800 text-end">{value}</span>
     </div>
   )
 }
@@ -48,12 +48,12 @@ function Field({ label, value }: { label: string; value: string }) {
 export function BankAccountCard({ account }: { account: PaymentAccount }) {
   const { t, isUrdu } = useLocale()
   return (
-    <div className="bg-white border-2 border-dp-secondary p-8 flex flex-col items-center text-center rounded-lg md:col-span-1">
-      <div className="w-16 h-16 mb-6 flex items-center justify-center bg-dp-secondary-container rounded-lg">
-        <Building2 size={32} className="text-dp-on-secondary-container" />
+    <div className="bg-white border-2 border-dp2-gold/40 p-8 flex flex-col items-center text-center rounded-2xl md:col-span-1">
+      <div className="w-16 h-16 mb-6 flex items-center justify-center bg-dp2-surface rounded-xl">
+        <Building2 size={32} className="text-dp2-primary-dark" />
       </div>
-      <h3 className="font-sans text-[20px] font-semibold leading-[28px] mb-1">{account.bankName}</h3>
-      <p className="text-dp-on-surface-variant mb-4 font-sans text-[16px]">
+      <h3 className="font-sans text-[21px] font-semibold leading-[29px] mb-1">{account.bankName}</h3>
+      <p className="text-slate-500 mb-4 font-sans text-[17px]">
         <T k="x.directWire" />
       </p>
       <div className="w-full space-y-0.5 mb-4 text-start">
@@ -65,7 +65,7 @@ export function BankAccountCard({ account }: { account: PaymentAccount }) {
         <CopyRow label={t('p.accountNumber')} value={account.bankAccountNumber} />
         <CopyRow label={t('p.iban')} value={account.bankIban} />
       </div>
-      <p className={`mt-5 text-dp-secondary text-[13px] font-sans font-bold tracking-[0.02em] ${isUrdu ? 'leading-[22px]' : 'leading-[20px]'}`}>
+      <p className={`mt-5 text-dp2-primary-dark text-[14px] font-sans font-bold tracking-[0.02em] ${isUrdu ? 'leading-[23px]' : 'leading-[21px]'}`}>
         {t('p.payOnlyNote')}
       </p>
     </div>

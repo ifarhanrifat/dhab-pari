@@ -37,17 +37,17 @@ export function AllDonorsTable({ donors, isUrdu }: { donors: DonorRow[]; isUrdu:
   return (
     <div>
       <div className="relative mb-6 max-w-md">
-        <Search size={16} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-dp-on-surface-variant pointer-events-none" />
+        <Search size={16} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
         <input
           value={search} onChange={(e) => setSearch(e.target.value)}
           placeholder={t('x.searchDonorsPlaceholder')}
-          className="w-full ps-10 pe-4 py-2.5 rounded-lg border border-dp-outline-variant font-sans text-[14px] focus:outline-none focus:border-dp-secondary"
+          className="w-full ps-10 pe-4 py-2.5 rounded-xl border border-dp2-card-border font-sans text-[15px] focus:outline-none focus:border-dp2-primary-dark"
           style={isUrdu ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}
         />
       </div>
 
       {filtered.length === 0 ? (
-        <p className="text-center py-12 text-dp-on-surface-variant font-sans">{t('x.noDonorsMatchSearch')}</p>
+        <p className="text-center py-12 text-slate-500 font-sans">{t('x.noDonorsMatchSearch')}</p>
       ) : (
         <>
           {/* Real report with screenshot, 2026-09-29: the table's Name column
@@ -56,54 +56,54 @@ export function AllDonorsTable({ donors, isUrdu }: { donors: DonorRow[]; isUrdu:
               and making the whole list unscannable. Same fixed-width-table
               problem this app already solved for Needs Register (admin) --
               same fix: a card list below md, the table stays desktop-only. */}
-          <div className="md:hidden bg-white rounded-lg border border-dp-outline-variant overflow-hidden divide-y divide-dp-outline-variant">
+          <div className="md:hidden bg-white rounded-2xl border border-dp2-card-border overflow-hidden divide-y divide-dp2-card-border">
             {filtered.map((donor, i) => (
               <div key={`${donor.name}-${i}`} className="p-4 flex items-center gap-3">
                 {i < 3 ? (
-                  <span className={`shrink-0 w-8 h-8 flex items-center justify-center ${rankBadges[i]} text-white rounded-full font-bold font-sans text-[13px]`}>{i + 1}</span>
+                  <span className={`shrink-0 w-8 h-8 flex items-center justify-center ${rankBadges[i]} text-white rounded-full font-bold font-sans text-[14px]`}>{i + 1}</span>
                 ) : (
-                  <span className="shrink-0 w-8 h-8 flex items-center justify-center text-dp-on-surface-variant font-bold font-sans text-[13px]">{i + 1}</span>
+                  <span className="shrink-0 w-8 h-8 flex items-center justify-center text-slate-500 font-bold font-sans text-[14px]">{i + 1}</span>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-dp-primary font-sans text-[14.5px] truncate" style={isUrdu && donor.name_ur ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
+                  <p className="font-bold text-dp2-primary font-sans text-[15.5px] truncate" style={isUrdu && donor.name_ur ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
                     {isUrdu && donor.name_ur ? donor.name_ur : donor.name}
                   </p>
-                  <p className="font-sans text-[12px] text-dp-on-surface-variant mt-0.5">
+                  <p className="font-sans text-[13px] text-slate-500 mt-0.5">
                     <span className="ltr-num">{donor.donation_count}</span> {t('x.donationsCount')} · {formatDate(donor.last_date)}
                   </p>
                 </div>
-                <p className="shrink-0 font-bold font-sans ltr-num text-dp-primary text-[14.5px]">{Number(donor.total_pkr).toLocaleString()}</p>
+                <p className="shrink-0 font-bold font-sans ltr-num text-dp2-primary text-[15.5px]">{Number(donor.total_pkr).toLocaleString()}</p>
               </div>
             ))}
           </div>
 
-          <div className="hidden md:block overflow-x-auto rounded-lg border border-dp-outline-variant bg-white">
+          <div className="hidden md:block overflow-x-auto rounded-2xl border border-dp2-card-border bg-white">
             <table className="w-full text-start border-collapse">
-              <thead className="bg-dp-primary text-white sticky top-0">
+              <thead className="bg-dp2-primary text-white sticky top-0">
                 <tr>
-                  <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">{t('x.rank')}</th>
-                  <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">{t('x.name')}</th>
-                  <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">{t('w.amountPkr')}</th>
-                  <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">{t('x.donationsCount')}</th>
-                  <th className="px-6 py-4 font-sans text-[14px] font-semibold tracking-[0.05em] uppercase">{t('x.lastDonation')}</th>
+                  <th className="px-6 py-4 font-sans text-[15px] font-semibold tracking-[0.05em] uppercase">{t('x.rank')}</th>
+                  <th className="px-6 py-4 font-sans text-[15px] font-semibold tracking-[0.05em] uppercase">{t('x.name')}</th>
+                  <th className="px-6 py-4 font-sans text-[15px] font-semibold tracking-[0.05em] uppercase">{t('w.amountPkr')}</th>
+                  <th className="px-6 py-4 font-sans text-[15px] font-semibold tracking-[0.05em] uppercase">{t('x.donationsCount')}</th>
+                  <th className="px-6 py-4 font-sans text-[15px] font-semibold tracking-[0.05em] uppercase">{t('x.lastDonation')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-dp-outline-variant">
+              <tbody className="divide-y divide-dp2-card-border">
                 {filtered.map((donor, i) => (
-                  <tr key={`${donor.name}-${i}`} className="hover:bg-dp-surface-container transition-colors">
+                  <tr key={`${donor.name}-${i}`} className="hover:bg-dp2-surface transition-colors">
                     <td className="px-6 py-4">
                       {i < 3 ? (
-                        <span className={`w-8 h-8 flex items-center justify-center ${rankBadges[i]} text-white rounded-full font-bold font-sans text-[14px]`}>{i + 1}</span>
+                        <span className={`w-8 h-8 flex items-center justify-center ${rankBadges[i]} text-white rounded-full font-bold font-sans text-[15px]`}>{i + 1}</span>
                       ) : (
-                        <span className="w-8 h-8 flex items-center justify-center text-dp-on-surface-variant font-bold font-sans text-[14px]">{i + 1}</span>
+                        <span className="w-8 h-8 flex items-center justify-center text-slate-500 font-bold font-sans text-[15px]">{i + 1}</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 font-bold text-dp-primary font-sans" style={isUrdu && donor.name_ur ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
+                    <td className="px-6 py-4 font-bold text-dp2-primary font-sans" style={isUrdu && donor.name_ur ? { fontFamily: 'var(--font-urdu-ui)' } : undefined}>
                       {isUrdu && donor.name_ur ? donor.name_ur : donor.name}
                     </td>
                     <td className="px-6 py-4 font-bold font-sans ltr-num text-end">{Number(donor.total_pkr).toLocaleString()}</td>
-                    <td className="px-6 py-4 text-dp-on-surface-variant font-sans ltr-num text-end">{donor.donation_count}</td>
-                    <td className="px-6 py-4 text-dp-on-surface-variant font-sans">{formatDate(donor.last_date)}</td>
+                    <td className="px-6 py-4 text-slate-500 font-sans ltr-num text-end">{donor.donation_count}</td>
+                    <td className="px-6 py-4 text-slate-500 font-sans">{formatDate(donor.last_date)}</td>
                   </tr>
                 ))}
               </tbody>

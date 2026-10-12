@@ -82,12 +82,12 @@ export function DonationReceiptUpload({ onUpload, label, bucket = 'donation_rece
 
   return (
     <div>
-      <label dir={isUrdu ? 'rtl' : 'ltr'} className="block font-sans text-[14px] font-semibold tracking-[0.05em] text-dp-on-surface-variant mb-2">
+      <label dir={isUrdu ? 'rtl' : 'ltr'} className="block font-sans text-[15px] font-semibold tracking-[0.05em] text-slate-500 mb-2">
         {resolvedLabel} *
       </label>
 
       {preview ? (
-        <div className="relative rounded-lg overflow-hidden border border-dp-outline-variant bg-dp-surface-container">
+        <div className="relative rounded-xl overflow-hidden border border-dp2-card-border bg-dp2-surface">
           <img src={preview} alt="Receipt preview" className="w-full h-40 object-cover" />
           {uploading && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
@@ -96,8 +96,8 @@ export function DonationReceiptUpload({ onUpload, label, bucket = 'donation_rece
           )}
           {!uploading && (
             <div className="absolute top-2 right-2 flex items-center gap-2">
-              {fileName && <span className="bg-white/90 px-2 py-1 rounded text-[11px] font-sans truncate max-w-[140px]">{fileName}</span>}
-              <button type="button" onClick={clear} className="bg-white/90 text-dp-error p-1 rounded hover:bg-white cursor-pointer">
+              {fileName && <span className="bg-white/90 px-2 py-1 rounded-full text-[12px] font-sans truncate max-w-[140px]">{fileName}</span>}
+              <button type="button" onClick={clear} className="bg-white/90 text-red-600 p-1 rounded-full hover:bg-white cursor-pointer">
                 <X size={14} />
               </button>
             </div>
@@ -109,16 +109,16 @@ export function DonationReceiptUpload({ onUpload, label, bucket = 'donation_rece
           onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${
-            dragOver ? 'border-dp-secondary bg-dp-secondary/5' : 'border-dp-outline-variant hover:border-dp-secondary hover:bg-dp-surface-container-low'
+          className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+            dragOver ? 'border-dp2-primary-dark bg-dp2-primary-dark/5' : 'border-dp2-card-border hover:border-dp2-primary-dark hover:bg-dp2-surface'
           }`}
         >
-          <FileImage size={24} className="mx-auto text-dp-on-surface-variant mb-2" />
-          <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[14px] text-dp-on-surface-variant">
+          <FileImage size={24} className="mx-auto text-slate-500 mb-2" />
+          <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[15px] text-slate-500">
             <Upload size={14} className="inline me-1" />
-            {t('g.dragDrop')} <span className="text-dp-secondary font-semibold">{t('g.clickToBrowse')}</span>
+            {t('g.dragDrop')} <span className="text-dp2-primary-dark font-semibold">{t('g.clickToBrowse')}</span>
           </p>
-          <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[12px] text-dp-outline mt-1">{t('g.fileTypes')}</p>
+          <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[13px] text-slate-400 mt-1">{t('g.fileTypes')}</p>
         </div>
       )}
 

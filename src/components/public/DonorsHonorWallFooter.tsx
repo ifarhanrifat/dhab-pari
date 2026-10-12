@@ -12,7 +12,7 @@ import { useLocale } from '@/lib/i18n/LocaleProvider'
 export function TotalRaisedBadge({ amount }: { amount: number }) {
   const { t } = useLocale()
   return (
-    <span className="px-4 py-1 bg-dp-secondary-container text-dp-on-secondary-container rounded-full text-[14px] font-sans font-bold tracking-[0.05em] shrink-0">
+    <span className="px-4 py-1 bg-dp2-surface border border-dp2-card-border text-dp2-primary-dark rounded-full text-[15px] font-sans font-bold tracking-[0.05em] shrink-0">
       {t('x.totalRaisedLabel')}: {Math.round(amount).toLocaleString()}
     </span>
   )
@@ -21,7 +21,7 @@ export function TotalRaisedBadge({ amount }: { amount: number }) {
 export function ViewAllDonorsLink({ count }: { count: number }) {
   const { t } = useLocale()
   return (
-    <Link href="/donate/donors" className="text-dp-secondary font-bold hover:underline font-sans cursor-pointer inline-block">
+    <Link href="/donate/donors" className="text-dp2-primary-dark font-bold hover:underline font-sans cursor-pointer inline-block">
       {t('x.viewAllDonors').replace('{count}', count.toLocaleString())}
     </Link>
   )

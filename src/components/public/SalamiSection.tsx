@@ -82,14 +82,14 @@ export function SalamiSection({ eventId }: { eventId: string }) {
   if (loading || accounts.length === 0) return null
 
   return (
-    <div className="mt-4 border-t border-dp-outline-variant pt-4">
-      <button onClick={toggle} className="flex items-center gap-2 text-dp-secondary font-sans text-[13.5px] font-bold cursor-pointer">
+    <div className="mt-4 border-t border-dp2-card-border pt-4">
+      <button onClick={toggle} className="flex items-center gap-2 text-dp2-primary-dark font-sans text-[14.5px] font-bold cursor-pointer">
         <Gift size={16} /> {t('sl.title')} {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
       </button>
 
       {expanded && (
         <div className="mt-3 space-y-4">
-          <p className="bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-3 font-sans text-[12px]">{t('sl.disclaimer')}</p>
+          <p className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3 font-sans text-[13px]">{t('sl.disclaimer')}</p>
 
           {accounts.map((acc) => {
             const confirmedRow = totals.find((r) => r.side === acc.side && r.status === 'received')
@@ -99,15 +99,15 @@ export function SalamiSection({ eventId }: { eventId: string }) {
             const confirmedCount = confirmedRow?.pledge_count ?? 0
             const pendingCount = pendingRow?.pledge_count ?? 0
             return (
-              <div key={acc.id} className="bg-white border border-dp-outline-variant rounded-lg p-4">
+              <div key={acc.id} className="bg-white border border-dp2-card-border rounded-2xl p-4">
                 <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
                   <div>
-                    <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-dp-secondary-container text-dp-on-secondary-container uppercase">{t(`sl.side.${acc.side}`)}</span>
-                    <p className="font-sans text-[14px] font-bold text-dp-on-surface mt-1">{acc.family_name}</p>
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-dp2-surface text-dp2-primary-dark uppercase">{t(`sl.side.${acc.side}`)}</span>
+                    <p className="font-sans text-[15px] font-bold text-slate-800 mt-1">{acc.family_name}</p>
                   </div>
-                  <button onClick={() => setShowForm(acc.side)} className="px-3 py-1.5 bg-dp-secondary text-white rounded-lg font-sans text-[12.5px] font-semibold hover:bg-dp-primary transition-all cursor-pointer">{t('sl.announceBtn')}</button>
+                  <button onClick={() => setShowForm(acc.side)} className="px-3 py-1.5 bg-dp2-primary-dark text-white rounded-xl font-sans text-[13.5px] font-semibold hover:brightness-110 transition-all cursor-pointer">{t('sl.announceBtn')}</button>
                 </div>
-                <button onClick={() => copyLink(acc)} className="flex items-center gap-1.5 font-sans text-[12.5px] text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
+                <button onClick={() => copyLink(acc)} className="flex items-center gap-1.5 font-sans text-[13.5px] text-slate-500 hover:text-dp2-primary-dark cursor-pointer">
                   <Copy size={12} /> {methodLabel[acc.payment_method]}: <span className="ltr-num font-semibold">{acc.account_number}</span>{acc.account_title ? ` (${acc.account_title})` : ''}
                 </button>
                 {/* Totals only -- no per-giver list, real correction
@@ -116,14 +116,14 @@ export function SalamiSection({ eventId }: { eventId: string }) {
                     stays mandatory in the underlying data (it has to
                     match the family's own bank/Easypaisa statement) --
                     it's just never exposed on this public page. */}
-                <div className="grid grid-cols-2 gap-3 mt-3 font-sans text-[12.5px]">
-                  <div className="bg-emerald-50 rounded-lg p-2.5">
+                <div className="grid grid-cols-2 gap-3 mt-3 font-sans text-[13.5px]">
+                  <div className="bg-emerald-50 rounded-xl p-2.5">
                     <p className="text-emerald-700 font-bold">{t('sl.confirmed')}: <span className="ltr-num">{confirmedTotal.toLocaleString()}</span></p>
-                    <p className="text-emerald-600 text-[11px] mt-0.5">{confirmedCount} {t('sl.contributors')}</p>
+                    <p className="text-emerald-600 text-[12px] mt-0.5">{confirmedCount} {t('sl.contributors')}</p>
                   </div>
-                  <div className="bg-amber-50 rounded-lg p-2.5">
+                  <div className="bg-amber-50 rounded-xl p-2.5">
                     <p className="text-amber-700 font-bold">{t('sl.pending')}: <span className="ltr-num">{pendingTotal.toLocaleString()}</span></p>
-                    <p className="text-amber-600 text-[11px] mt-0.5">{pendingCount} {t('sl.contributors')}</p>
+                    <p className="text-amber-600 text-[12px] mt-0.5">{pendingCount} {t('sl.contributors')}</p>
                   </div>
                 </div>
               </div>
@@ -135,18 +135,18 @@ export function SalamiSection({ eventId }: { eventId: string }) {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowForm(null)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-heading text-[18px] font-bold text-dp-primary mb-4">{t('sl.announceBtn')} — {t(`sl.side.${showForm}`)}</h3>
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('sl.amount')}</label>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-heading text-[19px] font-bold text-dp2-primary mb-4">{t('sl.announceBtn')} — {t(`sl.side.${showForm}`)}</h3>
+            <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{t('sl.amount')}</label>
             <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="input-field mb-3" />
-            <label className="block font-sans text-[13px] font-semibold text-dp-on-surface-variant mb-1.5">{t('sl.message')}</label>
+            <label className="block font-sans text-[14px] font-semibold text-slate-500 mb-1.5">{t('sl.message')}</label>
             <input value={message} onChange={(e) => setMessage(e.target.value)} className="input-field mb-3" />
-            <label className="flex items-center gap-2 cursor-pointer mb-4"><input type="checkbox" checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)} className="accent-dp-secondary" /><span className="font-sans text-[13px]">{t('sl.anonymous')}</span></label>
+            <label className="flex items-center gap-2 cursor-pointer mb-4"><input type="checkbox" checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)} className="accent-dp2-primary-dark" /><span className="font-sans text-[14px]">{t('sl.anonymous')}</span></label>
             <div className="mb-4">
               <ImageUpload bucket="salami_receipts" currentUrl={receiptUrl} onUpload={setReceiptUrl} label={t('sl.receiptOptional')} />
-              <p className="font-sans text-[11px] text-dp-on-surface-variant mt-1.5">{t('sl.receiptNote')}</p>
+              <p className="font-sans text-[12px] text-slate-500 mt-1.5">{t('sl.receiptNote')}</p>
             </div>
-            <button onClick={announce} disabled={saving} className="w-full bg-dp-secondary text-white py-2.5 rounded-lg font-sans font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">{saving ? t('p.saving') : t('sl.submit')}</button>
+            <button onClick={announce} disabled={saving} className="w-full bg-dp2-primary-dark text-white py-2.5 rounded-xl font-sans font-semibold cursor-pointer hover:brightness-110 transition-all disabled:opacity-50">{saving ? t('p.saving') : t('sl.submit')}</button>
           </div>
         </div>
       )}

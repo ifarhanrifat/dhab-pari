@@ -25,8 +25,8 @@ export function WeddingFunctionsList({ eventId }: { eventId: string }) {
   return (
     <div className="mt-2 space-y-1.5">
       {fns.map((f) => (
-        <div key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 font-sans text-[12.5px] text-dp-on-surface-variant">
-          <span className="font-semibold text-dp-on-surface">{t(`ve.fn.${f.function_type}`)}</span>
+        <div key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 font-sans text-[13.5px] text-slate-500">
+          <span className="font-semibold text-slate-800">{t(`ve.fn.${f.function_type}`)}</span>
           <span className="flex items-center gap-1"><Clock size={11} /> <span className="ltr-num">{new Date(f.function_datetime).toLocaleString()}</span></span>
           {(f.venue_men || f.venue_women) && (
             <span className="flex items-center gap-1"><MapPin size={11} /> {f.venue_men ? `${t('ve.venueMen')}: ${f.venue_men}` : ''}{f.venue_men && f.venue_women ? ' · ' : ''}{f.venue_women ? `${t('ve.venueWomen')}: ${f.venue_women}` : ''}</span>

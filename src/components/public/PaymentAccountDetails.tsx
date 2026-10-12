@@ -33,8 +33,8 @@ function Field({ label, value }: { label: string; value: string }) {
   if (!value) return null
   return (
     <div className="flex items-baseline justify-between gap-3 py-1">
-      <span dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[12px] text-dp-on-surface-variant shrink-0">{label}</span>
-      <span className="font-sans text-[13px] font-semibold text-dp-on-surface text-end">{value}</span>
+      <span dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[13px] text-slate-500 shrink-0">{label}</span>
+      <span className="font-sans text-[14px] font-semibold text-slate-800 text-end">{value}</span>
     </div>
   )
 }
@@ -46,14 +46,14 @@ function CopyBlock({ label, value }: { label: string; value: string }) {
     toast.success(t('p.copied'))
   }
   return (
-    <div className="bg-white border-2 border-dp-secondary rounded-lg px-4 py-3 flex items-center justify-between gap-3">
+    <div className="bg-white border-2 border-dp2-gold/40 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
       <div className="min-w-0">
-        <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[11px] font-bold uppercase tracking-wide text-dp-secondary mb-0.5">{label}</p>
-        <p className="font-mono text-[16px] font-bold text-dp-on-surface tracking-wide break-all">{value}</p>
+        <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[12px] font-bold uppercase tracking-wide text-dp2-primary-dark mb-0.5">{label}</p>
+        <p className="font-mono text-[17px] font-bold text-slate-800 tracking-wide break-all">{value}</p>
       </div>
-      <button onClick={copy} title={t('p.copy')} className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-dp-secondary text-white rounded-lg hover:bg-dp-primary transition-colors cursor-pointer">
+      <button onClick={copy} title={t('p.copy')} className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-dp2-primary-dark text-white rounded-xl hover:brightness-110 transition-colors cursor-pointer">
         <Copy size={14} />
-        <span className="font-sans text-[12px] font-semibold hidden sm:inline">{t('p.copy')}</span>
+        <span className="font-sans text-[13px] font-semibold hidden sm:inline">{t('p.copy')}</span>
       </button>
     </div>
   )
@@ -69,10 +69,10 @@ function OldField({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-2 py-1.5">
       <div className="min-w-0">
-        <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[10.5px] font-bold uppercase tracking-wide text-dp-on-surface-variant">{label}</p>
-        <p className="font-mono text-[13.5px] font-semibold text-dp-on-surface truncate">{value}</p>
+        <p dir={isUrdu ? 'rtl' : 'ltr'} className="font-sans text-[11px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
+        <p className="font-mono text-[14.5px] font-semibold text-slate-800 truncate">{value}</p>
       </div>
-      <button onClick={copy} title={t('p.copy')} className="shrink-0 p-1.5 text-dp-on-surface-variant hover:text-dp-secondary cursor-pointer">
+      <button onClick={copy} title={t('p.copy')} className="shrink-0 p-1.5 text-slate-500 hover:text-dp2-primary-dark cursor-pointer">
         <Copy size={14} />
       </button>
     </div>
@@ -93,12 +93,12 @@ export function PaymentAccountDetails({
 
   if (system === 'donors_projects') {
     return (
-      <div className="bg-dp-surface-container-low border border-dp-outline-variant rounded-xl p-4 mt-2">
+      <div className="bg-dp2-surface border border-dp2-card-border rounded-xl p-4 mt-2">
         <div className="flex items-center gap-2 mb-3">
-          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-dp-secondary-container text-dp-on-secondary-container shrink-0">
+          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white border border-dp2-card-border text-dp2-primary-dark shrink-0">
             <Landmark size={16} />
           </span>
-          <p className="font-sans text-[13.5px] font-bold text-dp-primary">{t('p.bankTransferHeading')}</p>
+          <p className="font-sans text-[14.5px] font-bold text-dp2-primary">{t('p.bankTransferHeading')}</p>
         </div>
         <div className="space-y-0.5 mb-3">
           <Field label={t('p.bankLabel')} value={account.bankName} />
@@ -118,7 +118,7 @@ export function PaymentAccountDetails({
   // water_supply — unchanged: the original plain multi-method list.
   const showBank = method === 'bank' || international
   return (
-    <div className="bg-dp-surface-container-low rounded-lg px-4 py-2.5 mt-2 divide-y divide-dp-outline-variant/60">
+    <div className="bg-dp2-surface rounded-xl px-4 py-2.5 mt-2 divide-y divide-dp2-card-border/60">
       {method === 'jazzcash' && !international && (
         <>
           <OldField label={t('p.jazzcashNumber')} value={account.jazzcashNumber} />

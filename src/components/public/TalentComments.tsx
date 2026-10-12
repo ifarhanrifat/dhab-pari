@@ -88,23 +88,23 @@ export function TalentComments({ talentShowcaseId }: { talentShowcaseId: string 
   }
 
   return (
-    <div dir={isUrdu ? 'rtl' : 'ltr'} className="mt-4 pt-4 border-t border-dp-outline-variant">
-      <p className="flex items-center gap-1.5 font-sans text-[12.5px] font-bold text-dp-on-surface mb-2.5"><MessageCircle size={14} className="text-dp-secondary" /> {t('talent.comments')}</p>
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="mt-4 pt-4 border-t border-dp2-card-border">
+      <p className="flex items-center gap-1.5 font-sans text-[13.5px] font-bold text-slate-800 mb-2.5"><MessageCircle size={14} className="text-dp2-primary-dark" /> {t('talent.comments')}</p>
 
       <div className="flex items-center gap-2 mb-3">
         <input
           value={newComment} onChange={(e) => setNewComment(e.target.value)}
           placeholder={portalUserId ? t('talent.commentPlaceholder') : t('talent.loginToComment')}
-          className="input-field flex-1 text-[12.5px] py-2"
+          className="input-field flex-1 text-[13.5px] py-2"
           onKeyDown={(e) => { if (e.key === 'Enter') postComment() }}
         />
-        <button onClick={postComment} disabled={posting} className="bg-dp-secondary text-white px-3 py-2 rounded-lg font-sans text-[12px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50 shrink-0">
+        <button onClick={postComment} disabled={posting} className="bg-dp2-primary-dark text-white px-3 py-2 rounded-xl font-sans text-[13px] font-semibold cursor-pointer hover:brightness-110 transition-all disabled:opacity-50 shrink-0">
           {t('talent.postComment')}
         </button>
       </div>
 
       {comments.length === 0 ? (
-        <p className="font-sans text-[12px] text-dp-on-surface-variant">{t('talent.noComments')}</p>
+        <p className="font-sans text-[13px] text-slate-500">{t('talent.noComments')}</p>
       ) : (
         <div className="space-y-2.5">
           {comments.map((c) => (
@@ -113,20 +113,20 @@ export function TalentComments({ talentShowcaseId }: { talentShowcaseId: string 
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={c.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
               ) : (
-                <div className="w-7 h-7 rounded-full bg-dp-secondary-container flex items-center justify-center text-[11px] font-bold text-dp-on-secondary-container shrink-0">{(c.username ?? '?').charAt(0).toUpperCase()}</div>
+                <div className="w-7 h-7 rounded-full bg-dp2-surface flex items-center justify-center text-[12px] font-bold text-dp2-primary-dark shrink-0">{(c.username ?? '?').charAt(0).toUpperCase()}</div>
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-sans text-[12.5px] font-bold text-dp-on-surface">{c.username}</span>
+                  <span className="font-sans text-[13.5px] font-bold text-slate-800">{c.username}</span>
                   <DonorBadge tier={c.badge_tier} isUrdu={isUrdu} size="xs" iconOnly />
-                  <span className="font-sans text-[10.5px] text-dp-on-surface-variant">{new Date(c.created_at).toLocaleDateString('en-GB')}</span>
+                  <span className="font-sans text-[11.5px] text-slate-500">{new Date(c.created_at).toLocaleDateString('en-GB')}</span>
                 </div>
-                <p className="font-sans text-[13px] text-dp-on-surface mt-0.5">{c.content}</p>
+                <p className="font-sans text-[14px] text-slate-800 mt-0.5">{c.content}</p>
                 <div className="flex items-center gap-3 mt-1">
-                  <button onClick={() => toggleLike(c.id)} className={`flex items-center gap-1 text-[11px] font-sans font-semibold cursor-pointer ${myLikes.has(c.id) ? 'text-dp-secondary' : 'text-dp-on-surface-variant hover:text-dp-secondary'}`}>
+                  <button onClick={() => toggleLike(c.id)} className={`flex items-center gap-1 text-[12px] font-sans font-semibold cursor-pointer ${myLikes.has(c.id) ? 'text-dp2-primary-dark' : 'text-slate-500 hover:text-dp2-primary-dark'}`}>
                     <ThumbsUp size={11} /> {c.like_count > 0 ? c.like_count : ''}
                   </button>
-                  <button onClick={() => flagComment(c.id)} className="flex items-center gap-1 text-[11px] font-sans font-semibold text-dp-on-surface-variant hover:text-dp-error cursor-pointer">
+                  <button onClick={() => flagComment(c.id)} className="flex items-center gap-1 text-[12px] font-sans font-semibold text-slate-500 hover:text-red-600 cursor-pointer">
                     <Flag size={11} /> {t('talent.flag')}
                   </button>
                 </div>

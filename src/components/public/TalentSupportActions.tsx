@@ -100,12 +100,12 @@ export function TalentSupportActions({ talentShowcaseId, needsAmountPkr, support
   if (supportStatus === 'fulfilled') {
     return (
       <div dir={isUrdu ? 'rtl' : 'ltr'} className="mt-3">
-        <p className="inline-flex items-center gap-1.5 text-dp-secondary font-sans text-[12.5px] font-semibold">
+        <p className="inline-flex items-center gap-1.5 text-dp2-primary-dark font-sans text-[13.5px] font-semibold">
           <CheckCircle2 size={14} /> {t('talent.needsMet')}
         </p>
         {supporterNames.length > 0 && (
-          <p className="mt-1 flex items-start gap-1.5 font-sans text-[11.5px] text-dp-on-surface-variant">
-            <Award size={13} className="text-dp-secondary shrink-0 mt-0.5" /> {t('talent.supportedByColon')} {supporterNames.join(isUrdu ? '، ' : ', ')}
+          <p className="mt-1 flex items-start gap-1.5 font-sans text-[12.5px] text-slate-500">
+            <Award size={13} className="text-dp2-primary-dark shrink-0 mt-0.5" /> {t('talent.supportedByColon')} {supporterNames.join(isUrdu ? '، ' : ', ')}
           </p>
         )}
       </div>
@@ -116,19 +116,19 @@ export function TalentSupportActions({ talentShowcaseId, needsAmountPkr, support
     <div dir={isUrdu ? 'rtl' : 'ltr'} className="mt-3">
       {needsAmountPkr ? (
         <div className="mb-2.5">
-          <div className="h-1.5 rounded-full bg-dp-surface-container-low overflow-hidden">
-            <div className="h-full bg-dp-secondary rounded-full transition-all" style={{ width: `${Math.min(100, (raised / needsAmountPkr) * 100)}%` }} />
+          <div className="h-1.5 rounded-full bg-dp2-surface overflow-hidden">
+            <div className="h-full bg-dp2-gold rounded-full transition-all" style={{ width: `${Math.min(100, (raised / needsAmountPkr) * 100)}%` }} />
           </div>
-          <div className="flex items-center justify-between mt-1 font-sans text-[11px] text-dp-on-surface-variant">
+          <div className="flex items-center justify-between mt-1 font-sans text-[12px] text-slate-500">
             <span>{t('talent.raisedColon')} {fmt(raised)}</span>
             <span>{t('talent.targetColon')} {fmt(needsAmountPkr)}</span>
           </div>
           {supportStatus === 'partially_supported' && (
-            <p className="mt-1 font-sans text-[11px] text-amber-700 font-semibold">{t('talent.partiallySupported')}</p>
+            <p className="mt-1 font-sans text-[12px] text-amber-700 font-semibold">{t('talent.partiallySupported')}</p>
           )}
           {supporterNames.length > 0 && (
-            <p className="mt-1 flex items-start gap-1.5 font-sans text-[11px] text-dp-on-surface-variant">
-              <Award size={12} className="text-dp-secondary shrink-0 mt-0.5" /> {t('talent.supportedByColon')} {supporterNames.join(isUrdu ? '، ' : ', ')}
+            <p className="mt-1 flex items-start gap-1.5 font-sans text-[12px] text-slate-500">
+              <Award size={12} className="text-dp2-primary-dark shrink-0 mt-0.5" /> {t('talent.supportedByColon')} {supporterNames.join(isUrdu ? '، ' : ', ')}
             </p>
           )}
         </div>
@@ -137,37 +137,37 @@ export function TalentSupportActions({ talentShowcaseId, needsAmountPkr, support
       {mode === 'none' && (
         <div className="flex items-center gap-2 flex-wrap">
           {needsAmountPkr ? (
-            <button onClick={() => setMode('pledge')} className="inline-flex items-center gap-1.5 bg-dp-secondary text-white px-3 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer hover:bg-dp-primary transition-all">
+            <button onClick={() => setMode('pledge')} className="inline-flex items-center gap-1.5 bg-dp2-primary-dark text-white px-3 py-1.5 rounded-xl font-sans text-[13px] font-semibold cursor-pointer hover:brightness-110 transition-all">
               <Wallet size={13} /> {t('talent.supportButton')}
             </button>
           ) : null}
-          <button onClick={() => setMode('help')} className="inline-flex items-center gap-1.5 border border-dp-secondary text-dp-secondary px-3 py-1.5 rounded-lg font-sans text-[12px] font-semibold cursor-pointer hover:bg-dp-secondary/5 transition-all">
+          <button onClick={() => setMode('help')} className="inline-flex items-center gap-1.5 border border-dp2-primary-dark text-dp2-primary-dark px-3 py-1.5 rounded-xl font-sans text-[13px] font-semibold cursor-pointer hover:bg-dp2-surface transition-all">
             <HandHeart size={13} /> {t('talent.helpButton')}
           </button>
         </div>
       )}
 
       {mode === 'pledge' && (
-        <div className="bg-dp-surface-container-low rounded-lg p-3 space-y-2">
+        <div className="bg-dp2-surface rounded-xl p-3 space-y-2">
           <div className="flex items-center justify-between">
-            <label className="font-sans text-[12px] font-semibold text-dp-on-surface-variant">{t('talent.pledgeAmountLabel')}</label>
-            <button onClick={() => setMode('none')} className="text-dp-on-surface-variant cursor-pointer"><X size={14} /></button>
+            <label className="font-sans text-[13px] font-semibold text-slate-500">{t('talent.pledgeAmountLabel')}</label>
+            <button onClick={() => setMode('none')} className="text-slate-500 cursor-pointer"><X size={14} /></button>
           </div>
           <input type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)} className="input-field" autoFocus />
-          <button onClick={submitPledge} disabled={busy} className="w-full bg-dp-secondary text-white py-2 rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+          <button onClick={submitPledge} disabled={busy} className="w-full bg-dp2-primary-dark text-white py-2 rounded-xl font-sans text-[13.5px] font-semibold cursor-pointer hover:brightness-110 transition-all disabled:opacity-50">
             {busy ? t('action.saving') : t('talent.pledgeSubmit')}
           </button>
         </div>
       )}
 
       {mode === 'help' && (
-        <div className="bg-dp-surface-container-low rounded-lg p-3 space-y-2">
+        <div className="bg-dp2-surface rounded-xl p-3 space-y-2">
           <div className="flex items-center justify-between">
-            <label className="font-sans text-[12px] font-semibold text-dp-on-surface-variant">{t('talent.helpMessageLabel')}</label>
-            <button onClick={() => setMode('none')} className="text-dp-on-surface-variant cursor-pointer"><X size={14} /></button>
+            <label className="font-sans text-[13px] font-semibold text-slate-500">{t('talent.helpMessageLabel')}</label>
+            <button onClick={() => setMode('none')} className="text-slate-500 cursor-pointer"><X size={14} /></button>
           </div>
           <textarea value={helpMessage} onChange={(e) => setHelpMessage(e.target.value)} placeholder={t('talent.helpMessagePlaceholder')} rows={2} className="input-field resize-none" autoFocus />
-          <button onClick={submitHelp} disabled={busy} className="w-full bg-dp-secondary text-white py-2 rounded-lg font-sans text-[12.5px] font-semibold cursor-pointer hover:bg-dp-primary transition-all disabled:opacity-50">
+          <button onClick={submitHelp} disabled={busy} className="w-full bg-dp2-primary-dark text-white py-2 rounded-xl font-sans text-[13.5px] font-semibold cursor-pointer hover:brightness-110 transition-all disabled:opacity-50">
             {busy ? t('action.saving') : t('talent.helpSubmit')}
           </button>
         </div>
