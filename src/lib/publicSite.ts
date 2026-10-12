@@ -38,6 +38,14 @@ export interface PublicSite {
 
   waterSupplyEnabled: boolean
   donorsEnabled: boolean
+
+  // Phase 1 of the card-based redesign, 2026-10-12 -- the new header's
+  // logo circle. null until a tenant's admin uploads one via the new
+  // "Homepage Images" admin page (site_card_images, slot_key
+  // 'committee_logo'); every call site falls back to the existing
+  // initial-letter badge when this is null, same pattern as every other
+  // optional branding field on this object.
+  logoUrl: string | null
 }
 
 // Real ask, 2026-10-09: the top of every page (public site, portal app,
@@ -69,7 +77,7 @@ function deriveVillageName(fullName: string): string {
 // an empty string here (never a real account) means "not configured",
 // and every payment-detail-rendering spot must treat empty as "don't
 // show this payment method" rather than printing a blank line.
-function safeDefaults(name: string, nameUrdu: string): Omit<PublicSite, 'waterSupplyEnabled' | 'donorsEnabled'> {
+function safeDefaults(name: string, nameUrdu: string): Omit<PublicSite, 'waterSupplyEnabled' | 'donorsEnabled' | 'logoUrl'> {
   return {
     name: deriveVillageName(name), nameUrdu,
     fullName: name, fullNameUrdu: nameUrdu || name,
@@ -97,7 +105,7 @@ function safeDefaults(name: string, nameUrdu: string): Omit<PublicSite, 'waterSu
 export async function getPublicSiteContext(client: AnyClient, tenantId: string | null | undefined): Promise<PublicSite> {
   const id = tenantId || DEFAULT_TENANT_ID
 
-  const [{ data: tenant }, { data: settingsRows }] = await Promise.all([
+  const [{ data: tenant }, { data: settingsRows }, { data: logoRow }] = await Promise.all([
     client.from('tenants').select('name, name_ur, water_supply_enabled, donors_enabled').eq('id', id).maybeSingle(),
     client.from('site_settings').select('key, value').eq('tenant_id', id).in('key', [
       'brand_village_name', 'brand_village_name_ur',
@@ -108,6 +116,7 @@ export async function getPublicSiteContext(client: AnyClient, tenantId: string |
       'brand_district', 'brand_province', 'brand_location', 'brand_established',
       'contact_email', 'office_hours', 'village_lat', 'village_lng',
     ]),
+    client.from('site_card_images').select('image_url').eq('tenant_id', id).eq('slot_key', 'committee_logo').maybeSingle(),
   ])
 
   const name = tenant?.name || 'Village Committee'
@@ -151,5 +160,20 @@ export async function getPublicSiteContext(client: AnyClient, tenantId: string |
 
     waterSupplyEnabled: tenant?.water_supply_enabled ?? true,
     donorsEnabled: tenant?.donors_enabled ?? true,
+
+    logoUrl: logoRow?.image_url || null,
   }
+}
+
+// The welfare/mentor card thumbnails have no backing table of their own
+// (unlike project/classifieds/video photos, which read their existing
+// real columns directly) -- this is the one shared lookup for that
+// handful of decorative site_card_images slots, keyed by slot_key so a
+// caller just spreads the result into its card list. Returns '' rather
+// than null for a missing slot so callers can do `images[key] || ''`
+// without an extra null check.
+export async function getCardImages(client: AnyClient, tenantId: string | null | undefined, slotKeys: string[]): Promise<Record<string, string>> {
+  const id = tenantId || DEFAULT_TENANT_ID
+  const { data } = await client.from('site_card_images').select('slot_key, image_url').eq('tenant_id', id).in('slot_key', slotKeys)
+  return Object.fromEntries((data ?? []).map((r) => [r.slot_key, r.image_url || '']))
 }

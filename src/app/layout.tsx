@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { cache } from "react";
-import { Source_Sans_3, Playfair_Display, Noto_Nastaliq_Urdu, Noto_Naskh_Arabic, Noto_Sans_Arabic } from "next/font/google";
+import { Inter, Noto_Nastaliq_Urdu, Noto_Naskh_Arabic, Noto_Sans_Arabic } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { FloatingWhatsAppButton } from "@/components/layout/FloatingWhatsAppButton";
@@ -25,16 +25,18 @@ const resolveSite = cache(async () => {
   return getPublicSiteContext(supabase, tenantId);
 });
 
-const sourceSans = Source_Sans_3({
+// Phase 1 of the card-based redesign, 2026-10-12: Source Sans 3 (body)
+// and Playfair Display (headings) replaced with Inter for both -- the
+// new design's own font choice -- feeding the SAME --font-source-sans
+// CSS variable both font-sans and font-heading already resolved to
+// (globals.css), so every existing font-sans/font-heading class picks
+// it up with no call-site changes. Urdu fonts (Nastaliq for prose, Noto
+// Sans Arabic for compact UI chrome, Naskh for the Quran verse) are
+// deliberately untouched -- explicit instruction to keep them as-is.
+const inter = Inter({
   variable: "--font-source-sans",
   subsets: ["latin"],
-  weight: ["400", "600", "700"],
-});
-
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
-  subsets: ["latin"],
-  weight: ["700", "800"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const notoNastaliq = Noto_Nastaliq_Urdu({
@@ -149,7 +151,7 @@ export default async function RootLayout({
       // `dir` — an earlier build did, and a browser holding that bundle could
       // leave the shell rotated with the sidebar stranded on the right.
       dir="ltr"
-      className={`${sourceSans.variable} ${playfair.variable} ${notoNastaliq.variable} ${notoNaskhArabic.variable} ${notoSansArabic.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${notoNastaliq.variable} ${notoNaskhArabic.variable} ${notoSansArabic.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {/* Wraps everything — public site, portal and admin — so a committee

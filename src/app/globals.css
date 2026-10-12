@@ -41,7 +41,10 @@
   /* --- Fonts --- */
   --font-sans: var(--font-source-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-playfair);
+  /* Phase 1 of the card-based redesign, 2026-10-12: both now resolve to
+     Inter (the same --font-source-sans variable, swapped in layout.tsx)
+     -- no separate heading face anymore, per the new design. */
+  --font-heading: var(--font-source-sans);
   --font-urdu: var(--font-noto-nastaliq);
   --font-quran: var(--font-noto-naskh);
 
@@ -128,6 +131,18 @@
   --color-dp-tertiary-fixed: #8af7cf;
   --color-dp-tertiary-fixed-dim: #6edab4;
   --color-dp-surface-tint: #2a6959;
+
+  /* --- Phase 1 of the card-based redesign, 2026-10-12 ---
+     New palette, additive alongside the Material3 set above (admin/
+     portal/shop screens still use dp-* and are out of scope for this
+     redesign). dp2-* names so the two systems never collide. */
+  --color-dp2-primary: #005A36;
+  --color-dp2-primary-dark: #166534;
+  --color-dp2-gold: #D4AF37;
+  --color-dp2-amber: #fbbf24;
+  --color-dp2-surface: #F9F9F6;
+  --color-dp2-card-border: #e5e2d0;
+
   --radius-sm: 0.125rem;
   --radius-md: 0.25rem;
   --radius-lg: 0.5rem;
