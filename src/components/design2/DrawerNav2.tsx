@@ -69,12 +69,18 @@ export function DrawerNav2({
 
   if (!open) return null
 
+  // A hamburger drawer conventionally opens from the reading-start edge --
+  // left in English, right in Urdu -- not always the physical left. Both
+  // the docking (justify-start, which IS a logical flexbox property and
+  // already flips correctly once this container's own dir is set) and
+  // the slide-in animation (a physical transform, which does not flip on
+  // its own) need to agree on which edge that actually is.
   return (
-    <div dir="ltr" onClick={onClose} className="absolute inset-0 z-[55] bg-slate-900/55 flex justify-start animate-in fade-in duration-200">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} onClick={onClose} className="absolute inset-0 z-[55] bg-slate-900/55 flex justify-start animate-in fade-in duration-200">
       <aside
         dir={isUrdu ? 'rtl' : 'ltr'}
         onClick={(e) => e.stopPropagation()}
-        className="w-[80%] max-w-[330px] h-full bg-[#033a22] text-white flex flex-col overflow-y-auto shadow-[8px_0_30px_rgba(0,0,0,.35)] animate-in slide-in-from-left duration-250"
+        className={`w-[80%] max-w-[330px] h-full bg-[#033a22] text-white flex flex-col overflow-y-auto shadow-[8px_0_30px_rgba(0,0,0,.35)] animate-in duration-250 ${isUrdu ? 'slide-in-from-right' : 'slide-in-from-left'}`}
       >
         <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-2 min-w-0">

@@ -70,8 +70,8 @@ export function Home2(props: Home2Props) {
     { emoji: ShoppingBag, label: t('cl.pageTitle', 'Buy & Sell'), tint: 'bg-violet-50 text-violet-600', href: '/classifieds', system: 'donors_projects' as const },
     { emoji: AlertTriangle, label: t('cr.pageTitle', 'Village Problems'), tint: 'bg-sky-50 text-sky-600', href: '/civic-reports', system: 'donors_projects' as const },
     { emoji: Megaphone, label: t('nb.pageTitle', 'Notice Board'), tint: 'bg-indigo-50 text-indigo-600', href: '/notice-board', system: 'donors_projects' as const },
-    { emoji: Scale, label: t('z.pageTitle', 'Zakat'), tint: 'bg-lime-50 text-lime-700', href: '/zakat', system: 'donors_projects' as const },
-    { emoji: Baby, label: t('kf.pageTitle', 'Kafalat'), tint: 'bg-blue-50 text-blue-700', href: '/kafalat', system: 'donors_projects' as const },
+    { emoji: Scale, label: t('z.pageTitle', 'Zakat'), tint: 'bg-lime-50 text-lime-700', href: '/portal/zakat', system: 'donors_projects' as const },
+    { emoji: Baby, label: t('kf.pageTitle', 'Kafalat'), tint: 'bg-blue-50 text-blue-700', href: '/portal/kafalat', system: 'donors_projects' as const },
     { emoji: Droplet, label: t('bl.pageTitle', 'Blood'), tint: 'bg-rose-50 text-rose-600', href: '/blood', system: 'donors_projects' as const },
   ].filter((tile) => tile.system === undefined || (tile.system === 'water_supply' ? site.waterSupplyEnabled : site.donorsEnabled))
 
@@ -87,17 +87,17 @@ export function Home2(props: Home2Props) {
       head: wc('zakat', 'headline', isUrdu ? 'آپ کی زکوٰۃ ایک دروازے پر نہیں، ہر مستحق گھر تک' : 'Your zakat reaches every deserving door — not the same one twice.'),
       stat1: props.needs.verified_households ?? 0, stat1Label: wc('zakat', 'stat1', t('home.verifiedHouseholds', 'households verified')),
       stat2: props.needs.widow_headed ?? 0, stat2Label: wc('zakat', 'stat2', t('home.widowHeaded', 'widow-headed')),
-      cta: wc('zakat', 'cta', t('home.zakatCta', 'Work out your zakat, or give')), href: '/zakat' },
+      cta: wc('zakat', 'cta', t('home.zakatCta', 'Work out your zakat, or give')), href: '/portal/zakat' },
     { key: 'welfare_2', emoji: '🎒', tint: 'bg-blue-50', kicker: t('kf.pageTitle', 'Kafalat — School'),
       head: wc('kafalat', 'headline', isUrdu ? 'ایک بچے کا بستہ اٹھائیے — ایک سال کی فیس، ایک عمر کا فرق' : 'Carry one child’s schoolbag. One year of fees; a lifetime of difference.'),
       stat1: props.kafalat.in_school ?? 0, stat1Label: wc('kafalat', 'stat1', t('home.childrenInSchool', 'children in school')),
       stat2: props.kafalat.waiting_sponsor ?? 0, stat2Label: wc('kafalat', 'stat2', t('home.waitingSponsor', 'waiting for a sponsor')),
-      cta: wc('kafalat', 'cta', t('home.sponsorChild', 'Sponsor a child')), href: '/kafalat' },
+      cta: wc('kafalat', 'cta', t('home.sponsorChild', 'Sponsor a child')), href: '/portal/kafalat' },
     { key: 'welfare_3', emoji: '🎓', tint: 'bg-indigo-50', kicker: t('wz.pageTitle', 'Taleemi Wazifa'),
       head: wc('wazifa', 'headline', isUrdu ? 'آئیے، اس ہونہار بچے کو افسر، ڈاکٹر، انجینئر بنائیں' : 'Let us make this bright child an officer, a doctor, an engineer.'),
       stat1: props.wazifa.students_carried ?? 0, stat1Label: wc('wazifa', 'stat1', t('home.studentsCarried', 'students carried')),
       stat2: props.wazifa.finished_degree ?? 0, stat2Label: wc('wazifa', 'stat2', t('home.finishedDegree', 'finished degree')),
-      cta: wc('wazifa', 'cta', t('home.applyOrSponsor', 'Apply or sponsor a student')), href: '/education' },
+      cta: wc('wazifa', 'cta', t('home.applyOrSponsor', 'Apply or sponsor a student')), href: '/portal/wazifa' },
     { key: 'welfare_4', emoji: '🪔', tint: 'bg-amber-50', kicker: t('sj.pageTitle', 'Esal-e-Sawab'),
       head: wc('esal', 'headline', isUrdu ? 'جب تک پانی بہتا رہے، ثواب پہنچتا رہے' : 'While the water still runs, the reward still reaches them.'),
       stat1: props.sadqaWorking, stat1Label: wc('esal', 'stat1', t('home.stillWorking', 'still working today')),
@@ -105,13 +105,16 @@ export function Home2(props: Home2Props) {
       cta: wc('esal', 'cta', t('home.seeBoard', 'See the board, or give one')), href: '/sadqa-jariya' },
   ]
 
+  // Real routes (matching the original CareerCards.tsx component exactly):
+  // mentors/institutes/training-programs are portal-only action flows,
+  // not public info pages -- only Talent Showcase has a public page.
   const mentorCards = [
     { key: 'mentor_1', emoji: '🧑‍🏫', tint: 'bg-emerald-50', kicker: t('home.mentorsAvailable', 'Mentors available'), count: props.careerCounts.mentors_available ?? 0,
-      head: t('home.mentorHead', 'Talk to someone who’s already there'), href: '/mentor-directory' },
+      head: t('home.mentorHead', 'Talk to someone who’s already there'), href: '/portal/mentors' },
     { key: 'mentor_2', emoji: '🏫', tint: 'bg-blue-50', kicker: t('home.institutesListed', 'Institutes listed'), count: props.careerCounts.institutes ?? 0,
-      head: t('home.institutesHead', 'Real places, not just links'), href: '/education' },
+      head: t('home.institutesHead', 'Real places, not just links'), href: '/portal/institutes' },
     { key: 'mentor_3', emoji: '🛠️', tint: 'bg-orange-50', kicker: t('home.openNow', 'Open now'), count: props.careerCounts.training_programs_open ?? 0,
-      head: t('home.trainingHead', 'Hands-on sessions, close to home'), href: '/training-programs' },
+      head: t('home.trainingHead', 'Hands-on sessions, close to home'), href: '/portal/training-programs' },
     { key: 'mentor_4', emoji: '⭐', tint: 'bg-yellow-50', kicker: t('home.featured', 'Featured'), count: props.careerCounts.talent_showcased ?? 0,
       head: t('home.talentHead', 'Talented villagers, and how to help'), href: '/talent' },
   ]
@@ -126,7 +129,7 @@ export function Home2(props: Home2Props) {
   const cur = fundTabs[Math.min(fundTab, fundTabs.length - 1)]
 
   return (
-    <div className="min-h-full flex flex-col bg-dp2-surface relative">
+    <div dir={isUrdu ? 'rtl' : 'ltr'} className="min-h-full flex flex-col bg-dp2-surface relative">
       <Header2 />
 
       <main className="flex-1 pb-20 lg:pb-8">
